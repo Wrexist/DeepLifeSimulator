@@ -43,6 +43,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { initialGameState } from '@/contexts/game/initialState';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -73,6 +75,8 @@ import {
   contributeToSavingsGoal,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
+
+const LinearGradient = LinearGradientFallback;
 
 type Tab = 'overview' | 'accounts' | 'borrow' | 'budget';
 
@@ -215,24 +219,56 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const checking = banking.accounts.find((a) => a.type === 'checking');
 
     return (
-      <View style={{ gap: responsiveSpacing.md }}>
+      <View style={{ gap: responsiveSpacing.sm }}>
+        {/* Hero — net-position headline (Recipe B: the ONE focal gradient of
+            this screen). Mirrors the phone Bank's "OVERVIEW" treatment. */}
+        <View
+          style={[
+            getGlassCard(darkMode, 12),
+            {
+              backgroundColor: theme.surface,
+              borderColor: darkMode ? theme.glassBorder : theme.border,
+              borderWidth: 1,
+              borderRadius: responsiveBorderRadius['2xl'],
+            },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(59, 130, 246, 0.14)', 'rgba(59, 130, 246, 0.03)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroBlob} />
+            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>OVERVIEW</Text>
+            <View style={styles.statRow}>
+              <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
+              <Stat theme={theme} icon={PiggyBank} label="In bank" value={formatMoney(totalBank)} />
+              <Stat theme={theme} icon={TrendingUp} label="Net worth" value={formatMoney(netWorth)} />
+              <Stat
+                theme={theme}
+                icon={CardIcon}
+                label="Total debt"
+                value={formatMoney(totalCardDebt + totalLoanDebt)}
+                negative={totalCardDebt + totalLoanDebt > 0}
+              />
+            </View>
+          </View>
+        </View>
+
         <EconomyEventBanner context="banking" />
         <CreditScoreGauge score={banking.creditScore.score} band={banking.creditScore.band} darkMode={darkMode} />
-
-        <View style={styles.statGrid}>
-          <StatCard theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
-          <StatCard theme={theme} icon={PiggyBank} label="In bank" value={formatMoney(totalBank)} />
-          <StatCard theme={theme} icon={TrendingUp} label="Net worth" value={formatMoney(netWorth)} />
-          <StatCard theme={theme} icon={CardIcon} label="Total debt" value={formatMoney(totalCardDebt + totalLoanDebt)} negative={totalCardDebt + totalLoanDebt > 0} />
-        </View>
 
         <SectionTitle theme={theme}>Accounts</SectionTitle>
         {banking.accounts.slice(0, 3).map((acct) => (
           <AccountRow key={acct.id} account={acct} currentWeek={gameState.weeksLived} darkMode={darkMode} />
         ))}
         {banking.accounts.length > 3 && (
-          <TouchableOpacity onPress={() => setActiveTab('accounts')}>
-            <Text style={[styles.linkText, { color: theme.textSecondary }]}>
+          <TouchableOpacity onPress={() => setActiveTab('accounts')} accessibilityRole="button">
+            <Text style={[styles.linkText, { color: accent.info }]}>
               See all {banking.accounts.length} accounts →
             </Text>
           </TouchableOpacity>
@@ -247,23 +283,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </>
         )}
 
-        <CreditScoreBreakdown theme={theme} breakdown={banking.creditScore.componentBreakdown} />
+        <CreditScoreBreakdown theme={theme} darkMode={darkMode} breakdown={banking.creditScore.componentBreakdown} />
       </View>
     );
   };
 
   const renderAccounts = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Accounts</Text>
-        <TouchableOpacity
-          onPress={() => setShowOpenAccount(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Open</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ gap: responsiveSpacing.sm }}>
+      <SectionHeader theme={theme} title="Your Accounts" addLabel="Open" onAdd={() => setShowOpenAccount(true)} />
       {banking.accounts.map((acct) => (
         <AccountRow
           key={acct.id}
@@ -276,32 +303,28 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         />
       ))}
 
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Savings Goals</Text>
-        <TouchableOpacity
-          onPress={() => Alert.alert('What are you saving for?', undefined, [
-              { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
-              { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
-              {
-                text: 'More…',
-                onPress: () =>
-                  Alert.alert('What are you saving for?', undefined, [
-                    { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
-                    { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
-                    { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
-                  ]),
-              },
-            ])}
-          style={[styles.addBtn, { backgroundColor: accent.success }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>New</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader
+        theme={theme}
+        title="Savings Goals"
+        addLabel="New"
+        onAdd={() => Alert.alert('What are you saving for?', undefined, [
+            { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
+            { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
+            {
+              text: 'More…',
+              onPress: () =>
+                Alert.alert('What are you saving for?', undefined, [
+                  { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
+                  { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
+                  { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
+                ]),
+            },
+          ])}
+      />
       {banking.savingsGoals.length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+        <EmptyCard theme={theme} darkMode={darkMode}>
           No savings goals yet. Set one to track progress toward an emergency fund, a down payment, or retirement.
-        </Text>
+        </EmptyCard>
       ) : (
         banking.savingsGoals.map((g) => (
           <SavingsGoalCard
@@ -316,39 +339,21 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   );
 
   const renderBorrow = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Loans</Text>
-        <TouchableOpacity
-          onPress={() => setShowLoanQuote(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Apply</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ gap: responsiveSpacing.sm }}>
+      <SectionHeader theme={theme} title="Loans" addLabel="Apply" onAdd={() => setShowLoanQuote(true)} />
       {(gameState.loans ?? []).length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.textMuted }]}>No active loans.</Text>
+        <EmptyCard theme={theme} darkMode={darkMode}>No active loans.</EmptyCard>
       ) : (
         (gameState.loans ?? []).map((loan) => (
           <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => openLoanActions(loan)} />
         ))
       )}
 
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Credit Cards</Text>
-        <TouchableOpacity
-          onPress={() => setShowApplyCard(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Apply</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader theme={theme} title="Credit Cards" addLabel="Apply" onAdd={() => setShowApplyCard(true)} />
       {banking.creditCards.length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+        <EmptyCard theme={theme} darkMode={darkMode}>
           No cards yet. Apply for one to build credit history (eligibility depends on your score).
-        </Text>
+        </EmptyCard>
       ) : (
         banking.creditCards.map((c) => (
           <CreditCardRow key={c.id} card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
@@ -358,24 +363,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   );
 
   const renderBudget = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.sm }}>
       <SectionTitle theme={theme}>Recent Spending</SectionTitle>
       <BudgetBreakdown buckets={banking.budgetSpend} darkMode={darkMode} />
 
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Auto-Pay Rules</Text>
-        <TouchableOpacity
-          onPress={() => setShowAddBill(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Add</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader theme={theme} title="Auto-Pay Rules" addLabel="Add" onAdd={() => setShowAddBill(true)} />
       {banking.billPayRules.length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+        <EmptyCard theme={theme} darkMode={darkMode}>
           No bills set up. Add a recurring rule and we&apos;ll auto-debit it each week from your chosen account.
-        </Text>
+        </EmptyCard>
       ) : (
         banking.billPayRules.map((rule) => (
           <BillPayRow
@@ -400,13 +396,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // --- Frame ---------------------------------------------------------------
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Bank</Text>
-        <View style={[styles.scoreChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <Text style={[styles.scoreChipText, { color: theme.text }]}>{banking.creditScore.score}</Text>
+        <View style={[styles.scoreChip, { backgroundColor: 'rgba(59, 130, 246, 0.14)', borderColor: 'rgba(59, 130, 246, 0.30)' }]}>
+          <Text style={[styles.scoreChipText, { color: theme.text }]}>{banking.creditScore?.score ?? 0}</Text>
         </View>
       </View>
 
@@ -620,37 +622,95 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   );
 }
 
-function StatCard({
+function Stat({
+  theme,
   icon: Icon,
   label,
   value,
-  theme,
   negative,
 }: {
+  theme: ReturnType<typeof getThemeColors>;
   icon: React.ComponentType<{ size: number; color: string }>;
   label: string;
   value: string;
-  theme: ReturnType<typeof getThemeColors>;
   negative?: boolean;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <Icon size={scale(14)} color={theme.textMuted} />
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: negative ? accent.danger : theme.text }]}>{value}</Text>
+    <View style={styles.statCell}>
+      <View style={styles.statTop}>
+        <Icon size={scale(14)} color={negative ? accent.danger : accent.info} />
+        <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+      </View>
+      <Text
+        style={[styles.statValue, { color: negative ? accent.danger : theme.text }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
+  return <Text style={[styles.sectionTitle, styles.sectionSpacer, { color: theme.text }]}>{children}</Text>;
+}
+
+function SectionHeader({
+  theme,
+  title,
+  addLabel,
+  onAdd,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  title: string;
+  addLabel?: string;
+  onAdd?: () => void;
+}) {
+  return (
+    <View style={styles.headerRow}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {onAdd && (
+        <TouchableOpacity
+          onPress={onAdd}
+          style={styles.addChip}
+          accessibilityRole="button"
+          accessibilityLabel={addLabel}
+        >
+          <Plus size={scale(12)} color={accent.info} />
+          <Text style={styles.addChipText}>{addLabel ?? 'Add'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function EmptyCard({
+  theme,
+  darkMode,
+  children,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
+  children: React.ReactNode;
+}) {
+  // Give empty sections the same Recipe A card so they share the rhythm of
+  // populated rows instead of floating as bare text (content at 60% opacity).
+  return (
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
 }
 
 function CreditScoreBreakdown({
   theme,
+  darkMode,
   breakdown,
 }: {
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
   breakdown: { paymentHistory: number; utilization: number; accountAge: number; creditMix: number; inquiries: number };
 }) {
   const rows: { label: string; value: number; weight: string }[] = [
@@ -661,7 +721,7 @@ function CreditScoreBreakdown({
     { label: 'Recent inquiries', value: breakdown.inquiries, weight: '10%' },
   ];
   return (
-    <View style={[styles.breakdownCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+    <View style={[getGlassCard(darkMode, 6), styles.breakdownCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Score breakdown</Text>
       {rows.map((r) => (
         <View key={r.label} style={styles.breakdownRow}>
@@ -669,13 +729,13 @@ function CreditScoreBreakdown({
             <Text style={[styles.breakdownLabel, { color: theme.text }]}>
               {r.label} <Text style={{ color: theme.textMuted }}>· {r.weight}</Text>
             </Text>
-            <View style={[styles.miniTrack, { backgroundColor: theme.border }]}>
+            <View style={[styles.miniTrack, { backgroundColor: theme.surfaceElevated }]}>
               <View
                 style={[
                   styles.miniFill,
                   {
                     width: `${Math.max(0, Math.min(100, r.value))}%`,
-                    backgroundColor: r.value >= 70 ? accent.success : r.value >= 40 ? '#f59e0b' : accent.danger,
+                    backgroundColor: r.value >= 70 ? accent.success : r.value >= 40 ? accent.warning : accent.danger,
                   },
                 ]}
               />
@@ -703,10 +763,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  backBtn: { padding: responsiveSpacing.xs },
+  backBtn: {
+    minWidth: scale(40),
+    minHeight: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
   scoreChip: {
     paddingHorizontal: responsiveSpacing.sm,
@@ -714,7 +778,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -730,45 +794,90 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  statGrid: {
+
+  // Hero (Recipe B): outer View carries the shadow; heroInner clips the tints.
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(59, 130, 246, 0.10)',
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroEyebrow: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: responsiveSpacing.sm,
+  },
+  statRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: responsiveSpacing.sm,
   },
-  statCard: {
-    flex: 1,
-    minWidth: '46%',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    gap: 2,
+  statCell: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    gap: scale(4),
+  },
+  statTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
   },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.lg, fontWeight: '800' },
+  statValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
-    marginTop: responsiveSpacing.xs,
+    letterSpacing: 0.2,
+  },
+  sectionSpacer: {
+    marginTop: responsiveSpacing.md,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: responsiveSpacing.xs,
+    marginTop: responsiveSpacing.md,
   },
-  addBtn: {
+  addChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
   },
-  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  addChipText: { color: accent.info, fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  emptyCard: {
+    borderRadius: responsiveBorderRadius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.md,
+  },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.lg,
+    opacity: 0.6,
   },
   linkText: {
     fontSize: responsiveFontSize.sm,
@@ -778,9 +887,10 @@ const styles = StyleSheet.create({
   },
   breakdownCard: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     gap: responsiveSpacing.sm,
+    marginTop: responsiveSpacing.md,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -788,7 +898,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   breakdownLabel: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  breakdownValue: { fontSize: responsiveFontSize.md, fontWeight: '700', minWidth: scale(28), textAlign: 'right' },
+  breakdownValue: { fontSize: responsiveFontSize.md, fontWeight: '700', minWidth: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
   miniTrack: {
     height: scale(4),
     borderRadius: responsiveBorderRadius.full,

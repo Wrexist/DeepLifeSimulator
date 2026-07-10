@@ -42,6 +42,8 @@ import { trendOf } from '@/lib/statistics/trends';
 import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -49,6 +51,10 @@ import {
   scale,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+
+const LinearGradient = LinearGradientFallback;
+/** Identity accent (blue #3B82F6) as an "R, G, B" string for translucent tints. */
+const ACCENT_RGB = '59, 130, 246';
 
 type TabType = 'overview' | 'systems' | 'milestones' | 'planning';
 
@@ -96,28 +102,54 @@ export default function StatisticsApp({ onBack }: Props) {
 
   const renderOverview = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Net worth</Text>
-        <Text style={[styles.heroValue, { color: theme.text }]}>
-          ${Math.round(netWorth).toLocaleString()}
-        </Text>
-        <View style={styles.trendRow}>
-          <TrendBadge trend={netWorthTrend} theme={theme} label="vs prior weeks" />
-        </View>
-        <View style={styles.peakRow}>
-          <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>Peak</Text>
-          <Text style={[styles.peakValue, { color: accent.gold }]}>
-            ${Math.round((lifetime.peakNetWorth ?? netWorth)).toLocaleString()}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          {
+            backgroundColor: theme.surface,
+            borderColor: darkMode ? theme.glassBorder : theme.border,
+            borderWidth: 1,
+            borderRadius: br['2xl'],
+          },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[`rgba(${ACCENT_RGB}, 0.14)`, `rgba(${ACCENT_RGB}, 0.03)`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
+          <Text
+            style={[styles.heroValue, { color: theme.text }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
+            ${Math.round(netWorth).toLocaleString()}
           </Text>
-          {typeof lifetime.peakNetWorthWeek === 'number' ? (
-            <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>
-              week {lifetime.peakNetWorthWeek}
+          <View style={styles.trendRow}>
+            <TrendBadge trend={netWorthTrend} theme={theme} label="vs prior weeks" />
+          </View>
+          <View style={styles.peakRow}>
+            <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
+            <Text style={[styles.peakValue, { color: accent.gold }]}>
+              ${Math.round((lifetime.peakNetWorth ?? netWorth)).toLocaleString()}
             </Text>
-          ) : null}
+            {typeof lifetime.peakNetWorthWeek === 'number' ? (
+              <Text style={[styles.peakLabel, { color: theme.textMuted }]}>
+                week {lifetime.peakNetWorthWeek}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Lifetime money</Text>
         <View style={styles.statsRow}>
           <MoneyStat label="Earned" value={`$${Math.round((lifetime.totalMoneyEarned ?? 0)).toLocaleString()}`} color={accent.success} theme={theme} />
@@ -131,7 +163,7 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Income velocity</Text>
         <TrendBadge trend={earningsTrend} theme={theme} label="weekly earnings" />
         <View style={styles.statsRow}>
@@ -150,7 +182,7 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Life snapshot</Text>
         <View style={styles.gridRow}>
           <Counter label="Companies" value={lifetime.totalCompaniesOwned ?? 0} theme={theme} />
@@ -167,10 +199,11 @@ export default function StatisticsApp({ onBack }: Props) {
       {summary.netFavorMoney !== 0 ? (
         <View
           style={[
+            getGlassCard(darkMode, 6),
             styles.statsCard,
             {
               backgroundColor: theme.surface,
-              borderColor: summary.netFavorMoney >= 0 ? accent.success : accent.danger,
+              borderColor: theme.border,
             },
           ]}
         >
@@ -190,14 +223,18 @@ export default function StatisticsApp({ onBack }: Props) {
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {summary.cards.length === 0 ? (
         <View style={styles.empty}>
-          <Layers size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 56), styles.emptyIcon]}>
+            <Layers size={scale(26)} color={accent.info} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No system data yet</Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             Play through the other apps and metrics will populate here.
           </Text>
         </View>
       ) : (
-        summary.cards.map((card) => <SystemCardView key={card.id} card={card} theme={theme} />)
+        summary.cards.map((card) => (
+          <SystemCardView key={card.id} card={card} theme={theme} darkMode={darkMode} />
+        ))
       )}
     </ScrollView>
   );
@@ -206,39 +243,49 @@ export default function StatisticsApp({ onBack }: Props) {
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {milestones.length === 0 ? (
         <View style={styles.empty}>
-          <Trophy size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 56), styles.emptyIcon]}>
+            <Trophy size={scale(26)} color={accent.info} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No milestones yet</Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             Cross thresholds and they'll appear here.
           </Text>
         </View>
       ) : (
-        milestones.map((m) => (
-          <View
-            key={m.id}
-            style={[styles.milestoneCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          >
-            <View style={[styles.milestoneIcon, { backgroundColor: categoryColor(m.category) }]}>
-              <Sparkles size={scale(14)} color="white" />
+        milestones.map((m) => {
+          const cc = categoryColor(m.category);
+          return (
+            <View
+              key={m.id}
+              style={[getGlassCard(darkMode, 6), styles.milestoneCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            >
+              <View
+                style={[
+                  getGlassIconContainer(darkMode, 40),
+                  { backgroundColor: withAlpha(cc, 0.15), borderWidth: 1, borderColor: withAlpha(cc, 0.3) },
+                ]}
+              >
+                <Sparkles size={scale(18)} color={cc} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardName, { color: theme.text }]}>{m.label}</Text>
+                {m.context ? (
+                  <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{m.context}</Text>
+                ) : null}
+              </View>
+              <View style={[styles.tag, { backgroundColor: withAlpha(cc, 0.14) }]}>
+                <Text style={[styles.tagText, { color: cc }]}>{m.category}</Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardName, { color: theme.text }]}>{m.label}</Text>
-              {m.context ? (
-                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{m.context}</Text>
-              ) : null}
-            </View>
-            <View style={[styles.tag, { borderColor: categoryColor(m.category) }]}>
-              <Text style={[styles.tagText, { color: categoryColor(m.category) }]}>{m.category}</Text>
-            </View>
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
 
   const renderPlanning = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Life expectancy</Text>
         <View style={styles.statsRow}>
           <MoneyStat label="Total" value={`${Math.round(lifeExp.totalLifeExpectancy)}y`} color={accent.info} theme={theme} />
@@ -249,7 +296,7 @@ export default function StatisticsApp({ onBack }: Props) {
         ))}
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>FIRE tracker</Text>
         <View style={styles.statsRow}>
           <MoneyStat label="Number" value={`$${Math.round(fire.fireNumber).toLocaleString()}`} color={accent.gold} theme={theme} />
@@ -271,7 +318,7 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Retirement plan (age 65)</Text>
         <View style={styles.statsRow}>
           <MoneyStat
@@ -302,7 +349,7 @@ export default function StatisticsApp({ onBack }: Props) {
       </View>
 
       {gameState.previousLives?.length ? (
-        <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Past lives</Text>
           {gameState.previousLives.slice(0, 5).map((pl, idx: number) => (
             <View key={idx} style={styles.pastLifeRow}>
@@ -319,15 +366,28 @@ export default function StatisticsApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
-          <ArrowLeft size={scale(18)} color={theme.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Statistics</Text>
-        <Text style={[styles.headerCash, { color: theme.textSecondary }]}>Wk {week}</Text>
+        <View
+          style={[
+            styles.weekChip,
+            { backgroundColor: `rgba(${ACCENT_RGB}, 0.14)`, borderColor: `rgba(${ACCENT_RGB}, 0.3)` },
+          ]}
+        >
+          <Text style={[styles.weekChipText, { color: theme.text }]}>Wk {week}</Text>
+        </View>
       </View>
 
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.tabBar, { borderColor: theme.border }]}>
         {[
           { id: 'overview' as TabType, label: 'Overview', Icon: Activity },
           { id: 'systems' as TabType, label: 'Systems', Icon: Layers },
@@ -342,11 +402,11 @@ export default function StatisticsApp({ onBack }: Props) {
               activeTab === id && { borderBottomColor: accent.info, borderBottomWidth: 2 },
             ]}
           >
-            <Icon size={scale(14)} color={activeTab === id ? accent.info : theme.textSecondary} />
+            <Icon size={scale(14)} color={activeTab === id ? accent.info : theme.textMuted} />
             <Text
               style={[
                 styles.tabText,
-                { color: activeTab === id ? accent.info : theme.textSecondary },
+                { color: activeTab === id ? accent.info : theme.textMuted },
               ]}
             >
               {label}
@@ -390,17 +450,20 @@ function TrendBadge({
 function SystemCardView({
   card,
   theme,
+  darkMode,
 }: {
   card: SystemCard;
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
 }) {
   return (
     <View
       style={[
+        getGlassCard(darkMode, 6),
         styles.systemCard,
         {
           backgroundColor: theme.surface,
-          borderColor: card.warning ? accent.warning : theme.border,
+          borderColor: theme.border,
         },
       ]}
     >
@@ -470,6 +533,16 @@ function Counter({
   );
 }
 
+/** Convert a 6-digit hex color to an rgba() string with the given alpha. */
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function categoryColor(category: string): string {
   switch (category) {
     case 'wealth': return accent.gold;
@@ -492,52 +565,83 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
-    borderBottomWidth: 1,
   },
   headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
-  headerCash: { fontSize: fs.sm, fontWeight: '700' },
+  headerTitle: { fontSize: fs.lg, fontWeight: '700' },
+  weekChip: {
+    paddingHorizontal: sp.sm,
+    paddingVertical: 4,
+    borderRadius: br.full,
+    borderWidth: 1,
+  },
+  weekChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: sp.xs },
   tabText: { fontSize: fs.sm, fontWeight: '700' },
-  heroCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.xs },
-  heroLabel: { fontSize: fs.xs },
-  heroValue: { fontSize: fs['3xl'], fontWeight: '800' },
+  heroInner: {
+    borderRadius: br['2xl'],
+    overflow: 'hidden',
+    padding: sp.lg,
+    gap: sp.xs,
+  },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: `rgba(${ACCENT_RGB}, 0.1)`,
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8 },
+  heroValue: { fontSize: fs['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
   trendRow: { marginTop: sp.xs },
   trendBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  trendText: { fontSize: fs.sm, fontWeight: '800' },
+  trendText: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
   trendLabel: { fontSize: fs.xs },
   peakRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
   peakLabel: { fontSize: fs.xs },
-  peakValue: { fontSize: fs.md, fontWeight: '800' },
-  statsCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
-  sectionTitle: { fontSize: fs.sm, fontWeight: '800', textTransform: 'uppercase' },
+  peakValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  statsCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
+  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
   // Wrap so 3-up money rows can drop to 2-per-row when long $ values would
   // truncate at ~115pt. flexBasis 32% keeps 3-up when content is short.
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
   moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(96) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800' },
+  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   moneyLabel: { fontSize: fs.xs, marginTop: 2 },
   gridRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: sp.xs },
   counter: { alignItems: 'center', flex: 1 },
-  counterValue: { fontSize: fs.lg, fontWeight: '800' },
+  counterValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   counterLabel: { fontSize: fs.xs, marginTop: 2 },
-  systemCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.xs },
+  systemCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.xs },
   systemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  systemLabel: { fontSize: fs.sm, fontWeight: '800', textTransform: 'uppercase' },
-  systemLead: { fontSize: fs['2xl'], fontWeight: '800' },
+  systemLabel: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
+  systemLead: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
   systemLeadLabel: { fontSize: fs.xs },
   systemDetails: { marginTop: sp.xs, gap: sp.xs },
   systemDetailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   warnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   warnText: { fontSize: fs.xs, fontWeight: '700' },
-  cardName: { fontSize: fs.sm, fontWeight: '800' },
+  cardName: { fontSize: fs.md, fontWeight: '700' },
   cardSub: { fontSize: fs.xs },
-  milestoneCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
-  milestoneIcon: { width: scale(32), height: scale(32), borderRadius: scale(16), alignItems: 'center', justifyContent: 'center' },
-  tag: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
+  milestoneCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
+  tag: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full },
   tagText: { fontSize: fs.xs, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
+  emptyIcon: {
+    backgroundColor: `rgba(${ACCENT_RGB}, 0.15)`,
+    borderWidth: 1,
+    borderColor: `rgba(${ACCENT_RGB}, 0.3)`,
+  },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
   emptySub: { fontSize: fs.sm, textAlign: 'center' },
   recItem: { fontSize: fs.xs, marginTop: sp.xs },

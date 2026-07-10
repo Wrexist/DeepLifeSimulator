@@ -33,8 +33,10 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ApprovalGauge from '@/components/politics/ApprovalGauge';
@@ -58,6 +60,14 @@ import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { getPolicyById } from '@/lib/politics/policies';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
+
+const LinearGradient = LinearGradientFallback;
+
+// Identity accent — sky #60A5FA. Solid only on small CTAs / badges; everywhere
+// else it appears as a translucent tint (fills 0.12–0.18, rims 0.28–0.36,
+// hero wash 0.10–0.16 flat). rgb = 96,165,250.
+const SKY = '#60A5FA';
+const sky = (a: number) => `rgba(96, 165, 250, ${a})`;
 
 // Office rank (careerLevel) → the office you run for NEXT. careerLevel is the
 // 1-based rank (0=Citizen … 6=President); index N is the next step up.
@@ -180,29 +190,57 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     <View style={{ gap: responsiveSpacing.md }}>
       <EconomyEventBanner context="generic" />
 
-      <ApprovalGauge approval={politics.approvalRating ?? 50} darkMode={darkMode} />
-
-      <View style={[styles.statusCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={[styles.iconBubble, { backgroundColor: careerLevel > 0 ? accent.info : theme.surface }]}>
-          <Vote size={scale(20)} color={careerLevel > 0 ? 'white' : theme.textMuted} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.officeLabel, { color: theme.textMuted }]}>Current office</Text>
-          <Text style={[styles.officeName, { color: theme.text }]}>{officeName}</Text>
-          {politics.party && (
-            <Text style={[styles.party, { color: theme.textSecondary }]}>
-              {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} Party
-            </Text>
-          )}
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.statBig, { color: theme.text }]}>{politics.electionsWon ?? 0}</Text>
-          <Text style={[styles.statLabel, { color: theme.textMuted }]}>Elections won</Text>
+      {/* Recipe B hero — the political identity headline for the Office screen. */}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          styles.heroCard,
+          { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[sky(0.14), sky(0.03)]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+          <View style={styles.heroRow}>
+            <View
+              style={[
+                getGlassIconContainer(darkMode, 44),
+                styles.heroBubble,
+                { backgroundColor: sky(0.15), borderColor: sky(0.3) },
+              ]}
+            >
+              <Vote size={scale(22)} color={SKY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CURRENT OFFICE</Text>
+              <Text style={[styles.heroName, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                {officeName}
+              </Text>
+              {politics.party && (
+                <Text style={[styles.party, { color: theme.textSecondary }]}>
+                  {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} Party
+                </Text>
+              )}
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[styles.heroStat, { color: theme.text }]}>{politics.electionsWon ?? 0}</Text>
+              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Elections won</Text>
+            </View>
+          </View>
         </View>
       </View>
 
+      <ApprovalGauge approval={politics.approvalRating ?? 50} darkMode={darkMode} />
+
       {weeksToElection != null && (
-        <View style={[styles.electionCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 6), styles.electionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Calendar size={scale(16)} color={accent.warning} />
           <Text style={[styles.electionText, { color: theme.text }]}>
             Next election in {weeksToElection} {weeksToElection === 1 ? 'week' : 'weeks'}
@@ -211,23 +249,36 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       )}
 
       <View style={styles.statGrid}>
-        <StatCard theme={theme} icon={Handshake} label="Lobbyists" value={String((politics.lobbyists ?? []).length)} />
-        <StatCard theme={theme} icon={Trophy} label="Influence" value={String(Math.round(politics.policyInfluence ?? 0))} />
-        <StatCard theme={theme} icon={ClipboardList} label="Policies" value={String((politics.policiesEnacted ?? []).length)} />
+        <StatCard theme={theme} darkMode={darkMode} icon={Handshake} label="Lobbyists" value={String((politics.lobbyists ?? []).length)} />
+        <StatCard theme={theme} darkMode={darkMode} icon={Trophy} label="Influence" value={String(Math.round(politics.policyInfluence ?? 0))} />
+        <StatCard theme={theme} darkMode={darkMode} icon={ClipboardList} label="Policies" value={String((politics.policiesEnacted ?? []).length)} />
       </View>
 
       {/* Primary action: run for the next office up (or the first office as a
           citizen). runForOffice enforces age / reputation / education / cash and
           rolls the election; its message explains any gate. */}
       {nextOfficeKey ? (
-        <TouchableOpacity onPress={handleRunForOffice} style={[styles.enactCta, { backgroundColor: accent.info }]}>
-          <Vote size={scale(16)} color="white" />
-          <Text style={styles.enactCtaText}>
-            Run for {OFFICE_TITLE[nextOfficeKey]} · {formatMoney(CAMPAIGN_COST[nextOfficeKey])}
-          </Text>
+        <TouchableOpacity
+          onPress={handleRunForOffice}
+          activeOpacity={0.85}
+          style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
+          accessibilityRole="button"
+          accessibilityLabel={`Run for ${OFFICE_TITLE[nextOfficeKey]}`}
+        >
+          <LinearGradient
+            colors={[SKY, accent.info]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.ctaFill}
+          >
+            <Vote size={scale(16)} color="white" />
+            <Text style={styles.enactCtaText}>
+              Run for {OFFICE_TITLE[nextOfficeKey]} · {formatMoney(CAMPAIGN_COST[nextOfficeKey])}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       ) : (
-        <View style={[styles.electionCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 6), styles.electionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Trophy size={scale(16)} color={accent.warning} />
           <Text style={[styles.electionText, { color: theme.text }]}>You hold the highest office in the land.</Text>
         </View>
@@ -237,10 +288,13 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           protects your seat when re-election comes around. */}
       <TouchableOpacity
         onPress={() => setShowCampaign(true)}
-        style={[styles.secondaryCta, { borderColor: accent.info }]}
+        activeOpacity={0.85}
+        style={[getGlassButton(darkMode), styles.secondaryCta]}
+        accessibilityRole="button"
+        accessibilityLabel="Fund a campaign push to raise approval"
       >
-        <TrendingUp size={scale(15)} color={accent.info} />
-        <Text style={[styles.secondaryCtaText, { color: accent.info }]}>Fund a campaign push (raise approval)</Text>
+        <TrendingUp size={scale(15)} color={SKY} />
+        <Text style={[styles.secondaryCtaText, { color: SKY }]}>Fund a campaign push (raise approval)</Text>
       </TouchableOpacity>
 
       {/* Party affiliation — unlocks party events and a small approval bump. */}
@@ -249,14 +303,17 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           Registered with the {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} Party.
         </Text>
       ) : (
-        <View style={{ gap: responsiveSpacing.xs }}>
+        <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle theme={theme}>Choose a party</SectionTitle>
           <View style={styles.partyRow}>
             {PARTIES.map((p) => (
               <TouchableOpacity
                 key={p.id}
                 onPress={() => handleJoinParty(p.id)}
-                style={[styles.partyBtn, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+                activeOpacity={0.85}
+                style={[getGlassButton(darkMode), styles.partyBtn]}
+                accessibilityRole="button"
+                accessibilityLabel={`Join ${p.label} Party`}
               >
                 <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.label}</Text>
               </TouchableOpacity>
@@ -271,13 +328,39 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     const enacted = politics.policiesEnacted ?? [];
     return (
       <View style={{ gap: responsiveSpacing.md }}>
-        <View style={[styles.statusCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <View style={[styles.iconBubble, { backgroundColor: accent.info }]}>
-            <ClipboardList size={scale(18)} color="white" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.officeLabel, { color: theme.textMuted }]}>Policies enacted</Text>
-            <Text style={[styles.officeName, { color: theme.text }]}>{enacted.length}</Text>
+        {/* Recipe B hero — policies-enacted headline for the Policies screen. */}
+        <View
+          style={[
+            getGlassCard(darkMode, 12),
+            styles.heroCard,
+            { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={[sky(0.14), sky(0.03)]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroBlob} />
+            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+            <View style={styles.heroRow}>
+              <View
+                style={[
+                  getGlassIconContainer(darkMode, 44),
+                  styles.heroBubble,
+                  { backgroundColor: sky(0.15), borderColor: sky(0.3) },
+                ]}
+              >
+                <ClipboardList size={scale(22)} color={SKY} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>POLICIES ENACTED</Text>
+                <Text style={[styles.heroName, { color: theme.text }]}>{enacted.length}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -287,25 +370,33 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         <TouchableOpacity
           onPress={() => setShowEnactPolicy(true)}
           disabled={careerLevel === 0}
-          style={[
-            styles.enactCta,
-            { backgroundColor: careerLevel === 0 ? theme.border : accent.info },
-          ]}
+          activeOpacity={0.85}
+          style={[styles.ctaShadow, careerLevel !== 0 && getPlatformShadows(5, 0.3, 2, 8)]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: careerLevel === 0 }}
+          accessibilityLabel={careerLevel === 0 ? 'Win an election to enact policies' : 'Enact a policy'}
         >
-          <Text style={styles.enactCtaText}>
-            {careerLevel === 0 ? 'Win an election to enact policies' : 'Enact a policy'}
-          </Text>
+          <LinearGradient
+            colors={careerLevel === 0 ? [theme.surfaceElevated, theme.surfaceElevated] : [SKY, accent.info]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.ctaFill}
+          >
+            <Text style={[styles.enactCtaText, careerLevel === 0 && { color: theme.textMuted }]}>
+              {careerLevel === 0 ? 'Win an election to enact policies' : 'Enact a policy'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         {enacted.length === 0 ? (
-          <EmptyText theme={theme}>
+          <EmptyText theme={theme} darkMode={darkMode}>
             No policies enacted yet.
           </EmptyText>
         ) : (
           enacted.map((pid: string) => {
             const policy = getPolicyById(pid);
             return (
-              <View key={pid} style={[styles.policyRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+              <View key={pid} style={[getGlassCard(darkMode, 6), styles.policyRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.policyLabel, { color: theme.text }]}>{policy?.name ?? pid}</Text>
                 {policy?.description ? (
                   <Text style={[styles.policyDesc, { color: theme.textMuted }]} numberOfLines={2}>{policy.description}</Text>
@@ -342,7 +433,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
       <SectionTitle theme={theme}>Active Scandals</SectionTitle>
       {activeScandals.length === 0 ? (
-        <EmptyText theme={theme}>No active scandals. Keep it clean.</EmptyText>
+        <EmptyText theme={theme} darkMode={darkMode}>No active scandals. Keep it clean.</EmptyText>
       ) : (
         activeScandals.map((s) => (
           <ScandalRow
@@ -367,12 +458,18 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Politics</Text>
-        <View style={[styles.cashChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[styles.cashChip, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
           <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
         </View>
       </View>
@@ -385,10 +482,13 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             <TouchableOpacity
               key={t.id}
               onPress={() => setActiveTab(t.id)}
-              style={[styles.tab, active && { borderBottomColor: accent.info }]}
+              style={[styles.tab, active && { borderBottomColor: SKY }]}
+              accessibilityRole="button"
+              accessibilityLabel={t.label}
+              accessibilityState={{ selected: active }}
             >
-              <Icon size={scale(16)} color={active ? accent.info : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(16)} color={active ? SKY : theme.textMuted} />
+              <Text style={[styles.tabText, { color: active ? SKY : theme.textMuted }]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -516,26 +616,34 @@ function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeCo
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
 }
 
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
+  return (
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
 }
 
 function StatCard({
   theme,
+  darkMode,
   icon: Icon,
   label,
   value,
 }: {
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
   icon: React.ComponentType<{ size: number; color: string }>;
   label: string;
   value: string;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <Icon size={scale(14)} color={theme.textMuted} />
-      <Text style={[styles.statSmallLabel, { color: theme.textMuted }]}>{label}</Text>
+    <View style={[getGlassCard(darkMode, 6), styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassIconContainer(darkMode, 30), styles.statBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+        <Icon size={scale(14)} color={SKY} />
+      </View>
       <Text style={[styles.statSmallValue, { color: theme.text }]}>{value}</Text>
+      <Text style={[styles.statSmallLabel, { color: theme.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -550,20 +658,78 @@ export default function PoliticalApp(props: PoliticalAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  enactCta: {
+
+  // --- Hero (Recipe B) ---------------------------------------------------
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius['2xl'],
+  },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(96, 165, 250, 0.10)',
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.md,
+  },
+  heroBubble: { borderWidth: 1 },
+  heroEyebrow: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+  },
+  heroName: {
+    fontSize: responsiveFontSize['3xl'],
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  heroStat: {
+    fontSize: responsiveFontSize['3xl'],
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+
+  // --- Primary CTA (Recipe D) --------------------------------------------
+  ctaShadow: {
+    borderRadius: responsiveBorderRadius.full,
+    backgroundColor: SKY,
+  },
+  ctaFill: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: responsiveSpacing.xs,
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
     alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    minHeight: touchTargets.minimum,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
   },
   enactCtaText: {
     color: 'white',
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
   },
+
+  // --- Secondary CTA (glass button) --------------------------------------
   secondaryCta: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -571,29 +737,32 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: 1,
   },
   secondaryCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+
   partyRow: { flexDirection: 'row', gap: responsiveSpacing.sm },
   partyBtn: {
     flex: 1,
     paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: 1,
     alignItems: 'center',
   },
   partyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
   policyDesc: { fontSize: responsiveFontSize.xs, marginTop: 2 },
+
+  // --- Top bar + tabs ----------------------------------------------------
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  backBtn: { padding: responsiveSpacing.xs },
+  backBtn: {
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
   cashChip: {
     paddingHorizontal: responsiveSpacing.sm,
@@ -601,7 +770,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: {
     flex: 1,
@@ -614,60 +783,56 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    gap: responsiveSpacing.sm,
-  },
-  iconBubble: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  officeLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  officeName: { fontSize: responsiveFontSize.lg, fontWeight: '800' },
+
   party: { fontSize: responsiveFontSize.xs, marginTop: 2 },
-  statBig: { fontSize: responsiveFontSize.xl, fontWeight: '800' },
   statLabel: { fontSize: responsiveFontSize.xs },
+
   electionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.xs,
+    gap: responsiveSpacing.sm,
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
   },
-  electionText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  electionText: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
+
   statGrid: { flexDirection: 'row', gap: responsiveSpacing.sm },
   statCard: {
     flex: 1,
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.md,
     borderWidth: 1,
-    gap: 2,
+    borderRadius: responsiveBorderRadius.xl,
+    gap: responsiveSpacing.xs,
+    alignItems: 'flex-start',
   },
+  statBubble: { borderWidth: 1 },
   statSmallLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statSmallValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  statSmallValue: { fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
+
   policyRow: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
   },
-  policyLabel: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  helperText: { fontSize: responsiveFontSize.xs, fontStyle: 'italic' },
+  policyLabel: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  helperText: { fontSize: responsiveFontSize.xs, fontStyle: 'italic', lineHeight: responsiveFontSize.lg },
+
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
+    letterSpacing: 0.2,
     marginTop: responsiveSpacing.xs,
+  },
+  emptyCard: {
+    padding: responsiveSpacing.md,
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
+    opacity: 0.7,
   },
 });
