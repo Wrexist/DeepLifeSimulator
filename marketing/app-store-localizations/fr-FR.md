@@ -1,4 +1,4 @@
-# fr-FR — Deep Life Simulator
+# fr-FR - Deep Life Simulator
 
 ## app_name
 
@@ -15,7 +15,7 @@ Simulateur de vie et d'argent
 ## promotional_text
 
 ```text
-À 18 ans, tu n'as rien. Emprunts, bourse, immobilier, crime… Bâtis une fortune qui traverse les générations — ou perds tout. Chaque choix compte.
+À 18 ans, tu n'as rien. Emprunts, bourse, immobilier, crime… Bâtis une fortune qui traverse les générations - ou perds tout. Chaque choix compte.
 ```
 
 ## keywords
@@ -35,18 +35,18 @@ Tu commences à 18 ans, les poches vides et un potentiel illimité. Choisis ton 
 
 PLUS DE 20 CARRIÈRES
 
-Star, politicien, athlète, médecin, ingénieur, développeur, entrepreneur — ou plonge dans l'économie souterraine comme hacker, contrebandier ou voleur. Chaque carrière a sa progression, sa fourchette de revenus et ses conséquences. Ton métier détermine ton salaire, ta réputation… et parfois ton casier judiciaire.
+Star, politicien, athlète, médecin, ingénieur, développeur, entrepreneur - ou plonge dans l'économie souterraine comme hacker, contrebandier ou voleur. Chaque carrière a sa progression, sa fourchette de revenus et ses conséquences. Ton métier détermine ton salaire, ta réputation… et parfois ton casier judiciaire.
 
 UNE VRAIE MÉCANIQUE ÉCONOMIQUE
 
 Ce n'est pas BitLife. On a construit une vraie simulation économique :
 
-• Prêts et dettes — Emprunte avec intérêts. Rate une échéance et ton crédit plonge. Les intérêts composés jouent contre toi, comme dans la vraie vie.
-• Bourse et crypto — Trade chaque semaine. Les cours fluctuent. Tu peux devenir riche ou tout perdre. Le timing fait tout.
-• Immobilier — Achète des biens, encaisse des loyers, construis ton patrimoine. La pierre prend de la valeur. Les crédits ont des conditions.
-• Véhicules — Achète voitures et motos. Entretien, revente, décote : la dépréciation est bien réelle.
-• Faillite — Trop de mauvaises décisions et tu peux tout perdre. La remontée est possible, mais douloureuse.
-• Intérêts composés — Investis tôt et regarde ton argent grandir. C'est ça, le jeu. C'est ça, la victoire.
+• Prêts et dettes - Emprunte avec intérêts. Rate une échéance et ton crédit plonge. Les intérêts composés jouent contre toi, comme dans la vraie vie.
+• Bourse et crypto - Trade chaque semaine. Les cours fluctuent. Tu peux devenir riche ou tout perdre. Le timing fait tout.
+• Immobilier - Achète des biens, encaisse des loyers, construis ton patrimoine. La pierre prend de la valeur. Les crédits ont des conditions.
+• Véhicules - Achète voitures et motos. Entretien, revente, décote : la dépréciation est bien réelle.
+• Faillite - Trop de mauvaises décisions et tu peux tout perdre. La remontée est possible, mais douloureuse.
+• Intérêts composés - Investis tôt et regarde ton argent grandir. C'est ça, le jeu. C'est ça, la victoire.
 
 TA VIE, TES CHOIX
 
@@ -54,7 +54,7 @@ Chaque semaine apporte son lot d'opportunités et de galères. Marie-toi. Aie de
 
 Les relations comptent. Néglige ton conjoint et c'est le divorce. Ignore tes enfants et ils t'en voudront toute leur vie. Chaque relation a des conséquences.
 
-Le crime paie — mais à quel prix ? Vole, deale, pirate des multinationales. Fais tes preuves dans le milieu. Ou fais-toi prendre, passe par la case prison et repars de zéro.
+Le crime paie - mais à quel prix ? Vole, deale, pirate des multinationales. Fais tes preuves dans le milieu. Ou fais-toi prendre, passe par la case prison et repars de zéro.
 
 PRESTIGE ET FORTUNE GÉNÉRATIONNELLE
 
@@ -89,32 +89,32 @@ Lance-toi aujourd'hui. Bâtis ta fortune. Ou plante-toi avec panache. Dans tous 
 ## whats_new
 
 ```text
-v2.3.1 — Confort de jeu et corrections de crashs
+v2.3.1 - Confort de jeu et corrections de crashs
 
 On t'a écouté. Cette mise à jour mise tout sur la stabilité :
 
-✅ Plus de 70 bugs corrigés
-• Sauvegardes fiabilisées — fini la corruption des anciennes parties
-• Système d'achats revu — tous les bonus s'appliquent correctement
-• Économie cohérente — frais boursiers, loyers et valeurs des véhicules corrigés
+Plus de 70 bugs corrigés
+• Sauvegardes fiabilisées - fini la corruption des anciennes parties
+• Système d'achats revu - tous les bonus s'appliquent correctement
+• Économie cohérente - frais boursiers, loyers et valeurs des véhicules corrigés
 • Crashs au démarrage résolus
 
-✅ Système anti-malchance
+Système anti-malchance
 • Enfant garanti après 15 essais
 • Demande en mariage garantie à 95 %+ de relation
 • Embauche garantie avec le profil parfait
 • Événement garanti après 6 semaines sans rien
 • Max 1 maladie par 4 semaines (tu l'avais demandé)
 
-✅ Relations avec conséquences
+Relations avec conséquences
 • Ton partenaire te quitte après 8 semaines de négligence, divorce après 12
 • Compensations financières réalistes
 
-✅ Performances
+Performances
 • Calculs de revenus 90 % plus rapides, sauvegardes 80 % plus légères
 • Fluide même après 1000+ semaines de jeu
 
-Merci de jouer. Rejoins-nous sur Discord : discord.gg/deeplifesim
+Merci de jouer. Rejoins-nous sur Discord : discord.gg/invite/rzktazdX8v
 
 Pas de pubs imposées. Pas de pay-to-win. Juste une simulation de vie stratégique et équitable.
 ```
@@ -130,33 +130,33 @@ Pars de rien, deviens milliardaire. Un simulateur de vie à l'économie réelle.
 ```text
 BÂTIS TA VIE. ASSUME LES CONSÉQUENCES.
 
-Deep Life Simulator est un jeu de simulation de vie stratégique où l'argent compte vraiment : prêts, intérêts composés, bourse, immobilier, faillite et fortune générationnelle. Choisis ta carrière, deviens milliardaire — ou perds tout.
+Deep Life Simulator est un jeu de simulation de vie stratégique où l'argent compte vraiment : prêts, intérêts composés, bourse, immobilier, faillite et fortune générationnelle. Choisis ta carrière, deviens milliardaire - ou perds tout.
 
 PARS DE RIEN.
 
-Tu as 18 ans et pas un centime. Né riche, parti de la misère, ou reparti de zéro : à toi de choisir parmi plus de 20 carrières — médecin, développeur, athlète, entrepreneur, criminel… Ta carrière détermine tes revenus et tes options.
+Tu as 18 ans et pas un centime. Né riche, parti de la misère, ou reparti de zéro : à toi de choisir parmi plus de 20 carrières - médecin, développeur, athlète, entrepreneur, criminel… Ta carrière détermine tes revenus et tes options.
 
 GAGNE DE L'ARGENT. INVESTIS-LE. REGARDE-LE GRANDIR.
 
 C'est là que ce jeu se démarque des autres simulateurs de vie. Ton argent obéit à de vraies règles :
 
-PRÊTS ET DETTES — Emprunte quand il le faut. Paie des intérêts chaque mois. Rate une échéance et ton crédit plonge.
+PRÊTS ET DETTES - Emprunte quand il le faut. Paie des intérêts chaque mois. Rate une échéance et ton crédit plonge.
 
-BOURSE ET CRYPTO — Trade chaque semaine. Les cours fluctuent selon une vraie simulation de marché. Deviens riche vite ou perds tout. Timing et stratégie font la différence.
+BOURSE ET CRYPTO - Trade chaque semaine. Les cours fluctuent selon une vraie simulation de marché. Deviens riche vite ou perds tout. Timing et stratégie font la différence.
 
-IMMOBILIER — Achète maisons et appartements. Encaisse des loyers. La pierre prend de la valeur. Revends avec profit ou garde pour le long terme.
+IMMOBILIER - Achète maisons et appartements. Encaisse des loyers. La pierre prend de la valeur. Revends avec profit ou garde pour le long terme.
 
-INTÉRÊTS COMPOSÉS — Investis tôt, laisse grandir. Les riches deviennent plus riches. C'est le moteur économique au cœur du jeu.
+INTÉRÊTS COMPOSÉS - Investis tôt, laisse grandir. Les riches deviennent plus riches. C'est le moteur économique au cœur du jeu.
 
-LA FAILLITE EXISTE — Trop de mauvais choix et tu perds tout. La remontée est possible mais brutale. C'est ce qui rend la victoire méritée.
+LA FAILLITE EXISTE - Trop de mauvais choix et tu perds tout. La remontée est possible mais brutale. C'est ce qui rend la victoire méritée.
 
 TES CHOIX ONT DES CONSÉQUENCES
 
 Chaque semaine, de nouveaux événements : promotions, urgences familiales, romance, alertes santé, scandales… Plus de 80 événements rendent le jeu imprévisible.
 
-LES RELATIONS COMPTENT — Marie-toi. Aie des enfants. Néglige-les et ils partent. Ton arbre familial vit à travers les générations.
+LES RELATIONS COMPTENT - Marie-toi. Aie des enfants. Néglige-les et ils partent. Ton arbre familial vit à travers les générations.
 
-LE CRIME PAIE (MAIS À QUEL PRIX) — Vole, pirate, deale. Ou fais-toi prendre et va en prison. Tes choix te définissent.
+LE CRIME PAIE (MAIS À QUEL PRIX) - Vole, pirate, deale. Ou fais-toi prendre et va en prison. Tes choix te définissent.
 
 FORTUNE GÉNÉRATIONNELLE ET PRESTIGE
 
@@ -207,9 +207,9 @@ FONCTIONNALITÉS :
 ✓ Économie équitable, sans pay-to-win
 ✓ Disponible sur Android et iOS
 
-Télécharge Deep Life Simulator aujourd'hui. Pars de rien. Deviens milliardaire — ou regarde tout s'effondrer. Ton histoire est unique. Tes choix comptent.
+Télécharge Deep Life Simulator aujourd'hui. Pars de rien. Deviens milliardaire - ou regarde tout s'effondrer. Ton histoire est unique. Tes choix comptent.
 
-Rejoins notre communauté Discord : discord.gg/deeplifesim
+Rejoins notre communauté Discord : discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
@@ -217,9 +217,9 @@ Rejoins notre communauté Discord : discord.gg/deeplifesim
 ```text
 - Subtitle "Simulateur de vie et d'argent" (29 chars) pairs the highest-volume FR genre term ("simulateur de vie") with "argent", the top money-intent search in France, while still reading as marketing copy.
 - Keyword field deliberately avoids "simulateur", "vie" and "argent" (already indexed via subtitle) and "life"/"simulator" (app name). "simulation" is kept as a separate token so "simulation de vie" is covered by subtitle+keywords combination.
-- Targeted FR terms: carrière, milliardaire, tycoon, bourse, investir, immobilier, riche, crime, prison, choix, destin — French players search the genre almost entirely in French; English terms are reserved for fr-CA to widen combined coverage.
+- Targeted FR terms: carrière, milliardaire, tycoon, bourse, investir, immobilier, riche, crime, prison, choix, destin - French players search the genre almost entirely in French; English terms are reserved for fr-CA to widen combined coverage.
 - Google Play: "simulation de vie", "argent", "bourse", "carrière", "milliardaire", "immobilier" all appear within the first ~250 chars of gp_full_description for Play indexing.
-- Currency/idiom: "pas un centime", "la pierre" (common FR shorthand for real estate) — no dollar amounts needed since the source description has none.
+- Currency/idiom: "pas un centime", "la pierre" (common FR shorthand for real estate) - no dollar amounts needed since the source description has none.
 - A/B test suggestion: subtitle variant "Deviens riche ou fais faillite" (30 chars) against the current one; also test gp_short with "faillite" hook vs "milliardaire" hook.
 - "Ce n'est pas BitLife" kept in body copy only, never in indexed metadata fields.
 ```

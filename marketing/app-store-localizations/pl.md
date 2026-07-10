@@ -1,4 +1,4 @@
-# Deep Life Simulator — Polish (pl) Store Listing
+# Deep Life Simulator - Polish (pl) Store Listing
 
 ## app_name
 
@@ -35,24 +35,24 @@ Zaczynasz w wieku 18 lat z pustymi kieszeniami i nieograniczonym potencjałem. W
 
 PONAD 20 ŚCIEŻEK KARIERY
 
-Celebryta, polityk, sportowiec, lekarz, inżynier, programista, przedsiębiorca — albo zejdź do podziemia jako haker, przemytnik czy złodziej. Każda kariera ma własną ścieżkę rozwoju, widełki zarobków i konsekwencje. Twoja praca decyduje o pensji, reputacji, a czasem o tym, czy jesteś po właściwej stronie prawa.
+Celebryta, polityk, sportowiec, lekarz, inżynier, programista, przedsiębiorca - albo zejdź do podziemia jako haker, przemytnik czy złodziej. Każda kariera ma własną ścieżkę rozwoju, widełki zarobków i konsekwencje. Twoja praca decyduje o pensji, reputacji, a czasem o tym, czy jesteś po właściwej stronie prawa.
 
 PRAWDZIWA EKONOMIA
 
 To nie BitLife. Zbudowaliśmy prawdziwą symulację ekonomiczną:
 
-• Kredyty i długi — pożyczasz na procent. Spóźnisz się ze spłatą i Twoja zdolność kredytowa leci na łeb. Procent składany działa przeciwko Tobie, jak w prawdziwym życiu.
-• Giełda i krypto — handluj co tydzień. Kursy się wahają. Możesz się wzbogacić albo stracić wszystko. Timing ma znaczenie.
-• Nieruchomości — kupuj mieszkania i domy, zbieraj czynsz, buduj portfel. Nieruchomości zyskują na wartości. Hipoteki mają swoje warunki.
-• Samochody i motocykle — koszty utrzymania, wartość odsprzedaży, realna utrata wartości.
-• Bankructwo — zbyt wiele złych decyzji i tracisz wszystko. Da się z tego wyjść, ale to boli.
-• Procent składany — inwestuj wcześnie i patrz, jak pieniądze rosną. To jest ta gra. To jest warunek zwycięstwa.
+• Kredyty i długi - pożyczasz na procent. Spóźnisz się ze spłatą i Twoja zdolność kredytowa leci na łeb. Procent składany działa przeciwko Tobie, jak w prawdziwym życiu.
+• Giełda i krypto - handluj co tydzień. Kursy się wahają. Możesz się wzbogacić albo stracić wszystko. Timing ma znaczenie.
+• Nieruchomości - kupuj mieszkania i domy, zbieraj czynsz, buduj portfel. Nieruchomości zyskują na wartości. Hipoteki mają swoje warunki.
+• Samochody i motocykle - koszty utrzymania, wartość odsprzedaży, realna utrata wartości.
+• Bankructwo - zbyt wiele złych decyzji i tracisz wszystko. Da się z tego wyjść, ale to boli.
+• Procent składany - inwestuj wcześnie i patrz, jak pieniądze rosną. To jest ta gra. To jest warunek zwycięstwa.
 
 TWOJE ŻYCIE, TWOJE WYBORY
 
 Każdy tydzień przynosi nowe okazje i wyzwania. Weź ślub. Miej dzieci. Odziedzicz majątek. Zapłać niespodziewany rachunek za leczenie. Strać pracę. Przyjmij awans. Twoje wybory kumulują się w czasie.
 
-Relacje mają znaczenie. Zaniedbasz partnera — czeka Cię rozwód. Zignorujesz dzieci — będą miały do Ciebie żal przez całe swoje życie. Każda relacja niesie konsekwencje.
+Relacje mają znaczenie. Zaniedbasz partnera - czeka Cię rozwód. Zignorujesz dzieci - będą miały do Ciebie żal przez całe swoje życie. Każda relacja niesie konsekwencje.
 
 Przestępstwo popłaca, ale ma swoją cenę. Kradnij, handluj na czarnym rynku, włamuj się do korporacji. Rozwijaj umiejętności półświatka. Albo daj się złapać, trafisz za kratki i zaczniesz od nowa.
 
@@ -83,25 +83,25 @@ TWOJA GRA. TWOJE ZASADY.
 
 Deep Life Simulator to gra dla tych, którzy oczekują od symulatora życia strategii, konsekwencji i głębi. Żadnych reklam na siłę (możesz je trwale wyłączyć). Żadnego pay-to-win, które psuje rozgrywkę. Ekonomia jest zbalansowana tak, żeby dobre decyzje znaczyły więcej niż łut szczęścia.
 
-Zacznij już dziś. Zbuduj fortunę. Albo spektakularnie ją strać. Tak czy inaczej — będziesz miał co opowiadać.
+Zacznij już dziś. Zbuduj fortunę. Albo spektakularnie ją strać. Tak czy inaczej - będziesz miał co opowiadać.
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 — Stabilność i jakość rozgrywki
+v2.3.1 - Stabilność i jakość rozgrywki
 
 Słuchaliśmy Waszych opinii. Ta aktualizacja to przede wszystkim stabilność i lepsze odczucia z gry:
 
-✅ Ponad 70 poprawek błędów — wzmocniony system zapisu (koniec z uszkodzonymi save'ami), przebudowany system zakupów (wszystkie perki działają poprawnie), spójna ekonomia i naprawione crashe przy starcie.
+Ponad 70 poprawek błędów - wzmocniony system zapisu (koniec z uszkodzonymi save'ami), przebudowany system zakupów (wszystkie perki działają poprawnie), spójna ekonomia i naprawione crashe przy starcie.
 
-✅ System uczciwości — koniec z nieskończonym pechem: gwarantowane dziecko po 15 próbach, przyjęte oświadczyny przy 95%+ relacji, praca przy idealnych kwalifikacjach, wydarzenie najpóźniej co 6 tygodni. Maksymalnie 1 choroba na 4 tygodnie (prosiliście o to).
+System uczciwości - koniec z nieskończonym pechem: gwarantowane dziecko po 15 próbach, przyjęte oświadczyny przy 95%+ relacji, praca przy idealnych kwalifikacjach, wydarzenie najpóźniej co 6 tygodni. Maksymalnie 1 choroba na 4 tygodnie (prosiliście o to).
 
-✅ Konsekwencje w relacjach — partner odchodzi po 8 tygodniach zaniedbania, małżonek składa pozew rozwodowy po 12. Podziały majątku są realistyczne. Relacje znów mają znaczenie.
+Konsekwencje w relacjach - partner odchodzi po 8 tygodniach zaniedbania, małżonek składa pozew rozwodowy po 12. Podziały majątku są realistyczne. Relacje znów mają znaczenie.
 
-✅ Wydajność — o 90% szybsze obliczanie dochodów, o 50% szybsze wydatki rodzinne, o 80% mniejsze pliki zapisu, płynna gra po 1000+ tygodniach.
+Wydajność - o 90% szybsze obliczanie dochodów, o 50% szybsze wydatki rodzinne, o 80% mniejsze pliki zapisu, płynna gra po 1000+ tygodniach.
 
-Dziękujemy, że gracie. Wpadnij na naszego Discorda i podziel się opinią: discord.gg/deeplifesim
+Dziękujemy, że gracie. Wpadnij na naszego Discorda i podziel się opinią: discord.gg/invite/rzktazdX8v
 
 Żadnych wymuszonych reklam. Żadnego pay-to-win. Po prostu uczciwy, strategiczny symulator życia.
 ```
@@ -121,29 +121,29 @@ Deep Life Simulator to strategiczny symulator życia, w którym pieniądze napra
 
 ZACZYNASZ Z NICZYM.
 
-Masz 18 lat i pusty portfel. Wybierz swoją drogę: urodzony w bogactwie, wspinaczka z biedy albo nowy start po upadku. Wybierz jedną z ponad 20 karier: lekarz, programista, sportowiec, przedsiębiorca, przestępca — albo coś pomiędzy. Twoja kariera decyduje o dochodach i możliwościach.
+Masz 18 lat i pusty portfel. Wybierz swoją drogę: urodzony w bogactwie, wspinaczka z biedy albo nowy start po upadku. Wybierz jedną z ponad 20 karier: lekarz, programista, sportowiec, przedsiębiorca, przestępca - albo coś pomiędzy. Twoja kariera decyduje o dochodach i możliwościach.
 
 ZARABIAJ. INWESTUJ. PATRZ, JAK ROŚNIE.
 
 Tym Deep Life Simulator różni się od innych symulatorów życia. Twoje pieniądze rządzą się prawdziwymi zasadami:
 
-KREDYTY I DŁUGI — pożyczaj, kiedy potrzebujesz. Płać odsetki co miesiąc. Twoja zdolność kredytowa ma znaczenie. Zalegasz ze spłatą? Masz kłopoty.
+KREDYTY I DŁUGI - pożyczaj, kiedy potrzebujesz. Płać odsetki co miesiąc. Twoja zdolność kredytowa ma znaczenie. Zalegasz ze spłatą? Masz kłopoty.
 
-GIEŁDA I KRYPTO — handluj co tydzień. Kursy wahają się zgodnie z symulacją rynku. Wzbogać się szybko albo strać wszystko. Liczy się timing i strategia.
+GIEŁDA I KRYPTO - handluj co tydzień. Kursy wahają się zgodnie z symulacją rynku. Wzbogać się szybko albo strać wszystko. Liczy się timing i strategia.
 
-NIERUCHOMOŚCI — kupuj domy i mieszkania. Zbieraj czynsz. Nieruchomości zyskują na wartości. Sprzedaj z zyskiem albo trzymaj na długoterminowy majątek.
+NIERUCHOMOŚCI - kupuj domy i mieszkania. Zbieraj czynsz. Nieruchomości zyskują na wartości. Sprzedaj z zyskiem albo trzymaj na długoterminowy majątek.
 
-PROCENT SKŁADANY — inwestuj wcześnie i pozwól pieniądzom rosnąć. Bogaci się bogacą. To silnik ekonomiczny w sercu tej gry.
+PROCENT SKŁADANY - inwestuj wcześnie i pozwól pieniądzom rosnąć. Bogaci się bogacą. To silnik ekonomiczny w sercu tej gry.
 
-BANKRUCTWO JEST PRAWDZIWE — zbyt wiele złych decyzji i tracisz wszystko. Da się odbić, ale to brutalna droga.
+BANKRUCTWO JEST PRAWDZIWE - zbyt wiele złych decyzji i tracisz wszystko. Da się odbić, ale to brutalna droga.
 
 TWOJE WYBORY MAJĄ KONSEKWENCJE
 
 Każdy tydzień przynosi nowe wydarzenia: awanse, rodzinne kryzysy, romanse, problemy ze zdrowiem, skandale i więcej. Ponad 80 różnych wydarzeń sprawia, że gra jest nieprzewidywalna.
 
-RELACJE MAJĄ ZNACZENIE — weź ślub. Miej dzieci. Zaniedbasz ich — odejdą. Twoje drzewo genealogiczne żyje przez pokolenia.
+RELACJE MAJĄ ZNACZENIE - weź ślub. Miej dzieci. Zaniedbasz ich - odejdą. Twoje drzewo genealogiczne żyje przez pokolenia.
 
-PRZESTĘPSTWO POPŁACA (ALE MA CENĘ) — kradnij, hakuj, handluj na czarnym rynku. Rozwijaj umiejętności przestępcze. Albo daj się złapać i trafisz do więzienia.
+PRZESTĘPSTWO POPŁACA (ALE MA CENĘ) - kradnij, hakuj, handluj na czarnym rynku. Rozwijaj umiejętności przestępcze. Albo daj się złapać i trafisz do więzienia.
 
 MAJĄTEK POKOLEŃ I PRESTIŻ
 
@@ -193,19 +193,19 @@ FUNKCJE:
 ✓ Bez wymuszonych reklam (trwałe usunięcie reklam dostępne)
 ✓ Uczciwa ekonomia, zero pay-to-win
 
-Pobierz Deep Life Simulator już dziś. Zacznij z niczym i sprawdź, czy zbudujesz majątek pokoleń — czy wszystko się zawali. Twoje wybory mają znaczenie.
+Pobierz Deep Life Simulator już dziś. Zacznij z niczym i sprawdź, czy zbudujesz majątek pokoleń - czy wszystko się zawali. Twoje wybory mają znaczenie.
 
-Dołącz do naszej społeczności na Discordzie: discord.gg/deeplifesim
+Dołącz do naszej społeczności na Discordzie: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Symulator życia i pieniędzy" (27/30) leads with "symulator życia" — the highest-volume Polish genre query — and adds "pieniądze" (money), a strong secondary search term; sounds like natural marketing copy, not a keyword string.
+- Subtitle "Symulator życia i pieniędzy" (27/30) leads with "symulator życia" - the highest-volume Polish genre query - and adds "pieniądze" (money), a strong secondary search term; sounds like natural marketing copy, not a keyword string.
 - Keywords deliberately exclude "life", "simulator", "symulator", "życia" and "pieniądze" (already indexed via app name + subtitle). They cover the remaining high-volume Polish clusters: kariera (career), biznes, inwestowanie (investing), giełda (stock market), nieruchomości (real estate), bankructwo, strategia, miliarder, wybór (choices), mafia (crime/underworld), plus English "tycoon", which Poles search in English.
 - Poland is a simulator-loving market (huge local sim/tycoon scene), so the copy leans hard on "prawdziwa ekonomia" (real economics) and strategy framing rather than casual life-sim framing.
 - Google Play: first 160 chars of the full description pack "symulator życia", "gra o życiu", "pieniądze", "ekonomia", "kredyty", "giełda", "inwestycje" for Play indexing; the same terms recur naturally throughout.
-- Ty-form (informal second person) used everywhere, with capitalized Twoje/Cię — standard respectful-informal convention in Polish game marketing.
+- Ty-form (informal second person) used everywhere, with capitalized Twoje/Cię - standard respectful-informal convention in Polish game marketing.
 - A/B test ideas: subtitle "Symulator życia i pieniędzy" vs "Prawdziwy symulator życia"; gp_short_description money hook vs a "zbuduj fortunę albo zbankrutuj" hook; consider swapping "mafia" for "więzienie" (prison) in a later keyword iteration and measure.
 - "BitLife" appears only in body copy as comparison (allowed), never in indexed metadata fields.
 ```

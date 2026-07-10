@@ -1,4 +1,4 @@
-# es-ES — Deep Life Simulator
+# es-ES - Deep Life Simulator
 
 ## app_name
 
@@ -41,12 +41,12 @@ ECONOMÍA REAL, NO ALEATORIA
 
 Esto no es BitLife. Hemos construido una simulación económica de verdad:
 
-• Préstamos y deudas — Pide dinero con intereses. Si dejas de pagar, tu crédito se hunde. El interés compuesto juega en tu contra, como en la vida real.
-• Bolsa y criptomonedas — Opera cada semana. Los precios fluctúan: puedes forrarte o perderlo todo. El timing importa.
-• Inmuebles — Compra pisos, cobra alquileres y monta tu cartera. La propiedad se revaloriza y las hipotecas tienen condiciones.
-• Coches y motos — Cómpralos, mantenlos, revéndelos. El mantenimiento cuesta y la depreciación existe.
-• Quiebra — Encadena malas decisiones y lo perderás todo. Recuperarse es posible, pero duele.
-• Interés compuesto — Invierte pronto y deja que el dinero crezca. Ese es el juego. Esa es la victoria.
+• Préstamos y deudas - Pide dinero con intereses. Si dejas de pagar, tu crédito se hunde. El interés compuesto juega en tu contra, como en la vida real.
+• Bolsa y criptomonedas - Opera cada semana. Los precios fluctúan: puedes forrarte o perderlo todo. El timing importa.
+• Inmuebles - Compra pisos, cobra alquileres y monta tu cartera. La propiedad se revaloriza y las hipotecas tienen condiciones.
+• Coches y motos - Cómpralos, mantenlos, revéndelos. El mantenimiento cuesta y la depreciación existe.
+• Quiebra - Encadena malas decisiones y lo perderás todo. Recuperarse es posible, pero duele.
+• Interés compuesto - Invierte pronto y deja que el dinero crezca. Ese es el juego. Esa es la victoria.
 
 TU VIDA, TUS DECISIONES
 
@@ -85,30 +85,30 @@ Descárgalo hoy. Hazte millonario o arruínate por el camino: en cualquier caso,
 ## whats_new
 
 ```text
-v2.3.1 — Estabilidad y calidad de vida
+v2.3.1 - Estabilidad y calidad de vida
 
 Os hemos escuchado. Esta actualización se centra en que el juego funcione como debe:
 
-✅ Más de 70 errores corregidos
+Más de 70 errores corregidos
 • Sistema de guardado reforzado: adiós a las partidas corruptas
 • Sistema de compras renovado: todas las mejoras de pago se aplican correctamente, cada euro cuenta
 • Economía ajustada: comisiones de bolsa, alquileres y valor de los vehículos ya son coherentes
 • Corregidos los cierres al arrancar y otros errores raros
 
-✅ Sistema de equidad (adiós a la mala suerte infinita)
+Sistema de equidad (adiós a la mala suerte infinita)
 • Tener hijos: garantizado tras 15 intentos
 • Propuestas de matrimonio: éxito garantizado con relación al 95 %+
 • Eventos semanales garantizados tras 6 semanas sin ellos
 • Enfermedades: máximo 1 cada 4 semanas (lo pedisteis)
 
-✅ Relaciones con consecuencias
+Relaciones con consecuencias
 • Tu pareja te deja tras 8 semanas de abandono; el divorcio llega a las 12
 • Acuerdos económicos realistas
 
-✅ Rendimiento
+Rendimiento
 • Cálculos de ingresos un 90 % más rápidos y partidas guardadas un 80 % más ligeras
 
-Gracias por jugar. Contadnos qué mejorar en nuestro Discord: discord.gg/deeplifesim
+Gracias por jugar. Contadnos qué mejorar en nuestro Discord: discord.gg/invite/rzktazdX8v
 
 Sin anuncios forzados. Sin pay-to-win. Solo un simulador de vida justo y estratégico.
 ```
@@ -134,23 +134,23 @@ GANA DINERO. INVIÉRTELO. HAZLO CRECER.
 
 Aquí es donde este simulador se diferencia del resto. Tu dinero tiene reglas reales:
 
-PRÉSTAMOS Y DEUDAS — Pide prestado cuando lo necesites. Paga intereses cada mes. Tu historial crediticio importa: deja de pagar y tendrás problemas.
+PRÉSTAMOS Y DEUDAS - Pide prestado cuando lo necesites. Paga intereses cada mes. Tu historial crediticio importa: deja de pagar y tendrás problemas.
 
-BOLSA Y CRIPTO — Opera cada semana. Los precios fluctúan según una simulación de mercado. Fórrate rápido o piérdelo todo: el timing y la estrategia deciden.
+BOLSA Y CRIPTO - Opera cada semana. Los precios fluctúan según una simulación de mercado. Fórrate rápido o piérdelo todo: el timing y la estrategia deciden.
 
-INMUEBLES — Compra pisos y casas, cobra alquileres, vende con beneficio o mantén el patrimonio a largo plazo.
+INMUEBLES - Compra pisos y casas, cobra alquileres, vende con beneficio o mantén el patrimonio a largo plazo.
 
-INTERÉS COMPUESTO — Invierte pronto y deja que crezca. Los ricos se hacen más ricos: ese es el motor económico del juego.
+INTERÉS COMPUESTO - Invierte pronto y deja que crezca. Los ricos se hacen más ricos: ese es el motor económico del juego.
 
-LA QUIEBRA EXISTE — Acumula malas decisiones y lo perderás todo. Recuperarse es posible, pero brutal. Por eso ganar sabe a victoria.
+LA QUIEBRA EXISTE - Acumula malas decisiones y lo perderás todo. Recuperarse es posible, pero brutal. Por eso ganar sabe a victoria.
 
 TUS DECISIONES TIENEN CONSECUENCIAS
 
 Cada semana trae eventos nuevos: ascensos, emergencias familiares, romances, sustos de salud, escándalos y más. Más de 80 eventos distintos hacen que el juego sea impredecible.
 
-LAS RELACIONES IMPORTAN — Cásate, ten hijos. Si los descuidas, se van. Tu árbol familiar sigue vivo generación tras generación.
+LAS RELACIONES IMPORTAN - Cásate, ten hijos. Si los descuidas, se van. Tu árbol familiar sigue vivo generación tras generación.
 
-EL CRIMEN PAGA (PERO PASA FACTURA) — Roba, hackea, trafica. Sube tus habilidades criminales... o acaba en la cárcel.
+EL CRIMEN PAGA (PERO PASA FACTURA) - Roba, hackea, trafica. Sube tus habilidades criminales... o acaba en la cárcel.
 
 RIQUEZA GENERACIONAL Y PRESTIGIO
 
@@ -201,16 +201,16 @@ CARACTERÍSTICAS:
 
 Descarga Deep Life Simulator hoy. Empieza sin nada y demuestra si puedes construir riqueza generacional... o verlo todo derrumbarse. Tu historia es única. Tus decisiones importan.
 
-Únete a nuestra comunidad en Discord: discord.gg/deeplifesim
+Únete a nuestro Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-• Subtitle carries "simulador de vida" — the highest-volume genre term in Spain — plus "fortuna" for money intent, phrased as marketing copy rather than a keyword string.
+• Subtitle carries "simulador de vida" - the highest-volume genre term in Spain - plus "fortuna" for money intent, phrased as marketing copy rather than a keyword string.
 • Keyword field deliberately omits "simulador" and "vida" (already indexed via subtitle). "juego" combines with the subtitle's "vida" so Apple's cross-field indexing covers "juego de la vida" without spending 16 chars on the full phrase.
 • Money/business cluster (dinero, negocio, magnate, millonario, inversión, bolsa, quiebra) targets Spain's high-volume tycoon/finance queries; "crimen" and "cárcel" capture the BitLife-adjacent crime-sim demand without naming the trademark.
-• Castilian idiom throughout: coche, piso, alquiler, móvil, sueldo, "forrarte", "currante", and vosotros forms in What's New ("Os hemos escuchado", "lo pedisteis", "Contadnos") — genuinely distinct from es-MX.
+• Castilian idiom throughout: coche, piso, alquiler, móvil, sueldo, "forrarte", "currante", and vosotros forms in What's New ("Os hemos escuchado", "lo pedisteis", "Contadnos") - genuinely distinct from es-MX.
 • Currency localized to euros ("sin un euro", "cada euro cuenta"); Spaniards do not search or read prices in dollars.
 • Keyword string is intentionally different from es-MX (unique here: juego, inversión, bolsa, crimen, cárcel, quiebra, estrategia) so the two locales widen combined Spanish coverage instead of duplicating it.
 • A/B test suggestion: subtitle variant "Hazte rico o arruínate" (conversion-led) vs. current keyword-led subtitle; also test gp_short with "juego de la vida" framing.

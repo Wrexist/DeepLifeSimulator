@@ -1,4 +1,4 @@
-# pt-BR — Deep Life Simulator (Brasil)
+# pt-BR - Deep Life Simulator (Brasil)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Simulador de Vida e Dinheiro
 ## promotional_text
 
 ```text
-Comece aos 18 sem nada. Pegue empréstimos, invista na bolsa, compre imóveis, arrisque no crime e construa uma dinastia. Fique bilionário — ou perca tudo tentando!
+Comece aos 18 sem nada. Pegue empréstimos, invista na bolsa, compre imóveis, arrisque no crime e construa uma dinastia. Fique bilionário - ou perca tudo tentando!
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ carreira,rico,magnata,negócios,empresário,investimento,bilionário,escolhas,fa
 ## description
 
 ```text
-Ao contrário de outros simuladores de vida, o Deep Life Simulator tem um motor econômico de verdade. Nada de apertar botão no escuro: aqui o seu dinheiro importa de verdade. Pegue empréstimos. Pague juros. Construa riqueza — ou veja tudo desmoronar. Cada decisão financeira molda a sua vida inteira.
+Ao contrário de outros simuladores de vida, o Deep Life Simulator tem um motor econômico de verdade. Nada de apertar botão no escuro: aqui o seu dinheiro importa de verdade. Pegue empréstimos. Pague juros. Construa riqueza - ou veja tudo desmoronar. Cada decisão financeira molda a sua vida inteira.
 
 COMECE DO ZERO. CONSTRUA UM IMPÉRIO.
 
@@ -35,18 +35,18 @@ Você começa aos 18 anos com o bolso vazio e potencial ilimitado. Escolha seu c
 
 MAIS DE 20 CARREIRAS
 
-Celebridade, político, atleta, médico, engenheiro, programador, empresário — ou mergulhe na economia clandestina como hacker, contrabandista ou ladrão. Cada carreira tem progressão, faixa de renda e consequências próprias. Seu trabalho define seu salário, sua reputação e, às vezes, sua ficha na polícia.
+Celebridade, político, atleta, médico, engenheiro, programador, empresário - ou mergulhe na economia clandestina como hacker, contrabandista ou ladrão. Cada carreira tem progressão, faixa de renda e consequências próprias. Seu trabalho define seu salário, sua reputação e, às vezes, sua ficha na polícia.
 
 ECONOMIA DE VERDADE
 
 Isto não é BitLife. A gente construiu uma simulação econômica real:
 
-• Empréstimos e dívidas — Pegue dinheiro emprestado com juros. Atrase parcelas e seu crédito despenca. Os juros compostos trabalham contra você, como na vida real.
-• Bolsa de valores e cripto — Negocie toda semana. Os preços oscilam. Dá para ficar rico ou perder tudo. Timing é tudo.
-• Imóveis — Compre propriedades, receba aluguel, monte um portfólio. Imóveis valorizam. Financiamentos têm prazos.
-• Carros e motos — Compre veículos. Manutenção custa caro. Valor de revenda cai. A depreciação é real.
-• Falência — Erre demais e você pode perder tudo. Dá para se recuperar, mas dói.
-• Juros compostos — Invista cedo e veja o dinheiro render. Esse é o jogo. Essa é a condição de vitória.
+• Empréstimos e dívidas - Pegue dinheiro emprestado com juros. Atrase parcelas e seu crédito despenca. Os juros compostos trabalham contra você, como na vida real.
+• Bolsa de valores e cripto - Negocie toda semana. Os preços oscilam. Dá para ficar rico ou perder tudo. Timing é tudo.
+• Imóveis - Compre propriedades, receba aluguel, monte um portfólio. Imóveis valorizam. Financiamentos têm prazos.
+• Carros e motos - Compre veículos. Manutenção custa caro. Valor de revenda cai. A depreciação é real.
+• Falência - Erre demais e você pode perder tudo. Dá para se recuperar, mas dói.
+• Juros compostos - Invista cedo e veja o dinheiro render. Esse é o jogo. Essa é a condição de vitória.
 
 SUA VIDA, SUAS ESCOLHAS
 
@@ -54,7 +54,7 @@ Cada semana traz novas oportunidades e desafios. Case. Tenha filhos. Receba hera
 
 Relacionamentos importam. Ignore seu cônjuge e vem divórcio. Abandone seus filhos e eles vão guardar mágoa pela vida toda. Toda relação tem consequência.
 
-O crime paga — mas tem um preço. Roube, venda drogas, invada corporações. Evolua habilidades do submundo. Ou seja pego, vá para a prisão e recomece.
+O crime paga - mas tem um preço. Roube, venda drogas, invada corporações. Evolua habilidades do submundo. Ou seja pego, vá para a prisão e recomece.
 
 PRESTÍGIO E RIQUEZA GERACIONAL
 
@@ -73,7 +73,7 @@ Promoções, emergências familiares, prêmios de loteria, acidentes, escândalo
 
 SALVAMENTO NA NUVEM E VÁRIOS SLOTS
 
-Jogue várias vidas ao mesmo tempo. Alterne entre personagens. Seu progresso fica salvo na nuvem — nada se perde, nem trocando de celular.
+Jogue várias vidas ao mesmo tempo. Alterne entre personagens. Seu progresso fica salvo na nuvem - nada se perde, nem trocando de celular.
 
 CONQUISTAS E RANKINGS
 
@@ -89,19 +89,19 @@ Baixe agora. Construa sua fortuna. Ou quebre espetacularmente. De um jeito ou de
 ## whats_new
 
 ```text
-v2.3.1 — Qualidade de Vida e Correções
+v2.3.1 - Qualidade de Vida e Correções
 
 Nós ouvimos vocês! Esta é a nossa maior atualização de estabilidade até agora:
 
-✅ Mais de 70 bugs corrigidos — sistema de salvamento reforçado, sistema de compras revisado (todas as vantagens compradas agora funcionam direitinho), economia consistente e travamentos na inicialização resolvidos.
+Mais de 70 bugs corrigidos - sistema de salvamento reforçado, sistema de compras revisado (todas as vantagens compradas agora funcionam direitinho), economia consistente e travamentos na inicialização resolvidos.
 
-✅ Sistema de justiça — chega de azar infinito: filhos garantidos após 15 tentativas, pedido de casamento certeiro com 95%+ de relacionamento, eventos semanais garantidos e no máximo 1 doença a cada 4 semanas (vocês pediram!).
+Sistema de justiça - chega de azar infinito: filhos garantidos após 15 tentativas, pedido de casamento certeiro com 95%+ de relacionamento, eventos semanais garantidos e no máximo 1 doença a cada 4 semanas (vocês pediram!).
 
-✅ Consequências nos relacionamentos — parceiros vão embora após 8 semanas de abandono, cônjuges pedem divórcio após 12, e a partilha de bens é realista.
+Consequências nos relacionamentos - parceiros vão embora após 8 semanas de abandono, cônjuges pedem divórcio após 12, e a partilha de bens é realista.
 
-✅ Desempenho — cálculos de renda 90% mais rápidos, saves 80% menores e jogo fluido mesmo depois de 1000+ semanas.
+Desempenho - cálculos de renda 90% mais rápidos, saves 80% menores e jogo fluido mesmo depois de 1000+ semanas.
 
-Valeu por jogar! Entre no nosso Discord e mande seu feedback: discord.gg/deeplifesim
+Valeu por jogar! Entre no nosso Discord e mande seu feedback: discord.gg/invite/rzktazdX8v
 
 Sem anúncios forçados. Sem pay-to-win. Só um simulador de vida justo e estratégico.
 ```
@@ -127,23 +127,23 @@ GANHE DINHEIRO. INVISTA. FIQUE RICO.
 
 É aqui que o Deep Life Simulator se diferencia de outros simuladores de vida. Seu dinheiro segue regras de verdade:
 
-EMPRÉSTIMOS E DÍVIDAS — Pegue emprestado quando precisar. Pague juros todo mês. Seu score de crédito importa. Atrasou? Problema na certa.
+EMPRÉSTIMOS E DÍVIDAS - Pegue emprestado quando precisar. Pague juros todo mês. Seu score de crédito importa. Atrasou? Problema na certa.
 
-BOLSA DE VALORES E CRIPTO — Negocie toda semana. Os preços oscilam. Fique rico rápido ou perca tudo. Timing e estratégia decidem.
+BOLSA DE VALORES E CRIPTO - Negocie toda semana. Os preços oscilam. Fique rico rápido ou perca tudo. Timing e estratégia decidem.
 
-IMÓVEIS — Compre casas e apartamentos. Receba aluguel. Imóveis valorizam. Venda com lucro ou segure para construir patrimônio.
+IMÓVEIS - Compre casas e apartamentos. Receba aluguel. Imóveis valorizam. Venda com lucro ou segure para construir patrimônio.
 
-JUROS COMPOSTOS — Invista cedo e deixe render. O rico fica mais rico: esse é o motor econômico no coração do jogo.
+JUROS COMPOSTOS - Invista cedo e deixe render. O rico fica mais rico: esse é o motor econômico no coração do jogo.
 
-FALÊNCIA EXISTE — Tome decisões ruins demais e perca tudo. Recuperar é possível, mas é brutal. É isso que faz a vitória valer.
+FALÊNCIA EXISTE - Tome decisões ruins demais e perca tudo. Recuperar é possível, mas é brutal. É isso que faz a vitória valer.
 
 SUAS ESCOLHAS TÊM CONSEQUÊNCIAS
 
 Toda semana surgem novos eventos: promoções, emergências na família, romance, sustos de saúde, escândalos e mais. São 80+ eventos que tornam o jogo imprevisível.
 
-RELACIONAMENTOS IMPORTAM — Case, tenha filhos. Se abandonar, eles vão embora. Sua árvore genealógica vive por gerações.
+RELACIONAMENTOS IMPORTAM - Case, tenha filhos. Se abandonar, eles vão embora. Sua árvore genealógica vive por gerações.
 
-O CRIME PAGA (MAS TEM PREÇO) — Roube, hackeie, venda drogas. Evolua habilidades criminosas. Ou seja pego e vá parar na prisão. Suas escolhas definem quem você é.
+O CRIME PAGA (MAS TEM PREÇO) - Roube, hackeie, venda drogas. Evolua habilidades criminosas. Ou seja pego e vá parar na prisão. Suas escolhas definem quem você é.
 
 RIQUEZA GERACIONAL E PRESTÍGIO
 
@@ -193,18 +193,18 @@ RECURSOS:
 ✓ Sem anúncios forçados (remoção permanente disponível)
 ✓ Economia justa, sem pay-to-win
 
-Baixe o Deep Life Simulator agora. Comece do zero e prove que você consegue ficar rico, virar magnata e construir riqueza geracional — ou veja tudo desmoronar. Suas escolhas importam.
+Baixe o Deep Life Simulator agora. Comece do zero e prove que você consegue ficar rico, virar magnata e construir riqueza geracional - ou veja tudo desmoronar. Suas escolhas importam.
 
-Entre na nossa comunidade no Discord: discord.gg/deeplifesim
+Entre na nossa comunidade no Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle targets "simulador de vida" (highest-volume BR genre query) plus "dinheiro" (explicit high-volume BR search) — both indexed from the subtitle, so neither is repeated in the keyword field.
-- Keyword field covers the BR wealth-aspiration cluster players actually type: rico, magnata, empresário, bilionário, investimento, negócios — mirroring how top-grossing BR tycoon/sim listings position themselves. carreira, escolhas, falência, crime, imóveis cover gameplay-intent queries.
+- Subtitle targets "simulador de vida" (highest-volume BR genre query) plus "dinheiro" (explicit high-volume BR search) - both indexed from the subtitle, so neither is repeated in the keyword field.
+- Keyword field covers the BR wealth-aspiration cluster players actually type: rico, magnata, empresário, bilionário, investimento, negócios - mirroring how top-grossing BR tycoon/sim listings position themselves. carreira, escolhas, falência, crime, imóveis cover gameplay-intent queries.
 - "jogo da vida" and "ficar rico" are woven verbatim into the Google Play description opening (GP indexes description text); on iOS "vida" is already indexed via the subtitle.
 - Copy uses the você register with energetic, colloquial BR phrasing ("direitinho", "na sua cara", "bater no fundo do poço") and BR vocabulary: celular, aluguel, salvamento, score de crédito, prêmios de loteria.
 - A/B test subtitle against "Fique Rico ou Perca Tudo" (aspiration angle) once keyword rankings stabilize.
-- BitLife mentioned only in body copy as comparison, never in indexed metadata — per legal notes in the source doc.
+- BitLife mentioned only in body copy as comparison, never in indexed metadata - per legal notes in the source doc.
 ```

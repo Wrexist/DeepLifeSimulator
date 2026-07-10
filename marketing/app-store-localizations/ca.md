@@ -1,4 +1,4 @@
-# ca — Catalan (Català)
+# ca - Catalan (Català)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Simulador de vida i diners
 ## promotional_text
 
 ```text
-Comença als 18 anys sense res. Préstecs, accions, immobles, crim, dinasties. Construeix riquesa generacional — o fes fallida intentant-ho. Cada decisió compta.
+Comença als 18 anys sense res. Préstecs, accions, immobles, crim, dinasties. Construeix riquesa generacional - o fes fallida intentant-ho. Cada decisió compta.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ carrera,negoci,inversió,ric,magnat,tycoon,fallida,decisió,estratègia,presó,b
 ## description
 
 ```text
-A diferència d'altres simuladors de vida, Deep Life Simulator té un motor econòmic real. Res de prémer botons a l'atzar. Els teus diners compten de debò. Demana préstecs. Paga interessos. Construeix un patrimoni — o mira com s'esfondra. Cada decisió financera dona forma a tota la teva vida.
+A diferència d'altres simuladors de vida, Deep Life Simulator té un motor econòmic real. Res de prémer botons a l'atzar. Els teus diners compten de debò. Demana préstecs. Paga interessos. Construeix un patrimoni - o mira com s'esfondra. Cada decisió financera dona forma a tota la teva vida.
 
 COMENÇA DES DE ZERO. CONSTRUEIX-HO TOT.
 
@@ -35,18 +35,18 @@ Comences als 18 anys amb les butxaques buides i un potencial il·limitat. Tria l
 
 MÉS DE 20 CARRERES
 
-Celebritat, polític, esportista, metge, enginyer, programador, emprenedor — o endinsa't en l'economia submergida com a hacker, contrabandista o lladre. Cada carrera té la seva progressió, el seu rang d'ingressos i les seves conseqüències. La teva feina determina el sou, la reputació i, de vegades, els antecedents penals.
+Celebritat, polític, esportista, metge, enginyer, programador, emprenedor - o endinsa't en l'economia submergida com a hacker, contrabandista o lladre. Cada carrera té la seva progressió, el seu rang d'ingressos i les seves conseqüències. La teva feina determina el sou, la reputació i, de vegades, els antecedents penals.
 
 MECÀNIQUES ECONÒMIQUES REALS
 
 Això no és BitLife. Hem construït una simulació econòmica de veritat:
 
-• Préstecs i deutes — Demana diners amb interessos. Si no pagues les quotes, la teva solvència s'enfonsa. L'interès compost juga en contra teu, com a la vida real.
-• Borsa i cripto — Opera cada setmana. Els preus fluctuen. Pots fer-te ric o perdre-ho tot. El moment ho és tot.
-• Immobles — Compra propietats, cobra lloguers, construeix una cartera. El valor puja. Les hipoteques tenen condicions.
-• Vehicles — Compra cotxes i motos. Costos de manteniment. Valor de revenda. La depreciació és real.
-• Fallida — Pren massa males decisions i pots perdre-ho tot. Recuperar-se és possible, però dolorós.
-• Interès compost — Inverteix aviat i mira com creixen els teus diners. Aquest és el joc. Aquesta és la condició de victòria.
+• Préstecs i deutes - Demana diners amb interessos. Si no pagues les quotes, la teva solvència s'enfonsa. L'interès compost juga en contra teu, com a la vida real.
+• Borsa i cripto - Opera cada setmana. Els preus fluctuen. Pots fer-te ric o perdre-ho tot. El moment ho és tot.
+• Immobles - Compra propietats, cobra lloguers, construeix una cartera. El valor puja. Les hipoteques tenen condicions.
+• Vehicles - Compra cotxes i motos. Costos de manteniment. Valor de revenda. La depreciació és real.
+• Fallida - Pren massa males decisions i pots perdre-ho tot. Recuperar-se és possible, però dolorós.
+• Interès compost - Inverteix aviat i mira com creixen els teus diners. Aquest és el joc. Aquesta és la condició de victòria.
 
 LA TEVA VIDA, LES TEVES DECISIONS
 
@@ -54,7 +54,7 @@ Cada setmana porta noves oportunitats i reptes. Casa't. Tingues fills. Hereta di
 
 Les relacions importen. Descuida la teva parella i es divorciarà de tu. Ignora els teus fills i t'ho retrauran a les seves pròpies vides. Cada relació té una conseqüència.
 
-El crim paga — però té un preu. Roba, ven drogues, hackeja corporacions. Desenvolupa habilitats del submón. O deixa't atrapar, ves a la presó i torna a començar.
+El crim paga - però té un preu. Roba, ven drogues, hackeja corporacions. Desenvolupa habilitats del submón. O deixa't atrapar, ves a la presó i torna a començar.
 
 SISTEMA DE PRESTIGI I RIQUESA GENERACIONAL
 
@@ -89,23 +89,23 @@ Comença avui. Construeix la teva fortuna. O esfondra't espectacularment. Sigui 
 ## whats_new
 
 ```text
-v2.3.1 — Estabilitat i correccions
+v2.3.1 - Estabilitat i correccions
 
 Us hem escoltat. Aquesta actualització va d'estabilitat i de fer el joc més just:
 
-✅ Més de 70 errors corregits
+Més de 70 errors corregits
 Sistema de desat reforçat, sistema de compres renovat de dalt a baix (tots els avantatges d'IAP ara s'apliquen correctament), correccions a l'economia i bloquejos d'inici resolts.
 
-✅ Sistema d'equitat
+Sistema d'equitat
 Fill garantit després de 15 intents, proposta de matrimoni garantida amb una relació del 95%+, esdeveniment setmanal garantit després de 6 setmanes sense res, màxim 1 malaltia cada 4 setmanes (ho vau demanar!).
 
-✅ Conseqüències a les relacions
+Conseqüències a les relacions
 Les parelles marxen després de 8 setmanes de descuit, els cònjuges demanen el divorci després de 12. Acords econòmics realistes. Les relacions tornen a tenir sentit.
 
-✅ Rendiment
+Rendiment
 Càlculs d'ingressos un 90% més ràpids, despeses familiars un 50% més ràpides, fitxers de desat un 80% més petits, joc fluid fins i tot després de 1000+ setmanes.
 
-Gràcies per jugar! Digues-nos què en penses al Discord: discord.gg/deeplifesim
+Gràcies per jugar! Digues-nos què en penses al Discord: discord.gg/invite/rzktazdX8v
 
 Sense anuncis forçats. Sense pay-to-win. Només un simulador de vida just i estratègic.
 ```
@@ -131,23 +131,23 @@ GUANYA DINERS. INVERTEIX-LOS. MIRA COM CREIXEN.
 
 Aquí és on Deep Life Simulator es distingeix dels altres simuladors de vida:
 
-PRÉSTECS I DEUTES — Demana diners quan en necessitis. Paga interessos cada mes. La teva solvència compta. Si no pagues les quotes, tens un problema.
+PRÉSTECS I DEUTES - Demana diners quan en necessitis. Paga interessos cada mes. La teva solvència compta. Si no pagues les quotes, tens un problema.
 
-BORSA I CRIPTO — Opera cada setmana. Els preus es mouen segons una simulació de mercat. Fes-te ric de pressa o perd-ho tot. El moment i l'estratègia decideixen.
+BORSA I CRIPTO - Opera cada setmana. Els preus es mouen segons una simulació de mercat. Fes-te ric de pressa o perd-ho tot. El moment i l'estratègia decideixen.
 
-IMMOBLES — Compra cases i pisos. Cobra lloguers. Les propietats es revaloren. Ven amb beneficis o conserva per a riquesa a llarg termini.
+IMMOBLES - Compra cases i pisos. Cobra lloguers. Les propietats es revaloren. Ven amb beneficis o conserva per a riquesa a llarg termini.
 
-INTERÈS COMPOST — Inverteix aviat i deixa que creixi. Els rics es fan més rics. Aquest és el motor econòmic al cor del joc.
+INTERÈS COMPOST - Inverteix aviat i deixa que creixi. Els rics es fan més rics. Aquest és el motor econòmic al cor del joc.
 
-LA FALLIDA ÉS REAL — Massa males decisions i ho perds tot. Recuperar-se és possible, però brutal. Per això guanyar se sent merescut.
+LA FALLIDA ÉS REAL - Massa males decisions i ho perds tot. Recuperar-se és possible, però brutal. Per això guanyar se sent merescut.
 
 LES TEVES DECISIONS TENEN CONSEQÜÈNCIES
 
 Cada setmana porta esdeveniments nous: ascensos, emergències familiars, romanços, ensurts de salut, escàndols i més. Més de 80 esdeveniments diferents fan el joc imprevisible.
 
-LES RELACIONS IMPORTEN — Casa't. Tingues fills. Si els descuides, marxen. El teu arbre genealògic perviu a través de les generacions.
+LES RELACIONS IMPORTEN - Casa't. Tingues fills. Si els descuides, marxen. El teu arbre genealògic perviu a través de les generacions.
 
-EL CRIM PAGA (PERÒ TÉ UN PREU) — Roba, hackeja, ven drogues. Desenvolupa habilitats criminals. O deixa't atrapar i ves a la presó. Les teves decisions et defineixen.
+EL CRIM PAGA (PERÒ TÉ UN PREU) - Roba, hackeja, ven drogues. Desenvolupa habilitats criminals. O deixa't atrapar i ves a la presó. Les teves decisions et defineixen.
 
 RIQUESA GENERACIONAL I PRESTIGI
 
@@ -197,18 +197,18 @@ CARACTERÍSTIQUES:
 ✓ Sense anuncis forçats (eliminació permanent disponible)
 ✓ Economia justa, sense pay-to-win
 
-Baixa't Deep Life Simulator avui. Comença des de zero. Comprova si pots construir riquesa generacional — o si ho veuràs tot esfondrar-se. La teva història és única. Les teves decisions compten.
+Baixa't Deep Life Simulator avui. Comença des de zero. Comprova si pots construir riquesa generacional - o si ho veuràs tot esfondrar-se. La teva història és única. Les teves decisions compten.
 
-Uneix-te a la nostra comunitat de Discord: discord.gg/deeplifesim
+Uneix-te a la comunitat de Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Simulador de vida i diners" pairs the Catalan genre phrase "simulador de vida" with "diners" (money) — a direct money hook that reads as native marketing.
+- Subtitle "Simulador de vida i diners" pairs the Catalan genre phrase "simulador de vida" with "diners" (money) - a direct money hook that reads as native marketing.
 - Catalan users on iOS are also served the es-ES listing, so this keyword set deliberately complements Spanish coverage: Catalan-distinct forms (inversió, fallida, decisió, estratègia, presó, borsa) index queries the Spanish field misses, while shared/identical stems were deprioritized.
 - English "life simulator" is already indexed via the app name; "tycoon" kept in English (searched as-is in Spain) alongside "magnat".
 - "imperi" and "milionari" capture empire-building and get-rich intent common in tycoon-game queries.
 - Copy is in natural tu-form with standard Catalan (central variant), the register used by successful Catalan game localizations; currency localized to euros ("ni un euro a la butxaca").
-- A/B test suggestion: subtitle vs. "Fes-te ric des de zero" (get-rich hook, no genre term) — but only after es-ES + ca combined ranking for "simulador de vida" is measured.
+- A/B test suggestion: subtitle vs. "Fes-te ric des de zero" (get-rich hook, no genre term) - but only after es-ES + ca combined ranking for "simulador de vida" is measured.
 ```

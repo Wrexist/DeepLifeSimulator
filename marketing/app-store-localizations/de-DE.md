@@ -1,4 +1,4 @@
-# de-DE — Deep Life Simulator
+# de-DE - Deep Life Simulator
 
 ## app_name
 
@@ -15,7 +15,7 @@ Lebenssimulator: Werde reich!
 ## promotional_text
 
 ```text
-Mit 18 und ohne einen Cent geht's los: Kredite, Aktien, Immobilien, Verbrechen. Baue ein Vermögen für Generationen auf – oder verlier alles. Deine Entscheidung.
+Mit 18 und ohne einen Cent geht's los: Kredite, Aktien, Immobilien, Verbrechen. Baue ein Vermögen für Generationen auf - oder verlier alles. Deine Entscheidung.
 ```
 
 ## keywords
@@ -27,26 +27,26 @@ leben,simulation,tycoon,wirtschaftssimulation,geld,karriere,börse,aktien,millio
 ## description
 
 ```text
-Anders als andere Lebenssimulatoren hat Deep Life Simulator eine echte Wirtschaftssimulation unter der Haube. Kein sinnloses Knöpfchendrücken: Dein Geld zählt wirklich. Nimm Kredite auf. Zahle Zinsen. Baue ein Vermögen auf – oder sieh zu, wie alles zusammenbricht. Jede finanzielle Entscheidung prägt dein ganzes Leben.
+Anders als andere Lebenssimulatoren hat Deep Life Simulator eine echte Wirtschaftssimulation unter der Haube. Kein sinnloses Knöpfchendrücken: Dein Geld zählt wirklich. Nimm Kredite auf. Zahle Zinsen. Baue ein Vermögen auf - oder sieh zu, wie alles zusammenbricht. Jede finanzielle Entscheidung prägt dein ganzes Leben.
 
 STARTE MIT NICHTS. ERREICHE ALLES.
 
-Du beginnst mit 18 – leere Taschen, unbegrenzte Möglichkeiten. Wähle dein Startszenario: in Reichtum geboren, Aufstieg aus der Armut oder irgendwo dazwischen. Deine erste Entscheidung ist immer dieselbe: Welche Karriere schlägst du ein?
+Du beginnst mit 18 - leere Taschen, unbegrenzte Möglichkeiten. Wähle dein Startszenario: in Reichtum geboren, Aufstieg aus der Armut oder irgendwo dazwischen. Deine erste Entscheidung ist immer dieselbe: Welche Karriere schlägst du ein?
 
 20+ KARRIEREWEGE
 
-Star, Politiker, Profisportler, Arzt, Ingenieur, Programmierer, Unternehmer – oder ab in die Schattenwirtschaft als Hacker, Schmuggler oder Dieb. Jede Karriere hat ihren eigenen Aufstieg, ihr eigenes Gehalt und ihre eigenen Konsequenzen. Dein Job bestimmt dein Einkommen, deinen Ruf – und manchmal, ob du im Knast landest.
+Star, Politiker, Profisportler, Arzt, Ingenieur, Programmierer, Unternehmer - oder ab in die Schattenwirtschaft als Hacker, Schmuggler oder Dieb. Jede Karriere hat ihren eigenen Aufstieg, ihr eigenes Gehalt und ihre eigenen Konsequenzen. Dein Job bestimmt dein Einkommen, deinen Ruf - und manchmal, ob du im Knast landest.
 
 ECHTE WIRTSCHAFTSMECHANIKEN
 
 Das hier ist nicht BitLife. Wir haben eine echte Wirtschaftssimulation gebaut:
 
-• Kredite & Schulden — Leih dir Geld, zahle Zinsen. Verpasste Raten ruinieren deine Bonität. Der Zinseszins arbeitet gegen dich – genau wie im echten Leben.
-• Börse & Krypto — Handle jede Woche. Kurse schwanken. Werde reich oder verlier alles. Timing entscheidet.
-• Immobilien — Kaufe Wohnungen und Häuser, kassiere Miete, baue dein Portfolio auf. Immobilien gewinnen an Wert, Hypotheken haben Laufzeiten.
-• Autos & Motorräder — Kaufe Fahrzeuge. Wartung kostet, der Wiederverkaufswert sinkt. Wertverlust ist real.
-• Insolvenz — Zu viele schlechte Entscheidungen, und du verlierst alles. Ein Comeback ist möglich – aber hart.
-• Zinseszins — Investiere früh und sieh dein Geld wachsen. Das ist das Spiel. Das ist die Siegbedingung.
+• Kredite & Schulden - Leih dir Geld, zahle Zinsen. Verpasste Raten ruinieren deine Bonität. Der Zinseszins arbeitet gegen dich - genau wie im echten Leben.
+• Börse & Krypto - Handle jede Woche. Kurse schwanken. Werde reich oder verlier alles. Timing entscheidet.
+• Immobilien - Kaufe Wohnungen und Häuser, kassiere Miete, baue dein Portfolio auf. Immobilien gewinnen an Wert, Hypotheken haben Laufzeiten.
+• Autos & Motorräder - Kaufe Fahrzeuge. Wartung kostet, der Wiederverkaufswert sinkt. Wertverlust ist real.
+• Insolvenz - Zu viele schlechte Entscheidungen, und du verlierst alles. Ein Comeback ist möglich - aber hart.
+• Zinseszins - Investiere früh und sieh dein Geld wachsen. Das ist das Spiel. Das ist die Siegbedingung.
 
 DEIN LEBEN, DEINE ENTSCHEIDUNGEN
 
@@ -54,11 +54,11 @@ Jede Woche bringt neue Chancen und Risiken. Heirate. Bekomme Kinder. Erbe Geld. 
 
 Beziehungen zählen. Vernachlässige deinen Partner, und die Scheidung kommt. Ignorierst du deine Kinder, tragen sie es dir ein Leben lang nach. Jede Beziehung hat Konsequenzen.
 
-Verbrechen zahlt sich aus – hat aber seinen Preis. Stehlen, dealen, Konzerne hacken. Baue deine Unterwelt-Skills aus. Oder flieg auf, wandere ins Gefängnis und fang von vorn an.
+Verbrechen zahlt sich aus - hat aber seinen Preis. Stehlen, dealen, Konzerne hacken. Baue deine Unterwelt-Skills aus. Oder flieg auf, wandere ins Gefängnis und fang von vorn an.
 
 PRESTIGE-SYSTEM & GENERATIONENVERMÖGEN
 
-Lebe dein Leben, baue dein Vermächtnis. Nach deinem Tod startest du neu – mit Boni aus deinem vorherigen Leben:
+Lebe dein Leben, baue dein Vermächtnis. Nach deinem Tod startest du neu - mit Boni aus deinem vorherigen Leben:
 
 • Generationen-Boni auf Einkommen und Skill-Fortschritt
 • Immobilien und Fahrzeuge, die dein nächstes Leben erbt
@@ -79,29 +79,29 @@ DEIN SPIEL. DEINE REGELN.
 
 Deep Life Simulator ist für Spieler gemacht, die Strategie, Konsequenz und Tiefe von einer Lebenssimulation erwarten. Keine aufgezwungene Werbung (auf Wunsch dauerhaft entfernbar). Kein Pay-to-win, das das Spiel kaputt macht. Die Wirtschaft ist so ausbalanciert, dass gute Entscheidungen mehr zählen als Glück.
 
-Starte jetzt. Baue dein Vermögen auf – oder crashe spektakulär. Eine Geschichte zum Erzählen hast du so oder so.
+Starte jetzt. Baue dein Vermögen auf - oder crashe spektakulär. Eine Geschichte zum Erzählen hast du so oder so.
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 — Stabilität & Komfort
+v2.3.1 - Stabilität & Komfort
 
-Wir haben euer Feedback gelesen – und geliefert. Das ist unser bisher größtes Stabilitäts-Update:
+Wir haben euer Feedback gelesen - und geliefert. Das ist unser bisher größtes Stabilitäts-Update:
 
-✅ 70+ Bugfixes
-Speichersystem gehärtet, Startabstürze behoben, Wirtschaftswerte (Ordergebühren, Mieten, Fahrzeugwerte) endlich konsistent. Das Kaufsystem wurde komplett überarbeitet – jeder Euro wirkt jetzt korrekt.
+70+ Bugfixes
+Speichersystem gehärtet, Startabstürze behoben, Wirtschaftswerte (Ordergebühren, Mieten, Fahrzeugwerte) endlich konsistent. Das Kaufsystem wurde komplett überarbeitet - jeder Euro wirkt jetzt korrekt.
 
-✅ Fairness-System
-Schluss mit endlosen Pechsträhnen: garantierte Erfolge bei Kinderwunsch, Heiratsanträgen, Bewerbungen und Wochenevents. Maximal 1 Krankheit pro 4 Wochen – ihr habt es euch gewünscht.
+Fairness-System
+Schluss mit endlosen Pechsträhnen: garantierte Erfolge bei Kinderwunsch, Heiratsanträgen, Bewerbungen und Wochenevents. Maximal 1 Krankheit pro 4 Wochen - ihr habt es euch gewünscht.
 
-✅ Beziehungen mit Konsequenzen
-Wer Partner oder Ehepartner zu lange vernachlässigt, wird verlassen – inklusive realistischer Scheidungskosten. Beziehungen fühlen sich wieder bedeutsam an.
+Beziehungen mit Konsequenzen
+Wer Partner oder Ehepartner zu lange vernachlässigt, wird verlassen - inklusive realistischer Scheidungskosten. Beziehungen fühlen sich wieder bedeutsam an.
 
-✅ Performance
+Performance
 Bis zu 90 % schnellere Berechnungen, 80 % kleinere Spielstände, flüssiges Spielen auch nach 1000+ Wochen.
 
-Danke, dass ihr spielt! Feedback? Ab auf unseren Discord: discord.gg/deeplifesim
+Danke, dass ihr spielt! Feedback? Ab auf unseren Discord: discord.gg/invite/rzktazdX8v
 
 Keine Zwangswerbung. Kein Pay-to-win. Einfach eine faire, strategische Lebenssimulation.
 ```
@@ -109,7 +109,7 @@ Keine Zwangswerbung. Kein Pay-to-win. Einfach eine faire, strategische Lebenssim
 ## gp_short_description
 
 ```text
-Starte mit nichts, werde reich – oder geh pleite. Lebenssimulator mit Strategie
+Starte mit nichts, werde reich - oder geh pleite. Lebenssimulator mit Strategie
 ```
 
 ## gp_full_description
@@ -117,33 +117,33 @@ Starte mit nichts, werde reich – oder geh pleite. Lebenssimulator mit Strategi
 ```text
 BAU DIR DEIN LEBEN AUF. TRAG DIE KONSEQUENZEN.
 
-Deep Life Simulator ist ein strategischer Lebenssimulator mit echter Wirtschaftssimulation: Kredite, Zinseszins, Börse, Insolvenz und Vermögen über Generationen. Wer hier reich werden will, braucht mehr als Glück – nämlich eine Strategie.
+Deep Life Simulator ist ein strategischer Lebenssimulator mit echter Wirtschaftssimulation: Kredite, Zinseszins, Börse, Insolvenz und Vermögen über Generationen. Wer hier reich werden will, braucht mehr als Glück - nämlich eine Strategie.
 
 STARTE MIT NICHTS.
 
-Du bist 18 und hast kein Geld. Wähle deinen Weg: in Reichtum geboren, Aufstieg aus der Armut oder Neustart nach dem Absturz. Wähle eine von 20+ Karrieren – deine Karriere bestimmt dein Einkommen und deine Möglichkeiten.
+Du bist 18 und hast kein Geld. Wähle deinen Weg: in Reichtum geboren, Aufstieg aus der Armut oder Neustart nach dem Absturz. Wähle eine von 20+ Karrieren - deine Karriere bestimmt dein Einkommen und deine Möglichkeiten.
 
 VERDIENE GELD. INVESTIERE ES. SIEH ES WACHSEN.
 
 Genau hier unterscheidet sich Deep Life Simulator von anderen Lebenssimulatoren. Dein Geld folgt echten Regeln:
 
-KREDITE & SCHULDEN — Leih dir Geld, zahle monatlich Zinsen. Deine Bonität zählt. Verpasste Raten bringen dich in ernste Schwierigkeiten.
+KREDITE & SCHULDEN - Leih dir Geld, zahle monatlich Zinsen. Deine Bonität zählt. Verpasste Raten bringen dich in ernste Schwierigkeiten.
 
-BÖRSE & KRYPTO — Handle jede Woche mit Aktien und Krypto. Die Kurse folgen einer Marktsimulation. Werde schnell reich oder verlier alles.
+BÖRSE & KRYPTO - Handle jede Woche mit Aktien und Krypto. Die Kurse folgen einer Marktsimulation. Werde schnell reich oder verlier alles.
 
-IMMOBILIEN — Kaufe Häuser und Wohnungen, kassiere Miete. Verkaufe mit Gewinn oder halte langfristig – wie ein echter Tycoon.
+IMMOBILIEN - Kaufe Häuser und Wohnungen, kassiere Miete. Verkaufe mit Gewinn oder halte langfristig - wie ein echter Tycoon.
 
-ZINSESZINS — Investiere früh und lass dein Geld arbeiten. Wer hat, dem wird gegeben. Das ist der Motor im Herzen dieses Spiels.
+ZINSESZINS - Investiere früh und lass dein Geld arbeiten. Wer hat, dem wird gegeben. Das ist der Motor im Herzen dieses Spiels.
 
-INSOLVENZ IST REAL — Zu viele schlechte Entscheidungen, und du verlierst alles. Ein Comeback ist möglich, aber brutal. Deshalb fühlt sich Gewinnen verdient an.
+INSOLVENZ IST REAL - Zu viele schlechte Entscheidungen, und du verlierst alles. Ein Comeback ist möglich, aber brutal. Deshalb fühlt sich Gewinnen verdient an.
 
 DEINE ENTSCHEIDUNGEN HABEN KONSEQUENZEN
 
 Jede Woche neue Lebensereignisse: Beförderungen, Familiendramen, Romantik, Gesundheitsschocks, Skandale und mehr. 80+ verschiedene Ereignisse halten das Spiel unberechenbar.
 
-BEZIEHUNGEN ZÄHLEN — Heirate. Bekomme Kinder. Wer seine Familie vernachlässigt, wird verlassen. Dein Stammbaum lebt über Generationen weiter.
+BEZIEHUNGEN ZÄHLEN - Heirate. Bekomme Kinder. Wer seine Familie vernachlässigt, wird verlassen. Dein Stammbaum lebt über Generationen weiter.
 
-VERBRECHEN LOHNT SICH (ABER ES HAT SEINEN PREIS) — Stehlen, hacken, dealen. Baue kriminelle Skills auf. Oder flieg auf und wandere in den Knast. Deine Entscheidungen definieren dich.
+VERBRECHEN LOHNT SICH (ABER ES HAT SEINEN PREIS) - Stehlen, hacken, dealen. Baue kriminelle Skills auf. Oder flieg auf und wandere in den Knast. Deine Entscheidungen definieren dich.
 
 GENERATIONENVERMÖGEN & PRESTIGE
 
@@ -193,15 +193,15 @@ FEATURES:
 ✓ Keine Zwangswerbung (dauerhafte Entfernung verfügbar)
 ✓ Faire Wirtschaft, kein Pay-to-win
 
-Lade Deep Life Simulator jetzt herunter. Starte mit nichts und finde heraus, ob du ein Vermögen für Generationen aufbaust – oder alles verlierst. Deine Entscheidungen zählen.
+Lade Deep Life Simulator jetzt herunter. Starte mit nichts und finde heraus, ob du ein Vermögen für Generationen aufbaust - oder alles verlierst. Deine Entscheidungen zählen.
 
-Komm in unsere Discord-Community: discord.gg/deeplifesim
+Komm in unseren Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Lebenssimulator: Werde reich!" (29 chars) combines the highest-volume German genre keyword ("lebenssimulator") with the aspirational search phrase "reich werden" — both indexed by Apple, both reading as marketing copy rather than a keyword string.
+- Subtitle "Lebenssimulator: Werde reich!" (29 chars) combines the highest-volume German genre keyword ("lebenssimulator") with the aspirational search phrase "reich werden" - both indexed by Apple, both reading as marketing copy rather than a keyword string.
 - English "life simulator" searches are already covered by the unlocalized app name "Deep Life Simulator"; German compound searches ("lebenssimulator", "reich") are covered by the subtitle. Per Apple indexing rules, none of these words are repeated in the keyword field.
 - Keyword field adds "leben" + "simulation" as separate tokens so Apple can form the split-form queries "leben simulator" and "lebens simulation", which Germans type alongside the compound.
 - Remaining keywords target German money/economy intent: "wirtschaftssimulation" (strong DE genre term), "geld", "karriere", "börse", "aktien", "millionär", "knast" (colloquial jail term with higher game-search volume than "gefängnis"), "firma", "job".

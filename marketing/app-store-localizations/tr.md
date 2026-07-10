@@ -1,4 +1,4 @@
-# tr — Türkçe (Türkiye) App Store / Google Play Listing
+# tr - Türkçe (Türkiye) App Store / Google Play Listing
 
 ## app_name
 
@@ -41,12 +41,12 @@ GERÇEK EKONOMİ MEKANİKLERİ
 
 Bu bir BitLife değil. Gerçek bir ekonomi simülasyonu kurduk:
 
-• Kredi ve Borç — Faizle borç al. Taksidini aksatırsan kredi notun dibi görür. Bileşik faiz aynı gerçek hayattaki gibi aleyhine işler.
-• Borsa ve Kripto — Her hafta al-sat yap. Fiyatlar dalgalanır. Zengin de olabilirsin, her şeyini de kaybedebilirsin. Zamanlama her şeydir.
-• Emlak — Mülk satın al, kira topla, portföy oluştur. Gayrimenkul değerlenir, kredilerin vadesi vardır.
-• Araç Sahipliği — Araba ve motosiklet al. Bakım masrafı, ikinci el değeri, amortisman... hepsi gerçek.
-• İflas — Üst üste kötü kararlar verirsen her şeyini kaybedebilirsin. Toparlanmak mümkün ama acı verici.
-• Bileşik Büyüme — Erken yatırım yap, paranın büyümesini izle. Oyun bu. Kazanmanın yolu bu.
+• Kredi ve Borç - Faizle borç al. Taksidini aksatırsan kredi notun dibi görür. Bileşik faiz aynı gerçek hayattaki gibi aleyhine işler.
+• Borsa ve Kripto - Her hafta al-sat yap. Fiyatlar dalgalanır. Zengin de olabilirsin, her şeyini de kaybedebilirsin. Zamanlama her şeydir.
+• Emlak - Mülk satın al, kira topla, portföy oluştur. Gayrimenkul değerlenir, kredilerin vadesi vardır.
+• Araç Sahipliği - Araba ve motosiklet al. Bakım masrafı, ikinci el değeri, amortisman... hepsi gerçek.
+• İflas - Üst üste kötü kararlar verirsen her şeyini kaybedebilirsin. Toparlanmak mümkün ama acı verici.
+• Bileşik Büyüme - Erken yatırım yap, paranın büyümesini izle. Oyun bu. Kazanmanın yolu bu.
 
 SENİN HAYATIN, SENİN SEÇİMLERİN
 
@@ -54,7 +54,7 @@ Her hafta yeni fırsatlar ve zorluklar getirir. Evlen. Çocuk sahibi ol. Mirasa 
 
 İlişkiler önemli. Eşini ihmal edersen boşanır. Çocuklarını görmezden gelirsen kendi hayatlarında sana sırt çevirirler. Her ilişkinin bir bedeli var.
 
-Suç para kazandırır — ama bedeli ağırdır. Çal, uyuşturucu sat, şirketleri hackle. Yeraltı becerilerini geliştir. Ya da yakalan, hapsi boyla ve sıfırdan başla.
+Suç para kazandırır - ama bedeli ağırdır. Çal, uyuşturucu sat, şirketleri hackle. Yeraltı becerilerini geliştir. Ya da yakalan, hapsi boyla ve sıfırdan başla.
 
 PRESTİJ SİSTEMİ VE NESİLLER BOYU SERVET
 
@@ -95,27 +95,27 @@ Bugün başla. Servetini kur. Ya da muhteşem bir çöküş yaşa. İki türlü 
 ## whats_new
 
 ```text
-v2.3.1 — Kalite ve Çökme Düzeltmeleri
+v2.3.1 - Kalite ve Çökme Düzeltmeleri
 
 Geri bildirimlerinizi dinledik. Bu güncelleme tamamen stabilite ve daha akıcı bir oyun deneyimi için:
 
-✅ 70+ Hata Düzeltmesi
+70+ Hata Düzeltmesi
 • Kayıt sistemi güçlendirildi, eski kayıtlardaki veri bozulmaları giderildi
-• Satın alma sistemi baştan ele alındı — tüm avantajlar artık doğru çalışıyor
+• Satın alma sistemi baştan ele alındı - tüm avantajlar artık doğru çalışıyor
 • Borsa komisyonları, kiralar ve araç değerleri tutarlı hale getirildi
 • Açılış çökmeleri ve uç durum hataları çözüldü
 
-✅ Adalet Sistemi
+Adalet Sistemi
 • Sonsuz şanssızlık bitti: çocuk, evlilik teklifi, iş başvurusu ve haftalık olaylar için garanti mekanikleri
 • Hastalık sıklığı sınırlandı: 4 haftada en fazla 1 (bunu siz istediniz)
 
-✅ İlişki Sonuçları
+İlişki Sonuçları
 • İhmal edilen partnerler artık gerçekten terk ediyor, boşanmaların gerçekçi mali sonuçları var
 
-✅ Performans
+Performans
 • %90 daha hızlı gelir hesaplamaları, %80 daha küçük kayıt dosyaları, 1000+ hafta sonrasında bile akıcı oynanış
 
-Geri bildirimlerini paylaşmak için Discord'umuza katıl: discord.gg/deeplifesim
+Geri bildirimlerini paylaşmak için Discord'umuza katıl: discord.gg/invite/rzktazdX8v
 
 Zorla reklam yok. Pay-to-win yok. Sadece adil, stratejik bir hayat simülasyonu.
 ```
@@ -141,23 +141,23 @@ PARA KAZAN. YATIRIM YAP. BÜYÜMESİNİ İZLE.
 
 Deep Life Simulator'ı diğer hayat oyunlarından ayıran şey tam olarak bu. Paranın gerçek kuralları var:
 
-KREDİ VE BORÇ — İhtiyacın olduğunda borç al. Her ay faiz öde. Kredi notun önemli. Taksidini aksatırsan başın belada.
+KREDİ VE BORÇ - İhtiyacın olduğunda borç al. Her ay faiz öde. Kredi notun önemli. Taksidini aksatırsan başın belada.
 
-BORSA VE KRİPTO — Her hafta işlem yap. Fiyatlar piyasa simülasyonuna göre dalgalanır. Hızla zengin ol ya da her şeyini kaybet. Zamanlama ve strateji kazandırır.
+BORSA VE KRİPTO - Her hafta işlem yap. Fiyatlar piyasa simülasyonuna göre dalgalanır. Hızla zengin ol ya da her şeyini kaybet. Zamanlama ve strateji kazandırır.
 
-EMLAK VE MÜLK — Ev ve daire satın al. Kira topla. Gayrimenkul değerlenir. Kârla sat ya da uzun vadeli servet için elinde tut.
+EMLAK VE MÜLK - Ev ve daire satın al. Kira topla. Gayrimenkul değerlenir. Kârla sat ya da uzun vadeli servet için elinde tut.
 
-BİLEŞİK FAİZ — Erken yatırım yap, bırak büyüsün. Zengin daha da zenginleşir. Oyunun kalbindeki ekonomi motoru tam olarak bu.
+BİLEŞİK FAİZ - Erken yatırım yap, bırak büyüsün. Zengin daha da zenginleşir. Oyunun kalbindeki ekonomi motoru tam olarak bu.
 
-İFLAS GERÇEK — Üst üste kötü kararlar ver ve her şeyini kaybet. Toparlanmak mümkün ama acımasız. Kazanmak bu yüzden hak edilmiş hissettirir.
+İFLAS GERÇEK - Üst üste kötü kararlar ver ve her şeyini kaybet. Toparlanmak mümkün ama acımasız. Kazanmak bu yüzden hak edilmiş hissettirir.
 
 SEÇİMLERİNİN SONUÇLARI VAR
 
 Her hafta yeni hayat olayları getirir: terfiler, aile acil durumları, aşk, sağlık sorunları, skandallar ve dahası. 80+ farklı olay oyunu hep sürprizli tutar.
 
-İLİŞKİLER ÖNEMLİ — Evlen, çocuk sahibi ol. İhmal edersen çekip giderler. Aile ağacın nesiller boyu yaşar.
+İLİŞKİLER ÖNEMLİ - Evlen, çocuk sahibi ol. İhmal edersen çekip giderler. Aile ağacın nesiller boyu yaşar.
 
-SUÇ PARA KAZANDIRIR (AMA BEDELİ VAR) — Çal, hackle, uyuşturucu sat. Suç becerilerini geliştir. Ya da yakalan ve hapsi boyla. Seçimlerin seni tanımlar.
+SUÇ PARA KAZANDIRIR (AMA BEDELİ VAR) - Çal, hackle, uyuşturucu sat. Suç becerilerini geliştir. Ya da yakalan ve hapsi boyla. Seçimlerin seni tanımlar.
 
 NESİLLER BOYU SERVET VE PRESTİJ
 
@@ -210,7 +210,7 @@ BitLife eğlencelidir ama rastgeledir. Deep Life Simulator gerçek ekonomiyi sim
 
 Deep Life Simulator'ı bugün indir. Sıfırdan başla. Nesiller boyu servet kurabilecek misin, yoksa her şeyin çöküşünü mü izleyeceksin? Hikâyen sana özel. Seçimlerin önemli.
 
-Discord topluluğumuza katıl: discord.gg/deeplifesim
+Discord topluluğumuza katıl: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
@@ -219,7 +219,7 @@ Discord topluluğumuza katıl: discord.gg/deeplifesim
 - Subtitle "Hayat Simülasyonu: Zengin Ol" (28/30) packs the two highest-volume Turkish queries for this genre: "hayat simülasyonu" (top genre term) and "zengin ol" (huge aspirational money query in TR), while still reading as a marketing promise, not a keyword string.
 - Keyword field deliberately avoids every word already indexed via name/subtitle (life, simulator, hayat, simülasyonu, zengin, ol). "yaşam" cross-combines with the subtitle's "simülasyonu" so "yaşam simülasyonu" is covered without repeating.
 - English "life simulator" searches are already covered by the app name itself, so no keyword characters were spent on English genre terms except "tycoon", which Turkish players search in English (no established Turkish equivalent).
-- Money/finance cluster targeted: para, borsa, yatırım, milyoner, iflas, emlak, kripto — matches TR search behavior around "para kazanma / zengin olma" games. "iş kurma" also yields "iş" as a standalone token.
+- Money/finance cluster targeted: para, borsa, yatırım, milyoner, iflas, emlak, kripto - matches TR search behavior around "para kazanma / zengin olma" games. "iş kurma" also yields "iş" as a standalone token.
 - Crime cluster (suç, hapis) targets high-intent BitLife-adjacent searches without touching the trademark.
 - Google Play: top keywords (hayat simülasyonu, para, borsa, yatırım, zengin, yaşam simülasyonu) are woven into the first 160 chars of gp_full_description and repeated naturally throughout; short description leads with "zengin ol" + "hayat simülasyonu".
 - A/B test ideas: subtitle variant "Sıfırdan Zengin Ol!" (pure aspiration, no genre term) vs current; GP short description variant "Kredi çek, borsada oyna, servet kur. Gerçekçi hayat simülasyonu." to test economy-first vs aspiration-first hooks.
