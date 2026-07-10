@@ -110,15 +110,20 @@ export function legendItem(color, title, body) {
  * Render an HTML doc to PNG at a given width, auto-measuring height.
  */
 export async function renderToPng(chromium, html, outPath, width = 1160) {
-  const { writeFileSync } = await import('node:fs');
+  const { writeFileSync, mkdirSync } = await import('node:fs');
+  const { dirname: dirOf } = await import('node:path');
+  mkdirSync(dirOf(outPath), { recursive: true });
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width, height: 1200 }, deviceScaleFactor: 2 });
-  const p = await ctx.newPage();
-  await p.setContent(html, { waitUntil: 'networkidle' });
-  const box = await (await p.$('body')).boundingBox();
-  const height = Math.ceil(box.height);
-  await p.setViewportSize({ width, height });
-  writeFileSync(outPath, await p.screenshot({ clip: { x: 0, y: 0, width, height } }));
-  await browser.close();
+  try {
+    const ctx = await browser.newContext({ viewport: { width, height: 1200 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.setContent(html, { waitUntil: 'networkidle' });
+    const box = await (await p.$('body')).boundingBox();
+    const height = Math.ceil(box.height);
+    await p.setViewportSize({ width, height });
+    writeFileSync(outPath, await p.screenshot({ clip: { x: 0, y: 0, width, height } }));
+  } finally {
+    await browser.close();
+  }
   return outPath;
 }

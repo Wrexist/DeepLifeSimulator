@@ -9,7 +9,7 @@
  *
  *   node scripts/generate-slate-glass-previews.mjs
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { resolve } from 'node:path';
 import {
   ROOT, T, GRAD, grad, faceURI, phone, pageShell, legendItem, renderToPng,

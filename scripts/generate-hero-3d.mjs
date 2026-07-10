@@ -11,7 +11,7 @@
  * Run: node scripts/generate-hero-3d.mjs [frameIndex]
  * Out: screenshots/hero-3d/iphone/*.png  +  screenshots/hero-3d/ipad/*.png
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

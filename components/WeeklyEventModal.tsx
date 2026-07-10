@@ -94,9 +94,11 @@ export default function WeeklyEventModal() {
  const isEconomicEvent = economicEventIds.includes(event.id);
 
  // Check if this is a personal crisis event
+ // Note: investment_opportunity / job_offer are classified 'good' in
+ // getEventType() below, so they don't belong here (avoids dead overlap).
  const personalCrisisEventIds = [
- 'medical_emergency', 'identity_theft', 'investment_opportunity',
- 'job_offer', 'relationship_crisis', 'legal_issue'
+ 'medical_emergency', 'identity_theft',
+ 'relationship_crisis', 'legal_issue'
  ];
  const isPersonalCrisisEvent = personalCrisisEventIds.includes(event.id);
 

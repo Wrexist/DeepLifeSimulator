@@ -7,7 +7,7 @@
  *
  *   node scripts/generate-wave2-finale-previews.mjs
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ROOT, T, phone, pageShell, legendItem, renderToPng } from './lib/phoneFrame.mjs';

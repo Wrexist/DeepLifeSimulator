@@ -145,12 +145,23 @@ export default function AdRewardOrb() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // Continuously guard: if a blocking popup/jail starts while the orb is
+  // already visible, retract it instead of leaving it tappable on top.
+  useEffect(() => {
+    if (phase === 'orb' && blocked) {
+      hideOrb();
+      scheduleNext(30000);
+    }
+  }, [phase, blocked, hideOrb, scheduleNext]);
+
   const openAd = useCallback(() => {
+    if (blocked) return; // never open the ad sheet over a blocking moment
     clearTimers();
     pulseLoop.current?.stop();
     haptic.medium();
     setPhase('ad');
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocked]);
 
   const dismissOrb = useCallback(() => {
     hideOrb();

@@ -6,7 +6,7 @@
  *
  *   node scripts/generate-computer-suite-preview.mjs
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { resolve } from 'node:path';
 import { ROOT, T, phone, pageShell, renderToPng } from './lib/phoneFrame.mjs';
 

@@ -9,8 +9,8 @@
  *
  *   node scripts/generate-pulse-preview.mjs
  */
-import { chromium } from 'playwright';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { chromium } from '@playwright/test';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -240,13 +240,17 @@ function page() {
 }
 
 const OUT = resolve(ROOT, 'screenshots/pulse-feed-before-after.png');
+mkdirSync(resolve(ROOT, 'screenshots'), { recursive: true });
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1160, height: 1180 }, deviceScaleFactor: 2 });
-const p = await ctx.newPage();
-await p.setContent(page(), { waitUntil: 'networkidle' });
-const el = await p.$('body');
-const box = await el.boundingBox();
-await p.setViewportSize({ width: 1160, height: Math.ceil(box.height) });
-writeFileSync(OUT, await p.screenshot({ clip: { x: 0, y: 0, width: 1160, height: Math.ceil(box.height) } }));
-await browser.close();
+try {
+  const ctx = await browser.newContext({ viewport: { width: 1160, height: 1180 }, deviceScaleFactor: 2 });
+  const p = await ctx.newPage();
+  await p.setContent(page(), { waitUntil: 'networkidle' });
+  const el = await p.$('body');
+  const box = await el.boundingBox();
+  await p.setViewportSize({ width: 1160, height: Math.ceil(box.height) });
+  writeFileSync(OUT, await p.screenshot({ clip: { x: 0, y: 0, width: 1160, height: Math.ceil(box.height) } }));
+} finally {
+  await browser.close();
+}
 console.log('wrote', OUT);

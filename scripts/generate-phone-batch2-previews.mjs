@@ -7,7 +7,7 @@
  *
  *   node scripts/generate-phone-batch2-previews.mjs
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { resolve } from 'node:path';
 import { ROOT, T, phone, pageShell, legendItem, renderToPng } from './lib/phoneFrame.mjs';
 

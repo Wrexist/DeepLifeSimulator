@@ -7,7 +7,7 @@
  *
  *   node scripts/generate-app-polish-previews.mjs
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { resolve } from 'node:path';
 import {
   ROOT, T, GRAD, grad, esc, faceURI, avatarFace, avatarInitial,
