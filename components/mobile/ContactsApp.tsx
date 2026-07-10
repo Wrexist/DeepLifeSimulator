@@ -1,16 +1,21 @@
 /**
- * ContactsApp — full rewrite (Remake 10).
+ * ContactsApp — Social-CRM remake (Remake 11, on top of Slate Glass).
  *
- * Previously: only `gameState.relationships` (family/partners/friends).
- * Now: the network spine. Personal + lobbyists + alliances + vendors + biz +
- * employees, all surfaced through the `aggregateContacts` lib. Adds a Favors
- * IOU ledger across systems.
+ * The network spine, now with a personal-CRM body instead of uniform rows:
+ *   - Personal → contact rows with an AVATAR + strength RING + last-contact
+ *     recency dot, a "relationship portfolio" hero (inner-circle avatar stack +
+ *     summary), and a densified expanded profile (job, income, dates, gifts,
+ *     milestones, goals, gift tastes/dislikes, borrowing streak, life events).
+ *   - Network  → company-badge TILES (2-up grid) + a read-only detail page
+ *     (list → detail) surfacing every ContactView field.
+ *   - Favors   → a LEDGER: signed +/- transaction rows in one grouped card,
+ *     plus a settled-history section.
+ *   - Attention→ TRIAGE cards, each with one clear primary action (Call to
+ *     reconnect for personal, View profile for network allies).
  *
- * Tabs:
- *   Personal — family/partners/friends with the existing action surface
- *   Network  — political/business/underground/employee contacts (read-only summary)
- *   Favors   — open IOUs the player can redeem
- *   Attention— stale + weak contacts the player has been neglecting
+ * Slate Glass tokens stay binding: amber identity, Recipe A/B/C/D, crash-safe
+ * LinearGradientFallback + getPlatformShadows only. ZERO REMOVAL — every action
+ * and readout the old file had is still reachable.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -37,6 +42,7 @@ import {
   Building2,
   Star,
   ChevronDown,
+  ChevronRight,
   AlertTriangle,
   Handshake,
   X as XIcon,
@@ -46,7 +52,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship, GameState } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
-import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
+import { netMoneyPosition, openFavors, FavorLedger, Favor } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
@@ -62,6 +68,7 @@ import {
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import ProgressRing from '@/components/ui/ProgressRing';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -86,8 +93,6 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     setGameState,
     updateMoney,
     updateStats,
-    updateRelationship,
-    recordRelationshipAction,
     breakUpWithPartner,
     moveInTogether,
     fileDivorce,
@@ -107,9 +112,20 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
   ];
 
-  // Recipe B — the single focal amber hero per tab-view (Network / Favors). Depth is
-  // faked with a flat tint wash + one glow blob (the LinearGradient fallback renders
-  // only colors[0]); the passed-in stat row is the hero content, unchanged.
+  // Recipe C — tinted glass icon "badge" (same-hue trio: 15% fill, 30% rim,
+  // saturated glyph). Reused by network tiles, favor ledger rows, triage cards,
+  // and the network detail hero.
+  const iconBubble = useCallback(
+    (color: string, size = 40) => [
+      getGlassIconContainer(darkMode, size),
+      { backgroundColor: hexToRgba(color, 0.15), borderWidth: 1, borderColor: hexToRgba(color, 0.3) },
+    ],
+    [darkMode]
+  );
+
+  // Recipe B — the single focal amber hero per tab-view. Depth is faked with a
+  // flat tint wash + one glow blob (the LinearGradient fallback renders only
+  // colors[0]); the passed-in content is the hero body.
   const statsHero = (title: string, children: React.ReactNode) => (
     <View
       style={[
@@ -143,6 +159,9 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const [feedback, setFeedback] = useState<{ id?: string; message: string } | null>(null);
   const [ringTargetId, setRingTargetId] = useState<string | null>(null);
   const [weddingTargetId, setWeddingTargetId] = useState<string | null>(null);
+  // list → detail routing: the network/ally ContactView shown on its own page.
+  const [networkDetailId, setNetworkDetailId] = useState<string | null>(null);
+  const [showSettled, setShowSettled] = useState(false);
 
   // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
   // arrays actually change — not on every gameState mutation (e.g., stat ticks).
@@ -168,9 +187,43 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const needAttention = useMemo(() => contactsNeedingAttention(allContacts), [allContacts]);
 
+  // Top of the personal book by bond strength — powers the hero avatar stack.
+  const topPersonal = useMemo(
+    () => [...personalContacts].sort((a, b) => b.strength - a.strength).slice(0, 4),
+    [personalContacts]
+  );
+  const personalCount = personalContacts.length;
+  const avgStrength = personalCount
+    ? Math.round(personalContacts.reduce((s, c) => s + c.strength, 0) / personalCount)
+    : 0;
+  const strongCount = personalContacts.filter((c) => c.strength >= 70).length;
+  const personalAttention = needAttention.filter(
+    (c) => c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend'
+  ).length;
+
+  const networkCost = useMemo(
+    () => networkContacts.reduce((s, c) => s + (c.costPerWeek ?? 0), 0),
+    [networkContacts]
+  );
+
   const ledger: FavorLedger = gameState.favorLedger ?? { favors: [] };
   const open = useMemo(() => openFavors(ledger), [ledger]);
+  const settled = useMemo(() => ledger.favors.filter((f) => f.status !== 'open'), [ledger]);
   const moneyPos = useMemo(() => netMoneyPosition(ledger), [ledger]);
+
+  // Map a favor's contactId to a friendly display name where we can resolve it.
+  const nameForContactId = useCallback(
+    (id: string) => allContacts.find((c) => c.id === id)?.name ?? id,
+    [allContacts]
+  );
+
+  const detailContact = networkDetailId ? allContacts.find((c) => c.id === networkDetailId) : undefined;
+  const inDetail = !!detailContact;
+
+  const handleBack = useCallback(() => {
+    if (networkDetailId) setNetworkDetailId(null);
+    else onBack();
+  }, [networkDetailId, onBack]);
 
   const flash = useCallback((message: string, id?: string) => {
     setFeedback({ id, message });
@@ -372,42 +425,68 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [ringTargetId, gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
   );
 
+  // ---- Personal: CRM row (avatar + recency dot + strength ring) --------------
   const renderPersonalCard = (c: ContactView) => {
     const r = c.raw as Relationship;
     const expanded = expandedId === c.id;
     const isPartner = c.kind === 'partner';
+    const rec = recencyMeta(c.weeksSinceContact, theme);
+    const sColor = strengthColor(c.strength);
+    const innerLine = [styles.innerLifeLine, { color: theme.textSecondary }];
+    const milestone =
+      r.marriageWeek != null
+        ? `💍 Married since wk ${r.marriageWeek}${r.anniversaryWeek ? ` · anniversary wk ${r.anniversaryWeek}` : ''}`
+        : r.engagementWeek != null
+          ? `💍 Engaged since wk ${r.engagementWeek}`
+          : null;
     return (
       <View key={c.id} style={cardSurface}>
         <TouchableOpacity
           style={styles.cardHeader}
           onPress={() => setExpandedId(expanded ? null : c.id)}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`${c.name}, ${expanded ? 'collapse' : 'expand'} profile`}
         >
-          <Image
-            source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type)}
-            style={[styles.avatar, { borderColor: theme.glassBorder }]}
-          />
+          <View style={styles.avatarWrap}>
+            <Image
+              source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type)}
+              style={[styles.avatar, { borderColor: theme.glassBorder }]}
+            />
+            <View style={[styles.recencyDot, { backgroundColor: rec.color, borderColor: theme.surface }]} />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
-            <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
+            <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
               {c.subtitle}{r.personality ? ` · ${r.personality}` : ''}
               {r.npcMood ? ` · ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
-            <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    width: `${Math.max(0, Math.min(100, c.strength))}%`,
-                    backgroundColor: strengthColor(c.strength),
-                  },
-                ]}
-              />
+            <View style={styles.recencyRow}>
+              <View style={[styles.recencyDotInline, { backgroundColor: rec.color }]} />
+              <Text style={[styles.recencyText, { color: theme.textMuted }]} numberOfLines={1}>{rec.label}</Text>
             </View>
+            {c.tags && c.tags.length > 0 ? (
+              <View style={styles.tagRow}>
+                {c.tags.slice(0, 3).map((t) => (
+                  <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(accent.amber, 0.12) }]}>
+                    <Text style={[styles.tagText, { color: accent.amber }]}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
-          <Text style={[styles.cardScore, { color: strengthColor(c.strength) }]}>
-            {Math.round(c.strength)}
-          </Text>
+          <ProgressRing
+            value={c.strength}
+            size={46}
+            strokeWidth={5}
+            ambient={false}
+            showPill={false}
+            accentColor={sColor}
+            trackColor={theme.surfaceElevated}
+            label={`${c.name} relationship strength`}
+          >
+            <Text style={[styles.ringNum, { color: sColor }]}>{Math.round(c.strength)}</Text>
+          </ProgressRing>
           <ChevronDown
             size={scale(18)}
             color={theme.textSecondary}
@@ -421,10 +500,17 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
         {expanded && (
           <View style={styles.actionsBox}>
+            {/* Densified facts — job/income/dates/gifts/interactions were all in
+                state but never surfaced. */}
+            <View style={styles.factRow}>
+              {r.job ? <Fact label="Job" value={r.job} theme={theme} /> : null}
+              {r.income ? <Fact label="Income" value={`$${r.income.toLocaleString()}/wk`} theme={theme} /> : null}
+              {typeof r.datesCount === 'number' && r.datesCount > 0 ? <Fact label="Dates" value={String(r.datesCount)} theme={theme} /> : null}
+              {typeof r.giftsReceived === 'number' && r.giftsReceived > 0 ? <Fact label="Gifts" value={String(r.giftsReceived)} theme={theme} /> : null}
+              {typeof r.weeklyInteractions === 'number' && r.weeklyInteractions > 0 ? <Fact label="This wk" value={`${r.weeklyInteractions}`} theme={theme} /> : null}
+            </View>
             {/* Inner life: the weekly NPC-depth tick evolves opinion (trust/
-                attraction/respect), goals, gift tastes, and memories — but none
-                of it was rendered, so relationships read as one static bar.
-                Surface it compactly here. */}
+                attraction/respect), goals, gift tastes, and memories. */}
             {r.npcOpinion ? (
               <View style={styles.opinionRow}>
                 <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
@@ -438,17 +524,35 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                 </Text>
               </View>
             ) : null}
-            {(() => {
-              const goal = (r.npcGoals ?? []).find((g) => !g.fulfilled);
-              return goal ? (
-                <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
-                  🎯 Dreams of: {goal.label}
-                </Text>
-              ) : null;
-            })()}
+            {milestone ? (
+              <Text style={innerLine} numberOfLines={1}>{milestone}</Text>
+            ) : null}
+            {r.isPregnant ? (
+              <Text style={innerLine} numberOfLines={1}>
+                🤰 Expecting{r.pregnancyChildName ? ` · ${r.pregnancyChildName}` : ''}
+              </Text>
+            ) : null}
+            {(r.npcGoals ?? []).filter((g) => !g.fulfilled).slice(0, 3).map((g) => (
+              <Text key={g.id} style={innerLine} numberOfLines={1}>🎯 Dreams of: {g.label}</Text>
+            ))}
             {r.giftPreferences && r.giftPreferences.length > 0 ? (
-              <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
+              <Text style={innerLine} numberOfLines={1}>
                 🎁 Loves: {r.giftPreferences.slice(0, 3).join(', ')}
+              </Text>
+            ) : null}
+            {r.giftDislikes && r.giftDislikes.length > 0 ? (
+              <Text style={innerLine} numberOfLines={1}>
+                🚫 Dislikes: {r.giftDislikes.slice(0, 3).join(', ')}
+              </Text>
+            ) : null}
+            {typeof r.moneyRequestAttempts === 'number' && r.moneyRequestAttempts > 0 ? (
+              <Text style={innerLine} numberOfLines={1}>
+                💵 Asked for money {r.moneyRequestAttempts}× recently{r.moneyRequestAttempts >= 5 ? " · can't refuse next time" : ''}
+              </Text>
+            ) : null}
+            {r.lastLifeEvent ? (
+              <Text style={innerLine} numberOfLines={1}>
+                📌 {r.lastLifeEvent.event} (wk {r.lastLifeEvent.weeksLived})
               </Text>
             ) : null}
             {r.npcMemories && r.npcMemories.length > 0 ? (
@@ -498,39 +602,225 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     );
   };
 
-  const renderNetworkCard = (c: ContactView) => {
+  // ---- Network: company-badge tile ------------------------------------------
+  const renderNetworkTile = (c: ContactView) => {
     const { Icon, color } = kindMeta(c.kind);
     return (
-      <View key={c.id} style={cardSurface}>
-        <View style={styles.cardHeader}>
-          <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(color, 0.15), borderWidth: 1, borderColor: hexToRgba(color, 0.3) }]}>
+      <TouchableOpacity
+        key={c.id}
+        style={[cardSurface, styles.tile]}
+        onPress={() => setNetworkDetailId(c.id)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${c.name}`}
+      >
+        <View style={styles.tileTop}>
+          <View style={iconBubble(color, 40)}>
             <Icon size={scale(20)} color={color} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
-            {c.subtitle ? <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{c.subtitle}</Text> : null}
-            <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
-              <View
-                style={[
-                  styles.barFill,
-                  { width: `${Math.max(0, Math.min(100, c.strength))}%`, backgroundColor: color },
-                ]}
-              />
+          <ProgressRing
+            value={c.strength}
+            size={40}
+            strokeWidth={5}
+            ambient={false}
+            showPill={false}
+            accentColor={color}
+            trackColor={theme.surfaceElevated}
+            label={`${c.name} strength`}
+          >
+            <Text style={[styles.ringNum, { color }]}>{Math.round(c.strength)}</Text>
+          </ProgressRing>
+        </View>
+        <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
+        {c.subtitle ? (
+          <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>{c.subtitle}</Text>
+        ) : null}
+        <View style={styles.tagRow}>
+          {c.tags.slice(0, 2).map((t) => (
+            <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(color, 0.12) }]}>
+              <Text style={[styles.tagText, { color }]}>{t}</Text>
             </View>
+          ))}
+          {c.costPerWeek ? (
+            <View style={[styles.tag, { backgroundColor: hexToRgba(accent.warning, 0.12) }]}>
+              <Text style={[styles.tagText, { color: accent.warning }]}>${c.costPerWeek.toLocaleString()}/wk</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.tileFooter}>
+          <Text style={[styles.viewLink, { color: accent.amber }]}>View</Text>
+          <ChevronRight size={scale(14)} color={accent.amber} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ---- Network detail (list → detail page) ----------------------------------
+  const renderNetworkDetail = (c: ContactView) => {
+    const { Icon, color } = kindMeta(c.kind);
+    return (
+      <ScrollView
+        style={styles.flex1}
+        contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
+      >
+        {statsHero(kindLabel(c.kind), (
+          <View style={styles.detailHeroRow}>
+            <View style={iconBubble(color, 56)}>
+              <Icon size={scale(26)} color={color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailName, { color: theme.text }]} numberOfLines={2}>{c.name}</Text>
+              {c.subtitle ? (
+                <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>{c.subtitle}</Text>
+              ) : null}
+            </View>
+            <ProgressRing
+              value={c.strength}
+              size={64}
+              strokeWidth={7}
+              accentColor={color}
+              trackColor={theme.surfaceElevated}
+              surfaceColor={theme.surface}
+              borderColor={theme.border}
+              inkColor={theme.text}
+              label={`${c.name} strength`}
+            />
+          </View>
+        ))}
+        <View style={cardSurface}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
+          <DetailRow label="Relationship strength" value={`${Math.round(c.strength)} / 100`} theme={theme} />
+          <DetailRow label="Category" value={kindLabel(c.kind)} theme={theme} />
+          <DetailRow label="Managed in" value={sourceLabel(c.sourceApp)} theme={theme} />
+          {c.costPerWeek ? <DetailRow label="Weekly cost" value={`$${c.costPerWeek.toLocaleString()}`} theme={theme} /> : null}
+          {c.weeksSinceContact != null ? <DetailRow label="Last contact" value={`${c.weeksSinceContact}w ago`} theme={theme} /> : null}
+        </View>
+        {c.tags.length > 0 ? (
+          <View style={cardSurface}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Tags</Text>
             <View style={styles.tagRow}>
-              {c.tags.slice(0, 3).map((t) => (
+              {c.tags.map((t) => (
                 <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(color, 0.12) }]}>
                   <Text style={[styles.tagText, { color }]}>{t}</Text>
                 </View>
               ))}
-              {c.costPerWeek ? (
-                <Text style={[styles.cardSub, { color: accent.warning }]}>
-                  ${c.costPerWeek.toLocaleString()}/wk
-                </Text>
-              ) : null}
             </View>
           </View>
+        ) : null}
+        <TouchableOpacity
+          style={[styles.triageBtn, getGlassButton(darkMode)]}
+          onPress={handleBack}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Back to network"
+        >
+          <ArrowLeft size={scale(15)} color={theme.text} />
+          <Text style={[styles.triageBtnText, { color: theme.text }]}>Back to network</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  };
+
+  // ---- Favors: signed ledger row --------------------------------------------
+  const renderFavorRow = (f: Favor, isSettled: boolean) => {
+    const amt = favorAmount(f);
+    return (
+      <View style={styles.ledgerRow}>
+        <View style={iconBubble(favorColor(f.kind), 36)}>
+          <Handshake size={scale(16)} color={favorColor(f.kind)} />
         </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ledgerTitle, { color: isSettled ? theme.textSecondary : theme.text }]}>
+            {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {f.kind}
+          </Text>
+          <Text style={[styles.cardSub, { color: theme.textMuted }]} numberOfLines={1}>
+            {nameForContactId(f.contactId)} · wk {f.createdWeek}{f.expiresWeek ? ` · exp wk ${f.expiresWeek}` : ''}
+          </Text>
+          {f.note ? (
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>{f.note}</Text>
+          ) : null}
+        </View>
+        <View style={styles.ledgerRight}>
+          <Text style={[styles.ledgerAmount, { color: isSettled ? theme.textMuted : amt.color }]}>{amt.text}</Text>
+          {isSettled ? (
+            <View style={[styles.tag, { backgroundColor: theme.surfaceElevated }]}>
+              <Text style={[styles.tagText, { color: theme.textSecondary }]}>{f.status}</Text>
+            </View>
+          ) : f.direction === 'owed-to-player' ? (
+            <TouchableOpacity
+              style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.success, 0.16) }]}
+              onPress={() => handleRedeemFavor(f.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem favor"
+            >
+              <Text style={[styles.redeemText, { color: accent.success }]}>Redeem</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    );
+  };
+
+  // ---- Attention: triage card with one primary action -----------------------
+  const renderTriageCard = (c: ContactView) => {
+    const rec = recencyMeta(c.weeksSinceContact, theme);
+    const isPersonal = c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend';
+    const sColor = strengthColor(c.strength);
+    return (
+      <View key={c.id} style={cardSurface}>
+        <View style={styles.cardHeader}>
+          <View style={iconBubble(rec.color, 44)}>
+            <AlertTriangle size={scale(20)} color={rec.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>{c.subtitle}</Text>
+            <View style={styles.recencyRow}>
+              <View style={[styles.recencyDotInline, { backgroundColor: rec.color }]} />
+              <Text style={[styles.recencyText, { color: rec.color }]} numberOfLines={1}>
+                {rec.label} · strength {Math.round(c.strength)}
+              </Text>
+            </View>
+          </View>
+          <ProgressRing
+            value={c.strength}
+            size={44}
+            strokeWidth={5}
+            ambient={false}
+            showPill={false}
+            accentColor={sColor}
+            trackColor={theme.surfaceElevated}
+            label={`${c.name} strength`}
+          >
+            <Text style={[styles.ringNum, { color: sColor }]}>{Math.round(c.strength)}</Text>
+          </ProgressRing>
+        </View>
+        {isPersonal ? (
+          <TouchableOpacity
+            style={[styles.triageBtn, { backgroundColor: hexToRgba(accent.amber, 0.16), borderColor: hexToRgba(accent.amber, 0.34) }]}
+            onPress={() => handleSimple(c.id, 'call', 0, 3)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${c.name} to reconnect`}
+          >
+            <Phone size={scale(15)} color={accent.amber} />
+            <Text style={[styles.triageBtnText, { color: accent.amber }]}>Call to reconnect · +3 bond</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.triageBtn, { backgroundColor: hexToRgba(accent.info, 0.16), borderColor: hexToRgba(accent.info, 0.34) }]}
+            onPress={() => setNetworkDetailId(c.id)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${c.name}`}
+          >
+            <ChevronRight size={scale(15)} color={accent.info} />
+            <Text style={[styles.triageBtnText, { color: accent.info }]}>View profile</Text>
+          </TouchableOpacity>
+        )}
+        {feedback?.id === c.id ? (
+          <Text style={[styles.feedback, { color: accent.amber }]}>{feedback.message}</Text>
+        ) : null}
       </View>
     );
   };
@@ -546,7 +836,41 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           darkMode={darkMode}
         />
       ) : (
-        personalContacts.map(renderPersonalCard)
+        <>
+          {statsHero('Relationship portfolio', (
+            <>
+              {topPersonal.length > 0 ? (
+                <View style={styles.clusterRow}>
+                  <View style={styles.avatarStack}>
+                    {topPersonal.map((c, i) => {
+                      const rr = c.raw as Relationship;
+                      return (
+                        <Image
+                          key={c.id}
+                          source={getRelationshipImage(rr.age || 25, rr.gender || 'male', rr.type)}
+                          style={[
+                            styles.clusterAvatar,
+                            { marginLeft: i === 0 ? 0 : -scale(12), borderColor: theme.surface, zIndex: 10 - i },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.clusterLabel, { color: theme.textSecondary }]} numberOfLines={2}>
+                    Your inner circle · top {topPersonal.length} by bond
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.statsRow}>
+                <Stat label="People" value={personalCount} color={accent.amber} theme={theme} />
+                <Stat label="Avg bond" value={avgStrength} color={strengthColor(avgStrength)} theme={theme} />
+                <Stat label="Strong" value={strongCount} color={accent.success} theme={theme} />
+                <Stat label="At risk" value={personalAttention} color={personalAttention > 0 ? accent.warning : theme.textMuted} theme={theme} />
+              </View>
+            </>
+          ))}
+          {personalContacts.map(renderPersonalCard)}
+        </>
       )}
     </ScrollView>
   );
@@ -559,6 +883,8 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           <Stat label="Allies" value={countByKind(networkContacts, 'alliance')} color={accent.info} theme={theme} />
           <Stat label="Vendors" value={countByKind(networkContacts, 'vendor')} color={accent.warning} theme={theme} />
           <Stat label="Business" value={countByKind(networkContacts, 'business')} color={accent.success} theme={theme} />
+          <Stat label="Teams" value={countByKind(networkContacts, 'employee')} color={accent.info} theme={theme} />
+          <Stat label="Cost/wk" value={networkCost > 0 ? `$${networkCost.toLocaleString()}` : '$0'} color={networkCost > 0 ? accent.warning : theme.textMuted} theme={theme} />
         </View>
       ))}
       {networkContacts.length === 0 ? (
@@ -570,7 +896,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           darkMode={darkMode}
         />
       ) : (
-        networkContacts.map(renderNetworkCard)
+        <View style={styles.grid}>{networkContacts.map(renderNetworkTile)}</View>
       )}
     </ScrollView>
   );
@@ -587,6 +913,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             color={moneyPos.net >= 0 ? accent.success : accent.danger}
             theme={theme}
           />
+          <Stat label="Open" value={open.length} color={accent.amber} theme={theme} />
         </View>
       ))}
       {open.length === 0 ? (
@@ -598,116 +925,133 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           darkMode={darkMode}
         />
       ) : (
-        open.map((f) => (
-          <View key={f.id} style={cardSurface}>
-            <View style={styles.cardHeader}>
-              <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(favorColor(f.kind), 0.15), borderWidth: 1, borderColor: hexToRgba(favorColor(f.kind), 0.3) }]}>
-                <Handshake size={scale(20)} color={favorColor(f.kind)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardName, { color: theme.text }]}>
-                  {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'}: {f.kind}
-                </Text>
-                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-                  Contact: {f.contactId} · since week {f.createdWeek}
-                  {f.expiresWeek ? ` · expires week ${f.expiresWeek}` : ''}
-                </Text>
-                {f.note ? (
-                  <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{f.note}</Text>
-                ) : null}
-                <View style={styles.tagRow}>
-                  <View style={[styles.tag, { backgroundColor: hexToRgba(favorColor(f.kind), 0.12) }]}>
-                    <Text style={[styles.tagText, { color: favorColor(f.kind) }]}>
-                      {f.kind === 'money' ? `$${f.value.toLocaleString()}` : `${f.value} pts`}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-              {f.direction === 'owed-to-player' ? (
-                <TouchableOpacity
-                  style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.success, 0.16) }]}
-                  onPress={() => handleRedeemFavor(f.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Redeem favor"
-                >
-                  <Text style={[styles.redeemText, { color: accent.success }]}>Redeem</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-        ))
+        <View style={cardSurface}>
+          {open.map((f, i) => (
+            <React.Fragment key={f.id}>
+              {i > 0 && <View style={[styles.ledgerDivider, { backgroundColor: theme.border }]} />}
+              {renderFavorRow(f, false)}
+            </React.Fragment>
+          ))}
+        </View>
       )}
+      {settled.length > 0 ? (
+        <View>
+          <TouchableOpacity
+            style={[styles.toggleBtn, getGlassButton(darkMode)]}
+            onPress={() => setShowSettled((s) => !s)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={showSettled ? 'Hide settled favors' : 'Show settled favors'}
+          >
+            <Text style={[styles.toggleText, { color: theme.textSecondary }]}>
+              {showSettled ? 'Hide' : 'Show'} settled history · {settled.length}
+            </Text>
+            <ChevronDown
+              size={scale(16)}
+              color={theme.textSecondary}
+              style={{ transform: [{ rotate: showSettled ? '180deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+          {showSettled ? (
+            <View style={[cardSurface, { marginTop: sp.sm }]}>
+              {settled.map((f, i) => (
+                <React.Fragment key={f.id}>
+                  {i > 0 && <View style={[styles.ledgerDivider, { backgroundColor: theme.border }]} />}
+                  {renderFavorRow(f, true)}
+                </React.Fragment>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </ScrollView>
   );
 
-  const renderAttention = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {needAttention.length === 0 ? (
-        <EmptyHero
-          Icon={Heart}
-          title="Everyone's content"
-          subtitle="No stale or struggling contacts. Keep it up."
-          theme={theme}
-          darkMode={darkMode}
-        />
-      ) : (
-        needAttention.map((c) => (
-          <View key={c.id} style={cardSurface}>
-            <View style={styles.cardHeader}>
-              <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(accent.warning, 0.15), borderWidth: 1, borderColor: hexToRgba(accent.warning, 0.3) }]}>
-                <AlertTriangle size={scale(20)} color={accent.warning} />
+  const renderAttention = () => {
+    const coldest = needAttention.reduce((m, c) => Math.max(m, c.weeksSinceContact ?? 0), 0);
+    const attnAvg = needAttention.length
+      ? Math.round(needAttention.reduce((s, c) => s + c.strength, 0) / needAttention.length)
+      : 0;
+    return (
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
+        {needAttention.length === 0 ? (
+          <EmptyHero
+            Icon={Heart}
+            title="Everyone's content"
+            subtitle="No stale or struggling contacts. Keep it up."
+            theme={theme}
+            darkMode={darkMode}
+          />
+        ) : (
+          <>
+            {statsHero('Triage queue', (
+              <View style={styles.statsRow}>
+                <Stat label="At risk" value={needAttention.length} color={accent.warning} theme={theme} />
+                <Stat label="Coldest" value={`${coldest}w`} color={accent.danger} theme={theme} />
+                <Stat label="Avg bond" value={attnAvg} color={strengthColor(attnAvg)} theme={theme} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
-                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-                  {c.subtitle} · last contact {c.weeksSinceContact ?? '?'} weeks ago · strength {Math.round(c.strength)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ))
-      )}
-    </ScrollView>
-  );
+            ))}
+            {needAttention.map(renderTriageCard)}
+          </>
+        )}
+      </ScrollView>
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
-          <ArrowLeft size={scale(18)} color={theme.text} />
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.headerBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Contacts</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+          {inDetail && detailContact ? detailContact.name : 'Contacts'}
+        </Text>
         <View style={styles.headerBtn} />
       </View>
 
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        {(['personal', 'network', 'favors', 'attention'] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[
-              styles.tabBtn,
-              activeTab === tab && { borderBottomColor: accent.amber, borderBottomWidth: 2 },
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === tab ? accent.amber : theme.textMuted },
-              ]}
-            >
-              {tab[0].toUpperCase() + tab.slice(1)}
-              {tab === 'attention' && needAttention.length > 0 ? ` · ${needAttention.length}` : ''}
-              {tab === 'favors' && open.length > 0 ? ` · ${open.length}` : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {inDetail && detailContact ? (
+        renderNetworkDetail(detailContact)
+      ) : (
+        <>
+          <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {(['personal', 'network', 'favors', 'attention'] as TabType[]).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={[
+                  styles.tabBtn,
+                  activeTab === tab && { borderBottomColor: accent.amber, borderBottomWidth: 2 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={tab}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: activeTab === tab ? accent.amber : theme.textMuted },
+                  ]}
+                >
+                  {tab[0].toUpperCase() + tab.slice(1)}
+                  {tab === 'attention' && needAttention.length > 0 ? ` · ${needAttention.length}` : ''}
+                  {tab === 'favors' && open.length > 0 ? ` · ${open.length}` : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      {activeTab === 'personal' && renderPersonal()}
-      {activeTab === 'network' && renderNetwork()}
-      {activeTab === 'favors' && renderFavors()}
-      {activeTab === 'attention' && renderAttention()}
+          {activeTab === 'personal' && renderPersonal()}
+          {activeTab === 'network' && renderNetwork()}
+          {activeTab === 'favors' && renderFavors()}
+          {activeTab === 'attention' && renderAttention()}
+        </>
+      )}
 
       {feedback && !feedback.id ? (
         <View style={[styles.toast, getPlatformShadows(8, 0.2, 0, 16), { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.amber }]}>
@@ -846,6 +1190,42 @@ function Stat({
   );
 }
 
+/** Small labelled fact pill for the expanded personal profile. */
+function Fact({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: ReturnType<typeof getThemeColors>;
+}) {
+  return (
+    <View style={[styles.factChip, { backgroundColor: theme.surfaceElevated }]}>
+      <Text style={[styles.factLabel, { color: theme.textMuted }]}>{label}</Text>
+      <Text style={[styles.factValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
+/** Key/value row for the network detail page. */
+function DetailRow({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: ReturnType<typeof getThemeColors>;
+}) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={[styles.detailKey, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.detailVal, { color: theme.text }]} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
 function EmptyHero({
   Icon,
   title,
@@ -902,6 +1282,50 @@ function kindMeta(kind: ContactView['kind']): {
   }
 }
 
+function kindLabel(kind: ContactView['kind']): string {
+  switch (kind) {
+    case 'lobbyist': return 'Lobbyist';
+    case 'alliance': return 'Political ally';
+    case 'vendor': return 'Dark-web vendor';
+    case 'business': return 'Business partner';
+    case 'employee': return 'Company team';
+    case 'family': return 'Family';
+    case 'partner': return 'Partner';
+    case 'friend': return 'Friend';
+    default: return 'Contact';
+  }
+}
+
+function sourceLabel(source: ContactView['sourceApp']): string {
+  switch (source) {
+    case 'politics': return 'Politics';
+    case 'darkweb': return 'Onion (dark web)';
+    case 'travel': return 'Travel';
+    case 'company': return 'Companies';
+    default: return 'Contacts';
+  }
+}
+
+/** Signed +/- transaction amount for the favor ledger. */
+function favorAmount(f: Favor): { text: string; color: string } {
+  const sign = f.direction === 'owed-to-player' ? '+' : '−';
+  const color = f.direction === 'owed-to-player' ? accent.success : accent.danger;
+  const val = f.kind === 'money' ? `$${f.value.toLocaleString()}` : `${f.value} pts`;
+  return { text: `${sign}${val}`, color };
+}
+
+/** Last-contact recency → dot color + label (the CRM "warmth" signal). */
+function recencyMeta(
+  weeks: number | undefined,
+  theme: ReturnType<typeof getThemeColors>
+): { color: string; label: string } {
+  if (weeks === undefined) return { color: theme.textMuted, label: 'No recent contact' };
+  if (weeks <= 0) return { color: accent.success, label: 'Contacted this week' };
+  if (weeks <= 3) return { color: accent.success, label: `Contacted ${weeks}w ago` };
+  if (weeks <= 8) return { color: accent.warning, label: `${weeks}w since contact` };
+  return { color: accent.danger, label: `${weeks}w — going cold` };
+}
+
 function favorColor(kind: string): string {
   switch (kind) {
     case 'money': return accent.success;
@@ -941,7 +1365,7 @@ const styles = StyleSheet.create({
     paddingVertical: sp.sm,
   },
   headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.lg, fontWeight: '700' },
+  headerTitle: { fontSize: fs.lg, fontWeight: '700', flex: 1, textAlign: 'center', marginHorizontal: sp.sm },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
   tabText: { fontSize: fs.sm, fontWeight: '700' },
@@ -949,10 +1373,15 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
   cardName: { fontSize: fs.md, fontWeight: '800' },
   cardSub: { fontSize: fs.sm, marginTop: 2 },
-  cardScore: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  avatarWrap: { position: 'relative' },
   avatar: { width: scale(48), height: scale(48), borderRadius: scale(24), borderWidth: 1 },
-  bar: { height: scale(6), borderRadius: br.full, marginTop: sp.xs, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: br.full },
+  // Online-status-style recency dot pinned to the avatar corner.
+  recencyDot: { position: 'absolute', bottom: 0, right: 0, width: scale(13), height: scale(13), borderRadius: scale(6.5), borderWidth: 2 },
+  recencyDotInline: { width: scale(8), height: scale(8), borderRadius: scale(4) },
+  recencyRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
+  recencyText: { fontSize: fs.xs, fontWeight: '600' },
+  // Number that sits inside a compact strength ring (row/tile/triage).
+  ringNum: { fontSize: fontScale(13), fontWeight: '800', fontVariant: ['tabular-nums'] },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
   tag: { paddingHorizontal: sp.sm, paddingVertical: 2, borderRadius: br.full },
   tagText: { fontSize: fs.xs, fontWeight: '700' },
@@ -961,6 +1390,11 @@ const styles = StyleSheet.create({
   opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   opinionStat: { fontSize: fontScale(11) },
   innerLifeLine: { fontSize: fontScale(11.5) },
+  // Labelled fact pills (job / income / dates / gifts) on a surfaceElevated inset.
+  factRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  factChip: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.md },
+  factLabel: { fontSize: fs.xs, fontWeight: '600' },
+  factValue: { fontSize: fs.xs, fontWeight: '800' },
   // Standard tinted action chip: same-hue soft fill, no border (de-noise).
   actionChip: {
     flexDirection: 'row',
@@ -1011,14 +1445,40 @@ const styles = StyleSheet.create({
   },
   heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   statsTitle: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sp.sm },
-  // Wrap to handle 4-up Network row (cramped at ~85pt each) and 3-up Favors row
-  // with long $-formatted values. flexBasis: 22% keeps the 4-up Network row on a
-  // single line on larger phones but lets it drop to 2x2 on narrow screens; the
-  // 3-up Favors row stays in one line until values get long.
+  // Wrap to handle 4-up / 6-up stat rows and long $-formatted values.
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
   stat: { alignItems: 'center', flexBasis: '22%', flexGrow: 1, minWidth: scale(72) },
   statValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: fs.xs, marginTop: 2 },
+  // Inner-circle avatar stack in the personal hero.
+  clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginBottom: sp.md },
+  avatarStack: { flexDirection: 'row' },
+  clusterAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), borderWidth: 2 },
+  clusterLabel: { flex: 1, fontSize: fs.sm, fontWeight: '700' },
+  // Network badge-tile grid.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.md },
+  tile: { flexBasis: '47%', flexGrow: 1, minWidth: scale(150), gap: sp.xs },
+  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  tileFooter: { flexDirection: 'row', alignItems: 'center', gap: scale(2), marginTop: sp.xs },
+  viewLink: { fontSize: fs.sm, fontWeight: '700' },
+  // Favor ledger rows.
+  ledgerRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingVertical: sp.sm },
+  ledgerDivider: { height: StyleSheet.hairlineWidth },
+  ledgerTitle: { fontSize: fs.md, fontWeight: '700', textTransform: 'capitalize' },
+  ledgerRight: { alignItems: 'flex-end', gap: sp.xs },
+  ledgerAmount: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  toggleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.sm, paddingHorizontal: sp.md, borderRadius: br.full },
+  toggleText: { fontSize: fs.sm, fontWeight: '700' },
+  // Triage / detail-page shared prominent button.
+  triageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: scale(40), borderRadius: br.full, borderWidth: 1, marginTop: sp.sm, paddingHorizontal: sp.md },
+  triageBtnText: { fontSize: fs.sm, fontWeight: '700' },
+  // Network detail page.
+  detailHeroRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
+  detailName: { fontSize: fs.xl, fontWeight: '800' },
+  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2, marginBottom: sp.xs },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: sp.md, paddingVertical: sp.sm },
+  detailKey: { fontSize: fs.sm },
+  detailVal: { fontSize: fs.sm, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
   emptyCard: { paddingVertical: sp['2xl'], paddingHorizontal: sp.lg, alignItems: 'center' },
   emptyContent: { alignItems: 'center', gap: sp.sm, opacity: 0.6 },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },

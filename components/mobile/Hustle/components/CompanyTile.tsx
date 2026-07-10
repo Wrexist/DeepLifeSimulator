@@ -1,12 +1,14 @@
 /**
  * CompanyTile — dashboard card for a single company.
  *
- * Shows name, industry icon + colored gradient, weekly revenue, employee
- * count, brand health bar, and any active scandal chip. Tap → open detail.
+ * Business-dashboard DNA: a revenue BAR (this company's weekly income vs the
+ * portfolio leader) headlines the tile, with a lift chip over its base income,
+ * a denser stat strip (brand bar, share, cash, marketing, campaigns) and a
+ * visible "Manage" affordance so the whole card reads as tappable. Tap → detail.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AlertTriangle, Briefcase, Building2, DollarSign, Factory, Utensils, Landmark } from 'lucide-react-native';
+import { AlertTriangle, Briefcase, Building2, ChevronRight, DollarSign, Factory, Megaphone, Utensils, Landmark } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
@@ -25,9 +27,11 @@ interface CompanyTileProps {
   company: Company;
   overlay: HustleCompanyOverlay | undefined;
   onPress: () => void;
+  /** Highest weekly income across the portfolio — scales the revenue bar. */
+  maxWeekly?: number;
 }
 
-export default function CompanyTile({ company, overlay, onPress }: CompanyTileProps) {
+export default function CompanyTile({ company, overlay, onPress, maxWeekly }: CompanyTileProps) {
   const { theme, isDark } = useTheme();
   const Icon = INDUSTRY_ICON[company.type] ?? Building2;
   const color = industryColor(company.type);
@@ -35,11 +39,21 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
   const scandal = overlay?.activeScandal;
   const isPublic = overlay?.ipo?.status === 'public';
 
+  const weekly = company.weeklyIncome ?? 0;
+  const base = company.baseWeeklyIncome ?? 0;
+  const lift = Math.max(0, weekly - base);
+  const peak = Math.max(maxWeekly ?? weekly, weekly, 1);
+  const revPct = Math.max(4, Math.min(100, (weekly / peak) * 100));
+  const share = overlay?.marketSharePercent ?? 5;
+  const campaigns = overlay?.activeCampaigns?.filter((c) => c.active).length ?? 0;
+  const cash = company.money ?? 0;
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Open ${company.name}`}
+      accessibilityHint={`$${weekly.toLocaleString()} per week, brand ${brand}, ${company.employees} employees`}
       style={({ pressed }) => [
         getGlassCard(isDark, 6),
         styles.card,
@@ -54,7 +68,7 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
           <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
             {company.name}
           </Text>
-          <Text style={[styles.industry, { color: theme.textSecondary }]}>
+          <Text style={[styles.industry, { color: theme.textSecondary }]} numberOfLines={1}>
             {company.type.charAt(0).toUpperCase() + company.type.slice(1)} · {company.employees} employees
           </Text>
         </View>
@@ -63,15 +77,30 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
             <Text style={[styles.pubChipText, { color: HUSTLE_COLORS.accent }]}>PUBLIC</Text>
           </View>
         ) : null}
+        <ChevronRight size={fontScale(18)} color={theme.textMuted} />
       </View>
 
-      <View style={styles.metricsRow}>
-        <View style={styles.metric}>
-          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Weekly</Text>
-          <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-            ${(company.weeklyIncome ?? 0).toLocaleString()}
-          </Text>
+      {/* Revenue bar — weekly income vs the portfolio leader */}
+      <View style={styles.revBlock}>
+        <View style={styles.revTopRow}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Weekly revenue</Text>
+          {lift > 0 ? (
+            <View style={[styles.liftChip, { backgroundColor: HUSTLE_COLORS.success + '22' }]}>
+              <Text style={[styles.liftChipText, { color: HUSTLE_COLORS.success }]}>+${lift.toLocaleString()} vs base</Text>
+            </View>
+          ) : null}
         </View>
+        <View style={styles.revValueRow}>
+          <Text style={[styles.revValue, { color: theme.text }]}>${weekly.toLocaleString()}</Text>
+          <Text style={[styles.revSuffix, { color: theme.textMuted }]}>/wk</Text>
+        </View>
+        <View style={[styles.revTrack, { backgroundColor: theme.surfaceElevated }]}>
+          <View style={[styles.revFill, { width: `${revPct}%`, backgroundColor: color }]} />
+        </View>
+      </View>
+
+      {/* Stat strip */}
+      <View style={styles.metricsRow}>
         <View style={styles.metric}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Brand</Text>
           <View style={styles.brandRow}>
@@ -83,10 +112,31 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
         </View>
         <View style={styles.metric}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Share</Text>
-          <Text style={[styles.metricValue, { color: theme.text }]}>
-            {(overlay?.marketSharePercent ?? 5).toFixed(1)}%
-          </Text>
+          <Text style={[styles.metricValue, { color: theme.text }]}>{share.toFixed(1)}%</Text>
         </View>
+        <View style={styles.metric}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Cash</Text>
+          <Text style={[styles.metricValue, { color: theme.text }]}>${cash >= 1000 ? `${Math.round(cash / 1000)}K` : Math.round(cash)}</Text>
+        </View>
+      </View>
+
+      {/* Chips — marketing tier + running campaigns (surfaced from overlay) */}
+      <View style={styles.chipRow}>
+        <View style={[styles.infoChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+          <DollarSign size={fontScale(10)} color={theme.textSecondary} strokeWidth={2.4} />
+          <Text style={[styles.infoChipText, { color: theme.textSecondary }]}>Mktg Lv {company.marketingLevel ?? 0}</Text>
+        </View>
+        {campaigns > 0 ? (
+          <View style={[styles.infoChip, { backgroundColor: HUSTLE_COLORS.accentSecondary + '1F', borderColor: HUSTLE_COLORS.accentSecondary + '40' }]}>
+            <Megaphone size={fontScale(10)} color={HUSTLE_COLORS.accentSecondary} strokeWidth={2.4} />
+            <Text style={[styles.infoChipText, { color: HUSTLE_COLORS.accentSecondary }]}>{campaigns} campaign{campaigns === 1 ? '' : 's'}</Text>
+          </View>
+        ) : null}
+        {(company.upgrades?.length ?? 0) > 0 ? (
+          <View style={[styles.infoChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+            <Text style={[styles.infoChipText, { color: theme.textSecondary }]}>{company.upgrades.length} upgrade{company.upgrades.length === 1 ? '' : 's'}</Text>
+          </View>
+        ) : null}
       </View>
 
       {scandal ? (
@@ -111,7 +161,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
   iconSquare: {
     width: scale(44),
@@ -141,6 +191,49 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.6,
   },
+  revBlock: {
+    marginBottom: responsiveSpacing.sm,
+  },
+  revTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  revValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginTop: 1,
+    marginBottom: 5,
+  },
+  revValue: {
+    fontSize: fontScale(19),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  revSuffix: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+  },
+  revTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  revFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  liftChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  liftChipText: {
+    fontSize: fontScale(9),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
   metricsRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.md,
@@ -169,6 +262,26 @@ const styles = StyleSheet.create({
   },
   brandFill: {
     height: '100%',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: responsiveSpacing.sm,
+  },
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  infoChipText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   scandalChip: {
     flexDirection: 'row',

@@ -1,27 +1,33 @@
 /**
- * CompanyDetailScreen — single-company deep view.
+ * CompanyDetailScreen — single-company deep view (business-dashboard DNA).
  *
  * Header: name + industry + key metrics.
- * Body: tabs for Overview / Hire / Marketing / Scandals / Acquisitions.
- * Footer actions: hire, launch campaign, IPO, accept acquisition (gated by state).
+ * Body reads as DEPARTMENTS, each surfacing existing overlay data the old UI
+ * hid: a staff roster (Face avatars + morale/performance meters), a marketing
+ * desk (live campaign rows), a growth desk (IPO + board seats + acquisition
+ * offers), upgrade tracks as ProgressRings, suppliers, and a scandal ledger.
+ * Every prior action (hire/remove, pipeline, campaign, IPO, acquisitions,
+ * upgrade buys, notifications) stays reachable.
  *
  * Existing CompanyActions (createCompany, buyCompanyUpgrade) remain canonical
  * for the upgrade economy — Hustle layers premium systems on top.
  */
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronRight,
-  DollarSign, Megaphone, Rocket, TrendingUp, UserMinus, UserPlus, Users, Zap,
+  DollarSign, History, Megaphone, Package, Rocket, Star, TrendingUp,
+  UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import ProgressRing from '@/components/ui/ProgressRing';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import KPICard from '../components/KPICard';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
+import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import { addWorker, removeWorker } from '@/contexts/game/company';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
@@ -31,6 +37,30 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 import type { HustleCompanyOverlay } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
+
+// Face art for named hires — picked deterministically from the hire id so a
+// given employee keeps the same face. Real assets (assets/images/Face/*).
+const HIRE_FACES = [
+  require('@/assets/images/Face/Male.png'),
+  require('@/assets/images/Face/Female.png'),
+  require('@/assets/images/Face/Old_Male.png'),
+  require('@/assets/images/Face/Old_Female.png'),
+];
+function faceFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return HIRE_FACES[h % HIRE_FACES.length];
+}
+
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const CAMPAIGN_LABEL: Record<string, string> = {
+  tv: 'TV spots', social: 'Social ads', billboard: 'Billboards', influencer: 'Influencers', guerrilla: 'Guerrilla',
+};
+const BOARD_ROLE: Record<string, string> = {
+  chair: 'Chair', cfo: 'CFO', cto: 'CTO', cmo: 'CMO', lead_investor: 'Lead investor', independent: 'Independent',
+};
+const scandalKindLabel = (k: string) => k.split('_').map(cap).join(' ');
+const meterColor = (v: number) => (v >= 70 ? HUSTLE_COLORS.success : v >= 45 ? HUSTLE_COLORS.warning : HUSTLE_COLORS.danger);
 
 interface CompanyDetailScreenProps {
   companyId: string;
@@ -48,6 +78,7 @@ export default function CompanyDetailScreen({
   const { gameState, setGameState, saveGame } = useGame();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const weeksLived = gameState.weeksLived ?? 0;
 
   const company = useMemo(
     () => (gameState.companies ?? []).find((c) => c.id === companyId),
@@ -98,10 +129,22 @@ export default function CompanyDetailScreen({
   const brand = overlay?.brand?.score ?? 50;
   const share = overlay?.marketSharePercent ?? 5;
   const scandal = overlay?.activeScandal;
-  const activeCampaignsCount = overlay?.activeCampaigns?.length ?? 0;
-  const pendingAcqCount = overlay?.pendingAcquisitions?.length ?? 0;
+  const campaigns = overlay?.activeCampaigns ?? [];
+  const activeCampaignsCount = campaigns.length;
+  const pendingAcqs = overlay?.pendingAcquisitions ?? [];
+  const pendingAcqCount = pendingAcqs.length;
   const namedHires = overlay?.hiringPipeline?.namedHires ?? [];
+  const boardSeats = overlay?.boardSeats ?? [];
+  const suppliers = overlay?.suppliers ?? [];
+  const scandalHistory = overlay?.scandalHistory ?? [];
   const isPublic = overlay?.ipo?.status === 'public';
+
+  // Revenue composition (surfaces baseWeeklyIncome — previously hidden).
+  const weekly = company.weeklyIncome ?? 0;
+  const base = company.baseWeeklyIncome ?? 0;
+  const lift = Math.max(0, weekly - base);
+  const revTotal = Math.max(weekly, base, 1);
+  const basePct = Math.max(0, Math.min(100, (Math.min(base, weekly) / revTotal) * 100));
 
   // Staff + upgrade derived state
   const money = gameState.stats?.money ?? 0;
@@ -113,6 +156,8 @@ export default function CompanyDetailScreen({
     : 1;
   const upgradeDiscount = gameState.settings?.businessBanking ? 0.15 : 0;
   const upgradeDefs = COMPANY_UPGRADES[company.type] ?? [];
+
+  const earningsSeries = (overlay?.ipo?.recentEarnings ?? []).map((e) => e.revenue);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -165,12 +210,24 @@ export default function CompanyDetailScreen({
               {company.type.toUpperCase()} {isPublic ? '· PUBLIC' : ''}
             </Text>
             <Text style={[styles.heroRevenue, { color: theme.text }]}>
-              ${(company.weeklyIncome ?? 0).toLocaleString()}
+              ${weekly.toLocaleString()}
               <Text style={[styles.heroRevenueSuffix, { color: theme.textSecondary }]}> / week</Text>
             </Text>
             <Text style={[styles.heroEmployees, { color: theme.textSecondary }]}>
               {/* employees already INCLUDES named hires — do not sum them */}
               {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
+            </Text>
+
+            {/* Revenue composition — base vs lift from staff/upgrades */}
+            <View style={styles.compBar} pointerEvents="none">
+              <View style={[styles.compTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.10)' }]}>
+                <View style={[styles.compBase, { width: `${basePct}%`, backgroundColor: theme.textMuted }]} />
+                <View style={[styles.compLift, { flex: 1, backgroundColor: accent }]} />
+              </View>
+            </View>
+            <Text style={[styles.compCaption, { color: theme.textMuted }]}>
+              Base ${base.toLocaleString()}{lift > 0 ? ` + $${lift.toLocaleString()} lift` : ''}
+              {isPublic && overlay?.ipo ? ` · you own ${overlay.ipo.ownershipPercent.toFixed(0)}%` : ''}
             </Text>
           </View>
         </View>
@@ -178,21 +235,66 @@ export default function CompanyDetailScreen({
         {/* KPI grid */}
         <View style={styles.kpiGrid}>
           <KPICard icon={Briefcase} label="Brand" value={String(brand)} trend={overlay?.brand?.trend === 'rising' ? 'up' : overlay?.brand?.trend === 'declining' ? 'down' : 'flat'} trendValue={overlay?.brand?.trend ?? 'flat'} />
-          <KPICard icon={TrendingUp} label="Share" value={`${share}%`} />
-          <KPICard icon={DollarSign} label="Cash" value={`$${Math.round((company.money ?? 0) / 1000)}K`} />
+          <KPICard icon={TrendingUp} label="Share" value={`${share}%`} accentColor={HUSTLE_COLORS.accentSecondary} />
+          <KPICard icon={DollarSign} label="Cash" value={`$${Math.round((company.money ?? 0) / 1000)}K`} accentColor={HUSTLE_COLORS.success} />
           {isPublic && overlay?.ipo ? (
-            <KPICard icon={Rocket} label="Share $" value={`$${overlay.ipo.sharePrice.toFixed(2)}`} />
+            <KPICard icon={Rocket} label="Share $" value={`$${overlay.ipo.sharePrice.toFixed(2)}`} accentColor={HUSTLE_COLORS.success} chart={earningsSeries} chartKind="line" />
           ) : (
             <KPICard icon={Users} label="Employees" value={String(company.employees)} />
           )}
         </View>
 
-        {/* Staff — generic employees via canonical addWorker/removeWorker */}
+        {/* ───────── Staff department ───────── */}
         <Text style={[styles.sectionLabel, { color: theme.text }]}>Staff</Text>
+
+        {/* Named-hire roster with Face avatars + morale/performance meters */}
+        <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+          {namedHires.length > 0 ? (
+            namedHires.map((h, i) => {
+              const tenure = Math.max(0, weeksLived - (h.hiredWeek ?? weeksLived));
+              return (
+                <View key={h.candidateId} style={[styles.rosterRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <Image source={faceFor(h.candidateId)} style={[styles.avatar, { borderColor: theme.border }]} resizeMode="cover" />
+                  <View style={styles.rosterText}>
+                    <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>
+                      {cap(h.role)} · ${h.salary.toLocaleString()}/wk
+                    </Text>
+                    <View style={styles.rosterMeterRow}>
+                      <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Morale</Text>
+                      <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
+                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, h.morale))}%`, backgroundColor: meterColor(h.morale) }]} />
+                      </View>
+                      <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(h.morale)}</Text>
+                    </View>
+                    <View style={styles.rosterMeterRow}>
+                      <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Perf</Text>
+                      <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
+                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, h.performance))}%`, backgroundColor: meterColor(h.performance) }]} />
+                      </View>
+                      <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(h.performance)}</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.tenureChip, { backgroundColor: theme.surfaceElevated }]}>
+                    <Text style={[styles.tenureChipText, { color: theme.textSecondary }]}>{tenure}w</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={[styles.deptEmpty, { color: theme.textMuted }]}>
+              No key hires yet. Open the hiring pipeline to recruit named talent.
+            </Text>
+          )}
+        </View>
+
+        {/* Generic staff — canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
-            {company.employees} / {STAFF_CAP} employees
+            {company.employees} / {STAFF_CAP} employees · payroll ${company.workerSalary.toLocaleString()}/hire
           </Text>
+          <View style={[styles.meterTrack, styles.staffCapBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, (company.employees / STAFF_CAP) * 100))}%`, backgroundColor: HUSTLE_COLORS.accent }]} />
+          </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
             Hiring costs ${company.workerSalary.toLocaleString()} up front. Each employee compounds weekly income:
             +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing staff is free but lowers income.
@@ -223,9 +325,6 @@ export default function CompanyDetailScreen({
           </View>
         </View>
 
-        {/* Action cards */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>Actions</Text>
-
         <ActionRow
           icon={Users}
           color={HUSTLE_COLORS.accent}
@@ -234,23 +333,96 @@ export default function CompanyDetailScreen({
           theme={theme}
           onPress={() => { hustleHaptics.tap(); onOpenHire(); }}
         />
+
+        {/* ───────── Marketing department ───────── */}
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Marketing</Text>
+        {activeCampaignsCount > 0 ? (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            {campaigns.map((camp, i) => {
+              const elapsed = Math.max(0, weeksLived - (camp.startedWeek ?? weeksLived));
+              const pct = camp.durationWeeks > 0 ? Math.max(0, Math.min(100, (elapsed / camp.durationWeeks) * 100)) : 0;
+              const remaining = Math.max(0, (camp.durationWeeks ?? 0) - elapsed);
+              const roi = camp.projectedROI ?? 0;
+              const roiColor = roi > 0 ? HUSTLE_COLORS.success : roi < 0 ? HUSTLE_COLORS.danger : theme.textMuted;
+              return (
+                <View key={camp.id} style={[styles.campaignRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={[styles.campaignIcon, { backgroundColor: HUSTLE_COLORS.accentSecondary + '26', borderColor: HUSTLE_COLORS.accentSecondary + '4D' }]}>
+                    <Megaphone size={fontScale(15)} color={HUSTLE_COLORS.accentSecondary} strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.campaignText}>
+                    <View style={styles.campaignTitleRow}>
+                      <Text style={[styles.campaignTitle, { color: theme.text }]} numberOfLines={1}>
+                        {CAMPAIGN_LABEL[camp.kind] ?? cap(camp.kind)}
+                      </Text>
+                      <Text style={[styles.campaignRoi, { color: roiColor }]}>{roi > 0 ? '+' : ''}{Math.round(roi)}% ROI</Text>
+                    </View>
+                    <Text style={[styles.campaignMeta, { color: theme.textSecondary }]}>
+                      ${camp.spendPerWeek.toLocaleString()}/wk · {remaining}w left{camp.active ? '' : ' · paused'}
+                    </Text>
+                    <View style={[styles.meterTrack, styles.campaignBar, { backgroundColor: theme.surfaceElevated }]}>
+                      <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: HUSTLE_COLORS.accentSecondary }]} />
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
         <ActionRow
           icon={Megaphone}
           color={HUSTLE_COLORS.accentSecondary}
           title="Marketing campaigns"
-          subtitle={activeCampaignsCount > 0 ? `${activeCampaignsCount} running` : 'No active campaigns'}
+          subtitle={activeCampaignsCount > 0 ? `${activeCampaignsCount} running · marketing Lv ${company.marketingLevel ?? 0}` : `No active campaigns · marketing Lv ${company.marketingLevel ?? 0}`}
           theme={theme}
           onPress={() => { hustleHaptics.tap(); onOpenCampaign(); }}
         />
+
+        {/* ───────── Growth & markets department ───────── */}
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Growth &amp; markets</Text>
+
+        {/* IPO summary (surfaces ownership / shares / earnings beats) */}
+        {isPublic && overlay?.ipo ? (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <View style={styles.ipoStatRow}>
+              <View style={styles.ipoStat}>
+                <Text style={[styles.ipoStatLabel, { color: theme.textMuted }]}>Share price</Text>
+                <Text style={[styles.ipoStatValue, { color: theme.text }]}>${overlay.ipo.sharePrice.toFixed(2)}</Text>
+              </View>
+              <View style={styles.ipoStat}>
+                <Text style={[styles.ipoStatLabel, { color: theme.textMuted }]}>Your stake</Text>
+                <Text style={[styles.ipoStatValue, { color: theme.text }]}>{overlay.ipo.ownershipPercent.toFixed(0)}%</Text>
+              </View>
+              <View style={styles.ipoStat}>
+                <Text style={[styles.ipoStatLabel, { color: theme.textMuted }]}>Shares</Text>
+                <Text style={[styles.ipoStatValue, { color: theme.text }]}>{overlay.ipo.sharesOutstandingK.toLocaleString()}K</Text>
+              </View>
+            </View>
+            {overlay.ipo.recentEarnings.length > 0 ? (
+              <View style={styles.earningsRow}>
+                {overlay.ipo.recentEarnings.slice(-4).map((e, i) => (
+                  <View
+                    key={`${e.week}-${i}`}
+                    style={[styles.earningsChip, { backgroundColor: (e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger) + '22', borderColor: (e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger) + '55' }]}
+                  >
+                    <Text style={[styles.earningsChipText, { color: e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger }]}>
+                      {e.beat ? 'BEAT' : 'MISS'} ${Math.round(e.revenue / 1000)}K
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         {!isPublic ? (
           <ActionRow
             icon={Rocket}
             color={HUSTLE_COLORS.success}
             title="Take public (IPO)"
-            subtitle={(company.weeklyIncome ?? 0) >= 10_000 ? 'Eligible — raise capital, dilute ownership' : 'Need $10K/week revenue'}
+            subtitle={weekly >= 10_000 ? 'Eligible — raise capital, dilute ownership' : 'Need $10K/week revenue'}
             theme={theme}
             onPress={() => { hustleHaptics.tap(); onOpenIPO(); }}
-            disabled={(company.weeklyIncome ?? 0) < 10_000 || !!scandal}
+            disabled={weekly < 10_000 || !!scandal}
           />
         ) : (
           <ActionRow
@@ -262,6 +434,53 @@ export default function CompanyDetailScreen({
             onPress={() => { hustleHaptics.tap(); onOpenIPO(); }}
           />
         )}
+
+        {/* Board seats roster (surfaces boardSeats — unused by old UI) */}
+        {boardSeats.length > 0 ? (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Board of directors</Text>
+            {boardSeats.map((b, i) => (
+              <View key={b.id} style={[styles.boardRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                <View style={[styles.boardIcon, { backgroundColor: HUSTLE_COLORS.accent + '22', borderColor: HUSTLE_COLORS.accent + '44' }]}>
+                  <Star size={fontScale(13)} color={HUSTLE_COLORS.accent} strokeWidth={2.2} />
+                </View>
+                <View style={styles.boardText}>
+                  <Text style={[styles.boardName, { color: theme.text }]} numberOfLines={1}>{b.name}</Text>
+                  <Text style={[styles.boardMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                    {BOARD_ROLE[b.role] ?? cap(b.role)} · {b.votingShare.toFixed(0)}% vote
+                  </Text>
+                </View>
+                <View style={styles.boardSat}>
+                  <View style={[styles.meterTrack, styles.boardSatBar, { backgroundColor: theme.surfaceElevated }]}>
+                    <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, b.satisfaction))}%`, backgroundColor: meterColor(b.satisfaction) }]} />
+                  </View>
+                  <Text style={[styles.boardSatVal, { color: theme.textMuted }]}>{Math.round(b.satisfaction)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Pending acquisition offers (surfaces offer detail inline) */}
+        {pendingAcqCount > 0 ? (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Open acquisition offers</Text>
+            {pendingAcqs.map((a, i) => {
+              const expiresIn = Math.max(0, (a.expiresWeek ?? weeksLived) - weeksLived);
+              return (
+                <View key={a.id} style={[styles.acqRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={styles.acqText}>
+                    <Text style={[styles.acqName, { color: theme.text }]} numberOfLines={1}>{a.targetName}</Text>
+                    <Text style={[styles.acqMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      {cap(a.targetIndustry)} · +{a.synergyBonusPercent.toFixed(0)}% synergy · {expiresIn}w to decide
+                    </Text>
+                  </View>
+                  <Text style={[styles.acqPrice, { color: theme.text }]}>${a.askingPrice.toLocaleString()}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
         <ActionRow
           icon={Building2}
           color={HUSTLE_COLORS.factory}
@@ -272,14 +491,15 @@ export default function CompanyDetailScreen({
           badge={pendingAcqCount}
         />
 
-        {/* Upgrades — canonical buyCompanyUpgrade catalog */}
+        {/* ───────── Upgrades department — tracks as ProgressRings ───────── */}
         {upgradeDefs.length > 0 ? (
           <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Upgrades</Text>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Upgrade tracks</Text>
             {upgradeDefs.map((def) => {
               const owned = (company.upgrades ?? []).find((u) => u.id === def.id);
               const level = owned?.level ?? 0;
               const maxed = level >= def.maxLevel;
+              const ringPct = def.maxLevel > 0 ? (level / def.maxLevel) * 100 : 0;
               const nextLevelCost = level === 0
                 ? def.cost
                 : Math.round(def.cost * Math.pow(COMPANY_UPGRADE_COST_MULTIPLIER, level));
@@ -287,12 +507,27 @@ export default function CompanyDetailScreen({
               const affordable = money >= cost;
               return (
                 <View key={def.id} style={[getGlassCard(isDark, 6), styles.upgradeRow, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
-                  <View style={[styles.actionIconSquare, { backgroundColor: HUSTLE_COLORS.warning + '26', borderColor: HUSTLE_COLORS.warning + '4D' }]}>
-                    <Zap size={fontScale(18)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
-                  </View>
+                  <ProgressRing
+                    value={ringPct}
+                    size={54}
+                    strokeWidth={6}
+                    ambient={false}
+                    showPill={false}
+                    state={maxed ? 'done' : 'active'}
+                    accentColor={HUSTLE_COLORS.warning}
+                    positiveColor={HUSTLE_COLORS.success}
+                    trackColor={isDark ? 'rgba(148,163,184,0.22)' : 'rgba(100,116,139,0.20)'}
+                    label={`${def.name} level ${level} of ${def.maxLevel}`}
+                    style={styles.upgradeRing}
+                  >
+                    <View style={styles.upgradeRingCenter}>
+                      <Zap size={fontScale(13)} color={maxed ? HUSTLE_COLORS.success : HUSTLE_COLORS.warning} strokeWidth={2.4} />
+                      <Text style={[styles.upgradeRingLvl, { color: theme.text }]}>{level}/{def.maxLevel}</Text>
+                    </View>
+                  </ProgressRing>
                   <View style={styles.actionText}>
-                    <Text style={[styles.actionTitle, { color: theme.text }]}>
-                      {def.name} · Lv {level}/{def.maxLevel}
+                    <Text style={[styles.actionTitle, { color: theme.text }]} numberOfLines={1}>
+                      {def.name}
                     </Text>
                     <Text style={[styles.actionSub, { color: theme.textSecondary }]} numberOfLines={2}>
                       {def.description} · +${def.weeklyIncomeBonus.toLocaleString()}/wk base (reduced at higher levels)
@@ -317,6 +552,61 @@ export default function CompanyDetailScreen({
                 </View>
               );
             })}
+          </>
+        ) : null}
+
+        {/* ───────── Suppliers (surfaces suppliers — unused by old UI) ───────── */}
+        {suppliers.length > 0 ? (
+          <>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Suppliers</Text>
+            <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+              {suppliers.map((s, i) => {
+                const contract = s.contractEndWeek ? `${Math.max(0, s.contractEndWeek - weeksLived)}w contract` : 'Month-to-month';
+                return (
+                  <View key={s.id} style={[styles.boardRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                    <View style={[styles.boardIcon, { backgroundColor: HUSTLE_COLORS.factory + '22', borderColor: HUSTLE_COLORS.factory + '44' }]}>
+                      <Package size={fontScale(13)} color={HUSTLE_COLORS.factory} strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.boardText}>
+                      <Text style={[styles.boardName, { color: theme.text }]} numberOfLines={1}>{s.name}</Text>
+                      <Text style={[styles.boardMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                        ${s.costPerWeek.toLocaleString()}/wk · {contract}
+                      </Text>
+                    </View>
+                    <View style={styles.boardSat}>
+                      <View style={[styles.meterTrack, styles.boardSatBar, { backgroundColor: theme.surfaceElevated }]}>
+                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, s.reliability))}%`, backgroundColor: meterColor(s.reliability) }]} />
+                      </View>
+                      <Text style={[styles.boardSatVal, { color: theme.textMuted }]}>{Math.round(s.reliability)}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
+
+        {/* ───────── Scandal ledger (surfaces scandalHistory — unused) ───────── */}
+        {scandalHistory.length > 0 ? (
+          <>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Scandal ledger</Text>
+            <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+              {scandalHistory.slice(0, 6).map((s, i) => (
+                <View key={s.id} style={[styles.ledgerRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={[styles.ledgerIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                    <History size={fontScale(13)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.ledgerText}>
+                    <Text style={[styles.ledgerTitle, { color: theme.text }]} numberOfLines={1}>
+                      {scandalKindLabel(s.kind)} · {cap(s.resolutionMethod)}
+                    </Text>
+                    <Text style={[styles.ledgerMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      severity {s.severity} · -${Math.round(s.totalRevenueLoss).toLocaleString()} lost
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </>
         ) : null}
 
@@ -499,6 +789,27 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     marginTop: 2,
   },
+  compBar: {
+    marginTop: responsiveSpacing.sm,
+  },
+  compTrack: {
+    flexDirection: 'row',
+    height: 7,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  compBase: {
+    height: '100%',
+  },
+  compLift: {
+    height: '100%',
+  },
+  compCaption: {
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    marginTop: 4,
+    fontVariant: ['tabular-nums'],
+  },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -512,6 +823,300 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
     marginTop: responsiveSpacing.sm,
   },
+  deptCard: {
+    borderRadius: responsiveBorderRadius.xl,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.sm,
+  },
+  deptSubhead: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: responsiveSpacing.sm,
+    marginBottom: 2,
+  },
+  deptEmpty: {
+    fontSize: fontScale(12),
+    lineHeight: fontScale(17),
+    paddingVertical: responsiveSpacing.md,
+  },
+  // Roster
+  rosterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  avatar: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    borderWidth: 1,
+    backgroundColor: 'rgba(148,163,184,0.15)',
+  },
+  rosterText: { flex: 1, gap: 3 },
+  rosterName: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  rosterMeterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rosterMeterLabel: {
+    fontSize: fontScale(9),
+    fontWeight: '600',
+    width: scale(38),
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  rosterMeterVal: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    width: scale(20),
+    textAlign: 'right',
+  },
+  tenureChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  tenureChipText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  meterTrack: {
+    flex: 1,
+    height: 5,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  meterFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  // Generic staff
+  staffCard: {
+    borderRadius: responsiveBorderRadius.xl,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    gap: responsiveSpacing.sm,
+  },
+  staffCount: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  staffCapBar: {
+    height: 6,
+  },
+  staffHint: {
+    fontSize: fontScale(11),
+    lineHeight: fontScale(15),
+  },
+  staffBtnRow: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.sm,
+  },
+  staffBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: responsiveBorderRadius.full,
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+  },
+  staffBtnText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  staffBtnOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: responsiveBorderRadius.full,
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+  },
+  staffBtnOutlineText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  // Campaigns
+  campaignRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  campaignIcon: {
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  campaignText: { flex: 1, gap: 3 },
+  campaignTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: responsiveSpacing.sm,
+  },
+  campaignTitle: {
+    flex: 1,
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  campaignRoi: {
+    fontSize: fontScale(11),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  campaignMeta: {
+    fontSize: fontScale(11),
+    fontVariant: ['tabular-nums'],
+  },
+  campaignBar: {
+    height: 5,
+    marginTop: 1,
+  },
+  // IPO
+  ipoStatRow: {
+    flexDirection: 'row',
+    paddingVertical: responsiveSpacing.sm,
+    gap: responsiveSpacing.sm,
+  },
+  ipoStat: { flex: 1 },
+  ipoStatLabel: {
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  ipoStatValue: {
+    fontSize: fontScale(16),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  earningsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingBottom: responsiveSpacing.sm,
+  },
+  earningsChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  earningsChipText: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.3,
+  },
+  // Board / suppliers
+  boardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  boardIcon: {
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boardText: { flex: 1 },
+  boardName: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  boardMeta: {
+    fontSize: fontScale(11),
+    marginTop: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  boardSat: {
+    width: scale(56),
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  boardSatBar: {
+    width: scale(56),
+    height: 5,
+  },
+  boardSatVal: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  // Acquisitions inline
+  acqRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  acqText: { flex: 1 },
+  acqName: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  acqMeta: {
+    fontSize: fontScale(11),
+    marginTop: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  acqPrice: {
+    fontSize: fontScale(14),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  // Ledger
+  ledgerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  ledgerIcon: {
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ledgerText: { flex: 1 },
+  ledgerTitle: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  ledgerMeta: {
+    fontSize: fontScale(11),
+    marginTop: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  // Action rows
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,54 +1156,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
-  staffCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    padding: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  staffCount: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  staffHint: {
-    fontSize: fontScale(11),
-    lineHeight: fontScale(15),
-  },
-  staffBtnRow: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
-  staffBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: responsiveBorderRadius.full,
-    paddingVertical: responsiveSpacing.sm,
-    minHeight: touchTargets.minimum,
-  },
-  staffBtnText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(13),
-    fontWeight: '700',
-  },
-  staffBtnOutline: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: responsiveBorderRadius.full,
-    paddingVertical: responsiveSpacing.sm,
-    minHeight: touchTargets.minimum,
-  },
-  staffBtnOutlineText: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-  },
+  // Upgrades
   upgradeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -606,6 +1164,19 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
+  },
+  upgradeRing: {
+    marginRight: 2,
+  },
+  upgradeRingCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  upgradeRingLvl: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   upgradeBuyBtn: {
     borderRadius: responsiveBorderRadius.full,
