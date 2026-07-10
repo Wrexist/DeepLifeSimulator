@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Wallet, PiggyBank, Lock, ChevronRight, TrendingUp } from 'lucide-react-native';
+import { Wallet, PiggyBank, Landmark, Lock, ChevronRight, TrendingUp, Clock } from 'lucide-react-native';
 import { BankAccount } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -16,6 +16,15 @@ interface Props {
   /** Explicit action buttons. Hidden for mirrored (read-only) accounts. */
   onWithdraw?: () => void;
   onClose?: () => void;
+  /**
+   * Presentation. `'row'` (default) = the compact list row shared with
+   * AdvancedBankApp; `'card'` = the full-width Apple-Wallet card face used by the
+   * phone BankApp's account deck. Adding this as an optional prop keeps every
+   * existing call site (which omits it) rendering exactly as before.
+   */
+  variant?: 'row' | 'card';
+  /** Card variant only: open the full-screen account detail page. */
+  onDetail?: () => void;
 }
 
 function formatMoney(n: number): string {
@@ -23,7 +32,7 @@ function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
-function accountTypeLabel(type: BankAccount['type']): string {
+export function accountTypeLabel(type: BankAccount['type']): string {
   switch (type) {
     case 'checking':
       return 'Checking';
@@ -38,15 +47,209 @@ function accountTypeLabel(type: BankAccount['type']): string {
   }
 }
 
-export default function AccountRow({ account, currentWeek, darkMode, onPress, onWithdraw, onClose }: Props) {
+/**
+ * Apple-Wallet per-type card tint. checking = blue (identity), CD = violet,
+ * every savings flavour = green. RGB triplet feeds the flat wash / bubble / chip;
+ * hex feeds the glyph + label. Kept as a helper so the row and card variants and
+ * the detail page all read from one source.
+ */
+export function accountPalette(type: BankAccount['type']): { rgb: string; hex: string } {
+  switch (type) {
+    case 'checking':
+      return { rgb: '59, 130, 246', hex: accent.info };
+    case 'cd':
+      return { rgb: '168, 85, 247', hex: '#a855f7' };
+    default:
+      // savings, highYieldSavings, moneyMarket
+      return { rgb: '16, 185, 129', hex: accent.success };
+  }
+}
+
+function accountGlyph(type: BankAccount['type']) {
+  if (type === 'checking') return Wallet;
+  if (type === 'cd' || type === 'moneyMarket') return Landmark;
+  return PiggyBank;
+}
+
+export default function AccountRow({
+  account,
+  currentWeek,
+  darkMode,
+  onPress,
+  onWithdraw,
+  onClose,
+  variant = 'row',
+  onDetail,
+}: Props) {
   const theme = getThemeColors(darkMode);
   const isLocked = account.lockUntilWeek != null && currentWeek < account.lockUntilWeek;
   const weeksUntilUnlock = isLocked ? account.lockUntilWeek! - currentWeek : 0;
-  const Icon = account.type === 'checking' ? Wallet : PiggyBank;
+  const Icon = variant === 'card' ? accountGlyph(account.type) : account.type === 'checking' ? Wallet : PiggyBank;
   // Mirrored default accounts are read-only views of cash / legacy savings —
   // withdraw/close are rejected by the action layer, so don't offer them at all.
   const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
   const showActions = !isMirrored && (!!onWithdraw || !!onClose);
+
+  // ── Apple-Wallet card face ────────────────────────────────────────────────
+  if (variant === 'card') {
+    const pal = accountPalette(account.type);
+    const ageWeeks = Math.max(0, currentWeek - account.openedWeek);
+    const cardTap = onDetail ?? onPress;
+    return (
+      <TouchableOpacity
+        activeOpacity={cardTap ? 0.85 : 1}
+        onPress={cardTap}
+        accessibilityRole={cardTap ? 'button' : undefined}
+        accessibilityLabel={
+          cardTap
+            ? `${account.name}, ${accountTypeLabel(account.type)}, balance ${formatMoney(account.balance)}`
+            : undefined
+        }
+        // Recipe-B anatomy: outer view carries shadow + radius + border + solid
+        // fill (no overflow here or the shadow clips on iOS); inner view clips the
+        // tint wash + glow blob. Elevation 10 lifts the deck above the L1 rows.
+        style={[
+          getGlassCard(darkMode, 10),
+          {
+            backgroundColor: theme.surface,
+            borderColor: darkMode ? theme.glassBorder : theme.border,
+            borderWidth: 1,
+            borderRadius: responsiveBorderRadius['2xl'],
+          },
+        ]}
+      >
+        <View style={styles.cardInner}>
+          {/* per-type flat tint wash (a plain View — no gradient needed / spent) */}
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(${pal.rgb}, ${darkMode ? 0.14 : 0.1})` }]}
+          />
+          {/* one soft glow blob */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: -scale(40),
+              right: -scale(30),
+              width: scale(140),
+              height: scale(140),
+              borderRadius: scale(70),
+              backgroundColor: `rgba(${pal.rgb}, 0.10)`,
+            }}
+          />
+          {darkMode && (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+            />
+          )}
+
+          {/* top: bubble + type eyebrow / name + tappable chevron */}
+          <View style={styles.cardTop}>
+            <View
+              style={[
+                getGlassIconContainer(darkMode, 40),
+                { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderWidth: 1, borderColor: `rgba(${pal.rgb}, 0.30)` },
+              ]}
+            >
+              <Icon size={scale(20)} color={pal.hex} />
+            </View>
+            <View style={styles.cardHeadText}>
+              <Text style={[styles.cardType, { color: theme.textMuted }]} numberOfLines={1}>
+                {accountTypeLabel(account.type).toUpperCase()}
+              </Text>
+              <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>
+                {account.name}
+              </Text>
+            </View>
+            {cardTap && <ChevronRight size={scale(18)} color={theme.textMuted} />}
+          </View>
+
+          {/* big tabular balance + APR chip */}
+          <View style={styles.cardBalanceRow}>
+            <Text
+              style={[styles.cardBalance, { color: theme.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {formatMoney(account.balance)}
+            </Text>
+            {account.baseAPR > 0 && (
+              <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
+                <TrendingUp size={scale(11)} color={pal.hex} />
+                <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(account.baseAPR * 100).toFixed(2)}% APR</Text>
+              </View>
+            )}
+          </View>
+
+          {/* meta: age + optional min balance */}
+          <View style={styles.cardMetaRow}>
+            <Clock size={scale(11)} color={theme.textMuted} />
+            <Text style={[styles.cardMeta, { color: theme.textMuted }]} numberOfLines={1}>
+              Opened wk {account.openedWeek} · {ageWeeks}w old
+              {account.minBalance ? ` · min ${formatMoney(account.minBalance)}` : ''}
+            </Text>
+          </View>
+          {isLocked && (
+            <View style={styles.cardMetaRow}>
+              <Lock size={scale(11)} color={accent.warning} />
+              <Text style={[styles.cardMeta, { color: accent.warning }]} numberOfLines={1}>
+                Locked until week {account.lockUntilWeek} ({weeksUntilUnlock} more {weeksUntilUnlock === 1 ? 'week' : 'weeks'})
+              </Text>
+            </View>
+          )}
+
+          {/* actions — labeled + >=36pt; mirrored accounts stay read-only */}
+          {showActions ? (
+            <View style={styles.cardActions}>
+              {onPress && (
+                <TouchableOpacity
+                  onPress={onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Deposit to ${account.name}`}
+                  style={[styles.cardBtn, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)`, borderWidth: 1 }]}
+                >
+                  <Text style={[styles.cardBtnText, { color: pal.hex }]}>Deposit</Text>
+                </TouchableOpacity>
+              )}
+              {onWithdraw && (
+                <TouchableOpacity
+                  onPress={onWithdraw}
+                  disabled={isLocked}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Withdraw from ${account.name}`}
+                  accessibilityState={{ disabled: isLocked }}
+                  style={[getGlassButton(darkMode), styles.cardBtn, isLocked && styles.actionDisabled]}
+                >
+                  <Text style={[styles.cardBtnText, { color: theme.text }]}>Withdraw</Text>
+                </TouchableOpacity>
+              )}
+              {onClose && (
+                <TouchableOpacity
+                  onPress={onClose}
+                  disabled={isLocked}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Close ${account.name}`}
+                  accessibilityState={{ disabled: isLocked }}
+                  style={[getGlassButton(darkMode), styles.cardBtn, isLocked && styles.actionDisabled]}
+                >
+                  <Text style={[styles.cardBtnText, { color: accent.danger }]}>Close</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={[styles.roChip, { borderColor: theme.border }]}>
+              <Lock size={scale(10)} color={theme.textMuted} />
+              <Text style={[styles.roText, { color: theme.textMuted }]}>Primary account · read-only</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // ── Compact list row (default — unchanged contract) ───────────────────────
   // Recipe C tinted bubble: checking = identity info, savings variants get a
   // small semantic success tint (matches the green APR chip they carry).
   const isChecking = account.type === 'checking';
@@ -201,5 +404,102 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: responsiveFontSize.xs,
     fontWeight: '700',
+  },
+
+  // ── Card face ─────────────────────────────────────────────────────────────
+  cardInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+  },
+  cardHeadText: {
+    flex: 1,
+  },
+  cardType: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+  },
+  cardName: {
+    fontSize: responsiveFontSize.lg,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  cardBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: responsiveSpacing.sm,
+  },
+  cardBalance: {
+    flexShrink: 1,
+    fontSize: responsiveFontSize['3xl'],
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  aprChipLg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 3,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+    marginBottom: 2,
+  },
+  aprTextLg: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cardMeta: {
+    flex: 1,
+    fontSize: responsiveFontSize.xs,
+    fontVariant: ['tabular-nums'],
+  },
+  cardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.xs,
+    marginTop: 2,
+  },
+  cardBtn: {
+    flexGrow: 1,
+    flexBasis: scale(88),
+    minHeight: scale(38),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.full,
+  },
+  cardBtnText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '700',
+  },
+  roChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  roText: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
   },
 });
