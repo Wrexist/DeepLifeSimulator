@@ -8,19 +8,20 @@ prompts + style lock in **`docs/avatar-portraits-prompts.md`**.
 ## Naming (this is what the seeded picker reads)
 
 ```
-<sex>_<ageband>_<nn>.png
+<sex>_<band>_<nn>.png      (babies: baby_<nn>.png · heroes: hero_<role>.png)
 ```
 
 - `<sex>` = `m` (man) · `f` (woman)
-- `<ageband>` = `ya` (young adult, ~18–29) · `ad` (adult, ~30–39) · `mid` (middle-aged, ~40–55)
+- `<band>` = `ya` (18–29) · `ad` (30–39) · `mid` (40–55) · `sr` (55+) · `tn` (13–17) · `kid` (5–12)
 - `<nn>` = two-digit index, `01`, `02`, …
 
-**Examples:** `f_ya_01.png`, `f_ya_02.png`, `f_ad_01.png`, `m_ya_01.png`,
-`m_mid_02.png`
+**Examples:** `f_ya_01.png`, `m_ad_03.png`, `f_mid_02.png`, `m_sr_01.png`,
+`f_kid_02.png`, `baby_01.png`, `hero_mom.png`
 
-A good first batch: ~a dozen women + a dozen men across skin tones and hair,
-mostly `ya`/`ad`. Keep `Baby` / `Old_Male` / `Old_Female` in the parent folder for
-kids and seniors (add `old_m_02.png` etc. here later if you want senior variety).
+The complete list of ~75 faces — every copy‑paste prompt + its exact filename —
+is in **`docs/avatar-portraits-prompts.md`**, with a priority order if you don't
+do them all at once. The original `Baby` / `Old_Male` / `Old_Female` stay in the
+parent folder as guaranteed fallbacks.
 
 ## What happens next
 
