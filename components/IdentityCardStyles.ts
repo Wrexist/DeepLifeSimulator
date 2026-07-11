@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -312,7 +312,7 @@ export const styles = StyleSheet.create({
   },
   modalItemDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   modalText: {
     fontSize: fontScale(17),
@@ -371,7 +371,7 @@ export const styles = StyleSheet.create({
   },
   traitContainerDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   traitHeader: {
     flexDirection: 'row',

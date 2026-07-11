@@ -188,7 +188,7 @@ export default function DivorceConfirmModal({
                     >
                       <LinearGradient
                         colors={isSelected 
-                          ? (isDarkMode ? ['#4B5563', '#334155'] : tierColor)
+                          ? (isDarkMode ? ['#475569', '#334155'] : tierColor)
                           : (isDarkMode ? ['#334155', '#1E293B'] : ['#F9FAFB', '#F3F4F6'])
                         }
                         style={styles.lawyerCardGradient}
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   infoCardDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   finalCostCard: {
     borderWidth: 2,
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   infoSubtextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   gemSubtext: {
     color: '#10B981',

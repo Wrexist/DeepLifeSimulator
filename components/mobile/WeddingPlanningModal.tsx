@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   guestInputContainerDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   guestInput: {
     flex: 1,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   serviceOptionDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   checkbox: {
     width: scale(20),

@@ -18,6 +18,7 @@ import {
   getTierGradient,
 } from '@/lib/dating/engagementRings';
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -153,6 +154,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: scale(24),
     borderTopRightRadius: scale(24),
     padding: scale(20),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   contentDark: {
     backgroundColor: '#1E293B',
