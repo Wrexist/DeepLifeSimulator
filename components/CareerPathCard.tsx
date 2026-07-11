@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Platform, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import {
     Briefcase,
     ChevronRight,
@@ -20,6 +20,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { GameState, Career, Education, Item } from '@/contexts/game/types';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 
 // Helper to format career ID into display name
@@ -221,7 +222,7 @@ function CareerItem({
                                             {isCompleted ? (
                                                 <Award size={12} color="#FFFFFF" />
                                             ) : isLocked ? (
-                                                <Lock size={10} color="#6B7280" />
+                                                <Lock size={10} color="#94A3B8" />
                                             ) : (
                                                 <Text style={styles.levelNumber}>{idx + 1}</Text>
                                             )}
@@ -363,22 +364,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#1E293B',
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
-        ...Platform.select({
-          web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)' } as any,
-          default: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-          },
-        }),
-        elevation: 2,
+        ...getPlatformShadows(6, 0.25, 4, 14),
     },
     compactContainer: {
         backgroundColor: '#1E293B',
         borderRadius: responsiveBorderRadius.lg,
         padding: responsiveSpacing.md,
         marginVertical: responsiveSpacing.sm,
+        ...getPlatformShadows(6, 0.25, 4, 14),
     },
     compactHeader: {
         flexDirection: 'row',
@@ -514,14 +507,14 @@ const styles = StyleSheet.create({
         padding: responsiveSpacing.md,
         paddingTop: 0,
         borderTopWidth: 1,
-        borderTopColor: '#4B5563',
+        borderTopColor: '#475569',
     },
     levelInfo: {
         marginTop: responsiveSpacing.sm,
     },
     levelLabel: {
         fontSize: fontScale(12),
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         marginBottom: 6,
     },
     progressContainer: {
@@ -531,7 +524,7 @@ const styles = StyleSheet.create({
     progressBar: {
         flex: 1,
         height: 6,
-        backgroundColor: '#4B5563',
+        backgroundColor: '#475569',
         borderRadius: 3,
         overflow: 'hidden',
     },
@@ -543,7 +536,7 @@ const styles = StyleSheet.create({
     progressText: {
         fontSize: fontScale(11),
         fontWeight: '600',
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         marginLeft: 8,
         minWidth: 36,
     },
@@ -590,7 +583,7 @@ const styles = StyleSheet.create({
         width: 28,
         height: 28,
         borderRadius: 14,
-        backgroundColor: '#4B5563',
+        backgroundColor: '#475569',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 4,
@@ -606,7 +599,7 @@ const styles = StyleSheet.create({
     levelDotLocked: {
         backgroundColor: '#334155',
         borderWidth: 1,
-        borderColor: '#4B5563',
+        borderColor: '#475569',
     },
     levelNumber: {
         fontSize: fontScale(10),
@@ -615,7 +608,7 @@ const styles = StyleSheet.create({
     },
     levelName: {
         fontSize: fontScale(10),
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         textAlign: 'center',
         maxWidth: 70,
     },
@@ -624,7 +617,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     levelNameLocked: {
-        color: '#6B7280',
+        color: '#94A3B8',
     },
     levelSalary: {
         fontSize: fontScale(9),
@@ -637,7 +630,7 @@ const styles = StyleSheet.create({
         top: 14,
         width: 24,
         height: 2,
-        backgroundColor: '#4B5563',
+        backgroundColor: '#475569',
     },
     promotionBanner: {
         flexDirection: 'row',
