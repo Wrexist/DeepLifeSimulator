@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.lg,
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     ...Platform.select({
       web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)' } as any,
       default: {
@@ -98,7 +98,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   scenarioTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '400',
   },
   text: {
@@ -203,7 +203,7 @@ export const styles = StyleSheet.create({
   },
   listLabel: {
     fontSize: responsiveFontSize.lg,
-    color: '#374151',
+    color: '#334155',
     marginLeft: responsiveSpacing.sm,
   },
   listLabelDark: {
@@ -228,7 +228,7 @@ export const styles = StyleSheet.create({
     ...getShadow(20, '#000'),
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeaderNew: {
     flexDirection: 'row',
@@ -249,7 +249,7 @@ export const styles = StyleSheet.create({
   modalTitleNew: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     flexShrink: 1,
   },
   modalTitleNewDark: {
@@ -271,7 +271,7 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     textAlign: 'center',
   },
   modalTitleDark: {
@@ -291,7 +291,7 @@ export const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: fontScale(22),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: scale(18),
     lineHeight: fontScale(28),
   },
@@ -311,12 +311,12 @@ export const styles = StyleSheet.create({
     minHeight: scale(50),
   },
   modalItemDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   modalText: {
     fontSize: fontScale(17),
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
     fontWeight: '600',
     lineHeight: fontScale(24),
@@ -331,7 +331,7 @@ export const styles = StyleSheet.create({
     lineHeight: fontScale(22),
   },
   modalSubTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   modifierItem: {
     marginBottom: responsiveSpacing.sm,
@@ -370,7 +370,7 @@ export const styles = StyleSheet.create({
     minHeight: scale(60),
   },
   traitContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   traitHeader: {
@@ -381,7 +381,7 @@ export const styles = StyleSheet.create({
   traitName: {
     fontSize: fontScale(17),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginLeft: responsiveSpacing.xs,
     lineHeight: fontScale(24),
   },
@@ -416,7 +416,7 @@ export const styles = StyleSheet.create({
     marginLeft: scale(12),
   },
   bonusTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   positiveBonus: {
     color: '#10B981',
