@@ -25,6 +25,7 @@ import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
@@ -610,6 +611,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 41, 59, 0.75)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   progressLinkIcon: {
     width: scale(38),
@@ -712,6 +714,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: scale(12),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   findJobIconBubble: {
     width: scale(40),

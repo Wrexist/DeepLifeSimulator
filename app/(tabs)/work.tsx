@@ -42,6 +42,7 @@ import {
     fontScale,
     getTabBarSafePadding,
 } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -1069,6 +1070,7 @@ const local = StyleSheet.create({
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'rgba(255, 255, 255, 0.08)',
+        ...getPlatformShadows(6, 0.25, 4, 14),
     },
     heroRingIcon: {
         width: scale(44),

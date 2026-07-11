@@ -10,6 +10,7 @@
  */
 import { StyleSheet } from 'react-native';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { accent } from '@/lib/config/theme';
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
@@ -178,6 +179,7 @@ export const styles = StyleSheet.create({
     gap: scale(12),
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: GLASS_BORDER,
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   itemCardDark: {
     backgroundColor: GLASS_BG,

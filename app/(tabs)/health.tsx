@@ -8,6 +8,7 @@ import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from '
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import { useTimerManager } from '@/hooks/useTimerManager';
@@ -315,6 +316,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: responsiveSpacing.md,
     gap: verticalScale(12),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   vitalsTitle: {
     fontSize: fontScale(13),
