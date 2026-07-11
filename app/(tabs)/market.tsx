@@ -57,19 +57,21 @@ function MarketScreen() {
   );
 }
 
-function MarketScreenContent() {
+export function MarketScreenContent({ embedded = false }: { embedded?: boolean }) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
   const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
 
-  // Prevent staying on market screen when in prison - redirect to work tab
+  // Prevent staying on market screen when in prison - redirect to work tab.
+  // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
   const { highlightedItem, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();

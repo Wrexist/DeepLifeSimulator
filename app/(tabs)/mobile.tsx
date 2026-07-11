@@ -69,7 +69,7 @@ function MobileScreen() {
   );
 }
 
-function MobileScreenContent() {
+export function MobileScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const { gameState } = useGame();
   const router = useRouter();
@@ -89,23 +89,28 @@ function MobileScreenContent() {
 
   // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
 
-  // Prevent staying on mobile screen when in prison - redirect to work tab
+  // Prevent staying on mobile screen when in prison - redirect to work tab.
+  // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
   // screen mounted until the user navigates — leaving them stranded on a tab
   // that's no longer in the bar. Mirror computer.tsx and redirect to home.
+  // Embedded, the Apps tab chooses Computer-vs-Mobile by ownership, so this
+  // stranding can't happen — skip the redirect to avoid fighting the parent.
   useEffect(() => {
+    if (embedded) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (ownsComputer) {
       router.replace('/(tabs)/home');
     }
-  }, [gameState.items, router]);
+  }, [embedded, gameState.items, router]);
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();

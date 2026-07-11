@@ -32,6 +32,8 @@ const APP_DIR = path.resolve(__dirname, '..', '..', 'app');
 // undefined component anywhere in the boot path crashes the navigator.
 const SCREEN_FILES_TO_VERIFY = [
   '(tabs)/home.tsx',
+  '(tabs)/apps.tsx',
+  '(tabs)/life.tsx',
   '(tabs)/computer.tsx',
   '(tabs)/mobile.tsx',
   '(tabs)/work.tsx',

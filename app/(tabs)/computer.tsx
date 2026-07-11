@@ -95,7 +95,7 @@ function ComputerScreen() {
   );
 }
 
-function ComputerScreenContent() {
+export function ComputerScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
@@ -122,21 +122,26 @@ function ComputerScreenContent() {
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
 
-  // Prevent staying on computer screen when in prison - redirect to work tab
+  // Prevent staying on computer screen when in prison - redirect to work tab.
+  // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
 
-  // Redirect away from computer screen if computer is sold
+  // Redirect away from computer screen if computer is sold. Embedded, the Apps
+  // tab already falls back to the phone launcher when the computer is gone, so
+  // skip the redirect (currentRoute is 'apps', never 'computer', here anyway).
   useEffect(() => {
+    if (embedded) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (!ownsComputer && currentRoute === 'computer') {
       // Redirect to home tab if computer is sold
       router.replace('/(tabs)/home');
     }
-  }, [gameState.items, router]);
+  }, [embedded, gameState.items, router, currentRoute]);
   const navigation = useNavigation<any>();
 
   // Reset to apps grid when the Computer tab is pressed

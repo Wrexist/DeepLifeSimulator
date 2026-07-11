@@ -21,7 +21,7 @@ function HealthScreen() {
   );
 }
 
-function HealthScreenContent() {
+export function HealthScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -76,12 +76,14 @@ function HealthScreenContent() {
     }
   }, [needsStateSync, mergedHealthActivities, setGameState]);
 
-  // Block staying on the health tab while in prison.
+  // Block staying on the health tab while in prison. Embedded (inside the Life
+  // tab) the layout owns the jail redirect, so skip it here.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
 
   // P1-6: every other tab guards stats with optional chaining; health was the
   // outlier and would throw if `stats` is briefly undefined on degraded state.
