@@ -377,9 +377,12 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-      {/* Fixed Tab Bar */}
+      {/* Fixed Tab Bar. Embedded in the Life tab it renders as a subordinate
+          (compact) control so it doesn't mirror the primary Health/Shop/Stats
+          bar sitting just above it. */}
       <SegmentedControl
-        style={styles.marketTabs}
+        style={embedded ? styles.marketTabsEmbedded : styles.marketTabs}
+        compact={embedded}
         value={activeTab}
         onChange={setActiveTab}
         segments={[

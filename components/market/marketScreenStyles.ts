@@ -77,6 +77,12 @@ export const styles = StyleSheet.create({
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.md,
   },
+  // Embedded in the Life tab: the primary Health/Shop/Stats control sits right
+  // above, so tuck this secondary control up tight instead of adding a full gap.
+  marketTabsEmbedded: {
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: scale(2),
+  },
   scrollView: {
     flex: 1,
   },
