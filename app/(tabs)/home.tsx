@@ -13,7 +13,8 @@ import { useGameActions, useItemActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
-import AchievementsProgress from '@/components/AchievementsProgress';
+import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
+import AchievementsModal from '@/components/AchievementsModal';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import IdentityCard from '@/components/IdentityCard';
 import LastWeekRecap from '@/components/LastWeekRecap';
@@ -145,6 +146,7 @@ function HomeScreenContent() {
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
   // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
@@ -504,7 +506,7 @@ function HomeScreenContent() {
               />
             )}
             <FadeInUp delay={0}>
-              <AchievementsProgress />
+              <AchievementsSummaryCard onViewAll={() => setShowAchievements(true)} />
             </FadeInUp>
           </>
         )}
@@ -592,6 +594,7 @@ function HomeScreenContent() {
       <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />
       <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
       <PrestigeInfoModal visible={showPrestigeInfo} onClose={() => setShowPrestigeInfo(false)} />
+      <AchievementsModal visible={showAchievements} onClose={() => setShowAchievements(false)} />
 
       {/* Floating "watch ad → cash" reward orb (drifts in from the left at random). */}
       <AdRewardOrb />
