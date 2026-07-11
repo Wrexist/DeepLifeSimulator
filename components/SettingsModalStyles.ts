@@ -285,7 +285,7 @@ export const styles = StyleSheet.create({
   },
   languageButtonDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   activeLanguageButton: {
     paddingVertical: responsiveSpacing.xs,
@@ -627,7 +627,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   lifeGoalRewardDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   lifeGoalRequirementSection: {
     marginBottom: scale(14),
@@ -689,7 +689,7 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   lifeGoalProgressBarDark: {
-    backgroundColor: 'rgba(55, 65, 81, 0.6)',
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
   },
   lifeGoalProgressFill: {
     height: '100%',
@@ -939,7 +939,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   featureSuggestionDescDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   featureSuggestionInput: {
     backgroundColor: '#334155',
@@ -954,7 +954,7 @@ export const styles = StyleSheet.create({
   },
   featureSuggestionInputDark: {
     backgroundColor: '#334155',
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
     color: '#F9FAFB',
   },
   featureSuggestionButton: {
