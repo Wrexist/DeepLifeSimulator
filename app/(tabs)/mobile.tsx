@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
@@ -46,6 +47,7 @@ import {
   getTabBarSafePadding,
 } from '@/utils/scaling';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
+import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -306,19 +308,30 @@ export function MobileScreenContent({ embedded = false }: { embedded?: boolean }
                 settings.darkMode && styles.appCardGlassInnerDark
               ]}>
                 <View style={styles.appIconGlassContainer}>
-                  <View style={[
-                    styles.appIconGlass,
-                    settings.darkMode && styles.appIconGlassDark
-                  ]}>
-                    <LinearGradient
-                      colors={app.iconGradient as [string, string]}
-                      style={styles.appIconGradientGlass}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
-                    </LinearGradient>
-                  </View>
+                  {getAppIconAsset(app.id) ? (
+                    // Custom designed icon (full-bleed PNG, gradient baked in).
+                    <Image
+                      source={getAppIconAsset(app.id)!}
+                      style={styles.appIconImage}
+                      resizeMode="cover"
+                      accessibilityIgnoresInvertColors
+                    />
+                  ) : (
+                    // Fallback: Lucide glyph on a gradient circle (unchanged).
+                    <View style={[
+                      styles.appIconGlass,
+                      settings.darkMode && styles.appIconGlassDark
+                    ]}>
+                      <LinearGradient
+                        colors={app.iconGradient as [string, string]}
+                        style={styles.appIconGradientGlass}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
+                      </LinearGradient>
+                    </View>
+                  )}
                 </View>
                 <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
                   {app.name}
@@ -424,6 +437,27 @@ const styles = StyleSheet.create({
   },
   appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
+  },
+  // Custom PNG icon — same footprint as the gradient circle, but a rounded
+  // square (iOS-style squircle) since the assets are full-bleed app icons.
+  appIconImage: {
+    width: responsiveIconSize['2xl'] + scale(8),
+    height: responsiveIconSize['2xl'] + scale(8),
+    borderRadius: (responsiveIconSize['2xl'] + scale(8)) * 0.235,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scale(4) },
+        shadowOpacity: 0.22,
+        shadowRadius: scale(8),
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.24)',
+      },
+    }),
   },
   appIconGlass: {
     width: responsiveIconSize['2xl'] + scale(8),
