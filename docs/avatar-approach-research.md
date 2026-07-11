@@ -4,6 +4,16 @@ Research into the real options for giving DeepLife's people (player, Spark, Puls
 Family, all NPCs) an immersive 2.5D/3D look — buy an existing library, generate
 one, build a modular creator, or render live 3D. Written July 2026.
 
+> **UPDATE — the answer was already in the repo.** `assets/images/Face/` ships 5
+> rendered 3D/Pixar faces (Baby / Male / Female / Old_Male / Old_Female), already
+> wired via `getCharacterImage(age, sex)`. That *is* the immersive look, and it
+> matches the app-icon art — so we don't need to buy a pack, use DiceBear, or
+> chase the (now-dead) Ready Player Me. The real gap is **variety** (only 5 faces,
+> so everyone of the same age+sex is identical). The recommended path collapses to
+> **"expand the existing set"**: generate ~25–30 more faces in that exact style
+> (see `avatar-portraits-prompts.md`) and seed the picker. The options below are
+> kept for context, but this supersedes them.
+
 ## Headline: the "just use Ready Player Me" era is over
 
 Ready Player Me was the default free 3D-avatar SDK for indies. **Netflix acquired

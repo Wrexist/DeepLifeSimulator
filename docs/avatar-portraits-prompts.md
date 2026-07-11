@@ -1,316 +1,116 @@
-# DeepLife — Character Portrait Prompts (the 3D / 2.5D look)
+# DeepLife — Character Face Prompts (expand your existing 3D set)
 
-Copy‑paste prompts for generating **stylized 3D‑style character portraits** as
-image assets (Midjourney, DALL·E, Ideogram, Flux, etc.) — the same workflow that
-produced your app icons, scenarios, perks and challenge art.
+You already have the look. `assets/images/Face/` ships **5 rendered 3D/Pixar
+faces** — `Baby`, `Male`, `Female`, `Old_Male`, `Old_Female` — wired via
+`utils/characterImages.ts` (`getCharacterImage(age, sex)`) and used across Spark,
+Contacts, Family, Prestige and Hustle. They match your app-icon art and are
+exactly the immersive 3D style you asked for.
 
-## Why this, and not the generator
+**The only problem is variety:** there are just 5, keyed by age-band + sex, so
+every young woman in Spark is the *same* face, every young man is the *same*
+face, every parent is one of two seniors, every child is the same baby.
 
-The current avatars come from a **seed generator** (DiceBear). That's great —
-infinite, offline, free — but it is **fundamentally flat 2D vector art**. We can
-dress it up with a 2.5D lit frame (shadow + radial light + gloss + rim, see
-`screenshots/avatar-styles.png`) and it reads rounded and alive… but it will
-never be *true* 3D/Pixar depth, because there's no rendered art underneath.
-
-For the "immersive, alive, 3D" look you want, the honest path is **rendered
-portraits** — and the best fit for you is an **AI‑generated portrait library**,
-because you already have the workflow dialed in. This sheet is that library.
-
-> We keep **both**: the DiceBear 2.5D avatar stays as the automatic fallback for
-> any character that doesn't have a portrait yet, so we migrate one face at a
-> time and nothing ever renders blank.
+This sheet is for **generating ~25–30 more faces in that identical style** so the
+world stops looking like clones — same workflow that made your icons/perks/
+scenarios. Once you drop them in, I wire a **seeded picker** so each person gets a
+stable, unique face from the pool (details at the bottom).
 
 ---
 
-## How to use
+## Match the existing style exactly (the whole point)
 
-1. Pick **one** generator and lock it for the whole set — mixing engines breaks
-   the "one game" consistency instantly. (Midjourney `--style raw` or Flux tend
-   to nail this stylized‑3D look; whichever you pick, lock a **style reference /
-   seed** after your first good face and reuse it for every prompt below.)
-2. Copy a **fenced prompt block** — the shared style DNA is already baked in, so
-   each block is standalone. Generate, pick the best of 4.
-3. Export **1024×1024 PNG, transparent background** (head‑and‑shoulders only).
-   Transparent is important: the app drops each portrait into its circular frame
-   and adds the depth ring / mood halo itself, so the portraits composite cleanly
-   and all share the same lighting frame.
-4. Save into `assets/images/Avatars/` using the **filename under each prompt**.
-5. Ping me and I'll wire them (registry + seeded NPC assignment + player picker +
-   automatic DiceBear fallback — details at the bottom). **You don't touch code.**
+New faces must be indistinguishable in style from the current 5. Study
+`assets/images/Face/Male.png` / `Female.png` / `Old_Male.png` and match:
+
+> Rendered **3D Pixar / Fluent-emoji style character head**, soft matte finish,
+> **big round glossy eyes with white catch-lights**, soft rounded nose and
+> cheeks, warm **subsurface-scattering skin**, simple sculpted stylized hair,
+> gentle key light from the upper-left. **Head and shoulders, centered, facing
+> forward**, warm friendly micro-smile. Background: a **warm glowing radial
+> gradient (deep amber → gold)** with a few small decorative 4-point sparkles and
+> one small heart accent (as in the existing set). Square, **1024×1024**.
+
+**Best practice — lock it:** generate your **first new face from a reference of
+`Male.png`** (image-to-image / style reference / "in the style of this"), confirm
+it's a perfect match, then lock that style reference/seed and reuse it for every
+face below. Change **only the person**, never the lighting/background/framing.
+
+**Negative prompt:**
+
+```
+text, watermark, photorealistic human photo, uncanny, harsh shadows, flat 2D
+vector, line-art, full body, hands in frame, multiple people, busy background,
+different art style, glossy plastic skin, tilted framing, low resolution
+```
+
+> Note: the existing set bakes in the warm-glow background + sparkle/heart motif.
+> Keep it consistent — either **all** new faces have it (recommended, matches
+> today) or we regenerate the whole set without it later. Don't mix.
 
 ---
 
-## Shared style DNA (baked into every prompt below)
+## What to generate — kill the clone problem
 
-> Stylized 3D character portrait, Pixar / Sims‑style, head and shoulders, facing
-> the camera with the head turned very slightly, warm friendly micro‑smile,
-> looking at the viewer. Soft subsurface‑scattering skin, big expressive eyes,
-> clean rounded stylized features. Soft studio key light from the upper‑left with
-> a gentle rim light, soft ambient occlusion for real depth. Centered, generous
-> headroom, symmetrical framing. **Transparent background.** Cohesive character
-> design, high quality, crisp, 1024×1024.
-
-**Negative prompt (append if your tool supports it):**
+The world is mostly **working-age adults**, so that's where variety matters most.
+Vary **skin tone, ethnicity, hair, and face shape** — the axes the current set
+completely lacks. Batch from one template, changing only `[bracket]` values:
 
 ```
-text, words, letters, watermark, signature, photorealistic human photo, uncanny,
-extra fingers, deformed face, harsh shadows, busy background, full body, hands in
-frame, hat cropping the head, multiple people, tilted horizon, motion blur,
-low resolution
+Rendered 3D Pixar / Fluent-emoji style character head, soft matte finish, big
+round glossy eyes with white catch-lights, warm subsurface skin, simple sculpted
+hair, gentle upper-left key light, head and shoulders, centered, facing forward,
+warm friendly micro-smile. A [AGE] [GENDER] with [SKIN] skin, [HAIR], and
+[FEATURE]. Warm glowing radial gradient background (deep amber to gold) with a
+few small sparkles and a small heart accent. Square, 1024x1024.
 ```
 
-**Consistency rules (the whole set must feel like one game):**
-
-- **Same camera & crop** every time: head‑and‑shoulders, chin ≈ lower third,
-  top of hair with a little headroom.
-- **Same light**: soft key upper‑left + gentle rim. Don't let the engine flip it.
-- **Same finish**: matte stylized‑3D, *not* glossy plastic and *not* realistic.
-- Lock the **style reference / seed** after the first portrait you love.
-- Keep expressions **warm and neutral‑positive** (slight smile) — the game adds
-  mood on top; you don't want a locked‑in scowl or a manic grin.
-
----
-
-## Tier 1 · Player presets (what the player picks from)
-
-Generate a small spread so character creation feels like a choice. Aim for a
-range of skin tones, hair, and age. Start with these 4 and add more anytime — the
-picker just lists whatever exists.
-
-### P1 · Player preset — warm, youthful
-Filename: `player_01.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm friendly micro-smile. A young adult with
-warm medium skin, tousled dark-brown hair, expressive brown eyes, casual crew-neck
-tee. Soft subsurface skin, big expressive eyes, soft studio key light from the
-upper-left with gentle rim light, ambient occlusion depth. Centered, generous
-headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### P2 · Player preset — fair, bright
-Filename: `player_02.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm friendly micro-smile. A young adult with
-fair skin, shoulder-length wavy auburn hair, green eyes, light freckles, soft
-knit top. Soft subsurface skin, big expressive eyes, soft studio key light from
-the upper-left with gentle rim light, ambient occlusion depth. Centered, generous
-headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### P3 · Player preset — deep skin, confident
-Filename: `player_03.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm friendly micro-smile. A young adult with
-rich deep-brown skin, short textured black coils, warm dark eyes, hoop earring,
-collared shirt. Soft subsurface skin, big expressive eyes, soft studio key light
-from the upper-left with gentle rim light, ambient occlusion depth. Centered,
-generous headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### P4 · Player preset — light‑tan, sleek
-Filename: `player_04.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm friendly micro-smile. A young adult with
-light-tan skin, sleek black hair in a low bun, dark almond eyes, minimalist
-turtleneck. Soft subsurface skin, big expressive eyes, soft studio key light from
-the upper-left with gentle rim light, ambient occlusion depth. Centered, generous
-headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
----
-
-## Tier 2 · Hero characters (specific, recurring cast)
-
-These are named people the player sees repeatedly, so they get their own portrait
-(never a random pool face). Keep their look distinct and memorable.
-
-### Mom
-Filename: `hero_mom.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm loving smile. A kind middle-aged woman,
-medium skin, shoulder-length warm-brown hair with a few silver strands, soft
-laugh lines, gentle hazel eyes, cozy cardigan. Soft subsurface skin, expressive
-eyes, soft studio key light from the upper-left with gentle rim light, ambient
-occlusion depth. Centered, generous headroom, transparent background, matte
-stylized-3D finish, 1024x1024.
-```
-
-### Dad
-Filename: `hero_dad.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm reassuring half-smile. A friendly
-middle-aged man, medium skin, short salt-and-pepper hair, light stubble, kind
-brown eyes, crow's-feet, simple henley shirt. Soft subsurface skin, expressive
-eyes, soft studio key light from the upper-left with gentle rim light, ambient
-occlusion depth. Centered, generous headroom, transparent background, matte
-stylized-3D finish, 1024x1024.
-```
-
-### Maya — best friend
-Filename: `hero_maya.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, bright playful grin. A young woman, warm tan
-skin, long dark wavy hair with a colorful clip, big lively brown eyes, small nose
-stud, denim jacket. Soft subsurface skin, expressive eyes, soft studio key light
-from the upper-left with gentle rim light, ambient occlusion depth. Centered,
-generous headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
----
-
-## Tier 3 · Spark daters (dating app faces)
-
-A few attractive, varied, approachable portraits for the dating app. Generate as
-many as you like — more variety = the app feels alive. Naming: `spark_01.png`,
-`spark_02.png`, …
-
-### Spark 01
-Filename: `spark_01.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, charming confident smile. A stylish young adult,
-olive skin, wavy dark hair, warm brown eyes, a light beard, open collar. Soft
-subsurface skin, expressive eyes, soft studio key light from the upper-left with
-gentle rim light, ambient occlusion depth. Centered, generous headroom,
-transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### Spark 02
-Filename: `spark_02.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, bright inviting smile. A young woman, deep-brown
-skin, voluminous natural curls, striking dark eyes, gold hoop earrings, off-the-
-shoulder top. Soft subsurface skin, expressive eyes, soft studio key light from
-the upper-left with gentle rim light, ambient occlusion depth. Centered, generous
-headroom, transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### Spark 03
-Filename: `spark_03.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, relaxed easy smile. A young adult, fair skin,
-tousled blond hair, blue eyes, light freckles, casual flannel. Soft subsurface
-skin, expressive eyes, soft studio key light from the upper-left with gentle rim
-light, ambient occlusion depth. Centered, generous headroom, transparent
-background, matte stylized-3D finish, 1024x1024.
-```
-
----
-
-## Tier 4 · Pulse people (social‑feed faces)
-
-Everyday, relatable faces for the social feed. Same style, wider age/vibe range.
-Naming: `pulse_01.png`, `pulse_02.png`, …
-
-### Pulse 01
-Filename: `pulse_01.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, cheerful open smile. A cheerful young adult,
-medium skin, curly ginger hair, round glasses, freckles, graphic tee. Soft
-subsurface skin, expressive eyes, soft studio key light from the upper-left with
-gentle rim light, ambient occlusion depth. Centered, generous headroom,
-transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### Pulse 02
-Filename: `pulse_02.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, calm friendly expression. A middle-aged man,
-brown skin, close-cropped black hair with a neat beard, warm eyes, polo shirt.
-Soft subsurface skin, expressive eyes, soft studio key light from the upper-left
-with gentle rim light, ambient occlusion depth. Centered, generous headroom,
-transparent background, matte stylized-3D finish, 1024x1024.
-```
-
-### Pulse 03
-Filename: `pulse_03.png`
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, gentle smile. An older woman, fair skin with
-soft wrinkles, silver bob, kind blue eyes, pearl earrings, elegant blouse. Soft
-subsurface skin, expressive eyes, soft studio key light from the upper-left with
-gentle rim light, ambient occlusion depth. Centered, generous headroom,
-transparent background, matte stylized-3D finish, 1024x1024.
-```
-
----
-
-## Tier 5 · Generic NPC pool (batch template)
-
-For every other in‑game person, the game assigns a portrait **by seed** from a
-tagged pool (so the same NPC always looks the same). Batch‑generate variety from
-**one template** by swapping the **five variables** in `[brackets]`:
-
-```
-Stylized 3D character portrait, Pixar / Sims-style, head and shoulders, facing
-camera with head turned slightly, warm friendly micro-smile. A [AGE] [GENDER]
-with [SKIN] skin, [HAIR], [EYES] eyes, wearing [OUTFIT]. Soft subsurface skin,
-big expressive eyes, soft studio key light from the upper-left with gentle rim
-light, ambient occlusion depth. Centered, generous headroom, transparent
-background, matte stylized-3D finish, 1024x1024.
-```
-
-| Variable | Options to rotate through |
+| Variable | Rotate through |
 | --- | --- |
-| `[AGE]` | young adult · adult · middle-aged · older |
-| `[GENDER]` | man · woman · androgynous person |
+| `[AGE]` | young adult · adult · middle-aged |
+| `[GENDER]` | man · woman |
 | `[SKIN]` | fair · light-tan · olive · warm-brown · deep-brown |
-| `[HAIR]` | short dark · long wavy · buzz cut · curly · braided · silver · dyed pastel |
-| `[EYES]` | brown · hazel · green · blue · dark |
-| `[OUTFIT]` | plain tee · hoodie · button-down · blouse · knit sweater |
+| `[HAIR]` | short dark · buzz cut · long wavy · curly afro · braided · blonde · red · black bun · bald |
+| `[FEATURE]` | freckles · glasses · a beard · earrings · a nose stud · clean-cut |
 
-**Filename convention (this is what lets the game auto‑assign correctly):**
+**Target a first batch of ~24** — roughly a dozen women and a dozen men spread
+across skin tones and hair. That alone transforms Spark, Contacts and the street.
+
+**Filenames** (this is what lets the game auto-assign — extends your current set):
 
 ```
-npc_<gender>_<age>_<nn>.png
+assets/images/Face/pool/<sex>_<ageband>_<nn>.png
 ```
 
-- `<gender>` = `m` · `f` · `x`  ·  `<age>` = `ya` (young adult) · `ad` (adult) · `mid` · `old`
-- Examples: `npc_f_ya_01.png`, `npc_m_mid_03.png`, `npc_x_ad_02.png`
+- `<sex>` = `m` · `f`   ·   `<ageband>` = `ya` (young adult) · `ad` (adult) · `mid` (middle-aged)
+- Examples: `f_ya_01.png`, `f_ya_02.png`, `m_ad_03.png`, `m_mid_02.png`
+- Keep `Baby.png` / `Old_Male.png` / `Old_Female.png` as-is for kids/seniors (add
+  `old_m_02.png` etc. later if you want senior variety too).
 
-A first pass of **~24** (a couple per gender×age band) already makes the world
-feel populated; expand whenever you want more variety.
+---
+
+## Optional — bespoke faces for the recurring cast
+
+The player sees Mom, Dad and a best friend repeatedly, so a specific face each
+makes them feel real (vs. a pool pick). Same style, distinct look. Name them
+`hero_mom.png`, `hero_dad.png`, `hero_bestfriend.png`. Generate from the same
+locked style reference.
 
 ---
 
 ## When the PNGs are ready
 
-Drop them in `assets/images/Avatars/` with the filenames above and tell me. I'll:
+Drop them in `assets/images/Face/pool/` and tell me. I'll:
 
-- Add an `AVATAR_PORTRAITS` registry — heroes/players keyed by id, the NPC pool
-  grouped by `<gender>_<age>` tag.
-- Add `getPortrait(...)`: named characters (Mom/Dad/Maya/Spark/Pulse) resolve to
-  their specific file; generic NPCs get a **deterministic seeded pick** from the
-  matching demographic pool, so a given NPC always shows the same face.
-- Wire the **player picker** in character creation to the `player_*` presets.
-- Render every portrait inside the existing circular frame with the **2.5D depth
-  ring / mood halo** already prototyped, so even the rendered portraits share one
-  lighting language.
-- **Fallback:** any character without a portrait keeps its current DiceBear 2.5D
-  avatar — so you migrate incrementally and the grid is never half‑broken.
+- Build a `FACE_POOL` registry grouped by `<sex>_<ageband>`, plus the current 5 as
+  the guaranteed defaults.
+- Replace `getDatingProfileImage(gender)` and generalize `getCharacterImage()` into
+  **`getPortrait(seed, age, sex)`** — a deterministic seeded pick from the matching
+  bucket, so **Sarah always looks like Sarah but different from Emma**, and every
+  NPC keeps its face across sessions.
+- Wire it through Spark (6 screens), Contacts/Family, Prestige and Hustle.
+  `CompanyDetailScreen` already does exactly this with a 4-face pool — we
+  generalize that one pattern everywhere.
+- **Fallback:** any empty bucket falls back to the current 5, so nothing ever
+  breaks and you can add faces a few at a time.
 
-You don't need to touch any code — just generate, name, and drop.
+You don't touch code — just generate in this style, name, and drop.
