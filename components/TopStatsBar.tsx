@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { View,
  Text,
- StyleSheet,
  TouchableOpacity,
  Animated,
  useWindowDimensions,
@@ -11,10 +10,8 @@ import {
  responsivePadding,
  responsiveFontSize,
  responsiveSpacing,
- touchTargets,
  scale,
  isSmallDevice,
- isLargeDevice,
  isIPad,
  isAndroidXLarge,
 } from '@/utils/scaling';
@@ -22,6 +19,7 @@ import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
+import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
  Heart,
@@ -131,13 +129,6 @@ function TopStatsBarComponent() {
  return '#DC2626'; // Deep red for critical
  };
 
- const getGlowColor = (_stat: string, value: number) => {
- if (value >= 80) return 'rgba(5, 150, 105, 0.3)';
- if (value >= 60) return 'rgba(217, 119, 6, 0.3)';
- if (value >= 40) return 'rgba(234, 88, 12, 0.3)';
- return 'rgba(220, 38, 38, 0.4)';
- };
-
  const shouldGlow = (value: number) => value >= 90 || value <= 20;
 
  const handleQuickAction = useCallback((action: string) => {
@@ -195,15 +186,6 @@ function TopStatsBarComponent() {
  health: getStatColor('health', stats?.health ?? 0),
  happiness: getStatColor('happiness', stats?.happiness ?? 0),
  energy: getStatColor('energy', stats?.energy ?? 0),
- }),
- [stats?.health, stats?.happiness, stats?.energy]
- );
-
- const glowColors = useMemo(
- () => ({
- health: getGlowColor('health', stats?.health ?? 0),
- happiness: getGlowColor('happiness', stats?.happiness ?? 0),
- energy: getGlowColor('energy', stats?.energy ?? 0),
  }),
  [stats?.health, stats?.happiness, stats?.energy]
  );
@@ -507,33 +489,6 @@ function TopStatsBarComponent() {
  const SMALL_DEVICE_BREAKPOINT = 360;
  const isVerySmallDevice = isSmallDevice() && width < SMALL_DEVICE_BREAKPOINT;
 
- const getProgressBarWidth = () => {
- // Calculate available width for progress bars (accounting for padding, icons, and right section)
- const containerPadding = responsivePadding.horizontal * 1.2 * 2; // left + right padding
- const iconWidth = (isIPad() ? touchTargets.large: touchTargets.minimum) + responsiveSpacing.xs; // icon + margin
- // More conservative right section width calculation
- const rightSectionWidth = isIPad()
- ? scale(170)
-: (isVerySmallDevice
- ? scale(95) // Reduced from 100 for better fit
-: scale(115));
- const rightSectionMargin = responsiveSpacing.lg;
- const availableWidth = width - containerPadding - iconWidth - rightSectionWidth - rightSectionMargin;
-
- if (isIPad()) return Math.min(360, Math.max(240, availableWidth * 0.9));
- if (isSmallDevice()) {
- // On very small devices, use a more conservative calculation
- if (width < SMALL_DEVICE_BREAKPOINT) {
- // Very conservative for small devices
- return Math.min(110, Math.max(70, availableWidth * 0.8)); // Reduced from 120/80
- }
- return Math.min(140, Math.max(100, availableWidth * 0.85)); // Reduced from 0.88
- }
- if (isLargeDevice()) return Math.min(200, Math.max(150, availableWidth * 0.9));
- return Math.min(160, Math.max(120, availableWidth * 0.85)); // Reduced from 0.88
- };
- const progressBarWidth = getProgressBarWidth();
-
  // Don't render if no game state or if we're in onboarding
  if (!stats ||!userProfile) return null;
 
@@ -680,14 +635,10 @@ function TopStatsBarComponent() {
  </View>
  </View>
 
- {progressStats.map(({ key, icon: Icon, color, gradient, max, quickActions, value, netChange }) => {
- const val = animatedStats[key as'health'|'happiness'|'energy'];
- const progressWidth = val.interpolate({
- inputRange: [0, max],
- outputRange: ['0%', '100%'],
- extrapolate: 'clamp',
- // Remove easing from interpolation as it can cause conflicts with the main animation
- });
+ <View style={styles.vitalsRingRow}>
+ {progressStats.map(({ key, icon: Icon, gradient, max, quickActions, value, netChange }) => {
+ const ringColor = gradient[0];
+ const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
 
  const statLabel = key === 'health'?'Health': key === 'happiness'?'Happiness': 'Energy';
  const accessibilityProps = getProgressAccessibilityProps({
@@ -698,10 +649,9 @@ function TopStatsBarComponent() {
  });
 
  return (
- <View key={key} style={styles.statRow}>
- <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+ <View key={key} style={styles.vitalRingCell}>
  <TouchableOpacity
- style={[styles.statTouchable, { flex: 1 }]}
+ style={styles.vitalRingTouchable}
  onLongPress={() => setShowQuickActions(showQuickActions === key ? null: key)}
  onPress={() => {
  if (key === 'energy') {
@@ -716,80 +666,30 @@ function TopStatsBarComponent() {
  }}
  activeOpacity={0.7}
  accessibilityLabel={accessibilityProps.accessibilityLabel}
- accessibilityRole="button"accessibilityHint={
+ accessibilityRole="button"
+ accessibilityHint={
  key ==='energy'?`${accessibilityProps.accessibilityHint}. Tap to see energy breakdown. Long press to see quick actions.`: key ==='happiness'?`${accessibilityProps.accessibilityHint}. Tap to see happiness breakdown. Long press to see quick actions.`: key ==='health'?`${accessibilityProps.accessibilityHint}. Tap to see health breakdown. Long press to see quick actions.`:`${accessibilityProps.accessibilityHint}. Long press to see quick actions.`}
  >
- <View style={styles.statRowContent}>
- <View style={styles.statIconContainer}>
- <Icon size={18} color={color} />
- </View>
-
- <View
- style={[
- styles.progressBarWrapper,
- darkMode && styles.progressBarWrapperDark,
- { width: progressBarWidth },
- ]}
- accessibilityRole="progressbar"
- accessibilityValue={{
- min: 0,
- max: max,
- now: Math.round(value),
- text:`${Math.round(value)} out of ${max}`,
- }}
+ <View style={styles.vitalRingWrap}>
+ <ProgressRing
+ value={pct}
+ size={40}
+ strokeWidth={5}
+ ambient={false}
+ showPill={false}
+ accentColor={ringColor}
+ trackColor="rgba(148,163,184,0.18)"
+ label={`${statLabel} level`}
  >
- <Animated.View
- style={[
- styles.progressFill,
- darkMode && styles.progressFillDark,
- { width: progressWidth },
- ]}
- >
- <LinearGradient
- colors={gradient}
- style={StyleSheet.absoluteFill}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 0 }}
- />
- {/* R-perf: low-stat glow PULSE rendered as a native-driven opacity wash
- (mirrors the LinearGradient child above). Previously an animated
- shadowOpacity on the JS driver, which churned the JS thread every
- frame and janked the busy post-tick window. progressFill keeps its
- own static shadow for the base halo, so only the pulse moved here. */}
- {shouldGlow(value) && (
- <Animated.View
- pointerEvents="none"
- style={[
- StyleSheet.absoluteFill,
- {
- backgroundColor: glowColors[key as 'health'|'happiness'|'energy'],
- opacity: glowAnimations[key as 'health'|'happiness'|'energy'].interpolate({
- inputRange: [0, 1],
- outputRange: [0, 0.35],
- }),
- },
- ]}
- />
- )}
- </Animated.View>
- </View>
- {showStatArrows && netChange!== undefined && netChange!== 0 && (
- <View style={styles.statArrowContainer}>
- {netChange > 0 ? (
- <ArrowUp size={scale(14)} color="#10B981"/>
- ): (
- <ArrowDown size={scale(14)} color="#EF4444" />
- )}
- </View>
- )}
- {/* Disease Indicator - Inside statRowContent, close to arrows */}
+ <Icon size={16} color={ringColor} />
+ </ProgressRing>
+ {/* Disease badge — corner of the health ring */}
  {key ==='health'&& hasDiseases && (
  <TouchableOpacity
  style={[
- styles.diseaseIndicator,
+ styles.vitalRingDisease,
  hasCriticalDisease && styles.diseaseIndicatorCritical,
  hasSeriousDisease &&!hasCriticalDisease && styles.diseaseIndicatorSerious,
- { marginLeft: scale(2), zIndex: 10, elevation: 10 },
  ]}
  onPress={() => {
  buttonPress();
@@ -804,18 +704,21 @@ function TopStatsBarComponent() {
  accessibilityLabel={`${diseases.length} active disease${diseases.length!== 1 ?'s': ''}`}
  accessibilityRole="button"accessibilityHint="Tap to view disease details"
  >
- <AlertTriangle
- size={scale(12)}
- color="#FFFFFF"
- />
- {diseases.length > 1 && (
- <Text style={styles.diseaseIndicatorCount}>{diseases.length}</Text>
- )}
+ <AlertTriangle size={scale(9)} color="#FFFFFF" />
  </TouchableOpacity>
  )}
  </View>
- </TouchableOpacity>
+ <View style={styles.vitalRingLabelRow}>
+ <Text style={styles.vitalRingValue}>{Math.round(value)}</Text>
+ {showStatArrows && netChange!== undefined && netChange!== 0 && (
+ netChange > 0 ? (
+ <ArrowUp size={scale(10)} color="#10B981"/>
+ ): (
+ <ArrowDown size={scale(10)} color="#EF4444" />
+ )
+ )}
  </View>
+ </TouchableOpacity>
 
  {/* quick actions omitted for clarity; keep if you used them */}
  {showQuickActions === key && quickActions && (
@@ -841,6 +744,7 @@ function TopStatsBarComponent() {
  </View>
  );
  })}
+ </View>
 
  {/* Money, Bank, Gems — NEW CHIP STYLES */}
  <View style={styles.moneyRow}>

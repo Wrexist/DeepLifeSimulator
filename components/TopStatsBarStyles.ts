@@ -382,6 +382,54 @@ export const styles = StyleSheet.create({
  flexShrink: 0, // Prevent icon from shrinking
  },
 
+ // --- Vitals activity rings (health / mood / energy) ---
+ vitalsRingRow: {
+ flexDirection: 'row',
+ alignItems: 'flex-start',
+ gap: scale(16),
+ marginTop: responsiveSpacing.sm,
+ marginBottom: scale(2),
+ },
+ vitalRingCell: {
+ alignItems: 'center',
+ },
+ vitalRingTouchable: {
+ alignItems: 'center',
+ },
+ vitalRingWrap: {
+ position: 'relative',
+ alignItems: 'center',
+ justifyContent: 'center',
+ },
+ vitalRingLabelRow: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(2),
+ marginTop: scale(3),
+ },
+ vitalRingValue: {
+ color: '#E2E8F0',
+ fontSize: responsiveFontSize.sm,
+ fontWeight: '800',
+ fontVariant: ['tabular-nums'],
+ lineHeight: scale(14),
+ },
+ vitalRingDisease: {
+ position: 'absolute',
+ top: -scale(2),
+ right: -scale(4),
+ backgroundColor: '#F59E0B',
+ borderRadius: scale(8),
+ width: scale(15),
+ height: scale(15),
+ alignItems: 'center',
+ justifyContent: 'center',
+ borderWidth: 1,
+ borderColor: '#0F172A',
+ zIndex: 10,
+ elevation: 10,
+ },
+
  quickActionsContainer: {
  position: 'absolute',
  top: 40,
