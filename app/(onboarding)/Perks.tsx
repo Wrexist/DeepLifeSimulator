@@ -6,12 +6,9 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Dimensions,
-  Animated,
   Platform,
   Alert,
   ActivityIndicator,
-  type DimensionValue,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -38,7 +35,7 @@ import {
 } from 'lucide-react-native';
 
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
-import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
+import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 import usePressableScale from '@/hooks/usePressableScale';
 
@@ -82,7 +79,6 @@ type TabType = 'perks' | 'mindset';
 
 const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 
-const { width: screenWidth } = Dimensions.get('window');
 const log = logger.scope('Perks');
 
 // Lazy-loaded lucide icons for stat display (avoids importing all at top level)
@@ -422,22 +418,8 @@ export default function Perks() {
     [achievements, permanentPerks]
   );
 
-  // R-perf: stable particle positions — were re-rolled with Math.random() on every
-  // render, so the 8 background particles jumped/flickered each re-render.
-  const particlePositions = useMemo<{ left: DimensionValue; top: DimensionValue }[]>(
-    () =>
-      Array.from({ length: 8 }, () => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-      })),
-    []
-  );
-
-  const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
-    duration: 1000,
-    offsetY: 50,
-    rotateBackground: true,
-  });
+  // Backdrop, entrance animation, and floating particles are all owned by
+  // OnboardingScreenShellV2 now — no need to hand-roll them here.
 
   const toggle = useCallback((id: string) => {
     haptic.selection();
@@ -573,42 +555,41 @@ export default function Perks() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Immersive atmosphere — soft blue aurora fading to a deep base. Matches
-          OnboardingScreenShellV2 so Perks reads as part of the same flow. */}
-      <LinearGradient
-        colors={['rgba(37, 99, 235, 0.20)', 'rgba(30, 41, 59, 0)', 'rgba(2, 6, 23, 0.55)']}
-        locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-
-      {/* Animated background glows */}
-      <Animated.View
-        style={[
-          styles.backgroundGradient1,
-          { transform: [{ rotate }] },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.backgroundGradient2,
-          { transform: [{ rotate }] },
-        ]}
-      />
-
-      {/* Main content */}
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity,
-            transform: [{ translateY }],
-            paddingTop: 50 + insets.top,
-          },
-        ]}
+  const floatingStartButton = (
+    <StartButtonScale style={startButtonScaleStyle}>
+      <TouchableOpacity
+        onPress={start}
+        onPressIn={onStartPressIn}
+        onPressOut={onStartPressOut}
+        disabled={isStarting}
+        style={styles.floatingButton}
+        activeOpacity={0.8}
       >
+        <LinearGradient
+          colors={['#3B82F6', '#2563EB', '#1D4ED8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.floatingGlassButton}
+        >
+          <View style={styles.buttonContent}>
+            <Text style={styles.glassButtonTitle}>
+              {isStarting ? 'Starting…' : 'Start Your Life'}
+            </Text>
+            <View style={styles.glassIconContainer}>
+              {isStarting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <ArrowRight size={24} color="#FFFFFF" />
+              )}
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </StartButtonScale>
+  );
+
+  return (
+    <OnboardingScreenShellV2 showParticles floatingButton={floatingStartButton}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity accessibilityLabel="Go back" onPress={handleBack} style={styles.backButton}>
@@ -766,91 +747,11 @@ export default function Perks() {
           </View>
         </ScrollView>
 
-        {/* Floating Start Button */}
-        <View
-          style={[
-            styles.floatingButtonContainer,
-            { bottom: 20 + insets.bottom },
-          ]}
-        >
-          <StartButtonScale style={startButtonScaleStyle}>
-            <TouchableOpacity
-              onPress={start}
-              onPressIn={onStartPressIn}
-              onPressOut={onStartPressOut}
-              disabled={isStarting}
-              style={styles.floatingButton}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#3B82F6', '#2563EB', '#1D4ED8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.floatingGlassButton}
-              >
-                <View style={styles.buttonContent}>
-                  <Text style={styles.glassButtonTitle}>
-                    {isStarting ? 'Starting…' : 'Start Your Life'}
-                  </Text>
-                  <View style={styles.glassIconContainer}>
-                    {isStarting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <ArrowRight size={24} color="#FFFFFF" />
-                    )}
-                  </View>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </StartButtonScale>
-        </View>
-
-        {/* Floating particles */}
-        <View style={styles.particlesContainer}>
-          {particlePositions.map((pos, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.particle,
-                {
-                  left: pos.left,
-                  top: pos.top,
-                  transform: [{ rotate }],
-                },
-              ]}
-            />
-          ))}
-        </View>
-      </Animated.View>
-    </View>
+    </OnboardingScreenShellV2>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    overflow: 'hidden',
-  },
-  backgroundGradient1: {
-    position: 'absolute',
-    width: screenWidth * 2,
-    height: screenWidth * 2,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.13)',
-    top: -screenWidth / 2,
-    left: -screenWidth / 2,
-  },
-  backgroundGradient2: {
-    position: 'absolute',
-    width: screenWidth * 1.5,
-    height: screenWidth * 1.5,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(37, 99, 235, 0.07)',
-    bottom: -screenWidth / 3,
-    right: -screenWidth / 3,
-  },
-  content: { flex: 1 },
   guidanceText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
@@ -1163,12 +1064,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: { height: 120 },
 
-  floatingButtonContainer: {
-    position: 'absolute',
-    left: responsivePadding.horizontal,
-    right: responsivePadding.horizontal,
-    zIndex: 10,
-  },
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -1204,19 +1099,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  particlesContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
-  },
-  particle: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    backgroundColor: 'rgba(59,130,246,0.3)',
-    borderRadius: 2,
-  },
   glassButton: {
     paddingVertical: 18,
     paddingHorizontal: 24,
