@@ -80,3 +80,24 @@ export function computePayouts(
 export function sumPayouts(payouts: DividendPayout[]): number {
   return payouts.reduce((s, p) => s + safe(p.payoutUSD), 0);
 }
+
+/**
+ * Next value of the YTD dividend counter (`stocks.dividendsThisYear`).
+ *
+ * The field's type contract says it "resets at year boundary", but its only
+ * writer always accumulated, so it grew forever and converged on the lifetime
+ * `totalDividends`. This honors the contract by zeroing it on the 52-week game
+ * year boundary (mirroring crypto's `realizedGainsThisYear` reset at
+ * `week % 52 === 0`); every other week it accumulates this tick's payout.
+ *
+ * Pure. `currentWeek` is the post-advance week (weeksLived) — no wall-clock.
+ */
+export function accumulateDividendsThisYear(
+  prev: number,
+  paidThisTick: number,
+  currentWeek: number
+): number {
+  const w = Math.max(0, safe(currentWeek));
+  if (w > 0 && w % 52 === 0) return 0; // year boundary — start the new YTD fresh
+  return Math.max(0, safe(prev)) + Math.max(0, safe(paidThisTick));
+}

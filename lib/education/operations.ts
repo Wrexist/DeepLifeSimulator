@@ -6,8 +6,9 @@
  * setGameState.
  */
 
-import { Education } from '@/contexts/game/types';
+import { Education, EducationClass } from '@/contexts/game/types';
 import { clampGpa, highestGpa } from './gpa';
+import { MAX_CLASSES_PER_SEMESTER } from './educationSystem';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -32,6 +33,12 @@ export interface EnrollSpec {
   bankLoanId?: string;
   /** Politics weeksReduction perk (per program). */
   weeksReduction?: number;
+  /**
+   * Classes chosen at enrolment (capped at MAX_CLASSES_PER_SEMESTER). Their
+   * `statBonuses` are applied by the weekly tick on completion, and they feed
+   * exam difficulty via `getAverageDifficulty`. Defaults to [] (old behaviour).
+   */
+  classes?: EducationClass[];
 }
 
 export function enroll(
@@ -50,7 +57,7 @@ export function enroll(
     completed: false,
     weeksRemaining: adjustedDuration,
     paused: false,
-    enrolledClasses: [],
+    enrolledClasses: (spec.classes ?? []).slice(0, MAX_CLASSES_PER_SEMESTER),
     examsPassed: 0,
     examsFailed: 0,
     gpa: 3.0, // student starts at solid B
@@ -66,6 +73,15 @@ export function enroll(
 
 export function pauseEducation(educations: Education[], educationId: string, paused: boolean): Education[] {
   return educations.map((e) => (e.id === educationId ? { ...e, paused } : e));
+}
+
+/**
+ * Flip a course's study group on/off. When active the weekly tick applies
+ * +2 happiness / −3 energy and `runExam` gets a +15% pass bonus (both already
+ * wired) — this is the missing writer that lets `studyGroupActive` ever be true.
+ */
+export function setStudyGroup(educations: Education[], educationId: string, active: boolean): Education[] {
+  return educations.map((e) => (e.id === educationId ? { ...e, studyGroupActive: active } : e));
 }
 
 export function withdraw(educations: Education[], educationId: string): Education[] {

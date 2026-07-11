@@ -1,16 +1,19 @@
 import React, { useEffect } from 'react';
-import { Platform, View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { X, CheckCircle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
+import { X, CheckCircle, Check } from 'lucide-react-native';
 import { useGame } from '@/contexts/game';
 import { safeSettings } from '@/utils/safeGameState';
 import { useFeedback } from '@/utils/feedbackSystem';
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 const LinearGradient = LinearGradientFallback;
+
+// Success accent — the whole card means "cured", so it's always green.
+const ACCENT = '#34D399';
+const ACCENT_DEEP = '#059669';
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
@@ -21,13 +24,12 @@ export default function CureSuccessModal() {
   const curedDiseases = gameState.curedDiseases || [];
   // R2-A: rare-path modal — bail safely if settings is undefined.
   const settings = safeSettings(gameState);
-  const darkMode = settings.darkMode;
   const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
 
   // Only show modal when in an active game (week > 0 indicates active game)
   const isInActiveGame = week > 0;
 
-  // Auto-dismiss the modal after 8 seconds (increased from 2 seconds)
+  // Auto-dismiss the modal after 8 seconds
   useEffect(() => {
     if (isInActiveGame && showCureSuccessModal && curedDiseases.length > 0) {
       const timer = setTimeout(() => {
@@ -44,334 +46,220 @@ export default function CureSuccessModal() {
     return null;
   }
 
+  const count = curedDiseases.length;
+  const dismiss = () => {
+    buttonPress();
+    haptic('success');
+    dismissCureSuccessModal();
+  };
+
   return (
     <Modal visible={showCureSuccessModal} transparent animationType="fade" onRequestClose={dismissCureSuccessModal}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, darkMode && styles.modalContainerDark]}>
-          <LinearGradient
-            colors={darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.modalGradient}
+      <View style={styles.overlay}>
+        <BlurViewFallback intensity={34} tint="dark" style={styles.card}>
+          {/* Soft green glow from the top edge + thin glass highlight. */}
+          <View style={styles.accentGlow} pointerEvents="none" />
+          <View style={styles.topHighlight} pointerEvents="none" />
+
+          <TouchableOpacity
+            onPress={dismiss}
+            style={styles.close}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
           >
-            <View style={styles.modalHeader}>
-              <View style={styles.titleContainer}>
-                <View style={styles.successIconContainer}>
-                  <CheckCircle size={32} color="#10B981" />
-                </View>
-                <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>
-                  Treatment Successful!
-                </Text>
-                <Text style={[styles.modalSubtitle, darkMode && styles.modalSubtitleDark]}>
-                  Your health conditions have been cured
-                </Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => {
-                  buttonPress();
-                  haptic('light');
-                  dismissCureSuccessModal();
-                }} 
-                style={styles.closeButton}
-                activeOpacity={0.7}
-              >
-                <X size={24} color={darkMode ? '#FFFFFF' : '#374151'} />
-              </TouchableOpacity>
-            </View>
+            <X size={scale(18)} color="rgba(226, 232, 240, 0.75)" />
+          </TouchableOpacity>
 
-            <ScrollView 
-              style={styles.modalContent}
-              contentContainerStyle={styles.modalContentContainer}
-              showsVerticalScrollIndicator={true}
+          {/* Header (fixed) */}
+          <View style={styles.header}>
+            <View style={styles.iconChip}>
+              <CheckCircle size={scale(26)} color={ACCENT} />
+            </View>
+            <Text style={styles.title}>Treatment Successful!</Text>
+            <Text style={styles.subtitle}>
+              {count > 1 ? 'Your conditions have been cured.' : 'Your condition has been cured.'}
+            </Text>
+          </View>
+
+          {/* Cured list (scrolls only if it ever gets long — the button below
+              stays put and can never be overlapped). */}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>{count > 1 ? `Cured · ${count}` : 'Cured'}</Text>
+              {curedDiseases.map((diseaseName, index) => (
+                <View key={index} style={styles.curedItem}>
+                  <Check size={scale(16)} color={ACCENT} strokeWidth={3} />
+                  <Text style={styles.curedText}>{diseaseName}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.note}>
+              The health, energy and happiness penalties from these are gone.
+            </Text>
+          </ScrollView>
+
+          {/* Action (fixed) */}
+          <TouchableOpacity style={styles.button} onPress={dismiss} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Great">
+            <LinearGradient
+              colors={['#10B981', ACCENT_DEEP]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonInner}
             >
-              <View style={[styles.curedDiseasesContainer, darkMode && styles.curedDiseasesContainerDark]}>
-                <View style={styles.curedTitleRow}>
-                  <CheckCircle size={18} color={darkMode ? '#6EE7B7' : '#166534'} />
-                  <Text style={[styles.curedTitle, darkMode && styles.curedTitleDark]}>
-                    Cured Conditions:
-                  </Text>
-                </View>
-                {curedDiseases.map((diseaseName, index) => (
-                  <View key={index} style={styles.curedDiseaseItem}>
-                    <CheckCircle size={16} color="#10B981" />
-                    <Text style={[styles.curedDiseaseText, darkMode && styles.curedDiseaseTextDark]}>
-                      {diseaseName}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={[styles.benefitsContainer, darkMode && styles.benefitsContainerDark]}>
-                <Text style={[styles.benefitsTitle, darkMode && styles.benefitsTitleDark]}>
-                  Health Benefits:
-                </Text>
-                <View style={styles.benefitsList}>
-                  <View style={styles.benefitItem}>
-                    <Heart size={16} color="#EF4444" />
-                    <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
-                      No more health penalties
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Zap size={16} color="#F59E0B" />
-                    <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
-                      Energy levels restored
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Smile size={16} color="#10B981" />
-                    <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
-                      Happiness improved
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Dumbbell size={16} color="#8B5CF6" />
-                    <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
-                      Fitness penalties removed
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={[styles.tipContainer, darkMode && styles.tipContainerDark]}>
-                <Text style={[styles.tipTitle, darkMode && styles.tipTitleDark]}>
-                  Health Tips:
-                </Text>
-                <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  � Maintain good health with regular doctor visits
-                </Text>
-                <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  � Eat healthy food and exercise regularly
-                </Text>
-                <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  � Visit hospitals for serious conditions
-                </Text>
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  buttonPress();
-                  haptic('success');
-                  dismissCureSuccessModal();
-                }}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#10B981', '#059669']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.modalButtonGradient}
-                >
-                  <Text style={styles.modalButtonText}>Great!</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </View>
+              <Text style={styles.buttonText}>Great!</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </BlurViewFallback>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(2, 6, 23, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: responsiveSpacing.md,
   },
-  modalContainer: {
-    width: '95%',
-    maxWidth: 600,
-    maxHeight: '95%',
-    borderRadius: 16,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 8,
-  },
-  modalContainerDark: {
-    backgroundColor: '#1F2937',
-  },
-  modalGradient: {
-    padding: 28,
-    borderRadius: 16,
-    minHeight: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  titleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  successIconContainer: {
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  modalTitleDark: {
-    color: '#FFFFFF',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  modalSubtitleDark: {
-    color: '#9CA3AF',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalContent: {
-    flex: 1,
-    maxHeight: 600,
-  },
-  modalContentContainer: {
-    paddingBottom: 20,
-  },
-  curedDiseasesContainer: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  card: {
+    width: '100%',
+    maxWidth: scale(380),
+    maxHeight: '82%',
+    borderRadius: responsiveBorderRadius['2xl'],
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-  },
-  curedDiseasesContainerDark: {
-    backgroundColor: '#14532D',
-    borderColor: '#10B981',
-  },
-  curedTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  curedTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  curedTitleDark: {
-    color: '#6EE7B7',
-  },
-  curedDiseaseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  curedDiseaseText: {
-    fontSize: 14,
-    color: '#166534',
-    fontWeight: '500',
-  },
-  curedDiseaseTextDark: {
-    color: '#A7F3D0',
-  },
-  benefitsContainer: {
-    backgroundColor: '#F0F9FF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  benefitsContainerDark: {
-    backgroundColor: '#1E3A8A',
-    borderColor: '#3B82F6',
-  },
-  benefitsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0284C7',
-    marginBottom: 12,
-  },
-  benefitsTitleDark: {
-    color: '#93C5FD',
-  },
-  benefitsList: {
-    gap: 8,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  benefitText: {
-    fontSize: 14,
-    color: '#0284C7',
-  },
-  benefitTextDark: {
-    color: '#93C5FD',
-  },
-  tipContainer: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  tipContainerDark: {
-    backgroundColor: '#92400E',
-    borderColor: '#F59E0B',
-  },
-  tipTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#D97706',
-    marginBottom: 8,
-  },
-  tipTitleDark: {
-    color: '#FCD34D',
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#D97706',
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  tipTextDark: {
-    color: '#FDE68A',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    borderRadius: 8,
+    borderColor: `${ACCENT}59`,
     overflow: 'hidden',
+    // Frosted dark body (blur is faked app-wide for crash-safety), same family
+    // as the weekly-event card.
+    backgroundColor: 'rgba(17, 24, 39, 0.94)',
+    padding: responsiveSpacing.lg,
+    ...getPlatformShadows(16, 0.35, 12, 28),
+    shadowColor: ACCENT,
+    elevation: 16,
   },
-  modalButtonGradient: {
-    paddingVertical: 12,
+  accentGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: verticalScale(104),
+    backgroundColor: `${ACCENT_DEEP}1F`,
+  },
+  topHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: scale(20),
+    right: scale(20),
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  close: {
+    position: 'absolute',
+    top: scale(12),
+    right: scale(12),
+    zIndex: 10,
+    width: scale(30),
+    height: scale(30),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: scale(15),
+    backgroundColor: 'rgba(148, 163, 184, 0.14)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: verticalScale(6),
+    marginBottom: verticalScale(16),
+  },
+  iconChip: {
+    width: scale(52),
+    height: scale(52),
+    borderRadius: scale(26),
+    backgroundColor: `${ACCENT}1F`,
+    borderWidth: 1,
+    borderColor: `${ACCENT}55`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(12),
+  },
+  title: {
+    fontSize: fontScale(21),
+    fontWeight: '800',
+    color: '#F8FAFC',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: fontScale(14),
+    color: 'rgba(226, 232, 240, 0.7)',
+    textAlign: 'center',
+    marginTop: verticalScale(4),
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingBottom: verticalScale(2),
+  },
+  panel: {
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${ACCENT}3D`,
+    padding: responsiveSpacing.md,
+  },
+  panelTitle: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: `${ACCENT}`,
+    marginBottom: verticalScale(10),
+  },
+  curedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(9),
+    paddingVertical: verticalScale(4),
+  },
+  curedText: {
+    fontSize: fontScale(15),
+    fontWeight: '600',
+    color: '#F1F5F9',
+    flexShrink: 1,
+  },
+  note: {
+    fontSize: fontScale(12.5),
+    color: 'rgba(148, 163, 184, 0.9)',
+    lineHeight: fontScale(18),
+    textAlign: 'center',
+    marginTop: verticalScale(12),
+    paddingHorizontal: scale(4),
+  },
+  button: {
+    borderRadius: responsiveBorderRadius.lg,
+    overflow: 'hidden',
+    marginTop: verticalScale(16),
+    ...getPlatformShadows(6, 0.2, 3, 8),
+    elevation: 3,
+  },
+  buttonInner: {
+    paddingVertical: verticalScale(14),
     alignItems: 'center',
   },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  buttonText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });
-

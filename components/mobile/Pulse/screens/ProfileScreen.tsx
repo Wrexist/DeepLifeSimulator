@@ -11,8 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, getTabBarSafePadding } from '@/utils/scaling';
-import { Calendar, Link2, MapPin } from 'lucide-react-native';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
+import { BarChart3, Calendar, Link2, MapPin } from 'lucide-react-native';
 import PostCard from '../components/PostCard';
 import CommentItem from '../components/CommentItem';
 import InfluenceMeter from '../components/InfluenceMeter';
@@ -45,9 +45,11 @@ interface ProfileScreenProps {
   onBoostPost?: (postId: string) => void;
   /** Tap "Edit profile" → open ProfileEditModal (owned by PulseApp). */
   onEditProfile?: () => void;
+  /** Tap "Creator Studio" → open the Insights overlay (owned by PulseApp). */
+  onOpenInsights?: () => void;
 }
 
-export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostPost, onEditProfile }: ProfileScreenProps) {
+export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostPost, onEditProfile, onOpenInsights }: ProfileScreenProps) {
   const { gameState } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -56,7 +58,11 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   const sm = gameState.socialMedia;
   const profile = gameState.userProfile ?? {};
   const followers = sm?.followers ?? 0;
-  const following = profile.following ?? 0;
+  // BUG FIX: "Following" read the stale `profile.following` scalar (never
+  // written by the follow/unfollow flow), so it was frozen. Derive it from the
+  // authoritative follow graph the tick actually maintains; fall back to the old
+  // field only if the graph is absent.
+  const following = sm?.followGraph?.followingNpcIds?.length ?? profile.following ?? 0;
   const totalPosts = sm?.totalPosts ?? 0;
   const recentPosts: PulseRecentPost[] = sm?.recentPosts ?? [];
   const isVerified = !!profile.verified;
@@ -102,7 +108,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   }, [sm?.commentThreads]);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {/* Cover photo */}
       <View style={styles.cover}>
         {profile.headerPhoto ? (
@@ -159,7 +165,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             onUpsell={onUpgradePro}
           />
         </View>
-        <Text style={[styles.handle, { color: theme.textSecondary }]}>@{handle}</Text>
+        <Text style={[styles.handle, { color: theme.textSecondary }]}>@{String(handle ?? '').replace(/^@+/, '')}</Text>
 
         <Text style={[styles.bio, { color: theme.text }]}>{bio}</Text>
 
@@ -186,17 +192,30 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
           ) : null}
         </View>
 
-        {/* Edit profile entry */}
-        {onEditProfile ? (
-          <Pressable
-            onPress={onEditProfile}
-            accessibilityRole="button"
-            accessibilityLabel="Edit profile"
-            style={[styles.editBtn, { borderColor: theme.border }]}
-          >
-            <Text style={[styles.editBtnText, { color: theme.text }]}>Edit profile</Text>
-          </Pressable>
-        ) : null}
+        {/* Edit profile + Creator Studio entries */}
+        <View style={styles.actionRow}>
+          {onEditProfile ? (
+            <Pressable
+              onPress={onEditProfile}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+              style={[styles.editBtn, { borderColor: theme.border }]}
+            >
+              <Text style={[styles.editBtnText, { color: theme.text }]}>Edit profile</Text>
+            </Pressable>
+          ) : null}
+          {onOpenInsights ? (
+            <Pressable
+              onPress={onOpenInsights}
+              accessibilityRole="button"
+              accessibilityLabel="Open Creator Studio insights"
+              style={[styles.editBtn, styles.studioBtn, { borderColor: theme.border }]}
+            >
+              <BarChart3 size={fontScale(14)} color={PULSE_GRADIENT[0]} />
+              <Text style={[styles.editBtnText, { color: theme.text }]}>Creator Studio</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {/* Stats row */}
         <View style={[styles.statsRow, { borderTopColor: theme.border, borderBottomColor: theme.border }]}>
@@ -410,13 +429,23 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: fontScale(12),
   },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.sm,
+    marginTop: responsiveSpacing.md,
+  },
   editBtn: {
     alignSelf: 'flex-start',
-    marginTop: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  studioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   editBtnText: {
     fontSize: fontScale(13),

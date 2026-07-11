@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
+
+const LinearGradient = LinearGradientFallback;
 
 interface Props {
   visible: boolean;
@@ -68,7 +72,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 12), styles.sheet, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: theme.text }]}>Trade {symbol}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
@@ -171,6 +175,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
 
           <TouchableOpacity
             disabled={!valid}
+            activeOpacity={0.7}
             onPress={() => {
               if (!valid || !symbol) return;
               onSubmit({
@@ -181,14 +186,18 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
                 stopPrice: type === 'stop' ? stop : undefined,
               });
             }}
-            style={[
-              styles.confirm,
-              { backgroundColor: valid ? (side === 'buy' ? accent.success : accent.danger) : theme.border },
-            ]}
+            style={[styles.confirm, valid && getPlatformShadows(5, 0.3, 2, 8)]}
           >
-            <Text style={styles.confirmText}>
-              {type === 'market' ? 'Execute' : 'Place'} {side === 'buy' ? 'Buy' : 'Sell'}
-            </Text>
+            <LinearGradient
+              colors={valid ? [accent.purple, '#9333EA'] : [theme.surfaceElevated, theme.surfaceElevated]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.confirmFill}
+            >
+              <Text style={[styles.confirmText, { color: valid ? 'white' : theme.textMuted }]}>
+                {type === 'market' ? 'Execute' : 'Place'} {side === 'buy' ? 'Buy' : 'Sell'}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -211,17 +220,19 @@ function SegRow({
     <View style={styles.segRow}>
       {options.map((o) => {
         const active = o.key === value;
-        const activeColor = o.color ?? accent.info;
+        const activeColor = o.color ?? accent.purple;
         return (
           <TouchableOpacity
             key={o.key}
             onPress={() => onChange(o.key)}
             style={[
               styles.seg,
-              { borderColor: active ? activeColor : theme.border, backgroundColor: active ? activeColor : theme.surfaceElevated },
+              active
+                ? { backgroundColor: `${activeColor}24`, borderColor: `${activeColor}59` }
+                : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
             ]}
           >
-            <Text style={[styles.segText, { color: active ? 'white' : theme.text }]}>{o.label}</Text>
+            <Text style={[styles.segText, { color: active ? activeColor : theme.textSecondary }]}>{o.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -241,7 +252,7 @@ function Field({ theme, label, children }: { theme: ReturnType<typeof getThemeCo
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: responsiveSpacing.lg },
   backdropTouch: { ...StyleSheet.absoluteFillObject },
-  sheet: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1, padding: responsiveSpacing.lg, gap: responsiveSpacing.md, maxHeight: '90%' },
+  sheet: { borderRadius: responsiveBorderRadius['2xl'], borderWidth: 1, padding: responsiveSpacing.lg, gap: responsiveSpacing.md, maxHeight: '90%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: responsiveFontSize.lg, fontWeight: '700' },
   subtitle: { fontSize: responsiveFontSize.sm },
@@ -252,6 +263,13 @@ const styles = StyleSheet.create({
   fieldRow: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, paddingHorizontal: responsiveSpacing.md },
   input: { fontSize: responsiveFontSize.lg, fontWeight: '700', paddingVertical: responsiveSpacing.md },
   estimate: { fontSize: responsiveFontSize.xs, fontStyle: 'italic' },
-  confirm: { paddingVertical: responsiveSpacing.md, borderRadius: responsiveBorderRadius.lg, alignItems: 'center' },
-  confirmText: { color: 'white', fontSize: responsiveFontSize.md, fontWeight: '700' },
+  confirm: { borderRadius: responsiveBorderRadius.full },
+  confirmFill: {
+    borderRadius: responsiveBorderRadius.full,
+    minHeight: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: responsiveSpacing.md,
+  },
+  confirmText: { fontSize: responsiveFontSize.md, fontWeight: '700' },
 });

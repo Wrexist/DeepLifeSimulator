@@ -76,7 +76,18 @@ export function aggregateContacts(
       : r.type === 'partner' || r.type === 'spouse'
         ? 'partner'
         : 'friend';
-    const lastContact = safe(r.lastInteractionWeek ?? r.lastCall, undefined);
+    // `lastInteractionWeek` is now the single source of truth for recency —
+    // stamped by every Contacts interaction (Call / Hang Out / Ask / date /
+    // gift). The legacy `lastCall` fallback is retired (it was never written).
+    // NOTE: use an explicit guard rather than `safe(..., undefined)` — that idiom
+    // silently coerces to 0 (an explicit `undefined` triggers the `fb = 0`
+    // default), which would make a never-contacted person read as "contacted in
+    // week 0" and wrongly flag them for Attention. A genuine `undefined` keeps
+    // never-stamped contacts out of the triage until they've actually lapsed.
+    const lastContact =
+      typeof r.lastInteractionWeek === 'number' && isFinite(r.lastInteractionWeek)
+        ? r.lastInteractionWeek
+        : undefined;
     out.push({
       id: r.id,
       kind,

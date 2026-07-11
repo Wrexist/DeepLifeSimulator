@@ -54,6 +54,13 @@ export interface LoanAutopayResult {
   totalLoanAutoPaid: number;
   /** Total interest added to outstanding loans via missed-payment penalty. */
   totalLoanPenalty: number;
+  /**
+   * Total weekly APR interest actually SERVICED on paid loans this tick — the
+   * interest that compounded onto a loan the player paid down. Feeds
+   * `banking.totalInterestPaid` so it stops reading $0. Missed-payment weeks
+   * contribute $0 here (that interest is tracked as penalty, not serviced).
+   */
+  totalLoanInterest: number;
   /** Cash AFTER autopay deductions. = cashAvailable - totalLoanAutoPaid. */
   cashAfter: number;
 }
@@ -62,6 +69,7 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
   let cashAfter = input.cashAvailable;
   let totalLoanAutoPaid = 0;
   let totalLoanPenalty = 0;
+  let totalLoanInterest = 0;
 
   const processedLoans: (Loan | null)[] = (input.prevLoans || []).map((loan) => {
     const remaining = typeof loan.remaining === 'number' && isFinite(loan.remaining)
@@ -99,6 +107,9 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
     if (canAffordPayment || forcePayment) {
       cashAfter -= paymentDue;
       totalLoanAutoPaid += paymentDue;
+      // Interest serviced this week = the APR interest that compounded onto the
+      // balance before this payment (remainingWithInterest - remaining).
+      totalLoanInterest += (remainingWithInterest - remaining);
       return {
         ...loan,
         remaining: Math.max(0, remainingWithInterest - paymentDue),
@@ -136,6 +147,7 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
     processedLoans: survivors,
     totalLoanAutoPaid,
     totalLoanPenalty,
+    totalLoanInterest,
     cashAfter,
   };
 }

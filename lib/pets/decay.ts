@@ -32,9 +32,25 @@ export interface PetWeeklyTickOutput {
 }
 
 /**
- * Apply one week of stat decay + age progression to a single pet. Pure.
+ * Number of consecutive weeks at zero health after which a pet dies.
+ * The live weekly tick reconciles to the legacy 3-week grace period (see
+ * `contexts/game/actions/weekly/applyPets.ts`) to keep mortality on its
+ * historical baseline; `tickPet`/`tickAllPets` default to 2 so the
+ * standalone decay unit tests keep their original contract.
  */
-export function tickPet(input: PetWeeklyTickInput): PetWeeklyTickOutput {
+export const DEFAULT_ZERO_HEALTH_DEATH_WEEKS = 2;
+
+/**
+ * Apply one week of stat decay + age progression to a single pet. Pure.
+ *
+ * @param zeroHealthDeathWeeks Consecutive weeks at zero health before death.
+ *   Defaults to {@link DEFAULT_ZERO_HEALTH_DEATH_WEEKS}. The wired weekly tick
+ *   passes 3 to preserve the legacy grace period.
+ */
+export function tickPet(
+  input: PetWeeklyTickInput,
+  zeroHealthDeathWeeks: number = DEFAULT_ZERO_HEALTH_DEATH_WEEKS,
+): PetWeeklyTickOutput {
   const { pet, rollIllness, rollSicknessKind } = input;
   if (pet.isDead) return { pet, died: false };
 
@@ -92,7 +108,7 @@ export function tickPet(input: PetWeeklyTickInput): PetWeeklyTickOutput {
   else weeksAtZeroHealth = 0;
 
   const isOldAge = nextAge >= lifespanWeeks;
-  const diedFromHealth = weeksAtZeroHealth >= 2;
+  const diedFromHealth = weeksAtZeroHealth >= zeroHealthDeathWeeks;
   const died = isOldAge || diedFromHealth;
   const causeOfDeath: PetWeeklyTickOutput['causeOfDeath'] = died
     ? isOldAge
@@ -126,7 +142,8 @@ export function tickPet(input: PetWeeklyTickInput): PetWeeklyTickOutput {
  */
 export function tickAllPets(
   pets: Pet[],
-  rollFor: (key: string) => number
+  rollFor: (key: string) => number,
+  zeroHealthDeathWeeks: number = DEFAULT_ZERO_HEALTH_DEATH_WEEKS,
 ): { pets: Pet[]; deaths: { pet: Pet; cause: NonNullable<PetWeeklyTickOutput['causeOfDeath']> }[] } {
   const deaths: { pet: Pet; cause: NonNullable<PetWeeklyTickOutput['causeOfDeath']> }[] = [];
   const next = pets.map((p) => {
@@ -135,7 +152,7 @@ export function tickAllPets(
       pet: p,
       rollIllness: rollFor(`pet.${p.id}.illness`),
       rollSicknessKind: rollFor(`pet.${p.id}.illness.kind`),
-    });
+    }, zeroHealthDeathWeeks);
     if (res.died && res.causeOfDeath) deaths.push({ pet: res.pet, cause: res.causeOfDeath });
     return res.pet;
   });

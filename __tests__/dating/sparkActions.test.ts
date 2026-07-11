@@ -14,6 +14,8 @@ import {
   reportProfile,
   exposeCatfish,
   resolveJealousy,
+  likeBackFromLikedYou,
+  dismissLikedYou,
 } from '@/contexts/game/actions/SparkActions';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
@@ -242,7 +244,7 @@ describe('boost / catfish / jealousy', () => {
     ).toHaveLength(1);
   });
 
-  it('resolveJealousy applies effects and clears the event', () => {
+  it('resolveJealousy applies effects and clears the event (unblocks future spawns)', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.reputation = 50;
     state.relationships = [{ id: 'p1', name: 'Alex', type: 'partner', relationshipScore: 60 } as any];
@@ -261,5 +263,64 @@ describe('boost / catfish / jealousy', () => {
     expect(getState().sparkApp!.jealousyHistory).toHaveLength(1);
     expect(getState().relationships![0].relationshipScore).toBe(40); // -20
     expect(getState().stats.reputation).toBe(47);                    // -3
+  });
+});
+
+describe('Likes-You inbox', () => {
+  function ultraStateWithLike(profileId = SAMPLE_ID): GameState {
+    const state = freshState({ weeksLived: 3 });
+    state.sparkApp!.premium.active = true;
+    state.sparkApp!.premium.tier = 'ultra';
+    state.sparkApp!.premium.perks.seeWhoLikedYou = true;
+    state.sparkApp!.likedYou = [{ profileId, likedAtWeek: 2, superLiked: false }];
+    return state;
+  }
+
+  it('likeBackFromLikedYou (Ultra) creates a match, consumes the entry, and dedupes datingMatches', () => {
+    const state = ultraStateWithLike();
+    const { setGameState, getState } = makeHarness(state);
+    const r = likeBackFromLikedYou(setGameState, state, SAMPLE_ID);
+    expect(r.success).toBe(true);
+    expect(r.matchId).toBeDefined();
+    const sp = getState().sparkApp!;
+    expect(sp.matches.some((m) => m.profileId === SAMPLE_ID)).toBe(true);
+    expect(sp.likedYou.find((l) => l.profileId === SAMPLE_ID)).toBeUndefined();
+    expect(getState().datingMatches).toContain(SAMPLE_ID);
+    // datingMatches is deduped — only one entry for the profile.
+    expect(getState().datingMatches!.filter((id) => id === SAMPLE_ID)).toHaveLength(1);
+  });
+
+  it('is gated: free / Plus tiers cannot see-and-like-back', () => {
+    const state = freshState({ weeksLived: 3 });
+    state.sparkApp!.premium.perks.seeWhoLikedYou = false; // free/plus
+    state.sparkApp!.likedYou = [{ profileId: SAMPLE_ID, likedAtWeek: 2, superLiked: false }];
+    const { setGameState, getState } = makeHarness(state);
+    const r = likeBackFromLikedYou(setGameState, state, SAMPLE_ID);
+    expect(r.success).toBe(false);
+    // Entry stays — nothing consumed, no match created.
+    expect(getState().sparkApp!.likedYou).toHaveLength(1);
+    expect(getState().sparkApp!.matches).toHaveLength(0);
+  });
+
+  it('does not create a duplicate match when one already exists (returns existing id)', () => {
+    const state = ultraStateWithLike();
+    state.sparkApp!.matches = [{ id: 'existing', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    const beforeMatches = state.sparkApp!.lifetimeStats.totalMatches;
+    const { setGameState, getState } = makeHarness(state);
+    const r = likeBackFromLikedYou(setGameState, state, SAMPLE_ID);
+    expect(r.success).toBe(true);
+    expect(r.matchId).toBe('existing');
+    expect(getState().sparkApp!.matches.filter((m) => m.profileId === SAMPLE_ID)).toHaveLength(1);
+    // No phantom match counted when reusing an existing match.
+    expect(getState().sparkApp!.lifetimeStats.totalMatches).toBe(beforeMatches);
+    expect(getState().sparkApp!.likedYou).toHaveLength(0);
+  });
+
+  it('dismissLikedYou removes the entry without matching', () => {
+    const state = ultraStateWithLike();
+    const { setGameState, getState } = makeHarness(state);
+    dismissLikedYou(setGameState, SAMPLE_ID);
+    expect(getState().sparkApp!.likedYou).toHaveLength(0);
+    expect(getState().sparkApp!.matches).toHaveLength(0);
   });
 });

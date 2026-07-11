@@ -37,6 +37,12 @@ describe('membershipWeeklyRevenue', () => {
   it('scales with member count', () => {
     expect(membershipWeeklyRevenue(100)).toBeGreaterThan(membershipWeeklyRevenue(10));
   });
+  it('pays each member the given rate per week (matches the tick payout formula)', () => {
+    expect(membershipWeeklyRevenue(100, 4.99)).toBe(Math.round(100 * 4.99));
+  });
+  it('a higher rate yields more revenue for the same members', () => {
+    expect(membershipWeeklyRevenue(100, 10)).toBeGreaterThan(membershipWeeklyRevenue(100, 4.99));
+  });
 });
 
 describe('monetizationSummary', () => {
@@ -45,5 +51,10 @@ describe('monetizationSummary', () => {
     expect(s.rpm).toBeGreaterThan(0);
     expect(s.viewerPay).toBeGreaterThan(0);
     expect(s.membershipWeekly).toBeGreaterThan(0);
+  });
+  it('threads the channel membership rate into the weekly figure', () => {
+    const cheap = monetizationSummary(60, 50, 4.99);
+    const pricey = monetizationSummary(60, 50, 20);
+    expect(pricey.membershipWeekly).toBeGreaterThan(cheap.membershipWeekly);
   });
 });

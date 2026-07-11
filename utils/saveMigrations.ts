@@ -559,6 +559,87 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 21;
     return state;
   },
+
+  // Version 22: App Depth Program — Wave A additive batch. A SINGLE migration
+  // default-filling every new OPTIONAL field the Wave-A depth features read via
+  // `??`, plus the ONE data-preserving change (Pet `ownedToys` → `toys`). Every
+  // block only sets a value when it is missing, so this is idempotent and never
+  // clobbers a save that already carries v22 data.
+  22: (state) => {
+    // ── Banking: live rate environment + computer-only budget targets ──────
+    if (state.banking && typeof state.banking === 'object') {
+      if (!state.banking.rateEnvironment || typeof state.banking.rateEnvironment !== 'object') {
+        state.banking.rateEnvironment = { depositMult: 1, loanDelta: 0 };
+      }
+      if (!state.banking.budgetTargets || typeof state.banking.budgetTargets !== 'object') {
+        state.banking.budgetTargets = {};
+      }
+    }
+
+    // ── Pulse: capped follower history (52) + optional scandal risk score ──
+    if (state.socialMedia && typeof state.socialMedia === 'object') {
+      if (!Array.isArray(state.socialMedia.followerHistory)) {
+        const week = typeof state.weeksLived === 'number' && isFinite(state.weeksLived)
+          ? Math.max(0, Math.floor(state.weeksLived)) : 0;
+        const followers = typeof state.socialMedia.followers === 'number' && isFinite(state.socialMedia.followers)
+          ? state.socialMedia.followers : 0;
+        // Anchor the series with the current-followers point so charts have a datum.
+        state.socialMedia.followerHistory = [{ week, followers }];
+      } else if (state.socialMedia.followerHistory.length > 52) {
+        // Enforce the cap on any pre-seeded series.
+        state.socialMedia.followerHistory = state.socialMedia.followerHistory.slice(-52);
+      }
+      if (typeof state.socialMedia.scandalRiskScore !== 'number' || !isFinite(state.socialMedia.scandalRiskScore)) {
+        state.socialMedia.scandalRiskScore = 0;
+      }
+    }
+
+    // ── YouVideo + Streamly (shared gamingStreaming slice): creator perks,
+    //    memberships payout stamp, streamly hype streak ────────────────────
+    if (state.gamingStreaming && typeof state.gamingStreaming === 'object') {
+      if (typeof state.gamingStreaming.perkTier !== 'number' || !isFinite(state.gamingStreaming.perkTier)) {
+        state.gamingStreaming.perkTier = 0;
+      }
+      if (typeof state.gamingStreaming.lastMemberWeek !== 'number' || !isFinite(state.gamingStreaming.lastMemberWeek)) {
+        state.gamingStreaming.lastMemberWeek = 0;
+      }
+      if (typeof state.gamingStreaming.hypeStreak !== 'number' || !isFinite(state.gamingStreaming.hypeStreak)) {
+        state.gamingStreaming.hypeStreak = 0;
+      }
+    }
+
+    // ── Travel: passport milestone tiers ──────────────────────────────────
+    if (state.travel && typeof state.travel === 'object') {
+      if (!Array.isArray(state.travel.passportMilestones)) {
+        state.travel.passportMilestones = [];
+      }
+    }
+
+    // ── Real estate: capped portfolio activity timeline (top-level slice) ──
+    if (!Array.isArray(state.realEstateActivity)) {
+      state.realEstateActivity = [];
+    } else if (state.realEstateActivity.length > 40) {
+      state.realEstateActivity = state.realEstateActivity.slice(-40);
+    }
+
+    // ── Pet: DATA-PRESERVING collapse of `ownedToys` → `toys` ─────────────
+    // Union the two arrays (dedupe), write the result into `toys`, and empty
+    // `ownedToys` so the data now lives in the single canonical field. Never
+    // drops a toy.
+    if (Array.isArray(state.pets)) {
+      state.pets = state.pets.map((pet: any) => {
+        if (!pet || typeof pet !== 'object') return pet;
+        const toys = Array.isArray(pet.toys) ? pet.toys : [];
+        const owned = Array.isArray(pet.ownedToys) ? pet.ownedToys : [];
+        if (owned.length === 0 && Array.isArray(pet.toys)) return pet; // nothing to merge
+        const merged = Array.from(new Set([...toys, ...owned]));
+        return { ...pet, toys: merged, ownedToys: [] };
+      });
+    }
+
+    state.version = 22;
+    return state;
+  },
 };
 
 /**

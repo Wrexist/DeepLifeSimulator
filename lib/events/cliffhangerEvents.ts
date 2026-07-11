@@ -1,9 +1,10 @@
 /**
  * Cliffhanger Events
  *
- * After advancing a week, ~10% chance to show a teaser like
- * "Your partner has been acting strange lately..." that resolves
- * as an event the following week. Creates powerful "one more turn" pressure.
+ * After advancing a week, a small chance (~7%, ~10% in the first 12 weeks) to
+ * show a teaser like "Your partner has been acting strange lately..." that
+ * resolves as an event the following week. Creates a "one more turn" pull while
+ * staying rare enough (roughly one every 10–15 weeks) to feel special.
  *
  * Each cliffhanger has:
  * - teaser: text shown on WeeklyResultSheet
@@ -412,7 +413,8 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
 
 /**
  * Roll for a cliffhanger to show on the weekly result sheet.
- * Returns null if no cliffhanger triggers (~22% chance when eligible).
+ * Returns null if no cliffhanger triggers (fires ~7% of eligible weeks,
+ * ~10% in the first 12 weeks).
  */
 export function rollCliffhanger(
   state: GameState,
@@ -421,11 +423,13 @@ export function rollCliffhanger(
   // Only roll if no cliffhanger is already pending
   if (state.pendingCliffhanger) return null;
 
-  // Base chance: ~22% normally, bumped to ~32% in the first 12 weeks so new
-  // players hit the "what happens next?" narrative hook early in their first
-  // session rather than playing 10+ weeks without seeing one.
+  // Base chance: ~7% normally, a small bump to ~10% in the first 12 weeks so new
+  // players still meet the "what happens next?" narrative hook without it firing
+  // constantly. Players reported the old 22%/32% rates felt like every week —
+  // this cliffhanger drives BOTH the weekly-summary teaser and next week's popup,
+  // so the target cadence is roughly one every 10–15 weeks.
   const weeksLived = state.weeksLived || 0;
-  const threshold = weeksLived <= 12 ? 0.32 : 0.22;
+  const threshold = weeksLived <= 12 ? 0.10 : 0.07;
   const roll = ((seed * 997 + 31) % 100) / 100;
   if (roll > threshold) return null;
 

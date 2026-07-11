@@ -1,4 +1,5 @@
 import {
+  accumulateDividendsThisYear,
   computePayouts,
   DIVIDEND_INTERVAL_WEEKS,
   isDividendWeek,
@@ -71,5 +72,39 @@ describe('sumPayouts', () => {
         { symbol: 'B', shares: 0, pricePerShare: 0, annualYield: 0, payoutUSD: 75 },
       ])
     ).toBe(100);
+  });
+});
+
+describe('accumulateDividendsThisYear (YTD reset contract)', () => {
+  it('accumulates within a year', () => {
+    // Weeks 13, 26, 39 pay dividends and accumulate on the YTD counter.
+    let ytd = 0;
+    ytd = accumulateDividendsThisYear(ytd, 100, 13);
+    expect(ytd).toBe(100);
+    ytd = accumulateDividendsThisYear(ytd, 100, 26);
+    expect(ytd).toBe(200);
+    ytd = accumulateDividendsThisYear(ytd, 100, 39);
+    expect(ytd).toBe(300);
+  });
+
+  it('resets to 0 at the 52-week year boundary', () => {
+    expect(accumulateDividendsThisYear(300, 100, 52)).toBe(0);
+    expect(accumulateDividendsThisYear(9999, 500, 104)).toBe(0);
+  });
+
+  it('does not reset at week 0 (inception)', () => {
+    expect(accumulateDividendsThisYear(0, 0, 0)).toBe(0);
+    expect(accumulateDividendsThisYear(50, 25, 0)).toBe(75);
+  });
+
+  it('does not reset on non-boundary weeks (incl. dividend weeks)', () => {
+    expect(accumulateDividendsThisYear(300, 0, 40)).toBe(300);
+    expect(accumulateDividendsThisYear(300, 100, 53)).toBe(400);
+  });
+
+  it('handles NaN/negative inputs defensively', () => {
+    expect(accumulateDividendsThisYear(NaN, 100, 13)).toBe(100);
+    expect(accumulateDividendsThisYear(100, NaN, 13)).toBe(100);
+    expect(accumulateDividendsThisYear(-50, -20, 13)).toBe(0);
   });
 });

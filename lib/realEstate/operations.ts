@@ -302,6 +302,44 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
 }
 
 // ---------------------------------------------------------------------------
+// Improvements — decor / rooms / upgrade tier (Wave A "Improve" flow)
+// ---------------------------------------------------------------------------
+//
+// Pure list transforms mirroring performMaintenance: the React-aware wrappers in
+// RealEstateActions.ts do the affordability gate + cash debit, then call these to
+// write the EXISTING `interior[] / rooms[] / upgradeLevel` fields (no new state).
+// The happiness/appreciation/rent math that consumes those fields already lives
+// in housing.ts (calculatePropertyHappiness / appreciatePropertyValue) and the
+// weekly tick, so populating them here brings the orphaned catalog to life.
+
+/** Append a decoration item id to a property's interior (no dupes). */
+export function installDecor(properties: RealEstate[], propertyId: string, decorId: string): RealEstate[] {
+  return properties.map((p) => {
+    if (p.id !== propertyId) return p;
+    const interior = p.interior ?? [];
+    if (interior.includes(decorId)) return p;
+    return { ...p, interior: [...interior, decorId] };
+  });
+}
+
+/** Append a room-addition id to a property's rooms (no dupes). */
+export function addRoom(properties: RealEstate[], propertyId: string, roomId: string): RealEstate[] {
+  return properties.map((p) => {
+    if (p.id !== propertyId) return p;
+    const rooms = p.rooms ?? [];
+    if (rooms.includes(roomId)) return p;
+    return { ...p, rooms: [...rooms, roomId] };
+  });
+}
+
+/** Set a property's upgrade tier (caller validates the target level). */
+export function upgradeProperty(properties: RealEstate[], propertyId: string, newLevel: number): RealEstate[] {
+  return properties.map((p) =>
+    p.id === propertyId ? { ...p, upgradeLevel: newLevel } : p
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Maintenance
 // ---------------------------------------------------------------------------
 

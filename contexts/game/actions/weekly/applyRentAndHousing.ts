@@ -33,11 +33,23 @@
  * roll source for stable snapshots.
  */
 
-import type { RealEstate } from '@/contexts/game/types';
+import type { RealEstate, RealEstateActivityEntry } from '@/contexts/game/types';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import * as housingModule from '@/lib/realEstate/housing';
 import { runRealEstateWeeklyTick } from '@/lib/realEstate/weeklyTick';
 import type { WeekContext } from './weekContext';
+
+/** Newest-40 cap for the persisted portfolio activity slice (matches the migration). */
+const ACTIVITY_CAP = 40;
+
+/** Derive a short `kind` tag for an activity entry from the tick notification id. */
+function activityKind(noteId: string): string {
+  if (noteId.startsWith('re-cycle-')) return 'cycle';
+  if (noteId.startsWith('re-tenant-arrive-')) return 'tenant_in';
+  if (noteId.startsWith('re-tenant-leave-')) return 'tenant_out';
+  if (noteId.startsWith('housing-alert')) return 'maintenance';
+  return 'event';
+}
 
 export interface RentAndHousingResult {
   weeklyRent: number;
@@ -45,6 +57,12 @@ export interface RentAndHousingResult {
   housingHappinessBonus: number;
   housingRentalIncome: number;
   housingUpkeep: number;
+  /**
+   * v22 Wave A: capped, persisted portfolio activity timeline. Merges the prior
+   * slice with this week's real-estate tick + housing-alert notifications so the
+   * RealEstateApp Activity tab reads durable events instead of one-frame toasts.
+   */
+  realEstateActivity: RealEstateActivityEntry[];
 }
 
 export function applyRentAndHousing(
@@ -52,7 +70,10 @@ export function applyRentAndHousing(
   nextWeeksLived: number,
   rollFor: (key: string) => number,
   ctx: WeekContext,
+  prevActivity?: RealEstateActivityEntry[] | null,
 ): RentAndHousingResult {
+  // v22 Wave A: accumulate durable activity entries from this week's notifications.
+  const newActivity: RealEstateActivityEntry[] = [];
   // 1. Weekly rent for rented-but-not-owned properties.
   let weeklyRent = 0;
   (prevRealEstate || []).forEach((property) => {
@@ -71,12 +92,16 @@ export function applyRentAndHousing(
     const housingResult = housingModule.processWeeklyHousing(updatedRealEstate, nextWeeksLived);
     updatedRealEstate = housingResult.properties;
     housingHappinessBonus = housingResult.totalHappinessBonus;
-    housingRentalIncome = housingResult.totalRentalIncome;
     housingUpkeep = housingResult.totalUpkeep;
+    // NOTE: housingResult.totalRentalIncome is intentionally NOT assigned to
+    // housingRentalIncome here — the tenant-model pass below is authoritative and
+    // used to immediately overwrite it (a dead double-assignment). The upgrade
+    // rent bonus that figure carried now flows through runRealEstateWeeklyTick.
     // Show property condition alerts.
     if (housingResult.notifications.length > 0) {
-      housingResult.notifications.forEach((msg: string) => {
+      housingResult.notifications.forEach((msg: string, i: number) => {
         ctx.notifications.push({ id: 'housing-alert', message: msg, title: '🏠 Property Alert' });
+        newActivity.push({ id: `housing-alert-${nextWeeksLived}-${i}`, week: nextWeeksLived, kind: 'maintenance', label: msg });
       });
     }
   } catch {
@@ -97,10 +122,17 @@ export function applyRentAndHousing(
     housingRentalIncome = reTick.rentalIncome;
     for (const note of reTick.notifications) {
       ctx.notifications.push({ id: note.id, title: note.title, message: note.message });
+      newActivity.push({ id: note.id, week: nextWeeksLived, kind: activityKind(note.id), label: note.message });
     }
   } catch {
     // Real-estate weeklyTick module may not exist in tests — preserved silent fallback.
   }
+
+  // Merge the new entries into the persisted slice, de-duping by id (idempotent
+  // per week) and keeping only the most recent ACTIVITY_CAP entries.
+  const seen = new Set((prevActivity ?? []).map((e) => e.id));
+  const freshUnique = newActivity.filter((e) => !seen.has(e.id));
+  const realEstateActivity = [...(prevActivity ?? []), ...freshUnique].slice(-ACTIVITY_CAP);
 
   return {
     weeklyRent,
@@ -108,5 +140,6 @@ export function applyRentAndHousing(
     housingHappinessBonus,
     housingRentalIncome,
     housingUpkeep,
+    realEstateActivity,
   };
 }

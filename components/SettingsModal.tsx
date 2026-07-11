@@ -190,8 +190,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     },
     {
       id: 'weeklySummaryEnabled',
-      title: 'Monthly Summary',
-      description: 'Show progress summary every 4 weeks',
+      title: 'Week Summary',
+      description: 'Show the weekly recap after each week. Turn off to skip it.',
       icon: Calendar,
       type: 'toggle' as const,
       value: settings.weeklySummaryEnabled,

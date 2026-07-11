@@ -421,7 +421,9 @@ describe('pre-tick equivalence — applyPetLivingSideEffects', () => {
     expect({ newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('alive but unhappy pets: no happiness bonus, but food cost still deducts', () => {
+  // Post-Wave-A: living side effects apply the capped `bondingSummary` deltas
+  // (the numbers the "Companion bonus" card already shows), not a flat +2/pet.
+  it('alive but unhappy pets: small bonding delta, food cost still deducts', () => {
     const updated = [
       { id: 'p1', name: 'Sad', type: 'dog', age: 50, hunger: 0, happiness: 30, health: 60 },
       { id: 'p2', name: 'Sick', type: 'cat', age: 50, hunger: 0, happiness: 70, health: 20 },
@@ -431,7 +433,7 @@ describe('pre-tick equivalence — applyPetLivingSideEffects', () => {
     expect({ newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('alive happy & healthy pets: +2 happiness each, food cost deducts', () => {
+  it('alive happy & healthy pets: capped bonding happiness + health, food cost deducts', () => {
     const updated = [
       { id: 'p1', name: 'Joy', type: 'dog', age: 50, hunger: 0, happiness: 80, health: 90 },
       { id: 'p2', name: 'Bliss', type: 'cat', age: 50, hunger: 0, happiness: 75, health: 85 },
@@ -560,6 +562,15 @@ jest.mock('@/lib/education/educationSystem', () => ({
   }),
   updateGPA: (currentGPA: number, examCount: number, gpaChange: number) =>
     Math.max(0, Math.min(4.0, currentGPA + gpaChange / Math.max(1, examCount))),
+  // Real progress-derived semester (mirrors the production implementation) so
+  // the extracted tick can bump `semesterNumber` deterministically.
+  computeSemesterNumber: (duration: number, weeksRemaining: number | undefined) => {
+    const dur = Math.max(1, Math.floor(duration));
+    const remaining = Math.max(0, Math.min(dur, Math.floor(weeksRemaining ?? dur)));
+    const elapsed = dur - remaining;
+    const maxSemester = Math.max(1, Math.ceil(dur / 26));
+    return Math.min(maxSemester, Math.floor(elapsed / 26) + 1);
+  },
   // Pass through other exports we don't need to control.
   EXAM_INTERVAL_WEEKS: 13,
   CAMPUS_EVENT_MIN_INTERVAL: 4,

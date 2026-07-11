@@ -28,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { commentOnPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import CommentThread from '../components/CommentThread';
 import { PULSE_COLORS } from '../styles/pulseTheme';
@@ -106,8 +106,8 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
   }
 
   return (
-    // Bottom padding keeps the sticky composer above the floating phone tab bar.
-    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    // Full-screen: keep the sticky composer just above the home indicator.
+    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <Header onBack={onClose} text={theme.text} border={theme.border} />
 
       <KeyboardAvoidingView
@@ -127,7 +127,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
               placeholderTextColor="#FFFFFF"
             />
             <View style={styles.authorMeta}>
-              <Text style={[styles.handle, { color: theme.text }]}>@{handle}</Text>
+              <Text style={[styles.handle, { color: theme.text }]}>@{String(handle ?? '').replace(/^@+/, '')}</Text>
               <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
                 {formatRelativeWeek(post.gameWeek, gameState.weeksLived ?? 0)}
               </Text>

@@ -48,6 +48,8 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { setFullscreenApp } from '@/utils/fullscreenAppStore';
+import { useIsFocused } from '@react-navigation/native';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
@@ -74,6 +76,17 @@ function MobileScreenContent() {
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+
+  // Run in-phone apps full-screen (hide the game TopStatsBar + floating tab bar)
+  // so they don't feel sandwiched. Reset on unmount so the chrome always returns.
+  // Scoped to tab focus: with freezeOnBlur both tab screens stay mounted, so a
+  // blurred tab must not clobber the focused tab's full-screen claim.
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    setFullscreenApp(isFocused && !!activeApp);
+    return () => setFullscreenApp(false);
+  }, [isFocused, activeApp]);
+
   // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
 
   // Prevent staying on mobile screen when in prison - redirect to work tab
@@ -231,12 +244,16 @@ function MobileScreenContent() {
       setActiveApp(null);
       return null;
     }
+    // Full-screen host: the game chrome is hidden while an app is open, so the
+    // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
-      <AppComponent onBack={() => {
-        buttonPress();
-        haptic('light');
-        setActiveApp(null);
-      }} />
+      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? '#0F172A' : '#F8FAFC' }}>
+        <AppComponent onBack={() => {
+          buttonPress();
+          haptic('light');
+          setActiveApp(null);
+        }} />
+      </View>
     );
   }
 
@@ -298,10 +315,10 @@ function MobileScreenContent() {
                     </LinearGradient>
                   </View>
                 </View>
-                <Text style={[styles.appName, settings.darkMode && styles.appNameDark]}>
+                <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
                   {app.name}
                 </Text>
-                <Text style={[styles.appDescription, settings.darkMode && styles.appDescriptionDark]}>
+                <Text style={[styles.appDescription, settings.darkMode && styles.appDescriptionDark]} numberOfLines={2}>
                   {app.description}
                 </Text>
               </View>
@@ -366,7 +383,10 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   appCardGlass: {
-    aspectRatio: 1,
+    // Fixed height (not a square) so every card is identical and holds the icon
+    // + 2-line name + 2-line description without the old overflow that pushed
+    // icons past the top border and clipped the text.
+    height: scale(150),
     borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
     overflow: 'hidden',
@@ -389,7 +409,9 @@ const styles = StyleSheet.create({
     flex: 1,
     ...getGlassAppCard(false),
     padding: responsiveSpacing.md,
-    justifyContent: 'center',
+    // Anchor content to the top so every icon aligns across the grid and can
+    // never overflow the card's top edge.
+    justifyContent: 'flex-start',
     alignItems: 'center',
   },
   appCardGlassInnerDark: {

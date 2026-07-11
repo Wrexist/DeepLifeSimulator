@@ -45,10 +45,12 @@ export function streamEarnings(
 }
 
 /**
- * Weekly recurring revenue from paid members.
+ * Weekly recurring revenue from paid members. Each paid member pays `rate` per
+ * week — the SAME formula the weekly `applyContentMemberships` payout uses — so
+ * the "Members/wk" figure the UI shows matches what actually lands in cash.
  */
 export function membershipWeeklyRevenue(members: number, rate = BASE_MEMBERSHIP_RATE): number {
-  return Math.round(Math.max(0, safe(members, 0)) * rate * (12 / 52));
+  return Math.round(Math.max(0, safe(members, 0)) * Math.max(0, safe(rate, BASE_MEMBERSHIP_RATE)));
 }
 
 export interface MonetizationSummary {
@@ -62,12 +64,13 @@ export interface MonetizationSummary {
  */
 export function monetizationSummary(
   quality: QualityBreakdown | number,
-  paidMembers: number
+  paidMembers: number,
+  membershipRate: number = BASE_MEMBERSHIP_RATE
 ): MonetizationSummary {
   const q = qualityMultiplier(quality);
   return {
     rpm: Math.round(BASE_RPM * q * 100) / 100,
     viewerPay: Math.round(BASE_VIEWER_PAY * q * 1000) / 1000,
-    membershipWeekly: membershipWeeklyRevenue(paidMembers),
+    membershipWeekly: membershipWeeklyRevenue(paidMembers, membershipRate),
   };
 }

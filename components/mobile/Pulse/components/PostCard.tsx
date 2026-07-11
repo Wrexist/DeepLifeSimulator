@@ -42,25 +42,42 @@ interface PostCardProps {
   onBoost?: (postId: string) => void;
   /** True for player's own posts — shows the Boost affordance. */
   isPlayerPost?: boolean;
+  /**
+   * Optional like handler override. Ambient NPC/trending posts aren't in the
+   * player's `recentPosts`, so `likePost` would no-op on them — the parent
+   * passes a local toggler instead so their heart still responds.
+   */
+  onLike?: (postId: string) => void;
+  /** Optional repost handler override (same rationale as `onLike`). */
+  onRepost?: (postId: string) => void;
 }
 
 export default function PostCard({
   post, authorHandle, authorPhoto, currentWeeksLived, onOpenDetail, onBoost, isPlayerPost,
+  onLike: onLikeOverride, onRepost: onRepostOverride,
 }: PostCardProps) {
   const { setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
-  const onLike = useCallback(() => {
+  const handleLike = useCallback(() => {
     pulseHaptics.light();
+    if (onLikeOverride) {
+      onLikeOverride(post.id);
+      return;
+    }
     likePost(setGameState, post.id);
     saveGame?.();
-  }, [setGameState, saveGame, post.id]);
+  }, [onLikeOverride, setGameState, saveGame, post.id]);
 
-  const onRepost = useCallback(() => {
+  const handleRepost = useCallback(() => {
     pulseHaptics.medium();
+    if (onRepostOverride) {
+      onRepostOverride(post.id);
+      return;
+    }
     repostPost(setGameState, post.id);
     saveGame?.();
-  }, [setGameState, saveGame, post.id]);
+  }, [onRepostOverride, setGameState, saveGame, post.id]);
 
   const card = (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -77,7 +94,7 @@ export default function PostCard({
         />
         <View style={styles.authorMeta}>
           <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
-            @{authorHandle}
+            @{String(authorHandle ?? '').replace(/^@+/, '')}
           </Text>
           <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
             {formatRelativeWeek(post.gameWeek, currentWeeksLived)}
@@ -106,7 +123,7 @@ export default function PostCard({
           active={!!post.isLiked}
           activeColor={PULSE_COLORS.like}
           mutedColor={theme.textSecondary}
-          onPress={onLike}
+          onPress={handleLike}
           label="Like"
         />
         <EngagementButton
@@ -115,7 +132,9 @@ export default function PostCard({
           active={false}
           activeColor={theme.text}
           mutedColor={theme.textSecondary}
-          onPress={() => onOpenDetail?.(post.id)}
+          // Ambient/NPC posts have no detail route — render a static, non-tappable
+          // count instead of a button that looks pressable but no-ops.
+          onPress={onOpenDetail ? () => onOpenDetail(post.id) : undefined}
           label="Comment"
         />
         <EngagementButton
@@ -124,7 +143,7 @@ export default function PostCard({
           active={!!post.isReposted}
           activeColor={PULSE_COLORS.repost}
           mutedColor={theme.textSecondary}
-          onPress={onRepost}
+          onPress={handleRepost}
           label="Repost"
         />
         {/* Boost — player's own posts only; gem cost shown in the modal */}
@@ -174,7 +193,8 @@ interface EngagementButtonProps {
   active: boolean;
   activeColor: string;
   mutedColor: string;
-  onPress: () => void;
+  /** When omitted the control renders as a static, non-interactive count. */
+  onPress?: () => void;
   label: string;
 }
 
@@ -192,7 +212,7 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
 
   const reduced = useReducedMotion();
   const animatedPress = useCallback(() => {
-    onPress();
+    onPress?.();
     if (reduced) return;
     if (isLikeBtn) {
       Animated.sequence([
@@ -212,15 +232,8 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
     });
   }
 
-  return (
-    <Pressable
-      onPress={animatedPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label} (${count})`}
-      accessibilityState={{ selected: active }}
-      hitSlop={8}
-      style={styles.engagementBtn}
-    >
+  const iconAndCount = (
+    <>
       <Animated.View style={{ transform }}>
         <Icon
           size={fontScale(16)}
@@ -232,6 +245,33 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
       <Text style={[styles.engagementCount, { color: active ? activeColor : mutedColor }]}>
         {formatPulseNumber(count)}
       </Text>
+    </>
+  );
+
+  // Static (non-interactive) rendering when no handler is wired — e.g. the
+  // comment count on ambient posts, which have no detail route to open.
+  if (!onPress) {
+    return (
+      <View
+        accessibilityRole="text"
+        accessibilityLabel={`${label} (${count})`}
+        style={styles.engagementBtn}
+      >
+        {iconAndCount}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={animatedPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} (${count})`}
+      accessibilityState={{ selected: active }}
+      hitSlop={8}
+      style={styles.engagementBtn}
+    >
+      {iconAndCount}
     </Pressable>
   );
 }

@@ -1692,6 +1692,16 @@ export interface SavingsGoal {
   category: SavingsGoalCategory;
   createdWeek: number;
   targetWeek?: number;
+  /**
+   * v22 Wave A: weekly auto-contribution swept FROM the linked account (or cash)
+   * into this goal by `applySavingsGoals`. Optional; absent/0 = manual only.
+   */
+  autoContribute?: number;
+  /**
+   * v22 Wave A: the week the goal first reached its target. Set exactly once —
+   * gates the bounded completion reward so it is granted only a single time.
+   */
+  completedWeek?: number;
 }
 
 export interface BankingState {
@@ -1709,6 +1719,17 @@ export interface BankingState {
   taxDueThisYear: number;
   /** Last observed economy state — used to surface "rates changed" notifications. */
   lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';
+  /**
+   * v22 Wave A: live rate environment derived from `economyState` — a deposit-APY
+   * multiplier and an additive loan-APR delta. Neutral default `{ depositMult: 1,
+   * loanDelta: 0 }`. Read via `??` everywhere.
+   */
+  rateEnvironment?: { depositMult: number; loanDelta: number };
+  /**
+   * v22 Wave A: computer-only monthly budget targets by category (for overspend
+   * alerts). Optional map; absent = no targets set.
+   */
+  budgetTargets?: Partial<Record<BudgetCategory, number>>;
 }
 
 export interface EconomyState {
@@ -1869,6 +1890,16 @@ export interface GamingStreamingState {
   // earnings are unbounded).
   videosThisWeek?: number;
   lastVideoWeek?: number; // weeksLived when last video was published
+  /**
+   * v22 Wave A (shared YouVideo + Streamly):
+   *   - perkTier: creator perk tier derived from `level` (unfreezes the badge).
+   *   - lastMemberWeek: idempotency stamp for the weekly memberships payout.
+   *   - hypeStreak: Streamly hype-train consecutive-stream streak counter.
+   * All optional, read via `??`.
+   */
+  perkTier?: number;
+  lastMemberWeek?: number;
+  hypeStreak?: number;
 }
 
 // Re-export from lib/social/relations for convenience
@@ -2301,6 +2332,11 @@ export interface GameState {
     lifetimeStats?: PulseLifetimeStats;
     lastViralBoostBySkill?: Record<string, number>;        // weeksLived, capped 1 boost/skill/week
     lastAdBoostWeek?: number;                              // weeksLived; enforces 1/week cap for rewarded-ad boost
+    // ── v22 Wave A additions (all optional; migration fills defaults) ──
+    /** Capped follower history for the Creator Studio / Insights chart (last 52 points). */
+    followerHistory?: { week: number; followers: number }[];
+    /** Bounded scandal-risk accumulator gating the scandal spawn tick. */
+    scandalRiskScore?: number;
   };
   /**
    * Spark dating app state (v15+). Owns swipes, matches, chat threads, premium,
@@ -2319,6 +2355,11 @@ export interface GameState {
   _appVersion?: string; // TESTFLIGHT FIX: App version when save was created (for compatibility tracking)
   _buildNumber?: string | number; // TESTFLIGHT FIX: Build number when save was created (for compatibility tracking)
   travel?: TravelState;
+  /**
+   * v22 Wave A: capped real-estate portfolio activity timeline (~40 entries).
+   * Optional additive slice; consumers read via `?? []`.
+   */
+  realEstateActivity?: RealEstateActivityEntry[];
   politics?: PoliticsState;
   /** Cross-system IOU/favor ledger surfaced by ContactsApp (Remake 10). */
   favorLedger?: { favors: import('@/lib/contacts/favors').Favor[] };
@@ -2513,6 +2554,24 @@ export interface TravelState {
     week: number;
     year: number;
   }[];
+  /**
+   * v22 Wave A: bounded passport milestone tiers unlocked (e.g. countries-visited
+   * thresholds). Optional; each id recorded once. Read via `??`.
+   */
+  passportMilestones?: string[];
+}
+
+/**
+ * v22 Wave A: one real-estate portfolio activity entry (tenancy events, rent
+ * cycles, value changes) feeding the RealEstate Activity tab. Kept as a capped
+ * top-level slice (`GameState.realEstateActivity`, ~40 entries).
+ */
+export interface RealEstateActivityEntry {
+  id: string;
+  week: number;
+  kind: string;
+  label: string;
+  amount?: number;
 }
 
 export interface Lobbyist {

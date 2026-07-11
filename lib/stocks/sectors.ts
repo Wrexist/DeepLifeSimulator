@@ -32,6 +32,8 @@ export const STOCK_SECTORS: Record<string, Sector> = {
   MA: 'finance',
   // Healthcare
   JNJ: 'healthcare',
+  PFE: 'healthcare',
+  UNH: 'healthcare',
   // Consumer
   WMT: 'consumer',
   PG: 'consumer',
@@ -41,6 +43,10 @@ export const STOCK_SECTORS: Record<string, Sector> = {
   // Industrial
   BA: 'industrial',
   CAT: 'industrial',
+  // Energy
+  XOM: 'energy',
+  CVX: 'energy',
+  SLB: 'energy',
 };
 
 export type SectorState = 'strong' | 'neutral' | 'weak';

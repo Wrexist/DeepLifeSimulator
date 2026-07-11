@@ -1,41 +1,61 @@
 /**
  * OnionApp — Dark Web screen.
  *
- * Remake (STATE_VERSION 18). Replaces the 1,331-LOC shop/forum/terminal app
- * with a marketplace + multi-stage jobs + laundering chain + skills loop:
+ * Terminal DNA (differentiation pass). A full aesthetic break from the shared
+ * "eyebrow hero + uniform rows" template while keeping the Slate Glass crash-safe
+ * primitives (getGlassCard / getPlatformShadows elevation, LinearGradientFallback
+ * is intentionally NOT used — the terminal look is flat phosphor, purple only as
+ * cursor/accent glints). Everything reads as a monospace console: near-black
+ * panels, "> "/"$ " prompts, ASCII dividers/bars, hex-dump wallet block, and every
+ * action is a visible bracket-button like [ BUY ].
  *
- *   - Market: rotating listings from rep-scored vendors (scam risk surfaced).
- *   - Jobs: multi-stage operations (Recon → Social → Exploit → Exfil → Fence).
- *   - Wallet: dirty BTC, mixer queue, clean BTC, cash-out into the regular wallet.
+ * ZERO REMOVAL: every action (buy / start job / run stage / launder / cash out /
+ * new identity) and every data readout from the previous version is preserved and
+ * re-homed, and MORE existing state is surfaced (vendor directory, per-stage odds,
+ * mixer rate table, raid-risk + heat-decay, laundering ledger) via local list→detail
+ * sub-views. No new game mechanics.
  *
  * Heat decay, marketplace rotation, laundering settlement, and police events
  * all happen in lib/darkweb/weeklyTick.ts (called from GameActionsContext.nextWeek).
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import {
-  ArrowLeft,
-  ShoppingBag,
-  Target,
-  Wallet,
-  Plus,
-  Star,
-  Activity,
-} from 'lucide-react-native';
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
+import { ArrowLeft, ShoppingBag, Target, Wallet } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import {
+  getGlassCard,
+  getGlassCategoryTabsContainer,
+  getPlatformShadows,
+} from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
-import { DarkWebMixerTier, DarkWebSkillId } from '@/contexts/game/types';
+import {
+  DarkWebMixerTier,
+  DarkWebSkillId,
+  DarkWebMarketListing,
+  DarkWebVendor,
+  DarkWebActiveJob,
+  DarkWebLaunderingTx,
+} from '@/contexts/game/types';
+import { heatBand, heatBandLabel, policeEventProbability, decayHeat } from '@/lib/darkweb/heat';
+import { vendorScamProbability } from '@/lib/darkweb/marketplace';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
-import HeatGauge from '@/components/darkweb/HeatGauge';
-import MarketListingRow from '@/components/darkweb/MarketListingRow';
-import JobRow from '@/components/darkweb/JobRow';
-import LaunderingTxRow from '@/components/darkweb/LaunderingTxRow';
 import StartJobModal from '@/components/darkweb/StartJobModal';
 import LaunderModal from '@/components/darkweb/LaunderModal';
 import AmountInputModal from '@/components/banking/AmountInputModal';
@@ -50,19 +70,85 @@ import {
   NEW_IDENTITY_COST_BTC,
   countLaunderingFronts,
 } from '@/contexts/game/actions/CrimeActions';
-import { JOB_TEMPLATES } from '@/lib/darkweb/jobs';
+import { JOB_TEMPLATES, stageSuccessProbability } from '@/lib/darkweb/jobs';
+import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
 
-interface OnionAppProps {
-  onBack: () => void;
-}
+// ---------------------------------------------------------------------------
+// Terminal design language (local — a deliberate single-look dark console
+// surface; the Slate Glass canvas/theme still branches on darkMode behind it,
+// and every hairline/divider lives inside a dark panel so light mode has no
+// white-on-white artifacts).
+// ---------------------------------------------------------------------------
 
-type Tab = 'market' | 'jobs' | 'wallet';
+const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) as string;
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
-  { id: 'market', label: 'Market', icon: ShoppingBag },
-  { id: 'jobs',   label: 'Jobs',   icon: Target },
-  { id: 'wallet', label: 'Wallet', icon: Wallet },
-];
+const TERM = {
+  bg: '#0A0F0B',          // near-black panel
+  bgChrome: '#0B120D',    // top bar / tab strip
+  bgDeep: '#060907',      // insets / hex-dump wells
+  border: 'rgba(34,197,94,0.22)',
+  borderDim: 'rgba(34,197,94,0.12)',
+  green: '#22C55E',       // phosphor — data / prompts / values
+  greenDim: 'rgba(34,197,94,0.66)',
+  text: '#CFE3D6',        // soft terminal foreground
+  muted: 'rgba(207,227,214,0.55)',
+  faint: 'rgba(207,227,214,0.32)',
+  purple: '#A855F7',      // identity — cursor / accent glints only
+  purpleGlow: 'rgba(168,85,247,0.12)',
+} as const;
+
+type BtnTone = 'phosphor' | 'purple' | 'solid' | 'danger' | 'neutral';
+
+const TONE: Record<BtnTone, { fill: string; border: string; text: string }> = {
+  phosphor: { fill: 'rgba(34,197,94,0.13)', border: 'rgba(34,197,94,0.50)', text: TERM.green },
+  purple: { fill: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.55)', text: TERM.purple },
+  solid: { fill: TERM.purple, border: TERM.purple, text: '#FFFFFF' },
+  danger: { fill: 'rgba(239,68,68,0.13)', border: 'rgba(239,68,68,0.50)', text: accent.danger },
+  neutral: { fill: 'rgba(207,227,214,0.06)', border: 'rgba(207,227,214,0.20)', text: TERM.greenDim },
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  stolenAccounts: 'accounts',
+  cardedItems: 'carded',
+  fakeIds: 'fake_id',
+  hackingTools: 'tools',
+  services: 'services',
+  data: 'data',
+  gear: 'gear',
+};
+
+const TIER_META: Record<string, { color: string; glyph: string }> = {
+  common: { color: TERM.greenDim, glyph: '·' },
+  pro: { color: accent.info, glyph: '+' },
+  elite: { color: TERM.purple, glyph: '*' },
+};
+
+const MIX_META: Record<string, string> = {
+  cheap: accent.warning,
+  standard: accent.info,
+  premium: TERM.purple,
+};
+
+const LAUNDER_STATUS: Record<string, string> = {
+  pending: accent.info,
+  completed: TERM.green,
+  failed: accent.danger,
+};
+
+const HISTORY_STATUS: Record<string, string> = {
+  completed: TERM.green,
+  failed: accent.danger,
+  expired: accent.warning,
+  'in-progress': accent.info,
+};
+
+const STAGE_LABEL: Record<string, string> = {
+  recon: 'recon',
+  social: 'social',
+  exploit: 'exploit',
+  exfiltrate: 'exfil',
+  fence: 'fence',
+};
 
 const SKILL_LABEL: Record<DarkWebSkillId, string> = {
   hacking: 'Hacking',
@@ -70,6 +156,183 @@ const SKILL_LABEL: Record<DarkWebSkillId, string> = {
   opsec: 'OPSEC',
   laundering: 'Laundering',
 };
+
+// Heat is a risk indicator — coloured by band (data), never recoloured to the
+// purple identity accent. Mirrors HeatGauge's own band map.
+const HEAT_BAND_COLOR: Record<string, string> = {
+  cold: accent.info,
+  warm: accent.warning,
+  hot: accent.amber,
+  burning: accent.danger,
+};
+
+const repColor = (r: number): string => (r >= 60 ? TERM.green : r >= 30 ? accent.warning : accent.danger);
+
+/** Deterministic monospace bar, e.g. asciiBar(0.4) → "████░░░░░░░░". */
+function asciiBar(pct: number, width = 12): string {
+  const p = Math.max(0, Math.min(1, isFinite(pct) ? pct : 0));
+  const filled = Math.round(p * width);
+  return '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled));
+}
+
+// ---------------------------------------------------------------------------
+// Terminal primitives
+// ---------------------------------------------------------------------------
+
+function AsciiDivider({ color = TERM.border, style }: { color?: string; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[styles.dividerWrap, style]} pointerEvents="none">
+      <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.dividerText, { color }]}>
+        ────────────────────────────────────────────────────────────────────────
+      </Text>
+    </View>
+  );
+}
+
+function TermTitleBar({ title, accentColor = TERM.purple }: { title: string; accentColor?: string }) {
+  return (
+    <View style={styles.titleBar}>
+      <View style={[styles.tdot, { backgroundColor: 'rgba(239,68,68,0.65)' }]} />
+      <View style={[styles.tdot, { backgroundColor: 'rgba(245,158,11,0.65)' }]} />
+      <View style={[styles.tdot, { backgroundColor: 'rgba(34,197,94,0.65)' }]} />
+      <Text style={styles.titleBarText} numberOfLines={1}>
+        {title}
+      </Text>
+      <Text style={[styles.titleCursor, { color: accentColor }]}>▊</Text>
+    </View>
+  );
+}
+
+function PromptRow({
+  prompt = '>',
+  promptColor = TERM.purple,
+  color = TERM.text,
+  children,
+  style,
+}: {
+  prompt?: string;
+  promptColor?: string;
+  color?: string;
+  children: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
+  return (
+    <Text style={[styles.mono, { color }, style]}>
+      <Text style={{ color: promptColor }}>{prompt} </Text>
+      {children}
+    </Text>
+  );
+}
+
+function BracketButton({
+  label,
+  onPress,
+  tone = 'phosphor',
+  disabled = false,
+  loud = false,
+  full = false,
+  accessibilityLabel,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  tone?: BtnTone;
+  disabled?: boolean;
+  loud?: boolean;
+  full?: boolean;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const t = TONE[tone];
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
+      style={[
+        styles.bracketBtn,
+        { backgroundColor: t.fill, borderColor: t.border },
+        full && styles.bracketBtnFull,
+        loud && !disabled ? getPlatformShadows(5, 0.3, 2, 8) : null,
+        disabled && styles.bracketBtnDisabled,
+        style,
+      ]}
+    >
+      <Text style={[styles.bracketLabel, { color: disabled ? TERM.muted : t.text }]} numberOfLines={1}>
+        [ {label} ]
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function TerminalPanel({
+  darkMode,
+  children,
+  elevation = 6,
+  glow = false,
+  tone = 'green',
+  style,
+}: {
+  darkMode: boolean;
+  children: React.ReactNode;
+  elevation?: number;
+  glow?: boolean;
+  tone?: 'green' | 'purple' | 'danger';
+  style?: StyleProp<ViewStyle>;
+}) {
+  const borderColor =
+    tone === 'purple' ? 'rgba(168,85,247,0.30)' : tone === 'danger' ? 'rgba(239,68,68,0.30)' : TERM.border;
+  return (
+    <View style={[getGlassCard(darkMode, elevation), styles.panel, { backgroundColor: TERM.bg, borderColor }, style]}>
+      <View style={styles.panelInner}>
+        {glow && <View pointerEvents="none" style={styles.glowBlob} />}
+        {children}
+      </View>
+    </View>
+  );
+}
+
+function CmdLine({ cmd, count }: { cmd: string; count?: number }) {
+  return (
+    <Text style={styles.cmdLine} numberOfLines={1}>
+      <Text style={{ color: TERM.purple }}>$ </Text>
+      <Text style={{ color: TERM.text }}>{cmd}</Text>
+      {typeof count === 'number' ? <Text style={{ color: TERM.greenDim }}>{`  [${count}]`}</Text> : null}
+    </Text>
+  );
+}
+
+function TermEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <Text style={styles.emptyLine}>
+      <Text style={{ color: TERM.faint }}>{'// '}</Text>
+      {children}
+    </Text>
+  );
+}
+
+interface OnionAppProps {
+  onBack: () => void;
+}
+
+type Tab = 'market' | 'jobs' | 'wallet';
+
+type SubView =
+  | { kind: 'listing'; id: string }
+  | { kind: 'vendors' }
+  | { kind: 'vendor'; id: string }
+  | { kind: 'job'; id: string }
+  | { kind: 'ledger' }
+  | null;
+
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
+  { id: 'market', label: 'Market', icon: ShoppingBag },
+  { id: 'jobs', label: 'Jobs', icon: Target },
+  { id: 'wallet', label: 'Wallet', icon: Wallet },
+];
 
 function OnionAppInner({ onBack }: OnionAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
@@ -79,6 +342,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   const dw = gameState.darkWeb ?? initialGameState.darkWeb!;
 
   const [activeTab, setActiveTab] = useState<Tab>('market');
+  const [view, setView] = useState<SubView>(null);
   const [showStartJob, setShowStartJob] = useState(false);
   const [showLaunder, setShowLaunder] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
@@ -88,315 +352,1083 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     [gameState.cryptos]
   );
 
+  // New-identity cost preview (read-only mirror of acquireNewIdentity's settlement
+  // math): base cost + 80% of walked-away unsecured-loan principal, priced in BTC.
+  const idInfo = useMemo(() => {
+    const btcPrice = (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.price ?? 0;
+    const dropped = (gameState.loans ?? []).filter(
+      (l: { type?: string }) => l?.type !== 'mortgage' && l?.type !== 'auto'
+    );
+    const principal = dropped.reduce(
+      (s: number, l: { remaining?: number }) =>
+        s + (typeof l?.remaining === 'number' && isFinite(l.remaining) ? Math.max(0, l.remaining) : 0),
+      0
+    );
+    const settle = btcPrice > 0 ? (principal * 0.8) / btcPrice : 0;
+    return { principal, settle, dropped: dropped.length, total: NEW_IDENTITY_COST_BTC + settle };
+  }, [gameState.cryptos, gameState.loans]);
+
+  const heatColor = HEAT_BAND_COLOR[heatBand(dw.heat ?? 0)] ?? accent.info;
+
   const queueSave = useCallback(() => {
     saveGame().catch(() => {});
   }, [saveGame]);
 
-  // --- Render helpers -----------------------------------------------------
-  const renderMarket = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <EconomyEventBanner context="darkweb" />
-      <HeatGauge heat={dw.heat} darkMode={darkMode} />
+  const goBack = () => {
+    if (view) setView(null);
+    else onBack();
+  };
 
-      <View style={[styles.statRow, { gap: responsiveSpacing.sm }]}>
-        <Stat theme={theme} label="BTC" value={`${btcOwned.toFixed(4)} ₿`} />
-        <Stat theme={theme} label="Buyer rep" value={`${dw.playerReputation}/100`} />
-      </View>
+  const selectTab = (t: Tab) => {
+    setView(null);
+    setActiveTab(t);
+  };
 
-      <SectionTitle theme={theme}>Listings</SectionTitle>
-      {dw.listings.length === 0 ? (
-        <EmptyText theme={theme}>
-          No listings yet. New listings rotate in each week from active vendors.
-        </EmptyText>
-      ) : (
-        dw.listings.map((listing) => {
-          const vendor = dw.vendors.find((v) => v.id === listing.vendorId);
-          if (!vendor) return null;
-          const affordable = btcOwned >= listing.costBtc;
-          const meetsRep = dw.playerReputation >= listing.minBuyerRep;
-          return (
-            <MarketListingRow
-              key={listing.id}
-              listing={listing}
-              vendor={vendor}
-              darkMode={darkMode}
-              affordable={affordable}
-              meetsRep={meetsRep}
-              onPress={() => {
-                Alert.alert(
-                  'Confirm purchase',
-                  `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\nVendor rep ${vendor.reputation}/100.`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Buy',
-                      onPress: () => {
-                        buyMarketListing(setGameState, listing.id);
-                        queueSave();
-                      },
-                    },
-                  ]
-                );
-              }}
+  const pathLabel =
+    view?.kind === 'listing'
+      ? '~/market/listing'
+      : view?.kind === 'vendors'
+      ? '~/market/vendors'
+      : view?.kind === 'vendor'
+      ? '~/market/vendor'
+      : view?.kind === 'job'
+      ? '~/jobs/op'
+      : view?.kind === 'ledger'
+      ? '~/wallet/ledger'
+      : `~/${activeTab}`;
+
+  // --- Shared action handlers (unchanged behaviour) -----------------------
+  const confirmBuy = (listing: DarkWebMarketListing, vendor: DarkWebVendor) => {
+    Alert.alert(
+      'Confirm purchase',
+      `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\nVendor rep ${vendor.reputation}/100.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Buy',
+          onPress: () => {
+            buyMarketListing(setGameState, listing.id);
+            queueSave();
+          },
+        },
+      ]
+    );
+  };
+
+  const runStage = (job: DarkWebActiveJob) => {
+    const res = runJobStage(gameState, setGameState, job.id);
+    queueSave();
+    if (!res.success) {
+      Alert.alert('Cannot Run Stage', res.message);
+    } else if (res.outcome === 'completed') {
+      Alert.alert('Job Complete', res.message);
+    } else if (res.outcome === 'fail') {
+      Alert.alert('Stage Failed', res.message);
+    }
+  };
+
+  const confirmIdentity = () => {
+    Alert.alert(
+      'Burn this identity?',
+      `This is permanent. ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC will be spent. ` +
+        `Heat resets, buyer rep resets, all loans + credit cards close, ` +
+        `credit score drops to 580, and ${dw.activeJobs.length} active job${dw.activeJobs.length === 1 ? '' : 's'} will be dropped.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Burn it',
+          style: 'destructive',
+          onPress: () => {
+            acquireNewIdentity(setGameState);
+            queueSave();
+          },
+        },
+      ]
+    );
+  };
+
+  // --- Reusable terminal rows ---------------------------------------------
+  const renderListingRow = (listing: DarkWebMarketListing, vendor: DarkWebVendor) => {
+    const affordable = btcOwned >= listing.costBtc;
+    const meetsRep = (dw.playerReputation ?? 0) >= listing.minBuyerRep;
+    const tm = TIER_META[listing.tier] ?? TIER_META.common;
+    const scamPct = vendorScamProbability(vendor.reputation) * 100;
+    return (
+      <TerminalPanel key={listing.id} darkMode={darkMode}>
+        <View style={styles.rowHead}>
+          <Text style={[styles.entryTitle, { color: tm.color }]} numberOfLines={1}>
+            <Text style={{ color: TERM.faint }}>[{tm.glyph}] </Text>
+            {listing.title}
+          </Text>
+          <Text style={styles.entryPrice} numberOfLines={1}>
+            {listing.costBtc.toFixed(4)} ₿
+          </Text>
+        </View>
+        <PromptRow>
+          <Text style={{ color: TERM.greenDim }}>vendor </Text>
+          <Text style={{ color: TERM.text }}>{vendor.handle}</Text>
+          <Text style={{ color: TERM.muted }}>{'  rep '}</Text>
+          <Text style={{ color: repColor(vendor.reputation) }}>{vendor.reputation}/100</Text>
+        </PromptRow>
+        <Text style={styles.monoXs} numberOfLines={1}>
+          <Text style={{ color: TERM.muted }}>cat=</Text>
+          <Text style={{ color: TERM.greenDim }}>{CATEGORY_LABEL[listing.category] ?? listing.category}</Text>
+          <Text style={{ color: TERM.muted }}>{'  heat='}</Text>
+          <Text style={{ color: accent.warning }}>+{listing.heatCost}</Text>
+          <Text style={{ color: TERM.muted }}>{'  tier='}</Text>
+          <Text style={{ color: tm.color }}>{listing.tier}</Text>
+          {listing.minBuyerRep > 0 ? (
+            <Text style={{ color: meetsRep ? TERM.greenDim : accent.danger }}>{`  rep≥${listing.minBuyerRep}`}</Text>
+          ) : null}
+        </Text>
+        {scamPct > 20 || listing.xpReward ? (
+          <Text style={styles.monoXs} numberOfLines={1}>
+            {scamPct > 20 ? (
+              <Text style={{ color: accent.danger }}>{`! scam_risk=${Math.round(scamPct)}%`}</Text>
+            ) : null}
+            {listing.xpReward ? (
+              <Text style={{ color: TERM.purple }}>{`${scamPct > 20 ? '  ' : ''}xp+${listing.xpReward.amount} ${listing.xpReward.skill}`}</Text>
+            ) : null}
+          </Text>
+        ) : null}
+        <View style={styles.actionRow}>
+          <BracketButton
+            label="BUY"
+            tone="phosphor"
+            disabled={!affordable || !meetsRep}
+            onPress={() => confirmBuy(listing, vendor)}
+            accessibilityLabel={`Buy ${listing.title}`}
+          />
+          <BracketButton
+            label="VIEW"
+            tone="purple"
+            onPress={() => setView({ kind: 'listing', id: listing.id })}
+            accessibilityLabel={`View ${listing.title} details`}
+          />
+          {!affordable ? <Text style={styles.gate}>insufficient_funds</Text> : null}
+          {affordable && !meetsRep ? <Text style={styles.gate}>rep_locked</Text> : null}
+        </View>
+      </TerminalPanel>
+    );
+  };
+
+  const renderOpRow = (job: DarkWebActiveJob) => {
+    const template = JOB_TEMPLATES.find((t) => t.id === job.templateId);
+    if (!template) return null;
+    const totalStages = template.stages.length;
+    const weeksLeft = Math.max(0, job.expiresWeek - gameState.weeksLived);
+    const stage = template.stages[job.currentStage];
+    const stageLvl = stage ? dw.skills[stage.skill]?.level ?? 1 : 1;
+    const stageP = stage ? Math.round(stageSuccessProbability(stageLvl, stage.difficulty) * 100) : 0;
+    return (
+      <TerminalPanel key={job.id} darkMode={darkMode}>
+        <View style={styles.rowHead}>
+          <Text style={[styles.entryTitle, { color: TERM.text }]} numberOfLines={1}>
+            {template.name}
+          </Text>
+          <Text style={[styles.entryPrice, { color: TERM.green }]} numberOfLines={1}>
+            {template.payoutBtc.toFixed(3)} ₿
+          </Text>
+        </View>
+        <View style={styles.stageWrap}>
+          {template.stages.map((st, idx) => {
+            const done = job.completedStages.some((cs) => cs.stage === idx && cs.outcome === 'success');
+            const cur = idx === job.currentStage;
+            const c = done ? TERM.green : cur ? TERM.purple : TERM.faint;
+            const g = done ? '[x]' : cur ? '[>]' : '[ ]';
+            return (
+              <Text key={idx} style={[styles.stageTok, { color: c }]} numberOfLines={1}>
+                {g}
+                {STAGE_LABEL[st.kind] ?? st.kind}
+              </Text>
+            );
+          })}
+        </View>
+        <Text style={styles.mono} numberOfLines={1}>
+          <Text style={{ color: accent.info }}>{asciiBar(job.currentStage / totalStages, 12)}</Text>
+          <Text style={{ color: TERM.muted }}>{`  ${job.currentStage}/${totalStages}  ${weeksLeft}w left`}</Text>
+        </Text>
+        {stage ? (
+          <Text style={styles.monoXs} numberOfLines={1}>
+            <Text style={{ color: TERM.muted }}>next=</Text>
+            <Text style={{ color: TERM.greenDim }}>{STAGE_LABEL[stage.kind] ?? stage.kind}</Text>
+            <Text style={{ color: TERM.muted }}>{'  p='}</Text>
+            <Text style={{ color: stageP >= 60 ? TERM.green : stageP >= 35 ? accent.warning : accent.danger }}>
+              {stageP}%
+            </Text>
+            <Text style={{ color: TERM.muted }}>{'  en='}</Text>
+            <Text style={{ color: accent.info }}>{stage.energyCost}</Text>
+          </Text>
+        ) : null}
+        <View style={styles.actionRow}>
+          {job.currentStage < totalStages ? (
+            <BracketButton
+              label={`RUN STAGE ${job.currentStage + 1}`}
+              tone="phosphor"
+              onPress={() => runStage(job)}
+              accessibilityLabel={`Run stage ${job.currentStage + 1} of ${template.name}`}
             />
-          );
-        })
-      )}
+          ) : null}
+          <BracketButton
+            label="VIEW"
+            tone="purple"
+            onPress={() => setView({ kind: 'job', id: job.id })}
+            accessibilityLabel={`View ${template.name} details`}
+          />
+        </View>
+      </TerminalPanel>
+    );
+  };
 
-      <SectionTitle theme={theme}>Recent Activity</SectionTitle>
-      {dw.recentEvents.length === 0 ? (
-        <EmptyText theme={theme}>Forum log empty.</EmptyText>
-      ) : (
-        dw.recentEvents.slice(0, 6).map((evt) => (
-          <View
-            key={evt.id}
-            style={[styles.eventRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
-          >
-            <Activity size={scale(12)} color={theme.textMuted} />
-            <Text style={[styles.eventText, { color: theme.textSecondary }]} numberOfLines={2}>
-              <Text style={{ color: theme.textMuted }}>w{evt.week}: </Text>
-              {evt.text}
+  const renderLaunderRow = (tx: DarkWebLaunderingTx) => {
+    const weeksLeft = Math.max(0, tx.readyWeek - gameState.weeksLived);
+    const feePct = tx.dirtyAmountBtc > 0 ? (1 - tx.netAmountBtc / tx.dirtyAmountBtc) * 100 : 0;
+    return (
+      <View key={tx.id} style={styles.launderRow}>
+        <Text style={styles.mono} numberOfLines={1}>
+          <Text style={{ color: MIX_META[tx.tier] ?? TERM.greenDim }}>{tx.tier.padEnd(9)}</Text>
+          <Text style={{ color: LAUNDER_STATUS[tx.status] ?? TERM.muted }}>{tx.status}</Text>
+        </Text>
+        <Text style={styles.monoXs} numberOfLines={1}>
+          <Text style={{ color: TERM.muted }}>in </Text>
+          <Text style={{ color: accent.warning }}>{tx.dirtyAmountBtc.toFixed(4)}</Text>
+          <Text style={{ color: TERM.muted }}>{' → out '}</Text>
+          <Text style={{ color: tx.status === 'failed' ? accent.danger : TERM.green }}>
+            {tx.status === 'failed' ? '0.0000' : tx.netAmountBtc.toFixed(4)}
+          </Text>
+          <Text style={{ color: TERM.muted }}>{`  fee=${feePct.toFixed(1)}%`}</Text>
+          {tx.status === 'pending' ? <Text style={{ color: TERM.muted }}>{`  ready ${weeksLeft}w`}</Text> : null}
+        </Text>
+      </View>
+    );
+  };
+
+  // --- Tab: MARKET --------------------------------------------------------
+  const renderMarket = () => {
+    const rep = dw.playerReputation ?? 0;
+    const access = rep >= 35 ? 'common+pro+elite' : rep >= 10 ? 'common+pro' : 'common';
+    const band = heatBand(dw.heat ?? 0);
+    const raidRisk = policeEventProbability(dw.heat ?? 0) * 100;
+    const opsecLvl = dw.skills.opsec?.level ?? 1;
+    const weeklyDecay = Math.max(0, Math.round((dw.heat ?? 0) - decayHeat(dw.heat ?? 0, opsecLvl)));
+    const listings = dw.listings ?? [];
+    const events = dw.recentEvents ?? [];
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <EconomyEventBanner context="darkweb" />
+
+        {/* Console header — buyer standing / balance / vendors (EconomyEventBanner
+            is this screen's colour moment, so this panel stays flat). */}
+        <TerminalPanel darkMode={darkMode} elevation={12} glow>
+          <TermTitleBar title="market@onion" />
+          <AsciiDivider />
+          <PromptRow prompt="$" promptColor={TERM.greenDim}>
+            whoami
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>buyer_rep = </Text>
+            <Text style={{ color: TERM.green, fontWeight: '700' }}>{rep}</Text>
+            <Text style={{ color: TERM.muted }}>/100  </Text>
+            <Text style={{ color: TERM.purple }}>{asciiBar(rep / 100, 10)}</Text>
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>access = </Text>
+            <Text style={{ color: TERM.greenDim }}>{access}</Text>
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>balance = </Text>
+            <Text style={{ color: TERM.text, fontWeight: '700' }}>{btcOwned.toFixed(4)} ₿</Text>
+          </PromptRow>
+          <View style={styles.actionRow}>
+            <BracketButton
+              label="VENDORS"
+              tone="purple"
+              onPress={() => setView({ kind: 'vendors' })}
+              accessibilityLabel="Browse vendor directory"
+            />
+          </View>
+        </TerminalPanel>
+
+        {/* Threat monitor (replaces + densifies HeatGauge). */}
+        <TerminalPanel darkMode={darkMode} glow>
+          <TermTitleBar title="threat.monitor" accentColor={heatColor} />
+          <AsciiDivider />
+          <View style={styles.threatRow}>
+            <Text style={[styles.threatValue, { color: heatColor }]}>{Math.round(dw.heat ?? 0)}</Text>
+            <View style={{ flex: 1, gap: scale(4) }}>
+              <Text style={styles.mono} numberOfLines={1}>
+                <Text style={{ color: TERM.muted }}>band=</Text>
+                <Text style={{ color: heatColor, fontWeight: '700' }}>{heatBandLabel(band)}</Text>
+              </Text>
+              <Text style={styles.mono} numberOfLines={1}>
+                <Text style={{ color: heatColor }}>{asciiBar((dw.heat ?? 0) / 100, 16)}</Text>
+              </Text>
+            </View>
+          </View>
+          <AsciiDivider />
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>raid_risk = </Text>
+            <Text style={{ color: raidRisk >= 18 ? accent.danger : raidRisk > 0 ? accent.warning : TERM.greenDim }}>
+              {raidRisk.toFixed(0)}%
+            </Text>
+            <Text style={{ color: TERM.muted }}> / wk</Text>
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>decay = </Text>
+            <Text style={{ color: TERM.green }}>-{weeklyDecay}</Text>
+            <Text style={{ color: TERM.muted }}>{` / wk (opsec Lv${opsecLvl})`}</Text>
+          </PromptRow>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="ls -la ./listings" count={listings.length} />
+          {listings.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>no listings — vendors rotate stock each week</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            listings.map((listing) => {
+              const vendor = (dw.vendors ?? []).find((v) => v.id === listing.vendorId);
+              if (!vendor) return null;
+              return renderListingRow(listing, vendor);
+            })
+          )}
+        </View>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="tail -f forum.log" />
+          {events.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>log empty</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            <TerminalPanel darkMode={darkMode}>
+              {events.slice(0, 6).map((evt, i) => (
+                <React.Fragment key={evt.id}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  <Text style={styles.logLine} numberOfLines={2}>
+                    <Text style={{ color: TERM.purple }}>{'> '}</Text>
+                    <Text style={{ color: TERM.faint }}>{`w${evt.week} `}</Text>
+                    <Text style={{ color: TERM.text }}>{evt.text}</Text>
+                  </Text>
+                </React.Fragment>
+              ))}
+            </TerminalPanel>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // --- Tab: JOBS ----------------------------------------------------------
+  const renderJobs = () => {
+    const activeJobs = dw.activeJobs ?? [];
+    const history = dw.jobHistory ?? [];
+    const energy = Math.round(gameState.stats?.energy ?? 0);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
+          <TermTitleBar title="jobs@onion" />
+          <AsciiDivider />
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>ops = </Text>
+            <Text style={{ color: TERM.green, fontWeight: '700' }}>{activeJobs.length}</Text>
+            <Text style={{ color: TERM.muted }}> running · </Text>
+            <Text style={{ color: TERM.greenDim }}>{history.length}</Text>
+            <Text style={{ color: TERM.muted }}> archived</Text>
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>energy = </Text>
+            <Text
+              style={{
+                color: energy >= 30 ? TERM.green : energy > 0 ? accent.warning : accent.danger,
+                fontWeight: '700',
+              }}
+            >
+              {energy}
+            </Text>
+          </PromptRow>
+          <View style={styles.actionRow}>
+            <BracketButton
+              label="+ START OP"
+              tone="purple"
+              onPress={() => setShowStartJob(true)}
+              accessibilityLabel="Start a job"
+            />
+          </View>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="./run --active" count={activeJobs.length} />
+          {activeJobs.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>no active operations — start one above</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            activeJobs.map((job) => renderOpRow(job))
+          )}
+        </View>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="skills --list" />
+          <TerminalPanel darkMode={darkMode}>
+            {(Object.keys(dw.skills) as DarkWebSkillId[]).map((id, i) => {
+              const s = dw.skills[id];
+              const pct = Math.max(0, Math.min(1, s.xp / (s.nextLevelXp || 1)));
+              return (
+                <React.Fragment key={id}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  <Text style={styles.mono} numberOfLines={1}>
+                    <Text style={{ color: TERM.greenDim }}>{SKILL_LABEL[id].padEnd(11)}</Text>
+                    <Text style={{ color: TERM.text }}>{`Lv${String(s.level).padStart(2)} `}</Text>
+                    <Text style={{ color: TERM.green }}>{asciiBar(pct, 10)}</Text>
+                  </Text>
+                  <Text style={styles.monoXs} numberOfLines={1}>
+                    <Text style={{ color: TERM.muted }}>{`${Math.round(s.xp)}/${s.nextLevelXp} xp`}</Text>
+                  </Text>
+                </React.Fragment>
+              );
+            })}
+          </TerminalPanel>
+        </View>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="cat ops.history" count={history.length} />
+          {history.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>no archived operations yet</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            <TerminalPanel darkMode={darkMode}>
+              {history.slice(0, 5).map((j, i) => {
+                const tpl = JOB_TEMPLATES.find((t) => t.id === j.templateId);
+                const total = tpl?.stages.length ?? 0;
+                const okStages = j.completedStages.filter((cs) => cs.outcome === 'success').length;
+                return (
+                  <React.Fragment key={j.id}>
+                    {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                    <Text style={styles.mono} numberOfLines={1}>
+                      <Text style={{ color: HISTORY_STATUS[j.status] ?? TERM.muted }}>{'● '}</Text>
+                      <Text style={{ color: TERM.text }}>{tpl?.name ?? j.templateId}</Text>
+                    </Text>
+                    <Text style={styles.monoXs} numberOfLines={1}>
+                      <Text style={{ color: HISTORY_STATUS[j.status] ?? TERM.muted }}>{j.status}</Text>
+                      <Text style={{ color: TERM.muted }}>{`  w${j.startedWeek}  stages ${okStages}/${total}`}</Text>
+                      {tpl ? <Text style={{ color: TERM.greenDim }}>{`  ${tpl.payoutBtc.toFixed(3)}₿`}</Text> : null}
+                    </Text>
+                  </React.Fragment>
+                );
+              })}
+            </TerminalPanel>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // --- Tab: WALLET --------------------------------------------------------
+  const renderWallet = () => {
+    const laundering = dw.laundering ?? [];
+    const pendingCount = laundering.filter((t) => t.status === 'pending').length;
+    const launderLvl = dw.skills.laundering?.level ?? 1;
+    const fronts = countLaunderingFronts(gameState);
+    const canId = btcOwned >= NEW_IDENTITY_COST_BTC;
+
+    const hexRow = (offset: string, label: string, value: string, tag: string, valueColor: string) => (
+      <Text key={offset} style={styles.hexLine} numberOfLines={1}>
+        <Text style={{ color: TERM.faint }}>{offset}  </Text>
+        <Text style={{ color: TERM.greenDim }}>{label.padEnd(7)}</Text>
+        <Text style={{ color: valueColor, fontWeight: '700' }}>{value.padStart(12)}</Text>
+        <Text style={{ color: TERM.muted }}>{'  '}{tag}</Text>
+      </Text>
+    );
+
+    const queue = laundering
+      .slice()
+      .sort((a, b) => b.startedWeek - a.startedWeek)
+      .slice(0, 10);
+
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        {/* Hex-dump wallet block. */}
+        <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
+          <TermTitleBar title="wallet@onion" />
+          <AsciiDivider />
+          <View style={styles.hexBlock}>
+            {hexRow('0x00', 'DIRTY', `${(dw.dirtyBtc ?? 0).toFixed(4)} ₿`, 'unlaundered', accent.warning)}
+            {hexRow('0x01', 'CLEAN', `${(dw.cleanBtc ?? 0).toFixed(4)} ₿`, 'spendable', TERM.green)}
+            {hexRow('0x02', 'WALLET', `${btcOwned.toFixed(4)} ₿`, 'holdings', TERM.text)}
+            {hexRow('0x03', 'MIXQ', String(pendingCount), 'in_transit', TERM.purple)}
+          </View>
+          <View style={styles.actionRow}>
+            <BracketButton
+              label="LAUNDER"
+              tone="phosphor"
+              disabled={(dw.dirtyBtc ?? 0) <= 0}
+              onPress={() => setShowLaunder(true)}
+              accessibilityLabel="Launder dirty BTC"
+            />
+            <BracketButton
+              label="CASH OUT"
+              tone="phosphor"
+              disabled={(dw.cleanBtc ?? 0) <= 0}
+              onPress={() => setShowCashOut(true)}
+              accessibilityLabel="Cash out clean BTC"
+            />
+            <BracketButton
+              label="LEDGER"
+              tone="purple"
+              onPress={() => setView({ kind: 'ledger' })}
+              accessibilityLabel="View laundering ledger"
+            />
+          </View>
+        </TerminalPanel>
+
+        {/* Mixer rate table (surfaces MIXER_TIERS + effective params + fronts). */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="mixer --rates" />
+          <TerminalPanel darkMode={darkMode}>
+            {(Object.keys(MIXER_TIERS) as DarkWebMixerTier[]).map((t, i) => {
+              const base = MIXER_TIERS[t];
+              const eff = effectiveMixerParams(t, launderLvl, fronts);
+              return (
+                <React.Fragment key={t}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  <Text style={styles.monoXs} numberOfLines={1}>
+                    <Text style={{ color: MIX_META[t] ?? TERM.greenDim }}>{t.padEnd(9)}</Text>
+                    <Text style={{ color: TERM.muted }}>fee </Text>
+                    <Text style={{ color: TERM.text }}>{(base.feePct * 100).toFixed(0)}%</Text>
+                    <Text style={{ color: TERM.muted }}>→</Text>
+                    <Text style={{ color: TERM.green }}>{(eff.feePct * 100).toFixed(1)}%</Text>
+                    <Text style={{ color: TERM.muted }}>{'  delay '}</Text>
+                    <Text style={{ color: TERM.text }}>{base.delayWeeks}w</Text>
+                    <Text style={{ color: TERM.muted }}>→</Text>
+                    <Text style={{ color: TERM.green }}>{eff.delayWeeks}w</Text>
+                    <Text style={{ color: TERM.muted }}>{'  fail '}</Text>
+                    <Text style={{ color: base.failProbability > 0.1 ? accent.danger : accent.warning }}>
+                      {(base.failProbability * 100).toFixed(1)}%
+                    </Text>
+                  </Text>
+                </React.Fragment>
+              );
+            })}
+            <AsciiDivider color={TERM.borderDim} />
+            <PromptRow>
+              <Text style={{ color: TERM.greenDim }}>launder</Text>
+              <Text style={{ color: TERM.text }}> Lv{launderLvl}</Text>
+              <Text style={{ color: TERM.muted }}>{'  fronts='}</Text>
+              <Text style={{ color: fronts > 0 ? TERM.green : TERM.muted }}>{fronts}</Text>
+              <Text style={{ color: TERM.muted }}>/4</Text>
+            </PromptRow>
+          </TerminalPanel>
+        </View>
+
+        {/* New identity — the one loud CTA of this view. */}
+        <TerminalPanel darkMode={darkMode} tone="danger">
+          <TermTitleBar title="identity.burn" accentColor={accent.danger} />
+          <AsciiDivider color="rgba(239,68,68,0.25)" />
+          <Text style={styles.mono}>
+            <Text style={{ color: accent.danger }}>! </Text>
+            <Text style={{ color: TERM.text }}>Burn this persona. The trade-off is permanent.</Text>
+          </Text>
+          <View style={styles.hexBlock}>
+            <Text style={styles.hexLine} numberOfLines={1}>
+              <Text style={{ color: TERM.muted }}>{'cost_base   '}</Text>
+              <Text style={{ color: TERM.text }}>{NEW_IDENTITY_COST_BTC.toFixed(2)} ₿</Text>
+            </Text>
+            {idInfo.principal > 0 ? (
+              <Text style={styles.hexLine} numberOfLines={1}>
+                <Text style={{ color: TERM.muted }}>{'debt_settle '}</Text>
+                <Text style={{ color: accent.warning }}>{`≈ ${idInfo.settle.toFixed(4)} ₿ (${idInfo.dropped} loans)`}</Text>
+              </Text>
+            ) : null}
+            <Text style={styles.hexLine} numberOfLines={1}>
+              <Text style={{ color: TERM.muted }}>{'total_est   '}</Text>
+              <Text style={{ color: btcOwned >= idInfo.total ? TERM.green : accent.danger, fontWeight: '700' }}>
+                {idInfo.total.toFixed(4)} ₿
+              </Text>
+            </Text>
+            <Text style={styles.hexLine} numberOfLines={1}>
+              <Text style={{ color: TERM.muted }}>{'resets      '}</Text>
+              <Text style={{ color: TERM.greenDim }}>heat→0 rep→0 credit→580</Text>
+            </Text>
+            <Text style={styles.hexLine} numberOfLines={1}>
+              <Text style={{ color: TERM.muted }}>{'jobs_drop   '}</Text>
+              <Text style={{ color: accent.warning }}>{dw.activeJobs.length}</Text>
             </Text>
           </View>
-        ))
-      )}
-    </View>
-  );
+          <BracketButton
+            label={canId ? 'ACQUIRE NEW IDENTITY' : `NEED ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC`}
+            tone="solid"
+            loud
+            full
+            disabled={!canId}
+            onPress={confirmIdentity}
+            accessibilityLabel="Acquire new identity"
+          />
+        </TerminalPanel>
 
-  const renderJobs = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Jobs</Text>
-        <TouchableOpacity
-          onPress={() => setShowStartJob(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Start</Text>
-        </TouchableOpacity>
-      </View>
-
-      {dw.activeJobs.length === 0 ? (
-        <EmptyText theme={theme}>No active jobs.</EmptyText>
-      ) : (
-        dw.activeJobs.map((job) => {
-          const template = JOB_TEMPLATES.find((t) => t.id === job.templateId);
-          if (!template) return null;
-          return (
-            <JobRow
-              key={job.id}
-              job={job}
-              template={template}
-              currentWeek={gameState.weeksLived}
-              darkMode={darkMode}
-              onRun={() => {
-                const res = runJobStage(gameState, setGameState, job.id);
-                queueSave();
-                if (!res.success) {
-                  Alert.alert('Cannot Run Stage', res.message);
-                } else if (res.outcome === 'completed') {
-                  Alert.alert('Job Complete', res.message);
-                } else if (res.outcome === 'fail') {
-                  Alert.alert('Stage Failed', res.message);
-                }
-              }}
-            />
-          );
-        })
-      )}
-
-      <SectionTitle theme={theme}>Skills</SectionTitle>
-      <View style={styles.skillsGrid}>
-        {(Object.keys(dw.skills) as DarkWebSkillId[]).map((id) => {
-          const s = dw.skills[id];
-          const pct = Math.max(0, Math.min(1, s.xp / (s.nextLevelXp || 1)));
-          return (
-            <View
-              key={id}
-              style={[styles.skillCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
-            >
-              <View style={styles.skillHeader}>
-                <Star size={scale(12)} color="#facc15" />
-                <Text style={[styles.skillName, { color: theme.text }]}>{SKILL_LABEL[id]}</Text>
-                <Text style={[styles.skillLevel, { color: theme.textSecondary }]}>Lv {s.level}</Text>
-              </View>
-              <View style={[styles.skillTrack, { backgroundColor: theme.border }]}>
-                <View style={[styles.skillFill, { width: `${pct * 100}%`, backgroundColor: accent.info }]} />
-              </View>
-              <Text style={[styles.skillXp, { color: theme.textMuted }]}>
-                {Math.round(s.xp)}/{s.nextLevelXp} XP
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <SectionTitle theme={theme}>Job History</SectionTitle>
-      {dw.jobHistory.length === 0 ? (
-        <EmptyText theme={theme}>No completed or failed jobs yet.</EmptyText>
-      ) : (
-        dw.jobHistory.slice(0, 5).map((j) => {
-          const tpl = JOB_TEMPLATES.find((t) => t.id === j.templateId);
-          return (
-            <View
-              key={j.id}
-              style={[styles.historyRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
-            >
-              <Text style={[styles.historyName, { color: theme.text }]}>{tpl?.name ?? j.templateId}</Text>
-              <Text
-                style={[
-                  styles.historyStatus,
-                  {
-                    color:
-                      j.status === 'completed' ? accent.success : j.status === 'failed' ? accent.danger : theme.textMuted,
-                  },
-                ]}
-              >
-                {j.status}
-              </Text>
-            </View>
-          );
-        })
-      )}
-    </View>
-  );
-
-  const renderWallet = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={[styles.walletCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.walletLabel, { color: theme.textMuted }]}>Dirty BTC</Text>
-          <Text style={[styles.walletValue, { color: '#f59e0b' }]}>{dw.dirtyBtc.toFixed(4)} ₿</Text>
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="jobs mixer" count={laundering.length} />
+          {queue.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>mixer idle — submit dirty BTC to convert it to clean BTC</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            <TerminalPanel darkMode={darkMode}>
+              {queue.map((tx, i) => (
+                <React.Fragment key={tx.id}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  {renderLaunderRow(tx)}
+                </React.Fragment>
+              ))}
+            </TerminalPanel>
+          )}
         </View>
-        <TouchableOpacity
-          disabled={dw.dirtyBtc <= 0}
-          onPress={() => setShowLaunder(true)}
-          style={[
-            styles.walletBtn,
-            { backgroundColor: dw.dirtyBtc > 0 ? accent.info : theme.border },
-          ]}
-        >
-          <Text style={styles.walletBtnText}>Launder</Text>
-        </TouchableOpacity>
       </View>
+    );
+  };
 
-      <View style={[styles.walletCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.walletLabel, { color: theme.textMuted }]}>Clean BTC</Text>
-          <Text style={[styles.walletValue, { color: accent.success }]}>{dw.cleanBtc.toFixed(4)} ₿</Text>
+  // --- Sub-view: listing detail ------------------------------------------
+  const renderListingDetail = (id: string) => {
+    const listing = (dw.listings ?? []).find((l) => l.id === id);
+    const vendor = listing ? (dw.vendors ?? []).find((v) => v.id === listing.vendorId) : undefined;
+    if (!listing || !vendor) {
+      return (
+        <TerminalPanel darkMode={darkMode}>
+          <TermEmpty>listing expired or unavailable</TermEmpty>
+        </TerminalPanel>
+      );
+    }
+    const affordable = btcOwned >= listing.costBtc;
+    const meetsRep = (dw.playerReputation ?? 0) >= listing.minBuyerRep;
+    const tm = TIER_META[listing.tier] ?? TIER_META.common;
+    const scamPct = vendorScamProbability(vendor.reputation) * 100;
+    const expiresIn = Math.max(0, listing.postedWeek + listing.lifetimeWeeks - gameState.weeksLived);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={styles.actionRow}>
+          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to market" />
         </View>
-        <TouchableOpacity
-          disabled={dw.cleanBtc <= 0}
-          onPress={() => setShowCashOut(true)}
-          style={[
-            styles.walletBtn,
-            { backgroundColor: dw.cleanBtc > 0 ? accent.success : theme.border },
-          ]}
-        >
-          <Text style={styles.walletBtnText}>Cash Out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.identityCard, { backgroundColor: theme.surfaceElevated, borderColor: accent.purple }]}>
-        <Text style={[styles.identityTitle, { color: accent.purple }]}>🪪 New Identity</Text>
-        <Text style={[styles.identitySub, { color: theme.textMuted }]}>
-          Burn this persona. Cost: {NEW_IDENTITY_COST_BTC.toFixed(2)} ₿. Heat → 0, buyer rep → 0,
-          credit score → 580 (thin file), open loans + cards close, active jobs dropped.
-        </Text>
-        <TouchableOpacity
-          disabled={btcOwned < NEW_IDENTITY_COST_BTC}
-          onPress={() => {
-            Alert.alert(
-              'Burn this identity?',
-              `This is permanent. ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC will be spent. ` +
-                `Heat resets, buyer rep resets, all loans + credit cards close, ` +
-                `credit score drops to 580, and ${dw.activeJobs.length} active job${dw.activeJobs.length === 1 ? '' : 's'} will be dropped.`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Burn it',
-                  style: 'destructive',
-                  onPress: () => {
-                    acquireNewIdentity(setGameState);
-                    queueSave();
-                  },
-                },
-              ]
-            );
-          }}
-          style={[
-            styles.identityBtn,
-            {
-              backgroundColor: btcOwned >= NEW_IDENTITY_COST_BTC ? accent.purple : theme.border,
-            },
-          ]}
-        >
-          <Text style={styles.identityBtnText}>
-            {btcOwned >= NEW_IDENTITY_COST_BTC ? 'Acquire New Identity' : `Need ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC`}
+        <TerminalPanel darkMode={darkMode} elevation={12} glow>
+          <TermTitleBar title={`listing://${listing.id}`} accentColor={tm.color} />
+          <AsciiDivider />
+          <Text style={[styles.detailTitle, { color: tm.color }]}>
+            <Text style={{ color: TERM.faint }}>[{tm.glyph}] </Text>
+            {listing.title}
           </Text>
-        </TouchableOpacity>
+          <Text style={styles.mono}>
+            <Text style={{ color: TERM.text }}>{listing.description}</Text>
+          </Text>
+          <AsciiDivider />
+          <View style={styles.hexBlock}>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'price   '}</Text>
+              <Text style={{ color: TERM.text, fontWeight: '700' }}>{listing.costBtc.toFixed(4)} ₿</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'tier    '}</Text>
+              <Text style={{ color: tm.color }}>{listing.tier}</Text>
+              <Text style={{ color: TERM.muted }}>{'   cat '}</Text>
+              <Text style={{ color: TERM.greenDim }}>{CATEGORY_LABEL[listing.category] ?? listing.category}</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'heat    '}</Text>
+              <Text style={{ color: accent.warning }}>+{listing.heatCost}</Text>
+              <Text style={{ color: TERM.muted }}>{'   rep_gate '}</Text>
+              <Text style={{ color: meetsRep ? TERM.green : accent.danger }}>{listing.minBuyerRep}</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'expires '}</Text>
+              <Text style={{ color: expiresIn <= 1 ? accent.danger : TERM.text }}>{expiresIn}w</Text>
+              {listing.xpReward ? (
+                <Text style={{ color: TERM.purple }}>{`   xp+${listing.xpReward.amount} ${listing.xpReward.skill}`}</Text>
+              ) : null}
+            </Text>
+          </View>
+          <AsciiDivider />
+          <PromptRow>
+            <Text style={{ color: TERM.greenDim }}>vendor </Text>
+            <Text style={{ color: TERM.text }}>{vendor.handle}</Text>
+            {vendor.flaggedScam ? <Text style={{ color: accent.danger }}>{'  [SCAM]'}</Text> : null}
+          </PromptRow>
+          <Text style={styles.monoXs} numberOfLines={1}>
+            <Text style={{ color: TERM.muted }}>rep </Text>
+            <Text style={{ color: repColor(vendor.reputation) }}>{vendor.reputation}/100 </Text>
+            <Text style={{ color: repColor(vendor.reputation) }}>{asciiBar(vendor.reputation / 100, 10)}</Text>
+          </Text>
+          <Text style={styles.monoXs} numberOfLines={1}>
+            <Text style={{ color: TERM.muted }}>reviews=</Text>
+            <Text style={{ color: TERM.greenDim }}>{vendor.reviewCount}</Text>
+            <Text style={{ color: TERM.muted }}>{'  scam_risk='}</Text>
+            <Text style={{ color: scamPct > 20 ? accent.danger : TERM.greenDim }}>{Math.round(scamPct)}%</Text>
+          </Text>
+          <AsciiDivider />
+          <BracketButton
+            label={affordable && meetsRep ? 'BUY' : !affordable ? 'INSUFFICIENT FUNDS' : 'REP LOCKED'}
+            tone="phosphor"
+            loud
+            full
+            disabled={!affordable || !meetsRep}
+            onPress={() => confirmBuy(listing, vendor)}
+            accessibilityLabel={`Buy ${listing.title}`}
+          />
+          <BracketButton
+            label="VENDOR PROFILE"
+            tone="purple"
+            full
+            onPress={() => setView({ kind: 'vendor', id: vendor.id })}
+            accessibilityLabel={`View vendor ${vendor.handle}`}
+          />
+        </TerminalPanel>
       </View>
+    );
+  };
 
-      <SectionTitle theme={theme}>Mixer Queue</SectionTitle>
-      {dw.laundering.length === 0 ? (
-        <EmptyText theme={theme}>
-          No laundering activity. Submit dirty BTC to a mixer to convert it to clean BTC.
-        </EmptyText>
-      ) : (
-        dw.laundering
-          .slice()
-          .sort((a, b) => b.startedWeek - a.startedWeek)
-          .slice(0, 10)
-          .map((tx) => (
-            <LaunderingTxRow
-              key={tx.id}
-              tx={tx}
-              currentWeek={gameState.weeksLived}
-              darkMode={darkMode}
-            />
-          ))
-      )}
-    </View>
-  );
+  // --- Sub-view: vendor directory ----------------------------------------
+  const renderVendors = () => {
+    const vendors = (dw.vendors ?? []).slice().sort((a, b) => b.reputation - a.reputation);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={styles.actionRow}>
+          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to market" />
+        </View>
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="cat vendors.db" count={vendors.length} />
+          {vendors.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>no vendors online</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            vendors.map((vendor) => {
+              const listingCount = (dw.listings ?? []).filter((l) => l.vendorId === vendor.id).length;
+              const scamPct = vendorScamProbability(vendor.reputation) * 100;
+              return (
+                <TerminalPanel key={vendor.id} darkMode={darkMode}>
+                  <View style={styles.rowHead}>
+                    <Text style={[styles.entryTitle, { color: TERM.green }]} numberOfLines={1}>
+                      {vendor.handle}
+                    </Text>
+                    {vendor.flaggedScam ? (
+                      <Text style={[styles.scamTag, { color: accent.danger }]}>[SCAM]</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.mono} numberOfLines={1}>
+                    <Text style={{ color: TERM.muted }}>rep </Text>
+                    <Text style={{ color: repColor(vendor.reputation) }}>{`${vendor.reputation}/100 `}</Text>
+                    <Text style={{ color: repColor(vendor.reputation) }}>{asciiBar(vendor.reputation / 100, 10)}</Text>
+                  </Text>
+                  <Text style={styles.monoXs} numberOfLines={1}>
+                    <Text style={{ color: TERM.muted }}>reviews=</Text>
+                    <Text style={{ color: TERM.greenDim }}>{vendor.reviewCount}</Text>
+                    <Text style={{ color: TERM.muted }}>{'  scam='}</Text>
+                    <Text style={{ color: scamPct > 20 ? accent.danger : TERM.greenDim }}>{Math.round(scamPct)}%</Text>
+                    <Text style={{ color: TERM.muted }}>{'  listings='}</Text>
+                    <Text style={{ color: TERM.text }}>{listingCount}</Text>
+                  </Text>
+                  <View style={styles.actionRow}>
+                    <BracketButton
+                      label="VIEW"
+                      tone="purple"
+                      onPress={() => setView({ kind: 'vendor', id: vendor.id })}
+                      accessibilityLabel={`View vendor ${vendor.handle}`}
+                    />
+                  </View>
+                </TerminalPanel>
+              );
+            })
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // --- Sub-view: vendor detail -------------------------------------------
+  const renderVendorDetail = (id: string) => {
+    const vendor = (dw.vendors ?? []).find((v) => v.id === id);
+    if (!vendor) {
+      return (
+        <TerminalPanel darkMode={darkMode}>
+          <TermEmpty>vendor not found</TermEmpty>
+        </TerminalPanel>
+      );
+    }
+    const scamPct = vendorScamProbability(vendor.reputation) * 100;
+    const vendorListings = (dw.listings ?? []).filter((l) => l.vendorId === vendor.id);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={styles.actionRow}>
+          <BracketButton
+            label="../ back"
+            tone="neutral"
+            onPress={() => setView({ kind: 'vendors' })}
+            accessibilityLabel="Back to vendors"
+          />
+        </View>
+        <TerminalPanel darkMode={darkMode} elevation={12} glow>
+          <TermTitleBar title={`vendor://${vendor.handle}`} />
+          <AsciiDivider />
+          <Text style={[styles.detailTitle, { color: TERM.green }]}>
+            {vendor.handle}
+            {vendor.flaggedScam ? <Text style={{ color: accent.danger }}>{'  [SCAM]'}</Text> : null}
+          </Text>
+          <Text style={styles.mono} numberOfLines={1}>
+            <Text style={{ color: TERM.muted }}>rep </Text>
+            <Text style={{ color: repColor(vendor.reputation) }}>{`${vendor.reputation}/100 `}</Text>
+            <Text style={{ color: repColor(vendor.reputation) }}>{asciiBar(vendor.reputation / 100, 14)}</Text>
+          </Text>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>reviews = </Text>
+            <Text style={{ color: TERM.greenDim }}>{vendor.reviewCount}</Text>
+            <Text style={{ color: TERM.muted }}>{'   scam_risk = '}</Text>
+            <Text style={{ color: scamPct > 20 ? accent.danger : TERM.greenDim }}>{Math.round(scamPct)}%</Text>
+          </PromptRow>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd={`ls ./${vendor.handle}`} count={vendorListings.length} />
+          {vendorListings.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>no active listings from this vendor</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            vendorListings.map((listing) => renderListingRow(listing, vendor))
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // --- Sub-view: job detail ----------------------------------------------
+  const renderJobDetail = (id: string) => {
+    const job = (dw.activeJobs ?? []).find((j) => j.id === id);
+    const template = job ? JOB_TEMPLATES.find((t) => t.id === job.templateId) : undefined;
+    if (!job || !template) {
+      return (
+        <TerminalPanel darkMode={darkMode}>
+          <TermEmpty>operation no longer active</TermEmpty>
+        </TerminalPanel>
+      );
+    }
+    const totalStages = template.stages.length;
+    const weeksLeft = Math.max(0, job.expiresWeek - gameState.weeksLived);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={styles.actionRow}>
+          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to jobs" />
+        </View>
+        <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
+          <TermTitleBar title={`op://${template.id}`} />
+          <AsciiDivider />
+          <Text style={[styles.detailTitle, { color: TERM.text }]}>{template.name}</Text>
+          <Text style={styles.mono}>
+            <Text style={{ color: TERM.text }}>{template.description}</Text>
+          </Text>
+          <View style={styles.hexBlock}>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'payout   '}</Text>
+              <Text style={{ color: TERM.green, fontWeight: '700' }}>{template.payoutBtc.toFixed(3)} ₿</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'progress '}</Text>
+              <Text style={{ color: accent.info }}>{job.currentStage}/{totalStages}</Text>
+              <Text style={{ color: TERM.muted }}>{'   expires '}</Text>
+              <Text style={{ color: weeksLeft <= 1 ? accent.danger : TERM.text }}>{weeksLeft}w</Text>
+            </Text>
+          </View>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="stages --plan" count={totalStages} />
+          <TerminalPanel darkMode={darkMode}>
+            {template.stages.map((st, idx) => {
+              const done = job.completedStages.some((cs) => cs.stage === idx && cs.outcome === 'success');
+              const cur = idx === job.currentStage;
+              const lvl = dw.skills[st.skill]?.level ?? 1;
+              const p = Math.round(stageSuccessProbability(lvl, st.difficulty) * 100);
+              const glyph = done ? '[x]' : cur ? '[>]' : '[ ]';
+              const glyphColor = done ? TERM.green : cur ? TERM.purple : TERM.faint;
+              return (
+                <React.Fragment key={idx}>
+                  {idx > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  <Text style={styles.mono} numberOfLines={1}>
+                    <Text style={{ color: glyphColor }}>{glyph} </Text>
+                    <Text style={{ color: done ? TERM.greenDim : TERM.text }}>{`#${idx + 1} ${STAGE_LABEL[st.kind] ?? st.kind}`}</Text>
+                  </Text>
+                  <Text style={styles.monoXs} numberOfLines={1}>
+                    <Text style={{ color: TERM.muted }}>skill=</Text>
+                    <Text style={{ color: TERM.greenDim }}>{`${st.skill} Lv${lvl}`}</Text>
+                    <Text style={{ color: TERM.muted }}>{'  diff='}</Text>
+                    <Text style={{ color: TERM.text }}>{st.difficulty}</Text>
+                    <Text style={{ color: TERM.muted }}>{'  p='}</Text>
+                    <Text style={{ color: p >= 60 ? TERM.green : p >= 35 ? accent.warning : accent.danger }}>{p}%</Text>
+                    <Text style={{ color: TERM.muted }}>{'  en='}</Text>
+                    <Text style={{ color: accent.info }}>{st.energyCost}</Text>
+                    <Text style={{ color: TERM.muted }}>{'  heat+'}</Text>
+                    <Text style={{ color: accent.warning }}>{st.heatOnFail}</Text>
+                  </Text>
+                </React.Fragment>
+              );
+            })}
+          </TerminalPanel>
+        </View>
+
+        {job.completedStages.length > 0 ? (
+          <View style={{ gap: responsiveSpacing.sm }}>
+            <CmdLine cmd="tail attempts.log" count={job.completedStages.length} />
+            <TerminalPanel darkMode={darkMode}>
+              {job.completedStages.map((cs, i) => (
+                <React.Fragment key={`${cs.stage}-${cs.week}-${i}`}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  <Text style={styles.monoXs} numberOfLines={1}>
+                    <Text style={{ color: TERM.purple }}>{'> '}</Text>
+                    <Text style={{ color: TERM.faint }}>{`w${cs.week} `}</Text>
+                    <Text style={{ color: TERM.greenDim }}>{`stage#${cs.stage + 1} `}</Text>
+                    <Text style={{ color: cs.outcome === 'success' ? TERM.green : accent.danger }}>{cs.outcome}</Text>
+                  </Text>
+                </React.Fragment>
+              ))}
+            </TerminalPanel>
+          </View>
+        ) : null}
+
+        {job.currentStage < totalStages ? (
+          <BracketButton
+            label={`RUN STAGE ${job.currentStage + 1}`}
+            tone="phosphor"
+            loud
+            full
+            onPress={() => runStage(job)}
+            accessibilityLabel={`Run stage ${job.currentStage + 1} of ${template.name}`}
+          />
+        ) : null}
+      </View>
+    );
+  };
+
+  // --- Sub-view: laundering ledger ---------------------------------------
+  const renderLedger = () => {
+    const all = (dw.laundering ?? []).slice().sort((a, b) => b.startedWeek - a.startedWeek);
+    const totalIn = all.reduce((s, t) => s + t.dirtyAmountBtc, 0);
+    const totalOut = all.reduce((s, t) => s + (t.status === 'failed' ? 0 : t.netAmountBtc), 0);
+    const failed = all.filter((t) => t.status === 'failed').length;
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={styles.actionRow}>
+          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to wallet" />
+        </View>
+        <TerminalPanel darkMode={darkMode} elevation={12} glow>
+          <TermTitleBar title="ledger.full" />
+          <AsciiDivider />
+          <View style={styles.hexBlock}>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'total_in  '}</Text>
+              <Text style={{ color: accent.warning, fontWeight: '700' }}>{totalIn.toFixed(4)} ₿</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'total_out '}</Text>
+              <Text style={{ color: TERM.green, fontWeight: '700' }}>{totalOut.toFixed(4)} ₿</Text>
+            </Text>
+            <Text style={styles.hexLine}>
+              <Text style={{ color: TERM.muted }}>{'runs      '}</Text>
+              <Text style={{ color: TERM.text }}>{all.length}</Text>
+              <Text style={{ color: TERM.muted }}>{'   failed '}</Text>
+              <Text style={{ color: failed > 0 ? accent.danger : TERM.greenDim }}>{failed}</Text>
+            </Text>
+          </View>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="cat mixer.ledger" count={all.length} />
+          {all.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>ledger empty</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            <TerminalPanel darkMode={darkMode}>
+              {all.map((tx, i) => (
+                <React.Fragment key={tx.id}>
+                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
+                  {renderLaunderRow(tx)}
+                </React.Fragment>
+              ))}
+            </TerminalPanel>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderBody = () => {
+    if (view?.kind === 'listing') return renderListingDetail(view.id);
+    if (view?.kind === 'vendors') return renderVendors();
+    if (view?.kind === 'vendor') return renderVendorDetail(view.id);
+    if (view?.kind === 'job') return renderJobDetail(view.id);
+    if (view?.kind === 'ledger') return renderLedger();
+    if (activeTab === 'market') return renderMarket();
+    if (activeTab === 'jobs') return renderJobs();
+    return renderWallet();
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
-          <ArrowLeft size={scale(22)} color={theme.text} />
+      {/* Terminal window chrome — renders unconditionally; back is always top-left. */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={goBack}
+          hitSlop={8}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft size={scale(22)} color={TERM.text} />
         </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: theme.text }]}>Onion</Text>
-        <View style={[styles.heatChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <Text style={[styles.heatChipText, { color: theme.text }]}>Heat {Math.round(dw.heat)}</Text>
+        <Text style={styles.appTitle} numberOfLines={1}>
+          <Text style={{ color: TERM.green }}>onion</Text>
+          <Text style={{ color: TERM.purple }}>@</Text>
+          <Text style={{ color: TERM.greenDim }}>darknet</Text>
+          <Text style={{ color: TERM.muted }}>:{pathLabel}</Text>
+          <Text style={{ color: TERM.purple }}>▊</Text>
+        </Text>
+        <View style={[styles.heatToken, { borderColor: heatColor + '66', backgroundColor: heatColor + '1F' }]}>
+          <Text style={[styles.heatTokenText, { color: heatColor }]}>HEAT {Math.round(dw.heat ?? 0)}</Text>
         </View>
       </View>
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
-        {TABS.map((t) => {
-          const active = activeTab === t.id;
-          const Icon = t.icon;
-          return (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => setActiveTab(t.id)}
-              style={[styles.tab, active && { borderBottomColor: accent.purple }]}
-            >
-              <Icon size={scale(16)} color={active ? accent.purple : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.purple : theme.textMuted }]}>{t.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* Command tabs — hidden inside detail sub-views (full-page). */}
+      {view === null && (
+        <View style={[getGlassCategoryTabsContainer(darkMode), styles.tabBar, { backgroundColor: TERM.bg, borderColor: TERM.border }]}>
+          {TABS.map((t) => {
+            const active = activeTab === t.id;
+            const Icon = t.icon;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => selectTab(t.id)}
+                style={[
+                  styles.tab,
+                  { borderColor: active ? 'rgba(168,85,247,0.45)' : 'transparent' },
+                  active && { backgroundColor: 'rgba(168,85,247,0.16)' },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={t.label}
+              >
+                <Icon size={scale(15)} color={active ? TERM.purple : TERM.greenDim} />
+                <Text style={[styles.tabText, { color: active ? TERM.purple : TERM.greenDim }]}>{t.label.toLowerCase()}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       <ScrollView
         style={{ flex: 1 }}
-        // Clear the floating tab bar — a short padding left the bottom
+        // Clear the tab strip / floating chrome — a short padding left the bottom
         // buttons (Run Stage, cash-out) untappable underneath it.
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
-        {activeTab === 'market' && renderMarket()}
-        {activeTab === 'jobs' && renderJobs()}
-        {activeTab === 'wallet' && renderWallet()}
+        {renderBody()}
       </ScrollView>
 
       <StartJobModal
@@ -444,23 +1476,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   );
 }
 
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
-}
-
-function Stat({ theme, label, value }: { theme: ReturnType<typeof getThemeColors>; label: string; value: string }) {
-  return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 export default function OnionApp(props: OnionAppProps) {
   return (
     <ErrorBoundary>
@@ -471,136 +1486,135 @@ export default function OnionApp(props: OnionAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  // Terminal window title bar — dark chrome in both modes (a deliberate single-look
+  // console surface). The canvas behind still branches on darkMode.
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
+    backgroundColor: TERM.bgChrome,
+    borderBottomWidth: 1,
+    borderBottomColor: TERM.border,
   },
-  backBtn: { padding: responsiveSpacing.xs },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  heatChip: {
+  backBtn: {
+    width: scale(40),
+    height: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appTitle: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '700' },
+  heatToken: {
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
+    paddingVertical: 3,
+    borderRadius: responsiveBorderRadius.sm,
     borderWidth: 1,
   },
-  heatChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
+  heatTokenText: { fontFamily: MONO, fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  tabBar: {
+    flexDirection: 'row',
+    gap: scale(4),
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.sm,
+  },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    marginTop: responsiveSpacing.xs,
-  },
-  emptyText: {
-    fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
-  },
-  statRow: { flexDirection: 'row' },
-  statCard: {
-    flex: 1,
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.sm,
     borderWidth: 1,
-    gap: 2,
   },
-  statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: responsiveSpacing.xs,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.xs,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
-    padding: responsiveSpacing.sm,
+  tabText: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700' },
+
+  // Panels
+  panel: {
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
   },
-  eventText: { flex: 1, fontSize: responsiveFontSize.xs },
-  skillsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  skillCard: {
-    flex: 1,
-    minWidth: '46%',
-    padding: responsiveSpacing.sm,
+  panelInner: {
     borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    gap: 4,
-  },
-  skillHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  skillName: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  skillLevel: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  skillTrack: {
-    height: scale(4),
-    borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
-  },
-  skillFill: { height: '100%', borderRadius: responsiveBorderRadius.full },
-  skillXp: { fontSize: responsiveFontSize.xs },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-  },
-  historyName: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  historyStatus: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  walletCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  walletLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  walletValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
-  walletBtn: {
+  glowBlob: {
+    position: 'absolute',
+    top: -scale(40),
+    right: -scale(30),
+    width: scale(130),
+    height: scale(130),
+    borderRadius: scale(65),
+    backgroundColor: TERM.purpleGlow,
+  },
+
+  // Title bar
+  titleBar: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
+  tdot: { width: scale(7), height: scale(7), borderRadius: scale(4) },
+  titleBarText: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.xs, color: TERM.greenDim, letterSpacing: 0.3, marginLeft: scale(4) },
+  titleCursor: { fontFamily: MONO, fontSize: responsiveFontSize.sm },
+
+  // Dividers
+  dividerWrap: { overflow: 'hidden', alignSelf: 'stretch' },
+  dividerText: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(10) },
+
+  // Mono text
+  mono: { fontFamily: MONO, fontSize: responsiveFontSize.sm, lineHeight: scale(18), color: TERM.text },
+  monoXs: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(15), color: TERM.muted },
+  cmdLine: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700', paddingHorizontal: scale(2) },
+  emptyLine: { fontFamily: MONO, fontSize: responsiveFontSize.xs, color: TERM.muted },
+  logLine: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(16) },
+
+  // Entry rows
+  rowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.sm },
+  entryTitle: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '700' },
+  entryPrice: { fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '800', color: TERM.text, fontVariant: ['tabular-nums'] },
+  detailTitle: { fontFamily: MONO, fontSize: responsiveFontSize.lg, fontWeight: '800' },
+  scamTag: { fontFamily: MONO, fontSize: responsiveFontSize.xs, fontWeight: '700' },
+
+  // Actions
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    flexWrap: 'wrap',
+    marginTop: scale(2),
+  },
+  bracketBtn: {
+    minHeight: scale(40),
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  walletBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  identityCard: {
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.sm,
     borderWidth: 1,
-    gap: responsiveSpacing.sm,
-  },
-  identityTitle: { fontSize: responsiveFontSize.md, fontWeight: '800' },
-  identitySub: { fontSize: responsiveFontSize.xs },
-  identityBtn: {
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  identityBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  bracketBtnFull: { alignSelf: 'stretch' },
+  bracketBtnDisabled: { opacity: 0.5 },
+  bracketLabel: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700', letterSpacing: 0.3 },
+  gate: { fontFamily: MONO, fontSize: responsiveFontSize.xs, color: accent.danger },
+
+  // Threat monitor
+  threatRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
+  threatValue: { fontFamily: MONO, fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+
+  // Hex-dump block
+  hexBlock: {
+    backgroundColor: TERM.bgDeep,
+    borderColor: TERM.borderDim,
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.md,
+    padding: responsiveSpacing.sm,
+    gap: scale(3),
+  },
+  hexLine: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(16) },
+
+  // Skills / stages / laundering
+  stageWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(6) },
+  stageTok: { fontFamily: MONO, fontSize: responsiveFontSize.xs },
+  launderRow: { gap: scale(2) },
 });

@@ -27,6 +27,10 @@ import {
   generateAcquisitionOffer,
   namedHireMoraleDelta,
   scandalRevenueDrag,
+  rollScandalForWeek,
+  estimateScandalRevenueLoss,
+  scandalReputationLoss,
+  SCANDAL_BASE_SEVERITY,
 } from './hustleLogic';
 
 const NOTIFICATION_CAP = 80;
@@ -104,10 +108,15 @@ export function processHustleWeeklyTick(
         o = pushNotif(o, `${camp.kind} campaign ended`, 'campaign_complete', nextWeeksLived);
         continue;
       }
-      // Can the player actually fund this week's spend? If not, pause the
+      // Can the player actually fund this week's spend? If not, PAUSE the
       // campaign rather than running it for free against the floored balance.
+      // BUG FIX: previously this `continue`d WITHOUT re-adding the campaign to
+      // `stillActive`, silently DELETING a merely-underfunded campaign. Keep it
+      // active (it just skips this week's spend + lift) so it resumes once the
+      // player can afford it and still expires on its own schedule.
       if (availableCash < camp.spendPerWeek) {
         o = pushNotif(o, `${camp.kind} campaign paused — insufficient funds`, 'campaign_complete', nextWeeksLived);
+        stillActive.push(camp);
         continue;
       }
       // Pay spend
@@ -151,6 +160,18 @@ export function processHustleWeeklyTick(
       const wr = Math.max(0, o.activeScandal.weeksRemaining - 1);
       if (sev <= 0 || wr <= 0) {
         out.lifetimeStats.totalScandalsSurvived += 1;
+        // Fill the ledger with REAL values (previously hardcoded 0 → the UI
+        // showed a permanent "−$0 lost" line). Reconstruct the drag over the
+        // scandal's active life from its initial (base) severity, weeks active,
+        // and current company income (deterministic — no persisted accumulator,
+        // since adding a field to HustleActiveScandal would touch shared types).
+        const initialSeverity = SCANDAL_BASE_SEVERITY[o.activeScandal.kind] ?? o.activeScandal.severity;
+        const weeksActive = Math.max(1, nextWeeksLived - o.activeScandal.startedWeek);
+        const totalRevenueLoss = estimateScandalRevenueLoss(
+          initialSeverity,
+          weeksActive,
+          company.weeklyIncome ?? 0,
+        );
         o = pushNotif({
           ...o,
           // R3-E: cap to 25 per company — was unbounded; multiplied by N
@@ -162,8 +183,8 @@ export function processHustleWeeklyTick(
               kind: o.activeScandal.kind,
               severity: o.activeScandal.severity,
               survivedAtWeek: nextWeeksLived,
-              finalReputationLoss: 0,
-              totalRevenueLoss: 0,
+              finalReputationLoss: scandalReputationLoss(initialSeverity),
+              totalRevenueLoss,
               resolutionMethod: o.activeScandal.resolutionMethod ?? 'natural',
             },
           ].slice(-25),
@@ -186,6 +207,30 @@ export function processHustleWeeklyTick(
           cashDelta -= drag;
           cashReasons.push(`Scandal drag on ${company.name}`);
         }
+      }
+    }
+
+    // 3b. Organic scandal roll — brand/size-gated, cooldown-respecting,
+    // deterministic (seeded by company id + week). Only when no scandal is
+    // active. Activates the fully-built resolution UI/ledger that previously
+    // had no trigger (triggerScandal had zero callers).
+    if (!o.activeScandal) {
+      const rolled = rollScandalForWeek(company, o, nextWeeksLived);
+      if (rolled) {
+        o = pushNotif(
+          {
+            ...o,
+            activeScandal: rolled,
+            brand: {
+              score: Math.max(0, o.brand.score - 15),
+              trend: 'declining',
+              lastUpdatedWeek: nextWeeksLived,
+            },
+          },
+          `⚠ ${rolled.headline}`,
+          'scandal_alert',
+          nextWeeksLived,
+        );
       }
     }
 

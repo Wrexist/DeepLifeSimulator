@@ -1,4 +1,4 @@
-import { buildTripReturnSummary, isTripReady, quoteTrip } from '../operations';
+import { buildTripReturnSummary, deriveExperienceStats, isTripReady, quoteTrip } from '../operations';
 import { DESTINATIONS } from '../destinations';
 import { GameState } from '@/contexts/game/types';
 
@@ -127,8 +127,11 @@ describe('buildTripReturnSummary', () => {
     const r = buildTripReturnSummary(s, roller);
     expect(r).not.toBeNull();
     if (r) {
-      // local_resort: happiness 10, plus event happiness 3 = 13
-      expect(r.totals.happinessDelta).toBe(13);
+      // local_resort: happiness 10 + event happiness 3 + folded stress-relief 3
+      // (stress -10 → round(10*0.3)=3) = 16.
+      expect(r.totals.happinessDelta).toBe(16);
+      // energy 20 + folded stress-relief 3 = 23.
+      expect(r.totals.energyDelta).toBe(23);
       expect(r.firstVisit).toBe(true);
     }
   });
@@ -140,5 +143,79 @@ describe('buildTripReturnSummary', () => {
     const r = buildTripReturnSummary(s, () => 0.99); // no events
     expect(r).not.toBeNull();
     if (r) expect(r.firstVisit).toBe(false);
+  });
+
+  it('folds a destination stress-relief into applied happiness + energy', () => {
+    const s = base();
+    s.travel!.currentTrip = { destinationId: 'bali', returnWeek: 11, startWeek: 10 };
+    const r = buildTripReturnSummary(s, () => 0.99); // no events
+    expect(r).not.toBeNull();
+    if (r) {
+      // bali: happiness 30, energy 30, stress -30 (relief 30 → round(9) = 9).
+      expect(r.totals.happinessDelta).toBe(39);
+      expect(r.totals.energyDelta).toBe(39);
+      expect(r.totals.stressDelta).toBe(-30); // raw kept for reference
+    }
+  });
+
+  it('routes intelligence into happiness and keeps the raw intelligenceDelta', () => {
+    const s = base();
+    s.travel!.currentTrip = { destinationId: 'rome', returnWeek: 11, startWeek: 10 };
+    const r = buildTripReturnSummary(s, () => 0.99); // no events
+    expect(r).not.toBeNull();
+    if (r) {
+      // rome: happiness 20, energy 10, intelligence 8, stress -20 (relief → 6).
+      expect(r.totals.happinessDelta).toBe(34); // 20 + 6 (stress) + 8 (intel)
+      expect(r.totals.energyDelta).toBe(16); // 10 + 6
+      expect(r.totals.intelligenceDelta).toBe(8);
+    }
+  });
+
+  it('passes the destination id so a curated event can roll', () => {
+    const s = base();
+    s.travel!.currentTrip = { destinationId: 'london', returnWeek: 11, startWeek: 10 };
+    const roller = (k: string) => {
+      if (k === 'travel.event.1') return 0.1;
+      if (k === 'travel.event.1.idx') return 0.78; // lands on london_theatre
+      return 0.99;
+    };
+    const r = buildTripReturnSummary(s, roller);
+    expect(r).not.toBeNull();
+    if (r) {
+      expect(r.events).toHaveLength(1);
+      expect(r.events[0].destinationId).toBe('london');
+    }
+  });
+});
+
+describe('deriveExperienceStats', () => {
+  it('converts stress relief into a bounded happiness + energy gain', () => {
+    // Maldives: stress -40 → relief 40 → round(40*0.3)=12 (at the +12 cap).
+    const maldives = DESTINATIONS.find((d) => d.id === 'maldives')!;
+    expect(deriveExperienceStats(maldives.benefits)).toEqual({ happiness: 12, energy: 12 });
+  });
+
+  it('routes intelligence to happiness at face value', () => {
+    // Rome: intelligence 8, stress -20 → relief 6 + mind 8 = 14 happiness, 6 energy.
+    const rome = DESTINATIONS.find((d) => d.id === 'rome')!;
+    expect(deriveExperienceStats(rome.benefits)).toEqual({ happiness: 14, energy: 6 });
+  });
+
+  it('treats a stress increase as a penalty', () => {
+    expect(deriveExperienceStats({ happiness: 0, health: 0, energy: 0, stress: 10 })).toEqual({
+      happiness: -3,
+      energy: -3,
+    });
+  });
+
+  it('clamps a huge relief so it cannot blow past the benefit band', () => {
+    const r = deriveExperienceStats({ happiness: 0, health: 0, energy: 0, stress: -1000 });
+    expect(r.happiness).toBe(12);
+    expect(r.energy).toBe(12);
+  });
+
+  it('returns zeros when there is no stress or intelligence', () => {
+    expect(deriveExperienceStats({ happiness: 10, health: 5, energy: 5 })).toEqual({ happiness: 0, energy: 0 });
+    expect(deriveExperienceStats(undefined)).toEqual({ happiness: 0, energy: 0 });
   });
 });

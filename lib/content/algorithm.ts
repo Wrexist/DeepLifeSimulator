@@ -58,6 +58,12 @@ export interface StreamOutcomeInput {
   duration: number;
   /** RNG roll 0..1 for raid/hype-train chance. */
   rollHype: number;
+  /**
+   * Probability of a hype train this stream. Defaults to 0.08 so existing
+   * callers/tests are unchanged; the Streamly streak meter raises it. Clamped
+   * to [0, 0.25] (the streak guardrail) so it can never explode income.
+   */
+  hypeChance?: number;
 }
 
 export interface StreamOutcome {
@@ -82,8 +88,10 @@ export function projectStreamOutcome(input: StreamOutcomeInput): StreamOutcome {
   const baseViewers = 5 + followers * 0.015;
   const viewers = Math.max(0, Math.round(baseViewers * qMult * durationFactor));
 
-  // ~8% chance of a "hype train" — small viewer/donation burst.
-  const hypeTrain = input.rollHype < 0.08;
+  // Hype-train chance defaults to 8%; the Streamly streak meter can raise it,
+  // but it's clamped to ≤25% so the 2.5× burst can't inflate income unbounded.
+  const hypeChance = Math.max(0, Math.min(0.25, safe(input.hypeChance, 0.08)));
+  const hypeTrain = input.rollHype < hypeChance;
   const hypeMult = hypeTrain ? 2.5 : 1;
 
   // Follower / sub conversion.

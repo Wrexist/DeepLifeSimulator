@@ -149,13 +149,18 @@ describe('Pet system lifecycle', () => {
   // ── HUNGER (FULLNESS) PROGRESSION ──────────────────────────────────────
   // hunger = fullness/satiety (100 = full, 0 = starving). Decays weekly; the
   // player feeds to top it back up.
-  it('Fullness: decreases by 8 per week, floored at 0', async () => {
+  it('Fullness: decreases weekly (breed-specific rate), floored at 0', async () => {
+    // Real engine (lib/pets/decay.ts) decays by breed.hungerDecayPerWeek × the
+    // life-stage band, not the old flat 8. Exact per-breed arithmetic is pinned
+    // in __tests__/actions/weekly/applyPets.test.ts; here we assert the flow.
     mounted = mountGame();
     seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 50 });
+    const start = getPet('p1')!.hunger;
     await tick();
-    expect(getPet('p1')!.hunger).toBe(42);
+    const afterOne = getPet('p1')!.hunger;
+    expect(afterOne).toBeLessThan(start);
     await tick();
-    expect(getPet('p1')!.hunger).toBe(34);
+    expect(getPet('p1')!.hunger).toBeLessThan(afterOne);
 
     // Floor at 0.
     act(() => captured!.setGameState(prev => ({
@@ -184,17 +189,18 @@ describe('Pet system lifecycle', () => {
   });
 
   // ── HEALTH DECAY WHEN STARVING ─────────────────────────────────────────
-  it('Health: decays at least 3 when fullness < 20 (starving)', async () => {
+  it('Health: drains at true starvation (fullness hits 0)', async () => {
     mounted = mountGame();
-    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 25, health: 90 });
+    // Real engine (decay.ts:85) applies the -8 starvation penalty only once
+    // fullness reaches 0 (a hungry-but-not-empty pet keeps its health). Seed low
+    // enough that this week's decay empties the bowl.
+    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 10, health: 90 });
     await tick();
     const p = getPet('p1')!;
-    // fullness becomes 17 (<20) → -3 from starvation.
-    // The deterministic sickness roll MAY also fire (~2%/tick) — if so, also
-    // -10 onset + -5 sick-decay. Either way: health dropped by at least 3.
-    expect(p.health).toBeLessThanOrEqual(87);
+    expect(p.hunger).toBe(0);
+    // -8 starvation (a sickness roll may add more), so health strictly dropped.
+    expect(p.health).toBeLessThanOrEqual(82);
     expect(p.health).toBeGreaterThanOrEqual(0);
-    expect(p.hunger).toBeLessThan(20);
   });
 
   it('Health: stays clamped to [0, 100] under extreme starvation', async () => {
@@ -214,8 +220,12 @@ describe('Pet system lifecycle', () => {
     seedPet({ id: 'sick_pet', name: 'Ill', type: 'dog', age: 50, hunger: 40, health: 60, isSick: true, sickness: 'cold' });
     const healthBefore = getPet('sick_pet')!.health;
     await tick();
-    // -5 from sickness; no additional decay because hunger is 48 (<60).
-    expect(getPet('sick_pet')!.health).toBe(healthBefore - 5);
+    // Real engine (decay.ts:82-83) drains per the sickness catalog's healthDrain
+    // (per-illness, not a flat 5). Fullness stays > 0 so there's no starvation
+    // drain on top — the drop is exactly the sickness cost.
+    const after = getPet('sick_pet')!.health;
+    expect(after).toBeLessThan(healthBefore);
+    expect(after).toBeGreaterThanOrEqual(0);
   });
 
   // ── BUG-FIX REGRESSION: sickness must NOT heal a dying pet ─────────────
@@ -332,13 +342,18 @@ describe('Pet system lifecycle', () => {
     expect((PET_LIFESPANS.turtle || 0) * WEEKS_PER_YEAR).toBeGreaterThan((PET_LIFESPANS.fish || 0) * WEEKS_PER_YEAR);
   });
 
-  it('Lifespan: unknown pet type defaults to ~10 years', async () => {
+  it('Unknown pet type is left inert (no breed data to tick)', async () => {
     mounted = mountGame();
-    // 'alien' isn't in PET_LIFESPANS — defaults to 10 years per the code (line 2057).
-    const defaultLifespanWeeks = 10 * WEEKS_PER_YEAR;
-    seedPet({ id: 'alien_pet', name: 'Zorp', type: 'alien' as never, age: defaultLifespanWeeks - 1, hunger: 30, health: 100 });
+    // 'alien' isn't in the breed catalog. The real engine (decay.ts:57-58) skips
+    // pets with no matching breed rather than applying a default lifespan, so a
+    // corrupted / unknown-type pet is left untouched instead of decaying or
+    // dying. Unreachable in normal play — every pet is adopted from the 7-breed
+    // catalog — but this guards against a bad save crashing the tick.
+    seedPet({ id: 'alien_pet', name: 'Zorp', type: 'alien' as never, age: 200, hunger: 30, health: 100 });
     await tick();
-    expect(getPet('alien_pet')!.isDead).toBe(true);
+    const p = getPet('alien_pet')!;
+    expect(p.isDead).toBeFalsy();
+    expect(p.hunger).toBe(30); // untouched
   });
 
   // ── MULTI-PET PROCESSING ───────────────────────────────────────────────
@@ -361,14 +376,16 @@ describe('Pet system lifecycle', () => {
     const b = getPet('b');
     const c = getPet('c');
 
-    // A: fullness 30 → 22 (<40, happiness -5)
+    // A: dog, fullness 30 → decays below 40 → happiness -5.
     expect(a!.age).toBe(51);
-    expect(a!.hunger).toBe(22);
+    expect(a!.hunger).toBeLessThan(30);
+    expect(a!.hunger).toBeLessThan(40);
     expect(a!.happiness).toBe(65);
 
-    // B: fullness 65 → 57 (>=40, no happiness loss)
+    // B: cat, fullness 65 → stays >= 40 after decay → happiness unchanged.
     expect(b!.age).toBe(51);
-    expect(b!.hunger).toBe(57);
+    expect(b!.hunger).toBeLessThan(65);
+    expect(b!.hunger).toBeGreaterThanOrEqual(40);
     expect(b!.happiness).toBe(70);
 
     // C: dead — unchanged.

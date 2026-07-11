@@ -15,7 +15,8 @@
  */
 
 import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
-import { accrueAccountInterest, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
+import { accrueAccountInterest, detectBudgetOverspend, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
+import { getRateEnvironment } from './rateEnvironment';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -42,6 +43,19 @@ export interface WeeklyBankingTickInput {
    * rules and manual loan payments call trackBudgetSpend themselves).
    */
   spendEvents?: { category: BudgetCategory; amount: number }[];
+  /**
+   * Legacy savings interest already credited into `newBankSavings` this week by
+   * the legacy pipeline (applySavingsInterest). Added to `totalInterestEarned`
+   * alongside the freshly accrued self-opened-account interest so the "Earned"
+   * chip and crossSystemSummary stop reading $0. Optional / defaults to 0.
+   */
+  savingsInterest?: number;
+  /**
+   * Interest actually SERVICED on loans this week via the real autopay path
+   * (`applyLoanAutopay(...).totalLoanInterest`). Added to `totalInterestPaid`
+   * so the "Paid" chip reflects real debt-service. Optional / defaults to 0.
+   */
+  loanInterestPaid?: number;
 }
 
 export interface WeeklyBankingTickResult {
@@ -141,10 +155,35 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   // 1. Mirror cash + savings into the banking slice.
   let banking = mirrorAccountsFromLegacy(input.banking, input.newBankSavings, input.newMoney);
 
+  // 1a-rate. Resolve the live rate environment from the current economy state so
+  // the long-cosmetic "rates rising/falling" notifications finally have teeth.
+  // depositMult scales deposit APY (clamped to the hard cap in accrueAccountInterest);
+  // loanDelta is persisted on banking.rateEnvironment for new-loan quotes to read.
+  const rateEnv = getRateEnvironment(input.economyState);
+  banking = { ...banking, rateEnvironment: rateEnv };
+
   // 1b. Accrue APR on self-opened accounts (savings/HY/CD/money market).
   // The advertised baseAPR previously never paid out — the legacy interest
-  // path only covered the mirrored savings-default account.
-  banking = accrueAccountInterest(banking).banking;
+  // path only covered the mirrored savings-default account. The live rate
+  // environment's depositMult now scales the yield (recession/crash lower it,
+  // boom raises it — always under SAVINGS_APR_HARD_CAP).
+  const accrual = accrueAccountInterest(banking, rateEnv.depositMult);
+  banking = accrual.banking;
+
+  // 1c. Write the interest ledgers that were permanently $0 (audit #7).
+  //   - totalInterestEarned += freshly accrued account interest + the legacy
+  //     savings interest already folded into newBankSavings this week.
+  //   - totalInterestPaid  += the interest serviced on the real loan-autopay
+  //     path, threaded in from applyLoanAutopay(...).totalLoanInterest.
+  const interestEarnedThisWeek = safe(accrual.totalInterest) + safe(input.savingsInterest);
+  const interestPaidThisWeek = safe(input.loanInterestPaid);
+  if (interestEarnedThisWeek > 0 || interestPaidThisWeek > 0) {
+    banking = {
+      ...banking,
+      totalInterestEarned: safe(banking.totalInterestEarned) + Math.max(0, interestEarnedThisWeek),
+      totalInterestPaid: safe(banking.totalInterestPaid) + Math.max(0, interestPaidThisWeek),
+    };
+  }
 
   // 2. Run user-added bill-pay rules (Phase C adds the UI; for now this is a no-op for
   //    existing players because billPayRules[] is empty).
@@ -165,6 +204,19 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   //     this only makes them visible on the Budget tab (no balance changes).
   for (const ev of input.spendEvents ?? []) {
     banking = trackBudgetSpend(banking, input.currentWeek, ev.category, ev.amount);
+  }
+
+  // 2c. Budget targets (computer-only) — flag any category whose week's spend
+  //     exceeded its configured cap with a single overspend notification. Pure
+  //     read; no money moves. Fires at most once per week (one tick / week).
+  const overspends = detectBudgetOverspend(banking, input.currentWeek);
+  if (overspends.length > 0) {
+    const names = overspends.map((o) => o.category).join(', ');
+    notifications.push({
+      id: `budget-overspend-${input.currentWeek}`,
+      title: '📊 Over Budget',
+      message: `You went over your weekly budget in: ${names}.`,
+    });
   }
 
   // 3. Sync loan payment trackers so credit score reflects the existing tick's outcome.

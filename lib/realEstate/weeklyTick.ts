@@ -20,6 +20,7 @@
 import { RealEstate } from '@/contexts/game/types';
 import { cycleEffects, NeighborhoodCycle } from './market';
 import { tickProperty } from './operations';
+import { getUpgradeTier } from './housing';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -75,7 +76,17 @@ export function runRealEstateWeeklyTick(input: RealEstateWeeklyTickInput): RealE
       tick.property.status === 'rented' && tick.rentReceived > 0
         ? (safe(tick.property.currentValue, tick.property.price) * 0.022) / 52
         : 0;
-    rentalIncome += tick.rentReceived - carryingCost;
+    // Route the upgrade-tier rent bonus through the realized (tenant-model) rent
+    // so the legacy `processWeeklyHousing` figure — which previously carried this
+    // bonus only to be discarded by the overwrite in applyRentAndHousing — is no
+    // longer dead. Modest + tier-capped (max +$500/wk at tier 3) and only paid on
+    // a unit that is ACTUALLY earning rent this week (tenant present), mirroring
+    // the carrying-cost gate so vacant/owner-occupied homes get nothing.
+    const upgradeRentBonus =
+      tick.property.status === 'rented' && tick.rentReceived > 0
+        ? safe(getUpgradeTier(safe(tick.property.upgradeLevel, 0))?.rentBonus, 0)
+        : 0;
+    rentalIncome += tick.rentReceived + upgradeRentBonus - carryingCost;
     notifications.push(...tick.notifications);
   }
 

@@ -19,7 +19,6 @@ import {
   CoinMarket,
   Crypto,
   CryptoMarketState,
-  CryptoOrder,
   CryptoRegime,
 } from '@/contexts/game/types';
 import {

@@ -505,12 +505,18 @@ import type {
 const NOTIFICATION_CAP = 100;
 const TRENDING_CAP = 10;
 
+// Maps a fame-event template id → the Pulse scandal type it manifests as.
+// PREREQ BUG FIX: the keys were bare/renamed slugs (`tabloid_scandal`,
+// `fake_news_story`, …) that never matched the real `fame_`-prefixed template
+// ids in this very file, so EVERY scandal silently fell back to `bad_take`. The
+// keys now match the actual template ids below (fame_tabloid_scandal, …).
 const SCANDAL_TYPE_MAP: Record<string, PulseScandalType> = {
-  tabloid_scandal: 'leaked_dm',
-  fake_news_story: 'deepfake',
-  brand_crisis: 'brand_betrayal',
-  impostor_account: 'deepfake',
-  privacy_invasion: 'leaked_dm',
+  fame_tabloid_scandal: 'leaked_dm',
+  fame_fake_news: 'deepfake',
+  fame_brand_crisis: 'brand_betrayal',
+  fame_impostor: 'deepfake',
+  fame_privacy_invasion: 'leaked_dm',
+  fame_hate_comments: 'cancel',
 };
 
 export function applyFameEventToPulse(

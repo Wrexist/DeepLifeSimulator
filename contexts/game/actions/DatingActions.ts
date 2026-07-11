@@ -31,6 +31,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
+import { bumpSparkLifetimeStat } from '@/lib/dating/sparkStats';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
@@ -164,6 +165,8 @@ export const goOnDate = (
     }
     return ({
     ...prev,
+    // Spark lifetime stat: this date counts toward the dating profile readout.
+    sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDatesGoneOn'),
     stats: {
       ...prev.stats,
       money: Math.max(0, (prev.stats.money || 0) - config.cost),
@@ -179,6 +182,12 @@ export const goOnDate = (
             lastDateWeek: prev.weeksLived || 0,
             // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
             datesThisWeek: (r.lastDateWeek === (prev.weeksLived || 0) ? (r.datesThisWeek || 0) : 0) + 1,
+            // A date is a real contact — stamp recency so the Contacts recency
+            // dot warms and the Attention tab clears (weeklyInteractions resets
+            // when the last interaction was in an earlier week).
+            lastInteractionWeek: prev.weeksLived || 0,
+            weeklyInteractions:
+              (r.lastInteractionWeek === (prev.weeksLived || 0) ? (r.weeklyInteractions || 0) : 0) + 1,
             // NPC reactivity: a date builds trust/attraction and is remembered.
             npcOpinion: updateOpinion(
               r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
@@ -267,6 +276,8 @@ export const giveGift = (
 
     return {
       ...prev,
+      // Spark lifetime stat: this gift counts toward the dating profile readout.
+      sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalGiftsGiven'),
       stats: {
         ...prev.stats,
         money: Math.max(0, prevMoney - config.cost),
@@ -285,6 +296,10 @@ export const giveGift = (
           giftsReceived: (r.giftsReceived || 0) + 1,
           giftsThisWeek: prevGiftsThisWeek + 1,
           lastGiftWeek: prevWeek,
+          // A gift is a real contact — stamp recency (see goOnDate above).
+          lastInteractionWeek: prevWeek,
+          weeklyInteractions:
+            (r.lastInteractionWeek === prevWeek ? (r.weeklyInteractions || 0) : 0) + 1,
           npcOpinion: updateOpinion(
             r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
             disliked ? 'gift_disliked' : 'gift_liked',
@@ -393,6 +408,8 @@ export const proposeMarriage = (
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
       return {
         ...prev,
+        // Spark lifetime stat: a proposal was made (accepted).
+        sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalProposals'),
         stats: {
           ...prev.stats,
           money: Math.max(0, (prev.stats.money || 0) - ring.price),
@@ -447,6 +464,8 @@ export const proposeMarriage = (
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
       return {
         ...prev,
+        // Spark lifetime stat: a proposal was made (declined).
+        sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalProposals'),
         stats: {
           ...prev.stats,
           money: Math.max(0, (prev.stats.money || 0) - ring.price),
@@ -628,6 +647,8 @@ export const executeWedding = (
 
     return {
       ...prev,
+      // Spark lifetime stat: a marriage happened.
+      sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalMarriages'),
       stats: {
         ...prev.stats,
         money: Math.max(0, (prev.stats.money || 0) - remainingBalance),
@@ -973,6 +994,8 @@ export const fileDivorce = (
 
     return {
       ...prev,
+      // Spark lifetime stat: a divorce was finalized.
+      sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDivorces'),
       stats: nextStats,
       bankSavings: Math.max(0, workingSavings),
       stocks: prev.stocks

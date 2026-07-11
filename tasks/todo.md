@@ -1,5 +1,78 @@
 # Task Tracker
 
+## 🎨 Vitals symmetry + Week Summary toggle + Heads Up Liquid Glass redesign (2026-07-09)
+
+Branch: `claude/vitals-ui-notifications-redesign-e3262m`. User screenshots showed
+(1) vitals text wrapping ("Happine ss", "10 0"); (2) a Week Summary popping up every
+week with no way to turn it off; (3) frequent, plain "Heads Up" event popups.
+
+### 1. Vitals — symmetrical & scale to all resolutions
+- [x] `app/(tabs)/health.tsx`: label now `numberOfLines={1}` + `adjustsFontSizeToFit`
+      (never wraps "Happiness"); value column widened scale(30)→scale(38) with
+      `numberOfLines={1}` (holds a 3-digit "100"). Row stays symmetric everywhere.
+
+### 2. Week Summary — on/off switch in Settings
+- [x] `app/(tabs)/_layout.tsx`: weekly result sheet now gated on
+      `settings.weeklySummaryEnabled` (both where `resultWeek` is set and on
+      `showWeekResult`). Was unchecked → showed every week.
+- [x] `components/SettingsModal.tsx`: relabelled "Monthly Summary / every 4 weeks"
+      → "Week Summary" / "Show the weekly recap after each week. Turn off to skip
+      it." (reuses the existing `weeklySummaryEnabled` flag — no schema change).
+
+### 3. Heads Up popups — Liquid Glass redesign + far less frequent
+- [x] `components/WeeklyEventModal.tsx`: rebuilt with the game's Liquid Glass look
+      (BlurViewFallback frosted-dark card, accent icon chip + soft top glow + top
+      highlight, full accent border per Hard Rule 7 — no side stripes,
+      `getPlatformShadows` from the glass design system). ALL resolve logic
+      preserved verbatim. Also fixed the wrong "Error" title on bad events → "Bad
+      News".
+- [x] `lib/events/cliffhangerEvents.ts`: roll chance 0.32/0.22 → 0.10/0.07 (+ doc
+      comments corrected).
+- [x] `lib/config/gameConstants.ts`: event gaps early 3→4, mid 6→8 (late kept 8 so
+      `engine.test.ts` rate bounds hold); `engine.ts` mid-game chance 0.15-0.20 →
+      0.10-0.13. Combined cadence now ~1 popup / 10–15 weeks.
+
+### Verify
+- [x] `npx tsc -p tsconfig.typecheck.json` → **0 errors**.
+- [x] `jest lib/events/__tests__/engine.test.ts` (7/7) + cliffhanger equivalence
+      (11/11, snapshots green) + `__tests__/render/` incl. new
+      `WeeklyEventModal.render.test.tsx` (64/64) + criticalPaths (44/44).
+- [x] ESLint on all touched files → 0 errors (added the modal's icons to the
+      jest.setup.js lucide mock, matching the CommunityRewardPopup precedent).
+
+### Follow-up (2026-07-09, round 2)
+- [x] **Blue info banner removed** (`components/UIUXOverlay.tsx`): the full-width
+      blue "ⓘ … ✕" bar covering the header every week was `ErrorMessage` at
+      `severity: 'info'` (weekly subsystem-notification flush + social actions).
+      UIUXOverlay now skips `info`-severity banners entirely — warning/error/
+      critical still surface; weekly/social updates remain in game state + the
+      notification center. Never renders that bar again.
+- [x] **Bottom tab bar lowered/tightened** (`app/(tabs)/_layout.tsx`): trimmed the
+      oversized inset padding (−scale(10), keeps ~24pt home-indicator clearance)
+      and dropped the base height scale(70)→scale(56) + paddingTop 12→8, so the
+      icon row sits lower with no dead space beneath. Verified: banner-cap test +
+      screens render (home/_layout mount) green, type-check + lint clean.
+- [x] **Visual preview** of the redesigned reservation-fee Heads Up card delivered
+      as a published artifact for the user to eyeball before rebuilding.
+
+### Follow-up (2026-07-09, round 3)
+- [x] **Work tab is now one page-scroll** (`app/(tabs)/work.tsx`): the Current Job
+      hero card + the Street/Career/Crime sub-tabs used to be pinned above a small,
+      cramped inner ScrollView (only ~1 job visible, "Janitor" cut off behind the
+      tab bar). Wrapped the whole thing in a single page-level `ScrollView` (hero +
+      tabs + list scroll together); moved `SkillTalentTree` (an overlay) out of the
+      scroll; added `local.tabContent` for the list's horizontal padding. Verified:
+      type-check + lint clean, work screen render green.
+- [x] **Treatment-Successful popup redesigned** (`components/CureSuccessModal.tsx`):
+      rebuilt in Liquid Glass (frosted dark card, green success accent, icon chip +
+      top glow + highlight — same family as the event card). Fixed the real layout
+      bug where the fixed "Great!" button rendered ON TOP of the content: header
+      and button are now fixed, only the cured list scrolls (bounded via
+      `flexShrink`), so the button can never overlap. Cut the noise — dropped the
+      generic 4-item "Health Benefits" list and the "Health Tips" box (whose
+      bullets rendered as corrupt `�`); kept the essentials (what was cured) + one
+      concise reassurance line. New render test (2/2). `Check` added to jest mock.
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue

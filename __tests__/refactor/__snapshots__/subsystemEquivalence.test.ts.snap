@@ -2079,6 +2079,7 @@ exports[`pre-tick equivalence — applyEducationProgression 1 active education: 
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
     ],
@@ -2110,6 +2111,7 @@ exports[`pre-tick equivalence — applyEducationProgression Both Fast Learner: d
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 23,
       },
     ],
@@ -2141,6 +2143,7 @@ exports[`pre-tick equivalence — applyEducationProgression Fast Learner gold on
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 24,
       },
     ],
@@ -2172,6 +2175,7 @@ exports[`pre-tick equivalence — applyEducationProgression Fast Learner perk on
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 24,
       },
     ],
@@ -2204,6 +2208,7 @@ exports[`pre-tick equivalence — applyEducationProgression campus event trigger
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
     ],
@@ -2286,6 +2291,7 @@ exports[`pre-tick equivalence — applyEducationProgression completion with clas
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 0,
       },
     ],
@@ -2317,6 +2323,7 @@ exports[`pre-tick equivalence — applyEducationProgression education completes 
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 0,
       },
     ],
@@ -2377,6 +2384,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week FAIL (no s
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
     ],
@@ -2418,6 +2426,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week PASS (stud
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "studyGroupActive": true,
         "weeksRemaining": 25,
       },
@@ -2450,6 +2459,7 @@ exports[`pre-tick equivalence — applyEducationProgression mixed bag: active + 
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 9,
       },
       {
@@ -2483,6 +2493,7 @@ exports[`pre-tick equivalence — applyEducationProgression mixed bag: active + 
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "studyGroupActive": true,
         "weeksRemaining": 0,
       },
@@ -2516,6 +2527,7 @@ exports[`pre-tick equivalence — applyEducationProgression multiple educations:
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
       {
@@ -2528,6 +2540,7 @@ exports[`pre-tick equivalence — applyEducationProgression multiple educations:
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
       {
@@ -2539,6 +2552,7 @@ exports[`pre-tick equivalence — applyEducationProgression multiple educations:
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 25,
       },
     ],
@@ -2601,6 +2615,7 @@ exports[`pre-tick equivalence — applyEducationProgression student loan: deduct
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "studentLoan": {
           "interestRate": 0.05,
           "principal": 1000,
@@ -2638,6 +2653,7 @@ exports[`pre-tick equivalence — applyEducationProgression study group bonus: +
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "studyGroupActive": true,
         "weeksRemaining": 25,
       },
@@ -3007,6 +3023,7 @@ exports[`pre-tick equivalence — applyLoanAutopay APR as percentage (rateAPR > 
     },
   ],
   "totalLoanAutoPaid": 100,
+  "totalLoanInterest": 9.615384615384755,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3031,6 +3048,7 @@ exports[`pre-tick equivalence — applyLoanAutopay high-APR missed payment compo
     },
   ],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 10.048076923076906,
 }
 `;
@@ -3040,6 +3058,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan paid off this week (rema
   "cashAfter": 9909.826923076924,
   "processedLoans": [],
   "totalLoanAutoPaid": 90.17307692307692,
+  "totalLoanInterest": 0.1730769230769198,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3049,6 +3068,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan with NaN remaining is tr
   "cashAfter": 1000,
   "processedLoans": [],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3058,6 +3078,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan with zero remaining is f
   "cashAfter": 1000,
   "processedLoans": [],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3110,6 +3131,7 @@ exports[`pre-tick equivalence — applyLoanAutopay multiple loans, mixed afford/
     },
   ],
   "totalLoanAutoPaid": 300,
+  "totalLoanInterest": 2.8846153846153584,
   "totalLoanPenalty": 5.009615384615415,
 }
 `;
@@ -3119,6 +3141,7 @@ exports[`pre-tick equivalence — applyLoanAutopay no loans: returns empty + zer
   "cashAfter": 1000,
   "processedLoans": [],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3143,6 +3166,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, affordable, norm
     },
   ],
   "totalLoanAutoPaid": 100,
+  "totalLoanInterest": 9.423076923077133,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3167,6 +3191,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, can NOT afford (
     },
   ],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 10.01923076923083,
 }
 `;
@@ -3191,6 +3216,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, cash >= payment 
     },
   ],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 10.01923076923083,
 }
 `;
@@ -3215,6 +3241,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, forcePayment kic
     },
   ],
   "totalLoanAutoPaid": 100,
+  "totalLoanInterest": 1.9230769230769056,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3224,6 +3251,7 @@ exports[`pre-tick equivalence — applyLoanAutopay undefined loans: handled grac
   "cashAfter": 1000,
   "processedLoans": [],
   "totalLoanAutoPaid": 0,
+  "totalLoanInterest": 0,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3248,6 +3276,7 @@ exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining > 0 with no co
     },
   ],
   "totalLoanAutoPaid": 100.1923076923077,
+  "totalLoanInterest": 1.9230769230769056,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3257,6 +3286,7 @@ exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining=0 → fallback
   "cashAfter": 9499.038461538461,
   "processedLoans": [],
   "totalLoanAutoPaid": 500.96153846153845,
+  "totalLoanInterest": 0.9615384615384528,
   "totalLoanPenalty": 0,
 }
 `;
@@ -3986,13 +4016,13 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects two newly-dead pets: 
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects alive but unhappy pets: no happiness bonus, but food cost still deducts 1`] = `
+exports[`pre-tick equivalence — applyPetLivingSideEffects alive but unhappy pets: small bonding delta, food cost still deducts 1`] = `
 {
   "newStats": {
     "energy": 100,
     "fitness": 100,
     "gems": 0,
-    "happiness": 60,
+    "happiness": 61,
     "health": 100,
     "money": 970,
     "reputation": 50,
@@ -4001,13 +4031,13 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects alive but unhappy pe
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects alive happy & healthy pets: +2 happiness each, food cost deducts 1`] = `
+exports[`pre-tick equivalence — applyPetLivingSideEffects alive happy & healthy pets: capped bonding happiness + health, food cost deducts 1`] = `
 {
   "newStats": {
     "energy": 100,
     "fitness": 100,
     "gems": 0,
-    "happiness": 66,
+    "happiness": 62,
     "health": 100,
     "money": 955,
     "reputation": 50,
@@ -4401,6 +4431,7 @@ exports[`pre-tick equivalence — applyRentAndHousing empty real-estate: no rent
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [],
     "weeklyRent": 0,
   },
@@ -4414,6 +4445,7 @@ exports[`pre-tick equivalence — applyRentAndHousing multiple rented properties
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [
       {
         "id": "r1",
@@ -4461,6 +4493,7 @@ exports[`pre-tick equivalence — applyRentAndHousing rented (not owned) propert
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [
       {
         "id": "rent1",
@@ -4486,6 +4519,7 @@ exports[`pre-tick equivalence — applyRentAndHousing rented but owned: no rent 
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [
       {
         "condition": 99.75,
@@ -4516,6 +4550,7 @@ exports[`pre-tick equivalence — applyRentAndHousing undefined real-estate: han
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [],
     "weeklyRent": 0,
   },
@@ -4529,6 +4564,7 @@ exports[`pre-tick equivalence — applyRentAndHousing vacant status (no status f
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
     "housingUpkeep": 0,
+    "realEstateActivity": [],
     "updatedRealEstate": [
       {
         "condition": 99.75,
@@ -4873,14 +4909,14 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles insured vehicle a
     "fitness": 100,
     "gems": 0,
     "happiness": 100,
-    "health": 80,
+    "health": 82,
     "money": 49721,
     "reputation": 50,
   },
   "notifications": [
     {
       "id": "vehicle-accident-insuredCar",
-      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -10. Repair cost: $179.",
+      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair cost: $179.",
       "title": "Vehicle Accident",
     },
   ],
@@ -5384,40 +5420,54 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
 [
   {
     "age": 51,
-    "happiness": 75,
-    "health": 87,
-    "hunger": 12,
+    "energy": 100,
+    "happiness": 65,
+    "health": 90,
+    "hunger": 4.399999999999999,
     "id": "p1",
+    "isDead": undefined,
+    "isSick": false,
     "name": "Rex",
+    "sickness": undefined,
     "type": "dog",
     "weeksAtZeroHealth": 0,
   },
   {
     "age": 101,
+    "energy": 100,
     "happiness": 60,
     "health": 70,
-    "hunger": 62,
+    "hunger": 61.2,
     "id": "p2",
+    "isDead": undefined,
+    "isSick": false,
     "name": "Whiskers",
+    "sickness": undefined,
     "type": "cat",
     "weeksAtZeroHealth": 0,
   },
   {
     "age": 31,
+    "energy": 100,
     "happiness": 40,
     "health": 60,
-    "hunger": 77,
+    "hunger": 80.6,
     "id": "p3",
+    "isDead": undefined,
+    "isSick": false,
     "name": "Goldie",
+    "sickness": undefined,
     "type": "fish",
     "weeksAtZeroHealth": 0,
   },
   {
     "age": 81,
-    "happiness": 45,
-    "health": 45,
-    "hunger": 22,
+    "energy": 100,
+    "happiness": 37,
+    "health": 48,
+    "hunger": 23.4,
     "id": "p4",
+    "isDead": undefined,
     "isSick": true,
     "name": "Tweety",
     "sickness": "cold",
@@ -5426,12 +5476,15 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 201,
+    "energy": 100,
     "happiness": 50,
     "health": 0,
-    "hunger": 42,
+    "hunger": 46.7,
     "id": "p5",
     "isDead": true,
+    "isSick": false,
     "name": "Slow",
+    "sickness": undefined,
     "type": "turtle",
     "weeksAtZeroHealth": 3,
   },
@@ -5447,12 +5500,15 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 5001,
-    "happiness": 95,
-    "health": 97,
+    "energy": 100,
+    "happiness": 85,
+    "health": 92,
     "hunger": 0,
     "id": "p7",
     "isDead": true,
+    "isSick": false,
     "name": "Methuselah",
+    "sickness": undefined,
     "type": "hamster",
     "weeksAtZeroHealth": 0,
   },
@@ -5488,6 +5544,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick earlyCareer 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -5502,6 +5559,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick earlyCareer 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -5749,6 +5810,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick freshGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -5763,6 +5825,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick freshGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -6010,6 +6076,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick inPrison 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -6024,6 +6091,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick inPrison 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -6271,6 +6342,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick midGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -6285,6 +6357,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick midGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -6540,6 +6616,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick nearDeath 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -6554,6 +6631,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick nearDeath 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -6809,6 +6890,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick wealthyGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -6823,6 +6905,10 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick wealthyGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 0,
       "score": 650,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -8755,6 +8841,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick earlyCareer 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -8774,6 +8861,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick earlyCareer 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 31,
       "score": 618,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -8810,6 +8901,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick freshGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -8829,6 +8921,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick freshGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 1,
       "score": 605,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -8865,6 +8961,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick inPrison 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -8884,6 +8981,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick inPrison 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 181,
       "score": 655,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -8920,6 +9021,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick midGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "fair",
@@ -8939,6 +9041,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick midGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 251,
       "score": 655,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -8975,6 +9081,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick nearDeath 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "good",
@@ -8994,6 +9101,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick nearDeath 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 801,
       "score": 688,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,
@@ -9030,6 +9141,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick wealthyGame 1`] = `
     ],
     "billPayRules": [],
     "budgetSpend": [],
+    "budgetTargets": {},
     "creditCards": [],
     "creditScore": {
       "band": "good",
@@ -9049,6 +9161,10 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick wealthyGame 1`] = `
       "inquiries": [],
       "lastUpdatedWeek": 1501,
       "score": 688,
+    },
+    "rateEnvironment": {
+      "depositMult": 1,
+      "loanDelta": 0,
     },
     "savingsGoals": [],
     "taxDueThisYear": 0,

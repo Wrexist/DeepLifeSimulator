@@ -3,39 +3,68 @@
  * `WeekContext` mutable-accumulator pattern. R7 Phase 2 step 2.2b.
  *
  * Scope: the per-vehicle weekly update (maintenance/fuel cost, condition
- * decay, mileage, accident roll + damage) PLUS the post-process
- * vehicle-reputation bonus. Both blocks were previously inline in
- * `GameActionsContext.tsx.nextWeek()`. Moved verbatim — same Math.max
- * / Math.min calls, same constants, same indexing into `preRolls`.
+ * decay, mileage, accident roll + damage + total-loss removal) PLUS the
+ * post-process vehicle-reputation bonus.
+ *
+ * The accident math now goes through the tested `lib/vehicles/accidents.ts`
+ * model instead of an inline block: `accidentChance` scales the trigger with
+ * condition / mileage / active-use / vehicle type; `pickAccidentSeverity` can
+ * return a rare `'total'` (total loss) at low condition; `healthLossForSeverity`
+ * lets active insurance reduce the player's injury. Total-loss removes the
+ * vehicle from the returned array (the existing removal path processAccident
+ * also uses). Pre-roll arrays are kept for StrictMode determinism.
  *
  * Side effects (mutations of `ctx`):
  *   - `ctx.newStats.money`     — weekly cost + repair out-of-pocket
- *   - `ctx.newStats.health`    — accident health loss
+ *   - `ctx.newStats.health`    — accident health loss (insurance-reduced)
  *   - `ctx.newStats.reputation` — gentle nudge from owned-vehicle rep
- *   - `ctx.notifications`      — accident push
+ *   - `ctx.notifications`      — accident push (incl. total-loss)
  *
  * Reads from `ctx`:
  *   - `ctx.preRolls.vehicleAccident[i]`        — accident-trigger probability
  *   - `ctx.preRolls.vehicleAccidentSeverity[i]` — severity tier pick
  *
- * Returns the updated `Vehicle[]`. The caller writes this back into the
- * GameState (`vehicles: updatedVehicles`) inside its setGameState updater.
+ * `activeVehicleId` is an optional hint (the orchestrator currently calls with
+ * two args, so it is `undefined` in live play → every vehicle rolls at the
+ * passive base rate). When supplied it lets the active vehicle carry the
+ * on-the-road accident premium. On a total loss of the active vehicle the
+ * caller's `activeVehicleId` may point at the removed id; every consumer
+ * resolves it via `.find()`/`=== id` and is null-safe.
+ *
+ * Returns the updated `Vehicle[]` (totaled vehicles removed). The caller writes
+ * this back into the GameState (`vehicles: updatedVehicles`).
  */
 
 import type { Vehicle } from '@/contexts/game/types';
 import {
   VEHICLE_WEEKLY_MILEAGE,
   VEHICLE_WEEKLY_CONDITION_DECAY,
-  VEHICLE_ACCIDENT_BASE_CHANCE,
-  VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE,
 } from '@/lib/config/gameConstants';
+import {
+  accidentChance,
+  pickAccidentSeverity,
+  healthLossForSeverity,
+  type AccidentSeverity,
+} from '@/lib/vehicles/accidents';
 import type { WeekContext } from './weekContext';
+
+// Deterministic condition damage per severity tier. Kept out of accidents.ts
+// (which owns the probability + injury math) because the weekly tick needs a
+// fixed, StrictMode-stable value — not the Math.random range in
+// `calculateAccidentDamage`. 'total' → 100 marks the car for removal.
+const ACCIDENT_CONDITION_DAMAGE: Record<AccidentSeverity, number> = {
+  minor: 15,
+  moderate: 30,
+  severe: 60,
+  total: 100,
+};
 
 export function applyVehiclesForWeek(
   prevVehicles: Vehicle[] | undefined | null,
   ctx: WeekContext,
+  activeVehicleId?: string,
 ): Vehicle[] {
-  const updatedVehicles = (prevVehicles || []).map((vehicle, vehIdx) => {
+  const updatedVehicles = (prevVehicles || []).map((vehicle, vehIdx): Vehicle | null => {
     if (!vehicle || !vehicle.owned) return vehicle;
     const v = { ...vehicle };
 
@@ -53,29 +82,45 @@ export function applyVehiclesForWeek(
 
     // Insurance: no weekly charge — premium is paid upfront in purchaseInsurance()
 
-    // Accident chance: 1% per week, higher if condition < 30.
+    // Accident roll via the tested accidents.ts model.
     // Pre-roll arrays are capped (length 10). For vehicles beyond the cap, wrap
     // the index deterministically so they still roll — reading `undefined` here
     // would silently skip the accident for vehicle #11+ (and could feed NaN into
     // the severity pick). Wrapping keeps it StrictMode-deterministic.
     const accidentRoll = ctx.preRolls.vehicleAccident[vehIdx % ctx.preRolls.vehicleAccident.length];
     const severityRoll = ctx.preRolls.vehicleAccidentSeverity[vehIdx % ctx.preRolls.vehicleAccidentSeverity.length];
-    if (accidentRoll < (v.condition < 30 ? VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE : VEHICLE_ACCIDENT_BASE_CHANCE)) {
-      const severities = ['minor', 'moderate', 'severe'] as const;
-      const severity = severities[Math.min(severities.length - 1, Math.floor(severityRoll * severities.length))];
-      const damage = severity === 'minor' ? 15 : severity === 'moderate' ? 30 : 60;
-      v.condition = Math.max(0, v.condition - damage);
+    // isActive premium applies only when the caller passes activeVehicleId. In
+    // live play it's undefined → passive base rate for every vehicle.
+    const isActive = activeVehicleId != null && v.id === activeVehicleId;
+    if (accidentRoll < accidentChance(v, isActive)) {
+      const severity = pickAccidentSeverity(v.condition, severityRoll);
+      const damage = ACCIDENT_CONDITION_DAMAGE[severity];
 
-      // Player health impact
-      const healthLoss = severity === 'minor' ? 3 : severity === 'moderate' ? 10 : 25;
+      // Insurance reduces the player's physical injury (better gear / ambulance /
+      // aftercare), not just the repair bill.
+      const coveragePercent = v.insurance?.active ? (v.insurance.coveragePercent || 0) : 0;
+      const healthLoss = healthLossForSeverity(severity, coveragePercent);
       ctx.newStats.health = Math.max(0, ctx.newStats.health - healthLoss);
+
+      if (severity === 'total') {
+        // Total loss — remove the vehicle (return null → filtered below). No
+        // out-of-pocket repair: a totaled car isn't repaired. Mirrors
+        // processAccident's total-loss removal path.
+        ctx.notifications.push({
+          id: `vehicle-accident-${v.id}`,
+          message: `Your ${v.name} was totaled in an accident — it's a total loss. Health: -${healthLoss}.`,
+          title: 'Vehicle Totaled',
+        });
+        return null;
+      }
+
+      v.condition = Math.max(0, v.condition - damage);
 
       // Repair cost (partially covered by insurance). Guard v.price: a corrupt
       // non-finite price would make repairCost NaN and poison money for the rest
       // of the tick (Math.max(0, money - NaN) === NaN defeats the later guard).
       const safePrice = typeof v.price === 'number' && isFinite(v.price) ? v.price : 0;
       const repairCost = Math.floor(safePrice * damage * 0.001);
-      const coveragePercent = v.insurance?.active ? (v.insurance.coveragePercent || 0) : 0;
       const outOfPocket = Math.floor(repairCost * (1 - coveragePercent / 100));
       ctx.newStats.money = Math.max(0, ctx.newStats.money - outOfPocket);
 
@@ -87,7 +132,7 @@ export function applyVehiclesForWeek(
     }
 
     return v;
-  });
+  }).filter((v): v is Vehicle => v !== null);
 
   // Vehicle reputation: best owned vehicle gives a gentle rep nudge.
   // Use reduce (not spread into Math.max) so a corrupted save with thousands

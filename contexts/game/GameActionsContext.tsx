@@ -47,7 +47,8 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // wrapping try/catch blocks disabled JIT optimization for the entire ~1500-line
 // updater function. With these as ES imports, the JIT can finally inline the
 // updater and tests can mock via jest.mock(...) at the test setup layer.
-import { getStockInfo, restoreStockPrices, getAllStockSymbols } from '@/lib/economy/stockMarket';
+import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice } from '@/lib/economy/stockMarket';
+import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
@@ -97,6 +98,10 @@ import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
+import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
+import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
+import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
+import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
 import { applyDietPlanForWeek } from './actions/weekly/applyDietPlan';
 import { applyCareerSalaryAndPenalty } from './actions/weekly/applyCareerSalaryAndPenalty';
@@ -706,6 +711,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    nextWeeksLived,
    () => Math.random(),
    weeklyCtx,
+   prevState.realEstateActivity,
  );
  const {
    weeklyRent,
@@ -714,6 +720,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    housingUpkeep,
  } = rentAndHousingResult;
  let updatedRealEstate = rentAndHousingResult.updatedRealEstate;
+ // v22 Wave A: persist the capped real-estate activity timeline (feeds the
+ // RealEstateApp Activity tab). Sourced entirely from the real-estate weekly
+ // module above; written alongside `realEstate` in the returned state below.
+ const updatedRealEstateActivity = rentAndHousingResult.realEstateActivity;
 
  // R7 Phase 2 step 2.4d: savings interest extracted into
  // ./actions/weekly/applySavingsInterest.ts. Pure helper — same APR
@@ -744,6 +754,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let cashAfterIncomeAndRent = loanResult.cashAfter;
  const totalLoanAutoPaid = loanResult.totalLoanAutoPaid;
  const totalLoanPenalty = loanResult.totalLoanPenalty;
+ // v22 Wave A: interest actually serviced on the real loan-autopay path this
+ // week — threaded into runWeeklyBankingTick so banking.totalInterestPaid stops
+ // reading $0 (and the cross-system summary reflects real debt-service).
+ const totalLoanInterest = loanResult.totalLoanInterest;
  const processedLoans = loanResult.processedLoans;
 
  // Add income to money (always update, even if 0, to ensure state updates)
@@ -1371,6 +1385,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newMoney: newStats.money,
  economyState: prevState.economy?.economyEvents?.currentState,
  currentWeek: nextWeeksLived,
+ // v22 Wave A interest ledgers: legacy savings interest credited this week +
+ // interest serviced on the real loan-autopay path. Feed the previously-$0
+ // totalInterestEarned / totalInterestPaid chips and crossSystemSummary.
+ savingsInterest,
+ loanInterestPaid: totalLoanInterest,
  // Categorized weekly outflows already deducted from cash above — recorded
  // into banking.budgetSpend so the bank's Budget tab reflects real spending.
  // Bill-pay rules and manual loan payments track themselves; not repeated here.
@@ -1400,6 +1419,63 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  for (const note of bankingTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
  }
+
+ // ── v22 Wave A shared weekly modules — wired here beside the banking tick,
+ //    each behind a safe null-guard, folded into nextState like the sibling
+ //    pure helpers above. Idempotent per week (no wall-clock; use nextWeeksLived).
+
+ // (1) Channel memberships (YouVideo + Streamly, shared gamingStreaming slice):
+ //     ≤5% of subs convert to paid members; revenue is capped ($75k/wk) and
+ //     credited to cash + totalSubEarnings. Also unfreezes the creator "Lv N"
+ //     badge by recomputing level/perkTier from accumulated experience.
+ let nextGamingStreaming = prevState.gamingStreaming;
+ if (nextGamingStreaming) {
+ const membershipsResult = applyContentMemberships({
+ gamingStreaming: nextGamingStreaming,
+ currentWeek: nextWeeksLived,
+ });
+ nextGamingStreaming = membershipsResult.gamingStreaming;
+ if (membershipsResult.cashDelta > 0) {
+ newStats.money = Math.max(0, newStats.money + membershipsResult.cashDelta);
+ logger.info(`[MEMBERSHIPS] +$${membershipsResult.cashDelta} (${membershipsResult.reason}, ${membershipsResult.paidMembers} members)`);
+ }
+ // Persist level from experience (shared creatorLevel) so the badge advances.
+ if (nextGamingStreaming) {
+ const lvl = creatorLevelFromExperience(nextGamingStreaming.experience ?? 0);
+ nextGamingStreaming = { ...nextGamingStreaming, level: lvl, perkTier: creatorPerkTier(lvl) };
+ }
+ }
+
+ // (2) Savings goals: sweep each goal's autoContribute FROM a real source
+ //     (linked account or cash — assets conserved), cap at target, and grant a
+ //     bounded once-only completion reward. Operates on the post-tick banking
+ //     slice; the reward is the only new money and is tiny (≤min(1% target,$500)).
+ let nextBankingSlice = bankingTick.banking;
+ if (nextBankingSlice && Array.isArray(nextBankingSlice.savingsGoals) && nextBankingSlice.savingsGoals.length > 0) {
+ const goalsResult = applySavingsGoals({
+ banking: nextBankingSlice,
+ cash: newStats.money,
+ currentWeek: nextWeeksLived,
+ });
+ nextBankingSlice = goalsResult.banking ?? nextBankingSlice;
+ newStats.money = Math.max(0, goalsResult.cash + goalsResult.rewardCash);
+ if (goalsResult.happinessDelta > 0) {
+ newStats.happiness = Math.max(0, Math.min(100, (newStats.happiness ?? 0) + goalsResult.happinessDelta));
+ }
+ for (const gid of goalsResult.completedGoalIds) {
+ pendingNotifications.push({ id: `goal-complete-${gid}-${nextWeeksLived}`, title: '🎯 Savings Goal Reached', message: 'You hit a savings goal!' });
+ }
+ if (goalsResult.rewardCash > 0) {
+ logger.info(`[SAVINGS GOALS] Completion reward +$${goalsResult.rewardCash}`);
+ }
+ }
+
+ // (3) Favor ledger expiry — wires the previously-unwired contacts favor tick
+ //     (tickFavors' pure core `expireFavors`) into the weekly orchestrator so
+ //     lapsed IOUs/favors are marked expired. Pure; no-op when no ledger.
+ const nextFavorLedger = prevState.favorLedger
+ ? expireFavors(prevState.favorLedger, nextWeeksLived)
+ : prevState.favorLedger;
 
  // Dark Web tick (STATE_VERSION 18, OnionApp remake).
  // Decays heat, refreshes marketplace listings, settles laundering, expires
@@ -1454,6 +1530,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  if (stocksTickResult.cashDelta!== 0) {
  newStats.money = Math.max(0, newStats.money + stocksTickResult.cashDelta);
+ }
+ // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
+ // price so the move reaches the market board, Movers sort, market-order fills,
+ // and the savedMarketPrices snapshot below — and COMPOUNDS next week (the walk
+ // starts from the moved price). Determinism is preserved: the factors are
+ // seeded (weeklyRoll) and the moved price is what gets snapshotted/restored.
+ // adjustStockPrice re-clamps to the same [0.01, $1M] band as the walk.
+ for (const sym in stocksTickResult.priceFactors) {
+ adjustStockPrice(sym, stocksTickResult.priceFactors[sym]);
  }
  for (const note of stocksTickResult.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1540,7 +1625,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weeksLived: nextWeeksLived,
  bankSavings: newBankSavings,
  loans: bankingTick.loansWithTrackers,
- banking: bankingTick.banking,
+ banking: nextBankingSlice,
+ // v22 Wave A: memberships payout + level/perkTier recompute; favor expiry.
+ gamingStreaming: nextGamingStreaming,
+ favorLedger: nextFavorLedger,
  darkWeb: darkWebTick.darkWeb,
  politics: nextPolitics,
  updatedAt: preRolls.timestamp,
@@ -1641,7 +1729,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  orderHistory: stocksTickResult.orderHistory,
  sectorSnapshots: stocksTickResult.sectorSnapshots,
  totalDividends: (prevState.stocks?.totalDividends ?? 0) + stocksTickResult.dividendsUSD,
- dividendsThisYear: (prevState.stocks?.dividendsThisYear ?? 0) + stocksTickResult.dividendsUSD,
+ // Honor the field's "resets at year boundary" contract (was accumulate-forever,
+ // converging on lifetime totalDividends). Zeroes on the 52-week boundary,
+ // mirroring crypto's realizedGainsThisYear reset.
+ dividendsThisYear: accumulateDividendsThisYear(
+ prevState.stocks?.dividendsThisYear ?? 0,
+ stocksTickResult.dividendsUSD,
+ nextWeeksLived,
+ ),
  }
 : (() => {
  const holdingsToUpdate = reinvestedStocks.length > 0 ? reinvestedStocks: prevState.stocks?.holdings || [];
@@ -1716,6 +1811,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  vehicles: updatedVehicles,
  // Housing System — updated properties with condition, value, etc.
  realEstate: updatedRealEstate,
+ // Housing System — capped portfolio activity timeline (Activity tab feed).
+ realEstateActivity: updatedRealEstateActivity,
  // Education System — campus events
 ...(pendingCampusEvent ? { pendingCampusEventEducationId: pendingCampusEvent }: {}),
  // Engagement Systems

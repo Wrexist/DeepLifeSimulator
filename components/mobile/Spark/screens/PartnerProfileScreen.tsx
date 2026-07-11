@@ -22,10 +22,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard, getGlassButton } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { unmatch, reportProfile } from '@/contexts/game/actions/SparkActions';
-import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
@@ -41,7 +42,7 @@ interface PartnerProfileScreenProps {
 
 export default function PartnerProfileScreen({ matchId, onBack, onClosed }: PartnerProfileScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const sp = gameState.sparkApp;
@@ -107,53 +108,71 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <Header theme={theme} title="Profile" onBack={onBack} />
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
-        {/* Hero */}
-        <View style={styles.hero}>
-          <LinearGradient
-            colors={SPARK_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatarRing}
-          >
-            <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
-          </LinearGradient>
-          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-            {profile.name}, {profile.age}
-          </Text>
-          <View style={styles.metaRow}>
-            <MapPin size={fontScale(12)} color={theme.textSecondary} />
-            <Text style={[styles.metaText, { color: theme.textSecondary }]}>
-              {profile.distance} mi away
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
+        {/* Hero — Recipe B rose backdrop behind the gradient avatar ring. */}
+        <View
+          style={[
+            getGlassCard(isDark, 12),
+            styles.heroCard,
+            { backgroundColor: theme.surface, borderColor: isDark ? theme.glassBorder : theme.border },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={SPARK_GRADIENT_SOFT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroGlow} />
+            {isDark ? <View pointerEvents="none" style={styles.heroHairline} /> : null}
+
+            <LinearGradient
+              colors={SPARK_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.avatarRing}
+            >
+              <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
+            </LinearGradient>
+            <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+              {profile.name}, {profile.age}
             </Text>
-            {match.promoted ? (
-              <View style={[styles.tag, { backgroundColor: SPARK_COLORS.accent }]}>
-                <Heart size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.tagText}>Dating</Text>
-              </View>
-            ) : (
-              <View style={[styles.tag, { backgroundColor: theme.border }]}>
-                <Text style={[styles.tagText, { color: theme.text }]}>New match</Text>
-              </View>
-            )}
+            <View style={styles.metaRow}>
+              <MapPin size={fontScale(12)} color={theme.textSecondary} />
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                {profile.distance} mi away
+              </Text>
+              {match.promoted ? (
+                <View style={[styles.tag, { backgroundColor: SPARK_COLORS.accent }]}>
+                  <Heart size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
+                  <Text style={styles.tagText}>Dating</Text>
+                </View>
+              ) : (
+                <View style={[styles.tag, { backgroundColor: theme.surfaceElevated }]}>
+                  <Text style={[styles.tagText, { color: theme.text }]}>New match</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
         {/* Bio */}
         {profile.bio ? (
-          <Section theme={theme} icon={<Sparkles size={fontScale(14)} color={theme.text} />} title="About">
+          <Section theme={theme} darkMode={isDark} icon={<Sparkles size={fontScale(14)} color={theme.text} />} title="About">
             <Text style={[styles.bodyText, { color: theme.text }]}>{profile.bio}</Text>
           </Section>
         ) : null}
 
         {/* Interests */}
         {profile.interests && profile.interests.length > 0 ? (
-          <Section theme={theme} title="Interests">
+          <Section theme={theme} darkMode={isDark} title="Interests">
             <View style={styles.chipRow}>
               {profile.interests.map((interest) => (
                 <View
                   key={interest}
-                  style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  style={[styles.chip, { backgroundColor: theme.surfaceElevated }]}
                 >
                   <Text style={[styles.chipText, { color: theme.text }]}>{interest}</Text>
                 </View>
@@ -163,7 +182,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
         ) : null}
 
         {/* Job / education */}
-        <Section theme={theme} title="Background">
+        <Section theme={theme} darkMode={isDark} title="Background">
           {profile.job ? (
             <Row icon={<Briefcase size={fontScale(14)} color={theme.textSecondary} />} text={profile.job} theme={theme} />
           ) : null}
@@ -179,11 +198,12 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
         {lastMessages.length > 0 ? (
           <Section
             theme={theme}
+            darkMode={isDark}
             icon={<MessageCircle size={fontScale(14)} color={theme.text} />}
             title="Recent messages"
           >
             {lastMessages.map((m) => (
-              <View key={m.id} style={[styles.msgRow, { borderColor: theme.border }]}>
+              <View key={m.id} style={styles.msgRow}>
                 <Text style={[styles.msgFrom, { color: theme.textSecondary }]}>
                   {m.from === 'player' ? 'You' : profile.name.split(' ')[0]}
                 </Text>
@@ -195,13 +215,13 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           </Section>
         ) : null}
 
-        {/* Destructive actions */}
+        {/* Destructive actions — quiet glass buttons; danger lives on the label only. */}
         <View style={styles.actions}>
           <Pressable
             onPress={handleUnmatch}
             accessibilityRole="button"
             accessibilityLabel={`Unmatch ${profile.name}`}
-            style={[styles.actionBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            style={[getGlassButton(isDark), styles.actionBtn]}
           >
             <UserX size={fontScale(16)} color={theme.text} />
             <Text style={[styles.actionText, { color: theme.text }]}>Unmatch</Text>
@@ -210,7 +230,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
             onPress={handleReport}
             accessibilityRole="button"
             accessibilityLabel={`Report ${profile.name}`}
-            style={[styles.actionBtn, { borderColor: SPARK_COLORS.danger, backgroundColor: theme.surface }]}
+            style={[getGlassButton(isDark), styles.actionBtn]}
           >
             <AlertTriangle size={fontScale(16)} color={SPARK_COLORS.danger} />
             <Text style={[styles.actionText, { color: SPARK_COLORS.danger }]}>Report</Text>
@@ -223,7 +243,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
 
 function Header({ theme, title, onBack }: { theme: any; title: string; onBack: () => void }) {
   return (
-    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+    <View style={styles.header}>
       <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
         <ArrowLeft size={fontScale(22)} color={theme.text} />
       </Pressable>
@@ -234,15 +254,16 @@ function Header({ theme, title, onBack }: { theme: any; title: string; onBack: (
 }
 
 function Section({
-  theme, title, icon, children,
+  theme, darkMode, title, icon, children,
 }: {
   theme: any;
+  darkMode: boolean;
   title: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[getGlassCard(darkMode, 6), styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.sectionHeader}>
         {icon}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
@@ -268,7 +289,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
     width: touchTargets.minimum,
@@ -284,12 +304,36 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: responsiveSpacing.md,
+    paddingTop: responsiveSpacing.sm,
     paddingBottom: responsiveSpacing.xl,
-    gap: responsiveSpacing.md,
+    gap: responsiveSpacing.lg,
   },
-  hero: {
+  heroCard: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    borderWidth: 1,
+  },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
     alignItems: 'center',
-    paddingVertical: responsiveSpacing.lg,
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(244,63,94,0.10)',
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   avatarRing: {
     width: scale(112),
@@ -333,8 +377,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   section: {
-    borderRadius: scale(14),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
+    borderWidth: 1,
     padding: responsiveSpacing.md,
     gap: responsiveSpacing.sm,
   },
@@ -365,7 +409,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   chipText: {
     fontSize: fontScale(12),
@@ -382,7 +425,6 @@ const styles = StyleSheet.create({
   },
   msgRow: {
     paddingVertical: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
   msgFrom: {
     fontSize: fontScale(11),
@@ -405,8 +447,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: responsiveSpacing.md,
-    borderRadius: scale(10),
-    borderWidth: StyleSheet.hairlineWidth,
   },
   actionText: {
     fontSize: fontScale(14),

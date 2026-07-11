@@ -10,7 +10,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, getAppScreenBottomPadding } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
@@ -123,7 +123,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {activeTab === 'inbox' && pending.length === 0 && (
           <EmptyState
             observation="No offers yet."

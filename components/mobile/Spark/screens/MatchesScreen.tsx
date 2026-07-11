@@ -10,11 +10,12 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { Star } from 'lucide-react-native';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import EmptyState from '../components/EmptyState';
-import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
 import { formatRelativeRealTime } from '@/components/mobile/Pulse/utils/formatRelativeTime';
 import type { SparkMatch } from '@/contexts/game/types';
 
@@ -27,7 +28,7 @@ interface MatchesScreenProps {
 
 export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreenProps) {
   const { gameState } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
 
   const sp = gameState.sparkApp;
   const matches = sp?.matches ?? [];
@@ -58,55 +59,68 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      {/* Fresh matches rail */}
+      {/* Fresh matches rail — the screen's single rose focal surface (Recipe B). */}
       {freshMatches.length > 0 ? (
-        <>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-            New matches · {freshMatches.length}
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.freshRail}
-          >
-            {freshMatches.map((match) => {
-              const profile = findProfile(match.profileId);
-              if (!profile) return null;
-              return (
-                <Pressable
-                  key={match.id}
-                  onPress={() => onOpenChat(match.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open chat with ${profile.name}`}
-                  style={styles.freshItem}
-                >
-                  <LinearGradient
-                    colors={SPARK_GRADIENT as unknown as string[]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.avatarRing}
+        <View
+          style={[
+            getGlassCard(isDark, 12),
+            styles.freshCard,
+            { backgroundColor: theme.surface, borderColor: isDark ? theme.glassBorder : theme.border },
+          ]}
+        >
+          <View style={styles.freshInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={SPARK_GRADIENT_SOFT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.freshGlow} />
+            {isDark ? <View pointerEvents="none" style={styles.freshHairline} /> : null}
+
+            <Text style={[styles.railEyebrow, { color: theme.textMuted }]}>
+              NEW MATCHES · {freshMatches.length}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.freshRail}
+            >
+              {freshMatches.map((match) => {
+                const profile = findProfile(match.profileId);
+                if (!profile) return null;
+                return (
+                  <Pressable
+                    key={match.id}
+                    onPress={() => onOpenChat(match.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open chat with ${profile.name}`}
+                    style={styles.freshItem}
                   >
-                    <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
-                  </LinearGradient>
-                  {match.superLiked ? (
-                    <View style={styles.superBadge}>
-                      <Star size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
+                    <View style={[styles.avatarRing, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}>
+                      <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
                     </View>
-                  ) : null}
-                  <Text style={[styles.freshName, { color: theme.text }]} numberOfLines={1}>
-                    {profile.name.split(' ')[0]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </>
+                    {match.superLiked ? (
+                      <View style={styles.superBadge}>
+                        <Star size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
+                      </View>
+                    ) : null}
+                    <Text style={[styles.freshName, { color: theme.text }]} numberOfLines={1}>
+                      {profile.name.split(' ')[0]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
       ) : null}
 
       {/* Conversations */}
       {conversations.length > 0 ? (
         <>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: responsiveSpacing.md }]}>
+          <Text style={[styles.sectionLabel, { color: theme.textMuted, marginTop: responsiveSpacing.lg }]}>
             Messages
           </Text>
           {conversations.map((match) => {
@@ -122,17 +136,21 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                 accessibilityRole="button"
                 accessibilityLabel={`Conversation with ${profile.name}${unread > 0 ? `, ${unread} unread` : ''}`}
                 style={({ pressed }) => [
+                  getGlassCard(isDark, 6),
                   styles.convoRow,
-                  { borderBottomColor: theme.border, opacity: pressed ? 0.7 : 1 },
+                  { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Image source={getDatingProfileImage(profile.gender)} style={styles.convoAvatar} />
+                <Image
+                  source={getDatingProfileImage(profile.gender)}
+                  style={[styles.convoAvatar, { borderColor: theme.glassBorder }]}
+                />
                 <View style={styles.convoBody}>
                   <View style={styles.convoNameRow}>
                     <Text style={[styles.convoName, { color: theme.text }]} numberOfLines={1}>
                       {profile.name}
                     </Text>
-                    <Text style={[styles.convoTime, { color: theme.textSecondary }]}>
+                    <Text style={[styles.convoTime, { color: theme.textMuted }]}>
                       {last ? formatRelativeRealTime(last.timestamp) : ''}
                     </Text>
                   </View>
@@ -164,6 +182,7 @@ const FRESH_AVATAR = scale(64);
 
 const styles = StyleSheet.create({
   scroll: {
+    paddingTop: responsiveSpacing.sm,
     paddingBottom: scale(120),
   },
   empty: {
@@ -182,6 +201,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
   },
+  freshCard: {
+    marginHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius['2xl'],
+    borderWidth: 1,
+  },
+  freshInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    paddingVertical: responsiveSpacing.md,
+  },
+  freshGlow: {
+    position: 'absolute',
+    top: -scale(40),
+    right: -scale(30),
+    width: scale(140),
+    height: scale(140),
+    borderRadius: scale(70),
+    backgroundColor: 'rgba(244,63,94,0.10)',
+  },
+  freshHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  railEyebrow: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+  },
   freshRail: {
     paddingHorizontal: responsiveSpacing.md,
     gap: responsiveSpacing.md,
@@ -196,6 +250,7 @@ const styles = StyleSheet.create({
     height: FRESH_AVATAR + 4,
     borderRadius: (FRESH_AVATAR + 4) / 2,
     padding: 2,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -227,14 +282,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
+    borderWidth: 1,
   },
   convoAvatar: {
     width: scale(48),
     height: scale(48),
     borderRadius: scale(24),
+    borderWidth: 1,
   },
   convoBody: {
     flex: 1,

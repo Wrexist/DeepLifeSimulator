@@ -1,7 +1,9 @@
 import { RealEstate } from '@/contexts/game/types';
 import {
+  addRoom,
   endRental,
   findOwnedById,
+  installDecor,
   kickTenant,
   maintenanceCost,
   markOwned,
@@ -10,6 +12,7 @@ import {
   setRentMode,
   tickProperty,
   totalEquity,
+  upgradeProperty,
 } from '../operations';
 
 function unowned(over: Partial<RealEstate> = {}): RealEstate {
@@ -222,6 +225,38 @@ describe('tickProperty', () => {
     });
     expect(r.property.tenant).toBeDefined();
     expect(r.notifications.find((n) => n.id.startsWith('re-tenant-arrive-'))).toBeDefined();
+  });
+});
+
+describe('installDecor / addRoom / upgradeProperty', () => {
+  it('appends a decor id to interior without duplicating', () => {
+    const props = [owned({ interior: ['luxury_bed'] })];
+    const next = installDecor(props, 'p1', 'smart_tv');
+    expect(next[0].interior).toEqual(['luxury_bed', 'smart_tv']);
+    // Re-install is a no-op (no dupes).
+    const again = installDecor(next, 'p1', 'smart_tv');
+    expect(again[0].interior).toEqual(['luxury_bed', 'smart_tv']);
+  });
+
+  it('appends a room id to rooms without duplicating', () => {
+    const props = [owned({ rooms: [] })];
+    const next = addRoom(props, 'p1', 'home_office');
+    expect(next[0].rooms).toEqual(['home_office']);
+    const again = addRoom(next, 'p1', 'home_office');
+    expect(again[0].rooms).toEqual(['home_office']);
+  });
+
+  it('sets the upgrade tier to the requested level', () => {
+    const props = [owned({ upgradeLevel: 0 })];
+    const next = upgradeProperty(props, 'p1', 2);
+    expect(next[0].upgradeLevel).toBe(2);
+  });
+
+  it('only touches the targeted property', () => {
+    const props = [owned({ id: 'a', interior: [] }), owned({ id: 'b', interior: [] })];
+    const next = installDecor(props, 'a', 'pool');
+    expect(next.find((p) => p.id === 'a')!.interior).toEqual(['pool']);
+    expect(next.find((p) => p.id === 'b')!.interior).toEqual([]);
   });
 });
 

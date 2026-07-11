@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
+import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTheme } from '@/hooks/useTheme';
 import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
@@ -37,6 +38,8 @@ export default function TabLayout() {
   const { changes, clearChange } = useStatChanges();
 
   const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
+  // Hide the floating tab bar while an in-phone app runs full-screen.
+  const fullscreenApp = useFullscreenApp();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
   const items = gameState?.items ?? [];
 
@@ -45,6 +48,9 @@ export default function TabLayout() {
   // reporting. Sits below the death/wedding/life-moment/event modals.
   const [resultWeek, setResultWeek] = useState<number | null>(null);
   const prevWeekRef = useRef<number | null>(null);
+  // Player-facing on/off switch (Settings → "Week Summary"). Defaults to on;
+  // only an explicit `false` suppresses the recap sheet.
+  const weekSummaryEnabled = gameState?.settings?.weeklySummaryEnabled !== false;
   useEffect(() => {
     const w = gameState?.weeksLived ?? 0;
     if (prevWeekRef.current === null) { prevWeekRef.current = w; return; } // first observe
@@ -56,11 +62,11 @@ export default function TabLayout() {
         (wr.luckyBonus ?? 0) > 0 || (wr.streakBonus ?? 0) > 0 ||
         (wr.careerProgressPercent ?? 0) > 0 || !!wr.cliffhangerTeaser
       );
-      if (meaningful && !gameState?.showDeathPopup) setResultWeek(w);
+      if (meaningful && weekSummaryEnabled && !gameState?.showDeathPopup) setResultWeek(w);
     } else {
       prevWeekRef.current = w;
     }
-  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup]);
+  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup, weekSummaryEnabled]);
 
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
@@ -74,7 +80,7 @@ export default function TabLayout() {
     gameState?.showDeathPopup || gameState?.showWeddingPopup ||
     gameState?.lifeMoments?.pendingMoment || eventInboxOpen
   );
-  const showWeekResult = resultWeek !== null && !higherModalUp;
+  const showWeekResult = resultWeek !== null && !higherModalUp && weekSummaryEnabled;
   // The inbox pill shows when decisions are waiting and nothing else is up.
   const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
 
@@ -122,18 +128,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
         tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#6B7280',
         // Hide tab bar completely when in prison
-        tabBarStyle: isInPrison ? { display: 'none' } : {
+        tabBarStyle: (isInPrison || fullscreenApp) ? { display: 'none' } : {
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
           ...getGlassTabBar(isDark),
-          paddingTop: scale(12),
-          // Account for the bottom safe area (Android navigation bar / iOS
-          // home indicator). Both platforms need the inset — omitting it on
-          // iOS left the bar short on notched iPhones.
-          paddingBottom: Math.max(scale(12), insets.bottom || 0),
-          height: scale(70) + (insets.bottom || 0),
+          paddingTop: scale(8),
+          // Sit the icon row lower and tighter. Still clears the home indicator /
+          // Android nav bar, but trims the oversized inset padding + tall base
+          // height that left the labels floating high with dead space beneath.
+          // ~scale(10) is shaved off the inset (24pt clearance on a notched
+          // iPhone — plenty), and the base height drops scale(70) → scale(56).
+          paddingBottom: Math.max(scale(8), (insets.bottom || 0) - scale(10)),
+          height: scale(56) + Math.max(scale(8), (insets.bottom || 0) - scale(10)),
         },
         tabBarBackground: () => (
           <View style={{

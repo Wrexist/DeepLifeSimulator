@@ -10,12 +10,13 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
+import { ArrowLeft, BarChart3, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
 import PulseFAB from './components/PulseFAB';
@@ -27,6 +28,7 @@ import MessagesScreen from './screens/MessagesScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import BrandDealsScreen from './screens/BrandDealsScreen';
 import LiveStreamScreen from './screens/LiveStreamScreen';
+import InsightsScreen from './screens/InsightsScreen';
 import PostDetailScreen from './screens/PostDetailScreen';
 import ComposeModal from './modals/ComposeModal';
 import ScandalRecoveryModal from './modals/ScandalRecoveryModal';
@@ -44,7 +46,7 @@ const LinearGradient = LinearGradientFallback;
 
 type PulseTab = 'home' | 'trending' | 'alerts' | 'dms';
 /** Overlay routes — full-screen pushed above the tab bar. */
-type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | null;
+type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | 'insights' | null;
 
 interface PulseAppProps {
   onBack: () => void;
@@ -54,6 +56,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  // When the app runs full-screen the game tab bar is hidden, so only the home
+  // indicator needs clearing at the bottom — not the (now absent) tab bar.
+  const fullscreenApp = useFullscreenApp();
+  const bottomInset = fullscreenApp ? insets.bottom : getTabBarSafePadding(insets.bottom);
   const [activeTab, setActiveTab] = useState<PulseTab>('home');
   const [overlay, setOverlay] = useState<PulseOverlay>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
@@ -78,6 +84,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const openProfile = useCallback(() => setOverlay('profile'), []);
   const openBrandDeals = useCallback(() => setOverlay('brandDeals'), []);
   const openLive = useCallback(() => setOverlay('liveStream'), []);
+  const openInsights = useCallback(() => setOverlay('insights'), []);
   const dismissOverlay = useCallback(() => setOverlay(null), []);
   const openProUpsell = useCallback(() => setShowProUpsell(true), []);
   const dismissProUpsell = useCallback(() => setShowProUpsell(false), []);
@@ -141,12 +148,18 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
           </View>
-          <Pressable onPress={openLive} accessibilityRole="button" accessibilityLabel="Go live" hitSlop={8} style={styles.headerBtn}>
-            <Radio size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable onPress={openInsights} accessibilityRole="button" accessibilityLabel="Creator Studio insights" hitSlop={8} style={styles.headerBtnEnd}>
+              <BarChart3 size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
+            </Pressable>
+            <Pressable onPress={openLive} accessibilityRole="button" accessibilityLabel="Go live" hitSlop={8} style={styles.headerBtnEnd}>
+              <Radio size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
+            </Pressable>
+          </View>
         </View>
         <ProfileScreen
           onUpgradePro={openProUpsell}
+          onOpenInsights={openInsights}
           onOpenPostDetail={openPostDetail}
           onBoostPost={(postId) => setBoostPostId(postId)}
           onEditProfile={() => setShowProfileEdit(true)}
@@ -172,11 +185,29 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       </View>
     );
   }
+  if (overlay === 'insights') {
+    return (
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Pressable onPress={dismissOverlay} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
+            <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Creator Studio</Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </View>
+        <InsightsScreen onUpgradePro={openProUpsell} />
+        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} onSubscribe={handleSubscribePro} />
+      </View>
+    );
+  }
 
   return (
-    // Bottom padding keeps the internal tab bar (and the bottom-anchored FAB /
-    // deal chip) above the floating phone tab bar.
-    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    // Full-screen: the tab bar owns the bottom safe-area inset (see its style
+    // below) so its surface reaches the screen edge with no dead strip. The
+    // FAB / deal chip are lifted by the same inset to hold their gap above it.
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       {/* ── Header ──────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable
@@ -263,10 +294,20 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       </View>
 
       {/* ── Compose FAB ──────────────────────────────────────── */}
-      <PulseFAB onPress={handleComposePress} />
+      <PulseFAB onPress={handleComposePress} bottomOffset={bottomInset} />
 
       {/* ── Bottom tab bar ──────────────────────────────────── */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            // Absorb the safe-area inset here so the bar reaches the screen edge.
+            paddingBottom: responsiveSpacing.sm + bottomInset,
+          },
+        ]}
+      >
         <TabButton tab="home" Icon={Home} label="Home" active={activeTab === 'home'} onPress={() => setActiveTab('home')} color={theme.text} mutedColor={theme.textSecondary} />
         <TabButton tab="trending" Icon={Flame} label="Trending" active={activeTab === 'trending'} onPress={() => setActiveTab('trending')} color={theme.text} mutedColor={theme.textSecondary} />
         <View style={styles.tabSpacer} />{/* room for the raised FAB */}
@@ -280,7 +321,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           onPress={openBrandDeals}
           accessibilityRole="button"
           accessibilityLabel={`Brand deals, ${sm?.brandInbox?.pending?.length ?? 0} pending`}
-          style={[styles.dealChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          style={[
+            styles.dealChip,
+            { backgroundColor: theme.surface, borderColor: theme.border, bottom: scale(80) + bottomInset },
+          ]}
         >
           <Briefcase size={fontScale(14)} color={PULSE_GRADIENT[0]} />
           <Text style={[styles.dealChipText, { color: theme.text }]}>
@@ -352,6 +396,17 @@ const styles = StyleSheet.create({
     width: touchTargets.minimum,
     height: touchTargets.minimum,
     alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+  },
+  headerBtnEnd: {
+    minWidth: touchTargets.minimum / 2,
+    height: touchTargets.minimum,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   headerCenter: {

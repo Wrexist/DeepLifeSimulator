@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+
+const LinearGradient = LinearGradientFallback;
 
 interface Props {
   visible: boolean;
@@ -48,7 +52,7 @@ export default function AmountInputModal({
         style={styles.backdrop}
       >
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 12), styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
@@ -57,7 +61,7 @@ export default function AmountInputModal({
           </View>
           {subtitle && <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>}
 
-          <View style={[styles.inputWrap, { borderColor: valid ? theme.border : accent.danger }]}>
+          <View style={[styles.inputWrap, { borderColor: valid ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
             <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
             <TextInput
               value={text}
@@ -107,12 +111,17 @@ export default function AmountInputModal({
           <TouchableOpacity
             disabled={!valid}
             onPress={() => onConfirm(amount)}
-            style={[
-              styles.confirm,
-              { backgroundColor: valid ? accent.info : theme.border },
-            ]}
+            activeOpacity={0.7}
+            style={[styles.confirmWrap, valid && getPlatformShadows(5, 0.3, 2, 8)]}
           >
-            <Text style={styles.confirmText}>{confirmLabel}</Text>
+            <LinearGradient
+              colors={valid ? [accent.info, '#60a5fa'] : [theme.surfaceElevated, theme.surfaceElevated]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.confirm}
+            >
+              <Text style={[styles.confirmText, !valid && { color: theme.textMuted }]}>{confirmLabel}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -185,10 +194,15 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: accent.danger,
   },
+  confirmWrap: {
+    borderRadius: responsiveBorderRadius.full,
+  },
   confirm: {
     paddingVertical: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.full,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: touchTargets.minimum,
   },
   confirmText: {
     color: 'white',

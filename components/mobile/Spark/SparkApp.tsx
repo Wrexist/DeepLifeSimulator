@@ -20,20 +20,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
-import { SPARK_GRADIENT, SPARK_COLORS } from './styles/sparkTheme';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
+import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from './styles/sparkTheme';
 import SwipeScreen from './screens/SwipeScreen';
 import MatchesScreen from './screens/MatchesScreen';
+import LikesScreen from './screens/LikesScreen';
 import ChatScreen from './screens/ChatScreen';
 import PartnerProfileScreen from './screens/PartnerProfileScreen';
 import BoostModal from './modals/BoostModal';
+import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
 import MatchBanner from './components/MatchBanner';
 import { getDatingProfileImage, type DatingProfile } from '@/lib/dating/datingProfiles';
 
 const LinearGradient = LinearGradientFallback;
 
-type SparkTab = 'swipe' | 'matches' | 'profile';
+type SparkTab = 'swipe' | 'matches' | 'likes' | 'profile';
 
 interface SparkAppProps {
   onBack: () => void;
@@ -48,11 +51,17 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   const [showBoost, setShowBoost] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [jealousyDismissed, setJealousyDismissed] = useState(false);
   const [matchBanner, setMatchBanner] = useState<{ matchId: string; profile: DatingProfile } | null>(null);
 
   const sp = gameState.sparkApp;
   const isPremium = sp?.premium?.active === true;
   const unreadCount = (sp?.matches ?? []).reduce((sum, m) => sum + (m.unreadByPlayer ?? 0), 0);
+  const likesCount = (sp?.likedYou ?? []).length;
+  // Surface an unresolved jealousy event on open. Resolving it clears
+  // activeJealousy (and un-sticks the tick's permanent-block bug); the local
+  // dismiss just hides the sheet for this session without resolving.
+  const activeJealousy = sp?.activeJealousy ?? null;
 
   const handleMatch = useCallback((matchId: string, profile: DatingProfile) => {
     setMatchBanner({ matchId, profile });
@@ -97,8 +106,8 @@ export default function SparkApp({ onBack }: SparkAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+      {/* Header — borderless; the hero surface on each tab anchors the screen. */}
+      <View style={styles.header}>
         <Pressable
           onPress={onBack}
           accessibilityRole="button"
@@ -151,41 +160,60 @@ export default function SparkApp({ onBack }: SparkAppProps) {
             onOpenSwipe={() => setActiveTab('swipe')}
           />
         )}
+        {activeTab === 'likes' && (
+          <LikesScreen
+            onOpenChat={openChat}
+            onOpenPremium={() => setShowPremium(true)}
+          />
+        )}
         {activeTab === 'profile' && <ProfileTab />}
       </View>
 
       {/* Bottom tab bar — padded so it clears the floating phone tab bar. */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <TabBtn
           icon={Flame}
           label="Swipe"
           active={activeTab === 'swipe'}
           onPress={() => setActiveTab('swipe')}
-          color={theme.text}
-          mutedColor={theme.textSecondary}
+          color={SPARK_COLORS.accent}
+          mutedColor={theme.textMuted}
         />
         <TabBtn
           icon={MessageCircle}
           label={`Matches${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
           active={activeTab === 'matches'}
           onPress={() => setActiveTab('matches')}
-          color={theme.text}
-          mutedColor={theme.textSecondary}
+          color={SPARK_COLORS.accent}
+          mutedColor={theme.textMuted}
           badge={unreadCount > 0 ? unreadCount : undefined}
+        />
+        <TabBtn
+          icon={Heart}
+          label="Likes"
+          active={activeTab === 'likes'}
+          onPress={() => setActiveTab('likes')}
+          color={SPARK_COLORS.accent}
+          mutedColor={theme.textMuted}
+          badge={likesCount > 0 ? likesCount : undefined}
         />
         <TabBtn
           icon={User}
           label="Profile"
           active={activeTab === 'profile'}
           onPress={() => setActiveTab('profile')}
-          color={theme.text}
-          mutedColor={theme.textSecondary}
+          color={SPARK_COLORS.accent}
+          mutedColor={theme.textMuted}
         />
       </View>
 
       {/* Modals */}
       <BoostModal visible={showBoost} onDismiss={() => setShowBoost(false)} />
       <SparkPremiumUpsellModal visible={showPremium} onDismiss={() => setShowPremium(false)} />
+      <JealousyModal
+        visible={!!activeJealousy && !jealousyDismissed}
+        onDismiss={() => setJealousyDismissed(true)}
+      />
 
       {/* Match celebration overlay */}
       {matchBanner ? (
@@ -239,7 +267,7 @@ function TabBtn({
 
 function ProfileTab() {
   const { gameState } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const sp = gameState.sparkApp;
   const stats = sp?.lifetimeStats;
   const profile = gameState.userProfile ?? {};
@@ -249,45 +277,74 @@ function ProfileTab() {
 
   return (
     <View style={styles.profileWrap}>
-      <View style={styles.profileHero}>
-        <LinearGradient
-          colors={SPARK_GRADIENT as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.profileAvatar}
-        >
-          {/* R6-A: also fall back on Image load failure. */}
-          {profile.profilePhoto && !sparkProfileAvatarErrored ? (
-            <Image
-              source={{ uri: profile.profilePhoto }}
-              style={styles.profileAvatarImg}
-              onError={() => setSparkProfileAvatarErrored(true)}
-            />
-          ) : profile.gender ? (
-            <Image source={getDatingProfileImage(profile.gender)} style={styles.profileAvatarImg} />
+      <View
+        style={[
+          getGlassCard(isDark, 12),
+          styles.profileHeroCard,
+          { backgroundColor: theme.surface, borderColor: isDark ? theme.glassBorder : theme.border },
+        ]}
+      >
+        <View style={styles.profileHeroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={SPARK_GRADIENT_SOFT as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.profileGlow} />
+          {isDark ? <View pointerEvents="none" style={styles.profileHairline} /> : null}
+
+          <LinearGradient
+            colors={SPARK_GRADIENT as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.profileAvatar}
+          >
+            {/* R6-A: also fall back on Image load failure. */}
+            {profile.profilePhoto && !sparkProfileAvatarErrored ? (
+              <Image
+                source={{ uri: profile.profilePhoto }}
+                style={styles.profileAvatarImg}
+                onError={() => setSparkProfileAvatarErrored(true)}
+              />
+            ) : profile.gender ? (
+              <Image source={getDatingProfileImage(profile.gender)} style={styles.profileAvatarImg} />
+            ) : (
+              <Text style={styles.profileAvatarInitial}>
+                {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}
+              </Text>
+            )}
+          </LinearGradient>
+          <Text style={[styles.profileName, { color: theme.text }]}>
+            {profile.displayName || profile.name || 'You'}
+            {gameState.date?.age ? `, ${Math.floor(gameState.date.age)}` : ''}
+          </Text>
+          {sparkProfile?.bio ? (
+            <Text style={[styles.profileBio, { color: theme.textSecondary }]}>{sparkProfile.bio}</Text>
           ) : (
-            <Text style={styles.profileAvatarInitial}>
-              {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}
+            <Text style={[styles.profileBio, { color: theme.textMuted, fontStyle: 'italic' }]}>
+              Add a bio to attract more matches
             </Text>
           )}
-        </LinearGradient>
-        <Text style={[styles.profileName, { color: theme.text }]}>
-          {profile.displayName || profile.name || 'You'}
-          {gameState.date?.age ? `, ${Math.floor(gameState.date.age)}` : ''}
-        </Text>
-        {sparkProfile?.bio ? (
-          <Text style={[styles.profileBio, { color: theme.textSecondary }]}>{sparkProfile.bio}</Text>
-        ) : (
-          <Text style={[styles.profileBio, { color: theme.textMuted, fontStyle: 'italic' }]}>
-            Add a bio to attract more matches
-          </Text>
-        )}
+        </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View
+        style={[
+          getGlassCard(isDark, 6),
+          styles.statsCard,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
         <StatRow label="Total swipes" value={String(stats?.totalSwipes ?? 0)} theme={theme} />
         <StatRow label="Matches" value={String(stats?.totalMatches ?? 0)} theme={theme} />
         <StatRow label="Super-likes used" value={String(stats?.totalSuperLikes ?? 0)} theme={theme} />
+        <StatRow label="Dates gone on" value={String(stats?.totalDatesGoneOn ?? 0)} theme={theme} />
+        <StatRow label="Gifts given" value={String(stats?.totalGiftsGiven ?? 0)} theme={theme} />
+        <StatRow label="Proposals" value={String(stats?.totalProposals ?? 0)} theme={theme} />
+        <StatRow label="Marriages" value={String(stats?.totalMarriages ?? 0)} theme={theme} />
+        <StatRow label="Divorces" value={String(stats?.totalDivorces ?? 0)} theme={theme} />
         <StatRow label="Catfish exposed" value={String(stats?.totalCatfishExposed ?? 0)} theme={theme} />
         <StatRow
           label="Premium tier"
@@ -321,7 +378,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
     width: touchTargets.minimum,
@@ -386,9 +442,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.lg,
     paddingTop: responsiveSpacing.lg,
   },
-  profileHero: {
-    alignItems: 'center',
+  profileHeroCard: {
     marginBottom: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius['2xl'],
+    borderWidth: 1,
+  },
+  profileHeroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+    alignItems: 'center',
+  },
+  profileGlow: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(244,63,94,0.10)',
+  },
+  profileHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   profileAvatar: {
     width: scale(96),
@@ -419,8 +499,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statsCard: {
-    borderRadius: scale(14),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
+    borderWidth: 1,
     padding: responsiveSpacing.md,
     gap: responsiveSpacing.xs,
   },
@@ -430,5 +510,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statLabel: { fontSize: fontScale(13) },
-  statValue: { fontSize: fontScale(14), fontWeight: '600' },
+  statValue: { fontSize: fontScale(14), fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

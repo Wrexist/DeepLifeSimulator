@@ -7,14 +7,17 @@
  */
 
 import React from 'react';
-import { GameState, Loan, Education } from '../types';
+import { GameState, Loan } from '../types';
 import { logger } from '@/utils/logger';
 import {
   applyStudySession,
   enroll as enrollPure,
   pauseEducation as pausePure,
+  setStudyGroup as setStudyGroupPure,
   withdraw as withdrawPure,
 } from '@/lib/education/operations';
+import { mapClassIdsToEnrolled, STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
+import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { highestGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
@@ -110,6 +113,8 @@ export const enrollInProgram = (
     cost: number;
     duration: number;
     mode: 'cash' | 'loan';
+    /** Class ids chosen in the EnrollModal picker (mapped + capped at enrol). */
+    classIds?: string[];
   }
 ) => {
   // P1-2: pre-roll the loan-id randomness outside the updater so React 19
@@ -171,6 +176,11 @@ export const enrollInProgram = (
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'education', netCost)
         : prev.banking;
 
+    // Map the chosen class ids -> concrete EducationClass[] (pure/deterministic,
+    // filtered to this program + capped). Lights up exam difficulty, the
+    // completion stat-bonus loop, and the detail "Classes" section.
+    const classes = mapClassIdsToEnrolled(spec.templateId, spec.classIds ?? []);
+
     const result = enrollPure(prev.educations ?? [], {
       templateId: spec.templateId,
       name: spec.name,
@@ -179,6 +189,7 @@ export const enrollInProgram = (
       duration: spec.duration,
       startedWeek: prev.weeksLived,
       weeksReduction: quote.weeksReductionFromPolitics,
+      classes,
     });
 
     log.info(
@@ -230,6 +241,45 @@ export const togglePauseProgram = (
       );
     }
     return { ...prev, educations };
+  });
+};
+
+/**
+ * Join / leave a course's study group. Joining charges a small one-time cost
+ * (STUDY_GROUP_JOIN_COST) atomically via `applyMoneyDelta` — so a double-tap
+ * debits once and an unaffordable join is rejected without flipping the flag.
+ * Leaving is free (no refund). Only active (non-completed) programs qualify.
+ *
+ * Activating `studyGroupActive` is the missing writer that lets the already-wired
+ * weekly bonus (+2 happiness / −3 energy) and the +15% exam pass boost occur.
+ */
+export const toggleStudyGroup = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  educationId: string
+) => {
+  setGameState((prev) => {
+    const ed = (prev.educations ?? []).find((e) => e.id === educationId);
+    if (!ed || ed.completed) {
+      log.warn(`Study group toggle rejected: ${educationId} missing or completed`);
+      return prev;
+    }
+    const willActivate = !ed.studyGroupActive;
+    if (!willActivate) {
+      // Leaving — free, no refund.
+      return { ...prev, educations: setStudyGroupPure(prev.educations ?? [], educationId, false) };
+    }
+    // Joining — atomic charge; reject (leave flag off) if unaffordable.
+    const spend = applyMoneyDelta(prev, -STUDY_GROUP_JOIN_COST, `Study group join: ${ed.name}`);
+    if (!spend) {
+      log.warn(`Study group join rejected: can't afford $${STUDY_GROUP_JOIN_COST}`);
+      return prev;
+    }
+    log.info(`Joined study group for ${ed.name} (−$${STUDY_GROUP_JOIN_COST})`);
+    return {
+      ...prev,
+      ...spend,
+      educations: setStudyGroupPure(prev.educations ?? [], educationId, true),
+    };
   });
 };
 

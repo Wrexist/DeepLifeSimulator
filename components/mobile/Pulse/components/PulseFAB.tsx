@@ -18,9 +18,15 @@ const LinearGradient = LinearGradientFallback;
 interface PulseFABProps {
   onPress: () => void;
   accessibilityLabel?: string;
+  /**
+   * Extra bottom offset (px) added to the base gap. When the app runs
+   * full-screen the tab bar owns the safe-area inset, so the FAB is lifted by
+   * the same amount to keep its gap above the bar constant across devices.
+   */
+  bottomOffset?: number;
 }
 
-export default function PulseFAB({ onPress, accessibilityLabel = 'Compose new post' }: PulseFABProps) {
+export default function PulseFAB({ onPress, accessibilityLabel = 'Compose new post', bottomOffset = 0 }: PulseFABProps) {
   return (
     <Pressable
       onPress={() => {
@@ -29,7 +35,7 @@ export default function PulseFAB({ onPress, accessibilityLabel = 'Compose new po
       }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.touch, { bottom: scale(80) + bottomOffset }, pressed && styles.pressed]}
       hitSlop={8}
     >
       <LinearGradient colors={PULSE_GRADIENT as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fab}>
@@ -45,7 +51,8 @@ const styles = StyleSheet.create({
   touch: {
     position: 'absolute',
     right: scale(20),
-    bottom: scale(80), // sits above the bottom tab bar
+    // `bottom` is applied inline (base gap + safe-area offset) so the FAB
+    // clears the tab bar consistently whether or not the inset lives there.
     zIndex: Z_INDEX.DROPDOWN,
     width: touchTargets.large,
     height: touchTargets.large,

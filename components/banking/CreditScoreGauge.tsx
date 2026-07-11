@@ -4,6 +4,7 @@ import { Shield } from 'lucide-react-native';
 import { CreditBand, bandLabel } from '@/lib/banking/creditScore';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 interface Props {
   score: number;
@@ -29,9 +30,10 @@ export default function CreditScoreGauge({ score, band, darkMode, compact = fals
   return (
     <View
       style={[
+        getGlassCard(darkMode, 6),
         styles.card,
         compact && styles.cardCompact,
-        { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+        { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl },
       ]}
     >
       <View style={styles.header}>
@@ -44,7 +46,7 @@ export default function CreditScoreGauge({ score, band, darkMode, compact = fals
         </Text>
         <Text style={[styles.band, { color }]}>{bandLabel(band)}</Text>
       </View>
-      <View style={[styles.track, { backgroundColor: theme.border }]}>
+      <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
         <View style={[styles.fill, { width: `${fill * 100}%`, backgroundColor: color }]} />
       </View>
       <View style={styles.scaleRow}>
@@ -58,8 +60,6 @@ export default function CreditScoreGauge({ score, band, darkMode, compact = fals
 const styles = StyleSheet.create({
   card: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
   },
   cardCompact: {
     padding: responsiveSpacing.sm,
@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
   },
   score: {
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   band: {
     fontSize: responsiveFontSize.md,
@@ -103,5 +104,6 @@ const styles = StyleSheet.create({
   },
   scaleText: {
     fontSize: responsiveFontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
 });

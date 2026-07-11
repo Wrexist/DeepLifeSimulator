@@ -11,6 +11,8 @@ import { GameState, GamingStreamingState, Video, StreamHistoryItem } from '../ty
 import { computeQuality, qualityMultiplier } from '@/lib/content/quality';
 import { projectStreamOutcome, projectVideoOutcome } from '@/lib/content/algorithm';
 import { streamEarnings, videoEarnings } from '@/lib/content/monetization';
+import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
+import { rollingAverageViewers, nextHypeStreak, hypeChanceForStreak } from '@/lib/content/streamMeta';
 import { logger } from '@/utils/logger';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 
@@ -128,6 +130,10 @@ export function publishVideo(
     if (energyNow < cost) return prev;
     const earn = applyMoneyDelta(prev, earnings, `Video: ${args.title}`);
     if (!earn) return prev;
+    // Persist the shared creator level from accumulated XP so the "Lv N" badge
+    // advances immediately on upload (the weekly tick keeps it in sync too).
+    const nextExperience = ch.experience + Math.floor(outcome.views / 100);
+    const nextLevel = creatorLevelFromExperience(nextExperience);
     return {
       ...prev,
       ...earn,
@@ -138,7 +144,9 @@ export function publishVideo(
         subscribers: ch.subscribers + outcome.subscribersGained,
         totalViews: ch.totalViews + outcome.views,
         totalEarnings: ch.totalEarnings + earnings,
-        experience: ch.experience + Math.floor(outcome.views / 100),
+        experience: nextExperience,
+        level: nextLevel,
+        perkTier: creatorPerkTier(nextLevel),
         videosThisWeek: count + 1,
         lastVideoWeek: currentWeek,
       },
@@ -189,11 +197,16 @@ export function runStream(
 
   const channel = preChannel;
   const quality = computeQuality(channel.equipment, channel.pcUpgradeLevels);
+  // Hype-train streak: consecutive weekly streams raise the hype chance toward a
+  // bounded ceiling (≤25%, enforced in both hypeChanceForStreak and the algo).
+  const streamStreak = nextHypeStreak(channel.hypeStreak, channel.lastStreamWeek, currentWeek);
+  const hypeChance = hypeChanceForStreak(streamStreak);
   const outcome = projectStreamOutcome({
     quality,
     followers: channel.followers,
     duration: args.duration,
     rollHype: args.rollHype ?? Math.random(),
+    hypeChance,
   });
   const earnings = streamEarnings(outcome.viewers, args.duration, outcome.donations, quality);
 
@@ -221,6 +234,15 @@ export function runStream(
     if (energyNow < cost) return prev;
     const earn = applyMoneyDelta(prev, earnings, `Stream: ${args.game}`);
     if (!earn) return prev;
+    const nextHistory = [stream, ...ch.streamHistory].slice(0, 200);
+    // averageViewers: rolling mean of the most-recent broadcasts (the dashboard
+    // hero + History summary read this — it was pinned to 0 forever).
+    const nextAverageViewers = rollingAverageViewers(nextHistory);
+    // Persist the shared creator level from accumulated XP (badge advances now).
+    const nextExperience = ch.experience + Math.floor(outcome.viewers / 50);
+    const nextLevel = creatorLevelFromExperience(nextExperience);
+    // Advance the hype streak for the next stream (bounded; reset after a gap).
+    const nextStreak = nextHypeStreak(ch.hypeStreak, ch.lastStreamWeek, currentWeek);
     return {
       ...prev,
       ...earn,
@@ -232,8 +254,12 @@ export function runStream(
         totalDonations: ch.totalDonations + outcome.donations,
         totalEarnings: ch.totalEarnings + earnings,
         streamHours: ch.streamHours + args.duration / 60,
-        streamHistory: [stream, ...ch.streamHistory].slice(0, 200),
-        experience: ch.experience + Math.floor(outcome.viewers / 50),
+        streamHistory: nextHistory,
+        averageViewers: nextAverageViewers,
+        experience: nextExperience,
+        level: nextLevel,
+        perkTier: creatorPerkTier(nextLevel),
+        hypeStreak: nextStreak,
         bestStream:
           !ch.bestStream || outcome.viewers > ch.bestStream.viewers ? stream : ch.bestStream,
         streamsThisWeek: count + 1,
