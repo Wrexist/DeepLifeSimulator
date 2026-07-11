@@ -22,6 +22,11 @@ const P = {
   dollar: '<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   trending: '<path d="M22 7 13.5 15.5l-5-5L2 17"/><path d="M16 7h6v6"/>', check: '<path d="M20 6 9 17l-5-5"/>',
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  home: '<path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  cart: '<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h2l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>',
 };
 const VIT = [{ p: P.heart, f: 1, c: '#EF4444', v: 88 }, { p: P.smile, f: 0, c: '#F59E0B', v: 82 }, { p: P.bolt, f: 1, c: '#3B82F6', v: 64 }];
 const CARD = 'background:rgba(30,41,59,0.72);border:1px solid rgba(255,255,255,0.08);border-radius:16px;box-shadow:0 12px 26px -12px rgba(0,0,0,0.6);';
@@ -45,8 +50,17 @@ function goalRow(icon, color, title, pct) {
     <span style="color:#94A3B8;font-size:11px;font-weight:800;${tn}">${pct}%</span></div>`;
 }
 
+function tabBar() {
+  const tab = (icon, label, active) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;">
+    ${svg(icon, active ? '#60A5FA' : '#94A3B8', 19, 2)}
+    <span style="color:${active ? '#60A5FA' : '#94A3B8'};font-size:8px;font-weight:${active ? '700' : '600'};">${label}</span></div>`;
+  return `<div style="position:absolute;left:6px;right:6px;bottom:7px;height:52px;background:rgba(15,23,42,0.88);border:1px solid rgba(255,255,255,0.1);border-radius:20px;display:flex;align-items:center;padding:0 3px;box-shadow:0 -3px 18px rgba(0,0,0,0.45);">
+    ${tab(P.home, 'Home', true)}${tab(P.briefcase, 'Work', false)}${tab(P.phone, 'Mobile', false)}${tab(P.monitor, 'Computer', false)}${tab(P.trophy, 'Progress', false)}${tab(P.cart, 'Market', false)}${tab(P.heart, 'Health', false)}
+  </div>`;
+}
+
 function screen() {
-  return `<div style="flex:1;background:${T.bg};display:flex;flex-direction:column;">
+  return `<div style="flex:1;background:${T.bg};display:flex;flex-direction:column;position:relative;">
     <div style="background:#0F172A;border-bottom:1px solid rgba(255,255,255,0.07);box-shadow:0 6px 16px rgba(0,0,0,0.5);padding:9px 12px 10px;flex:0 0 auto;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
         <div style="display:flex;flex-direction:column;gap:8px;">
@@ -61,7 +75,7 @@ function screen() {
       </div>
     </div>
 
-    <div style="flex:1;padding:11px;display:flex;flex-direction:column;gap:10px;">
+    <div style="flex:1;padding:11px 11px 62px;display:flex;flex-direction:column;gap:10px;">
       <!-- Identity -->
       <div style="${CARD}padding:12px;">
         <div style="display:flex;align-items:center;gap:11px;">
@@ -113,6 +127,7 @@ function screen() {
         </div>
       </div>
     </div>
+    ${tabBar()}
   </div>`;
 }
 
@@ -121,7 +136,7 @@ const page = pageShell({
   title: 'The Home screen now',
   subtitle: 'Every revamp together: ring HUD + week dots, slate cards that lift, and the compact achievements summary. Faithful to the current components (real data will vary).',
   body: `<div style="display:flex;justify-content:center;margin-top:28px;">
-      ${phone(screen(), { caption: 'Home · current', captionColor: '#34D399', w: 322, h: 720 })}
+      ${phone(screen(), { caption: 'Home · current', captionColor: '#34D399', w: 322, h: 884 })}
     </div>`,
 });
 

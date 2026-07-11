@@ -126,7 +126,7 @@ export default function TabLayout() {
           marginTop: -2,
         },
         tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
-        tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#6B7280',
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#6B7280',
         // Hide tab bar completely when in prison
         tabBarStyle: (isInPrison || fullscreenApp) ? { display: 'none' } : {
           position: 'absolute',
