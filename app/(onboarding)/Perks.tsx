@@ -140,10 +140,10 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent
               ? ['rgba(245, 158, 11, 0.3)', 'rgba(217, 119, 6, 0.3)']
               : isSelected
-                ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
                 : isLocked
-                  ? ['rgba(75, 85, 99, 0.6)', 'rgba(55, 65, 81, 0.6)']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.6)']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -165,7 +165,7 @@ const PerkCard = React.memo(function PerkCard({
               </View>
               {isLocked ? (
                 <View style={styles.statusIconContainer}>
-                  <Lock size={32} color="#6B7280" />
+                  <Lock size={32} color="#94A3B8" />
                 </View>
               ) : isPermanent ? (
                 <View style={styles.statusIconContainer}>
@@ -173,7 +173,7 @@ const PerkCard = React.memo(function PerkCard({
                 </View>
               ) : isSelected ? (
                 <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#10B981" />
+                  <Check size={32} color="#3B82F6" />
                 </View>
               ) : null}
             </View>
@@ -283,7 +283,7 @@ const MindsetCard = React.memo(function MindsetCard({
           colors={
             isSelected
               ? ['rgba(139, 92, 246, 0.3)', 'rgba(124, 58, 237, 0.3)']
-              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -332,7 +332,7 @@ const MindsetCard = React.memo(function MindsetCard({
                       backgroundColor:
                         trait.category === 'personality'
                           ? 'rgba(139, 92, 246, 0.2)'
-                          : 'rgba(16, 185, 129, 0.2)',
+                          : 'rgba(59, 130, 246,0.2)',
                     },
                   ]}
                 >
@@ -651,8 +651,8 @@ export default function Perks() {
             <LinearGradient
               colors={
                 activeTab === 'perks'
-                  ? ['#10B981', '#059669']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['#3B82F6', '#2563EB']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
@@ -682,8 +682,8 @@ export default function Perks() {
             <LinearGradient
               colors={
                 activeTab === 'mindset'
-                  ? ['#8B5CF6', '#7C3AED']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['#3B82F6', '#2563EB']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
@@ -774,7 +774,7 @@ export default function Perks() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#10B981', '#059669', '#047857']}
+                colors={['#3B82F6', '#2563EB', '#1D4ED8']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.floatingGlassButton}
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'rgba(59, 130, 246,0.25)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
 
   perkDescription: {
     fontSize: responsiveFontSize.base,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
 
   requirementText: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#94A3B8',
     fontStyle: 'italic',
   },
 
@@ -1073,9 +1073,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246,0.3)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -1103,7 +1103,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   tabBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#3B82F6',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1164,9 +1164,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      web: { boxShadow: '0px 8px 20px rgba(59, 130, 246,0.6)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.6,
         shadowRadius: 20,
@@ -1184,9 +1184,9 @@ const styles = StyleSheet.create({
     minHeight: 64,
     justifyContent: 'center',
     ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
+      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246,0.5)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.5,
         shadowRadius: 12,

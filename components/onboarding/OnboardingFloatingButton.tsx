@@ -37,7 +37,7 @@ export default function OnboardingFloatingButton({
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#10B981', '#059669', '#047857']}
+          colors={['#60A5FA', '#3B82F6', '#2563EB']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     elevation: 16,
     ...Platform.select({
-      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      web: { boxShadow: '0px 8px 20px rgba(59, 130, 246, 0.6)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.6,
         shadowRadius: 20,
@@ -86,9 +86,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 8,
     ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
+      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.5)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.5,
         shadowRadius: 12,

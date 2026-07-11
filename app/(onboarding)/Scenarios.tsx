@@ -102,7 +102,7 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
     case 'expert':
       return '#EF4444';
     default:
-      return '#6B7280';
+      return '#94A3B8';
   }
 };
 
@@ -170,7 +170,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const rewardGems = isChallenge ? scenario.rewardGems : 0;
   const difficultyBadgeColor = isChallenge
     ? safeGetDifficultyColor(scenario.difficultyKey)
-    : '#6B7280';
+    : '#94A3B8';
   const difficultyColor =
     scenario.difficulty === 'Easy'
       ? '#10B981'
@@ -178,7 +178,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         ? '#3B82F6'
         : scenario.difficulty === 'Hard'
           ? '#F59E0B'
-          : '#6B7280';
+          : '#94A3B8';
 
   return (
     <TouchableOpacity
@@ -190,8 +190,8 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         <LinearGradient
           colors={
             isSelected
-              ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+              ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
+              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -228,7 +228,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             </View>
             {isSelected ? (
               <View style={styles.selectedDot}>
-                <Check size={scale(14)} color="#10B981" />
+                <Check size={scale(14)} color="#3B82F6" />
               </View>
             ) : null}
           </View>
@@ -464,8 +464,8 @@ export default function Scenarios() {
           <LinearGradient
             colors={
               activeTab === 'life_paths'
-                ? ['#10B981', '#059669']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                ? ['#3B82F6', '#2563EB']
+                : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
             }
             style={styles.tabGradient}
           >
@@ -483,8 +483,8 @@ export default function Scenarios() {
           <LinearGradient
             colors={
               activeTab === 'challenges'
-                ? ['#EF4444', '#DC2626']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                ? ['#3B82F6', '#2563EB']
+                : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
             }
             style={styles.tabGradient}
           >
@@ -531,9 +531,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246,0.3)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -543,9 +543,9 @@ const styles = StyleSheet.create({
   },
   tabActiveRed: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(239, 68, 68, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)' } as any,
       default: {
-        shadowColor: '#EF4444',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'rgba(59, 130, 246,0.25)',
     paddingVertical: 6,
     marginBottom: 4,
   },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: responsiveFontSize.base,
     fontWeight: '500',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     lineHeight: fontScale(16),
     marginBottom: verticalScale(3),
   },

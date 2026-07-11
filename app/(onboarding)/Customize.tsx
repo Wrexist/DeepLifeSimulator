@@ -212,7 +212,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -235,7 +235,7 @@ export default function Customize() {
                   <View style={styles.inputWrap}>
                     <TextInput
                       placeholder="Enter first name"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor="#94A3B8"
                       style={styles.inputText}
                       value={firstName}
                       onChangeText={handleFirstNameChange}
@@ -248,7 +248,7 @@ export default function Customize() {
                   <View style={styles.inputWrap}>
                     <TextInput
                       placeholder="Enter last name"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor="#94A3B8"
                       style={styles.inputText}
                       value={lastName}
                       onChangeText={handleLastNameChange}
@@ -264,7 +264,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -297,7 +297,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   sexCardSelected: {
     borderColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 2,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(59, 130, 246,0.15)',
   },
   sexIcon: {
     borderRadius: responsiveBorderRadius.md,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     fontWeight: '700',
     textAlign: 'center',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   sexualityLabelSelected: {
     color: '#FFFFFF',
