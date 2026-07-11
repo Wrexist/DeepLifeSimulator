@@ -226,17 +226,21 @@ export const POLITICAL_PERKS: PoliticalPerk[] = [
 ];
 
 /**
- * Get all active perks for a given political career level
- * @param careerLevel Political career level (0-5)
+ * Get all active perks for a given political career level.
+ * @param careerLevel 1-based office rank as stored in politics.careerLevel
+ *   (0=Citizen, 1=Council Member … 6=President). Perk `requiredLevel` is a
+ *   0-based office index (0=Council … 5=President), so we compare against
+ *   `careerLevel - 1`. Comparing directly granted every office one perk tier too
+ *   many — e.g. a first-term Council member collecting Mayor-tier perks.
  * @returns Array of active perks
  */
 export function getActivePerks(careerLevel: number): PoliticalPerk[] {
-  return POLITICAL_PERKS.filter(perk => perk.requiredLevel <= careerLevel);
+  return POLITICAL_PERKS.filter(perk => perk.requiredLevel <= careerLevel - 1);
 }
 
 /**
  * Get combined perk effects for a given career level
- * @param careerLevel Political career level (0-5)
+ * @param careerLevel 1-based office rank (politics.careerLevel; 0=Citizen … 6=President)
  * @returns Combined effects object
  */
 export function getCombinedPerkEffects(careerLevel: number): {
