@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
  overflow: 'hidden',
  },
  miniBarTrackDark: {
- backgroundColor: '#4B5563',
+ backgroundColor: '#475569',
  },
  miniBarFill: {
  height: '100%',

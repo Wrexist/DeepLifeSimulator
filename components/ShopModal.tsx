@@ -226,7 +226,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Shop</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
+              <X size={24} color={settings.darkMode ? '#CBD5E1' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -287,7 +287,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                           )}
                           <View style={styles.itemInfo}>
                             <View style={styles.itemHeader}>
-                              <item.icon size={20} color={item.owned ? '#FFFFFF' : (settings.darkMode ? '#D1D5DB' : '#334155')} />
+                              <item.icon size={20} color={item.owned ? '#FFFFFF' : (settings.darkMode ? '#CBD5E1' : '#334155')} />
                               <Text style={[
                                 styles.itemName, 
                                 settings.darkMode && styles.itemNameDark,
@@ -400,7 +400,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                               {item.image ? (
                                 <Image source={item.image} style={styles.itemImage} />
                               ) : (
-                                <item.icon size={20} color={settings.darkMode ? '#D1D5DB' : '#334155'} />
+                                <item.icon size={20} color={settings.darkMode ? '#CBD5E1' : '#334155'} />
                               )}
                               <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>
                                 {item.name}
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
   },
   shopItemDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   itemInfo: {
     flex: 1,

@@ -15,6 +15,7 @@ import { travelTo } from '@/contexts/game/actions/TravelActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface TravelModalProps {
@@ -185,7 +186,7 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
  )}
  </View>
  <View style={styles.locationRow}>
- <MapPin size={12} color="#6B7280" />
+ <MapPin size={12} color="#94A3B8" />
  <Text style={styles.destCountry}>{dest.country}</Text>
  </View>
  </View>
@@ -272,6 +273,7 @@ const styles = StyleSheet.create({
  backgroundColor: '#fff',
  borderRadius: scale(20),
  overflow: 'hidden',
+ ...getPlatformShadows(6, 0.25, 4, 14),
  },
  containerDark: {
  backgroundColor: '#1E293B',
@@ -419,7 +421,7 @@ const styles = StyleSheet.create({
  },
  destCountry: {
  fontSize: fontScale(12),
- color: '#6B7280',
+ color: '#94A3B8',
  },
  priceTag: {
  backgroundColor: '#10B981',
@@ -428,7 +430,7 @@ const styles = StyleSheet.create({
  borderRadius: scale(8),
  },
  priceTagDisabled: {
- backgroundColor: '#6B7280',
+ backgroundColor: '#94A3B8',
  },
  priceText: {
  color: '#fff',

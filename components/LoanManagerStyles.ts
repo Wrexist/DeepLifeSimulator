@@ -63,7 +63,7 @@ export const styles = StyleSheet.create({
   },
   cardDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -123,8 +123,8 @@ export const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   loanItemDark: {
-    backgroundColor: '#4B5563',
-    borderColor: '#6B7280',
+    backgroundColor: '#475569',
+    borderColor: '#94A3B8',
   },
   loanHeader: {
     flexDirection: 'row',
@@ -194,7 +194,7 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
   },
   progressBarDark: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#94A3B8',
   },
   progressFill: {
     height: '100%',
@@ -266,7 +266,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   modalHeaderDark: {
-    borderBottomColor: '#4B5563',
+    borderBottomColor: '#475569',
   },
   modalTitle: {
     fontSize: 20,
@@ -300,7 +300,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   inputDark: {
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
     color: '#F9FAFB',
     backgroundColor: '#334155',
   },
@@ -358,7 +358,7 @@ export const styles = StyleSheet.create({
   },
   termButtonDark: {
     backgroundColor: '#334155',
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
   },
   termText: {
     fontSize: 14,
@@ -477,7 +477,7 @@ export const styles = StyleSheet.create({
   },
   repaySourceButtonDark: {
     backgroundColor: '#334155',
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
   },
   repaySourceText: {
     fontSize: 14,
@@ -530,7 +530,7 @@ export const styles = StyleSheet.create({
   },
   quickPayButtonDark: {
     backgroundColor: '#334155',
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
   },
   quickPayText: {
     fontSize: 12,
