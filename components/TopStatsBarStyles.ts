@@ -32,9 +32,20 @@ export const styles = StyleSheet.create({
  },
  containerDark: {
  backgroundColor: '#0F172A',
- borderBottomWidth: 0,
- shadowColor: 'transparent',
- elevation: 0,
+ // Hairline separation + soft downward shadow so the HUD reads as a floating
+ // glass app-bar above the scrolling content below (was flat with no depth).
+ borderBottomWidth: 1,
+ borderBottomColor: 'rgba(255,255,255,0.06)',
+...Platform.select({
+ web: { boxShadow: '0px 4px 16px rgba(0,0,0,0.35)'} as any,
+ default: {
+ shadowColor: '#000',
+ shadowOffset: { width: 0, height: 3 },
+ shadowOpacity: 0.35,
+ shadowRadius: 12,
+ },
+ }),
+ elevation: 6,
  },
 
  leftSection: {
@@ -240,6 +251,9 @@ export const styles = StyleSheet.create({
  minWidth: 60, // Reduced from 70
  overflow: 'hidden', // Prevent text overflow
  maxWidth: '100%', // Ensure chip doesn't exceed container
+ // Subtle glass rim to match the app design language
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.18)',
  },
  chipIcon: {
  marginRight: 6,
