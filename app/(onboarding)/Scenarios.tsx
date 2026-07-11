@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, type ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
@@ -52,6 +52,26 @@ interface ChallengeScenarioCard extends OnboardingScenario {
 type ScenarioCard = OnboardingScenario | ChallengeScenarioCard;
 
 const CHALLENGE_FALLBACK_ICON = require('@/assets/images/Scenarios/Street Hustler.png');
+
+// Challenges have no artwork of their own, so reuse the existing Scenarios
+// paintings that best fit each challenge's fantasy instead of showing the same
+// Street Hustler fallback on every card. Keyed by CHALLENGE_SCENARIOS id.
+const CHALLENGE_ICONS: Record<string, ImageSourcePropType> = {
+  rags_to_riches: require('@/assets/images/Scenarios/Rags to Riches_final.png'),
+  academic_excellence: require('@/assets/images/Scenarios/Corporate Intern.png'),
+  social_butterfly: require('@/assets/images/Scenarios/Influencer Wannabe.png'),
+  entrepreneur: require('@/assets/images/Scenarios/Aspiring Entrepreneur.png'),
+  family_focused: require('@/assets/images/Scenarios/Single Parent_final.png'),
+  single_parent: require('@/assets/images/Scenarios/Single Parent_final.png'),
+  criminal_empire: require('@/assets/images/Scenarios/Street Hustler.png'),
+  political_dynasty: require('@/assets/images/Scenarios/Corporate Intern.png'),
+  tech_mogul: require('@/assets/images/Scenarios/Aspiring Entrepreneur.png'),
+  real_estate_tycoon: require('@/assets/images/Scenarios/Trust Fund Baby_final.png'),
+  speedrun: require('@/assets/images/Scenarios/Uber Driver.png'),
+  balanced_life: require('@/assets/images/Scenarios/Fitness Enthusiast.png'),
+  debt_escape: require('@/assets/images/Scenarios/Second Chance_final.png'),
+  fame_seeker: require('@/assets/images/Scenarios/Aspiring Streamer.png'),
+};
 
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
@@ -354,7 +374,7 @@ export default function Scenarios() {
           items: startItems,
           traits: [],
         },
-        icon: CHALLENGE_FALLBACK_ICON,
+        icon: CHALLENGE_ICONS[challengeId] ?? CHALLENGE_FALLBACK_ICON,
         isChallenge: true,
         difficultyKey,
         iconEmoji: challengeIcon,
