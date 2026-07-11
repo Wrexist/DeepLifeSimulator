@@ -39,6 +39,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -822,6 +823,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: scale(20),
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
     backgroundColor: '#0F172A',
@@ -832,7 +834,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#475569',
   },
   headerContent: {
     flexDirection: 'row',
@@ -868,7 +870,7 @@ const styles = StyleSheet.create({
   categoryTabs: {
     maxHeight: scale(60),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#475569',
   },
   categoryTabsContent: {
     paddingHorizontal: scale(12),
@@ -908,7 +910,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   categoryBadgeTextActive: {
     color: '#FFF',

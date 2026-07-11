@@ -6,6 +6,7 @@ import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
@@ -162,6 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   header: {
     flexDirection: 'row',
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#475569',
   },
   membersGrid: {
     flexDirection: 'row',
@@ -233,13 +235,13 @@ const styles = StyleSheet.create({
   },
   nodeDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   avatarContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#475569',
   },
   detailText: {
     fontSize: 12,

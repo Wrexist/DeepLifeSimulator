@@ -26,6 +26,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface SmartNotificationCenterProps {
@@ -448,6 +449,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   gradient: {
     flex: 1,
@@ -499,7 +501,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   settingsTitleDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   settingsList: {
     gap: 8,
@@ -520,7 +522,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   settingLabelDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   clearButton: {
     flexDirection: 'row',
@@ -578,7 +580,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptyStateTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   emptyStateSubtext: {
     fontSize: 14,

@@ -13,6 +13,7 @@ import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface Props {
@@ -110,7 +111,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
             <View style={styles.confirmHeader}>
               <Text style={styles.confirmTitle}>Restart Game</Text>
               <TouchableOpacity onPress={() => setShowRestartConfirm(false)} style={styles.closeButton}>
-                <X size={24} color="#D1D5DB" />
+                <X size={24} color="#CBD5E1" />
               </TouchableOpacity>
             </View>
 
@@ -202,6 +203,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     width: '90%',
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   confirmHeader: {
     flexDirection: 'row',
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   confirmButton: {
     paddingVertical: 10,

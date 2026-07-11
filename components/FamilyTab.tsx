@@ -38,6 +38,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
@@ -709,7 +710,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {/* No Relationship State */}
  {!partner &&!spouse && (
  <View style={[styles.emptyState, settings.darkMode && styles.emptyStateDark]}>
- <Heart size={48} color={settings.darkMode ? '#4B5563': '#D1D5DB'} />
+ <Heart size={48} color={settings.darkMode ? '#475569': '#D1D5DB'} />
  <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
  No Partner Yet
  </Text>
@@ -732,7 +733,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {/* Empty Children State */}
  {spouse && children.length === 0 && (
  <View style={[styles.emptyChildrenState, settings.darkMode && styles.emptyChildrenStateDark]}>
- <Baby size={32} color={settings.darkMode ? '#4B5563': '#D1D5DB'} />
+ <Baby size={32} color={settings.darkMode ? '#475569': '#D1D5DB'} />
  <Text style={[styles.emptyChildrenText, settings.darkMode && styles.textMuted]}>
  No children yet. Start your family!
  </Text>
@@ -843,7 +844,7 @@ const styles = StyleSheet.create({
  },
  statsDivider: {
  width: 1,
- backgroundColor: '#E5E7EB',
+ backgroundColor: '#475569',
  marginHorizontal: scale(8),
  },
  statsValue: {
@@ -1131,6 +1132,7 @@ const styles = StyleSheet.create({
  backgroundColor: '#FFF',
  borderRadius: scale(20),
  overflow: 'hidden',
+ ...getPlatformShadows(6, 0.25, 4, 14),
  },
  modalContentDark: {
  backgroundColor: '#1E293B',
@@ -1141,7 +1143,7 @@ const styles = StyleSheet.create({
  justifyContent: 'space-between',
  padding: scale(16),
  borderBottomWidth: 1,
- borderBottomColor: '#E5E7EB',
+ borderBottomColor: '#475569',
  },
  modalTitle: {
  fontSize: fontScale(20),

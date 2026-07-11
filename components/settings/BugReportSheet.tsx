@@ -91,7 +91,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           <View style={styles.header}>
             <Text style={styles.title}>Report a Problem</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#D1D5DB" />
+              <X size={24} color="#CBD5E1" />
             </TouchableOpacity>
           </View>
 
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   input: {
-    backgroundColor: 'rgba(17, 24, 39, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: responsiveBorderRadius.lg,

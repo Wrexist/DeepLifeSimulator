@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   statChipDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   statChipTop: {
     flexDirection: 'row',
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   statChipNameDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   statChipChange: {
     fontSize: responsiveFontSize.sm,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   miniBarDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   miniBarFill: {
     height: '100%',
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   netBadgeText: {
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   // Events
   eventRow: {
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     lineHeight: responsiveFontSize.sm * 1.5,
   },
   eventTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   noChangesText: {
     fontSize: responsiveFontSize.sm,
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   noChangesTextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   // Footer
   footer: {
