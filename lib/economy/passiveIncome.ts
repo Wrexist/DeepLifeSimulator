@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { getStockInfo } from './stockMarket';
+import { namedHirePerformanceFactor } from '@/lib/business/hustleLogic';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
@@ -299,8 +300,11 @@ export function calcWeeklyPassiveIncome(
     }
     
     // Brand & market share (Hustle overlay) now affect revenue: strong brand
-    // (>50) and market share lift income, weak brand drags it.
-    // factor = 1 + (brand - 50)/200 + marketShare%/200, clamped to [0.75, 1.6].
+    // (>50) and market share lift income, weak brand drags it. Named-hire
+    // roster performance adds a bounded ±8% nudge (star hires lift income, a
+    // demoralized roster drags it) so hiring quality/retention finally matter.
+    // factor = 1 + (brand - 50)/200 + marketShare%/200 + hirePerf, clamped to
+    // [0.75, 1.6] — the COMBINED multiplier stays within the existing cap.
     // Older saves without a hustleApp overlay get a neutral 1.0.
     try {
       const overlay = state.hustleApp?.companies?.[company.id];
@@ -311,7 +315,8 @@ export function calcWeeklyPassiveIncome(
         const marketShare = typeof overlay.marketSharePercent === 'number' && isFinite(overlay.marketSharePercent)
           ? overlay.marketSharePercent
           : 0;
-        const rawFactor = 1 + (brandScore - 50) / 200 + marketShare / 200;
+        const hireFactor = namedHirePerformanceFactor(overlay.hiringPipeline?.namedHires);
+        const rawFactor = 1 + (brandScore - 50) / 200 + marketShare / 200 + hireFactor;
         const brandFactor = Math.min(1.6, Math.max(0.75, rawFactor));
         if (isFinite(brandFactor) && brandFactor > 0) {
           weeklyIncome = Math.round(weeklyIncome * brandFactor);

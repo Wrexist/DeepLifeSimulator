@@ -242,6 +242,221 @@ describe('processPulseWeeklyTick', () => {
   });
 });
 
+describe('processPulseWeeklyTick — Wave A additions', () => {
+  // ── Scandal risk accrual ──────────────────────────────────────────────
+  it('accrues scandal risk for popular+ accounts and keeps novices at zero', () => {
+    const novice = freshState({ weeksLived: 5 });
+    novice.socialMedia!.followers = 500;
+    novice.socialMedia!.scandalRiskScore = 0;
+    novice.socialMedia!.lastPostWeek = 6;
+    const rn = processPulseWeeklyTick(novice, 6);
+    expect(rn.socialMedia.scandalRiskScore).toBe(0);
+
+    const famous = freshState({ weeksLived: 5 });
+    famous.socialMedia!.followers = 200_000; // influencer tier
+    famous.socialMedia!.scandalRiskScore = 0;
+    famous.socialMedia!.lastPostWeek = 6;
+    const rf = processPulseWeeklyTick(famous, 6);
+    expect(rf.socialMedia.scandalRiskScore).toBeGreaterThan(0);
+  });
+
+  it('decays scandal risk multiplicatively and clamps to the cap', () => {
+    const state = freshState({ weeksLived: 5 });
+    state.socialMedia!.followers = 500; // novice → zero accrual, pure decay
+    state.socialMedia!.scandalRiskScore = 100;
+    state.socialMedia!.lastPostWeek = 6;
+    const r = processPulseWeeklyTick(state, 6);
+    expect(r.socialMedia.scandalRiskScore).toBeLessThan(100);
+    expect(r.socialMedia.scandalRiskScore).toBeGreaterThanOrEqual(0);
+  });
+
+  // ── Scandal spawn gating ──────────────────────────────────────────────
+  it('never spawns a scandal below the popular follower gate', () => {
+    let state = freshState({ weeksLived: 0 });
+    state.socialMedia!.followers = 5_000; // under 10K gate
+    state.socialMedia!.scandalRiskScore = 100;
+    state.socialMedia!.scandalHistory = [];
+    for (let w = 1; w <= 120; w++) {
+      const r = processPulseWeeklyTick(state, w);
+      expect(r.socialMedia.activeScandal ?? null).toBeNull();
+      state = freshState({ weeksLived: w });
+      state.socialMedia = JSON.parse(JSON.stringify(r.socialMedia));
+      state.socialMedia!.followers = 5_000; // hold under the gate
+    }
+  });
+
+  it('does not spawn during the post-resolution cooldown', () => {
+    const state = freshState({ weeksLived: 20 });
+    state.socialMedia!.followers = 2_000_000; // celebrity
+    state.socialMedia!.scandalRiskScore = 100;
+    state.socialMedia!.activeScandal = null;
+    // Survived a scandal last week → cooldown (6wk) not elapsed.
+    state.socialMedia!.scandalHistory = [
+      {
+        id: 'old',
+        type: 'cancel',
+        severity: 50,
+        survivedAtWeek: 20,
+        finalReputationLoss: 5,
+        resolutionMethod: 'silence',
+      },
+    ];
+    const r = processPulseWeeklyTick(state, 21);
+    expect(r.socialMedia.activeScandal ?? null).toBeNull();
+  });
+
+  it('eventually spawns an organic scandal for a famous account, one at a time', () => {
+    let state = freshState({ weeksLived: 0 });
+    state.socialMedia!.followers = 2_000_000; // celebrity → highest accrual
+    state.socialMedia!.scandalRiskScore = 100;
+    state.socialMedia!.scandalHistory = [];
+    let spawnCount = 0;
+    let maxConcurrent = 0;
+    for (let w = 1; w <= 400; w++) {
+      const r = processPulseWeeklyTick(state, w);
+      const active = r.socialMedia.activeScandal ?? null;
+      maxConcurrent = Math.max(maxConcurrent, active ? 1 : 0);
+      // Detect a fresh spawn (organic id) that wasn't present before.
+      if (active && active.id.startsWith('scandal_organic_') && active.startedWeek === w) {
+        spawnCount++;
+      }
+      state = freshState({ weeksLived: w });
+      state.socialMedia = JSON.parse(JSON.stringify(r.socialMedia));
+      state.socialMedia!.followers = 2_000_000;
+      state.socialMedia!.lastPostWeek = w; // keep posting so followers don't decay off tier
+    }
+    expect(spawnCount).toBeGreaterThan(0);
+    expect(maxConcurrent).toBeLessThanOrEqual(1);
+  });
+
+  it('scandal spawn is deterministic (pure) for identical inputs', () => {
+    const build = () => {
+      const s = freshState({ weeksLived: 41 });
+      s.socialMedia!.followers = 2_000_000;
+      s.socialMedia!.scandalRiskScore = 100;
+      s.socialMedia!.activeScandal = null;
+      s.socialMedia!.scandalHistory = [];
+      return s;
+    };
+    const r1 = processPulseWeeklyTick(build(), 42);
+    const r2 = processPulseWeeklyTick(build(), 42);
+    expect(r1.socialMedia.activeScandal?.id ?? null).toBe(r2.socialMedia.activeScandal?.id ?? null);
+    expect(r1.socialMedia.scandalRiskScore).toBe(r2.socialMedia.scandalRiskScore);
+  });
+
+  // ── Pile-on comments ──────────────────────────────────────────────────
+  it('seeds bounded hostile pile-on comments on recent posts during a scandal', () => {
+    const state = freshState({ weeksLived: 5 });
+    state.socialMedia!.followers = 100_000;
+    state.socialMedia!.activeScandal = {
+      id: 's1',
+      type: 'cancel',
+      severity: 60,
+      weeksRemaining: 3,
+      startedWeek: 4,
+      reputationLossThisWeek: 0,
+      followerLossThisWeek: 0,
+      headline: 'meltdown',
+    };
+    state.socialMedia!.recentPosts = [
+      { id: 'p1', content: 'hi', likes: 1, comments: 0, timestamp: 0, contentType: 'text' },
+      { id: 'p2', content: 'yo', likes: 1, comments: 0, timestamp: 0, contentType: 'text' },
+    ];
+    state.socialMedia!.commentThreads = {};
+    const r = processPulseWeeklyTick(state, 6);
+    const threads = r.socialMedia.commentThreads ?? {};
+    expect((threads['p1'] ?? []).some(c => c.isFromHater)).toBe(true);
+    for (const list of Object.values(threads)) {
+      expect(list.length).toBeLessThanOrEqual(50);
+    }
+  });
+
+  it('pile-on is idempotent per week (no re-seed on a second tick for the same week)', () => {
+    const state = freshState({ weeksLived: 5 });
+    state.socialMedia!.followers = 100_000;
+    state.socialMedia!.activeScandal = {
+      id: 's1',
+      type: 'cancel',
+      severity: 60,
+      weeksRemaining: 3,
+      startedWeek: 4,
+      reputationLossThisWeek: 0,
+      followerLossThisWeek: 0,
+      headline: 'meltdown',
+    };
+    state.socialMedia!.recentPosts = [
+      { id: 'p1', content: 'hi', likes: 1, comments: 0, timestamp: 0, contentType: 'text' },
+    ];
+    state.socialMedia!.commentThreads = {};
+    const r1 = processPulseWeeklyTick(state, 6);
+    const count1 = (r1.socialMedia.commentThreads?.['p1'] ?? []).filter(c => c.isFromHater).length;
+    // Feed the result back and re-run the SAME week — must not add more haters.
+    const state2 = freshState({ weeksLived: 5 });
+    state2.socialMedia = JSON.parse(JSON.stringify(r1.socialMedia));
+    const r2 = processPulseWeeklyTick(state2, 6);
+    const count2 = (r2.socialMedia.commentThreads?.['p1'] ?? []).filter(
+      c => c.isFromHater && c.gameWeek === 6,
+    ).length;
+    expect(count2).toBe(count1);
+  });
+
+  it('injects a scandal trending tag with a "why" reason', () => {
+    const state = freshState({ weeksLived: 3 });
+    state.socialMedia!.trendingHashtags = [];
+    state.socialMedia!.activeScandal = {
+      id: 's1',
+      type: 'leaked_dm',
+      severity: 60,
+      weeksRemaining: 3,
+      startedWeek: 2,
+      reputationLossThisWeek: 0,
+      followerLossThisWeek: 0,
+      headline: 'leak',
+    };
+    const r = processPulseWeeklyTick(state, 4);
+    const scandalTag = r.socialMedia.trendingHashtags!.find(t => t.source === 'scandal');
+    expect(scandalTag?.whyReason).toBeTruthy();
+  });
+
+  // ── Follower history ──────────────────────────────────────────────────
+  it('appends a follower-history sample and caps it at 52 points', () => {
+    const state = freshState({ weeksLived: 100 });
+    state.socialMedia!.followers = 1234;
+    state.socialMedia!.lastPostWeek = 101;
+    state.socialMedia!.followerHistory = Array.from({ length: 52 }, (_, i) => ({ week: i, followers: i }));
+    const r = processPulseWeeklyTick(state, 101);
+    const hist = r.socialMedia.followerHistory!;
+    expect(hist.length).toBeLessThanOrEqual(52);
+    expect(hist[hist.length - 1]).toEqual({ week: 101, followers: 1234 });
+  });
+
+  it('replaces an existing same-week follower-history sample (idempotent)', () => {
+    const state = freshState({ weeksLived: 9 });
+    state.socialMedia!.followers = 5000;
+    state.socialMedia!.lastPostWeek = 10;
+    state.socialMedia!.followerHistory = [{ week: 10, followers: 111 }];
+    const r = processPulseWeeklyTick(state, 10);
+    const hist = r.socialMedia.followerHistory!;
+    const week10 = hist.filter(h => h.week === 10);
+    expect(week10).toHaveLength(1);
+    expect(week10[0].followers).toBe(5000);
+  });
+
+  // ── Pending boosts pruning ────────────────────────────────────────────
+  it('prunes expired pendingBoosts and keeps recent ones', () => {
+    const state = freshState({ weeksLived: 9 });
+    state.socialMedia!.lastPostWeek = 10;
+    state.socialMedia!.pendingBoosts = [
+      { type: 'post', postId: 'old', appliedWeek: 2 },   // expired (>2 weeks old)
+      { type: 'post', postId: 'fresh', appliedWeek: 10 }, // current
+    ];
+    const r = processPulseWeeklyTick(state, 10);
+    const ids = (r.socialMedia.pendingBoosts ?? []).map(b => b.postId);
+    expect(ids).toContain('fresh');
+    expect(ids).not.toContain('old');
+  });
+});
+
 describe('lint guard: pulseTick does not reference state.week', () => {
   it('source contains no actual references to state.week', async () => {
     const fs = await import('fs');

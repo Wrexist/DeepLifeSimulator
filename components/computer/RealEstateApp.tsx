@@ -67,8 +67,12 @@ import {
   evictTenant,
   maintainProperty,
   toggleLaunderingFront,
+  installPropertyDecor,
+  addPropertyRoom,
+  upgradePropertyTier,
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
+import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -114,6 +118,11 @@ const IMAGE_BY_ID: Record<string, keyof typeof PROPERTY_IMAGES> = {
   'townhouse': 'eco home',
   'mansion': 'modern mansion',
   'penthouse': 'penthouse suite',
+  // Commercial / multi-unit tier.
+  'retail-strip': 'city apartment',
+  'warehouse': 'office tower',
+  'office-suite': 'office tower',
+  'multi-unit': 'urban loft',
 };
 
 // Ordered keyword -> photo key fallback so legacy-owned properties (whatever they
@@ -213,20 +222,12 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
 ];
 
 /**
- * Catalog of buyable properties. Kept inline so the rewrite stays self-contained.
- * The legacy app had 20+ properties; we ship a coherent 8-tier ladder here. Players
- * who already own catalog entries from the legacy app see them in Portfolio.
+ * Buyable catalog — residential ladder + a commercial/multi-unit tier. Lives in
+ * lib/realEstate/catalog.ts (data, ground rule #7) so late-game has inventory and
+ * commercial rent mode + laundering fronts have real assets. Players who already
+ * own catalog entries from the legacy app see them in Portfolio.
  */
-const CATALOG: RealEstate[] = [
-  { id: 'studio-apt', name: 'Studio Apartment', price: 95_000,    weeklyHappiness: 3, weeklyEnergy: 2, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'city-apt',   name: 'City Apartment',   price: 180_000,   weeklyHappiness: 5, weeklyEnergy: 2, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'duplex',     name: 'Duplex',           price: 320_000,   weeklyHappiness: 6, weeklyEnergy: 3, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'sub-house',  name: 'Suburban House',   price: 480_000,   weeklyHappiness: 8, weeklyEnergy: 4, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'lux-condo',  name: 'Luxury Condo',     price: 850_000,   weeklyHappiness: 10, weeklyEnergy: 5, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'townhouse',  name: 'Brownstone',       price: 1_200_000, weeklyHappiness: 11, weeklyEnergy: 5, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'mansion',    name: 'Mansion',          price: 3_500_000, weeklyHappiness: 15, weeklyEnergy: 7, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-  { id: 'penthouse',  name: 'Penthouse',        price: 8_000_000, weeklyHappiness: 20, weeklyEnergy: 10, owned: false, interior: [], upgradeLevel: 0, status: 'vacant' },
-];
+const CATALOG: RealEstate[] = PROPERTY_CATALOG;
 
 function formatMoney(n: number): string {
   if (!isFinite(n)) return '$0';
@@ -328,13 +329,31 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     return { min: Math.min(...prices), max: Math.max(...prices) };
   }, [browseList]);
 
-  // Most recent property-related notifications (from the weekly tick).
+  // Portfolio activity timeline. Primary source is the persisted, capped
+  // realEstateActivity slice the weekly tick now writes (tenant in/out,
+  // neighborhood shift, maintenance alert). We keep the eventLog keyword filter
+  // as a fallback so real-estate event-card choices still surface. Merged and
+  // sorted newest-first.
   const activity = useMemo(() => {
-    const log = (gameState.eventLog ?? []).filter((e: any) =>
-      typeof e?.description === 'string' && /property|tenant|neighborhood|maintenance|mortgage|rent|tenan|condition|lease/i.test(e.description)
-    );
-    return log.slice(0, 12);
-  }, [gameState.eventLog]);
+    const fromSlice = (gameState.realEstateActivity ?? []).map((a) => ({
+      description: a.label,
+      week: a.week,
+      category: a.kind,
+    }));
+    const fromLog = (gameState.eventLog ?? [])
+      .filter((e: any) =>
+        typeof e?.description === 'string' &&
+        /property|tenant|neighborhood|maintenance|mortgage|rent|tenan|condition|lease/i.test(e.description)
+      )
+      .map((e: any) => ({
+        description: e.description,
+        week: e.weeksLived ?? e.week ?? 0,
+        category: e.category,
+      }));
+    return [...fromSlice, ...fromLog]
+      .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+      .slice(0, 20);
+  }, [gameState.realEstateActivity, gameState.eventLog]);
 
   // Resolve the property backing the current detail sub-page (null-safe: a sold
   // property drops out of ownedProperties and we fall back to the list).
@@ -524,8 +543,15 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               </View>
               <SpecStrip p={p} />
               <View style={styles.amenityRow}>
-                <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort/wk`} />
-                <AmenityChip icon={Activity} label={`+${p.weeklyEnergy} energy/wk`} />
+                {isCommercialCatalogId(p.id) ? (
+                  <AmenityChip icon={Building} label="Commercial · rent & fronts" />
+                ) : (
+                  <>
+                    {/* Comfort/energy only pay out while this is your residence — label it so. */}
+                    <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort (as home)`} />
+                    <AmenityChip icon={Activity} label={`+${p.weeklyEnergy} energy (as home)`} />
+                  </>
+                )}
               </View>
             </View>
           </TouchableOpacity>
@@ -680,7 +706,25 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         )}
       </View>
       {browseList.length === 0 ? (
-        <EmptyText theme={theme} darkMode={darkMode}>You already own every property in the catalog!</EmptyText>
+        <View style={[getGlassCard(darkMode, 6), styles.browseEmptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[getGlassIconContainer(darkMode, 44), styles.activityBubble]}>
+            <Building size={scale(22)} color={IDENTITY} />
+          </View>
+          <Text style={[styles.browseEmptyTitle, { color: theme.text }]}>You own every listing</Text>
+          <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+            The market is picked clean for now — new listings drop as the neighborhoods cycle. Head to Portfolio to improve and rent out what you own.
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { setActiveTab('portfolio'); setRoute({ kind: 'list' }); }}
+            style={styles.tintedBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go to portfolio"
+          >
+            <Home size={scale(14)} color={IDENTITY} />
+            <Text style={styles.tintedBtnText}>Manage portfolio</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         browseList.map((p) => <ListingCard key={p.id} p={p} />)
       )}
@@ -874,8 +918,12 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             <AmenityChip icon={Bed} label={`${specs.beds === 0 ? 'Studio' : `${specs.beds} bedroom`}`} />
             <AmenityChip icon={Bath} label={`${specs.baths} bath`} />
             <AmenityChip icon={Ruler} label={`${specs.sqft.toLocaleString()} sqft`} />
-            <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort/wk`} />
-            <AmenityChip icon={Activity} label={`+${p.weeklyEnergy} energy/wk`} />
+            {!isCommercialCatalogId(p.id) && p.weeklyHappiness > 0 && (
+              <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort (as home)`} />
+            )}
+            {!isCommercialCatalogId(p.id) && p.weeklyEnergy > 0 && (
+              <AmenityChip icon={Activity} label={`+${p.weeklyEnergy} energy (as home)`} />
+            )}
             {p.upgradeLevel > 0 && <AmenityChip icon={Layers} label={`Upgrade tier ${p.upgradeLevel}`} />}
             {(p.interior?.length ?? 0) > 0 && <AmenityChip icon={Layers} label={`${p.interior.length} furnishings`} />}
             {(p.rooms?.length ?? 0) > 0 && <AmenityChip icon={Home} label={`${p.rooms!.length} rooms added`} />}
@@ -967,7 +1015,9 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
       <ManagePropertyModal
         visible={!!manageTarget}
-        property={manageTarget}
+        // Resolve the LIVE property so the Improve flow (and any tick) reflects
+        // freshly-installed decor / rooms / upgrade tier without reopening.
+        property={manageTarget ? (ownedProperties.find((p) => p.id === manageTarget.id) ?? manageTarget) : null}
         mortgageRemaining={
           manageTarget?.mortgageId ? mortgageById.get(manageTarget.mortgageId) : undefined
         }
@@ -1011,6 +1061,27 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         onToggleLaunderingFront={() => {
           if (manageTarget) {
             toggleLaunderingFront(setGameState, manageTarget.id);
+            queueSave();
+          }
+        }}
+        onInstallDecor={(decorId) => {
+          if (manageTarget) {
+            const r = installPropertyDecor(setGameState, manageTarget.id, decorId);
+            if (!r.success) Alert.alert('Improve', r.message);
+            queueSave();
+          }
+        }}
+        onAddRoom={(roomId) => {
+          if (manageTarget) {
+            const r = addPropertyRoom(setGameState, manageTarget.id, roomId);
+            if (!r.success) Alert.alert('Improve', r.message);
+            queueSave();
+          }
+        }}
+        onUpgrade={() => {
+          if (manageTarget) {
+            const r = upgradePropertyTier(setGameState, manageTarget.id);
+            if (!r.success) Alert.alert('Improve', r.message);
             queueSave();
           }
         }}
@@ -1185,6 +1256,19 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: responsiveFontSize.sm,
+    textAlign: 'center',
+  },
+  browseEmptyCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
+    paddingVertical: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.md,
+    gap: responsiveSpacing.md,
+    alignItems: 'center',
+  },
+  browseEmptyTitle: {
+    fontSize: responsiveFontSize.md,
+    fontWeight: '700',
     textAlign: 'center',
   },
 

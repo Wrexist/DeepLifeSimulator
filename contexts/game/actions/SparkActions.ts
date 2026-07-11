@@ -40,6 +40,7 @@ import {
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
+import { getNpcReplyPool } from '@/lib/dating/npcReplyPool';
 
 const log = logger.scope('SparkActions');
 
@@ -382,18 +383,11 @@ export const generateNpcReply = (
   const profile = findProfile(match.profileId);
   if (!profile) return;
 
-  // Deterministic reply pool based on profile personality.
-  const POOL: Record<string, string[]> = {
-    adventurous: ['Sounds amazing!', 'Let\'s plan something soon 🏔', 'What\'s the wildest thing you\'ve done?'],
-    ambitious: ['Always grinding. You?', 'Coffee soon?', 'I respect that.'],
-    romantic: ['You seem sweet 💌', 'I\'d love to know more about you', 'Tell me about your dreams.'],
-    creative: ['I love that perspective', 'You\'d like the gallery downtown', 'I\'ve been writing again — finally'],
-    introverted: ['Same energy honestly.', 'Quiet night sounds perfect', 'I like that you said that.'],
-    extroverted: ['When are you free?? 🎉', 'Friends are coming over Saturday — wanna join?', 'omg yes'],
-    friendly: ['That made my day 🙂', 'You\'re fun to talk to', 'I was hoping you\'d message.'],
-    professional: ['Interesting take.', 'Let\'s grab dinner this week.', 'Networking event Thursday — interested?'],
-  };
-  const pool = POOL[profile.personality] ?? POOL.friendly;
+  // Deterministic reply pool based on profile personality. Pools are content —
+  // they live in lib/dating/npcReplyPool.ts and cover every catalog personality
+  // (see PREREQ BUG FIX there), so replies actually vary by who you match with
+  // instead of collapsing to the generic `friendly` pool.
+  const pool = getNpcReplyPool(profile.personality);
   const reply = pool[Math.floor(Math.random() * pool.length)];
   const weeksLived = gameState.weeksLived ?? 0;
 
@@ -439,6 +433,98 @@ export const markMatchRead = (
           m.id === matchId ? { ...m, unreadByPlayer: 0 } : m,
         ),
       },
+    };
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// Likes-You inbox (delivers the Ultra "See who liked you" perk)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Like back a profile from the "liked you" inbox. Because they already liked
+ * the player, liking back is a guaranteed instant match — mirrors
+ * `swipeOnProfile`'s match-append + `datingMatches` dedupe. Gated behind the
+ * `seeWhoLikedYou` perk (Ultra): free/Plus users only see a blurred count, so
+ * they can never target a specific profile to like back.
+ *
+ * Consumes the `likedYou` entry (whether or not a fresh match was created) so
+ * the inbox doesn't re-surface someone the player already actioned.
+ */
+export const likeBackFromLikedYou = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  profileId: string,
+): { success: boolean; message: string; matchId?: string } => {
+  const sp = gameState.sparkApp;
+  if (!sp) return { success: false, message: 'Spark not initialized' };
+  if (!sp.premium.perks.seeWhoLikedYou) {
+    return { success: false, message: 'Upgrade to Ultra to see who liked you' };
+  }
+  const entry = sp.likedYou.find((l) => l.profileId === profileId);
+  if (!entry) return { success: false, message: 'They no longer like you' };
+  const profile = findProfile(profileId);
+  if (!profile) return { success: false, message: 'Profile no longer exists' };
+
+  const weeksLived = gameState.weeksLived ?? 0;
+  // If a match already exists for this profile, reuse its id; otherwise mint a
+  // fresh one OUTSIDE the updater so we can return it deterministically.
+  const existingMatch = sp.matches.find((m) => m.profileId === profileId);
+  const matchId = existingMatch ? existingMatch.id : genId('spm');
+
+  setGameState((prev) => {
+    const s = ensureSpark(prev);
+    const already = s.matches.some((m) => m.profileId === profileId);
+    const newMatches = already
+      ? s.matches
+      : [
+          ...s.matches,
+          {
+            id: matchId,
+            profileId,
+            matchedWeek: weeksLived,
+            superLiked: entry.superLiked,
+            promoted: false,
+          } as SparkMatch,
+        ];
+    const newDatingMatches =
+      !(prev.datingMatches ?? []).includes(profileId)
+        ? [...(prev.datingMatches ?? []), profileId]
+        : prev.datingMatches;
+    return {
+      ...prev,
+      datingMatches: newDatingMatches,
+      sparkApp: {
+        ...s,
+        matches: newMatches,
+        // Always consume the liked-you entry once actioned.
+        likedYou: s.likedYou.filter((l) => l.profileId !== profileId),
+        lifetimeStats: {
+          ...s.lifetimeStats,
+          totalMatches: s.lifetimeStats.totalMatches + (already ? 0 : 1),
+        },
+      },
+    };
+  });
+
+  log.info(`like-back on ${profile.name} → match ${matchId}`);
+  return { success: true, message: `It's a match with ${profile.name}!`, matchId };
+};
+
+/**
+ * Dismiss a "liked you" entry without matching. Removes it from the inbox.
+ * (No `dismissed` flag / migration needed — the entry is simply dropped.)
+ */
+export const dismissLikedYou = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  profileId: string,
+): void => {
+  setGameState((prev) => {
+    const s = ensureSpark(prev);
+    if (!s.likedYou.some((l) => l.profileId === profileId)) return prev;
+    return {
+      ...prev,
+      sparkApp: { ...s, likedYou: s.likedYou.filter((l) => l.profileId !== profileId) },
     };
   });
 };

@@ -16,14 +16,22 @@ import {
   TERM_OPTIONS_WEEKS,
 } from '@/lib/realEstate/mortgage';
 import {
+  addRoom as addRoomPure,
   endRental,
   findOwnedById,
+  installDecor as installDecorPure,
   kickTenant,
   maintenanceCost,
   performMaintenance,
   sellProperty,
   setRentMode as setRentModePure,
+  upgradeProperty as upgradePropertyPure,
 } from '@/lib/realEstate/operations';
+import {
+  DECOR_ITEMS,
+  ROOM_ADDITIONS,
+  getUpgradeTier,
+} from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
 import { politicsAprReduction } from './LoanActions';
@@ -362,6 +370,139 @@ export const maintainProperty = (
       realEstate: updated,
     };
   });
+};
+
+/**
+ * Improve flow — install a decoration item into an owned property. Debits the
+ * item cost, tracks 'housing' budget spend, and writes the EXISTING interior[]
+ * field (which calculatePropertyHappiness / appreciatePropertyValue already
+ * consume). Reads prev inside the updater, so a same-batch double-tap sees the
+ * already-installed item (or the debited cash) and rejects — no double spend.
+ */
+export const installPropertyDecor = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  propertyId: string,
+  decorId: string
+): { success: boolean; message: string } => {
+  let result: { success: boolean; message: string } = { success: false, message: 'Install failed' };
+  setGameState((prev) => {
+    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+    if (!property) {
+      result = { success: false, message: 'You must own this property to improve it.' };
+      return prev;
+    }
+    const item = DECOR_ITEMS.find((d) => d.id === decorId);
+    if (!item) {
+      result = { success: false, message: 'Unknown decoration.' };
+      return prev;
+    }
+    if ((property.interior ?? []).includes(decorId)) {
+      result = { success: false, message: `${item.name} is already installed here.` };
+      return prev;
+    }
+    const cash = prev.stats?.money ?? 0;
+    if (cash < item.cost) {
+      result = { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` };
+      return prev;
+    }
+    log.info(`Installed ${item.name} in ${property.name} for $${item.cost.toLocaleString()}`);
+    result = { success: true, message: `Installed ${item.name} (+${item.happiness} comfort/wk when lived in).` };
+    return {
+      ...prev,
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', item.cost)
+        : prev.banking,
+      stats: { ...prev.stats, money: cash - item.cost },
+      realEstate: installDecorPure(prev.realEstate ?? [], propertyId, decorId),
+    };
+  });
+  return result;
+};
+
+/**
+ * Improve flow — add a room to an owned property. Debits the cost, tracks
+ * 'housing' spend, and writes the EXISTING rooms[] field. Double-tap safe.
+ */
+export const addPropertyRoom = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  propertyId: string,
+  roomId: string
+): { success: boolean; message: string } => {
+  let result: { success: boolean; message: string } = { success: false, message: 'Add-room failed' };
+  setGameState((prev) => {
+    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+    if (!property) {
+      result = { success: false, message: 'You must own this property to improve it.' };
+      return prev;
+    }
+    const room = ROOM_ADDITIONS.find((r) => r.id === roomId);
+    if (!room) {
+      result = { success: false, message: 'Unknown room.' };
+      return prev;
+    }
+    if ((property.rooms ?? []).includes(roomId)) {
+      result = { success: false, message: `${room.name} has already been added here.` };
+      return prev;
+    }
+    const cash = prev.stats?.money ?? 0;
+    if (cash < room.cost) {
+      result = { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` };
+      return prev;
+    }
+    log.info(`Added ${room.name} to ${property.name} for $${room.cost.toLocaleString()}`);
+    result = { success: true, message: `Added ${room.name} (+${room.happinessBonus} comfort/wk when lived in).` };
+    return {
+      ...prev,
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', room.cost)
+        : prev.banking,
+      stats: { ...prev.stats, money: cash - room.cost },
+      realEstate: addRoomPure(prev.realEstate ?? [], propertyId, roomId),
+    };
+  });
+  return result;
+};
+
+/**
+ * Improve flow — bump a property to the next upgrade tier (max tier 3). Debits
+ * the tier cost, tracks 'housing' spend, and writes the EXISTING upgradeLevel.
+ * The tier's rent bonus flows through the weekly tenant-model rent (bounded,
+ * only when the unit is actually tenanted). Double-tap safe.
+ */
+export const upgradePropertyTier = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  propertyId: string
+): { success: boolean; message: string } => {
+  let result: { success: boolean; message: string } = { success: false, message: 'Upgrade failed' };
+  setGameState((prev) => {
+    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+    if (!property) {
+      result = { success: false, message: 'You must own this property to upgrade it.' };
+      return prev;
+    }
+    const currentLevel = property.upgradeLevel ?? 0;
+    const nextTier = getUpgradeTier(currentLevel + 1);
+    if (!nextTier) {
+      result = { success: false, message: 'This property is already at the top upgrade tier.' };
+      return prev;
+    }
+    const cash = prev.stats?.money ?? 0;
+    if (cash < nextTier.cost) {
+      result = { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` };
+      return prev;
+    }
+    log.info(`Upgraded ${property.name} to tier ${nextTier.level} for $${nextTier.cost.toLocaleString()}`);
+    result = { success: true, message: `Upgraded ${property.name} to tier ${nextTier.level} (+$${nextTier.rentBonus}/wk rent when rented).` };
+    return {
+      ...prev,
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', nextTier.cost)
+        : prev.banking,
+      stats: { ...prev.stats, money: cash - nextTier.cost },
+      realEstate: upgradePropertyPure(prev.realEstate ?? [], propertyId, nextTier.level),
+    };
+  });
+  return result;
 };
 
 /**

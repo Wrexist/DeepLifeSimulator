@@ -50,6 +50,7 @@ import {
   Landmark,
   Building2,
   LineChart,
+  ArrowLeftRight,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
@@ -88,6 +89,8 @@ import {
   removeBill,
   createSavingsGoal,
   contributeToSavingsGoal,
+  setBudgetTarget,
+  transferBetweenOwnAccounts,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
 
@@ -166,6 +169,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
+  // v22 Wave A: computer-only budget cap picker + account transfer.
+  const [budgetTargetCategory, setBudgetTargetCategory] = useState<BudgetCategory | null>(null);
+  const [transferFromId, setTransferFromId] = useState<string | null>(null);
+  const [transferToId, setTransferToId] = useState<string | null>(null);
 
   // --- Derived values -------------------------------------------------------
   const cash = gameState.stats?.money ?? 0;
@@ -266,6 +273,46 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     },
     [setGameState, queueSave]
   );
+
+  // v22 Wave A: self-opened accounts eligible for transfers (mirrored cash
+  // accounts are read-only and rejected by the action).
+  const transferableAccounts = useMemo(
+    () => banking.accounts.filter((a) => !MIRRORED_ACCOUNT_IDS.has(a.id)),
+    [banking.accounts]
+  );
+
+  // Transfer flow: pick a source, then a destination, then an amount (modal).
+  // Uses Alert menus like the savings-goal picker to stay dependency-free.
+  const startTransfer = useCallback(() => {
+    const sources = transferableAccounts.filter((a) => a.balance > 0);
+    if (sources.length === 0) {
+      Alert.alert('Nothing to transfer', 'None of your accounts have a balance to move.');
+      return;
+    }
+    Alert.alert('Transfer from…', undefined, [
+      ...sources.map((a) => ({
+        text: `${a.name} · ${formatMoney(a.balance)}`,
+        onPress: () => {
+          const dests = transferableAccounts.filter((d) => d.id !== a.id);
+          if (dests.length === 0) {
+            Alert.alert('No destination', 'Open a second account to transfer into.');
+            return;
+          }
+          Alert.alert('Transfer to…', undefined, [
+            ...dests.map((d) => ({
+              text: `${d.name} · ${formatMoney(d.balance)}`,
+              onPress: () => {
+                setTransferFromId(a.id);
+                setTransferToId(d.id);
+              },
+            })),
+            { text: 'Cancel', style: 'cancel' as const },
+          ]);
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }, [transferableAccounts]);
 
   // ─────────────────────────── Header (nav-safe on every screen state) ───────
   const renderHeader = (title: string, opts?: { back?: () => void; right?: React.ReactNode }) => (
@@ -536,6 +583,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             onClose={() => confirmCloseAccount(acct)}
           />
         ))}
+        {/* Account transfer — exposes the built-and-tested transferBetweenOwnAccounts.
+            Only self-opened (non-mirrored) accounts can move money; ≥2 required. */}
+        {transferableAccounts.length >= 2 && (
+          <TouchableOpacity
+            style={[styles.transferBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            activeOpacity={0.7}
+            onPress={startTransfer}
+            accessibilityLabel="Transfer money between your accounts"
+          >
+            <ArrowLeftRight size={scale(16)} color={accent.info} />
+            <Text style={[styles.transferBtnText, { color: theme.text }]}>Transfer between accounts</Text>
+          </TouchableOpacity>
+        )}
 
         <SectionHeader
           theme={theme}
@@ -578,7 +638,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // ─────────────────────────── Borrow tab ────────────────────────────────────
   const renderBorrow = () => {
     const totalLimit = banking.creditCards.reduce((s, c) => s + c.creditLimit, 0);
-    const totalRewards = banking.creditCards.reduce((s, c) => s + c.pendingRewards, 0);
     const cardUtil = totalLimit > 0 ? totalCardDebt / totalLimit : 0;
     const weeklyLoanPmt = loans.reduce((s, l) => s + l.weeklyPayment, 0);
     return (
@@ -599,10 +658,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           ))
         )}
 
+        {/* v22 Wave A honesty: pendingRewards can't accrue until the Wave B
+            living-card loop wires charging, so we no longer surface a "$0 rewards"
+            readout that promises an unreachable perk. Card count only. */}
         <SectionHeader
           theme={theme}
           title="Credit Cards"
-          meta={banking.creditCards.length > 0 ? `${banking.creditCards.length} · ${formatMoney(totalRewards)} rewards` : undefined}
+          meta={banking.creditCards.length > 0 ? `${banking.creditCards.length} active` : undefined}
           addLabel="Apply"
           onAdd={() => setShowApplyCard(true)}
         />
@@ -670,9 +732,16 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </View>
         )}
 
-        {/* Per-category allocation table (budget state → allocation bars). */}
+        {/* Per-category allocation table (budget state → allocation bars).
+            Weekly caps (computer-only): tap a row to set/clear a budget target;
+            an over-cap category is flagged here and by a weekly overspend alert. */}
         <SectionTitle theme={theme}>By category</SectionTitle>
-        <BudgetBreakdown buckets={banking.budgetSpend} darkMode={darkMode} />
+        <BudgetBreakdown
+          buckets={banking.budgetSpend}
+          darkMode={darkMode}
+          targets={banking.budgetTargets}
+          onSetTarget={(cat) => setBudgetTargetCategory(cat)}
+        />
 
         <SectionHeader
           theme={theme}
@@ -1154,6 +1223,49 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             queueSave();
           }
           setContributeGoalId(null);
+        }}
+      />
+
+      {/* v22 Wave A: set/clear a weekly budget cap for a category (computer-only,
+          informational — the weekly tick raises an overspend alert). */}
+      <AmountInputModal
+        visible={!!budgetTargetCategory}
+        title="Set weekly budget"
+        subtitle={budgetTargetCategory ? `Weekly cap for ${budgetTargetCategory}. Enter 0 to clear.` : undefined}
+        confirmLabel="Set cap"
+        presets={[100, 250, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setBudgetTargetCategory(null)}
+        onConfirm={(amt) => {
+          if (budgetTargetCategory) {
+            setBudgetTarget(setGameState, budgetTargetCategory, amt);
+            queueSave();
+          }
+          setBudgetTargetCategory(null);
+        }}
+      />
+
+      {/* v22 Wave A: account-to-account transfer (exposes transferBetweenOwnAccounts). */}
+      <AmountInputModal
+        visible={!!(transferFromId && transferToId)}
+        title="Transfer amount"
+        subtitle={(() => {
+          const from = banking.accounts.find((a) => a.id === transferFromId);
+          const to = banking.accounts.find((a) => a.id === transferToId);
+          return from && to ? `${from.name} → ${to.name} · Available ${formatMoney(from.balance)}` : undefined;
+        })()}
+        confirmLabel="Transfer"
+        maxAmount={banking.accounts.find((a) => a.id === transferFromId)?.balance}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => { setTransferFromId(null); setTransferToId(null); }}
+        onConfirm={(amt) => {
+          if (transferFromId && transferToId) {
+            transferBetweenOwnAccounts(setGameState, transferFromId, transferToId, amt);
+            queueSave();
+          }
+          setTransferFromId(null);
+          setTransferToId(null);
         }}
       />
 
@@ -1698,6 +1810,20 @@ const styles = StyleSheet.create({
   summaryStrip: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
+  },
+  transferBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: responsiveSpacing.xs,
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.lg,
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+  },
+  transferBtnText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '700',
   },
   summaryCell: {
     flex: 1,

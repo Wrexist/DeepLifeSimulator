@@ -20,6 +20,7 @@ import {
 } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { SAVINGS_BALANCE_SOFT_CAP, SAVINGS_CAP_EFFICIENCY } from '@/lib/economy/constants';
+import { effectiveDepositAPR, effectiveLoanAPR } from './rateEnvironment';
 import {
   calculatePeriodicPayment,
   creditScoreAPRAdjustment,
@@ -184,12 +185,22 @@ export function openAccount(
  * accrue — that's the point of a CD.
  */
 export function accrueAccountInterest(
-  banking: BankingState
+  banking: BankingState,
+  /**
+   * Live-rate-environment deposit multiplier (1 = neutral). Sourced from the
+   * weekly tick's `economyState`. The resulting APY is clamped to
+   * `SAVINGS_APR_HARD_CAP` inside `effectiveDepositAPR`, so no boost can open a
+   * borrow-low/save-high arbitrage (asserted by the rateEnvironment invariant test).
+   */
+  depositMult = 1
 ): { banking: BankingState; totalInterest: number } {
   let totalInterest = 0;
+  const env = { depositMult, loanDelta: 0 };
   const accounts = (banking.accounts || []).map((acct) => {
     if (MIRRORED_ACCOUNT_IDS.has(acct.id)) return acct;
-    const apr = safe(acct.baseAPR);
+    // Apply the live rate environment to the advertised base APY (clamped at the
+    // regulatory hard cap). Neutral (depositMult=1) leaves the base rate intact.
+    const apr = effectiveDepositAPR(safe(acct.baseAPR), env);
     const balance = safe(acct.balance);
     if (apr <= 0 || balance <= 0) return acct;
     const belowCap = Math.min(balance, SAVINGS_BALANCE_SOFT_CAP);
@@ -527,6 +538,49 @@ export function trackBudgetSpend(
   return { ...banking, budgetSpend: capped };
 }
 
+/**
+ * v22 Wave A (computer-only): set — or clear — a weekly budget cap for a category.
+ * A non-positive / non-finite amount clears the target. Informational only: no
+ * money moves, so this carries zero economy risk (audit AdvancedBankApp proposal).
+ */
+export function setBudgetTarget(
+  banking: BankingState,
+  category: BudgetCategory,
+  amount: number
+): BankingState {
+  const targets: Partial<Record<BudgetCategory, number>> = { ...(banking.budgetTargets || {}) };
+  const amt = safe(amount);
+  if (amt > 0) {
+    targets[category] = amt;
+  } else {
+    delete targets[category];
+  }
+  return { ...banking, budgetTargets: targets };
+}
+
+/**
+ * Detect categories whose spend in `currentWeek` exceeds their configured budget
+ * target. Pure read — returns the list of `{ category, spent, target }` overruns
+ * (empty when no targets are set or nothing is over). Used by the weekly tick to
+ * raise a single overspend notification.
+ */
+export function detectBudgetOverspend(
+  banking: BankingState,
+  currentWeek: number
+): { category: BudgetCategory; spent: number; target: number }[] {
+  const targets = banking.budgetTargets || {};
+  const bucket = (banking.budgetSpend || []).find((b) => b.weeksLived === currentWeek);
+  if (!bucket) return [];
+  const over: { category: BudgetCategory; spent: number; target: number }[] = [];
+  for (const key of Object.keys(targets) as BudgetCategory[]) {
+    const target = safe(targets[key]);
+    if (target <= 0) continue;
+    const spent = safe(bucket.byCategory[key]);
+    if (spent > target) over.push({ category: key, spent, target });
+  }
+  return over;
+}
+
 // ---------------------------------------------------------------------------
 // Savings goals
 // ---------------------------------------------------------------------------
@@ -543,19 +597,100 @@ export function addSavingsGoal(
   return { banking: { ...banking, savingsGoals: [...banking.savingsGoals, full] }, goal: full };
 }
 
+/** Completion reward cap for a manually-funded goal: min(1% of target, $500). */
+export const GOAL_COMPLETION_REWARD_CAP = 500;
+/** Happiness granted on completing a savings goal. */
+export const GOAL_COMPLETION_HAPPINESS = 4;
+
+/**
+ * Contribute REAL money to a savings goal (audit no-op fix). Previously this only
+ * bumped `currentAmount`, minting a free cosmetic bar. Now:
+ *   - the amount is clamped to what remains before the target (a goal can never
+ *     exceed `targetAmount`);
+ *   - money is pulled from a real source — the goal's `linkedAccountId` balance
+ *     if set (assets conserved, handled here), otherwise the returned `cashDebit`
+ *     tells the action layer how much to debit from `stats.money`;
+ *   - reaching the target marks `completedWeek` exactly once and returns a bounded
+ *     completion reward (happiness + `min(1% of target, $500)` cash) for the
+ *     action to credit via the money helper.
+ *
+ * Returns `contributed` (actually moved into the goal) and `cashDebit` (the slice
+ * of that funded from cash — 0 when funded from a linked account).
+ */
 export function contributeToGoal(
   banking: BankingState,
   goalId: string,
-  amount: number
-): { banking: BankingState; ok: boolean; reason?: string } {
-  const idx = banking.savingsGoals.findIndex((g) => g.id === goalId);
-  if (idx === -1) return { banking, ok: false, reason: 'Goal not found' };
-  const amt = Math.max(0, safe(amount));
-  if (amt === 0) return { banking, ok: false, reason: 'Amount must be positive' };
+  amount: number,
+  currentWeek = 0
+): {
+  banking: BankingState;
+  ok: boolean;
+  reason?: string;
+  /** Amount actually moved into the goal this call. */
+  contributed: number;
+  /** Portion of `contributed` that must be debited from cash by the action. */
+  cashDebit: number;
+  /** Bounded completion reward the action credits via applyMoneyDelta. */
+  rewardCash: number;
+  /** Happiness the action adds on completion. */
+  happinessDelta: number;
+  /** True if this call completed the goal. */
+  completed: boolean;
+} {
+  const reject = (reason: string) => ({
+    banking, ok: false, reason, contributed: 0, cashDebit: 0, rewardCash: 0, happinessDelta: 0, completed: false,
+  });
 
-  const next: BankingState = { ...banking, savingsGoals: [...banking.savingsGoals] };
-  next.savingsGoals[idx] = { ...next.savingsGoals[idx], currentAmount: safe(next.savingsGoals[idx].currentAmount) + amt };
-  return { banking: next, ok: true };
+  const idx = banking.savingsGoals.findIndex((g) => g.id === goalId);
+  if (idx === -1) return reject('Goal not found');
+  const requested = Math.max(0, safe(amount));
+  if (requested === 0) return reject('Amount must be positive');
+
+  const goal = banking.savingsGoals[idx];
+  if (typeof goal.completedWeek === 'number') return reject('Goal already completed');
+
+  const target = safe(goal.targetAmount);
+  const current = Math.max(0, safe(goal.currentAmount));
+  const remainingToTarget = target > 0 ? Math.max(0, target - current) : requested;
+  if (remainingToTarget <= 0) return reject('Goal already funded');
+
+  const accounts = [...banking.accounts];
+  let contributed = 0;
+  let cashDebit = 0;
+
+  // Prefer pulling from a real linked account (assets conserved here). Mirrored
+  // accounts are read-only cash mirrors — never fund from them (that would print).
+  const linkedIdx = goal.linkedAccountId
+    ? accounts.findIndex((a) => a.id === goal.linkedAccountId && !MIRRORED_ACCOUNT_IDS.has(a.id))
+    : -1;
+  if (linkedIdx !== -1) {
+    const available = Math.max(0, safe(accounts[linkedIdx].balance));
+    contributed = Math.min(requested, remainingToTarget, available);
+    if (contributed <= 0) return reject('Linked account has no funds');
+    accounts[linkedIdx] = { ...accounts[linkedIdx], balance: available - contributed };
+  } else {
+    // Fund from cash — the action layer debits `cashDebit` from stats.money.
+    contributed = Math.min(requested, remainingToTarget);
+    cashDebit = contributed;
+  }
+
+  const nextGoals = [...banking.savingsGoals];
+  const nextCurrent = Math.min(target > 0 ? target : current + contributed, current + contributed);
+
+  let completed = false;
+  let rewardCash = 0;
+  let happinessDelta = 0;
+  let completedWeek: number | undefined = goal.completedWeek;
+  if (target > 0 && nextCurrent >= target) {
+    completed = true;
+    completedWeek = currentWeek;
+    happinessDelta = GOAL_COMPLETION_HAPPINESS;
+    rewardCash = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(target * 0.01));
+  }
+
+  nextGoals[idx] = { ...goal, currentAmount: nextCurrent, completedWeek };
+  const next: BankingState = { ...banking, accounts, savingsGoals: nextGoals };
+  return { banking: next, ok: true, contributed, cashDebit, rewardCash, happinessDelta, completed };
 }
 
 // ---------------------------------------------------------------------------
@@ -577,6 +712,12 @@ export function quoteLoan(
     aprReduction?: number;
     /** Hard APR cap (decimal) from the Private Banking IAP — caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
     aprCap?: number;
+    /**
+     * Live-rate-environment additive loan delta (decimal APR; +raises, −cheapens).
+     * Sourced from `banking.rateEnvironment.loanDelta`. Applied AFTER the credit /
+     * politics adjustments and floored at the same 0.025 floor via `effectiveLoanAPR`.
+     */
+    loanDelta?: number;
   }
 ): { rejected: false; offeredAPR: number; weeklyPayment: number; totalRepaid: number } | { rejected: true; reason: string } {
   const minScore = MIN_SCORE_BY_LOAN_TYPE[request.type];
@@ -602,6 +743,12 @@ export function quoteLoan(
   // Private Banking IAP caps the rate (never below the 0.025 floor).
   if (typeof request.aprCap === 'number' && isFinite(request.aprCap)) {
     offeredAPR = Math.min(offeredAPR, Math.max(0.025, request.aprCap));
+  }
+  // Live rate environment: recession/crash raise the offered rate, boom cheapens
+  // it. Floored at the same 0.025 floor. The rateEnvironment invariant test keeps
+  // the cheapest boom-adjusted loan above the deposit hard cap (no arbitrage).
+  if (typeof request.loanDelta === 'number' && isFinite(request.loanDelta) && request.loanDelta !== 0) {
+    offeredAPR = effectiveLoanAPR(offeredAPR, { depositMult: 1, loanDelta: request.loanDelta });
   }
   const weeklyPayment = calculatePeriodicPayment(request.principal, offeredAPR, request.termWeeks);
   const existingDebtPayments = (loans ?? []).reduce((s, l) => s + safe(l.weeklyPayment), 0);

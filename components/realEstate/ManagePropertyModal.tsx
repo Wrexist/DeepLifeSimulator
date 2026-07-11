@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert } from 'react-native';
-import { X, Wrench, Users, DoorOpen, Trash2, Building2 } from 'lucide-react-native';
+import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { maintenanceCost } from '@/lib/realEstate/operations';
+import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/housing';
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 
 interface Props {
@@ -22,6 +23,10 @@ interface Props {
   onMaintain: () => void;
   onSell: () => void;
   onToggleLaunderingFront?: () => void;
+  /** Improve flow (Wave A): install decor / add room / bump upgrade tier. */
+  onInstallDecor?: (decorId: string) => void;
+  onAddRoom?: (roomId: string) => void;
+  onUpgrade?: () => void;
 }
 
 function formatMoney(n: number): string {
@@ -51,6 +56,9 @@ export default function ManagePropertyModal({
   onMaintain,
   onSell,
   onToggleLaunderingFront,
+  onInstallDecor,
+  onAddRoom,
+  onUpgrade,
 }: Props) {
   const theme = getThemeColors(darkMode);
   const [chosenMode, setChosenMode] = useState<RentMode>('longTerm');
@@ -71,6 +79,14 @@ export default function ManagePropertyModal({
   const value = property.currentValue ?? property.price;
   const equity = Math.max(0, value - (mortgageRemaining ?? 0));
   const maintCost = maintenanceCost(property);
+
+  // Improve flow (Wave A): what's still available to install/add/upgrade.
+  const showImprove = !!(onInstallDecor || onAddRoom || onUpgrade);
+  const installedDecor = property.interior ?? [];
+  const installedRooms = property.rooms ?? [];
+  const availableDecor = DECOR_ITEMS.filter((d) => !installedDecor.includes(d.id));
+  const availableRooms = ROOM_ADDITIONS.filter((r) => !installedRooms.includes(r.id));
+  const nextTier = getUpgradeTier((property.upgradeLevel ?? 0) + 1);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -185,6 +201,99 @@ export default function ManagePropertyModal({
               </TouchableOpacity>
             </View>
 
+            {showImprove && (
+              <View style={[styles.section, { backgroundColor: theme.surfaceElevated, borderColor: accent.success }]}>
+                <View style={styles.sectionHeader}>
+                  <Sparkles size={scale(14)} color={accent.success} />
+                  <Text style={[styles.sectionTitle, { color: accent.success }]}>Improve</Text>
+                </View>
+                <Text style={[styles.helpText, { color: theme.textMuted }]}>
+                  Upgrades lift value + rent; furnishings and rooms add comfort when this is your home.
+                </Text>
+
+                {/* Upgrade tier */}
+                {onUpgrade && (
+                  <TouchableOpacity
+                    disabled={!nextTier || availableCash < (nextTier?.cost ?? Infinity)}
+                    onPress={onUpgrade}
+                    style={[
+                      styles.improveRow,
+                      { borderColor: theme.border, opacity: nextTier && availableCash >= nextTier.cost ? 1 : 0.5 },
+                    ]}
+                  >
+                    <ArrowUpCircle size={scale(15)} color={accent.success} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.improveName, { color: theme.text }]}>
+                        {nextTier ? `Upgrade to tier ${nextTier.level}` : `Max upgrade tier (${property.upgradeLevel ?? 0})`}
+                      </Text>
+                      {nextTier && (
+                        <Text style={[styles.improveMeta, { color: theme.textMuted }]}>
+                          +${nextTier.rentBonus}/wk rent when rented
+                        </Text>
+                      )}
+                    </View>
+                    {nextTier && <Text style={[styles.improveCost, { color: accent.success }]}>{formatMoney(nextTier.cost)}</Text>}
+                  </TouchableOpacity>
+                )}
+
+                {/* Room additions */}
+                {onAddRoom && availableRooms.length > 0 && (
+                  <>
+                    <Text style={[styles.improveGroup, { color: theme.textSecondary }]}>Add a room</Text>
+                    {availableRooms.map((r) => {
+                      const affordable = availableCash >= r.cost;
+                      return (
+                        <TouchableOpacity
+                          key={r.id}
+                          disabled={!affordable}
+                          onPress={() => onAddRoom(r.id)}
+                          style={[styles.improveRow, { borderColor: theme.border, opacity: affordable ? 1 : 0.5 }]}
+                        >
+                          <Plus size={scale(15)} color={accent.info} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.improveName, { color: theme.text }]}>{r.name}</Text>
+                            <Text style={[styles.improveMeta, { color: theme.textMuted }]}>+{r.happinessBonus} comfort/wk</Text>
+                          </View>
+                          <Text style={[styles.improveCost, { color: theme.textSecondary }]}>{formatMoney(r.cost)}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Decoration items */}
+                {onInstallDecor && availableDecor.length > 0 && (
+                  <>
+                    <Text style={[styles.improveGroup, { color: theme.textSecondary }]}>Furnish</Text>
+                    {availableDecor.map((d) => {
+                      const affordable = availableCash >= d.cost;
+                      return (
+                        <TouchableOpacity
+                          key={d.id}
+                          disabled={!affordable}
+                          onPress={() => onInstallDecor(d.id)}
+                          style={[styles.improveRow, { borderColor: theme.border, opacity: affordable ? 1 : 0.5 }]}
+                        >
+                          <Sparkles size={scale(15)} color={theme.textMuted} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.improveName, { color: theme.text }]}>{d.name}</Text>
+                            <Text style={[styles.improveMeta, { color: theme.textMuted }]}>+{d.happiness} comfort/wk · {d.room}</Text>
+                          </View>
+                          <Text style={[styles.improveCost, { color: theme.textSecondary }]}>{formatMoney(d.cost)}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
+
+                {availableDecor.length === 0 && availableRooms.length === 0 && !nextTier && (
+                  <Text style={[styles.helpText, { color: theme.textMuted }]}>
+                    Fully improved — every upgrade, room, and furnishing is installed.
+                  </Text>
+                )}
+              </View>
+            )}
+
             {property.rentMode === 'commercial' && onToggleLaunderingFront && (
               <View style={[styles.section, { backgroundColor: theme.surfaceElevated, borderColor: accent.purple }]}>
                 <View style={styles.sectionHeader}>
@@ -286,4 +395,17 @@ const styles = StyleSheet.create({
   btnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
   tenantRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
   tenantText: { flex: 1, fontSize: responsiveFontSize.xs },
+  improveGroup: { fontSize: responsiveFontSize.xs, fontWeight: '700', marginTop: responsiveSpacing.xs },
+  improveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.lg,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+  },
+  improveName: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  improveMeta: { fontSize: responsiveFontSize.xs, marginTop: 1 },
+  improveCost: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
 });

@@ -45,8 +45,10 @@ import {
   enrollInProgram,
   studyExtra,
   togglePauseProgram,
+  toggleStudyGroup,
   withdrawFromProgram,
 } from '@/contexts/game/actions/EducationActions';
+import { STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
 import { highestGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
 import { meritRate } from '@/lib/education/scholarships';
 
@@ -295,6 +297,25 @@ function EducationAppInner({ onBack }: EducationAppProps) {
     setSelectedId((cur) => (cur === id ? null : cur));
   }, [setGameState, queueSave]);
 
+  const handleToggleStudyGroup = useCallback((id: string) => {
+    toggleStudyGroup(setGameState, id);
+    queueSave();
+  }, [setGameState, queueSave]);
+
+  // Campus events: the weekly tick flags `pendingCampusEventEducationId` when
+  // one fires; this dismissable banner finally CONSUMES that flag via the
+  // previously-dead `clearCampusEvent` action (replacing the `{false && …}`
+  // unused-var placeholder).
+  const pendingCampusEventId = gameState.pendingCampusEventEducationId;
+  const pendingCampusEventName = useMemo(
+    () => educations.find((e) => e.id === pendingCampusEventId)?.name,
+    [educations, pendingCampusEventId]
+  );
+  const handleDismissCampusEvent = useCallback(() => {
+    clearCampusEvent(setGameState);
+    queueSave();
+  }, [setGameState, queueSave]);
+
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
@@ -393,7 +414,9 @@ function EducationAppInner({ onBack }: EducationAppProps) {
               onOpen={() => setSelectedId(e.id)}
               onStudy={() => handleStudy(e.id)}
               onTogglePause={() => handleTogglePause(e.id)}
+              onToggleStudyGroup={() => handleToggleStudyGroup(e.id)}
               onWithdraw={() => handleWithdraw(e.id)}
+              canAffordStudyGroup={cash >= STUDY_GROUP_JOIN_COST}
             />
           ))
         )}
@@ -484,7 +507,9 @@ function EducationAppInner({ onBack }: EducationAppProps) {
             loan={findStudentLoan(gameState.loans, selectedCourse)}
             onStudy={() => handleStudy(selectedCourse.id)}
             onTogglePause={() => handleTogglePause(selectedCourse.id)}
+            onToggleStudyGroup={() => handleToggleStudyGroup(selectedCourse.id)}
             onWithdraw={() => handleWithdraw(selectedCourse.id)}
+            canAffordStudyGroup={cash >= STUDY_GROUP_JOIN_COST}
           />
         </ScrollView>
       ) : (
@@ -526,7 +551,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         gameState={gameState}
         darkMode={darkMode}
         onClose={() => setEnrollTarget(null)}
-        onConfirm={(mode) => {
+        onConfirm={(mode, classIds) => {
           if (enrollTarget) {
             enrollInProgram(setGameState, {
               templateId: enrollTarget.id,
@@ -535,6 +560,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
               cost: enrollTarget.cost,
               duration: enrollTarget.duration,
               mode,
+              classIds,
             });
             queueSave();
             setActiveTab('enrolled');
@@ -543,8 +569,42 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         }}
       />
 
-      {/* Silence unused-var warnings for follow-up wiring. */}
-      {false && <Text>{String(clearCampusEvent)}</Text>}
+      {pendingCampusEventId ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: responsiveSpacing.md,
+            right: responsiveSpacing.md,
+            bottom: getAppScreenBottomPadding(insets.bottom),
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: responsiveSpacing.sm,
+            padding: responsiveSpacing.md,
+            borderRadius: 14,
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ flex: 1, color: theme.text, fontSize: scale(13) }}>
+            {`Something happened on campus${pendingCampusEventName ? ` in ${pendingCampusEventName}` : ''}.`}
+          </Text>
+          <TouchableOpacity
+            onPress={handleDismissCampusEvent}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss campus event"
+            style={{
+              paddingVertical: responsiveSpacing.xs,
+              paddingHorizontal: responsiveSpacing.md,
+              borderRadius: 10,
+              backgroundColor: withAlpha(CYAN, 0.16),
+            }}
+          >
+            <Text style={{ color: CYAN, fontWeight: '700', fontSize: scale(13) }}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -638,8 +698,45 @@ function SubjectBubble({ id, darkMode, size = 44 }: { id: string; darkMode: bool
   );
 }
 
+/** Join / leave a study group — the missing writer for `studyGroupActive`.
+ *  Active: leave (free). Inactive: join for a one-time cost, gated on affordability. */
+function StudyGroupButton({ ed, theme, canAfford, onPress }: {
+  ed: Education;
+  theme: ReturnType<typeof getThemeColors>;
+  canAfford: boolean;
+  onPress: () => void;
+}) {
+  const active = !!ed.studyGroupActive;
+  // Inactive + unaffordable is the only disabled case (leaving is always allowed).
+  const disabled = !active && !canAfford;
+  const tint = active ? accent.success : CYAN;
+  const label = active
+    ? 'Leave study group'
+    : `Join study group · ${formatMoney(STUDY_GROUP_JOIN_COST)}`;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.actionBtn,
+        disabled
+          ? { backgroundColor: theme.surfaceElevated }
+          : { backgroundColor: withAlpha(tint, 0.14), borderWidth: 1, borderColor: withAlpha(tint, 0.30) },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+    >
+      <Users size={scale(14)} color={disabled ? theme.textMuted : tint} />
+      <Text style={[styles.actionBtnText, { color: disabled ? theme.textMuted : tint }]} numberOfLines={1}>
+        {disabled ? `Study group · need ${formatMoney(STUDY_GROUP_JOIN_COST)}` : label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 /** Enrolled course — wide signature card: ProgressRing + info + action buttons. */
-function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onTogglePause, onWithdraw }: {
+function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
@@ -648,7 +745,9 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
   onOpen: () => void;
   onStudy: () => void;
   onTogglePause: () => void;
+  onToggleStudyGroup: () => void;
   onWithdraw: () => void;
+  canAffordStudyGroup: boolean;
 }) {
   const grade = gradeInfo(ed);
   const pct = progressOf(ed);
@@ -728,6 +827,13 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
             {study.label}
           </Text>
         </TouchableOpacity>
+
+        <StudyGroupButton
+          ed={ed}
+          theme={theme}
+          canAfford={canAffordStudyGroup}
+          onPress={onToggleStudyGroup}
+        />
 
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -846,7 +952,7 @@ function TranscriptRow({ ed, theme, darkMode, onOpen }: {
 }
 
 /** Full course / transcript detail page (presentational sub-view). */
-function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTogglePause, onWithdraw }: {
+function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
@@ -855,7 +961,9 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
   loan?: Loan;
   onStudy: () => void;
   onTogglePause: () => void;
+  onToggleStudyGroup: () => void;
   onWithdraw: () => void;
+  canAffordStudyGroup: boolean;
 }) {
   const grade = gradeInfo(ed);
   const pct = progressOf(ed);
@@ -1037,6 +1145,13 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
               </Text>
             </View>
           </TouchableOpacity>
+
+          <StudyGroupButton
+            ed={ed}
+            theme={theme}
+            canAfford={canAffordStudyGroup}
+            onPress={onToggleStudyGroup}
+          />
 
           <View style={styles.actionRow}>
             <TouchableOpacity

@@ -53,6 +53,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
+import { nextHypeStreak, hypeChanceForStreak, HYPE_MAX_CHANCE } from '@/lib/content/streamMeta';
 import {
   runStream,
   buyAccessory,
@@ -199,8 +200,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
     [channel]
   );
   const monetization = useMemo(
-    () => monetizationSummary(quality, channel?.paidMembers ?? 0),
-    [quality, channel?.paidMembers]
+    () => monetizationSummary(quality, channel?.paidMembers ?? 0, channel?.membershipRate),
+    [quality, channel?.paidMembers, channel?.membershipRate]
   );
 
   const week = gameState.weeksLived || 0;
@@ -214,7 +215,14 @@ export default function GamingStreamingApp({ onBack }: Props) {
     : 0;
   const streamsThisWeek =
     channel?.lastStreamWeek === week ? channel?.streamsThisWeek ?? 0 : 0;
-  const isLive = !!channel?.currentStream;
+  // "LIVE" = broadcast at least once this in-game week (streams resolve within
+  // the week, so there is no persistent currentStream to key off — this is the
+  // honest read that lights the pill instead of it being OFFLINE forever).
+  const isLive = streamsThisWeek > 0 || !!channel?.currentStream;
+  // Hype-train chance the NEXT stream would roll, given the streak it would be
+  // on (consecutive-week streak → higher, bounded at HYPE_MAX_CHANCE).
+  const projectedStreak = nextHypeStreak(channel?.hypeStreak, channel?.lastStreamWeek, week);
+  const projectedHypeChance = hypeChanceForStreak(projectedStreak);
 
   // Group history by category so tiles / detail pages can aggregate cheaply.
   const historyByGame = useMemo(() => {
@@ -719,12 +727,27 @@ export default function GamingStreamingApp({ onBack }: Props) {
           <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
             <View style={[styles.capFill, { width: `${Math.min(100, (streamsThisWeek / 5) * 100)}%`, backgroundColor: FUCHSIA }]} />
           </View>
-          <View style={styles.hintRow}>
-            <Flame size={scale(12)} color={accent.warning} />
-            <Text style={[styles.recordHint, { color: theme.textMuted }]}>
-              Diminishing returns past 90 minutes. Hype-train chance ~8%.
-            </Text>
+          <View style={styles.hypeHeadRow}>
+            <View style={[styles.hintRow, { flex: 1 }]}>
+              <Flame size={scale(12)} color={accent.warning} />
+              <Text style={[styles.recordHint, { color: theme.textMuted }]}>
+                Hype-train chance {Math.round(projectedHypeChance * 100)}%
+                {projectedStreak > 1 ? ` · ${projectedStreak}-week streak` : ''}
+              </Text>
+            </View>
+            <Text style={[styles.hypeMax, { color: theme.textMuted }]}>max {Math.round(HYPE_MAX_CHANCE * 100)}%</Text>
           </View>
+          <View style={[styles.hypeTrack, { backgroundColor: theme.surfaceElevated }]}>
+            <View
+              style={[
+                styles.hypeFill,
+                { width: `${Math.min(100, (projectedHypeChance / HYPE_MAX_CHANCE) * 100)}%`, backgroundColor: accent.warning },
+              ]}
+            />
+          </View>
+          <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: sp.xs }]}>
+            Diminishing returns past 90 minutes. Stream every week to build your streak.
+          </Text>
           <TouchableOpacity
             onPress={handleStream}
             disabled={!canGo}
@@ -1350,6 +1373,10 @@ const styles = StyleSheet.create({
   capFill: { height: '100%', borderRadius: br.full },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic', flex: 1 },
+  hypeHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
+  hypeMax: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  hypeTrack: { height: scale(7), borderRadius: br.full, overflow: 'hidden', marginTop: sp.xs },
+  hypeFill: { height: '100%', borderRadius: br.full },
   publishBtnWrap: { borderRadius: br.full },
   publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
   publishBtnText: { fontSize: fs.md, fontWeight: '800', color: '#fff' },

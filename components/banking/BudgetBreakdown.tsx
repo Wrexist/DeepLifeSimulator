@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BudgetCategory, BudgetWeekBucket } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -9,6 +9,13 @@ interface Props {
   darkMode: boolean;
   /** How many weeks to aggregate. Defaults to 4 (a month). */
   weeks?: number;
+  /**
+   * v22 Wave A (computer-only): weekly per-category budget caps. When set, each
+   * row shows the weekly-average spend vs its cap with an over/under chip.
+   */
+  targets?: Partial<Record<BudgetCategory, number>>;
+  /** Tapping a row invokes this (opens the "set cap" input). Computer-only. */
+  onSetTarget?: (category: BudgetCategory) => void;
 }
 
 const CATEGORY_LABEL: Record<BudgetCategory, string> = {
@@ -46,9 +53,10 @@ function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
-export default function BudgetBreakdown({ buckets, darkMode, weeks = 4 }: Props) {
+export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets, onSetTarget }: Props) {
   const theme = getThemeColors(darkMode);
   const recent = [...buckets].sort((a, b) => b.weeksLived - a.weeksLived).slice(0, weeks);
+  const weeksCounted = Math.max(1, recent.length);
 
   // Sum spend by category across the recent buckets.
   const totals: Partial<Record<BudgetCategory, number>> = {};
@@ -84,17 +92,41 @@ export default function BudgetBreakdown({ buckets, darkMode, weeks = 4 }: Props)
         const key = cat as BudgetCategory;
         const pct = grandTotal > 0 ? (amt ?? 0) / grandTotal : 0;
         const color = CATEGORY_COLOR[key];
-        return (
-          <View key={key} style={styles.row}>
+        // Weekly budget cap (computer-only). Compare the weekly-average spend to
+        // the cap for the over/under chip — matches the weekly overspend tick.
+        const cap = targets ? targets[key] : undefined;
+        const weeklyAvg = (amt ?? 0) / weeksCounted;
+        const over = cap != null && cap > 0 && weeklyAvg > cap;
+        const rowBody = (
+          <>
             <View style={styles.rowHeader}>
               <View style={[styles.dot, { backgroundColor: color }]} />
               <Text style={[styles.catLabel, { color: theme.text }]}>{CATEGORY_LABEL[key]}</Text>
+              {cap != null && cap > 0 && (
+                <View style={[styles.capChip, { backgroundColor: (over ? accent.danger : accent.success) + '22' }]}>
+                  <Text style={[styles.capChipText, { color: over ? accent.danger : accent.success }]}>
+                    {over ? 'over' : 'ok'} · {formatMoney(cap)}/wk
+                  </Text>
+                </View>
+              )}
               <Text style={[styles.amount, { color: theme.textSecondary }]}>{formatMoney(amt ?? 0)}</Text>
             </View>
             <View style={[styles.track, { backgroundColor: theme.border }]}>
-              <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: color }]} />
+              <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: over ? accent.danger : color }]} />
             </View>
-          </View>
+            {onSetTarget && (
+              <Text style={[styles.setHint, { color: theme.textMuted }]}>
+                {cap != null && cap > 0 ? 'Tap to change weekly cap' : 'Tap to set a weekly cap'}
+              </Text>
+            )}
+          </>
+        );
+        return onSetTarget ? (
+          <TouchableOpacity key={key} style={styles.row} activeOpacity={0.7} onPress={() => onSetTarget(key)}>
+            {rowBody}
+          </TouchableOpacity>
+        ) : (
+          <View key={key} style={styles.row}>{rowBody}</View>
         );
       })}
     </View>
@@ -143,6 +175,19 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '700',
+  },
+  capChip: {
+    paddingHorizontal: responsiveSpacing.xs,
+    paddingVertical: 1,
+    borderRadius: responsiveBorderRadius.full,
+  },
+  capChipText: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '700',
+  },
+  setHint: {
+    fontSize: responsiveFontSize.xs,
+    marginTop: 2,
   },
   track: {
     height: scale(4),

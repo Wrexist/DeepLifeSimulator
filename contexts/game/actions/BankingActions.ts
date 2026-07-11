@@ -26,6 +26,7 @@ import {
   addSavingsGoal,
   contributeToGoal,
   trackBudgetSpend,
+  setBudgetTarget as setBudgetTargetOp,
   findCheckingAccount,
   recomputeCreditScore,
   MIRRORED_ACCOUNT_IDS,
@@ -396,20 +397,59 @@ export const contributeToSavingsGoal = (
   amount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
-    const result = contributeToGoal(state.banking, goalId, amount);
+    // Pure helper clamps to the target, pulls from a linked account (assets
+    // conserved) or reports a cashDebit, and reports a bounded completion reward.
+    const result = contributeToGoal(state.banking, goalId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Goal contribution failed: ${result.reason}`);
       return prev;
     }
-    return { ...state, banking: result.banking };
+    let working: GameState = { ...state, banking: result.banking };
+    // Debit the cash-funded portion (audit fix — Contribute is no longer free).
+    if (result.cashDebit > 0) {
+      const debit = applyMoneyDelta(working, -result.cashDebit, `Savings goal contribution`);
+      if (!debit) {
+        log.warn('Goal contribution rejected: insufficient cash');
+        return prev; // roll back — no partial funding.
+      }
+      working = { ...working, ...debit };
+    }
+    // Credit the bounded, once-only completion reward (≤ min(1% target, $500)).
+    if (result.rewardCash > 0) {
+      const credit = applyMoneyDelta(working, result.rewardCash, `Savings goal completed reward`);
+      if (credit) working = { ...working, ...credit };
+    }
+    if (result.happinessDelta > 0) {
+      const h = typeof working.stats.happiness === 'number' && isFinite(working.stats.happiness) ? working.stats.happiness : 0;
+      working = { ...working, stats: { ...working.stats, happiness: Math.max(0, Math.min(100, h + result.happinessDelta)) } };
+    }
+    return working;
   });
 };
 
 // ---------------------------------------------------------------------------
 // Spending categorization (called from MoneyActions / other actions later in Phase B)
 // ---------------------------------------------------------------------------
+
+/**
+ * v22 Wave A (computer-only): set or clear a weekly budget cap for a category.
+ * Purely informational — the weekly tick raises an overspend notification when a
+ * category's spend exceeds its cap. Zero economy risk (no money moves).
+ */
+export const setBudgetTarget = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  category: BudgetCategory,
+  amount: number
+) => {
+  setGameState((prev) => {
+    const state = ensureBanking(prev);
+    if (!state.banking) return prev;
+    return { ...state, banking: setBudgetTargetOp(state.banking, category, amount) };
+  });
+};
 
 export const recordCategorizedSpend = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,

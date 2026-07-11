@@ -19,7 +19,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { ArrowLeft, BarChart3, Briefcase, Clock, X } from 'lucide-react-native';
+import { ArrowLeft, BarChart3, Briefcase, Clock, X, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -46,6 +46,7 @@ import {
   placeStockLimitOrder,
   placeStockStopOrder,
   cancelStockOrder,
+  toggleStockWatchlist,
 } from '@/contexts/game/actions/StockActions';
 
 const LinearGradient = LinearGradientFallback;
@@ -179,6 +180,16 @@ function StocksAppInner({ onBack }: StocksAppProps) {
   );
 
   const openDetail = useCallback((symbol: string) => setDetailSymbol(symbol), []);
+
+  const watchedSet = useMemo(() => new Set(watchlist.map((s) => s.toUpperCase())), [watchlist]);
+  const isWatched = useCallback((symbol: string) => watchedSet.has(symbol.toUpperCase()), [watchedSet]);
+  const toggleWatch = useCallback(
+    (symbol: string) => {
+      toggleStockWatchlist(setGameState, symbol);
+      queueSave();
+    },
+    [setGameState, queueSave]
+  );
 
   // Portfolio week change (from last week's holding prices — real, not fabricated).
   const portfolioWeekChange = useMemo(
@@ -334,6 +345,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                   grouped
                   isLast={i === visibleMarket.length - 1}
                   onPress={() => openDetail(s.symbol)}
+                  watched={isWatched(s.symbol)}
+                  onToggleWatch={() => toggleWatch(s.symbol)}
                 />
               );
             })}
@@ -453,6 +466,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                   grouped
                   isLast={i === holdings.length - 1}
                   onPress={() => openDetail(h.symbol)}
+                  watched={isWatched(h.symbol)}
+                  onToggleWatch={() => toggleWatch(h.symbol)}
                 />
               );
             })}
@@ -476,6 +491,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                 grouped
                 isLast={i === watchItems.length - 1}
                 onPress={() => openDetail(m.symbol)}
+                watched={isWatched(m.symbol)}
+                onToggleWatch={() => toggleWatch(m.symbol)}
               />
             ))}
           </GroupCard>
@@ -561,7 +578,14 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const state = sectorStateFor(symbol);
     const snap = sectorSnapshots.find((s) => s.sector === sector);
     const weeks = snap?.weeksRemaining;
-    const prevClose = changePct != null && isFinite(changePct) && changePct > -1 ? price / (1 + changePct) : undefined;
+    // BUG FIX: previous close was reconstructed by dividing the live price by
+    // (1 + changePct) — a lossy round-trip that drifts from the real prior price.
+    // Read the authoritative value the weekly tick stored in lastWeekPrices;
+    // fall back to the back-calc only when that snapshot is missing.
+    const storedPrevClose = lastWeekPrices?.[symbol.toUpperCase()]?.price;
+    const prevClose = typeof storedPrevClose === 'number' && isFinite(storedPrevClose) && storedPrevClose > 0
+      ? storedPrevClose
+      : (changePct != null && isFinite(changePct) && changePct > -1 ? price / (1 + changePct) : undefined);
     const shares = holding?.shares ?? 0;
     const avg = holding?.averagePrice ?? 0;
     const owned = shares > 0;
@@ -575,6 +599,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const down = (changePct ?? 0) < 0;
     const sparkColor = up ? accent.success : down ? accent.danger : theme.textMuted;
     const momentum = state === 'strong' ? 'Sector strong' : state === 'weak' ? 'Sector weak' : 'Sector neutral';
+    const watched = isWatched(symbol);
 
     const marketRows: { label: string; value: string; color?: string }[] = [
       { label: 'Last price', value: formatPrice(price) },
@@ -647,17 +672,39 @@ function StocksAppInner({ onBack }: StocksAppProps) {
             <InfoCard theme={theme} darkMode={darkMode} rows={marketRows} />
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => setTradeTarget({ symbol, price })}
-            style={[styles.tradeCta, getPlatformShadows(5, 0.3, 2, 8)]}
-            accessibilityRole="button"
-            accessibilityLabel={`Trade ${symbol}`}
-          >
-            <LinearGradient colors={[accent.purple, '#9333EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tradeCtaFill}>
-              <Text style={styles.tradeCtaText}>{owned ? `Trade ${symbol} · ${shares.toFixed(2)} sh` : `Trade ${symbol}`}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <View style={styles.ctaRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => toggleWatch(symbol)}
+              style={[
+                styles.watchPill,
+                {
+                  borderColor: watched ? 'rgba(245,158,11,0.55)' : theme.border,
+                  backgroundColor: watched ? 'rgba(245,158,11,0.14)' : theme.surface,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: watched }}
+              accessibilityLabel={watched ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`}
+            >
+              <Star size={scale(16)} color={watched ? accent.warning : theme.textMuted} fill={watched ? accent.warning : 'transparent'} />
+              <Text style={[styles.watchPillText, { color: watched ? accent.warning : theme.textSecondary }]}>
+                {watched ? 'Watching' : 'Watch'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setTradeTarget({ symbol, price })}
+              style={[styles.tradeCta, styles.tradeCtaFlex, getPlatformShadows(5, 0.3, 2, 8)]}
+              accessibilityRole="button"
+              accessibilityLabel={`Trade ${symbol}`}
+            >
+              <LinearGradient colors={[accent.purple, '#9333EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tradeCtaFill}>
+                <Text style={styles.tradeCtaText}>{owned ? `Trade ${symbol} · ${shares.toFixed(2)} sh` : `Trade ${symbol}`}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </View>
     );
@@ -1125,8 +1172,21 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
 
-  // Trade CTA (detail)
+  // Trade CTA (detail) + watch pill row
+  ctaRow: { flexDirection: 'row', alignItems: 'stretch', gap: responsiveSpacing.sm },
   tradeCta: { borderRadius: responsiveBorderRadius.full },
+  tradeCtaFlex: { flex: 1 },
+  watchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    minHeight: touchTargets.minimum,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+  },
+  watchPillText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
   tradeCtaFill: {
     borderRadius: responsiveBorderRadius.full,
     minHeight: touchTargets.minimum,

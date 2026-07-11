@@ -156,8 +156,12 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     () => vehicles.filter((v) => v.insurance?.active).length,
     [vehicles]
   );
+  // Premiums are charged upfront as a 6-month (26-week) term of `monthlyCost * 6`
+  // (see purchaseInsurance). The true weekly amortization is therefore
+  // (monthlyCost * 6) / 26, NOT monthlyCost / 4 (which assumed a 4-week month and
+  // overstated the weekly cost by ~8%).
   const weeklyPremium = useMemo(
-    () => vehicles.reduce((s, v) => s + (v.insurance?.active ? (v.insurance.monthlyCost ?? 0) / 4 : 0), 0),
+    () => vehicles.reduce((s, v) => s + (v.insurance?.active ? ((v.insurance.monthlyCost ?? 0) * 6) / 26 : 0), 0),
     [vehicles]
   );
 

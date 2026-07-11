@@ -74,6 +74,7 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
 import { projectVideoOutcome } from '@/lib/content/algorithm';
+import { trendingTopicForWeek, trendBonusForTopic } from '@/lib/content/trending';
 import {
   publishVideo,
   buyAccessory,
@@ -243,11 +244,14 @@ export default function GamingApp({ onBack }: Props) {
     [channel]
   );
   const monetization = useMemo(
-    () => monetizationSummary(quality, channel?.paidMembers ?? 0),
-    [quality, channel?.paidMembers]
+    () => monetizationSummary(quality, channel?.paidMembers ?? 0, channel?.membershipRate),
+    [quality, channel?.paidMembers, channel?.membershipRate]
   );
 
   const week = gameState.weeksLived || 0;
+  // This week's trending topic (deterministic from the week). A matching upload
+  // earns the already-wired, pre-clamped trendBonus reach boost.
+  const trendingTopic = useMemo(() => trendingTopicForWeek(week, GAME_OPTIONS), [week]);
   const money = gameState.stats?.money ?? 0;
   const energy = gameState.stats?.energy ?? 0;
 
@@ -283,9 +287,15 @@ export default function GamingApp({ onBack }: Props) {
   const uploadsThisWeek = channel?.lastVideoWeek === week ? channel?.videosThisWeek ?? 0 : 0;
 
   // Deterministic non-viral baseline projection using the real algorithm lib.
+  // Includes this week's trend bonus when the chosen topic is hot, so the
+  // preview reflects the reach the upload will actually get.
+  const selectedTrendBonus = useMemo(
+    () => trendBonusForTopic(selectedGame, week, GAME_OPTIONS),
+    [selectedGame, week]
+  );
   const projected = useMemo(
-    () => projectVideoOutcome({ quality, subscribers, rollViral: 1 }),
-    [quality, subscribers]
+    () => projectVideoOutcome({ quality, subscribers, rollViral: 1, trendBonus: selectedTrendBonus }),
+    [quality, subscribers, selectedTrendBonus]
   );
 
   const sortedVideos = useMemo(() => {
@@ -328,7 +338,11 @@ export default function GamingApp({ onBack }: Props) {
     const r = publishVideo(
       gameState,
       setGameState,
-      { title: title.trim(), game: selectedGame },
+      {
+        title: title.trim(),
+        game: selectedGame,
+        trendBonus: trendBonusForTopic(selectedGame, week, GAME_OPTIONS),
+      },
       { updateMoney },
       week
     );
@@ -565,19 +579,32 @@ export default function GamingApp({ onBack }: Props) {
               placeholderTextColor={theme.textMuted}
               style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
             />
-            <Text style={[styles.label, { color: theme.textMuted }]}>Topic</Text>
+            <View style={styles.topicHeadRow}>
+              <Text style={[styles.label, { color: theme.textMuted, marginTop: 0 }]}>Topic</Text>
+              {trendingTopic ? (
+                <View style={[styles.trendChip, { backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.35)' }]}>
+                  <Flame size={scale(11)} color={accent.warning} />
+                  <Text style={[styles.trendChipText, { color: accent.warning }]} numberOfLines={1}>
+                    Trending: {trendingTopic}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <View style={styles.chipsRow}>
               {GAME_OPTIONS.map((g) => {
                 const active = selectedGame === g;
+                const hot = g === trendingTopic;
                 return (
                   <TouchableOpacity
                     key={g}
                     onPress={() => setSelectedGame(g)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    style={[styles.chip, { backgroundColor: active ? tint(0.16) : 'transparent', borderColor: active ? tint(0.30) : theme.border }]}
+                    accessibilityLabel={hot ? `${g} (trending, boosted reach)` : g}
+                    style={[styles.chip, { backgroundColor: active ? tint(0.16) : 'transparent', borderColor: active ? tint(0.30) : hot ? 'rgba(245,158,11,0.35)' : theme.border }]}
                   >
-                    <Text style={[styles.chipText, { color: active ? IDENTITY : theme.textSecondary }]}>{g}</Text>
+                    {hot ? <Flame size={scale(11)} color={accent.warning} /> : null}
+                    <Text style={[styles.chipText, { color: active ? IDENTITY : hot ? accent.warning : theme.textSecondary }]}>{g}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -1351,8 +1378,11 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  chip: { minHeight: scale(36), justifyContent: 'center', paddingHorizontal: sp.md, borderRadius: br.full, borderWidth: 1 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), minHeight: scale(36), justifyContent: 'center', paddingHorizontal: sp.md, borderRadius: br.full, borderWidth: 1 },
   chipText: { fontSize: fs.xs, fontWeight: '700' },
+  topicHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, marginTop: sp.sm },
+  trendChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.full, borderWidth: 1, maxWidth: '62%' },
+  trendChipText: { fontSize: fs.xs, fontWeight: '800' },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
 
   // Meters.

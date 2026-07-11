@@ -42,6 +42,7 @@ import {
   runExam,
   updateGPA,
   shouldTriggerCampusEvent,
+  computeSemesterNumber,
 } from '@/lib/education/educationSystem';
 import type { WeekContext } from './weekContext';
 
@@ -87,6 +88,10 @@ export function applyEducationProgression(
         ...edu,
         weeksRemaining: newWeeksRemaining,
         completed: isCompleted,
+        // Advance the semester purely from progress (idempotent, pause-safe):
+        // paused/completed programs are skipped by the outer guard so their
+        // semesterNumber freezes at its last value.
+        semesterNumber: computeSemesterNumber(edu.duration, newWeeksRemaining),
       };
 
       // Study group weekly bonuses.

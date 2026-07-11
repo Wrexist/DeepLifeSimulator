@@ -28,6 +28,8 @@ import type {
   PulseLifetimeStats,
   PulseScandalRecord,
   PulseInfluenceLevel,
+  PulseComment,
+  PulseScandalType,
 } from '@/contexts/game/types';
 import {
   calculateEngagementRate,
@@ -35,6 +37,7 @@ import {
   calculateWeeklyImpressionEarnings,
 } from './socialMedia';
 import { generateBrandOffersExtended } from './brandPartnerships';
+import { generateScandalPileOnComments } from './randomProfiles';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
@@ -68,6 +71,62 @@ const SCANDAL_REP_CASCADE_DIVISOR = 10;   // rep loss = floor(severity / 10)
 const SCANDAL_FOLLOWER_CASCADE_PCT = 0.005; // 0.5% loss per tick per scandal week
 const BRAND_OFFER_MAX_PER_TICK = 3;
 const BRAND_OFFER_FOLLOWER_GATE = 10_000;
+
+// ── Organic scandal spawn (Wave A) ──────────────────────────────────────────
+// Fame turns double-edged: once the player is popular+ (10K followers) a low
+// weekly chance — scaled by an accumulating, decaying risk score — can erupt
+// into a scandal the player must survive through the existing recovery flow.
+// All caps mirror the audit guardrails: popular+ gate, post-resolution
+// cooldown, one scandal at a time, and the existing 0.5%/wk follower cascade.
+const SCANDAL_SPAWN_FOLLOWER_GATE = 10_000; // popular tier or above
+const SCANDAL_COOLDOWN_WEEKS = 6;           // quiet period after a scandal blows over
+const SCANDAL_RISK_DECAY = 0.85;            // weekly multiplicative decay of the risk accumulator
+const SCANDAL_RISK_CAP = 100;               // risk score clamp
+const SCANDAL_SPAWN_MAX_CHANCE = 0.1;       // hard ceiling on weekly spawn probability
+// Per-tier weekly risk accrual — the more famous, the more scrutiny.
+const SCANDAL_RISK_ACCRUAL: Record<PulseInfluenceLevel, number> = {
+  novice: 0,
+  rising: 0,
+  popular: 2,
+  influencer: 4,
+  celebrity: 6,
+};
+const SCANDAL_TYPES: PulseScandalType[] = [
+  'bad_take',
+  'leaked_dm',
+  'cancel',
+  'deepfake',
+  'brand_betrayal',
+  'public_meltdown',
+];
+const SCANDAL_HEADLINES: Record<PulseScandalType, string[]> = {
+  bad_take: ['Your old take resurfaces and the timeline turns', 'A hot take spirals out of control'],
+  leaked_dm: ['Private DMs leak across the feed', 'Screenshots of your messages go viral'],
+  cancel: ['A callout thread snowballs overnight', '#Cancelled starts trending with your name'],
+  deepfake: ['A deepfake of you spreads faster than the debunk', 'A fabricated clip fools thousands'],
+  brand_betrayal: ['A brand publicly cuts ties with you', 'Sponsors distance themselves after a leak'],
+  public_meltdown: ['A public meltdown clip loops everywhere', 'You lose your cool on camera and it spreads'],
+};
+const PILE_ON_POSTS = 3;      // seed haters onto the most-recent N player posts
+const PILE_ON_PER_POST = 3;   // hostile comments per targeted post
+const COMMENT_THREAD_CAP = 50;
+const FOLLOWER_HISTORY_CAP = 52;
+const BOOST_LINGER_WEEKS = 2; // pendingBoosts entries expire after this many weeks
+
+/**
+ * Deterministic [0,1) roll from arbitrary seed parts (FNV-1a hash). Keeps the
+ * scandal spawn pure so StrictMode double-invocation can't double-spawn and the
+ * purity test stays green (no Math.random / Date.now in the spawn decision).
+ */
+const hashRoll = (...parts: (number | string)[]): number => {
+  const seed = parts.join('|');
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+};
 
 const newNotificationId = (week: number, kind: string): string =>
   `notif_${week}_${kind}_${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -178,6 +237,8 @@ export function processPulseWeeklyTick(
         source: 'scandal',
         velocity: 1.0,
         decayWeek: nextWeeksLived + (sm.activeScandal.weeksRemaining || 2),
+        // Populate the previously-always-absent "Why is this trending?" branch.
+        whyReason: `Fallout from your ${sm.activeScandal.type.replace(/_/g, ' ')} scandal.`,
       });
     }
   }
@@ -227,6 +288,82 @@ export function processPulseWeeklyTick(
         followerLossThisWeek: follLoss,
       };
     }
+  }
+
+  // ── 4b. Scandal-risk accrual + organic spawn ────────────────────────────
+  // Risk decays multiplicatively each week and accrues by influence tier, so
+  // dormant/small accounts are effectively immune and famous ones face a slow,
+  // bounded build-up. A spawn only fires when: no active scandal, none resolved
+  // THIS tick (no whiplash), popular+ tier, the post-resolution cooldown has
+  // elapsed, and a deterministic roll lands under the risk-scaled chance.
+  const spawnTier = influenceLevelForFollowers(followers);
+  let scandalRiskScore = Math.min(
+    SCANDAL_RISK_CAP,
+    (sm.scandalRiskScore ?? 0) * SCANDAL_RISK_DECAY + (SCANDAL_RISK_ACCRUAL[spawnTier] ?? 0),
+  );
+
+  const lastSurvivedWeek = scandalHistory.length > 0
+    ? Math.max(...scandalHistory.map(s => s.survivedAtWeek))
+    : -Infinity;
+  const cooldownElapsed = nextWeeksLived - lastSurvivedWeek >= SCANDAL_COOLDOWN_WEEKS;
+
+  if (
+    !activeScandal &&
+    scandalsSurvivedThisTick === 0 &&
+    followers >= SCANDAL_SPAWN_FOLLOWER_GATE &&
+    cooldownElapsed
+  ) {
+    const spawnChance = Math.min(SCANDAL_SPAWN_MAX_CHANCE, scandalRiskScore / 1000);
+    const roll = hashRoll('scandal', nextWeeksLived, followers, Math.round(scandalRiskScore));
+    if (roll < spawnChance) {
+      const typeIdx = Math.floor(hashRoll('type', nextWeeksLived, followers) * SCANDAL_TYPES.length) % SCANDAL_TYPES.length;
+      const type = SCANDAL_TYPES[typeIdx];
+      const headlines = SCANDAL_HEADLINES[type];
+      const headline = headlines[Math.floor(hashRoll('headline', nextWeeksLived, type) * headlines.length) % headlines.length];
+      const severity = 45 + Math.floor(hashRoll('sev', nextWeeksLived, followers) * 20); // 45–64
+      activeScandal = {
+        id: `scandal_organic_${nextWeeksLived}`,
+        type,
+        severity,
+        weeksRemaining: 4,
+        startedWeek: nextWeeksLived,
+        reputationLossThisWeek: 0,
+        followerLossThisWeek: 0,
+        headline,
+      };
+      scandalRiskScore = 0; // risk spent on the eruption
+      notifications = pushNotification(
+        notifications,
+        'scandal_update',
+        `⚠️ Scandal breaking: ${headline}.`,
+        nextWeeksLived,
+      );
+    }
+  }
+
+  // ── 4c. Seed hostile pile-on comments while a scandal is active ──────────
+  // Reuses the built-but-dead generateScandalPileOnComments. Idempotent per
+  // week per post (skip a post already seeded this week) and bounded by the
+  // existing 50-comments-per-thread cap.
+  let commentThreads: Record<string, PulseComment[]> | undefined = sm.commentThreads;
+  if (activeScandal) {
+    const threads: Record<string, PulseComment[]> = { ...(sm.commentThreads ?? {}) };
+    const targets = (sm.recentPosts ?? []).slice(0, PILE_ON_POSTS);
+    for (const post of targets) {
+      const existing = threads[post.id] ?? [];
+      const alreadySeededThisWeek = existing.some(
+        c => c.isFromHater && c.gameWeek === nextWeeksLived,
+      );
+      if (alreadySeededThisWeek) continue;
+      const haters = generateScandalPileOnComments(
+        activeScandal,
+        post.id,
+        nextWeeksLived,
+        PILE_ON_PER_POST,
+      );
+      threads[post.id] = [...existing, ...haters].slice(-COMMENT_THREAD_CAP);
+    }
+    commentThreads = threads;
   }
 
   // ── 5. Generate brand offers (followers >= 10K) ─────────────────────────
@@ -368,6 +505,24 @@ export function processPulseWeeklyTick(
     totalVerifiedProWeeks: (sm.lifetimeStats?.totalVerifiedProWeeks ?? 0) + verifiedProWeeksDelta,
   };
 
+  // ── 12b. Follower-history sample (Creator Studio growth chart) ──────────
+  // Append one {week, followers} sample, replacing an existing same-week entry
+  // (idempotent under double-invoke) and trimming to the last 52 points.
+  const priorHistory = sm.followerHistory ?? [];
+  const lastSample = priorHistory[priorHistory.length - 1];
+  const followerHistory = (
+    lastSample && lastSample.week === nextWeeksLived
+      ? [...priorHistory.slice(0, -1), { week: nextWeeksLived, followers }]
+      : [...priorHistory, { week: nextWeeksLived, followers }]
+  ).slice(-FOLLOWER_HISTORY_CAP);
+
+  // ── 12c. Consume/expire pendingBoosts ───────────────────────────────────
+  // The gem boost effect is applied inline at boost time; this ledger only
+  // needs pruning so it stops being a write-only, ever-growing orphan.
+  const pendingBoosts = (sm.pendingBoosts ?? []).filter(
+    b => nextWeeksLived - b.appliedWeek < BOOST_LINGER_WEEKS,
+  );
+
   // ── 13. Assemble new socialMedia state ──────────────────────────────────
   const newSocialMedia: NonNullable<GameState['socialMedia']> = {
     ...sm,
@@ -377,6 +532,10 @@ export function processPulseWeeklyTick(
     trendingHashtags: trending,
     activeScandal,
     scandalHistory,
+    scandalRiskScore,
+    commentThreads,
+    followerHistory,
+    pendingBoosts,
     brandInbox: { pending, declined: brandInbox.declined, history },
     activeBrandDeals: activeDeals,
     notifications: notifications.slice(0, NOTIFICATION_CAP),

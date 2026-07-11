@@ -191,6 +191,23 @@ export default function PetApp({ onBack }: PetAppProps) {
     [gameState, setGameState, saveGame, flash]
   );
 
+  // BUG FIX: the care-pad "Feed" button only switched to the Shop tab — it never
+  // fed the pet, unlike Play/Sleep which act directly. Feed with the cheapest
+  // food the player actually owns; only route to the shop when the pantry is empty.
+  const handleFeedFromInventory = useCallback(
+    (petId: string) => {
+      const inventory = gameState.petFood ?? {};
+      const ownedFoodId = ['basic', 'premium', 'luxury'].find((id) => (inventory[id] ?? 0) > 0);
+      if (!ownedFoodId) {
+        flash('Out of food — buy some from the shop.');
+        goTab('shop');
+        return;
+      }
+      handleFeed(petId, ownedFoodId);
+    },
+    [gameState, flash, goTab, handleFeed]
+  );
+
   const handleBuyFood = useCallback(
     (foodId: string) => {
       const r = buyFood(gameState, setGameState, foodId, 1, { updateMoney });
@@ -270,7 +287,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   // The chunky care pad — reused by the stage and the profile page.
   const renderCarePad = (p: Pet) => (
     <View style={styles.carePad}>
-      <CareBtn label="Feed" Icon={Bone} color={HUNGER_C} theme={theme} onPress={() => goTab('shop')} />
+      <CareBtn label="Feed" Icon={Bone} color={HUNGER_C} theme={theme} onPress={() => handleFeedFromInventory(p.id)} />
       <CareBtn label="Play" Icon={Heart} color={HAPPY_C} theme={theme} onPress={() => handlePlay(p.id)} />
       <CareBtn label="Sleep" Icon={Moon} color={ENERGY_C} theme={theme} onPress={() => handleSleep(p.id)} />
       <CareBtn label="Vet" Icon={Stethoscope} color={HEALTH_C} theme={theme} onPress={() => goTab('vet')} />

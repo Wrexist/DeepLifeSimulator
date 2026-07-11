@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Line, Polyline } from 'react-native-svg';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Star } from 'lucide-react-native';
 import { Sector, sectorForSymbol } from '@/lib/stocks/sectors';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -23,6 +23,10 @@ interface Props {
   grouped?: boolean;
   /** Suppress the bottom hairline when this is the last row of a group. */
   isLast?: boolean;
+  /** Whether this symbol is on the player's watchlist (drives the star fill). */
+  watched?: boolean;
+  /** When provided, renders a tappable star toggle (add/remove from watchlist). */
+  onToggleWatch?: () => void;
 }
 
 /** Sector identity colors — reused by the app's sector board + allocation bar. */
@@ -130,6 +134,8 @@ export default function StockRow({
   onPress,
   grouped,
   isLast,
+  watched,
+  onToggleWatch,
 }: Props) {
   const theme = getThemeColors(darkMode);
   const sector = sectorForSymbol(symbol);
@@ -196,6 +202,19 @@ export default function StockRow({
         <ChangeChip changePct={changePct} darkMode={darkMode} />
       </View>
 
+      {onToggleWatch && (
+        <TouchableOpacity
+          onPress={onToggleWatch}
+          hitSlop={8}
+          style={styles.starBtn}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!watched }}
+          accessibilityLabel={watched ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`}
+        >
+          <Star size={scale(16)} color={watched ? accent.warning : theme.textMuted} fill={watched ? accent.warning : 'transparent'} />
+        </TouchableOpacity>
+      )}
+
       {onPress && <ChevronRight size={scale(15)} color={theme.textMuted} />}
     </View>
   );
@@ -261,6 +280,7 @@ const styles = StyleSheet.create({
   meta: { fontSize: responsiveFontSize.xs },
   metaPnl: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   rightCol: { alignItems: 'flex-end', gap: scale(3), minWidth: scale(56) },
+  starBtn: { width: scale(32), height: scale(32), alignItems: 'center', justifyContent: 'center' },
   price: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   changeChipSm: {
     paddingHorizontal: responsiveSpacing.xs,

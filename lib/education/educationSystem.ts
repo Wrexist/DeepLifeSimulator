@@ -10,7 +10,7 @@
  */
 
 import { Education, EducationClass } from '@/contexts/game/types';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 
 // ─── Class Definitions ────────────────────────────────────────────────────
 
@@ -225,6 +225,43 @@ export function getAvailableClasses(educationId: string, alreadyTaken: string[])
   // Shuffle and pick 3-4 options
   const shuffled = available.sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(4, shuffled.length));
+}
+
+/**
+ * How many classes a player may enrol in per semester. Kept small (2-3) so the
+ * summed `statBonuses` stay a modest completion perk, not an economy lever.
+ */
+export const MIN_CLASSES_PER_SEMESTER = 2;
+export const MAX_CLASSES_PER_SEMESTER = 3;
+
+/**
+ * Map a set of chosen class ids to concrete `EducationClass[]` for a program.
+ *
+ * Pure + deterministic (no `Math.random`, unlike `getAvailableClasses`) so it is
+ * safe inside a `setGameState` updater under React StrictMode double-invocation.
+ * Ids not offered by the program (`availableIn`) or duplicates are dropped, and
+ * the result is capped at `MAX_CLASSES_PER_SEMESTER`. Each class starts
+ * `completed: false`; the weekly tick applies its `statBonuses` on graduation.
+ */
+export function mapClassIdsToEnrolled(educationId: string, classIds: string[]): EducationClass[] {
+  const seen = new Set<string>();
+  const out: EducationClass[] = [];
+  for (const id of classIds || []) {
+    if (seen.has(id)) continue;
+    const tpl = CLASS_TEMPLATES.find(c => c.id === id && c.availableIn.includes(educationId));
+    if (!tpl) continue;
+    seen.add(id);
+    out.push({
+      id: tpl.id,
+      name: tpl.name,
+      category: tpl.category,
+      statBonuses: tpl.statBonuses,
+      difficulty: tpl.difficulty,
+      completed: false,
+    });
+    if (out.length >= MAX_CLASSES_PER_SEMESTER) break;
+  }
+  return out;
 }
 
 // ─── Exam System ──────────────────────────────────────────────────────────
@@ -507,16 +544,18 @@ export interface StudentLoanOffer {
 /**
  * Calculate a student loan offer for an education program.
  * Covers 80-100% of tuition with reasonable interest.
+ *
+ * NOTE: the LIVE enrolment path (`EducationActions.enrollInProgram`) issues real
+ * loans through the banking system (6% / 10-year). This helper is retained for
+ * the lighter standalone quote, but now shares the ONE amortization
+ * implementation (`calculatePeriodicPayment`) instead of a hand-rolled formula —
+ * so the two paths can no longer drift in their payment math.
  */
 export function calculateStudentLoan(educationCost: number): StudentLoanOffer {
-  const amount = educationCost; // Full coverage
+  const amount = Math.max(0, educationCost); // Full coverage
   const annualRate = 0.045; // 4.5% annual interest
   const termWeeks = 260; // ~5 years to repay
-  const weeklyRate = annualRate / WEEKS_PER_YEAR;
-  const weeklyPayment = Math.ceil(
-    (amount * weeklyRate * Math.pow(1 + weeklyRate, termWeeks)) /
-    (Math.pow(1 + weeklyRate, termWeeks) - 1)
-  );
+  const weeklyPayment = Math.ceil(calculatePeriodicPayment(amount, annualRate, termWeeks));
 
   return { amount, interestRate: annualRate, termWeeks, weeklyPayment };
 }
@@ -537,6 +576,13 @@ export const STUDY_GROUP_BENEFITS = {
   weeklyEnergyCost: 3,
 };
 
+/**
+ * One-time cost to join a course's study group. Keeps the +2 happiness/wk +
+ * exam boost a tradeoff (materials/dues) rather than a free happiness tap; the
+ * −3 energy/wk already offsets the ongoing benefit.
+ */
+export const STUDY_GROUP_JOIN_COST = 150;
+
 // ─── GPA Calculation ──────────────────────────────────────────────────────
 
 /**
@@ -551,6 +597,24 @@ export function updateGPA(currentGPA: number, examCount: number, gpaChange: numb
 }
 
 // ─── Exam Scheduling ──────────────────────────────────────────────────────
+
+/** A semester is ~half a year of study. */
+export const SEMESTER_LENGTH_WEEKS = 26;
+
+/**
+ * Derive the current semester purely from progress (duration vs weeksRemaining),
+ * NOT an accumulator or wall-clock — so it is idempotent, never advances while a
+ * program is paused (weeksRemaining is frozen), and freezes at the final semester
+ * on completion. Capped at `ceil(duration / SEMESTER_LENGTH_WEEKS)` so a program
+ * never reports more semesters than its length implies.
+ */
+export function computeSemesterNumber(duration: number, weeksRemaining: number | undefined): number {
+  const dur = Math.max(1, Math.floor(duration));
+  const remaining = Math.max(0, Math.min(dur, Math.floor(weeksRemaining ?? dur)));
+  const elapsed = dur - remaining;
+  const maxSemester = Math.max(1, Math.ceil(dur / SEMESTER_LENGTH_WEEKS));
+  return Math.min(maxSemester, Math.floor(elapsed / SEMESTER_LENGTH_WEEKS) + 1);
+}
 
 /** Exams happen every 13 weeks (~one semester quarter). */
 export const EXAM_INTERVAL_WEEKS = 13;

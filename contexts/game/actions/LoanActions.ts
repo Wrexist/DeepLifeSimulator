@@ -93,6 +93,7 @@ export function getLoanQuote(
     ...request,
     aprReduction: politicsAprReduction(state),
     aprCap: privateBankingAprCap(state),
+    loanDelta: banking.rateEnvironment?.loanDelta,
   });
   if (result.rejected) {
     return { rejected: true, reason: result.reason };
@@ -148,6 +149,7 @@ export const acceptLoan = (
       weeklyIncome: spec.weeklyIncome,
       aprReduction: politicsAprReduction(state),
       aprCap: privateBankingAprCap(state),
+      loanDelta: state.banking.rateEnvironment?.loanDelta,
     });
     if (quote.rejected) {
       log.info(`Loan rejected: ${quote.reason}`);

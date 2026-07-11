@@ -102,3 +102,28 @@ describe('ALL_SECTORS', () => {
     expect(ALL_SECTORS.length).toBe(6);
   });
 });
+
+describe('energy + healthcare content (no dead 0-stock tile)', () => {
+  it('energy has at least 3 mapped symbols', () => {
+    const energy = Object.entries(STOCK_SECTORS).filter(([, sec]) => sec === 'energy').map(([s]) => s);
+    expect(energy.length).toBeGreaterThanOrEqual(3);
+    expect(sectorForSymbol('XOM')).toBe('energy');
+    expect(sectorForSymbol('CVX')).toBe('energy');
+    expect(sectorForSymbol('SLB')).toBe('energy');
+  });
+
+  it('healthcare has more than one symbol', () => {
+    const health = Object.entries(STOCK_SECTORS).filter(([, sec]) => sec === 'healthcare').map(([s]) => s);
+    expect(health.length).toBeGreaterThan(1);
+    expect(sectorForSymbol('JNJ')).toBe('healthcare');
+    expect(sectorForSymbol('PFE')).toBe('healthcare');
+    expect(sectorForSymbol('UNH')).toBe('healthcare');
+  });
+
+  it('every ALL_SECTORS entry has at least one listing (no empty board tile)', () => {
+    for (const sec of ALL_SECTORS) {
+      const count = Object.values(STOCK_SECTORS).filter((s) => s === sec).length;
+      expect(count).toBeGreaterThan(0);
+    }
+  });
+});

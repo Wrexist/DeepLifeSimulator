@@ -37,6 +37,8 @@ import {
   SCANDAL_HEADLINES,
   scandalRevenueDrag,
   computeIPOSharePrice,
+  createDefaultCompanyOverlay,
+  estimateScandalRevenueLoss,
 } from '@/lib/business/hustleLogic';
 
 const log = logger.scope('HustleActions');
@@ -106,22 +108,9 @@ function ensureOverlay(
   companyId: string,
   weeksLived: number,
 ): HustleCompanyOverlay {
-  return (
-    ha.companies[companyId] ?? {
-      companyId,
-      hiringPipeline: { candidates: [], namedHires: [], weeksSinceLastHire: 0, totalSeverance: 0 },
-      activeCampaigns: [],
-      brand: { score: 50, trend: 'flat', lastUpdatedWeek: weeksLived },
-      activeScandal: null,
-      scandalHistory: [],
-      boardSeats: [],
-      ipo: { status: 'private', ownershipPercent: 100, sharePrice: 0, sharesOutstandingK: 0, recentEarnings: [] },
-      pendingAcquisitions: [],
-      suppliers: [],
-      marketSharePercent: 5,
-      notifications: [],
-    }
-  );
+  // Single source of truth for the default overlay shape (shared with
+  // createCompany + the v17 migration) so they never drift.
+  return ha.companies[companyId] ?? createDefaultCompanyOverlay(companyId, weeksLived);
 }
 
 /**
@@ -544,6 +533,13 @@ export const resolveScandal = (
 
       if (newSeverity <= 0) {
         ha.lifetimeStats.totalScandalsSurvived += 1;
+        // Real ledger value (was hardcoded 0): reconstruct the drag over the
+        // scandal's active life from its initial (base) severity, weeks active,
+        // and current company income.
+        const initialSeverity = SCANDAL_BASE_SEVERITY[o.activeScandal.kind] ?? o.activeScandal.severity;
+        const weeksActive = Math.max(1, weeksLived - o.activeScandal.startedWeek);
+        const companyIncome = prev.companies?.find((c) => c.id === companyId)?.weeklyIncome ?? 0;
+        const totalRevenueLoss = estimateScandalRevenueLoss(initialSeverity, weeksActive, companyIncome);
         return pushNotif(
           {
             ...o,
@@ -556,7 +552,7 @@ export const resolveScandal = (
                 severity: o.activeScandal.severity,
                 survivedAtWeek: weeksLived,
                 finalReputationLoss: rep < 0 ? -rep : 0,
-                totalRevenueLoss: 0,
+                totalRevenueLoss,
                 resolutionMethod: method,
               },
             ],

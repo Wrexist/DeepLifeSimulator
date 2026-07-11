@@ -25,16 +25,18 @@ import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from './styles/sparkTheme';
 import SwipeScreen from './screens/SwipeScreen';
 import MatchesScreen from './screens/MatchesScreen';
+import LikesScreen from './screens/LikesScreen';
 import ChatScreen from './screens/ChatScreen';
 import PartnerProfileScreen from './screens/PartnerProfileScreen';
 import BoostModal from './modals/BoostModal';
+import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
 import MatchBanner from './components/MatchBanner';
 import { getDatingProfileImage, type DatingProfile } from '@/lib/dating/datingProfiles';
 
 const LinearGradient = LinearGradientFallback;
 
-type SparkTab = 'swipe' | 'matches' | 'profile';
+type SparkTab = 'swipe' | 'matches' | 'likes' | 'profile';
 
 interface SparkAppProps {
   onBack: () => void;
@@ -49,11 +51,17 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   const [showBoost, setShowBoost] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [jealousyDismissed, setJealousyDismissed] = useState(false);
   const [matchBanner, setMatchBanner] = useState<{ matchId: string; profile: DatingProfile } | null>(null);
 
   const sp = gameState.sparkApp;
   const isPremium = sp?.premium?.active === true;
   const unreadCount = (sp?.matches ?? []).reduce((sum, m) => sum + (m.unreadByPlayer ?? 0), 0);
+  const likesCount = (sp?.likedYou ?? []).length;
+  // Surface an unresolved jealousy event on open. Resolving it clears
+  // activeJealousy (and un-sticks the tick's permanent-block bug); the local
+  // dismiss just hides the sheet for this session without resolving.
+  const activeJealousy = sp?.activeJealousy ?? null;
 
   const handleMatch = useCallback((matchId: string, profile: DatingProfile) => {
     setMatchBanner({ matchId, profile });
@@ -152,6 +160,12 @@ export default function SparkApp({ onBack }: SparkAppProps) {
             onOpenSwipe={() => setActiveTab('swipe')}
           />
         )}
+        {activeTab === 'likes' && (
+          <LikesScreen
+            onOpenChat={openChat}
+            onOpenPremium={() => setShowPremium(true)}
+          />
+        )}
         {activeTab === 'profile' && <ProfileTab />}
       </View>
 
@@ -175,6 +189,15 @@ export default function SparkApp({ onBack }: SparkAppProps) {
           badge={unreadCount > 0 ? unreadCount : undefined}
         />
         <TabBtn
+          icon={Heart}
+          label="Likes"
+          active={activeTab === 'likes'}
+          onPress={() => setActiveTab('likes')}
+          color={SPARK_COLORS.accent}
+          mutedColor={theme.textMuted}
+          badge={likesCount > 0 ? likesCount : undefined}
+        />
+        <TabBtn
           icon={User}
           label="Profile"
           active={activeTab === 'profile'}
@@ -187,6 +210,10 @@ export default function SparkApp({ onBack }: SparkAppProps) {
       {/* Modals */}
       <BoostModal visible={showBoost} onDismiss={() => setShowBoost(false)} />
       <SparkPremiumUpsellModal visible={showPremium} onDismiss={() => setShowPremium(false)} />
+      <JealousyModal
+        visible={!!activeJealousy && !jealousyDismissed}
+        onDismiss={() => setJealousyDismissed(true)}
+      />
 
       {/* Match celebration overlay */}
       {matchBanner ? (
@@ -313,6 +340,11 @@ function ProfileTab() {
         <StatRow label="Total swipes" value={String(stats?.totalSwipes ?? 0)} theme={theme} />
         <StatRow label="Matches" value={String(stats?.totalMatches ?? 0)} theme={theme} />
         <StatRow label="Super-likes used" value={String(stats?.totalSuperLikes ?? 0)} theme={theme} />
+        <StatRow label="Dates gone on" value={String(stats?.totalDatesGoneOn ?? 0)} theme={theme} />
+        <StatRow label="Gifts given" value={String(stats?.totalGiftsGiven ?? 0)} theme={theme} />
+        <StatRow label="Proposals" value={String(stats?.totalProposals ?? 0)} theme={theme} />
+        <StatRow label="Marriages" value={String(stats?.totalMarriages ?? 0)} theme={theme} />
+        <StatRow label="Divorces" value={String(stats?.totalDivorces ?? 0)} theme={theme} />
         <StatRow label="Catfish exposed" value={String(stats?.totalCatfishExposed ?? 0)} theme={theme} />
         <StatRow
           label="Premium tier"

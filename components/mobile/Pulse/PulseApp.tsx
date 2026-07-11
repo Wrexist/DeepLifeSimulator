@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
+import { ArrowLeft, BarChart3, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -28,6 +28,7 @@ import MessagesScreen from './screens/MessagesScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import BrandDealsScreen from './screens/BrandDealsScreen';
 import LiveStreamScreen from './screens/LiveStreamScreen';
+import InsightsScreen from './screens/InsightsScreen';
 import PostDetailScreen from './screens/PostDetailScreen';
 import ComposeModal from './modals/ComposeModal';
 import ScandalRecoveryModal from './modals/ScandalRecoveryModal';
@@ -45,7 +46,7 @@ const LinearGradient = LinearGradientFallback;
 
 type PulseTab = 'home' | 'trending' | 'alerts' | 'dms';
 /** Overlay routes — full-screen pushed above the tab bar. */
-type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | null;
+type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | 'insights' | null;
 
 interface PulseAppProps {
   onBack: () => void;
@@ -83,6 +84,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const openProfile = useCallback(() => setOverlay('profile'), []);
   const openBrandDeals = useCallback(() => setOverlay('brandDeals'), []);
   const openLive = useCallback(() => setOverlay('liveStream'), []);
+  const openInsights = useCallback(() => setOverlay('insights'), []);
   const dismissOverlay = useCallback(() => setOverlay(null), []);
   const openProUpsell = useCallback(() => setShowProUpsell(true), []);
   const dismissProUpsell = useCallback(() => setShowProUpsell(false), []);
@@ -146,12 +148,18 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
           </View>
-          <Pressable onPress={openLive} accessibilityRole="button" accessibilityLabel="Go live" hitSlop={8} style={styles.headerBtn}>
-            <Radio size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable onPress={openInsights} accessibilityRole="button" accessibilityLabel="Creator Studio insights" hitSlop={8} style={styles.headerBtnEnd}>
+              <BarChart3 size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
+            </Pressable>
+            <Pressable onPress={openLive} accessibilityRole="button" accessibilityLabel="Go live" hitSlop={8} style={styles.headerBtnEnd}>
+              <Radio size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
+            </Pressable>
+          </View>
         </View>
         <ProfileScreen
           onUpgradePro={openProUpsell}
+          onOpenInsights={openInsights}
           onOpenPostDetail={openPostDetail}
           onBoostPost={(postId) => setBoostPostId(postId)}
           onEditProfile={() => setShowProfileEdit(true)}
@@ -174,6 +182,23 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           <View style={styles.headerBtn} />
         </View>
         <BrandDealsScreen />
+      </View>
+    );
+  }
+  if (overlay === 'insights') {
+    return (
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Pressable onPress={dismissOverlay} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
+            <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Creator Studio</Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </View>
+        <InsightsScreen onUpgradePro={openProUpsell} />
+        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} onSubscribe={handleSubscribePro} />
       </View>
     );
   }
@@ -371,6 +396,17 @@ const styles = StyleSheet.create({
     width: touchTargets.minimum,
     height: touchTargets.minimum,
     alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+  },
+  headerBtnEnd: {
+    minWidth: touchTargets.minimum / 2,
+    height: touchTargets.minimum,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   headerCenter: {

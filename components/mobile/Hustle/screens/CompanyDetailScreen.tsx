@@ -342,8 +342,12 @@ export default function CompanyDetailScreen({
               const elapsed = Math.max(0, weeksLived - (camp.startedWeek ?? weeksLived));
               const pct = camp.durationWeeks > 0 ? Math.max(0, Math.min(100, (elapsed / camp.durationWeeks) * 100)) : 0;
               const remaining = Math.max(0, (camp.durationWeeks ?? 0) - elapsed);
-              const roi = camp.projectedROI ?? 0;
-              const roiColor = roi > 0 ? HUSTLE_COLORS.success : roi < 0 ? HUSTLE_COLORS.danger : theme.textMuted;
+              // projectedROI is a revenue MULTIPLIER (e.g. 2.2 = 2.2× spend).
+              // Percentage ROI = (multiplier − 1) × 100 (2.2× → +120%). Previously
+              // this rendered the raw multiplier as a percent ("+2% ROI").
+              const roiMult = camp.projectedROI ?? 0;
+              const roiPct = roiMult > 0 ? Math.round((roiMult - 1) * 100) : 0;
+              const roiColor = roiMult > 1 ? HUSTLE_COLORS.success : roiMult > 0 ? theme.textMuted : HUSTLE_COLORS.danger;
               return (
                 <View key={camp.id} style={[styles.campaignRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                   <View style={[styles.campaignIcon, { backgroundColor: HUSTLE_COLORS.accentSecondary + '26', borderColor: HUSTLE_COLORS.accentSecondary + '4D' }]}>
@@ -354,7 +358,7 @@ export default function CompanyDetailScreen({
                       <Text style={[styles.campaignTitle, { color: theme.text }]} numberOfLines={1}>
                         {CAMPAIGN_LABEL[camp.kind] ?? cap(camp.kind)}
                       </Text>
-                      <Text style={[styles.campaignRoi, { color: roiColor }]}>{roi > 0 ? '+' : ''}{Math.round(roi)}% ROI</Text>
+                      <Text style={[styles.campaignRoi, { color: roiColor }]}>{roiMult > 0 ? `${roiPct >= 0 ? '+' : ''}${roiPct}% ROI` : 'Below floor'}</Text>
                     </View>
                     <Text style={[styles.campaignMeta, { color: theme.textSecondary }]}>
                       ${camp.spendPerWeek.toLocaleString()}/wk · {remaining}w left{camp.active ? '' : ' · paused'}

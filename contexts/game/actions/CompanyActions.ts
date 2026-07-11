@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
 const log = logger.scope('CompanyActions');
 
@@ -108,10 +109,45 @@ export const createCompany = (
   setGameState(prev => {
     const prevMoney = prev.stats?.money ?? 0;
     if (prevMoney < cost) return prev; // Re-check affordability against fresh state
+    // Re-check ownership against FRESH state so a double-tap can't found (and
+    // charge) twice — and so we never double-increment totalCompaniesFounded.
+    if ((prev.companies || []).some(c => c && c.id === newCompany.id)) return prev;
+
+    // Seed a Hustle overlay for the new company + increment the "Founded"
+    // milestone. Without this the weekly tick skips overlay-less companies
+    // (`if (!prevOverlay) continue`) — a fresh company would get no brand
+    // drift, market-share evolution, scandals or acquisition offers until the
+    // player happened to open a Hustle modal (lazy ensureOverlay). The
+    // milestone tile also stayed pinned at 0. Additive + defensive.
+    const weeksLived = prev.weeksLived ?? 0;
+    const baseHustle = prev.hustleApp ?? {
+      companies: {},
+      lifetimeStats: {
+        totalCompaniesFounded: 0, totalCompaniesSold: 0, totalIPOsLaunched: 0,
+        totalAcquisitionsCompleted: 0, totalScandalsSurvived: 0, totalCampaignsRun: 0,
+        totalNamedHires: 0, totalFires: 0,
+        peakBrandScore: 0, peakMarketShare: 0, peakSharePrice: 0,
+      },
+    };
+    const nextHustle = {
+      ...baseHustle,
+      companies: {
+        ...baseHustle.companies,
+        // Preserve an existing overlay if one somehow exists (never clobber).
+        [newCompany.id]:
+          baseHustle.companies?.[newCompany.id] ?? createDefaultCompanyOverlay(newCompany.id, weeksLived),
+      },
+      lifetimeStats: {
+        ...baseHustle.lifetimeStats,
+        totalCompaniesFounded: (baseHustle.lifetimeStats?.totalCompaniesFounded ?? 0) + 1,
+      },
+    };
+
     return {
       ...prev,
       companies: [...(prev.companies || []), newCompany],
       company: prev.company ?? newCompany,
+      hustleApp: nextHustle,
       stats: {
         ...prev.stats,
         money: prevMoney - cost,

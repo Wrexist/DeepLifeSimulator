@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 21;
+export const STATE_VERSION = 22;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -66,7 +66,13 @@ export const initialGameState: GameState = {
     totalInterestEarned: 0,
     totalInterestPaid: 0,
     taxDueThisYear: 0,
+    // v22 Wave A: live rate environment (economyState → deposit/loan modifiers)
+    // and computer-only budget targets. Neutral defaults = no economy effect.
+    rateEnvironment: { depositMult: 1, loanDelta: 0 },
+    budgetTargets: {},
   },
+  // v22 Wave A: capped real-estate portfolio activity timeline (feeds Activity tab).
+  realEstateActivity: [],
   totalHappiness: 0,
   weeksLived: 0,
   wantedLevel: 0,
@@ -1405,6 +1411,11 @@ export const initialGameState: GameState = {
     totalSubEarnings: 0,
     level: 1,
     experience: 0,
+    // v22 Wave A: creator perk tier (derived from level), weekly memberships
+    // payout stamp (idempotency), and Streamly hype-train streak counter.
+    perkTier: 0,
+    lastMemberWeek: 0,
+    hypeStreak: 0,
     gamesPlayed: [],
     streamHours: 0,
     averageViewers: 0,
@@ -1440,7 +1451,9 @@ export const initialGameState: GameState = {
       network: 0,
     },
     paidMembers: 0,
-    membershipRate: 4,
+    // Matches lib/content/monetization BASE_MEMBERSHIP_RATE so the displayed
+    // "Members/wk" and the applyContentMemberships payout agree (was 4).
+    membershipRate: 4.99,
     unlockedGames: [],
     ownedGames: [],
     streamHistory: [],
@@ -1500,6 +1513,9 @@ export const initialGameState: GameState = {
   },
   socialMedia: {
     followers: 0,
+    // v22 Wave A: capped follower history (Insights chart) + scandal risk score.
+    followerHistory: [{ week: 0, followers: 0 }],
+    scandalRiskScore: 0,
     influenceLevel: 'novice',
     totalPosts: 0,
     viralPosts: 0,
@@ -1619,6 +1635,8 @@ export const initialGameState: GameState = {
     businessOpportunities: {},
     travelHistory: [],
     currentTrip: undefined,
+    // v22 Wave A: bounded passport milestone tiers (one-off progression).
+    passportMilestones: [],
   },
   politics: {
     activePolicyEffects: undefined,

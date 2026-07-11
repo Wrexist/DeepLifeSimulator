@@ -168,4 +168,20 @@ describe('contactsNeedingAttention', () => {
     expect(need.length).toBe(1);
     expect(need[0].name).toBe('NeglectedPal');
   });
+
+  it('derives recency ONLY from lastInteractionWeek (legacy lastCall is retired)', () => {
+    const s = base({
+      weeksLived: 50,
+      relationships: [
+        // Only the dead `lastCall` is set — recency must now be undefined so the
+        // recency dot reads "No recent contact" rather than a stale value.
+        { id: 'r1', name: 'LegacyCall', type: 'friend', relationshipScore: 40, lastCall: 30, personality: 'f', gender: 'male', age: 30 },
+        // lastInteractionWeek IS the source of truth.
+        { id: 'r2', name: 'Stamped', type: 'friend', relationshipScore: 40, lastInteractionWeek: 42, personality: 'f', gender: 'male', age: 30 },
+      ],
+    });
+    const contacts = aggregateContacts(s);
+    expect(contacts.find((c) => c.name === 'LegacyCall')?.weeksSinceContact).toBeUndefined();
+    expect(contacts.find((c) => c.name === 'Stamped')?.weeksSinceContact).toBe(8);
+  });
 });

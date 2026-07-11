@@ -24,7 +24,20 @@ const DEFAULT_PRICES: Record<string, StockData> = {
   BA: { price: 185.60, dividendYield: 0.0 },
   CAT: { price: 298.40, dividendYield: 0.018 },
   IBM: { price: 142.30, dividendYield: 0.048 },
+  // Energy sector — gives the board a real Energy tile instead of an empty
+  // "0 stocks" placeholder, and lets sector rotation + quarterly dividends
+  // cover all six sectors. Prices/yields consistent with blue-chip neighbors.
+  XOM: { price: 112.40, dividendYield: 0.034 },
+  CVX: { price: 156.80, dividendYield: 0.041 },
+  SLB: { price: 44.15, dividendYield: 0.025 },
+  // Healthcare — thickens a sector that was JNJ-only.
+  PFE: { price: 27.60, dividendYield: 0.061 },
+  UNH: { price: 512.30, dividendYield: 0.015 },
 };
+
+// $1M per-share ceiling — a conceptual "split". Shared by the weekly walk and
+// by adjustStockPrice so sector/macro tilt persistence honors the same clamp.
+const MAX_STOCK_PRICE = 1_000_000;
 
 // Mutable stock state — initialized from defaults, restored from save via restoreStockPrices()
 const stocks: Record<string, StockData> = {};
@@ -67,8 +80,12 @@ Object.keys(stocks).forEach(symbol => {
   else if (['AAPL', 'GOOGL', 'MSFT', 'AMZN'].includes(symbol)) {
     volatilityMap[symbol] = 0.06; // 6% volatility
   }
-  // Low volatility stocks (blue chips, dividend stocks)
-  else if (['JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM'].includes(symbol)) {
+  // Higher-beta energy services / healthcare insurer
+  else if (['SLB', 'UNH'].includes(symbol)) {
+    volatilityMap[symbol] = 0.06; // 6% volatility
+  }
+  // Low volatility stocks (blue chips, dividend stocks, energy majors)
+  else if (['JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM', 'XOM', 'CVX', 'PFE'].includes(symbol)) {
     volatilityMap[symbol] = 0.04; // 4% volatility
   }
   else {
@@ -174,7 +191,7 @@ export function simulateWeek(policyEffects?: {
     if (!isFinite(changePercent)) continue;
 
     // CRASH FIX (B-2): Apply the change with floor AND ceiling to prevent overflow
-    const MAX_STOCK_PRICE = 1_000_000; // $1M per share max — triggers conceptual "split"
+    // ($1M per-share max — module-level MAX_STOCK_PRICE, shared with adjustStockPrice).
     let newPrice = stock.price * (1 + changePercent);
     // Guard against NaN/Infinity from edge-case calculations
     if (!isFinite(newPrice) || isNaN(newPrice)) {
@@ -204,7 +221,13 @@ export function adjustStockPrice(id: string, factor: number) {
   const normalizedId = id?.toUpperCase() ?? '';
   const stock = stocks[normalizedId];
   if (stock) {
-    stock.price = Math.max(0.01, stock.price * factor);
+    // Guard non-finite factors (a bad tilt/drift ratio must never poison price),
+    // then clamp to the same [0.01, $1M] band as the weekly walk so persisting
+    // the sector tilt + macro drift can't breach the ceiling as it compounds.
+    if (!isFinite(factor) || factor <= 0) return;
+    const next = stock.price * factor;
+    if (!isFinite(next)) return;
+    stock.price = Math.max(0.01, Math.min(MAX_STOCK_PRICE, next));
   }
 }
 

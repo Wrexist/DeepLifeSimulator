@@ -48,4 +48,21 @@ describe('projectStreamOutcome', () => {
     expect(hyped.donations).toBeGreaterThan(normal.donations);
     expect(hyped.newSubs).toBeGreaterThan(normal.newSubs);
   });
+
+  it('defaults hype chance to 8% when hypeChance is omitted (existing callers unchanged)', () => {
+    // roll just under 0.08 → hype; just over → no hype.
+    expect(projectStreamOutcome({ quality: 40, followers: 1000, duration: 60, rollHype: 0.079 }).hypeTrain).toBe(true);
+    expect(projectStreamOutcome({ quality: 40, followers: 1000, duration: 60, rollHype: 0.081 }).hypeTrain).toBe(false);
+  });
+
+  it('a raised hypeChance makes a roll that would miss at 8% land a hype train', () => {
+    const roll = 0.15; // above 0.08, below a streak-boosted 0.20
+    expect(projectStreamOutcome({ quality: 40, followers: 1000, duration: 60, rollHype: roll }).hypeTrain).toBe(false);
+    expect(projectStreamOutcome({ quality: 40, followers: 1000, duration: 60, rollHype: roll, hypeChance: 0.2 }).hypeTrain).toBe(true);
+  });
+
+  it('clamps hypeChance to 25% so it cannot be pushed arbitrarily high', () => {
+    // A roll above the 0.25 ceiling never hypes even with a tampered hypeChance.
+    expect(projectStreamOutcome({ quality: 40, followers: 1000, duration: 60, rollHype: 0.3, hypeChance: 0.99 }).hypeTrain).toBe(false);
+  });
 });

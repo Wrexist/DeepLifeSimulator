@@ -4,9 +4,10 @@ import {
   bestGpa,
   enroll,
   pauseEducation,
+  setStudyGroup,
   withdraw,
 } from '../operations';
-import { Education } from '@/contexts/game/types';
+import { Education, EducationClass } from '@/contexts/game/types';
 
 function active(over: Partial<Education> = {}): Education {
   return {
@@ -68,6 +69,42 @@ describe('enroll', () => {
       weeksReduction: 100,
     });
     expect(r.education.duration).toBe(1);
+  });
+
+  it('defaults enrolledClasses to [] when no classes chosen', () => {
+    const r = enroll([], {
+      templateId: 'cs101', name: 'CS 101', description: 'intro',
+      cost: 5000, duration: 26, startedWeek: 0,
+    });
+    expect(r.education.enrolledClasses).toEqual([]);
+  });
+
+  it('populates enrolledClasses from the chosen classes (capped at 3)', () => {
+    const mk = (id: string): EducationClass => ({
+      id, name: id, category: 'core', statBonuses: { reputation: 2 }, difficulty: 2, completed: false,
+    });
+    const r = enroll([], {
+      templateId: 'cs101', name: 'CS 101', description: 'intro',
+      cost: 5000, duration: 26, startedWeek: 0,
+      classes: [mk('a'), mk('b'), mk('c'), mk('d')],
+    });
+    expect(r.education.enrolledClasses).toHaveLength(3);
+    expect(r.education.enrolledClasses!.every((c) => c.completed === false)).toBe(true);
+  });
+});
+
+describe('setStudyGroup', () => {
+  it('activates the flag on the matching education', () => {
+    const r = setStudyGroup([active()], 'cs101', true);
+    expect(r[0].studyGroupActive).toBe(true);
+  });
+  it('deactivates the flag', () => {
+    const r = setStudyGroup([active({ studyGroupActive: true })], 'cs101', false);
+    expect(r[0].studyGroupActive).toBe(false);
+  });
+  it('no-ops on unknown id', () => {
+    const r = setStudyGroup([active()], 'other', true);
+    expect(r[0].studyGroupActive).toBe(false);
   });
 });
 

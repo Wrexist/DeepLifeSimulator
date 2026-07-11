@@ -11,7 +11,7 @@
  * Pure function. Caller threads cash + holdings deltas into setGameState.
  */
 
-import { Sector, SectorSnapshot, sectorTiltFor } from './sectors';
+import { SectorSnapshot, sectorTiltFor } from './sectors';
 import { computePayouts, DIVIDEND_INTERVAL_WEEKS, isDividendWeek, sumPayouts } from './dividends';
 import { initialSectorSnapshots, processOpenOrders, tickSectors } from './operations';
 import { StockOrder } from './orderBook';
@@ -89,6 +89,15 @@ export interface StocksTickResult {
   dividendsUSD: number;
   /** Total realized gains from sell fills this tick. */
   realizedGains: number;
+  /**
+   * Per-symbol multiplicative factor (tiltedPrice / baseModulePrice) that the
+   * caller applies via adjustStockPrice() BEFORE snapshotting module prices, so
+   * the sector tilt + macro drift actually MOVE the tradeable/board/snapshot
+   * price and COMPOUND week over week (next week's walk starts from the moved
+   * price). Only symbols whose price was moved this tick appear (factor ≠ 1).
+   * Deterministic: derived from the seeded tilt/drift already computed here.
+   */
+  priceFactors: Record<string, number>;
   notifications: { id: string; title: string; message: string }[];
 }
 
@@ -115,14 +124,23 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   }
 
   // 2) Apply sector tilt to prices (multiplicative), then the macro drift.
+  //    priceFactors captures the net move (tilted / base) per symbol so the
+  //    caller can persist it into the authoritative module price — this is what
+  //    turns the previously-cosmetic tilt/drift into a real, compounding move on
+  //    the market board, Movers sort, market-order fills, and portfolio value.
   const prices = { ...input.prices };
+  const priceFactors: Record<string, number> = {};
   const macroActive = input.economyState != null && input.economyState !== 'normal';
   for (const sym of Object.keys(prices)) {
+    const base = input.prices[sym];
     const tilt = sectorTiltFor(sym, ticked.snapshots);
     if (tilt !== 0) prices[sym] = Math.max(0.0001, prices[sym] * (1 + tilt));
     if (macroActive) {
       const drift = macroDriftFor(input.economyState, input.rollFor(`stocks.macro.${sym}`));
       if (drift !== 0) prices[sym] = Math.max(0.0001, prices[sym] * (1 + drift));
+    }
+    if (typeof base === 'number' && isFinite(base) && base > 0 && prices[sym] !== base) {
+      priceFactors[sym] = prices[sym] / base;
     }
   }
 
@@ -218,6 +236,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     cashDelta,
     dividendsUSD,
     realizedGains,
+    priceFactors,
     notifications,
   };
 }

@@ -15,6 +15,8 @@ import type {
   HustleCampaignKind,
   HustleCompanyOverlay,
   HustleScandalKind,
+  HustleActiveScandal,
+  HustleHire,
   HustleAcquisitionOffer,
   HustleIndustry,
 } from '@/contexts/game/types';
@@ -144,26 +146,38 @@ export const SCANDAL_HEADLINES: Record<HustleScandalKind, string[]> = {
   product_defect: [
     'Product recall after defect reports surface',
     'Quality control failure goes viral',
+    'Flagship line pulled from shelves over safety fears',
+    'Customers post videos of malfunctioning units',
   ],
   labor_abuse: [
     'Workers allege unsafe conditions in leaked memo',
     'Whistleblower exposes overtime violations',
+    'Union files complaint over unpaid wages',
+    'Undercover report reveals grueling shift quotas',
   ],
   environmental: [
     'Regulators investigate pollution complaints',
     'Local activists protest emissions',
+    'Leaked report ties operations to contaminated runoff',
+    'City council reviews permits after spill allegations',
   ],
   data_breach: [
     'Customer data leaked in cyber breach',
     'Internal records dumped online',
+    'Millions of accounts exposed in security lapse',
+    'Regulators probe delayed breach disclosure',
   ],
   fraud_allegation: [
     'SEC opens accounting irregularities probe',
     'Insider claims books were cooked',
+    'Auditors flag suspicious revenue recognition',
+    'Short-seller report alleges inflated numbers',
   ],
   pr_disaster: [
     'CEO comment sparks boycott calls',
     'Marketing campaign backfires',
+    'Tone-deaf ad pulled after public outcry',
+    'Executive email leak fuels online backlash',
   ],
 };
 
@@ -179,6 +193,172 @@ export const SCANDAL_BASE_SEVERITY: Record<HustleScandalKind, number> = {
 export function scandalRevenueDrag(severity: number): number {
   // % weekly drag — severity 100 → 30%, severity 30 → 5%
   return Math.min(0.3, Math.max(0, (severity - 20) / 270));
+}
+
+// ── Organic scandal roll (weekly tick) ───────────────────────────────────
+
+/** Companies below this weekly income are too small to attract a scandal. */
+export const SCANDAL_MIN_WEEKLY_INCOME = 3_000;
+/** Weeks after a scandal is survived before another can spawn on that company. */
+export const SCANDAL_COOLDOWN_WEEKS = 12;
+/** Base per-week spawn chance, before brand/size scaling. */
+export const SCANDAL_BASE_CHANCE = 0.025;
+/** Absolute per-week ceiling on spawn chance after scaling. */
+export const SCANDAL_MAX_CHANCE = 0.12;
+
+/**
+ * Which scandal kinds each industry is prone to (used to weight the roll so a
+ * factory tends toward product/labor/environmental, a bank toward fraud/data).
+ * Falls back to the full pool for unknown industries.
+ */
+const SCANDAL_KINDS_BY_INDUSTRY: Record<HustleIndustry, HustleScandalKind[]> = {
+  factory: ['product_defect', 'labor_abuse', 'environmental'],
+  ai: ['data_breach', 'pr_disaster', 'fraud_allegation'],
+  restaurant: ['product_defect', 'labor_abuse', 'pr_disaster'],
+  realestate: ['fraud_allegation', 'environmental', 'pr_disaster'],
+  bank: ['fraud_allegation', 'data_breach', 'pr_disaster'],
+};
+
+const ALL_SCANDAL_KINDS: HustleScandalKind[] = [
+  'product_defect', 'labor_abuse', 'environmental', 'data_breach', 'fraud_allegation', 'pr_disaster',
+];
+
+/**
+ * Per-week seeded spawn chance for a company. Base ~2.5%/wk, raised as brand
+ * health falls (weak brand → up to 2× risk) and gently by company size, capped
+ * at SCANDAL_MAX_CHANCE. Exposed for tests + tuning.
+ */
+export function scandalSpawnChance(brandScore: number, weeklyIncome: number): number {
+  const brand = isFinite(brandScore) ? brandScore : 50;
+  const income = isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
+  const brandRiskMul = 1 + Math.max(0, 50 - brand) / 50;      // brand 50→1×, brand 0→2×
+  const sizeRiskMul = 1 + Math.min(0.5, income / 200_000);     // bigger → up to +50%
+  return Math.min(SCANDAL_MAX_CHANCE, SCANDAL_BASE_CHANCE * brandRiskMul * sizeRiskMul);
+}
+
+/**
+ * Roll a single organic scandal for a company in a given week. Deterministic
+ * (seeded by company id + week — no wall clock). Returns null when no scandal
+ * fires. Guards: never spawns a 2nd concurrent scandal, size-gated, and honors
+ * a post-resolution cooldown off the most-recent scandalHistory entry.
+ */
+export function rollScandalForWeek(
+  company: Company,
+  overlay: HustleCompanyOverlay,
+  weeksLived: number,
+): HustleActiveScandal | null {
+  // One scandal at a time.
+  if (overlay.activeScandal) return null;
+  // Size gate — small companies don't draw scrutiny.
+  const income = company.weeklyIncome ?? 0;
+  if (income < SCANDAL_MIN_WEEKLY_INCOME) return null;
+  // Post-resolution cooldown — no back-to-back scandals.
+  const history = overlay.scandalHistory ?? [];
+  if (history.length > 0) {
+    const lastSurvived = history[history.length - 1].survivedAtWeek ?? -Infinity;
+    if (weeksLived - lastSurvived < SCANDAL_COOLDOWN_WEEKS) return null;
+  }
+
+  const brand = overlay.brand?.score ?? 50;
+  const chance = scandalSpawnChance(brand, income);
+  const seed = `hustle-scandal-roll|${company.id}|${weeksLived}`;
+  if (seededRand(seed) >= chance) return null;
+
+  const industry = company.type as HustleIndustry;
+  const kinds = SCANDAL_KINDS_BY_INDUSTRY[industry] ?? ALL_SCANDAL_KINDS;
+  const kind = kinds[Math.floor(seededRand(seed + '|kind') * kinds.length)];
+  const severity = SCANDAL_BASE_SEVERITY[kind];
+  const headlines = SCANDAL_HEADLINES[kind];
+  const headline = headlines[Math.floor(seededRand(seed + '|hl') * headlines.length)];
+
+  return {
+    id: `scn-${company.id}-${weeksLived}`,
+    kind,
+    severity,
+    startedWeek: weeksLived,
+    weeksRemaining: 6,
+    headline,
+    resolutionMethod: null,
+    revenueDragPercent: scandalRevenueDrag(severity),
+  };
+}
+
+/**
+ * Estimate the total revenue a scandal dragged away over its active life, from
+ * its initial (base) severity, the number of weeks it was active, and the
+ * company's weekly income. Uses the average of the start/end weekly drag as
+ * severity decays ~10/wk. Deterministic; used to fill HustleScandalRecord's
+ * totalRevenueLoss (previously hardcoded 0).
+ */
+export function estimateScandalRevenueLoss(
+  initialSeverity: number,
+  weeksActive: number,
+  companyWeeklyIncome: number,
+): number {
+  const weeks = Math.max(0, Math.floor(weeksActive));
+  const income = isFinite(companyWeeklyIncome) && companyWeeklyIncome > 0 ? companyWeeklyIncome : 0;
+  if (weeks === 0 || income === 0) return 0;
+  const finalSeverity = Math.max(0, initialSeverity - 10 * weeks);
+  const avgDrag = (scandalRevenueDrag(initialSeverity) + scandalRevenueDrag(finalSeverity)) / 2;
+  return Math.max(0, Math.round(weeks * income * avgDrag));
+}
+
+/**
+ * Reputation damage a scandal leaves behind on resolution (a small, bounded
+ * figure scaled by its initial severity). Used to fill HustleScandalRecord's
+ * finalReputationLoss (previously hardcoded 0 on the natural-decay path).
+ */
+export function scandalReputationLoss(initialSeverity: number): number {
+  return Math.max(1, Math.round((isFinite(initialSeverity) ? initialSeverity : 0) / 12));
+}
+
+// ── Named-hire productivity payoff ───────────────────────────────────────
+
+/**
+ * Bounded income factor contribution from a company's named-hire roster. Reads
+ * the existing per-hire `performance` (0-100). Neutral (0) with an empty roster
+ * so older saves / hire-less companies are unaffected. Range: [-0.08, +0.08]
+ * (a ±8% nudge), folded into passiveIncome's existing [0.75, 1.6] clamp so the
+ * COMBINED brand + share + hire multiplier can never exceed the cap.
+ */
+export function namedHirePerformanceFactor(namedHires: HustleHire[] | undefined): number {
+  const hires = Array.isArray(namedHires) ? namedHires : [];
+  if (hires.length === 0) return 0;
+  const avg =
+    hires.reduce(
+      (sum, h) => sum + (typeof h.performance === 'number' && isFinite(h.performance) ? h.performance : 50),
+      0,
+    ) / hires.length;
+  // (avg-50)/625 → 0 at neutral 50, ±0.08 at the 0/100 extremes.
+  return Math.max(-0.08, Math.min(0.08, (avg - 50) / 625));
+}
+
+// ── Company overlay factory ──────────────────────────────────────────────
+
+/**
+ * Build a fresh Hustle overlay for a newly-founded company. Single source of
+ * truth for the default shape (mirrors the v17 save migration + ensureOverlay)
+ * so `createCompany` can seed the overlay immediately — otherwise the weekly
+ * tick skips overlay-less companies (`if (!prevOverlay) continue`).
+ */
+export function createDefaultCompanyOverlay(
+  companyId: string,
+  weeksLived: number,
+): HustleCompanyOverlay {
+  return {
+    companyId,
+    hiringPipeline: { candidates: [], namedHires: [], weeksSinceLastHire: 0, totalSeverance: 0 },
+    activeCampaigns: [],
+    brand: { score: 50, trend: 'flat', lastUpdatedWeek: weeksLived },
+    activeScandal: null,
+    scandalHistory: [],
+    boardSeats: [],
+    ipo: { status: 'private', ownershipPercent: 100, sharePrice: 0, sharesOutstandingK: 0, recentEarnings: [] },
+    pendingAcquisitions: [],
+    suppliers: [],
+    marketSharePercent: 5,
+    notifications: [],
+  };
 }
 
 // ── Market share ─────────────────────────────────────────────────────────

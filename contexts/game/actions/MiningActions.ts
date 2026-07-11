@@ -4,10 +4,141 @@
  */
 import { Dispatch, SetStateAction } from 'react';
 import { GameState, Warehouse, MinerUpgrade, MiningPool, StakingPosition, MiningStatistics } from '../types';
-import { logger } from '@/utils/logger';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { MINER_REPAIR_COSTS } from './weekly/applyMiningWarehouse';
 
-const log = logger.scope('MiningActions');
+// Tiny positive floor written to `autoRepairWeeklyCost` when the player arms
+// auto-repair. It exists to (a) satisfy the truthy gate the warehouse durability
+// pass checks (`applyMiningWarehouse.ts:97` requires `autoRepairWeeklyCost`) and
+// (b) act as the `Math.max(flat, realCost)` floor in the crypto deduction
+// (`applyMiningCryptos.ts` autoRepairCostInCrypto). Kept intentionally tiny so the
+// REAL fleet-scaled repair cost always dominates — the player never overpays.
+export const AUTO_REPAIR_WEEKLY_COST_FLOOR = 0.0001;
+
+/**
+ * Manual rig repair — restore ONE miner tier to 100% durability and debit the
+ * displayed USD repair cost. Mirrors the atomic double-tap guard used by
+ * handleBuyMiner / buyMinerUpgrade: the cost is re-derived from `prev` inside
+ * the updater so a same-batch double-tap can't debit twice while repairing once.
+ *
+ * Repair cost = MINER_REPAIR_COSTS[tier] × (damage%/100) × unitsOwned — the exact
+ * figure the rig-detail "Repair now · $X" readout shows, so the debit matches
+ * what the player sees (the cap-at-displayed-cost guardrail from the audit).
+ */
+export function repairRig(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  tierId: string
+): { success: boolean; message?: string } {
+  if (!gameState.warehouse) {
+    return { success: false, message: 'No warehouse found' };
+  }
+
+  const owned = gameState.warehouse.miners?.[tierId] ?? 0;
+  if (owned <= 0) {
+    return { success: false, message: 'No units of this rig deployed' };
+  }
+
+  const currentDurability = gameState.warehouse.minerDurability?.[tierId] ?? 100;
+  if (currentDurability >= 100) {
+    return { success: false, message: 'Rig is already at full durability' };
+  }
+
+  const baseCost = MINER_REPAIR_COSTS[tierId] || 0;
+  const cost = baseCost * ((100 - currentDurability) / 100) * owned;
+  if (!Number.isFinite(cost) || cost <= 0) {
+    return { success: false, message: 'Nothing to repair' };
+  }
+
+  if ((gameState.stats?.money ?? 0) < cost) {
+    return { success: false, message: `Insufficient funds. Need $${Math.ceil(cost).toLocaleString()}` };
+  }
+
+  let didRepair = false;
+  setGameState(prev => {
+    if (!prev.warehouse) return prev;
+
+    // Atomic re-check against `prev`: re-derive owned / durability / cost so a
+    // second queued tap this batch (which saw the same stale outer snapshot)
+    // can't double-debit. If the rig was already repaired this batch, the
+    // fresh durability is 100 → no-op.
+    const freshOwned = prev.warehouse.miners?.[tierId] ?? 0;
+    if (freshOwned <= 0) return prev;
+    const freshDurability = prev.warehouse.minerDurability?.[tierId] ?? 100;
+    if (freshDurability >= 100) return prev;
+    const freshCost = (MINER_REPAIR_COSTS[tierId] || 0) * ((100 - freshDurability) / 100) * freshOwned;
+    if (!Number.isFinite(freshCost) || freshCost <= 0) return prev;
+    if ((prev.stats?.money ?? 0) < freshCost) return prev;
+
+    didRepair = true;
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - freshCost),
+      },
+      warehouse: {
+        ...prev.warehouse,
+        minerDurability: {
+          ...(prev.warehouse.minerDurability ?? {}),
+          [tierId]: 100,
+        },
+      },
+    };
+  });
+
+  if (!didRepair) {
+    return { success: false, message: 'Unable to repair right now' };
+  }
+  return { success: true, message: `Repaired ${tierId} to 100%` };
+}
+
+/**
+ * Arm / disarm auto-repair. When enabling, the player picks which crypto pays
+ * the weekly repair bill; we also stamp the tiny `AUTO_REPAIR_WEEKLY_COST_FLOOR`
+ * so the already-implemented tick (applyMiningWarehouse durability restore +
+ * applyMiningCryptos real-cost deduction) actually fires — both were dead because
+ * no component ever wrote these fields.
+ */
+export function setAutoRepair(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  options: { enabled: boolean; cryptoId?: string }
+): { success: boolean; message?: string } {
+  if (!gameState.warehouse) {
+    return { success: false, message: 'No warehouse found' };
+  }
+
+  if (options.enabled) {
+    if (!options.cryptoId) {
+      return { success: false, message: 'Choose a crypto to fund auto-repair' };
+    }
+    const crypto = (gameState.cryptos ?? []).find(c => c.id === options.cryptoId);
+    if (!crypto) {
+      return { success: false, message: 'Crypto not found' };
+    }
+  }
+
+  setGameState(prev => {
+    if (!prev.warehouse) return prev;
+    return {
+      ...prev,
+      warehouse: {
+        ...prev.warehouse,
+        autoRepairEnabled: options.enabled,
+        // Keep the last-chosen crypto when disabling so re-enabling remembers it.
+        autoRepairCryptoId: options.enabled ? options.cryptoId : prev.warehouse.autoRepairCryptoId,
+        // Arm the tick gate + floor only while enabled.
+        autoRepairWeeklyCost: options.enabled ? AUTO_REPAIR_WEEKLY_COST_FLOOR : prev.warehouse.autoRepairWeeklyCost,
+      },
+    };
+  });
+
+  return {
+    success: true,
+    message: options.enabled ? 'Auto-repair enabled' : 'Auto-repair disabled',
+  };
+}
 
 // Miner upgrade definitions
 export const MINER_UPGRADE_DEFINITIONS: Record<string, {

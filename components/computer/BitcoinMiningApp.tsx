@@ -49,6 +49,8 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
+import { estimateWeeklyMining } from '@/lib/crypto/estimateWeeklyMining';
+import { repairRig, setAutoRepair } from '@/contexts/game/actions/MiningActions';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CoinRow from '@/components/crypto/CoinRow';
@@ -199,13 +201,6 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     () => Object.values(ownedMiners).reduce((sum, n) => sum + (n || 0), 0),
     [ownedMiners]
   );
-  const estimatedWeeklyMiningEarnings = useMemo(() => {
-    let total = 0;
-    for (const tier of MINER_TIERS) {
-      total += (ownedMiners[tier.id] ?? 0) * tier.weeklyEarnings;
-    }
-    return total;
-  }, [ownedMiners]);
   const totalHashrate = useMemo(() => {
     let total = 0;
     for (const tier of MINER_TIERS) {
@@ -234,6 +229,49 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const mineTargetId = gameState.warehouse?.selectedCrypto ?? 'btc';
   const mineTargetCoin = cryptos.find((c) => c.id === mineTargetId);
   const mineTargetMarket = market.coinMarkets[mineTargetId];
+
+  // --- Honest per-coin mining estimate (shared estimator) ------------------
+  // The old static $/wk assumed BTC at difficulty 1.0, so mining XRP showed the
+  // same figure as BTC. `estimateWeeklyMining` is the single source of truth the
+  // tick also uses, so switching the mining target / crossing a halving visibly
+  // changes the projection (per-coin multiplier × 0.5^halving × price − electricity,
+  // capped at $100K/wk).
+  const halvingCount = market.halvingCount ?? 0;
+  const warehouseForEstimate = gameState.warehouse;
+  const mineEstimate = useMemo(
+    () => estimateWeeklyMining(warehouseForEstimate, cryptos, mineTargetId, halvingCount),
+    [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
+  );
+  // Gross USD/wk the fleet would earn if it mined BTC instead — powers the
+  // "vs BTC" hint so the player can see how much yield the target coin trades away.
+  const btcEstimateUsd = useMemo(
+    () => estimateWeeklyMining(warehouseForEstimate, cryptos, 'btc', halvingCount).usdPerWeek,
+    [warehouseForEstimate, gameState.cryptos, halvingCount]
+  );
+  const vsBtcPct =
+    mineTargetId !== 'btc' && btcEstimateUsd > 0
+      ? Math.round((mineEstimate.usdPerWeek / btcEstimateUsd) * 100)
+      : null;
+  // Per-1-unit gross USD/wk for the SELECTED coin (rig cards). Linear in count
+  // below the $100K cap, so it honestly reflects difficulty + halving + coin price.
+  const perUnitYield = useCallback(
+    (tierId: string): number => {
+      const base = warehouseForEstimate ?? { level: 1, miners: {} };
+      const synthetic = { ...base, miners: { [tierId]: 1 }, selectedCrypto: mineTargetId };
+      return estimateWeeklyMining(synthetic, cryptos, mineTargetId, halvingCount).usdPerWeek;
+    },
+    [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
+  );
+  // Actual-fleet gross USD/wk for one tier (rig detail) — applies the $100K cap.
+  const fleetYieldForTier = useCallback(
+    (tierId: string, count: number): number => {
+      if (count <= 0) return 0;
+      const base = warehouseForEstimate ?? { level: 1, miners: {} };
+      const synthetic = { ...base, miners: { [tierId]: count }, selectedCrypto: mineTargetId };
+      return estimateWeeklyMining(synthetic, cryptos, mineTargetId, halvingCount).usdPerWeek;
+    },
+    [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
+  );
 
   // --- Handlers ------------------------------------------------------------
   const handleBack = () => {
@@ -306,6 +344,42 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         ? { ...prev.warehouse, selectedCrypto: coinId }
         : { level: 1, miners: {}, selectedCrypto: coinId },
     }));
+    queueSave();
+  };
+
+  // Manual repair — restores one rig tier to 100% and debits the displayed USD
+  // cost. The action re-checks affordability atomically (double-tap safe).
+  const handleRepairRig = (tierId: string) => {
+    const res = repairRig(gameState, setGameState, tierId);
+    if (!res.success) {
+      if (res.message) Alert.alert('Repair', res.message);
+      return;
+    }
+    queueSave();
+  };
+
+  // Auto-repair toggle — arms the already-implemented tick that repairs sub-50%
+  // rigs each week, paid from the chosen crypto. Enabling needs a funding coin
+  // (defaults to the current mining target).
+  const autoRepairEnabled = !!gameState.warehouse?.autoRepairEnabled;
+  const autoRepairCryptoId = gameState.warehouse?.autoRepairCryptoId ?? mineTargetId;
+  const handleToggleAutoRepair = () => {
+    const res = setAutoRepair(gameState, setGameState, {
+      enabled: !autoRepairEnabled,
+      cryptoId: autoRepairCryptoId,
+    });
+    if (!res.success) {
+      if (res.message) Alert.alert('Auto-repair', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleSelectAutoRepairCrypto = (coinId: string) => {
+    const res = setAutoRepair(gameState, setGameState, { enabled: true, cryptoId: coinId });
+    if (!res.success) {
+      if (res.message) Alert.alert('Auto-repair', res.message);
+      return;
+    }
     queueSave();
   };
 
@@ -419,16 +493,18 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           </ProgressRing>
 
           <View style={{ flex: 1 }}>
-            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>MINING RIG</Text>
+            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>MINING YIELD</Text>
             <Text style={[styles.heroValue, { color: theme.text }]}>
-              {formatMoney(estimatedWeeklyMiningEarnings)}
+              {formatMoney(mineEstimate.usdPerWeek)}
               <Text style={[styles.heroValueUnit, { color: theme.textMuted }]}>/wk</Text>
             </Text>
             <Text style={[styles.heroSub, { color: theme.textMuted }]}>
               {totalMiners} rig{totalMiners === 1 ? '' : 's'} online · mining {mineTargetId.toUpperCase()}
+              {vsBtcPct != null ? ` · ${vsBtcPct}% of BTC` : ''}
             </Text>
             <View style={styles.pillRow}>
               <StatPill icon={Activity} label="Difficulty" value={`${difficultyMultiplier.toFixed(1)}×`} theme={theme} />
+              <StatPill icon={Zap} label="Power" value={`${formatMoney(mineEstimate.electricityUsd)}/wk`} theme={theme} />
               <StatPill
                 label={totalMiners > 0 ? fleetBand.label : 'No rigs'}
                 value={totalMiners > 0 ? `${Math.round(fleetHealth)}%` : '—'}
@@ -472,6 +548,64 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             );
           })}
         </View>
+      </View>
+
+      {/* Auto-repair — arms the weekly tick that restores sub-50% rigs to 100%,
+          paid from the chosen crypto. Turns durability from one-way decay into a
+          managed resource. */}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <View style={styles.headerRow}>
+          <SectionTitle theme={theme}>Auto-repair</SectionTitle>
+          <TouchableOpacity
+            onPress={handleToggleAutoRepair}
+            accessibilityRole="switch"
+            accessibilityLabel="Toggle weekly auto-repair"
+            accessibilityState={{ checked: autoRepairEnabled }}
+            style={[
+              styles.chip,
+              { flexDirection: 'row', alignItems: 'center', gap: 4 },
+              autoRepairEnabled
+                ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+            ]}
+          >
+            <Wrench size={scale(12)} color={autoRepairEnabled ? amber.solid : theme.textMuted} />
+            <Text style={[styles.chipText, { color: autoRepairEnabled ? amber.solid : theme.textSecondary }]}>
+              {autoRepairEnabled ? 'On' : 'Off'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
+          {autoRepairEnabled
+            ? `Each week, rigs below 50% health are restored to 100%, billed in ${autoRepairCryptoId.toUpperCase()}.`
+            : 'Rigs degrade 2–5% per week. Enable to auto-restore worn rigs from a crypto of your choice.'}
+        </Text>
+        {autoRepairEnabled && (
+          <View style={styles.chipRow}>
+            {cryptos.map((c) => {
+              const selected = autoRepairCryptoId === c.id;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => handleSelectAutoRepairCrypto(c.id)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Fund auto-repair with ${c.name ?? c.symbol ?? c.id}`}
+                  accessibilityState={{ selected }}
+                  style={[
+                    styles.chip,
+                    selected
+                      ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                      : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: selected ? amber.solid : theme.textSecondary }]}>
+                    {c.symbol}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Rig hardware cards — status LED + spec chips + durability bar. The card
@@ -522,7 +656,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
               <View style={styles.specRow}>
                 <StatPill icon={Zap} label="Hashrate" value={formatHashrate(tier.hashrate)} theme={theme} />
-                <StatPill label="Yield" value={`${formatMoney(tier.weeklyEarnings)}/wk`} theme={theme} />
+                {/* Per-unit yield for the SELECTED mining coin (honest — reflects
+                    the coin's difficulty multiplier, halving, and price). */}
+                <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(perUnitYield(tier.id))}/wk`} theme={theme} />
               </View>
 
               {owned > 0 && <DurabilityBar value={dur} theme={theme} />}
@@ -553,7 +689,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   // --- Render: PORTFOLIO ---------------------------------------------------
   const renderPortfolio = () => {
     // Halving countdown: BTC halves every ~208 weeks (4 game years) of game time.
-    // The reward-halving mechanism itself is deferred; this UI lights up the countdown.
+    // The halving is fully wired: the crypto weekly tick fires it at 208w
+    // (lib/crypto/weeklyTick.ts) and applyMiningCryptos scales the mined reward by
+    // 0.5^halvingCount — this UI lights up the countdown to that event.
     const HALVING_INTERVAL_WEEKS = 208;
     const lastHalving = market.lastHalvingWeek ?? 0;
     const nextHalvingWeek = lastHalving + HALVING_INTERVAL_WEEKS;
@@ -729,11 +867,15 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const dur = owned > 0 ? (minerDurability[tier.id] ?? 100) : 0;
     const band = healthBand(dur);
     const ledColor = owned > 0 ? band.color : theme.textMuted;
-    const fleetYield = owned * tier.weeklyEarnings;
+    // Fleet + per-unit yields now reflect the SELECTED mining coin (honest —
+    // difficulty × halving × coin price × electricity), not the old BTC-at-1.0 static.
+    const fleetYield = fleetYieldForTier(tier.id, owned);
+    const unitYield = perUnitYield(tier.id);
     const fleetHash = owned * tier.hashrate;
     const repairFull = MINER_REPAIR_COSTS[tier.id] ?? 0;
     // Repair cost scales with damage + unit count (mirrors applyMiningWarehouse).
     const repairNow = owned > 0 ? repairFull * ((100 - dur) / 100) * owned : 0;
+    const canRepair = owned > 0 && dur < 100 && repairNow > 0 && cash >= repairNow;
 
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
@@ -767,7 +909,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 {owned > 0 ? `${band.label} · ${Math.round(dur)}% health` : 'Not deployed'}
               </Text>
               <View style={styles.pillRow}>
-                <StatPill icon={Zap} label="Unit" value={`${formatMoney(tier.weeklyEarnings)}/wk`} theme={theme} />
+                <StatPill icon={Zap} label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(unitYield)}/wk`} theme={theme} />
               </View>
             </View>
           </View>
@@ -792,18 +934,34 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 <DurabilityBar value={dur} theme={theme} />
                 <View style={styles.conditionRow}>
                   <View style={styles.conditionInline}>
-                    <Wrench size={scale(12)} color={theme.textMuted} />
-                    <Text style={[styles.conditionLabel, { color: theme.textMuted }]}>Repair now</Text>
-                  </View>
-                  <Text style={[styles.conditionValue, { color: theme.text }]}>{formatMoney(repairNow)}</Text>
-                </View>
-                <View style={styles.conditionRow}>
-                  <View style={styles.conditionInline}>
                     <Activity size={scale(12)} color={theme.textMuted} />
                     <Text style={[styles.conditionLabel, { color: theme.textMuted }]}>Network difficulty</Text>
                   </View>
                   <Text style={[styles.conditionValue, { color: theme.text }]}>{difficultyMultiplier.toFixed(1)}×</Text>
                 </View>
+                {/* Repair CTA — the old "$X" readout is now an actionable inset
+                    chip (single loud CTA reserved for Buy). Restores durability to
+                    100% and debits the displayed cost. Disabled at full health. */}
+                <TouchableOpacity
+                  disabled={!canRepair}
+                  onPress={() => handleRepairRig(tier.id)}
+                  style={[
+                    styles.buyBtn,
+                    { backgroundColor: canRepair ? amber.chip : theme.surfaceElevated, marginTop: responsiveSpacing.xs },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Repair ${tier.label} for ${formatMoney(repairNow)}`}
+                  accessibilityState={{ disabled: !canRepair }}
+                >
+                  <Wrench size={scale(13)} color={canRepair ? amber.solid : theme.textMuted} />
+                  <Text style={[styles.buyBtnText, { color: canRepair ? amber.solid : theme.textMuted }]}>
+                    {dur >= 100
+                      ? 'Fully repaired'
+                      : cash < repairNow
+                        ? `Repair · need ${formatMoney(repairNow)}`
+                        : `Repair now · ${formatMoney(repairNow)}`}
+                  </Text>
+                </TouchableOpacity>
               </>
             ) : (
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>

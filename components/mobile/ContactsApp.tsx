@@ -50,13 +50,13 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
-import type { Relationship, GameState } from '@/contexts/game/types';
+import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
-import { netMoneyPosition, openFavors, FavorLedger, Favor } from '@/lib/contacts/favors';
+import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
-import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
+import { redeemFavor, repayFavor, recordInteraction } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
 import { getMoodLabel } from '@/lib/social/npcDepth';
@@ -260,53 +260,15 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
   );
 
+  // Call / Hang Out — routes through the ContactsActions.recordInteraction
+  // helper so the UI never mutates state inline (mechanics ground rule #3). The
+  // helper stamps lastInteractionWeek + bumps weeklyInteractions atomically, so
+  // this warms the recency dot, lights the "This wk" chip, and clears the
+  // Attention tab.
   const handleSimple = useCallback(
     (contactId: string, action: string, cost: number, bonus: number) => {
-      const rel = gameState.relationships?.find((r) => r.id === contactId);
-      if (!rel) return;
-      const ws = gameState.weeksLived ?? 0;
-      // Pre-checks for immediate feedback; the authoritative re-check is inside
-      // the updater below.
-      if (rel.actions?.[action] === ws) {
-        flash('Already used this week.', contactId);
-        return;
-      }
-      if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
-        flash(`Need $${cost.toLocaleString()}.`, contactId);
-        return;
-      }
-
-      // Single atomic updater — the once-per-week gate, the affordability check,
-      // the money leg, the relationship bump, and the action record all happen
-      // against `prev` so a same-batch double-tap can't charge/grant twice.
-      // (Previously three separate imperative updaters read a stale snapshot.)
-      let applied = false;
-      setGameState((prev) => {
-        const rels = prev.relationships ?? [];
-        const idx = rels.findIndex((r) => r.id === contactId);
-        if (idx === -1) return prev;
-        const target = rels[idx];
-        const prevWs = prev.weeksLived ?? 0;
-        if (target.actions?.[action] === prevWs) return prev; // already used this week
-        if (cost > 0 && (prev.stats?.money ?? 0) < cost) return prev; // can't afford
-
-        const updatedRel: Relationship = {
-          ...target,
-          relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + bonus)),
-          actions: { ...(target.actions ?? {}), [action]: prevWs },
-        };
-        const newRels = [...rels];
-        newRels[idx] = updatedRel;
-        let next: GameState = { ...prev, relationships: newRels };
-        if (cost > 0) {
-          const paid = applyMoneyDelta(next, -cost, `${action} with ${target.name}`);
-          if (!paid) return prev; // affordability failed inside the delta — abort
-          next = { ...next, ...paid };
-        }
-        applied = true;
-        return next;
-      });
-      if (applied) flash(`+${bonus} with ${rel.name}.`, contactId);
+      const r = recordInteraction(gameState, setGameState, contactId, action, cost, bonus);
+      flash(r.message, contactId);
     },
     [gameState, setGameState, flash]
   );
@@ -344,19 +306,43 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         const prevWs = prev.weeksLived ?? 0;
         if (target.actions?.['askmoney'] === prevWs) return prev;
         const { granted, amount } = askOutcome(target, roll);
+        // Asking counts as a contact — stamp recency so the dot warms and the
+        // Attention tab clears (weeklyInteractions resets in a fresh week).
+        const weeklyInteractions =
+          target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
         const updatedRel: Relationship = {
           ...target,
           relationshipScore: Math.max(0, (target.relationshipScore ?? 0) + (granted ? -3 : -5)),
           actions: { ...(target.actions ?? {}), askmoney: prevWs },
           moneyRequestAttempts: granted ? 0 : (target.moneyRequestAttempts ?? 0) + 1,
           lastMoneyRequest: prevWs,
+          lastInteractionWeek: prevWs,
+          weeklyInteractions,
         };
         const newRels = [...rels];
         newRels[idx] = updatedRel;
         if (!granted) return { ...prev, relationships: newRels };
         const grant = applyMoneyDelta(prev, amount, `Borrowed from ${target.name}`);
         if (!grant) return { ...prev, relationships: newRels };
-        return { ...prev, ...grant, relationships: newRels };
+        // A granted loan becomes a real owed-by-player IOU in the Favors ledger,
+        // so borrowing has a consequence (repay it later — a pure money sink).
+        // No expiresWeek: the debt persists until repaid rather than lapsing into
+        // free money. Stable id (once-per-week askmoney gate) keeps a same-batch
+        // double-tap from ever minting two IOUs.
+        const iouId = `iou-${contactId}-${prevWs}`;
+        const ledger = prev.favorLedger ?? { favors: [] };
+        const nextLedger = ledger.favors.some((f) => f.id === iouId)
+          ? ledger
+          : addFavor(ledger, {
+              id: iouId,
+              contactId,
+              direction: 'owed-by-player',
+              kind: 'money',
+              value: amount,
+              createdWeek: prevWs,
+              note: `Borrowed $${amount.toLocaleString()} from ${target.name}`,
+            });
+        return { ...prev, ...grant, relationships: newRels, favorLedger: nextLedger };
       });
       // Message from the snapshot + the same pre-rolled RNG (updater is
       // authoritative for state; this only phrases the feedback).
@@ -380,6 +366,19 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         flash(r.message);
       } else {
         Alert.alert('Cannot redeem', r.message);
+      }
+    },
+    [gameState, setGameState, saveGame, flash]
+  );
+
+  const handleRepayFavor = useCallback(
+    (favorId: string) => {
+      const r = repayFavor(gameState, setGameState, favorId);
+      if (r.success) {
+        saveGame();
+        flash(r.message);
+      } else {
+        Alert.alert('Cannot repay', r.message);
       }
     },
     [gameState, setGameState, saveGame, flash]
@@ -754,6 +753,15 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               accessibilityLabel="Redeem favor"
             >
               <Text style={[styles.redeemText, { color: accent.success }]}>Redeem</Text>
+            </TouchableOpacity>
+          ) : f.kind === 'money' ? (
+            <TouchableOpacity
+              style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.warning, 0.16) }]}
+              onPress={() => handleRepayFavor(f.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Repay debt"
+            >
+              <Text style={[styles.redeemText, { color: accent.warning }]}>Repay</Text>
             </TouchableOpacity>
           ) : null}
         </View>
