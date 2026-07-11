@@ -1079,21 +1079,24 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  }
  ]}>Age {Math.floor(date?.age || 0)}</Text>
  <View style={styles.weekDots}>
- {[1, 2, 3, 4].map((w, idx) => (
+ {[1, 2, 3, 4].map((w, idx) => {
+ const currentWeek = Math.min(4, Math.max(1, Math.floor(date?.week ?? 1)));
+ const isCurrent = w === currentWeek;
+ const isPast = w < currentWeek;
+ return (
  <Animated.View
  key={w}
  style={[
  styles.weekDot,
- isExtraLargeDevice && {
- width: scale(6),
- height: scale(6),
- borderRadius: scale(3),
- marginHorizontal: 1.5,
- },
- { transform: [{ scale: weekAnimations[idx] }] }
+ isPast && styles.weekDotPast,
+ isCurrent && styles.weekDotCurrent,
+ !isPast && !isCurrent && styles.weekDotFuture,
+ isExtraLargeDevice && styles.weekDotXL,
+ { transform: [{ scale: weekAnimations[idx] }] },
  ]}
  />
- ))}
+ );
+ })}
  </View>
  </View>
  </LinearGradient>

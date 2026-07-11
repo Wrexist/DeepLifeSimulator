@@ -333,12 +333,45 @@ export const styles = StyleSheet.create({
  justifyContent: 'center',
  alignItems: 'center',
  },
+ // Month progress: 4 dots, one per week. Elapsed weeks are filled, the current
+ // week is bright + softly glowing ("you are here"), upcoming weeks are hollow.
  weekDot: {
  width: 7,
  height: 7,
  borderRadius: 3.5,
- marginHorizontal: 2,
- backgroundColor: 'rgba(255,255,255,0.9)'},
+ marginHorizontal: 2.5,
+ backgroundColor: 'rgba(255,255,255,0.22)',
+ },
+ weekDotPast: {
+ backgroundColor: 'rgba(255,255,255,0.55)',
+ },
+ weekDotCurrent: {
+ width: 8,
+ height: 8,
+ borderRadius: 4,
+ backgroundColor: '#FFFFFF',
+...Platform.select({
+ web: { boxShadow: '0px 0px 5px rgba(255,255,255,0.9)'} as any,
+ default: {
+ shadowColor: '#FFFFFF',
+ shadowOffset: { width: 0, height: 0 },
+ shadowOpacity: 0.9,
+ shadowRadius: 4,
+ },
+ }),
+ elevation: 3,
+ },
+ weekDotFuture: {
+ backgroundColor: 'transparent',
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.35)',
+ },
+ weekDotXL: {
+ width: scale(6),
+ height: scale(6),
+ borderRadius: scale(3),
+ marginHorizontal: 1.5,
+ },
 
  seasonalAndNextWeekContainer: {
  flexDirection:'row',
