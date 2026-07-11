@@ -40,10 +40,26 @@ export interface VehicleTemplate {
   weeklyFuelCost: number;
   reputationBonus: number;
   speedBonus: number; // Travel time reduction percentage (0-50)
+  // Optional per-template performance specs. When present, createVehicleFromTemplate
+  // stamps them onto the owned Vehicle so the spec grid distinguishes a motorcycle
+  // from a supercar. When omitted they fall back to the legacy constants
+  // (120 mph / 25 mpg / 50 gal) — so no save migration is needed and any template
+  // without specs keeps the old defaults.
+  maxSpeed?: number;        // top speed, mph
+  fuelEfficiency?: number;  // fuel economy, miles per gallon
+  fuelCapacity?: number;    // tank size, gallons
   description: string;
   requiredReputation?: number;
   image?: ImageSourcePropType;
 }
+
+// Legacy fallback specs — the single source of truth for a template that does
+// not declare its own maxSpeed/fuelEfficiency/fuelCapacity. Preserved as the
+// exact values createVehicleFromTemplate has always stamped so existing behavior
+// (and existing owned vehicles) is unchanged.
+export const DEFAULT_VEHICLE_MAX_SPEED = 120;   // mph
+export const DEFAULT_VEHICLE_FUEL_EFFICIENCY = 25; // mpg
+export const DEFAULT_VEHICLE_FUEL_CAPACITY = 50;  // gal
 
 export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
   // Economy Cars (Entry-level, affordable)
@@ -56,6 +72,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 40,
     reputationBonus: 2,
     speedBonus: 10,
+    maxSpeed: 120,
+    fuelEfficiency: 32,
+    fuelCapacity: 13,
     description: 'A reliable, fuel-efficient sedan perfect for daily commuting.',
     image: require('@/assets/images/Vehicles/economy_sedan_final.png'),
   },
@@ -68,6 +87,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 35,
     reputationBonus: 3,
     speedBonus: 12,
+    maxSpeed: 115,
+    fuelEfficiency: 36,
+    fuelCapacity: 12,
     description: 'Nimble city car with great gas mileage and easy parking.',
     image: require('@/assets/images/Vehicles/compact_hatchback_final.png'),
   },
@@ -80,6 +102,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 60,
     reputationBonus: 4,
     speedBonus: 8,
+    maxSpeed: 110,
+    fuelEfficiency: 21,
+    fuelCapacity: 18,
     description: 'A pre-owned SUV with plenty of room for family and cargo.',
     image: require('@/assets/images/Vehicles/used_suv_final.png'),
   },
@@ -94,6 +119,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 70,
     reputationBonus: 8,
     speedBonus: 15,
+    maxSpeed: 120,
+    fuelEfficiency: 24,
+    fuelCapacity: 19,
     description: 'Spacious SUV with modern safety features and comfort.',
     image: require('@/assets/images/Vehicles/family_suv_final.png'),
   },
@@ -106,6 +134,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 55,
     reputationBonus: 10,
     speedBonus: 18,
+    maxSpeed: 135,
+    fuelEfficiency: 28,
+    fuelCapacity: 16,
     description: 'Luxurious interior with advanced technology package.',
     image: require('@/assets/images/Vehicles/premium_sedan_final.png'),
   },
@@ -120,6 +151,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 80,
     reputationBonus: 20,
     speedBonus: 22,
+    maxSpeed: 155,
+    fuelEfficiency: 23,
+    fuelCapacity: 18,
     requiredReputation: 25,
     description: 'Executive-class sedan with premium materials and performance.',
     image: require('@/assets/images/Vehicles/luxury_sedan_final.png'),
@@ -133,6 +167,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 100,
     reputationBonus: 22,
     speedBonus: 20,
+    maxSpeed: 140,
+    fuelEfficiency: 18,
+    fuelCapacity: 24,
     requiredReputation: 30,
     description: 'Commanding presence with best-in-class comfort and capability.',
     image: require('@/assets/images/Vehicles/luxury_suv_final.png'),
@@ -146,6 +183,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 120,
     reputationBonus: 30,
     speedBonus: 30,
+    maxSpeed: 180,
+    fuelEfficiency: 17,
+    fuelCapacity: 18,
     requiredReputation: 40,
     description: 'Your first step into exotic car ownership. Heads will turn.',
     image: require('@/assets/images/Vehicles/supercar_entry_final.png'),
@@ -159,6 +199,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 150,
     reputationBonus: 40,
     speedBonus: 40,
+    maxSpeed: 211,
+    fuelEfficiency: 13,
+    fuelCapacity: 21,
     requiredReputation: 50,
     description: 'Italian craftsmanship meets raw power. A true status symbol.',
     image: require('@/assets/images/Vehicles/exotic_supercar_final.png'),
@@ -174,6 +217,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 75,
     reputationBonus: 15,
     speedBonus: 25,
+    maxSpeed: 155,
+    fuelEfficiency: 26,
+    fuelCapacity: 15,
     description: 'Sleek two-door with thrilling performance and sharp handling.',
     image: require('@/assets/images/Vehicles/sports_coupe_final.png'),
   },
@@ -186,6 +232,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 100,
     reputationBonus: 18,
     speedBonus: 28,
+    maxSpeed: 160,
+    fuelEfficiency: 19,
+    fuelCapacity: 18,
     description: 'American muscle with a roaring V8 engine. Pure adrenaline.',
     image: require('@/assets/images/Vehicles/muscle_car_final.png'),
   },
@@ -200,6 +249,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 15,
     reputationBonus: 5,
     speedBonus: 20,
+    maxSpeed: 110,
+    fuelEfficiency: 55,
+    fuelCapacity: 4,
     description: 'Affordable and practical two-wheeled transportation.',
     image: require('@/assets/images/Vehicles/standard_motorcycle_final.png'),
   },
@@ -212,6 +264,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 20,
     reputationBonus: 10,
     speedBonus: 35,
+    maxSpeed: 186,
+    fuelEfficiency: 44,
+    fuelCapacity: 5,
     description: 'High-performance sport bike for thrill seekers.',
     image: require('@/assets/images/Vehicles/sport_motorcycle_final.png'),
   },
@@ -224,6 +279,9 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     weeklyFuelCost: 30,
     reputationBonus: 12,
     speedBonus: 18,
+    maxSpeed: 120,
+    fuelEfficiency: 47,
+    fuelCapacity: 5,
     description: 'Classic cruiser style with comfortable long-distance riding.',
     image: require('@/assets/images/Vehicles/cruiser_motorcycle_final.png'),
   },
@@ -259,9 +317,12 @@ export function createVehicleFromTemplate(
     price: template.price,
     condition: 100, // New vehicles start at 100%
     fuelLevel: 100, // Full tank
-    fuelCapacity: 50, // Default fuel capacity
-    fuelEfficiency: 25, // Default MPG
-    maxSpeed: 120, // Default max speed
+    // Per-template specs when the template declares them; otherwise the legacy
+    // constants. Read via ?? so an older template (or a template missing a spec)
+    // keeps the exact prior default and no owned vehicle is ever retro-changed.
+    fuelCapacity: template.fuelCapacity ?? DEFAULT_VEHICLE_FUEL_CAPACITY,
+    fuelEfficiency: template.fuelEfficiency ?? DEFAULT_VEHICLE_FUEL_EFFICIENCY,
+    maxSpeed: template.maxSpeed ?? DEFAULT_VEHICLE_MAX_SPEED,
     insurance: undefined,
     weeklyMaintenanceCost: template.weeklyMaintenanceCost,
     weeklyFuelCost: template.weeklyFuelCost,

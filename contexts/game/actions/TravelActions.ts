@@ -6,6 +6,7 @@ import { updateStats } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
 import { TravelEventDef } from '@/lib/travel/events';
+import { evaluateTravelMilestones, TravelMilestoneTier } from '@/lib/travel/milestones';
 import { formatMoney } from '@/utils/moneyFormatting';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -96,6 +97,8 @@ export interface TripReturnResult {
   message: string;
   events?: TravelEventDef[];
   destinationName?: string;
+  /** Passport milestone tiers newly crossed on THIS return (bounded one-offs). */
+  milestonesEarned?: TravelMilestoneTier[];
 }
 
 export const returnFromTrip = (
@@ -164,6 +167,9 @@ export const returnFromTrip = (
   }
 
   // Apply stat totals (destination benefits + event deltas) — only once.
+  // NOTE: happiness/energy here already include the folded stress-relief +
+  // intelligence ("de-stress / broaden the mind") experience via
+  // buildTripReturnSummary → deriveExperienceStats, so nothing is dropped.
   deps.updateStats(setGameState, {
     happiness: totals.happinessDelta,
     health: totals.healthDelta,
@@ -176,6 +182,29 @@ export const returnFromTrip = (
     deps.updateMoney(setGameState, totals.moneyDelta, `Trip events: ${destination.name}`);
   }
 
+  // Passport milestones: evaluate against the POST-return distinct-destination
+  // count and grant any newly-crossed tier's bounded one-off reward exactly once.
+  // Only reachable when `applied` is true (this call ended the trip), so a
+  // same-batch double-tap can't double-grant; the claimed-id set is idempotent too.
+  const preVisited = gameState.travel?.visitedDestinations || [];
+  const postVisitedCount = preVisited.includes(destination.id)
+    ? preVisited.length
+    : preVisited.length + 1;
+  const milestone = evaluateTravelMilestones(postVisitedCount, gameState.travel?.passportMilestones);
+  if (milestone.newlyEarned.length > 0) {
+    deps.updateStats(setGameState, {
+      happiness: milestone.happiness,
+      ...(milestone.reputation ? { reputation: milestone.reputation } : {}),
+    });
+    setGameState((prev) => {
+      if (!prev.travel) return prev;
+      const existing = prev.travel.passportMilestones || [];
+      const merged = Array.from(new Set([...existing, ...milestone.newlyEarned.map((t) => t.id)]));
+      return { ...prev, travel: { ...prev.travel, passportMilestones: merged } };
+    });
+    log.info(`Passport milestone(s) earned: ${milestone.newlyEarned.map((t) => t.id).join(', ')}`);
+  }
+
   if (firstVisit) {
     unlockBusinessOpportunity(gameState, setGameState, destination.id);
   }
@@ -186,6 +215,7 @@ export const returnFromTrip = (
     message: `Welcome back from ${destination.name}!`,
     events,
     destinationName: destination.name,
+    milestonesEarned: milestone.newlyEarned,
   };
 };
 

@@ -4909,14 +4909,14 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles insured vehicle a
     "fitness": 100,
     "gems": 0,
     "happiness": 100,
-    "health": 80,
+    "health": 82,
     "money": 49721,
     "reputation": 50,
   },
   "notifications": [
     {
       "id": "vehicle-accident-insuredCar",
-      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -10. Repair cost: $179.",
+      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair cost: $179.",
       "title": "Vehicle Accident",
     },
   ],

@@ -586,8 +586,14 @@ export const processAccident = (
 };
 
 /**
- * Process weekly vehicle maintenance
- * Called every week to deduct fuel/maintenance costs and check insurance expiry
+ * Process weekly vehicle maintenance.
+ *
+ * @deprecated SUPERSEDED — do NOT wire this into the weekly tick. The live
+ * weekly path is `applyVehiclesForWeek` (contexts/game/actions/weekly/applyVehicles.ts),
+ * wired in GameActionsContext.nextWeek(). This standalone updater duplicates the
+ * maintenance/fuel/mileage/condition/insurance-expiry logic; calling it in the
+ * same tick would double-charge upkeep. It is retained only because the vehicle
+ * stress suite still exercises it directly; it must not be re-added to the tick.
  */
 export const processVehicleWeekly = (
   gameState: GameState,
@@ -880,10 +886,22 @@ export const purchaseVehicleWithAutoLoan = (
       ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', quote.downPaymentUSD ?? 0)
       : prev.banking;
 
+    // Grant the dealer-card / spec-grid "+X rep" once at purchase. The UI buys
+    // exclusively through THIS path (BuyVehicleModal → purchaseVehicleWithAutoLoan),
+    // so without this the advertised reputationBonus was never applied — only the
+    // legacy, UI-unused purchaseVehicle granted it. Capped at 100 (Math.min); the
+    // weekly tick's separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
+    const prevReputation = typeof prev.stats?.reputation === 'number' && isFinite(prev.stats.reputation)
+      ? prev.stats.reputation
+      : 0;
+    const grantedReputation = template.reputationBonus > 0
+      ? Math.min(100, prevReputation + template.reputationBonus)
+      : prevReputation;
+
     return {
       ...prev,
       banking,
-      stats: { ...prev.stats, money: newMoney },
+      stats: { ...prev.stats, money: newMoney, reputation: grantedReputation },
       vehicles,
       activeVehicleId,
       loans: updatedLoans,

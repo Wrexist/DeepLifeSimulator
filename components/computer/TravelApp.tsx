@@ -66,7 +66,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
 import { quoteTrip } from '@/lib/travel/operations';
-import { TravelEventDef, TRAVEL_EVENTS } from '@/lib/travel/events';
+import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
+import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
 import {
   travelTo,
   returnFromTrip,
@@ -171,7 +172,17 @@ function benefitDescriptors(
   if (b.energy) out.push({ Icon: Zap, color: accent.warning, value: `${b.energy > 0 ? '+' : ''}${b.energy}`, key: 'en' });
   if (b.intelligence) out.push({ Icon: Brain, color: accent.purple, value: `+${b.intelligence}`, key: 'iq' });
   if (core) return out;
-  if (b.stress) out.push({ Icon: Sparkles, color: IDENTITY, value: `${b.stress > 0 ? '+' : ''}${b.stress} stress`, key: 'str' });
+  if (b.stress) {
+    // Negative stress = relief (a benefit); positive stress = an increase (a
+    // penalty, e.g. New York +5) — style it clearly so it can't read as relief.
+    const stressUp = b.stress > 0;
+    out.push({
+      Icon: stressUp ? AlertTriangle : Sparkles,
+      color: stressUp ? accent.danger : IDENTITY,
+      value: `${stressUp ? '+' : ''}${b.stress} stress`,
+      key: 'str',
+    });
+  }
   if (b.reputation) out.push({ Icon: Star, color: accent.gold, value: `+${b.reputation} rep`, key: 'rep' });
   return out;
 }
@@ -510,7 +521,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const visits = (travel.travelHistory || []).filter((h) => h.destinationId === dest.id);
     const lastVisit = visits[visits.length - 1];
     const opp = travel.businessOpportunities?.[`business_${dest.id}`];
-    const events = TRAVEL_EVENTS.filter((e) => baseCost >= e.minTripCost);
+    // Same pool the on-return roll draws from (generic cost-tier + this
+    // destination's curated events), so the preview can't drift from the outcome.
+    const events = eligibleTripEvents(baseCost, dest.id);
     const passportRequired = dest.requirements?.items?.includes('passport');
 
     // Book CTA state mirrors quoteTrip so no feature is lost.
@@ -1019,6 +1032,51 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         </View>
 
+        {/* Frequent-flyer milestones — a bounded one-off progression to aim for.
+            Tiers are earned by distinct destinations visited; rewards apply on return. */}
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.sectionHeadRow}>
+            <View style={styles.tileRow}>
+              <Award size={scale(14)} color={IDENTITY} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Frequent flyer</Text>
+            </View>
+            <Text style={[styles.sectionCount, { color: theme.textMuted }]}>{visitedCount} visited</Text>
+          </View>
+          <View style={styles.milestoneRow}>
+            {TRAVEL_MILESTONE_TIERS.map((t) => {
+              const earned = visitedCount >= t.threshold;
+              return (
+                <View
+                  key={t.id}
+                  style={[
+                    styles.milestoneChip,
+                    {
+                      backgroundColor: earned ? softFill(accent.gold) : theme.surfaceElevated,
+                      borderColor: earned ? softRim(accent.gold) : theme.border,
+                    },
+                  ]}
+                >
+                  {earned ? <Award size={scale(11)} color={accent.gold} /> : <Globe size={scale(11)} color={theme.textMuted} />}
+                  <Text style={[styles.milestoneChipLabel, { color: earned ? accent.gold : theme.textSecondary }]} numberOfLines={1}>{t.label}</Text>
+                  <Text style={[styles.milestoneChipThreshold, { color: earned ? accent.gold : theme.textMuted }]}>{t.threshold}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {(() => {
+            const next = TRAVEL_MILESTONE_TIERS.find((t) => visitedCount < t.threshold);
+            if (!next) {
+              return <Text style={[styles.cardHint, { color: accent.gold }]}>Every frequent-flyer tier unlocked. Bon voyage!</Text>;
+            }
+            const remaining = next.threshold - visitedCount;
+            return (
+              <Text style={[styles.cardHint, { color: theme.textSecondary }]}>
+                {remaining} more destination{remaining === 1 ? '' : 's'} to reach {next.label} (+{next.happiness} happiness{next.reputation ? `, +${next.reputation} rep` : ''}).
+              </Text>
+            );
+          })()}
+        </View>
+
         <View style={styles.stampsWrap}>
           {stamps.map((entry, idx) => {
             const dest = DESTINATIONS.find((d) => d.id === entry.destinationId);
@@ -1309,6 +1367,28 @@ function TripReturnModal({
               })}
             </View>
           )}
+          {result.milestonesEarned && result.milestonesEarned.length > 0 ? (
+            <View style={{ width: '100%' }}>
+              {result.milestonesEarned.map((m) => (
+                <View
+                  key={m.id}
+                  style={[styles.eventRow, { backgroundColor: `${accent.gold}1A`, borderColor: `${accent.gold}4D`, borderWidth: 1 }]}
+                >
+                  <View style={[styles.eventIcon, { backgroundColor: `${accent.gold}26`, borderColor: `${accent.gold}4D`, borderWidth: 1 }]}>
+                    <Award size={scale(14)} color={accent.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.eventHeadline, { color: theme.text }]}>Milestone unlocked · {m.label}</Text>
+                    <Text style={[styles.eventDesc, { color: theme.textSecondary }]}>{m.description}</Text>
+                    <View style={styles.eventDeltas}>
+                      {m.happiness ? <Text style={{ color: accent.danger, fontSize: fs.xs }}>♥ +{m.happiness}</Text> : null}
+                      {m.reputation ? <Text style={{ color: accent.gold, fontSize: fs.xs }}>★ +{m.reputation} rep</Text> : null}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <TouchableOpacity
             onPress={onClose}
             activeOpacity={0.85}
@@ -1514,6 +1594,12 @@ const styles = StyleSheet.create({
   // Passport stamps
   coverCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
   coverHead: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
+
+  // Frequent-flyer milestone strip
+  milestoneRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  milestoneChip: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: scale(6), borderRadius: br.full, borderWidth: 1 },
+  milestoneChipLabel: { fontSize: fs.xs, fontWeight: '700' },
+  milestoneChipThreshold: { fontSize: fs.xs, fontWeight: '800', fontVariant: ['tabular-nums'] },
   stampsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.md, paddingVertical: sp.xs },
   stamp: { flexGrow: 1, flexBasis: '44%', minWidth: scale(140) },
   stampInner: { borderRadius: br.lg, borderWidth: 2, borderStyle: 'dashed', padding: sp.sm, alignItems: 'center', gap: 2, overflow: 'hidden' },

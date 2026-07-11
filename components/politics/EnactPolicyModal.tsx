@@ -179,7 +179,8 @@ function PolicyRow({
           {/* Effect summary — only show effects that are non-zero. */}
           <View style={styles.effectsBlock}>
             {policy.effects.money ? (
-              <Effect label="Weekly income" value={`${policy.effects.money > 0 ? '+' : ''}${formatMoney(policy.effects.money)}`} theme={theme} />
+              // Paid ONCE at enactment (enactPolicy), not weekly — label honestly.
+              <Effect label="One-time cash" value={`${policy.effects.money > 0 ? '+' : ''}${formatMoney(policy.effects.money)}`} theme={theme} />
             ) : null}
             {policy.effects.happiness ? (
               <Effect label="Happiness" value={`${policy.effects.happiness > 0 ? '+' : ''}${policy.effects.happiness}`} theme={theme} />

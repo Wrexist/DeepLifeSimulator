@@ -190,7 +190,9 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
   const sign = (n: number) => (n > 0 ? '+' : '');
   const push = (label: string, value: string, tone: 'pos' | 'neg' | 'neutral' = 'neutral') => out.push({ label, value, tone });
 
-  if (e.money) push('Weekly income', `${sign(e.money)}${formatMoney(e.money)}`, e.money > 0 ? 'pos' : 'neg');
+  // effects.money is a ONE-TIME treasury delta applied at enactment
+  // (PoliticalActions enactPolicy), never a weekly stream — label it honestly.
+  if (e.money) push('One-time cash', `${sign(e.money)}${formatMoney(e.money)}`, e.money > 0 ? 'pos' : 'neg');
   if (e.happiness) push('Happiness', `${sign(e.happiness)}${e.happiness}`, e.happiness > 0 ? 'pos' : 'neg');
   if (e.health) push('Health', `${sign(e.health)}${e.health}`, e.health > 0 ? 'pos' : 'neg');
   if (e.reputation) push('Reputation', `${sign(e.reputation)}${e.reputation}`, e.reputation > 0 ? 'pos' : 'neg');
@@ -558,7 +560,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
               </View>
             </View>
             <View style={styles.aggRow}>
-              <AggStat label="Weekly income" value={`${agg.money > 0 ? '+' : ''}${formatMoney(agg.money)}`} theme={theme} />
+              <AggStat label="One-time cash" value={`${agg.money > 0 ? '+' : ''}${formatMoney(agg.money)}`} theme={theme} />
               <AggStat label="Reputation" value={`${agg.reputation > 0 ? '+' : ''}${agg.reputation}`} theme={theme} />
               <AggStat label="Happiness" value={`${agg.happiness > 0 ? '+' : ''}${agg.happiness}`} theme={theme} />
             </View>
