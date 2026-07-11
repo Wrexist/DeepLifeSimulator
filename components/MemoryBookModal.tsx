@@ -235,7 +235,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
             <View style={[styles.lockedCardInner, settings.darkMode && styles.lockedCardInnerDark]}>
               <View style={styles.lockedContent}>
                 <View style={styles.lockedIconContainer}>
-                  <Lock size={scale(24)} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+                  <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
                 </View>
                 <View style={styles.lockedTextContainer}>
                   <Text style={[styles.lockedTitle, settings.darkMode && styles.textDark]}>
@@ -421,7 +421,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               filteredMemories.map((memory, index) => renderMemoryCard(memory, index))
             ) : (
               <View style={styles.emptyState}>
-                <Sparkles size={scale(48)} color={settings.darkMode ? '#6B7280' : '#D1D5DB'} />
+                <Sparkles size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#D1D5DB'} />
                 <Text style={[styles.emptyTitle, settings.darkMode && styles.textDark]}>
                   No Memories Found
                 </Text>
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   },
   genTagLockedText: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   emptyState: {
     alignItems: 'center',
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDarkSecondary: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   // Detail Modal Styles
   detailOverlay: {

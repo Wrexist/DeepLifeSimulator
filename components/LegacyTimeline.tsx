@@ -204,7 +204,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
             {sortedLives.length === 0 ? (
               <View style={styles.emptyState}>
-                <Crown size={scale(48)} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+                <Crown size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
                 <Text style={[styles.emptyText, settings.darkMode && styles.emptyTextDark]}>
                   No previous generations yet
                 </Text>
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptySubtextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   timeline: {
     paddingBottom: scale(20),
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statCardDark: {
-    backgroundColor: 'rgba(55, 65, 81, 0.6)',
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
   },
   statLabel: {
     fontSize: fontScale(11),
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   detailTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   careerSection: {
     marginBottom: scale(12),
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   sectionTitleDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   careerList: {
     gap: scale(4),
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   careerTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   eventsSection: {
     marginBottom: scale(12),
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
   },
   eventTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   deathReason: {
     flexDirection: 'row',

@@ -29,6 +29,7 @@ import {
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Achievement } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
 
@@ -251,7 +252,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
             {isCompleted ? (
               <IconComponent size={scale(24)} color="#FFFFFF" />
             ) : (
-              <Lock size={scale(24)} color={darkMode ? '#6B7280' : '#94A3B8'} />
+              <Lock size={scale(24)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
             )}
           </LinearGradient>
 
@@ -294,7 +295,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 
               {unlockedAt !== undefined && (
                 <View style={styles.unlockedAtContainer}>
-                  <Clock size={scale(12)} color={darkMode ? '#6B7280' : '#94A3B8'} />
+                  <Clock size={scale(12)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
                   <Text style={[styles.unlockedAtText, darkMode && styles.unlockedAtTextDark]}>
                     Week {unlockedAt}
                   </Text>
@@ -317,7 +318,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
   // Render empty state
   const renderEmptyState = () => (
     <View style={[styles.emptyState, darkMode && styles.emptyStateDark]}>
-      <Award size={scale(48)} color={darkMode ? '#4B5563' : '#94A3B8'} />
+      <Award size={scale(48)} color={darkMode ? '#475569' : '#94A3B8'} />
       <Text style={[styles.emptyStateTitle, darkMode && styles.emptyStateTitleDark]}>
         {searchQuery ? 'No Achievements Found' : 'No Achievements Yet'}
       </Text>
@@ -392,17 +393,17 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
       {/* Search and filter bar */}
       <View style={styles.searchFilterRow}>
         <View style={[styles.searchContainer, darkMode && styles.searchContainerDark]}>
-          <Search size={scale(16)} color={darkMode ? '#6B7280' : '#94A3B8'} />
+          <Search size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
           <TextInput
             style={[styles.searchInput, darkMode && styles.searchInputDark]}
             placeholder="Search achievements..."
-            placeholderTextColor={darkMode ? '#6B7280' : '#94A3B8'}
+            placeholderTextColor={darkMode ? '#94A3B8' : '#94A3B8'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X size={scale(16)} color={darkMode ? '#6B7280' : '#94A3B8'} />
+              <X size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
             </TouchableOpacity>
           )}
         </View>
@@ -515,6 +516,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(16),
     padding: scale(16),
     marginBottom: scale(20),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
     backgroundColor: '#1E293B',
@@ -672,7 +674,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   sortOptionTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   sortOptionTextSelected: {
     color: '#92400E',
@@ -684,7 +686,7 @@ const styles = StyleSheet.create({
     marginVertical: scale(4),
   },
   sortDividerDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   categoryScrollView: {
     marginBottom: scale(12),
@@ -727,12 +729,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   categoryCountBadgeDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   categoryCountText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   categoryCountTextSelected: {
     color: '#FFFFFF',
@@ -782,7 +784,7 @@ const styles = StyleSheet.create({
   },
   achievementCardDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   achievementCardLocked: {
     opacity: 0.7,
@@ -814,7 +816,7 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   achievementNameLocked: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   completedBadge: {
     backgroundColor: '#10B981',
@@ -858,7 +860,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   unlockedAtTextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   rewardContainer: {
     flexDirection: 'row',

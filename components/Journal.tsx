@@ -38,6 +38,7 @@ import { safeSettings } from "@/utils/safeGameState";
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 type JournalCategory = 'all' | 'career' | 'relationship' | 'achievement' | 'travel' | 'family' | 'crime' | 'health' | 'other';
@@ -203,7 +204,7 @@ export default function Journal({ compact = false }: JournalProps) {
                       Week {entry.atWeek}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+                  <ChevronRight size={16} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
                 </TouchableOpacity>
               );
             })}
@@ -306,7 +307,7 @@ export default function Journal({ compact = false }: JournalProps) {
         <TextInput
           style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
           placeholder="Search entries..."
-          placeholderTextColor={settings.darkMode ? '#6B7280' : '#94A3B8'}
+          placeholderTextColor={settings.darkMode ? '#94A3B8' : '#94A3B8'}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -371,7 +372,7 @@ export default function Journal({ compact = false }: JournalProps) {
       {/* Entries List — C-1: Virtualized with FlatList to prevent OOM on large journals */}
       {filteredEntries.length === 0 ? (
         <View style={[styles.entriesContainer, styles.emptyState]}>
-          <BookOpen size={48} color={settings.darkMode ? '#4B5563' : '#D1D5DB'} />
+          <BookOpen size={48} color={settings.darkMode ? '#475569' : '#D1D5DB'} />
           <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
             {searchQuery || selectedCategory !== 'all'
               ? 'No matching entries'
@@ -467,6 +468,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scale(16),
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
     backgroundColor: '#1E293B',
@@ -477,7 +479,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#475569',
   },
   headerContent: {
     flexDirection: 'row',
@@ -615,7 +617,7 @@ const styles = StyleSheet.create({
   },
   entryContent: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#334155',
     borderRadius: scale(12),
     padding: scale(12),
     marginBottom: scale(8),
