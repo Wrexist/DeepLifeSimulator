@@ -207,12 +207,12 @@ function MobileScreenContent() {
   if (!(gameState.items ?? []).find(item => item.id === 'smartphone')?.owned) {
     return (
       <LinearGradient
-        colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+        colors={settings.darkMode ? ['#1E3A8A', '#1E293B'] : ['#FFFFFF', '#F8FAFC']}
         style={styles.container}
       >
         <View style={styles.noPhoneContainer}>
           <View style={styles.noPhoneIconContainer}>
-            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
           </View>
           <Text style={[styles.noPhoneTitle, settings.darkMode && styles.noPhoneTitleDark]}>
             {t('mobile.noPhoneAvailable')}
@@ -268,7 +268,7 @@ function MobileScreenContent() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
         <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
           {t('mobile.mobileApps')}
         </Text>
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   loadingContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   loadingText: {
     marginTop: responsiveSpacing.md,
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '800',
-    color: '#111827',
+    color: '#0F172A',
     letterSpacing: -0.5,
   },
   headerTitleDark: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: responsiveSpacing.xs,
     textAlign: 'center',
   },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   noPhoneTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: responsiveSpacing.md,
     textAlign: 'center',
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     lineHeight: responsiveFontSize.base * 1.4,
   },
   noPhoneMessageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

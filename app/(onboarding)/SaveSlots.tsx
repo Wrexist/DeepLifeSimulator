@@ -324,7 +324,7 @@ export default function SaveSlots() {
           {slots.map((slot) => {
             const isSelected = selectedSlot === slot.id;
             const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#9CA3AF';
+            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: verticalScale(2),
   },
   statValue: {

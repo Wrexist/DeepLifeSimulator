@@ -137,9 +137,9 @@ function CareerItem({
                 <View style={styles.careerHeaderRight}>
                     <Text style={styles.salaryText}>${currentLevel?.salary}/wk</Text>
                     {isExpanded ? (
-                        <ChevronDown size={18} color="#9CA3AF" />
+                        <ChevronDown size={18} color="#94A3B8" />
                     ) : (
-                        <ChevronRight size={18} color="#9CA3AF" />
+                        <ChevronRight size={18} color="#94A3B8" />
                     )}
                 </View>
             </TouchableOpacity>
@@ -266,7 +266,7 @@ function CareerItem({
 
                     {!career.accepted && !meetsAllRequirements && (
                         <View style={styles.lockedMessage}>
-                            <Lock size={14} color="#9CA3AF" />
+                            <Lock size={14} color="#94A3B8" />
                             <Text style={styles.lockedText}>Meet requirements to apply</Text>
                         </View>
                     )}
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     container: {
         margin: responsiveSpacing.lg,
         marginBottom: responsiveSpacing.md,
-        backgroundColor: '#1F2937',
+        backgroundColor: '#1E293B',
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
         ...Platform.select({
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     compactContainer: {
-        backgroundColor: '#1F2937',
+        backgroundColor: '#1E293B',
         borderRadius: responsiveBorderRadius.lg,
         padding: responsiveSpacing.md,
         marginVertical: responsiveSpacing.sm,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     },
     compactLevel: {
         fontSize: fontScale(12),
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     compactSalary: {
         fontSize: fontScale(12),
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     compactProgressBar: {
         flex: 1,
         height: 4,
-        backgroundColor: '#374151',
+        backgroundColor: '#334155',
         borderRadius: 2,
         overflow: 'hidden',
     },
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     },
     compactProgressText: {
         fontSize: fontScale(10),
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginLeft: 8,
         minWidth: 50,
     },
@@ -447,13 +447,13 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: fontScale(12),
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     careersList: {
         gap: responsiveSpacing.sm,
     },
     careerCard: {
-        backgroundColor: '#374151',
+        backgroundColor: '#334155',
         borderRadius: responsiveBorderRadius.lg,
         overflow: 'hidden',
     },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     sectionLabel: {
         fontSize: fontScale(11),
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginBottom: 6,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
         borderColor: '#60A5FA',
     },
     levelDotLocked: {
-        backgroundColor: '#374151',
+        backgroundColor: '#334155',
         borderWidth: 1,
         borderColor: '#4B5563',
     },
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     },
     levelSalary: {
         fontSize: fontScale(9),
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginTop: 2,
     },
     levelConnector: {
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     },
     lockedText: {
         fontSize: fontScale(12),
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginLeft: 6,
     },
 });

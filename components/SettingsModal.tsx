@@ -402,7 +402,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Settings size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Settings size={16} color="#94A3B8" style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
                   </View>
                 )}
@@ -424,7 +424,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Target size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Target size={16} color="#94A3B8" style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
                   </View>
                 )}

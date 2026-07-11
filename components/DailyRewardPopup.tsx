@@ -67,10 +67,10 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const palette = isDarkMode
  ? {
  backdrop: 'rgba(0, 0, 0, 0.65)',
- sheet: '#111827',
+ sheet: '#0F172A',
  border: 'rgba(255,255,255,0.06)',
  title: '#F9FAFB',
- subtitle: '#9CA3AF',
+ subtitle: '#94A3B8',
  infoBg: 'rgba(255,255,255,0.04)',
  infoText: '#D1D5DB',
  }

@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1E293B',
     fontWeight: '500',
   },
   menuItemTextDestructive: {

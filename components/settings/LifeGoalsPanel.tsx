@@ -104,7 +104,7 @@ export default function LifeGoalsPanel() {
 
                 <View style={styles.requirementSection}>
                   <View style={styles.requirementRow}>
-                    <Sparkles size={14} color={settings?.darkMode ? '#9CA3AF' : '#6B7280'} />
+                    <Sparkles size={14} color={settings?.darkMode ? '#94A3B8' : '#6B7280'} />
                     <Text style={[styles.requirementText, settings?.darkMode && styles.requirementTextDark]}>
                       {perk.requirement}
                     </Text>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(4),
     letterSpacing: -0.5,
   },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   list: {
     flex: 1,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
     letterSpacing: -0.3,
   },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requirementTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressSection: {
     marginTop: scale(4),
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   progressLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressPercent: {
     fontSize: fontScale(13),
@@ -408,6 +408,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   progressTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });

@@ -66,7 +66,7 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(24),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     letterSpacing: -0.5,
   },
   titleDark: {
@@ -125,7 +125,7 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     letterSpacing: -0.3,
   },
   sectionTitleDark: {
@@ -196,7 +196,7 @@ export const styles = StyleSheet.create({
   diseaseName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   diseaseNameDark: {
@@ -431,7 +431,7 @@ export const styles = StyleSheet.create({
   historyStatValue: {
     fontSize: fontScale(24),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   historyStatValueDark: {
     color: '#FFFFFF',
@@ -490,7 +490,7 @@ export const styles = StyleSheet.create({
   diseaseRecommendationTitle: {
     fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(6),
   },
   diseaseRecommendationTitleDark: {

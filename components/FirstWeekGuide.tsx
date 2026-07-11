@@ -227,7 +227,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
         <Animated.View pointerEvents="box-none" style={[styles.container, { opacity: fadeAnim }]}>
             <LinearGradient
                 pointerEvents="box-none"
-                colors={['#1F2937', '#111827']}
+                colors={['#1E293B', '#0F172A']}
                 style={styles.card}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -243,7 +243,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
                         onPress={handleDismiss}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <X size={18} color="#9CA3AF" />
+                        <X size={18} color="#94A3B8" />
                     </TouchableOpacity>
                 </View>
 
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
         }),
         elevation: 8,
         borderWidth: 1,
-        borderColor: '#374151',
+        borderColor: '#334155',
     },
     header: {
         flexDirection: 'row',
@@ -554,14 +554,14 @@ const styles = StyleSheet.create({
         marginTop: responsiveSpacing.md,
         paddingTop: responsiveSpacing.md,
         borderTopWidth: 1,
-        borderTopColor: '#374151',
+        borderTopColor: '#334155',
     },
     skipButton: {
         padding: 8,
     },
     skipButtonText: {
         fontSize: fontScale(13),
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     nextButton: {
         flexDirection: 'row',
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     tipContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#1F2937',
+        backgroundColor: '#1E293B',
         borderRadius: 12,
         padding: responsiveSpacing.sm,
         marginHorizontal: responsiveSpacing.lg,

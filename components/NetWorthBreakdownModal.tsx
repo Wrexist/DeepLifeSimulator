@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     ...getShadow(20, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     flexShrink: 1,
   },
   titleDark: {
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: scale(16),
   },
   sectionTitleDark: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   assetCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   assetHeader: {
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   assetLabel: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(2),
   },
   assetLabelDark: {
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   assetPercentageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   assetValue: {
     fontSize: fontScale(18),
@@ -482,12 +482,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   assetItemNameDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   assetItemValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   assetItemValueDark: {
     color: '#FFFFFF',
@@ -499,12 +499,12 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
   },
   summaryCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   summaryTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(8),
   },
   summaryTitleDark: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(20),
   },
   summaryTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

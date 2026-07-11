@@ -132,12 +132,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   popupDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 12,
     textAlign: 'center',
   },

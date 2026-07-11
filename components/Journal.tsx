@@ -203,7 +203,7 @@ export default function Journal({ compact = false }: JournalProps) {
                       Week {entry.atWeek}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+                  <ChevronRight size={16} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
                 </TouchableOpacity>
               );
             })}
@@ -302,11 +302,11 @@ export default function Journal({ compact = false }: JournalProps) {
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, settings.darkMode && styles.searchContainerDark]}>
-        <Search size={18} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+        <Search size={18} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
         <TextInput
           style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
           placeholder="Search entries..."
-          placeholderTextColor={settings.darkMode ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={settings.darkMode ? '#6B7280' : '#94A3B8'}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -314,7 +314,7 @@ export default function Journal({ compact = false }: JournalProps) {
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#9CA3AF' : '#6B7280')} />
+          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />
         </TouchableOpacity>
       </View>
 
@@ -355,14 +355,14 @@ export default function Journal({ compact = false }: JournalProps) {
             style={styles.sortButton}
             onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
           >
-            <Clock size={14} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+            <Clock size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
             <Text style={[styles.sortButtonText, settings.darkMode && styles.textMuted]}>
               {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
             </Text>
             {sortOrder === 'newest' ? (
-              <ChevronDown size={14} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+              <ChevronDown size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
             ) : (
-              <ChevronUp size={14} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+              <ChevronUp size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
             )}
           </TouchableOpacity>
         </View>
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginLeft: scale(10),
   },
   headerStats: {
@@ -511,12 +511,12 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
   },
   searchContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   searchInput: {
     flex: 1,
     fontSize: fontScale(14),
-    color: '#111827',
+    color: '#0F172A',
     marginLeft: scale(10),
     marginRight: scale(10),
   },
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     marginRight: scale(8),
   },
   categoryChipDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   categoryChipText: {
     fontSize: fontScale(12),
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   yearLineDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   yearText: {
     fontSize: fontScale(12),
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   timelineLineDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   entryContent: {
     flex: 1,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   entryTitle: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   entryMeta: {
     fontSize: fontScale(12),
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     marginTop: scale(16),
   },
   emptyStateText: {
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     marginLeft: scale(8),
     flex: 1,
   },
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   compactEntryDark: {
-    borderBottomColor: '#374151',
+    borderBottomColor: '#334155',
   },
   compactIconContainer: {
     width: scale(28),
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
   compactEntryTitle: {
     fontSize: fontScale(14),
     fontWeight: '500',
-    color: '#111827',
+    color: '#0F172A',
   },
   compactEntryMeta: {
     fontSize: fontScale(11),
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   modalContentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
   },
   modalDetails: {
     fontSize: fontScale(15),
-    color: '#374151',
+    color: '#334155',
     lineHeight: fontScale(22),
   },
   modalCategorySection: {
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   textMuted: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

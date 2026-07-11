@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151' },
+  label: { fontSize: 14, fontWeight: '500', color: '#334155' },
   percentage: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   track: { borderRadius: 4, overflow: 'hidden', position: 'relative' },
   progress: { borderRadius: 4, overflow: 'hidden', position: 'relative' },
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   circularTrack: { position: 'absolute', width: '100%', height: '100%' },
   circularProgress: { position: 'absolute' },
   percentageContainer: { position: 'absolute', justifyContent: 'center', alignItems: 'center' },
-  circularPercentage: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  circularPercentage: { fontSize: 16, fontWeight: '600', color: '#334155' },
 
   spinnerContainer: { justifyContent: 'center', alignItems: 'center' },
   spinner: { borderStyle: 'solid' },

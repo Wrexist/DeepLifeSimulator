@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   inputWrap: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

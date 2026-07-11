@@ -122,7 +122,7 @@ export default function LifeMomentModal() {
     <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
       <View style={styles.overlay}>
         <LinearGradient
-          colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+          colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#FFFFFF']}
           style={styles.container}
         >
           <Text style={[styles.title, settings.darkMode && styles.titleDark]}>
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   situation: {
     fontSize: 16,
-    color: '#374151',
+    color: '#334155',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 8,
     fontWeight: '500',
   },

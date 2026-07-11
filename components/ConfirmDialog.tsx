@@ -75,7 +75,7 @@ export default function ConfirmDialog({
           <View style={styles.actions}>
             <TouchableOpacity onPress={onCancel} style={styles.button}>
               <LinearGradient
-                colors={['#D1D5DB', '#9CA3AF']}
+                colors={['#D1D5DB', '#94A3B8']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.buttonInner}
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 22,
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   actions: {
     flexDirection: 'row',

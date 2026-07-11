@@ -20,7 +20,7 @@ export default function MoneyBreakdownModal({ visible, onClose }: MoneyBreakdown
   return (
     <BaseModal visible={visible} onClose={onClose} title="Cash Balance">
       {/* Current Balance */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Current Cash</Text>
         <Text style={[styles.totalValue, { color: isDark ? '#22C55E' : '#16A34A' }]}>
           {formatMoney(money)}
@@ -36,7 +36,7 @@ export default function MoneyBreakdownModal({ visible, onClose }: MoneyBreakdown
       </View>
 
       {/* Info Card */}
-      <View style={[styles.infoCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.infoCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.infoTitle, { color: theme.text }]}>
           About Cash
         </Text>

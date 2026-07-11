@@ -113,7 +113,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const getRarityColor = (rarity?: string) => {
     switch (rarity) {
       case 'common':
-        return '#9CA3AF';
+        return '#94A3B8';
       case 'uncommon':
         return '#10B981';
       case 'rare':
@@ -181,7 +181,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                 activeOpacity={0.7}
               >
                 <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
-                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
+                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1E293B'} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -443,12 +443,12 @@ const styles = StyleSheet.create({
     marginBottom: scale(2),
   },
   pointsLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   pointsText: {
     fontSize: fontScale(24),
     fontWeight: '800',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   pointsTextDark: {
     color: '#FFFFFF',
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   emptyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   bonusCard: {
     marginBottom: scale(12),
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   bonusName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   bonusNameDark: {
     color: '#FFFFFF',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   levelTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   ownedBadge: {
     width: scale(32),
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   costText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   costTextDark: {
     color: '#FFFFFF',

@@ -34,7 +34,7 @@ export default function AnimatedProgressBar({
   const isDarkMode = gameState.settings.darkMode;
 
   const backgroundColors = useMemo<readonly [ColorValue, ColorValue]>(
-    () => (isDarkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']),
+    () => (isDarkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']),
     [isDarkMode]
   );
   const clampedProgress = useMemo(() => Math.max(0, Math.min(100, progress)), [progress]);
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   labelDark: {
     color: '#D1D5DB',
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   percentageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressContainer: {
     width: '100%',
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   progressContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   progressBar: {
     height: '100%',

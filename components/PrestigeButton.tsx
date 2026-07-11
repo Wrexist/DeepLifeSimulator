@@ -98,12 +98,12 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#374151', '#1F2937']}
+          colors={['#334155', '#1E293B']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.button}
         >
-          <Crown size={16} color="#9CA3AF" />
+          <Crown size={16} color="#94A3B8" />
           <View style={styles.textContainer}>
             <Text style={styles.label}>Prestige</Text>
             <Text style={styles.progressText}>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressText: {
     fontSize: 10,

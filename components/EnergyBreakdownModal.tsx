@@ -51,7 +51,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
         label: `Pending Application: ${pendingLevel?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
-        color: '#9CA3AF',
+        color: '#94A3B8',
         description: 'Pending applications do not drain energy until you start working',
       });
     }
@@ -146,7 +146,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
   return (
     <BaseModal visible={visible} onClose={onClose} title="Energy Breakdown">
       {/* Current Energy */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Current Energy</Text>
         <Text style={[styles.totalValue, { color: theme.text }]}>
           {Math.round(breakdown.currentEnergy)} / 100
@@ -177,7 +177,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
           {breakdown.incomes.map((income, index) => {
             const Icon = income.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${income.color}20` }]}>
                     <Icon size={scale(16)} color={income.color} />
@@ -215,7 +215,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
           {breakdown.drains.map((drain, index) => {
             const Icon = drain.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${drain.color}20` }]}>
                     <Icon size={scale(16)} color={drain.color} />
@@ -241,7 +241,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       )}
 
       {/* Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.summaryTitle, { color: theme.text }]}>
           How Energy Works
         </Text>

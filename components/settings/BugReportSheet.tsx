@@ -110,7 +110,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
             <TextInput
               style={styles.input}
               placeholder="What happened? What were you doing?"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#94A3B8"
               value={bugReportText}
               onChangeText={setBugReportText}
               multiline
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modal: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '90%',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: responsivePadding.medium,
     lineHeight: 22,
   },

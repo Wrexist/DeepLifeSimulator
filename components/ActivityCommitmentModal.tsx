@@ -226,7 +226,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
       <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <BlurView intensity={20} style={styles.blurOverlay}>
           <LinearGradient
-            colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
+            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
             style={styles.modal}
           >
             {/* Header */}
@@ -245,7 +245,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <X size={24} color={settings.darkMode ? '#FFFFFF' : '#1E293B'} />
               </TouchableOpacity>
             </View>
 
@@ -302,7 +302,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               >
                 <LinearGradient
                   colors={(!canChange || (selectedPrimary === commitments?.primary && selectedSecondary === commitments?.secondary)) 
-                    ? ['#9CA3AF', '#6B7280'] 
+                    ? ['#94A3B8', '#6B7280'] 
                     : ['#10B981', '#059669']}
                   style={styles.saveButtonGradient}
                 >
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   subtitle: {
     fontSize: fontScale(14),
@@ -407,12 +407,12 @@ const styles = StyleSheet.create({
     marginBottom: scale(20),
   },
   infoCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   infoTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(8),
   },
   infoText: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   areaCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   areaHeader: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   areaLabel: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(2),
   },
   areaDescription: {
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   cancelButtonText: {
     fontSize: fontScale(16),

@@ -193,7 +193,7 @@ export default function SmartNotificationCenter({
             ]}
           >
             <LinearGradient
-              colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+              colors={gameState.settings.darkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#FFFFFF']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.gradient}
@@ -215,7 +215,7 @@ export default function SmartNotificationCenter({
                     }}
                     style={styles.headerButton}
                   >
-                    <Settings size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#374151'} />
+                    <Settings size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#334155'} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
@@ -225,7 +225,7 @@ export default function SmartNotificationCenter({
                     }}
                     style={styles.headerButton}
                   >
-                    <X size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#374151'} />
+                    <X size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#334155'} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginLeft: 12,
   },
   headerTitleDark: {
@@ -490,12 +490,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   settingsPanelDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   settingsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     marginBottom: 12,
   },
   settingsTitleDark: {
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 14,
-    color: '#374151',
+    color: '#334155',
   },
   settingLabelDark: {
     color: '#D1D5DB',
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: '#334155',
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     marginTop: 16,
   },
   emptyStateTextDark: {
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyStateSubtextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   notificationCard: {
     backgroundColor: '#FFFFFF',
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     }),
   },
   notificationCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 4,
   },
   notificationTitleDark: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   notificationMessageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   notificationMeta: {
     alignItems: 'center',
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   notificationCategoryDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   notificationPriority: {
     fontSize: 12,
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   notificationPriorityDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

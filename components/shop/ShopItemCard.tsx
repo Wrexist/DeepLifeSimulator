@@ -47,7 +47,7 @@ const ACCENT_BUTTON: Record<ShopAccent, [string, string, string]> = {
   perks: ['#F59E0B', '#D97706', '#B45309'], // perks — amber
 };
 
-const DISABLED_GRADIENT: [string, string] = ['#1F2937', '#111827'];
+const DISABLED_GRADIENT: [string, string] = ['#1E293B', '#0F172A'];
 
 export default function ShopItemCard({
   title,

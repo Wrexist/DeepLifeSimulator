@@ -469,7 +469,7 @@ export default function Scenarios() {
             }
             style={styles.tabGradient}
           >
-            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#9CA3AF'} />
+            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#94A3B8'} />
             <Text style={[styles.tabText, activeTab === 'life_paths' && styles.tabTextActive]}>
               Life Paths
             </Text>
@@ -488,7 +488,7 @@ export default function Scenarios() {
             }
             style={styles.tabGradient}
           >
-            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#9CA3AF'} />
+            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#94A3B8'} />
             <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>
               Challenges
             </Text>
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   tabTextActive: {
     color: '#FFFFFF',
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: verticalScale(2),
   },
   statValue: {

@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
  overflow: 'hidden',
  },
  containerDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  header: {
  flexDirection: 'row',
@@ -291,14 +291,14 @@ const styles = StyleSheet.create({
  title: {
  fontSize: fontScale(20),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginLeft: scale(10),
  },
  textDark: {
  color: '#F9FAFB',
  },
  textMuted: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  },
  closeButton: {
  padding: scale(4),
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
  backgroundColor: '#F3F4F6',
  },
  statsBarDark: {
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  statItem: {
  flexDirection: 'row',
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
  },
  cardDark: {
  borderColor: 'rgba(255,255,255,0.1)',
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  cardDisabled: {
  opacity: 0.5,
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
  destName: {
  fontSize: fontScale(15),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  },
  locationRow: {
  flexDirection: 'row',
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
  benefitText: {
  fontSize: fontScale(12),
  fontWeight: '600',
- color: '#374151',
+ color: '#334155',
  },
  fullAppButton: {
  marginTop: scale(8),

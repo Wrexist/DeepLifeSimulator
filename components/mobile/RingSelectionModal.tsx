@@ -70,7 +70,7 @@ export default function RingSelectionModal({
               <Text style={[styles.title, darkMode && styles.textDark]}>Choose a Ring</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <X size={24} color={darkMode ? '#F9FAFB' : '#111827'} />
+              <X size={24} color={darkMode ? '#F9FAFB' : '#0F172A'} />
             </TouchableOpacity>
           </View>
 
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     padding: scale(20),
   },
   contentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   subtitle: {
     fontSize: fontScale(13),
@@ -192,8 +192,8 @@ const styles = StyleSheet.create({
     marginBottom: scale(8),
   },
   ringCardDark: {
-    backgroundColor: '#111827',
-    borderColor: '#374151',
+    backgroundColor: '#0F172A',
+    borderColor: '#334155',
   },
   ringCardDisabled: {
     opacity: 0.45,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   ringName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   ringDescription: {
     fontSize: fontScale(11),
@@ -265,6 +265,6 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   textMuted: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });

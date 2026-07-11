@@ -36,7 +36,7 @@ export const styles = StyleSheet.create({
     backdropFilter: 'none',
   },
   modal: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '100%',
@@ -155,7 +155,7 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -232,7 +232,7 @@ export const styles = StyleSheet.create({
   settingTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 2,
   },
   settingTitleDark: {
@@ -284,7 +284,7 @@ export const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   languageButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   activeLanguageButton: {
@@ -352,7 +352,7 @@ export const styles = StyleSheet.create({
     }),
   },
   tabContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   settingsTab: {
     flex: 1,
@@ -395,7 +395,7 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
   },
   settingsTabTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   activeSettingsTabText: {
     fontSize: responsiveFontSize.sm,
@@ -595,7 +595,7 @@ export const styles = StyleSheet.create({
   lifeGoalCardTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
     letterSpacing: -0.3,
   },
@@ -647,7 +647,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   lifeGoalRequirementTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   lifeGoalProgressSection: {
     marginTop: scale(4),
@@ -666,7 +666,7 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   lifeGoalProgressLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   lifeGoalProgressPercent: {
     fontSize: fontScale(13),
@@ -718,7 +718,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   lifeGoalProgressTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   // Keep old styles hidden for backward compatibility
   lifeGoalInfo: {
@@ -778,7 +778,7 @@ export const styles = StyleSheet.create({
   upcomingTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -795,13 +795,13 @@ export const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   upcomingItemDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#60A5FA',
   },
   upcomingItemTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 4,
   },
   upcomingItemTitleDark: {
@@ -813,7 +813,7 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
   },
   upcomingItemDescDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   bugReportButton: {
     flexDirection: 'row',
@@ -854,7 +854,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bugReportDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   bugReportInput: {
     borderWidth: 1,
@@ -862,7 +862,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     color: '#F9FAFB',
     minHeight: 120,
     maxHeight: 200,
@@ -878,7 +878,7 @@ export const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   bugReportActionsDark: {
-    borderTopColor: '#374151',
+    borderTopColor: '#334155',
   },
   cancelBugButton: {
     flex: 1,
@@ -907,7 +907,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   disabledSendButtonText: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   featureSuggestionSection: {
     backgroundColor: '#F0F9FF',
@@ -933,7 +933,7 @@ export const styles = StyleSheet.create({
   },
   featureSuggestionDesc: {
     fontSize: 14,
-    color: '#374151',
+    color: '#334155',
     marginBottom: 16,
     textAlign: 'center',
     lineHeight: 20,
@@ -942,7 +942,7 @@ export const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   featureSuggestionInput: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderWidth: 1,
     borderColor: '#4B5563',
     borderRadius: 8,
@@ -953,7 +953,7 @@ export const styles = StyleSheet.create({
     minHeight: 100,
   },
   featureSuggestionInputDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#6B7280',
     color: '#F9FAFB',
   },
@@ -1081,13 +1081,13 @@ export const styles = StyleSheet.create({
   disclosureLevelText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   disclosureLevelTextActive: {
     color: '#FFFFFF',
   },
   disclosureLevelTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   // Liquid Glass Reward Popup
   rewardOverlay: {

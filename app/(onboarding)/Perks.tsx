@@ -658,7 +658,7 @@ export default function Perks() {
             >
               <Gift
                 size={18}
-                color={activeTab === 'perks' ? '#FFFFFF' : '#9CA3AF'}
+                color={activeTab === 'perks' ? '#FFFFFF' : '#94A3B8'}
               />
               <Text
                 style={[
@@ -689,7 +689,7 @@ export default function Perks() {
             >
               <Brain
                 size={18}
-                color={activeTab === 'mindset' ? '#FFFFFF' : '#9CA3AF'}
+                color={activeTab === 'mindset' ? '#FFFFFF' : '#94A3B8'}
               />
               <Text
                 style={[
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -1014,8 +1014,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   lockedPerkCard: { opacity: 0.6 },
-  lockedPerkTitle: { color: '#9CA3AF' },
-  lockedPerkDescription: { color: '#9CA3AF' },
+  lockedPerkTitle: { color: '#94A3B8' },
+  lockedPerkDescription: { color: '#94A3B8' },
 
   permanentPerkCard: { borderWidth: 2, borderColor: '#F59E0B' },
   permanentBadge: {
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   tabTextActive: {
     color: '#FFFFFF',
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '500',
   },
   bottomSpacing: { height: 120 },

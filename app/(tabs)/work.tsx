@@ -861,7 +861,7 @@ function WorkScreenContent() {
                                         if (unlockedCareers.length === 0) {
                                             return (
                                                 <View style={styles.lockedCareerContainer}>
-                                                    <Lock size={scale(24)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                                    <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                                                     <Text style={[styles.lockedCareerText, styles.lockedCareerTextDark]}>
                                                         Complete education, gain experience, and build reputation to unlock advanced careers.
                                                     </Text>

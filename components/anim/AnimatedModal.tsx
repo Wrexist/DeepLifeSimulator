@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   contentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   fullScreenContent: {
     width: screenWidth,

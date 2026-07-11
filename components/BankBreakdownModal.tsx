@@ -60,7 +60,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
   return (
     <BaseModal visible={visible} onClose={onClose} title="Bank & Investments">
       {/* Total Savings */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Total Savings</Text>
         <Text style={[styles.totalValue, { color: isDark ? '#FBBF24' : '#F59E0B' }]}>
           {formatMoney(breakdown.totalSavings)}
@@ -84,7 +84,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
           </Text>
         </View>
 
-        <View style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+        <View style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
           <View style={styles.itemHeader}>
             <View style={[styles.itemIconContainer, { backgroundColor: '#F59E0B20' }]}>
               <PiggyBank size={scale(16)} color="#F59E0B" />
@@ -125,7 +125,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
           {breakdown.stockItems.map((item, index) => {
             const isPositive = item.gainLoss >= 0;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: '#10B98120' }]}>
                     <TrendingUp size={scale(16)} color={isPositive ? '#10B981' : '#EF4444'} />
@@ -168,7 +168,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
       )}
 
       {/* Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.summaryTitle, { color: theme.text }]}>
           About Savings & Investments
         </Text>

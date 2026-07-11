@@ -200,7 +200,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X size={20} color="#9CA3AF" />
+                <X size={20} color="#94A3B8" />
               </TouchableOpacity>
             </View>
 
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     maxHeight: 700,
   },
   content: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   },
   pathDescription: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     lineHeight: 20,
   },
   pathDescriptionSelected: {
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '500',
   },
   benefitTextSelected: {
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
   },
   childAge: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
   },
   bonusesCard: {
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   moreBonuses: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     alignSelf: 'center',
     fontWeight: '500',
   },
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
   },
   listBullet: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 2,
   },
   warningItem: {
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   prestigeButton: {
     flex: 1,

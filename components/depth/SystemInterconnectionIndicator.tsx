@@ -117,9 +117,9 @@ export default function SystemInterconnectionIndicator({
           </Text>
           {!compact && (
             expanded ? (
-              <ChevronUp size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <ChevronUp size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
             ) : (
-              <ChevronDown size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <ChevronDown size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
             )
           )}
         </View>
@@ -150,13 +150,13 @@ function InterconnectionItem({
   const isPositive = interconnection.effectType === 'positive';
   const SourceIcon = SYSTEM_ICONS[interconnection.sourceSystem] || LinkIcon;
   const TargetIcon = SYSTEM_ICONS[interconnection.targetSystem] || LinkIcon;
-  const iconColor = darkMode ? '#D1D5DB' : '#374151';
+  const iconColor = darkMode ? '#D1D5DB' : '#334155';
 
   return (
     <View style={[styles.item, darkMode && styles.itemDark]}>
       <View style={styles.itemContent}>
         <SourceIcon size={scale(14)} color={iconColor} />
-        <ArrowRight size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+        <ArrowRight size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
         <TargetIcon size={scale(14)} color={iconColor} />
         <View style={styles.effectIndicator}>
           {isPositive ? (
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginVertical: responsiveSpacing.xs,
   },
   containerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   header: {
     paddingHorizontal: responsivePadding.small,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     flex: 1,
   },
   headerTextDark: {
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

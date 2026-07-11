@@ -188,8 +188,8 @@ export default function DivorceConfirmModal({
                     >
                       <LinearGradient
                         colors={isSelected 
-                          ? (isDarkMode ? ['#4B5563', '#374151'] : tierColor)
-                          : (isDarkMode ? ['#374151', '#1F2937'] : ['#F9FAFB', '#F3F4F6'])
+                          ? (isDarkMode ? ['#4B5563', '#334155'] : tierColor)
+                          : (isDarkMode ? ['#334155', '#1E293B'] : ['#F9FAFB', '#F3F4F6'])
                         }
                         style={styles.lawyerCardGradient}
                       >
@@ -468,7 +468,7 @@ export default function DivorceConfirmModal({
               disabled={!canAffordFinal}
             >
               <LinearGradient
-                colors={!canAffordFinal ? ['#9CA3AF', '#6B7280'] : ['#EF4444', '#DC2626']}
+                colors={!canAffordFinal ? ['#94A3B8', '#6B7280'] : ['#EF4444', '#DC2626']}
                 style={styles.confirmButtonGradient}
               >
                 <Text style={styles.confirmButtonText}>
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     ...getShadow(20, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(24),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: scale(16),
   },
   sectionTitleDark: {
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(21),
   },
   sectionDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   infoCard: {
     backgroundColor: '#F9FAFB',
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   infoCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   finalCostCard: {
@@ -618,12 +618,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   infoLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   infoValue: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   infoValueDark: {
     color: '#FFFFFF',
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   infoSubtext: {
     fontSize: fontScale(12),
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginLeft: scale(26),
     marginTop: scale(4),
   },
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   totalLabelDark: {
     color: '#FFFFFF',
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
   lawyerName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(4),
   },
   lawyerNameDark: {
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   lawyerTaglineDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   selectedBadge: {
     width: scale(24),
@@ -780,12 +780,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lawyerStatLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   lawyerStatValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   lawyerStatValueDark: {
     color: '#FFFFFF',
@@ -818,12 +818,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   lawyerOutcomeLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   lawyerOutcomeValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   lawyerOutcomeValueDark: {
     color: '#FFFFFF',
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   lawyerCostLabel: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   lawyerCostLabelDark: {
     color: '#FFFFFF',
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1FAE5',
   },
   noLawyerOptionDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   noLawyerText: {
     fontSize: fontScale(14),
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   noLawyerTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   noLawyerTextSelected: {
     color: '#059669',
@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
     padding: scale(12),
   },
   effectsListDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   effectItem: {
     flexDirection: 'row',
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   effectTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   cancelButtonText: {
     fontSize: fontScale(18),
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   cancelButtonTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   confirmButton: {
     flex: 2,

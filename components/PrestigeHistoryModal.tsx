@@ -83,7 +83,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F3F4F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -102,7 +102,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={darkMode ? '#FFFFFF' : '#1F2937'} />
+                <X size={24} color={darkMode ? '#FFFFFF' : '#1E293B'} />
               </TouchableOpacity>
             </View>
 
@@ -110,7 +110,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
             <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
               {history.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Crown size={48} color="#9CA3AF" />
+                  <Crown size={48} color="#94A3B8" />
                   <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
                     No prestige history yet
                   </Text>
@@ -135,7 +135,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                           index === 0
                             ? ['#F59E0B', '#D97706']
                             : darkMode
-                            ? ['#374151', '#1F2937']
+                            ? ['#334155', '#1E293B']
                             : ['#F3F4F6', '#E5E7EB']
                         }
                         start={{ x: 0, y: 0 }}
@@ -159,7 +159,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                 Prestige #{record.prestigeNumber}
                               </Text>
                               <View style={styles.historyMeta}>
-                                <Calendar size={12} color="#9CA3AF" />
+                                <Calendar size={12} color="#94A3B8" />
                                 <Text
                                   style={[
                                     styles.historyDate,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   closeButton: {
     width: 36,
@@ -357,11 +357,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   historyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 4,
   },
   historyTitleDark: {
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   historyDateDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   pathBadge: {
     flexDirection: 'row',
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   pathText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   pathTextDark: {
     color: '#FFFFFF',
@@ -464,12 +464,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginLeft: 'auto',
   },
   statValueDark: {
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   achievementsTitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   achievementsList: {
     flexDirection: 'row',
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   achievementText: {
     fontSize: 10,
-    color: '#1F2937',
+    color: '#1E293B',
   },
   achievementTextDark: {
     color: '#FFFFFF',

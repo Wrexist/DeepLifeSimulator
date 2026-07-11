@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   confirmModal: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '90%',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   confirmDescription: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: responsiveSpacing.lg,
     lineHeight: 22,
   },

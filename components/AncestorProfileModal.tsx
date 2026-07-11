@@ -24,13 +24,13 @@ export default function AncestorProfileModal({ member, visible, onClose }: Props
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-           colors={settings.darkMode ? ['#111827', '#1F2937'] : ['#F3F4F6', '#FFFFFF']}
+           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
            style={styles.content}
         >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitle}>
-               <User size={24} color={settings.darkMode ? '#9CA3AF' : '#4B5563'} />
+               <User size={24} color={settings.darkMode ? '#94A3B8' : '#4B5563'} />
                <Text style={[styles.title, settings.darkMode && styles.textDark]}>
                  {member.firstName} {member.lastName}
                </Text>
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   closeButton: {
     padding: 8,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: 12,
   },
   row: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#111827',
+    color: '#0F172A',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -238,11 +238,11 @@ const styles = StyleSheet.create({
   },
   achievementText: {
     fontSize: 15,
-    color: '#374151',
+    color: '#334155',
   },
   emptyText: {
     fontStyle: 'italic',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   textDark: {
     color: '#FFFFFF',

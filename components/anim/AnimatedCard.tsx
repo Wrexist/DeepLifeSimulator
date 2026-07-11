@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   cardDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   glowCard: {

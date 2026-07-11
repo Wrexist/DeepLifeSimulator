@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginLeft: 8,
     flex: 1,
   },

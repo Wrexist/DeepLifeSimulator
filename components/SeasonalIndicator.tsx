@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   modalContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeader: {
     padding: 20,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   holidaySection: {
     alignItems: 'center',
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   holidayName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 4,
   },
   holidayNameDark: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   holidayDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   infoSection: {
     gap: 16,
@@ -324,12 +324,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   infoLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   infoValueDark: {
     color: '#F9FAFB',
@@ -340,12 +340,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   tipSectionDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   tipTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 8,
   },
   tipTitleDark: {

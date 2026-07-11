@@ -108,7 +108,7 @@ function DailySummaryModal() {
         <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           {/* Header with gradient */}
           <LinearGradient
-            colors={settings.darkMode ? ['#1E3A5F', '#1F2937'] : ['#3B82F6', '#2563EB']}
+            colors={settings.darkMode ? ['#1E3A5F', '#1E293B'] : ['#3B82F6', '#2563EB']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   modalDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
   },
   // Header gradient
   headerGradient: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   sectionDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   sectionTitleDark: {
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   breakdownLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   breakdownValue: {
     fontSize: responsiveFontSize.sm,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   statChipDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   statChipTop: {
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
-    color: '#374151',
+    color: '#334155',
   },
   statChipNameDark: {
     color: '#D1D5DB',
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   eventText: {
     flex: 1,
     fontSize: responsiveFontSize.sm,
-    color: '#374151',
+    color: '#334155',
     lineHeight: responsiveFontSize.sm * 1.5,
   },
   eventTextDark: {
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   noChangesText: {
     fontSize: responsiveFontSize.sm,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   footerDark: {
-    borderTopColor: '#1F2937',
+    borderTopColor: '#1E293B',
   },
   continueButton: {
     borderRadius: responsiveBorderRadius.md,

@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     textAlign: 'center',
     marginBottom: responsiveSpacing.md,
   },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   skipTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   nextButton: {
     borderRadius: responsiveBorderRadius.lg,

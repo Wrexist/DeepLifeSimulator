@@ -89,7 +89,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
         label: `Pending Application: ${pendingApplication.levels?.[0]?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
-        color: '#9CA3AF',
+        color: '#94A3B8',
         description: 'Pending applications do not affect health until you start working',
       });
     }
@@ -159,7 +159,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   return (
     <BaseModal visible={visible} onClose={onClose} title="Health Breakdown">
       {/* Current Health */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Current Health</Text>
         <Text style={[styles.totalValue, { color: theme.text }]}>
           {Math.round(breakdown.currentHealth)} / 100
@@ -190,7 +190,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
           {breakdown.incomes.map((income, index) => {
             const Icon = income.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${income.color}20` }]}>
                     <Icon size={scale(16)} color={income.color} />
@@ -228,7 +228,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
           {breakdown.drains.map((drain, index) => {
             const Icon = drain.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#374151' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${drain.color}20` }]}>
                     <Icon size={scale(16)} color={drain.color} />
@@ -254,7 +254,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       )}
 
       {/* Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
         <Text style={[styles.summaryTitle, { color: theme.text }]}>
           How Health Works
         </Text>

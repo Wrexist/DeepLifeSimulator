@@ -79,7 +79,7 @@ function GoalItem({ goal, onPress, isChallenge = false }: { goal: Goal; onPress?
                         +{goal.reward.amount} {goal.reward.type === 'money' ? '$' : goal.reward.type}
                     </Text>
                 </View>
-                <ChevronRight size={16} color="#9CA3AF" />
+                <ChevronRight size={16} color="#94A3B8" />
             </View>
         </TouchableOpacity>
     );
@@ -186,7 +186,7 @@ function ActiveGoalsCard({ onGoalPress, compact = false }: ActiveGoalsCardProps)
                             <Text style={styles.compactProgressText}>{Math.round(goal.progress)}%</Text>
                         </View>
                     </View>
-                    <ChevronRight size={18} color="#9CA3AF" />
+                    <ChevronRight size={18} color="#94A3B8" />
                 </View>
             </TouchableOpacity>
         );
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     compactProgressBg: {
         flex: 1,
         height: 4,
-        backgroundColor: '#374151',
+        backgroundColor: '#334155',
         borderRadius: 2,
         overflow: 'hidden',
     },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     },
     compactProgressText: {
         fontSize: fontScale(11),
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginLeft: 6,
         minWidth: 32,
         textAlign: 'right',

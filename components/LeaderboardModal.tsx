@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
  marginVertical: 40,
  },
  emptyText: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  fontSize: 16,
  textAlign: 'center',
  marginVertical: 40,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
  marginRight: 12,
  },
  rankText: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  fontSize: 16,
  fontWeight: '700',
  },
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
  fontWeight: '700',
  },
  entryScore: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  fontSize: 14,
  fontWeight: '500',
  },

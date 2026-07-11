@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   detailsContainerDark: {
-    borderTopColor: '#374151',
+    borderTopColor: '#334155',
   },
   detailText: {
     fontSize: responsiveFontSize.xs,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   detailTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

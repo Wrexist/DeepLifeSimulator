@@ -31,7 +31,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#111827', '#1F2937'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   closeButton: {
     padding: 5,
@@ -207,12 +207,12 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   actionButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   actionText: {
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   section: {
     backgroundColor: '#FFFFFF',
@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: 12,
   },
   traitsGrid: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   traitName: {
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   traitDesc: {
     fontSize: 12,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontStyle: 'italic',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   textDark: {
     color: '#FFFFFF',

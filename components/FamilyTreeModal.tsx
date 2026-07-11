@@ -101,7 +101,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#111827', '#1F2937'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   closeButton: {
     padding: 5,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   nodeDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   avatarContainer: {
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   nodeName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   nodeDetails: {
     fontSize: 12,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDarkSecondary: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

@@ -774,7 +774,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           <TextInput
             style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
             placeholder="Search..."
-            placeholderTextColor={settings.darkMode ? '#9CA3AF' : '#6B7280'}
+            placeholderTextColor={settings.darkMode ? '#94A3B8' : '#6B7280'}
             value={search}
             onChangeText={setSearch}
           />
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -867,10 +867,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginBottom: 12,
-    color: '#111827',
+    color: '#0F172A',
   },
   searchInputDark: {
-    borderColor: '#374151',
+    borderColor: '#334155',
     color: '#F9FAFB',
   },
   content: {
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: 8,
   },
   sectionTitleDark: {
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#1E293B',
   },
   itemTextDark: {
     color: '#F9FAFB',

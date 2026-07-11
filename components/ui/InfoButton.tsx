@@ -63,7 +63,7 @@ export default function InfoButton({
       >
         <HelpCircle 
           size={sizeStyles.iconSize} 
-          color={darkMode ? '#9CA3AF' : '#6B7280'} 
+          color={darkMode ? '#94A3B8' : '#6B7280'} 
         />
       </TouchableOpacity>
 
@@ -79,7 +79,7 @@ export default function InfoButton({
             darkMode && styles.modalContainerDark,
           ]}>
             <LinearGradient
-              colors={darkMode ? ['#374151', '#1F2937'] : ['#F8FAFC', '#E5E7EB']}
+              colors={darkMode ? ['#334155', '#1E293B'] : ['#F8FAFC', '#E5E7EB']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.modalHeader}
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   modalTitleDark: {

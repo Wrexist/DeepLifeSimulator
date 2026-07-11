@@ -32,7 +32,7 @@ const OPTIONS: OptionMeta[] = [
   { id: 'apology', Icon: MessagesSquare, iconColor: '#3B82F6', title: 'Public apology', cost: 'Free', effect: '+2 rep · severity drops faster' },
   { id: 'recall', Icon: Undo2, iconColor: '#0EA5E9', title: 'Product recall', cost: '$50,000', effect: '+4 rep · 40 severity drop' },
   { id: 'lawsuit', Icon: Scale, iconColor: '#F59E0B', title: 'Lawsuit', cost: '$100,000', effect: '-3 rep · 50 severity drop' },
-  { id: 'cover_up', Icon: EyeOff, iconColor: '#9CA3AF', title: 'Cover up', cost: '$25,000', effect: '-1 rep · 30% resurge risk' },
+  { id: 'cover_up', Icon: EyeOff, iconColor: '#94A3B8', title: 'Cover up', cost: '$25,000', effect: '-1 rep · 30% resurge risk' },
   { id: 'restructure', Icon: Building2, iconColor: '#10B981', title: 'Restructure', cost: '$200,000', effect: '+8 rep · 70 severity drop' },
 ];
 

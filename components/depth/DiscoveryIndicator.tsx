@@ -78,7 +78,7 @@ export default function DiscoveryIndicator({
         activeOpacity={0.7}
       >
         <LinearGradient
-          colors={darkMode ? ['#1F2937', '#111827'] : ['#F3F4F6', '#E5E7EB']}
+          colors={darkMode ? ['#1E293B', '#0F172A'] : ['#F3F4F6', '#E5E7EB']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -212,7 +212,7 @@ function DiscoveryModal({
               Discovery Center
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <X size={scale(20)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <X size={scale(20)} color={darkMode ? '#94A3B8' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -263,7 +263,7 @@ function DiscoveryModal({
             {/* Locked Systems */}
             <View style={styles.modalSection}>
               <View style={styles.modalSectionHeader}>
-                <Lock size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                <Lock size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                 <Text style={[styles.modalSectionTitle, darkMode && styles.modalSectionTitleDark]}>
                   Locked Systems ({lockedSystems.length})
                 </Text>
@@ -283,7 +283,7 @@ function DiscoveryModal({
                       style={[styles.lockedSystemCard, darkMode && styles.lockedSystemCardDark]}
                     >
                       <View style={styles.lockedSystemHeader}>
-                        <Lock size={scale(14)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                        <Lock size={scale(14)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                         <Text style={[styles.lockedSystemName, darkMode && styles.lockedSystemNameDark]}>
                           {systemDef?.name || systemId}
                         </Text>
@@ -330,12 +330,12 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
   },
   compactContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   compactText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   compactTextDark: {
     color: '#D1D5DB',
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
   },
   progressLabelDark: {
     color: '#D1D5DB',
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   progressPercentageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   depthScoreSection: {
     marginBottom: responsiveSpacing.md,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   },
   depthScoreLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
   },
   depthScoreLabelDark: {
     color: '#D1D5DB',
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   categoriesLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   categoriesRow: {
     flexDirection: 'row',
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   categoryValue: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   categoryValueDark: {
     color: '#F9FAFB',
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     marginTop: responsiveSpacing.xs / 2,
   },
   categoryLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   modalOverlay: {
     flex: 1,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
   },
   modalContentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   modalTitleDark: {
     color: '#F9FAFB',
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   modalSectionTitleDark: {
     color: '#F9FAFB',
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
   },
   systemCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   systemCardHeader: {
     flexDirection: 'row',
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   systemName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   systemNameDark: {
@@ -581,14 +581,14 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs / 2,
   },
   systemCategoryDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   systemStats: {
     fontSize: fontScale(11),
     color: '#6B7280',
   },
   systemStatsDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   lockedSystemCard: {
     backgroundColor: '#F9FAFB',
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   lockedSystemCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: '#4B5563',
   },
   lockedSystemHeader: {
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   lockedSystemNameDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   requirementsList: {
     marginTop: responsiveSpacing.xs,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs / 2,
   },
   requirementTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   emptyStateText: {
     fontSize: fontScale(12),
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
   },
   emptyStateTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 
