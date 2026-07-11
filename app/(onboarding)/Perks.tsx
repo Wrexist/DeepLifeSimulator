@@ -575,7 +575,16 @@ export default function Perks() {
 
   return (
     <View style={styles.container}>
-      {/* Animated background circles */}
+      {/* Immersive atmosphere — soft blue aurora fading to a deep base. Matches
+          OnboardingScreenShellV2 so Perks reads as part of the same flow. */}
+      <LinearGradient
+        colors={['rgba(37, 99, 235, 0.20)', 'rgba(30, 41, 59, 0)', 'rgba(2, 6, 23, 0.55)']}
+        locations={[0, 0.42, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
+      {/* Animated background glows */}
       <Animated.View
         style={[
           styles.backgroundGradient1,
@@ -828,7 +837,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 2,
     height: screenWidth * 2,
     borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(59, 130, 246, 0.13)',
     top: -screenWidth / 2,
     left: -screenWidth / 2,
   },
@@ -837,7 +846,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 1.5,
     height: screenWidth * 1.5,
     borderRadius: screenWidth,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    backgroundColor: 'rgba(37, 99, 235, 0.07)',
     bottom: -screenWidth / 3,
     right: -screenWidth / 3,
   },

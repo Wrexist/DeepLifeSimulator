@@ -3,6 +3,7 @@ import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
 interface GlassPanelProps {
@@ -40,5 +41,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     padding: responsiveSpacing.lg,
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.2, 4, 12),
   },
 });
