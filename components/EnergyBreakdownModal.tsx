@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp, Briefcase, GraduationCap, Coffee, Utensils } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
-import { getShadow } from '@/utils/shadow';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import BaseModal from '@/components/ui/BaseModal';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     padding: scale(16),
     borderRadius: responsiveBorderRadius.md,
     marginBottom: scale(14),
-    ...getShadow(2),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   totalLabel: {
     fontSize: fontScale(13),

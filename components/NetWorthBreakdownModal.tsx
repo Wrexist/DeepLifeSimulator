@@ -7,6 +7,7 @@ import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { MINER_PRICES } from '@/lib/economy/constants';
 const LinearGradient = LinearGradientFallback;
 
@@ -361,6 +362,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(24),
     borderWidth: 2,
     borderColor: '#10B981',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   totalCardDark: {
     backgroundColor: '#064E3B',
