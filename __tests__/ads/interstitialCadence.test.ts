@@ -61,4 +61,18 @@ describe('maybeShowInterstitialForWeek', () => {
     await expect(maybeShowInterstitialForWeek(BOUNDARY + 52, {})).resolves.toBe(false);
     expect(showInterstitialAd).toHaveBeenCalledTimes(1);
   });
+
+  it('does not arm the frequency cap when no ad was shown', async () => {
+    showInterstitialAd.mockResolvedValueOnce(false); // no-fill
+    await expect(maybeShowInterstitialForWeek(BOUNDARY, {})).resolves.toBe(false);
+    // Cap was NOT updated, so the next eligible boundary can still show.
+    await expect(maybeShowInterstitialForWeek(BOUNDARY + 52, {})).resolves.toBe(true);
+    expect(showInterstitialAd).toHaveBeenCalledTimes(2);
+  });
+
+  it('swallows errors from showInterstitialAd and returns false', async () => {
+    showInterstitialAd.mockRejectedValueOnce(new Error('Ad network down'));
+    await expect(maybeShowInterstitialForWeek(BOUNDARY, {})).resolves.toBe(false);
+    expect(showInterstitialAd).toHaveBeenCalledTimes(1);
+  });
 });

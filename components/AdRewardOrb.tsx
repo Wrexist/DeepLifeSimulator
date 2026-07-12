@@ -98,6 +98,9 @@ export default function AdRewardOrb() {
   const pulse = useRef(new Animated.Value(1)).current;
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  // Re-entrancy guard: blocks a rapid second tap from granting twice before the
+  // sheet flips to the "granted" state (the direct-grant path is synchronous).
+  const busyRef = useRef(false);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
   const gsRef = useRef(gameState);
@@ -232,12 +235,18 @@ export default function AdRewardOrb() {
   }, [kind, reward, setGameState]);
 
   const handleWatch = useCallback(async () => {
-    const outcome = await runRewardedAd(grant, { adsRemoved });
-    if (isGranted(outcome)) {
-      finishAfterClaim();
-    } else {
-      // no-fill / error — reward NOT granted.
-      haptic.error();
+    if (busyRef.current) return; // ignore rapid re-taps while a grant is in flight
+    busyRef.current = true;
+    try {
+      const outcome = await runRewardedAd(grant, { adsRemoved });
+      if (isGranted(outcome)) {
+        finishAfterClaim();
+      } else {
+        // no-fill / error — reward NOT granted.
+        haptic.error();
+      }
+    } finally {
+      busyRef.current = false;
     }
   }, [grant, finishAfterClaim, adsRemoved]);
 

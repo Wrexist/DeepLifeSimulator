@@ -69,7 +69,7 @@ error-isolation so a broken native module can't crash boot:
    files and replace the ones at repo root, or ARPU will stay blank.
 2. Set the EAS/env secret **`EXPO_PUBLIC_ENABLE_FIREBASE=true`** for the build profile.
 3. **Prebuild + verify:**
-   ```
+   ```bash
    npx expo prebuild --clean
    # build to a device; confirm boot is stable on iOS 26 before shipping
    ```
