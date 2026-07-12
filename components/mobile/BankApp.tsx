@@ -31,6 +31,7 @@ import {
   Lock,
   FileText,
   ChevronRight,
+  Gift,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,6 +70,8 @@ import {
   createSavingsGoal,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan } from '@/contexts/game/actions/LoanActions';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import WatchAdRewardButton from '@/components/WatchAdRewardButton';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -136,6 +139,9 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [payCardId, setPayCardId] = useState<string | null>(null);
 
   const cash = gameState.stats?.money ?? 0;
+  // Rewarded-ad cash bonus: ~2% of current cash, floored at $50 and capped at
+  // $5,000 (clean $10 steps) so it helps early and never breaks the economy.
+  const adCashBonus = Math.max(50, Math.min(5000, Math.round((cash * 0.02) / 10) * 10));
   const totalBank = banking.accounts.reduce((s, a) => s + a.balance, 0);
   const totalDebt =
     banking.creditCards.reduce((s, c) => s + c.balance, 0) +
@@ -565,6 +571,16 @@ function BankAppInner({ onBack }: BankAppProps) {
             <ChevronRight size={scale(15)} color={accent.info} />
           </View>
         </TouchableOpacity>
+
+        {/* Optional rewarded-ad cash bonus. Hides itself when ads are removed. */}
+        <WatchAdRewardButton
+          label="Watch ad → cash bonus"
+          sublabel={`+${formatMoney(adCashBonus)} to your wallet`}
+          colors={['#34D399', '#059669']}
+          icon={Gift}
+          onReward={() => updateMoney(setGameState, adCashBonus, 'Watch ad bonus')}
+          onGranted={queueSave}
+        />
 
         <SectionHeader
           theme={theme}

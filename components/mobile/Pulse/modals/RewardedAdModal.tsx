@@ -5,12 +5,12 @@
  * Verified Pro triples the reward (50 → 150 followers).
  */
 import React, { useCallback } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { watchAdForFollowerBoost } from '@/contexts/game/actions/PulseActions';
@@ -32,32 +32,19 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
   const expectedFollowers = proActive ? 150 : 50;
 
   const handleWatch = useCallback(async () => {
-    // P0-4: actually show a rewarded video ad and grant the boost ONLY when the
-    // ad reports the reward earned. Previously the follower boost was granted with
-    // no ad ever shown — a deceptive-UX (Apple 2.3.1) risk and lost ad revenue.
-    const adsOn = isFeatureEnabled('adMob') && Platform.OS !== 'web';
-    if (adsOn) {
-      try {
-        const { adMobService } = await import('@/services/AdMobService');
-        const shown = await adMobService.showRewardedAd(() => {
-          watchAdForFollowerBoost(setGameState, gameState);
-        });
-        if (shown) {
-          pulseHaptics.success();
-          onDismiss();
-        } else {
-          // Ad wasn't available — do NOT silently grant the reward.
-          pulseHaptics.error();
-        }
-      } catch {
-        pulseHaptics.error();
-      }
-      return;
-    }
-    // Ads disabled (dev / boring build) — there is no ad system to show, so grant
-    // directly. Not deceptive: this configuration ships no ads at all.
-    const result = watchAdForFollowerBoost(setGameState, gameState);
-    if (result.success) {
+    // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
+    // reports the reward earned (or when there's no ad to show — dev / ad-free).
+    // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
+    // and lost revenue. All that logic lives in the shared `runRewardedAd`.
+    let result = { success: false };
+    const outcome = await runRewardedAd(
+      () => {
+        result = watchAdForFollowerBoost(setGameState, gameState);
+      },
+      { adsRemoved: areAdsRemoved(gameState) },
+    );
+    // Reward earned AND the weekly cooldown allowed the grant.
+    if (isGranted(outcome) && result.success) {
       pulseHaptics.success();
       onDismiss();
     } else {
