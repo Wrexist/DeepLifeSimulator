@@ -96,6 +96,19 @@ module.exports = {
             // risks breaking the working react-native-google-mobile-ads link. If
             // a future pod install fails demanding it, add `useFrameworks: "static"`
             // here and re-verify the AdMob build. See docs/FIREBASE_ADMOB_SETUP.md.
+            //
+            // Firebase iOS pod-install fix: FirebaseCoreInternal (a Swift pod)
+            // imports GoogleUtilities, which — as a static library without
+            // `use_frameworks!` — does not generate module maps by default, so
+            // `pod install` aborts with "GoogleUtilities does not define
+            // modules". Declaring it here with modular_headers renders
+            // `pod 'GoogleUtilities', :modular_headers => true` in the Podfile
+            // (see expo-modules-autolinking autolinking_manager.rb), the exact
+            // remedy CocoaPods recommends — without switching the whole target to
+            // static frameworks (which the note above warns against).
+            extraPods: [
+              { name: "GoogleUtilities", modular_headers: true },
+            ],
           },
         },
       ],

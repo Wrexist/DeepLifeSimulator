@@ -89,18 +89,38 @@ The file was untracked but the key was already exposed. Must rotate in Google Cl
 - Purge from history: `git filter-repo --path google-play-service-account.json --invert-paths` then force-push (this branch is not authorized)
 
 ### S-2 — Replace test AdMob ad unit IDs with production IDs
-Currently the **app IDs** are real (`ca-app-pub-2286247955186424~3290819490`) but the **ad unit IDs** fall back to Google's test IDs (`services/AdMobService.ts:101-106`). Google Play will accept the build, but you'll show test ads to real users.
+**iOS banner + rewarded are now wired.** The real iOS units ship as committed
+production defaults in `services/AdMobService.ts` (ad unit IDs are public
+identifiers, not secrets), so a release iOS build serves real ads out of the box:
 
-Set these env vars (in `.env` locally + EAS secrets for builds):
+| Slot | AdMob unit | iOS ID |
+|------|-----------|--------|
+| Banner | "Banner" | `ca-app-pub-2286247955186424/8520540300` |
+| Rewarded | "Awarded" | `ca-app-pub-2286247955186424/7390605700` |
+
+**Interstitial (iOS) is still open.** The AdMob "Ad-win" unit
+(`…/2329850711`) is a *rewarded interstitial* — a different format that the
+app's standard interstitial slot (`lib/ads/interstitial.ts`, standard
+`InterstitialAd`) cannot serve. Serving it through the standard class produces
+no-fill / invalid-request errors ($0 + wasted loads), so it is intentionally
+left unconfigured (safe no-op). To close this:
+1. AdMob Console → Apps → DeepLife Simulator → Ad units → create a **standard
+   Interstitial** unit.
+2. Set `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` (EAS secret + GitHub Actions secret),
+   or add its ID as `PROD_INTERSTITIAL_IOS` in `services/AdMobService.ts`.
+
+**Android is unconfigured (iOS-only launch).** Android has no committed defaults
+and fails closed (no ad). When Android launches, create its units and set the
+`EXPO_PUBLIC_ADMOB_*_ANDROID` vars — preflight hard-requires them for an Android
+production build.
+
+To override any default per build, set the env var (EAS secret / GitHub Actions
+secret) — env always wins over the committed default:
 ```
-EXPO_PUBLIC_ADMOB_BANNER_IOS=ca-app-pub-XXXXX/YYYYY
-EXPO_PUBLIC_ADMOB_BANNER_ANDROID=ca-app-pub-XXXXX/YYYYY
-EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS=ca-app-pub-XXXXX/YYYYY
-EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID=ca-app-pub-XXXXX/YYYYY
-EXPO_PUBLIC_ADMOB_REWARDED_IOS=ca-app-pub-XXXXX/YYYYY
-EXPO_PUBLIC_ADMOB_REWARDED_ANDROID=ca-app-pub-XXXXX/YYYYY
+EXPO_PUBLIC_ADMOB_BANNER_IOS=ca-app-pub-2286247955186424/8520540300
+EXPO_PUBLIC_ADMOB_REWARDED_IOS=ca-app-pub-2286247955186424/7390605700
+EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS=      # standard Interstitial unit, TBD
 ```
-Get the IDs from AdMob Console → Apps → DeepLife Simulator → Ad units.
 
 ### S-3 — IAP receipt verification needs a server
 `services/IAPService.ts:16-17` reads `EXPO_PUBLIC_IAP_VERIFY_URL` and `EXPO_PUBLIC_IAP_VERIFY_TOKEN`. These are not set, so the current build does client-side-only validation (effectively trusts the device).

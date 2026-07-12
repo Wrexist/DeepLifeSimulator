@@ -490,31 +490,44 @@ try {
   } else if (!isProductionBuild) {
     log('[SKIP] Non-production build — test ad units OK', YELLOW);
   } else {
-    const requiredVars = [];
-    if (platform === 'ios' || platform === 'all') {
-      requiredVars.push(
-        'EXPO_PUBLIC_ADMOB_BANNER_IOS',
-        'EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS',
-        'EXPO_PUBLIC_ADMOB_REWARDED_IOS',
-      );
-    }
-    if (platform === 'android' || platform === 'all') {
-      requiredVars.push(
-        'EXPO_PUBLIC_ADMOB_BANNER_ANDROID',
-        'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
-        'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
-      );
-    }
-
     const adUnitPattern = /^ca-app-pub-\d+\/\d+$/;
+
+    // iOS banner + rewarded ship as committed real production defaults in
+    // services/AdMobService.ts (ad unit IDs are public identifiers, not
+    // secrets), so a release iOS build serves real ads even when these env vars
+    // are unset. They are therefore optional overrides here, not hard blockers.
+    // The standard interstitial has no real unit yet (the AdMob "Ad-win" unit is
+    // a rewarded-interstitial, an incompatible format) and is intentionally
+    // unconfigured. Android has no committed defaults and still fails closed.
+    const iosVars = [
+      'EXPO_PUBLIC_ADMOB_BANNER_IOS',
+      'EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS',
+      'EXPO_PUBLIC_ADMOB_REWARDED_IOS',
+    ];
+    const androidRequired = [
+      'EXPO_PUBLIC_ADMOB_BANNER_ANDROID',
+      'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
+      'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
+    ];
+
     const missing = [];
     const malformed = [];
-    for (const name of requiredVars) {
+
+    // Any configured value must be well-formed — catches secret typos on either
+    // platform, regardless of whether the var is required.
+    for (const name of [...iosVars, ...androidRequired]) {
       const v = (process.env[name] || '').trim();
-      if (!v) {
-        missing.push(name);
-      } else if (!adUnitPattern.test(v)) {
+      if (v && !adUnitPattern.test(v)) {
         malformed.push(`${name}=${v}`);
+      }
+    }
+
+    // Android (when in scope) still hard-requires its IDs — no committed default.
+    if (platform === 'android' || platform === 'all') {
+      for (const name of androidRequired) {
+        if (!(process.env[name] || '').trim()) {
+          missing.push(name);
+        }
       }
     }
 
@@ -530,6 +543,18 @@ try {
       malformed.forEach((n) => log(`   - ${n}`, RED));
       hasErrors = true;
     }
+
+    // iOS interstitial is optional (no committed default) — warn so the missing
+    // revenue slot stays visible without blocking the launch.
+    if (platform === 'ios' || platform === 'all') {
+      if (!(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || '').trim()) {
+        log('[WARN] iOS interstitial ad unit not configured — no interstitial revenue', YELLOW);
+        log('   Banner + rewarded serve real ads via committed defaults; create a', YELLOW);
+        log('   standard Interstitial unit in AdMob and set', YELLOW);
+        log('   EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS to enable interstitials.', YELLOW);
+      }
+    }
+
     if (missing.length === 0 && malformed.length === 0) {
       log('[PASS] AdMob ad unit IDs configured for production', GREEN);
     }
