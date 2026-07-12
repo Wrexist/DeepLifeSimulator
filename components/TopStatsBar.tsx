@@ -989,6 +989,14 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // For the interstitial breakpoint: current in-game week + whether ads are removed.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  const adsRemoved = useGameSelector((s) => s?.settings?.adsRemoved === true);
+ // A blocking result modal (death/wedding/jail) must never get an interstitial
+ // on top of it. The tick itself can RAISE one of these, so we read it via a ref
+ // that the external-store selector keeps current, then check it AFTER the tick.
+ const blockingModalActive = useGameSelector(
+   (s) => s?.showDeathPopup === true || s?.showWeddingPopup === true || (s?.jailWeeks ?? 0) > 0,
+ );
+ const blockedRef = useRef(blockingModalActive);
+ blockedRef.current = blockingModalActive;
  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
 
  // All hooks must be called before any early returns (Rules of Hooks)
@@ -1231,8 +1239,12 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  await nextWeek();
  // Natural breakpoint: if an in-game year just turned over, maybe show an
  // interstitial. Self-gated — a no-op when ads are removed, off, not
- // loaded, or within the frequency cap.
- void maybeShowInterstitialForWeek(weeksBefore + 1, { adsRemoved });
+ // loaded, or within the frequency cap. `blocked` is read AFTER the tick so
+ // a death/wedding/jail modal this tick raised suppresses the ad.
+ void maybeShowInterstitialForWeek(weeksBefore + 1, {
+ adsRemoved,
+ blocked: blockedRef.current,
+ });
  } finally {
  if (timeoutRef.current) {
  clearTimeout(timeoutRef.current);

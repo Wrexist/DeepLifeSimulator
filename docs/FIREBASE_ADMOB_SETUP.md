@@ -49,10 +49,16 @@ error-isolation so a broken native module can't crash boot:
   frameworks risks breaking the working `react-native-google-mobile-ads` link.
 - **Flag:** `FEATURE_FLAGS.firebaseAnalytics` — opt-in via `EXPO_PUBLIC_ENABLE_FIREBASE=true`,
   off by default (same fail-safe posture as `adMob` / `analytics`).
+- **Native auto-collection is OFF by default:** `firebase.json` sets
+  `analytics_auto_collection_enabled: false`, which the RNFirebase config plugin
+  maps to `FIREBASE_ANALYTICS_COLLECTION_ENABLED=false` (iOS Info.plist) /
+  `firebase_analytics_collection_enabled=false` (Android manifest). So the SDK
+  never collects on native launch before JS runs, and collects nothing at all
+  when `EXPO_PUBLIC_ENABLE_FIREBASE` is unset.
 - **Init:** `services/FirebaseAnalyticsService.ts` lazy-requires analytics and calls
-  `setAnalyticsCollectionEnabled(isTrackingAllowed())`. Wired into the boot
-  orchestrator in `app/_layout.tsx` **after** the ATT task (sequential), so the
-  tracking choice is known before collection is toggled.
+  `setAnalyticsCollectionEnabled(isTrackingAllowed())` — the ONLY place collection
+  is ever enabled. Wired into the boot orchestrator in `app/_layout.tsx` **after**
+  the ATT task (sequential), so the tracking choice is known first.
 
 ### To ACTIVATE (remaining — your steps)
 
