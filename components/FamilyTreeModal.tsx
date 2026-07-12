@@ -64,13 +64,13 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
           {member.deathYear ? (
             // Calculate age at death for image
             <Image
-              source={getCharacterImage(member.deathYear - member.birthYear, member.gender)}
+              source={getCharacterImage(member.deathYear - member.birthYear, member.gender, member.id)}
               style={styles.avatarImage}
             />
           ) : (
             // Use current age if still alive
             <Image
-              source={getCharacterImage(25, member.gender)}
+              source={getCharacterImage(25, member.gender, member.id)}
               style={styles.avatarImage}
             />
           )}

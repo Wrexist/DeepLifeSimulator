@@ -449,7 +449,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         >
           <View style={styles.avatarWrap}>
             <Image
-              source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type)}
+              source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type, r.id)}
               style={[styles.avatar, { borderColor: theme.glassBorder }]}
             />
             <View style={[styles.recencyDot, { backgroundColor: rec.color, borderColor: theme.surface }]} />
@@ -855,7 +855,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                       return (
                         <Image
                           key={c.id}
-                          source={getRelationshipImage(rr.age || 25, rr.gender || 'male', rr.type)}
+                          source={getRelationshipImage(rr.age || 25, rr.gender || 'male', rr.type, rr.id)}
                           style={[
                             styles.clusterAvatar,
                             { marginLeft: i === 0 ? 0 : -scale(12), borderColor: theme.surface, zIndex: 10 - i },

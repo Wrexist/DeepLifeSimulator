@@ -55,7 +55,7 @@ export default function ProfileCard({
   profile, likeOpacity = 0, nopeOpacity = 0, superOpacity = 0, catfishSuspected,
 }: ProfileCardProps) {
   const { theme, isDark } = useTheme();
-  const photo = useMemo(() => getDatingProfileImage(profile.gender), [profile.gender]);
+  const photo = useMemo(() => getDatingProfileImage(profile), [profile.id, profile.age, profile.gender]);
 
   return (
     // Anatomy: outer carries the L2 glass shadow + radius + border + solid fill;

@@ -414,7 +414,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     </View>
                     {selectedPath === 'reset' && (
                       <Image
-                        source={getCharacterImage(18, gameState.userProfile?.sex || 'male')}
+                        source={getCharacterImage(18, gameState.userProfile?.sex || 'male', gameState.userProfile?.name)}
                         style={styles.characterImage}
                       />
                     )}
@@ -518,7 +518,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                                 activeOpacity={0.8}
                               >
                                 <Image
-                                  source={getCharacterImage(childAge, child.gender || 'male')}
+                                  source={getCharacterImage(childAge, child.gender || 'male', child.id)}
                                   style={styles.childImage}
                                 />
                                 <Text style={[

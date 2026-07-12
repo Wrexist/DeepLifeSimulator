@@ -99,7 +99,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                     style={styles.freshItem}
                   >
                     <View style={[styles.avatarRing, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}>
-                      <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
+                      <Image source={getDatingProfileImage(profile)} style={styles.avatar} />
                     </View>
                     {match.superLiked ? (
                       <View style={styles.superBadge}>
@@ -142,7 +142,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                 ]}
               >
                 <Image
-                  source={getDatingProfileImage(profile.gender)}
+                  source={getDatingProfileImage(profile)}
                   style={[styles.convoAvatar, { borderColor: theme.glassBorder }]}
                 />
                 <View style={styles.convoBody}>

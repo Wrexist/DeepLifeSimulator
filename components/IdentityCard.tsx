@@ -463,7 +463,7 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getCharacterImage(date?.age ?? 0, sex);
+  const avatar = getCharacterImage(date?.age ?? 0, sex, name);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.

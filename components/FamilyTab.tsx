@@ -236,7 +236,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.cardHeader}>
  <View style={styles.avatarContainer}>
  <Image
- source={getRelationshipImage(spouse.age || 25, spouse.gender || 'female', 'spouse')}
+ source={getRelationshipImage(spouse.age || 25, spouse.gender || 'female', 'spouse', spouse.id)}
  style={styles.avatar}
  />
  <View style={styles.statusBadge}>
@@ -330,7 +330,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.cardHeader}>
  <View style={styles.avatarContainer}>
  <Image
- source={getRelationshipImage(partner.age || 25, partner.gender || 'female', 'partner')}
+ source={getRelationshipImage(partner.age || 25, partner.gender || 'female', 'partner', partner.id)}
  style={styles.avatar}
  />
  </View>
@@ -472,7 +472,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  >
  <View style={styles.childAvatarContainer}>
  <Image
- source={getCharacterImage(childAge, child.gender || 'male')}
+ source={getCharacterImage(childAge, child.gender || 'male', child.id)}
  style={styles.childAvatar}
  />
  {isAdult && (
@@ -527,7 +527,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <ScrollView style={styles.modalScroll}>
  <View style={styles.childProfileHeader}>
  <Image
- source={getCharacterImage(childAge, child.gender || 'male')}
+ source={getCharacterImage(childAge, child.gender || 'male', child.id)}
  style={styles.childProfileAvatar}
  />
  <View style={styles.childProfileInfo}>

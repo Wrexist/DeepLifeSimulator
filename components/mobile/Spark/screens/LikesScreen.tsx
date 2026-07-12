@@ -114,7 +114,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
                 return (
                   <View key={entry.profileId} style={[styles.blurAvatarRing, { borderColor: theme.glassBorder }]}>
                     <Image
-                      source={getDatingProfileImage(profile.gender)}
+                      source={getDatingProfileImage(profile)}
                       style={styles.blurAvatar}
                       blurRadius={18}
                     />
@@ -166,7 +166,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
           >
             <View style={styles.likeAvatarWrap}>
               <Image
-                source={getDatingProfileImage(profile.gender)}
+                source={getDatingProfileImage(profile)}
                 style={[styles.likeAvatar, { borderColor: theme.glassBorder }]}
               />
               {entry.superLiked ? (

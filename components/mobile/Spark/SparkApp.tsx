@@ -32,7 +32,8 @@ import BoostModal from './modals/BoostModal';
 import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
 import MatchBanner from './components/MatchBanner';
-import { getDatingProfileImage, type DatingProfile } from '@/lib/dating/datingProfiles';
+import { type DatingProfile } from '@/lib/dating/datingProfiles';
+import { getCharacterImage } from '@/utils/characterImages';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -309,7 +310,7 @@ function ProfileTab() {
                 onError={() => setSparkProfileAvatarErrored(true)}
               />
             ) : profile.gender ? (
-              <Image source={getDatingProfileImage(profile.gender)} style={styles.profileAvatarImg} />
+              <Image source={getCharacterImage(gameState.date?.age ?? 25, profile.gender, profile.name ?? profile.displayName)} style={styles.profileAvatarImg} />
             ) : (
               <Text style={styles.profileAvatarInitial}>
                 {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}

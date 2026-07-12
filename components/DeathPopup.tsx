@@ -891,7 +891,7 @@ function DeathPopup() {
                               >
                                 <View style={styles.childCardHeader}>
                                   <Image
-                                    source={getCharacterImage(age, child.gender)}
+                                    source={getCharacterImage(age, child.gender, child.id)}
                                     style={styles.childImage}
                                   />
                                   <View style={styles.childInfo}>
