@@ -28,6 +28,12 @@ export const FEATURE_FLAGS = {
   // flag above. Opt-in only (=== 'true') to avoid accidental release init.
   telemetry: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true',
 
+  // Firebase Analytics (native @react-native-firebase) — required for AdMob
+  // ARPU / user metrics. Native SDK, so it carries the same TurboModule risk
+  // that disabled `analytics` above: OPT-IN only (=== 'true'), and collection
+  // is additionally consent-gated at runtime (see FirebaseAnalyticsService).
+  firebaseAnalytics: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_FIREBASE === 'true',
+
   // App Tracking Transparency (iOS)
   att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT !== 'false',
   

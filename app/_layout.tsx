@@ -1099,6 +1099,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const enableIAP = isFeatureEnabled('iap');
     const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
     const enableTelemetry = isFeatureEnabled('telemetry');
+    const enableFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
 
     if (!enableAdMob && !enableIAP && !enableATT && !enableTelemetry) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
@@ -1153,6 +1154,23 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       );
       if (adMobTask) {
         startupOrchestrator.addTask(adMobTask);
+      }
+    }
+
+    // Add Firebase Analytics task (if enabled). Native SDK — opt-in only via
+    // EXPO_PUBLIC_ENABLE_FIREBASE. Collection is consent-gated inside the service.
+    // Runs after ATT so the tracking choice is known; unlocks AdMob ARPU.
+    if (enableFirebase) {
+      const firebaseTask = createSafeServiceTask(
+        'Firebase Analytics',
+        async () => {
+          const { firebaseAnalyticsService } = await import('@/services/FirebaseAnalyticsService');
+          await firebaseAnalyticsService.initialize();
+        },
+        { timeout: 4000, critical: false, enabled: enableFirebase }
+      );
+      if (firebaseTask) {
+        startupOrchestrator.addTask(firebaseTask);
       }
     }
 

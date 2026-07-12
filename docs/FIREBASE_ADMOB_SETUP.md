@@ -35,47 +35,40 @@ first build after this as a stability checkpoint.
 
 ---
 
-## Part B — Code wiring (I do this once you have the two service files)
+## Part B — Code wiring ✅ DONE (project `deep-life-simulator-2779c`)
 
-Keep everything behind the existing gates so a broken native module can't crash boot,
-mirroring `AdMobService`'s lazy-load + circuit-breaker pattern.
+All wired behind the existing gates, mirroring `AdMobService`'s lazy-load +
+error-isolation so a broken native module can't crash boot:
 
-1. **Deps**
-   ```
-   npx expo install @react-native-firebase/app @react-native-firebase/analytics
-   ```
+- **Deps:** `@react-native-firebase/app` + `@react-native-firebase/analytics` `^23.8.8` (package.json).
+- **Service files** at repo root: `GoogleService-Info.plist`, `google-services.json`
+  (paths overridable via `GOOGLE_SERVICE_INFO_PLIST` / `GOOGLE_SERVICES_JSON` for EAS secret files).
+- **`app.config.js`:** `@react-native-firebase/app` plugin + `ios.googleServicesFile` /
+  `android.googleServicesFile`. `use_frameworks` is deliberately **NOT** forced
+  (see the note in the file) — RNFirebase v23 builds without it, and forcing static
+  frameworks risks breaking the working `react-native-google-mobile-ads` link.
+- **Flag:** `FEATURE_FLAGS.firebaseAnalytics` — opt-in via `EXPO_PUBLIC_ENABLE_FIREBASE=true`,
+  off by default (same fail-safe posture as `adMob` / `analytics`).
+- **Init:** `services/FirebaseAnalyticsService.ts` lazy-requires analytics and calls
+  `setAnalyticsCollectionEnabled(isTrackingAllowed())`. Wired into the boot
+  orchestrator in `app/_layout.tsx` **after** the ATT task (sequential), so the
+  tracking choice is known before collection is toggled.
 
-2. **Service files** — commit (or inject via EAS secret file) at repo root:
-   - `GoogleService-Info.plist`
-   - `google-services.json`
+### To ACTIVATE (remaining — your steps)
 
-3. **`app.config.js`** — register the plugin + files:
-   ```js
-   plugins: [
-     // ...existing...
-     '@react-native-firebase/app',
-     ['expo-build-properties', { ios: { useFrameworks: 'static' } }], // RNFirebase requirement
-   ],
-   ios:     { ...ios,     googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST ?? './GoogleService-Info.plist' },
-   android: { ...android, googleServicesFile: process.env.GOOGLE_SERVICES_JSON     ?? './google-services.json' },
-   ```
-
-4. **Init behind consent** — do NOT auto-init at module load. Gate on the same
-   ATT/consent + feature flag the ad stack uses:
-   - Add a flag, e.g. `firebaseAnalytics: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_FIREBASE === 'true'`.
-   - Lazy-require `@react-native-firebase/analytics` inside a try/catch (never require at module top).
-   - Call `analytics().setAnalyticsCollectionEnabled(isTrackingAllowed())` after
-     ATT resolves — reuse `utils/trackingTransparency`.
-   - AdMob picks up the linked GA property automatically; no per-event code is
-     required just for ARPU.
-
-5. **Prebuild + verify**
+1. **Console (Part A above):** ensure **Google Analytics is enabled** on the Firebase
+   project and **link AdMob → this Firebase property**. ⚠️ The provided configs have
+   `IS_ANALYTICS_ENABLED = false` — that means GA was not enabled when they were
+   downloaded. Enable GA in the Firebase project, then **re-download** both service
+   files and replace the ones at repo root, or ARPU will stay blank.
+2. Set the EAS/env secret **`EXPO_PUBLIC_ENABLE_FIREBASE=true`** for the build profile.
+3. **Prebuild + verify:**
    ```
    npx expo prebuild --clean
    # build to a device; confirm boot is stable on iOS 26 before shipping
    ```
    Watch for the TurboModule crash class that took out Sentry. If it recurs,
-   keep `EXPO_PUBLIC_ENABLE_FIREBASE` unset (flag defaults off) to ship without it.
+   unset `EXPO_PUBLIC_ENABLE_FIREBASE` to ship without it (SDK present, inert).
 
 ---
 
