@@ -5,6 +5,10 @@ const buildNumber = process.env.BUILD_NUMBER || "99";
 const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~7015403477";
 const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || admobAppId;
 const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || admobAppId;
+// Firebase config files (unlocks AdMob ARPU once the account is linked to the
+// Firebase/GA property). Paths can be overridden via EAS secret files.
+const iosGoogleServicesFile = process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist";
+const androidGoogleServicesFile = process.env.GOOGLE_SERVICES_JSON || "./google-services.json";
 
 module.exports = {
   expo: {
@@ -45,6 +49,8 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: "com.deeplife.simulator",
       buildNumber: buildNumber,
+      // Firebase (iOS): required for AdMob ARPU / user metrics.
+      googleServicesFile: iosGoogleServicesFile,
       infoPlist: {
         // NSUserTrackingUsageDescription is now provided by the
         // expo-tracking-transparency config plugin (see `plugins` below).
@@ -56,6 +62,8 @@ module.exports = {
     android: {
       package: "com.deeplife.simulator",
       versionCode: parseInt(buildNumber, 10),
+      // Firebase (Android): required for AdMob ARPU / user metrics.
+      googleServicesFile: androidGoogleServicesFile,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#1a1a2e"
@@ -83,9 +91,18 @@ module.exports = {
         {
           ios: {
             deploymentTarget: "15.1",
+            // NOTE: RNFirebase v23 builds WITHOUT use_frameworks in this setup,
+            // so it is intentionally NOT forced here — forcing static frameworks
+            // risks breaking the working react-native-google-mobile-ads link. If
+            // a future pod install fails demanding it, add `useFrameworks: "static"`
+            // here and re-verify the AdMob build. See docs/FIREBASE_ADMOB_SETUP.md.
           },
         },
       ],
+      // Firebase core — wires GoogleService-Info.plist / google-services.json so
+      // AdMob can attribute revenue to users (unlocks ARPU). Hard Rule #4:
+      // package in package.json ⇒ config plugin listed here.
+      "@react-native-firebase/app",
       [
         "expo-router",
         {

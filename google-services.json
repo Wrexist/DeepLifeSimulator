@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "496462885318",
+    "project_id": "deep-life-simulator-2779c",
+    "storage_bucket": "deep-life-simulator-2779c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496462885318:android:9603f9adbfd5f3925982c7",
+        "android_client_info": {
+          "package_name": "com.deeplife.simulator"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDc4caESgUJY4PnDflQ51v9lmgzvbJZ_Hg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
