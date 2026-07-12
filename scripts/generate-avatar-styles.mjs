@@ -9,8 +9,11 @@
 import { chromium } from '@playwright/test';
 import { resolve } from 'node:path';
 import { createAvatar } from '@dicebear/core';
-import * as C from '@dicebear/collection';
+import { avataaars, micah, personas, miniavs, croodles } from '@dicebear/collection';
 import { ROOT, pageShell, legendItem, renderToPng } from './lib/phoneFrame.mjs';
+
+// Explicit style map — avoids dynamic access on a namespace import (import/namespace).
+const STYLES = { avataaars, micah, personas, miniavs, croodles };
 
 // Real generator output. avataaars is constrained to friendly expressions so we
 // never ship a dizzy / crying / vomit face; other styles render as-is.
@@ -23,7 +26,7 @@ function raw(style, seed, px) {
         facialHairProbability: 20,
       }
     : {};
-  return createAvatar(C[style], { seed, size: px, backgroundColor: ['transparent'], ...friendly }).toString();
+  return createAvatar(STYLES[style], { seed, size: px, backgroundColor: ['transparent'], ...friendly }).toString();
 }
 
 // Flat chip — how the generator ships it (single tint bg, tiny drop shadow).
