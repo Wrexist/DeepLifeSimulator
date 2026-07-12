@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
@@ -74,6 +75,7 @@ import {
   getTabBarSafePadding,
 } from '@/utils/scaling';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
+import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -95,7 +97,7 @@ function ComputerScreen() {
   );
 }
 
-function ComputerScreenContent() {
+export function ComputerScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
@@ -122,21 +124,26 @@ function ComputerScreenContent() {
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
 
-  // Prevent staying on computer screen when in prison - redirect to work tab
+  // Prevent staying on computer screen when in prison - redirect to work tab.
+  // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
 
-  // Redirect away from computer screen if computer is sold
+  // Redirect away from computer screen if computer is sold. Embedded, the Apps
+  // tab already falls back to the phone launcher when the computer is gone, so
+  // skip the redirect (currentRoute is 'apps', never 'computer', here anyway).
   useEffect(() => {
+    if (embedded) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (!ownsComputer && currentRoute === 'computer') {
       // Redirect to home tab if computer is sold
       router.replace('/(tabs)/home');
     }
-  }, [gameState.items, router]);
+  }, [embedded, gameState.items, router, currentRoute]);
   const navigation = useNavigation<any>();
 
   // Reset to apps grid when the Computer tab is pressed
@@ -331,12 +338,12 @@ function ComputerScreenContent() {
   if (!(gameState.items || []).find(item => item.id === 'computer')?.owned) {
     return (
       <LinearGradient
-        colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+        colors={settings.darkMode ? ['#1E3A8A', '#1E293B'] : ['#FFFFFF', '#F8FAFC']}
         style={styles.container}
       >
         <View style={styles.noComputerContainer}>
           <View style={styles.noComputerIconContainer}>
-            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
           </View>
           <Text style={[styles.noComputerTitle, settings.darkMode && styles.noComputerTitleDark]}>
             {t('computer.noComputerAvailable')}
@@ -442,19 +449,30 @@ function ComputerScreenContent() {
                   settings.darkMode && styles.appCardGlassInnerDark
                 ]}>
                   <View style={styles.appIconGlassContainer}>
-                    <View style={[
-                      styles.appIconGlass,
-                      settings.darkMode && styles.appIconGlassDark
-                    ]}>
-                      <LinearGradient
-                        colors={app.iconGradient as [string, string]}
-                        style={styles.appIconGradientGlass}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                      >
-                        <app.icon size={responsiveIconSize.md} color="#FFFFFF" />
-                      </LinearGradient>
-                    </View>
+                    {getAppIconAsset(app.id) ? (
+                      // Custom designed icon (full-bleed PNG, gradient baked in).
+                      <Image
+                        source={getAppIconAsset(app.id)!}
+                        style={styles.appIconImage}
+                        resizeMode="cover"
+                        accessibilityIgnoresInvertColors
+                      />
+                    ) : (
+                      // Fallback: Lucide glyph on a gradient circle (unchanged).
+                      <View style={[
+                        styles.appIconGlass,
+                        settings.darkMode && styles.appIconGlassDark
+                      ]}>
+                        <LinearGradient
+                          colors={app.iconGradient as [string, string]}
+                          style={styles.appIconGradientGlass}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                        >
+                          <app.icon size={responsiveIconSize.md} color="#FFFFFF" />
+                        </LinearGradient>
+                      </View>
+                    )}
                   </View>
                   <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
                     {app.name}
@@ -484,7 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   loadingContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   loadingText: {
     marginTop: responsiveSpacing.md,
@@ -545,6 +563,27 @@ const styles = StyleSheet.create({
   appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
   },
+  // Custom PNG icon — same footprint as the gradient circle, but a rounded
+  // square (iOS-style squircle) since the assets are full-bleed app icons.
+  appIconImage: {
+    width: responsiveIconSize.xl + scale(8),
+    height: responsiveIconSize.xl + scale(8),
+    borderRadius: (responsiveIconSize.xl + scale(8)) * 0.235,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scale(4) },
+        shadowOpacity: 0.22,
+        shadowRadius: scale(8),
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.24)',
+      },
+    }),
+  },
   appIconGlass: {
     width: responsiveIconSize.xl + scale(8),
     height: responsiveIconSize.xl + scale(8),
@@ -583,7 +622,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: responsiveSpacing.xs / 2,
     textAlign: 'center',
   },
@@ -613,7 +652,7 @@ const styles = StyleSheet.create({
   noComputerTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: responsiveSpacing.md,
     textAlign: 'center',
   },
@@ -627,7 +666,7 @@ const styles = StyleSheet.create({
     lineHeight: responsiveFontSize.base * 1.4,
   },
   noComputerMessageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   highlightedCardGlass: {
     ...Platform.select({

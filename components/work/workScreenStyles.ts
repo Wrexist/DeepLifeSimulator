@@ -14,6 +14,7 @@ import {
   responsiveBorderRadius,
 } from '@/utils/scaling';
 import { getResponsiveValue } from '@/utils/responsiveDesign';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 export const styles = StyleSheet.create({
     background: {
@@ -71,7 +72,7 @@ export const styles = StyleSheet.create({
         fontWeight: '700',
     },
     tabTextDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         fontWeight: '500',
     },
     content: {
@@ -88,7 +89,7 @@ export const styles = StyleSheet.create({
         fontWeight: '500',
     },
     sectionDescriptionDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         fontWeight: '400',
     },
     sectionHeader: {
@@ -101,20 +102,20 @@ export const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1F2937',
+        color: '#1E293B',
     },
     sectionTitleDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     subheader: {
         fontSize: 18,
         fontWeight: '600',
         marginTop: 8,
         marginBottom: 8,
-        color: '#1F2937',
+        color: '#1E293B',
     },
     subheaderDark: {
-        color: '#F3F4F6',
+        color: '#F8FAFC',
     },
     comingSoonText: {
         fontSize: 16,
@@ -122,7 +123,7 @@ export const styles = StyleSheet.create({
         marginBottom: 10,
     },
     comingSoonTextDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     lockedCareerContainer: {
         flexDirection: 'row',
@@ -142,7 +143,7 @@ export const styles = StyleSheet.create({
         lineHeight: fontScale(20),
     },
     lockedCareerTextDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     careerCard: {
         padding: responsiveSpacing.lg,
@@ -164,18 +165,9 @@ export const styles = StyleSheet.create({
         elevation: 3,
     },
     careerCardDark: {
-        backgroundColor: '#1F2937',
-        borderColor: '#374151',
-        ...Platform.select({
-          web: { boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' } as any,
-          default: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3,
-          },
-        }),
-        elevation: 1,
+        backgroundColor: '#1E293B',
+        borderColor: '#334155',
+        ...getPlatformShadows(6, 0.25, 4, 14),
     },
     careerCardActive: {
         borderColor: '#22C55E',
@@ -214,7 +206,7 @@ export const styles = StyleSheet.create({
         }),
     },
     careerNameDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
         textShadowColor: 'transparent',
         fontWeight: '700',
     },
@@ -225,7 +217,7 @@ export const styles = StyleSheet.create({
         fontWeight: '500',
     },
     careerDescriptionDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
         fontWeight: '400',
     },
     careerSalary: {
@@ -365,7 +357,7 @@ export const styles = StyleSheet.create({
     },
     streetStatLabel: {
         fontSize: 9,
-        color: '#9CA3AF',
+        color: '#94A3B8',
         fontWeight: '600',
         marginBottom: 1,
     },
@@ -799,16 +791,16 @@ export const styles = StyleSheet.create({
     jobName: {
         fontSize: getResponsiveValue(14, 16, 18, 20),
         fontWeight: '600',
-        color: '#1F2937',
+        color: '#1E293B',
         marginBottom: getResponsiveValue(4, 6, 8, 10),
     },
     jobNameDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     rankBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FEF3C7',
+        backgroundColor: 'rgba(245, 158, 11, 0.16)',
         paddingHorizontal: responsiveSpacing.sm,
         paddingVertical: scale(2),
         borderRadius: responsiveBorderRadius.md,
@@ -816,7 +808,7 @@ export const styles = StyleSheet.create({
     },
     rankText: {
         fontSize: responsiveFontSize.sm,
-        color: '#92400E',
+        color: '#FBBF24',
         marginLeft: responsiveSpacing.xs,
         fontWeight: '500',
     },
@@ -831,7 +823,7 @@ export const styles = StyleSheet.create({
         marginLeft: scale(6),
     },
     salaryHiddenDark: {
-        color: '#E5E7EB',
+        color: '#94A3B8',
     },
     workButton: {
         backgroundColor: '#3B82F6',
@@ -878,7 +870,7 @@ export const styles = StyleSheet.create({
         backgroundColor: '#EF4444',
     },
     disabledButton: {
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#334155',
     },
     workButtonText: {
         color: '#FFFFFF',
@@ -895,7 +887,7 @@ export const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     disabledButtonText: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     jobDescription: {
         fontSize: responsiveFontSize.sm,
@@ -904,18 +896,18 @@ export const styles = StyleSheet.create({
         lineHeight: 16,
     },
     jobDescriptionDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     perks: {
         marginBottom: 15,
     },
     perk: {
         fontSize: 13,
-        color: '#1F2937',
+        color: '#1E293B',
         marginBottom: 2,
     },
     perkDark: {
-        color: '#F3F4F6',
+        color: '#F8FAFC',
     },
     jobStats: {
         flexDirection: 'row',
@@ -930,11 +922,11 @@ export const styles = StyleSheet.create({
     },
     statText: {
         fontSize: 14,
-        color: '#374151',
+        color: '#334155',
         marginLeft: 4,
     },
     statTextDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     negativeStatsButton: {
         flexDirection: 'row',
@@ -1000,11 +992,11 @@ export const styles = StyleSheet.create({
     negativeStatsModalTitle: {
         fontSize: getResponsiveValue(20, 24, 28, 32),
         fontWeight: '700',
-        color: '#1F2937',
+        color: '#1E293B',
         marginBottom: getResponsiveValue(4, 6, 8, 10),
     },
     negativeStatsModalTitleDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     negativeStatsModalSubtitle: {
         fontSize: getResponsiveValue(14, 16, 18, 20),
@@ -1012,7 +1004,7 @@ export const styles = StyleSheet.create({
         color: '#6B7280',
     },
     negativeStatsModalSubtitleDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     negativeStatsModalCloseButton: {
         width: getResponsiveValue(32, 36, 40, 44),
@@ -1032,7 +1024,7 @@ export const styles = StyleSheet.create({
         lineHeight: getResponsiveValue(20, 24, 28, 32),
     },
     negativeStatsModalDescriptionDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     negativeStatsList: {
         gap: getResponsiveValue(12, 14, 16, 18),
@@ -1061,11 +1053,11 @@ export const styles = StyleSheet.create({
     negativeStatLabel: {
         fontSize: getResponsiveValue(14, 16, 18, 20),
         fontWeight: '600',
-        color: '#374151',
+        color: '#334155',
         marginBottom: getResponsiveValue(4, 6, 8, 10),
     },
     negativeStatLabelDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     negativeStatValue: {
         fontSize: getResponsiveValue(16, 18, 20, 22),
@@ -1112,11 +1104,11 @@ export const styles = StyleSheet.create({
     requirementsTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#374151',
+        color: '#334155',
         marginBottom: 5,
     },
     requirementsTitleDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     requirement: {
         fontSize: 12,
@@ -1139,10 +1131,10 @@ export const styles = StyleSheet.create({
         fontSize: 12,
     },
     lockedHintDark: {
-        color: '#E5E7EB',
+        color: '#94A3B8',
     },
     listButton: {
-        backgroundColor: '#E0E7FF',
+        backgroundColor: '#1E293B',
         padding: 6,
         borderRadius: 12,
         marginLeft: 8,
@@ -1170,24 +1162,24 @@ export const styles = StyleSheet.create({
         borderColor: '#F87171',
     },
     contractPaper: {
-        backgroundColor: '#FEFCE8',
+        backgroundColor: '#1E293B',
         padding: 20,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#DDD6FE',
+        borderColor: '#334155',
     },
     contractTitle: {
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 12,
         fontStyle: 'italic',
-        color: '#1F2937',
+        color: '#F8FAFC',
     },
     contractLine: {
         fontSize: 14,
         marginBottom: 6,
         fontStyle: 'italic',
-        color: '#374151',
+        color: '#CBD5E1',
     },
     signButton: {
         backgroundColor: '#10B981',
@@ -1215,14 +1207,14 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 8,
         marginRight: 6,
         borderRadius: 4,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#334155',
     },
     activeDivisionTab: {
         backgroundColor: '#3B82F6',
     },
     divisionTabText: {
         fontSize: 12,
-        color: '#1F2937',
+        color: '#CBD5E1',
     },
     activeDivisionTabText: {
         color: '#F9FAFB',
@@ -1246,20 +1238,20 @@ export const styles = StyleSheet.create({
         borderColor: 'rgba(107, 114, 128, 0.3)',
     },
     upgradeRowDark: {
-        backgroundColor: '#1F2937',
+        backgroundColor: '#1E293B',
     },
     upgradeInfo: {
         flex: 1,
         paddingRight: 8,
     },
     upgradeName: {
-        color: '#1F2937',
+        color: '#1E293B',
         fontSize: 16,
         fontWeight: '600',
         fontFamily: 'System',
     },
     upgradeNameDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     upgradeDesc: {
         color: '#4B5563',
@@ -1267,10 +1259,10 @@ export const styles = StyleSheet.create({
         fontFamily: 'System',
     },
     upgradeDescDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     upgradeButton: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#3B82F6',
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 8,
@@ -1292,7 +1284,7 @@ export const styles = StyleSheet.create({
     },
     progressBarBg: {
         height: scale(4),
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#334155',
         borderRadius: scale(2),
     },
     progressBarFill: {
@@ -1314,7 +1306,7 @@ export const styles = StyleSheet.create({
         maxHeight: '80%',
     },
     modalContentDark: {
-        backgroundColor: '#1F2937',
+        backgroundColor: '#1E293B',
     },
     modalList: {
         maxHeight: 200,
@@ -1323,18 +1315,18 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 12,
-        color: '#111827',
+        color: '#0F172A',
     },
     modalTitleDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     modalItem: {
         fontSize: 14,
-        color: '#374151',
+        color: '#334155',
         marginBottom: 4,
     },
     modalItemDark: {
-        color: '#D1D5DB',
+        color: '#CBD5E1',
     },
     modalCloseButton: {
         marginTop: 12,
@@ -1368,10 +1360,10 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
-        color: '#1F2937',
+        color: '#1E293B',
     },
     skillTreeSkillDark: {
-        color: '#F3F4F6',
+        color: '#F8FAFC',
     },
     skillUpgradeButton: {
         paddingVertical: 8,
@@ -1390,15 +1382,15 @@ export const styles = StyleSheet.create({
     skillLevelLabel: {
         fontWeight: '600',
         marginBottom: 4,
-        color: '#1F2937',
+        color: '#1E293B',
     },
     skillLevelLabelDark: {
-        color: '#F3F4F6',
+        color: '#F8FAFC',
     },
     skillLevelConnector: {
         width: 2,
         height: 20,
-        backgroundColor: '#9CA3AF',
+        backgroundColor: '#94A3B8',
         alignSelf: 'center',
     },
     skillTreeRow: {
@@ -1419,7 +1411,7 @@ export const styles = StyleSheet.create({
         color: '#6B7280',
     },
     progressLabelDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     progressPercent: {
         fontSize: responsiveFontSize.sm,
@@ -1431,7 +1423,7 @@ export const styles = StyleSheet.create({
     },
     progressBar: {
         height: 4,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#334155',
         borderRadius: 2,
         overflow: 'hidden',
     },
@@ -1482,13 +1474,13 @@ export const styles = StyleSheet.create({
     scrollBar: {
         width: 4,
         height: 40,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#334155',
         borderRadius: 2,
     },
     scrollThumb: {
         width: 4,
         height: 20,
-        backgroundColor: '#9CA3AF',
+        backgroundColor: '#94A3B8',
         borderRadius: 2,
     },
     bailSection: {
@@ -1541,7 +1533,7 @@ export const styles = StyleSheet.create({
     },
     upgradeLevel: {
         fontSize: 12,
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     upgradeCost: {
         marginTop: 6,
@@ -1643,11 +1635,11 @@ export const styles = StyleSheet.create({
     skillName: {
         fontSize: responsiveFontSize.lg,
         fontWeight: '700',
-        color: '#111827',
+        color: '#0F172A',
         marginBottom: responsiveSpacing.xs,
     },
     skillNameDark: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     skillLevelRow: {
         flexDirection: 'row',
@@ -1712,7 +1704,7 @@ export const styles = StyleSheet.create({
         fontWeight: '500',
     },
     skillProgressTextDark: {
-        color: '#9CA3AF',
+        color: '#94A3B8',
     },
     unlockedTalentsBadge: {
         flexDirection: 'row',
@@ -1789,7 +1781,7 @@ export const styles = StyleSheet.create({
     lockedHobbyName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: '#94A3B8',
         marginBottom: 4,
     },
     cardHeader: {
@@ -3296,7 +3288,7 @@ export const styles = StyleSheet.create({
     playModalTitle: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#1F2937',
+        color: '#1E293B',
         marginBottom: 8,
     },
     playModalSubtitle: {
@@ -3326,7 +3318,7 @@ export const styles = StyleSheet.create({
     playModalInfoText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1F2937',
+        color: '#1E293B',
         textAlign: 'center',
         marginBottom: 12,
         lineHeight: 24,

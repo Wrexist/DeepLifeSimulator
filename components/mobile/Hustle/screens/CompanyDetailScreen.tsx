@@ -35,21 +35,15 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import type { HustleCompanyOverlay } from '@/contexts/game/types';
+import { getPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
 
-// Face art for named hires — picked deterministically from the hire id so a
-// given employee keeps the same face. Real assets (assets/images/Face/*).
-const HIRE_FACES = [
-  require('@/assets/images/Face/Male.png'),
-  require('@/assets/images/Face/Female.png'),
-  require('@/assets/images/Face/Old_Male.png'),
-  require('@/assets/images/Face/Old_Female.png'),
-];
+// Face art for named hires — a stable, unique adult face per hire id, drawn
+// from the seeded pool (utils/facePool). Sex derives from the id so it stays
+// consistent for a given employee.
 function faceFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return HIRE_FACES[h % HIRE_FACES.length];
+  return getPortrait(id, 30, 'random');
 }
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);

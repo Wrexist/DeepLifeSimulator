@@ -105,7 +105,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
           <ArrowLeft size={fontScale(22)} color={theme.text} />
         </Pressable>
         <Image
-          source={getDatingProfileImage(profile.gender)}
+          source={getDatingProfileImage(profile)}
           style={[styles.headerAvatar, { borderColor: theme.glassBorder }]}
         />
         <View style={styles.headerText}>

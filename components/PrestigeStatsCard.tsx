@@ -41,7 +41,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
       <LinearGradient
         colors={
           darkMode
-            ? ['#1F2937', '#111827']
+            ? ['#1E293B', '#0F172A']
             : ['#FFFFFF', '#F3F4F6']
         }
         start={{ x: 0, y: 0 }}
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     flexShrink: 1,
   },
   titleDark: {
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressSection: {
     marginTop: 8,
@@ -294,11 +294,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   progressLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressText: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressTextDark: {
     color: '#6B7280',

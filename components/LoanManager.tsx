@@ -286,7 +286,7 @@ function LoanManager() {
     <View style={containerStyle}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <CreditCard size={24} color={gameState.settings.darkMode ? '#F9FAFB' : '#1F2937'} />
+          <CreditCard size={24} color={gameState.settings.darkMode ? '#F9FAFB' : '#1E293B'} />
           <Text style={titleStyle}>Loan Manager</Text>
         </View>
         <TouchableOpacity
@@ -378,7 +378,7 @@ function LoanManager() {
             value={loanAmount}
             onChangeText={setLoanAmount}
             placeholder={`Max: ${formatMoney(loanEligibility.maxLoanAmount)}`}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#94A3B8"
             keyboardType="numeric"
             // R3-F: numeric inputs should never autocorrect.
             autoCorrect={false}
@@ -540,7 +540,7 @@ function LoanManager() {
       ) : (
         <View style={cardStyle}>
           <View style={styles.emptyState}>
-            <CreditCard size={48} color="#9CA3AF" />
+            <CreditCard size={48} color="#94A3B8" />
             <Text style={[styles.emptyStateTitle, gameState.settings.darkMode && styles.emptyStateTitleDark]}>
               No Active Loans
             </Text>
@@ -561,7 +561,7 @@ function LoanManager() {
                 Loan Details
               </Text>
               <TouchableOpacity onPress={() => setShowLoanDetails(false)}>
-                <X size={24} color={gameState.settings.darkMode ? '#F9FAFB' : '#1F2937'} />
+                <X size={24} color={gameState.settings.darkMode ? '#F9FAFB' : '#1E293B'} />
               </TouchableOpacity>
             </View>
 
@@ -653,7 +653,7 @@ function LoanManager() {
                   value={repayAmount}
                   onChangeText={setRepayAmount}
                   placeholder="Enter amount to pay"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#94A3B8"
                   keyboardType="numeric"
                   autoCorrect={false}
                   autoCapitalize="none"

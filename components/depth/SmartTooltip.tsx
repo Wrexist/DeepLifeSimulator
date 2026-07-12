@@ -145,7 +145,7 @@ export default function SmartTooltip({
                 onPress={(e) => e.stopPropagation()}
               >
                 <LinearGradient
-                  colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F9FAFB']}
+                  colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F9FAFB']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.tooltipGradient}
@@ -159,7 +159,7 @@ export default function SmartTooltip({
                       </Text>
                     </View>
                     <TouchableOpacity onPress={hideTooltip} style={styles.tooltipClose}>
-                      <X size={scale(14)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                      <X size={scale(14)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                     </TouchableOpacity>
                   </View>
 
@@ -198,9 +198,9 @@ export default function SmartTooltip({
                           style={styles.expandButton}
                         >
                           {expanded ? (
-                            <ChevronUp size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                            <ChevronUp size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                           ) : (
-                            <ChevronDown size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                            <ChevronDown size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                           )}
                           <Text style={[styles.expandText, darkMode && styles.expandTextDark]}>
                             {expanded ? 'Hide' : 'Show'} breakdown
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   tooltipTitle: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   tooltipTitleDark: {
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   },
   tooltipContent: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
     lineHeight: fontScale(20),
     marginBottom: responsiveSpacing.sm,
   },
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   calculatedValue: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: responsiveSpacing.xs,
   },
   calculatedValueDark: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs / 2,
   },
   breakdownItemDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   expandButton: {
     flexDirection: 'row',
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   expandTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   modifiersSection: {
     marginBottom: responsiveSpacing.sm,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   modifiersTitle: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     marginBottom: responsiveSpacing.xs,
   },
   modifiersTitleDark: {
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   },
   modifierName: {
     fontSize: fontScale(12),
-    color: '#374151',
+    color: '#334155',
     fontWeight: '500',
   },
   modifierNameDark: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(14),
   },
   modifierDescDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   whySection: {
     backgroundColor: 'rgba(59, 130, 246, 0.05)',
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(16),
   },
   whyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   tipSection: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   disclosureText: {
     fontSize: fontScale(10),
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,

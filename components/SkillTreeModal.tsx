@@ -39,6 +39,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -555,7 +556,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               colors={(isActive ? category.color : ['transparent', 'transparent']) as unknown as readonly [string, string, ...string[]]}
               style={styles.categoryTabGradient}
             >
-              <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+              <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[
                 styles.categoryTabText,
                 isActive && styles.categoryTabTextActive,
@@ -597,8 +598,8 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
         <LinearGradient
           colors={
             (status === 'unlocked' ? node.color :
-            status === 'available' ? ['#374151', '#1F2937'] :
-            ['#1F2937', '#111827']) as unknown as readonly [string, string, ...string[]]
+            status === 'available' ? ['#334155', '#1E293B'] :
+            ['#1E293B', '#0F172A']) as unknown as readonly [string, string, ...string[]]
           }
           style={[
             styles.node,
@@ -653,7 +654,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 left: reqNode.column * scale(100) + scale(55),
                 width: Math.abs(node.column - reqNode.column) * scale(100),
                 height: Math.abs(node.row - reqNode.row) * scale(100),
-                borderColor: isActive ? '#10B981' : '#374151',
+                borderColor: isActive ? '#10B981' : '#334155',
               },
             ]}
           />
@@ -780,7 +781,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+              <X size={24} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
             </TouchableOpacity>
           </View>
 
@@ -822,9 +823,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: scale(20),
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
   },
   header: {
     flexDirection: 'row',
@@ -832,7 +834,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#475569',
   },
   headerContent: {
     flexDirection: 'row',
@@ -841,7 +843,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginLeft: scale(10),
   },
   headerStats: {
@@ -868,7 +870,7 @@ const styles = StyleSheet.create({
   categoryTabs: {
     maxHeight: scale(60),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#475569',
   },
   categoryTabsContent: {
     paddingHorizontal: scale(12),
@@ -908,7 +910,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   categoryBadgeTextActive: {
     color: '#FFF',
@@ -966,7 +968,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: scale(10),
     padding: scale(4),
   },
@@ -982,7 +984,7 @@ const styles = StyleSheet.create({
     marginTop: scale(6),
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     textAlign: 'center',
     maxWidth: scale(70),
   },
@@ -999,8 +1001,8 @@ const styles = StyleSheet.create({
     maxHeight: scale(200),
   },
   detailsPanelDark: {
-    backgroundColor: '#1F2937',
-    borderTopColor: '#374151',
+    backgroundColor: '#1E293B',
+    borderTopColor: '#334155',
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -1084,7 +1086,7 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   textMuted: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

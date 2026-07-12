@@ -32,9 +32,20 @@ export const styles = StyleSheet.create({
  },
  containerDark: {
  backgroundColor: '#0F172A',
- borderBottomWidth: 0,
- shadowColor: 'transparent',
- elevation: 0,
+ // Hairline separation + soft downward shadow so the HUD reads as a floating
+ // glass app-bar above the scrolling content below (was flat with no depth).
+ borderBottomWidth: 1,
+ borderBottomColor: 'rgba(255,255,255,0.06)',
+...Platform.select({
+ web: { boxShadow: '0px 4px 16px rgba(0,0,0,0.35)'} as any,
+ default: {
+ shadowColor: '#000',
+ shadowOffset: { width: 0, height: 3 },
+ shadowOpacity: 0.35,
+ shadowRadius: 12,
+ },
+ }),
+ elevation: 6,
  },
 
  leftSection: {
@@ -240,6 +251,9 @@ export const styles = StyleSheet.create({
  minWidth: 60, // Reduced from 70
  overflow: 'hidden', // Prevent text overflow
  maxWidth: '100%', // Ensure chip doesn't exceed container
+ // Subtle glass rim to match the app design language
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.18)',
  },
  chipIcon: {
  marginRight: 6,
@@ -319,12 +333,45 @@ export const styles = StyleSheet.create({
  justifyContent: 'center',
  alignItems: 'center',
  },
+ // Month progress: 4 dots, one per week. Elapsed weeks are filled, the current
+ // week is bright + softly glowing ("you are here"), upcoming weeks are hollow.
  weekDot: {
  width: 7,
  height: 7,
  borderRadius: 3.5,
- marginHorizontal: 2,
- backgroundColor: 'rgba(255,255,255,0.9)'},
+ marginHorizontal: 2.5,
+ backgroundColor: 'rgba(255,255,255,0.22)',
+ },
+ weekDotPast: {
+ backgroundColor: 'rgba(255,255,255,0.55)',
+ },
+ weekDotCurrent: {
+ width: 8,
+ height: 8,
+ borderRadius: 4,
+ backgroundColor: '#FFFFFF',
+...Platform.select({
+ web: { boxShadow: '0px 0px 5px rgba(255,255,255,0.9)'} as any,
+ default: {
+ shadowColor: '#FFFFFF',
+ shadowOffset: { width: 0, height: 0 },
+ shadowOpacity: 0.9,
+ shadowRadius: 4,
+ },
+ }),
+ elevation: 3,
+ },
+ weekDotFuture: {
+ backgroundColor: 'transparent',
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.35)',
+ },
+ weekDotXL: {
+ width: scale(6),
+ height: scale(6),
+ borderRadius: scale(3),
+ marginHorizontal: 1.5,
+ },
 
  seasonalAndNextWeekContainer: {
  flexDirection:'row',
@@ -366,6 +413,54 @@ export const styles = StyleSheet.create({
  alignItems: 'center',
  marginRight: responsiveSpacing.xs,
  flexShrink: 0, // Prevent icon from shrinking
+ },
+
+ // --- Vitals activity rings (health / mood / energy) ---
+ vitalsRingRow: {
+ flexDirection: 'row',
+ alignItems: 'flex-start',
+ gap: scale(16),
+ marginTop: responsiveSpacing.sm,
+ marginBottom: scale(2),
+ },
+ vitalRingCell: {
+ alignItems: 'center',
+ },
+ vitalRingTouchable: {
+ alignItems: 'center',
+ },
+ vitalRingWrap: {
+ position: 'relative',
+ alignItems: 'center',
+ justifyContent: 'center',
+ },
+ vitalRingLabelRow: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(2),
+ marginTop: scale(3),
+ },
+ vitalRingValue: {
+ color: '#E2E8F0',
+ fontSize: responsiveFontSize.sm,
+ fontWeight: '800',
+ fontVariant: ['tabular-nums'],
+ lineHeight: scale(14),
+ },
+ vitalRingDisease: {
+ position: 'absolute',
+ top: -scale(2),
+ right: -scale(4),
+ backgroundColor: '#F59E0B',
+ borderRadius: scale(8),
+ width: scale(15),
+ height: scale(15),
+ alignItems: 'center',
+ justifyContent: 'center',
+ borderWidth: 1,
+ borderColor: '#0F172A',
+ zIndex: 10,
+ elevation: 10,
  },
 
  quickActionsContainer: {

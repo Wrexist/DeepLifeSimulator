@@ -44,9 +44,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   segmentFilled: {
-    backgroundColor: 'rgba(16, 185, 129, 0.6)',
+    backgroundColor: 'rgba(59, 130, 246, 0.6)',
   },
   segmentCurrent: {
-    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+    backgroundColor: 'rgba(59, 130, 246, 0.85)',
   },
 });

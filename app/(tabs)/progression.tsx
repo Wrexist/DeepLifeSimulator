@@ -50,7 +50,7 @@ function ProgressionScreen() {
   );
 }
 
-function ProgressionScreenContent() {
+export function ProgressionScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { gameState, checkAchievements } = useGame();
   const { settings } = gameState;
   const insets = useSafeAreaInsets();
@@ -129,16 +129,19 @@ function ProgressionScreenContent() {
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.headerIcon, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' }]}>
-            <Trophy size={scale(18)} color={accent.warning} />
+        {/* Header — hidden when embedded in the Life tab, which supplies its own
+            title + segmented control above this content. */}
+        {!embedded && (
+          <View style={styles.header}>
+            <View style={[styles.headerIcon, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' }]}>
+              <Trophy size={scale(18)} color={accent.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: theme.text }]}>Your Progress</Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Achievements, prestige & lifetime stats</Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: theme.text }]}>Your Progress</Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Achievements, prestige & lifetime stats</Text>
-          </View>
-        </View>
+        )}
 
         {/* Hero: Prestige + Legacy Pass */}
         <View style={styles.heroRow}>

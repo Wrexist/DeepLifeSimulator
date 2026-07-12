@@ -29,6 +29,7 @@ import {
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Achievement } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
 
@@ -183,7 +184,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           >
             <IconComponent
               size={scale(14)}
-              color={isSelected ? '#FFFFFF' : (darkMode ? '#9CA3AF' : '#6B7280')}
+              color={isSelected ? '#FFFFFF' : (darkMode ? '#94A3B8' : '#6B7280')}
             />
             <Text
               style={[
@@ -243,7 +244,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           ]}
         >
           <LinearGradient
-            colors={isCompleted ? categoryInfo.gradient as [string, string] : (darkMode ? ['#374151', '#1F2937'] : ['#F3F4F6', '#E5E7EB']) as [string, string]}
+            colors={isCompleted ? categoryInfo.gradient as [string, string] : (darkMode ? ['#334155', '#1E293B'] : ['#F3F4F6', '#E5E7EB']) as [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.achievementIconContainer}
@@ -251,7 +252,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
             {isCompleted ? (
               <IconComponent size={scale(24)} color="#FFFFFF" />
             ) : (
-              <Lock size={scale(24)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+              <Lock size={scale(24)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
             )}
           </LinearGradient>
 
@@ -294,7 +295,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 
               {unlockedAt !== undefined && (
                 <View style={styles.unlockedAtContainer}>
-                  <Clock size={scale(12)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+                  <Clock size={scale(12)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
                   <Text style={[styles.unlockedAtText, darkMode && styles.unlockedAtTextDark]}>
                     Week {unlockedAt}
                   </Text>
@@ -317,7 +318,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
   // Render empty state
   const renderEmptyState = () => (
     <View style={[styles.emptyState, darkMode && styles.emptyStateDark]}>
-      <Award size={scale(48)} color={darkMode ? '#4B5563' : '#9CA3AF'} />
+      <Award size={scale(48)} color={darkMode ? '#475569' : '#94A3B8'} />
       <Text style={[styles.emptyStateTitle, darkMode && styles.emptyStateTitleDark]}>
         {searchQuery ? 'No Achievements Found' : 'No Achievements Yet'}
       </Text>
@@ -392,17 +393,17 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
       {/* Search and filter bar */}
       <View style={styles.searchFilterRow}>
         <View style={[styles.searchContainer, darkMode && styles.searchContainerDark]}>
-          <Search size={scale(16)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+          <Search size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
           <TextInput
             style={[styles.searchInput, darkMode && styles.searchInputDark]}
             placeholder="Search achievements..."
-            placeholderTextColor={darkMode ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={darkMode ? '#94A3B8' : '#94A3B8'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X size={scale(16)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+              <X size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
             </TouchableOpacity>
           )}
         </View>
@@ -411,8 +412,8 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           style={[styles.sortButton, darkMode && styles.sortButtonDark]}
           onPress={() => setShowSortDropdown(!showSortDropdown)}
         >
-          <Filter size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
-          <ChevronDown size={scale(14)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+          <Filter size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
+          <ChevronDown size={scale(14)} color={darkMode ? '#94A3B8' : '#6B7280'} />
         </TouchableOpacity>
       </View>
 
@@ -515,9 +516,10 @@ const styles = StyleSheet.create({
     borderRadius: scale(16),
     padding: scale(16),
     marginBottom: scale(20),
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -533,7 +535,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -548,7 +550,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(4),
   },
   statsTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressBarSmall: {
     width: scale(60),
@@ -558,7 +560,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressBarSmallDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   progressFillSmall: {
     height: '100%',
@@ -576,7 +578,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(6),
   },
   progressBarDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   progressFill: {
     height: '100%',
@@ -589,7 +591,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   progressPercentageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   searchFilterRow: {
     flexDirection: 'row',
@@ -606,13 +608,13 @@ const styles = StyleSheet.create({
     gap: scale(8),
   },
   searchContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   searchInput: {
     flex: 1,
     height: scale(40),
     fontSize: fontScale(14),
-    color: '#111827',
+    color: '#0F172A',
   },
   searchInputDark: {
     color: '#F9FAFB',
@@ -628,7 +630,7 @@ const styles = StyleSheet.create({
     height: scale(40),
   },
   sortButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   sortDropdown: {
     position: 'absolute',
@@ -651,7 +653,7 @@ const styles = StyleSheet.create({
     minWidth: scale(180),
   },
   sortDropdownDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   sortOption: {
     flexDirection: 'row',
@@ -672,7 +674,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   sortOptionTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   sortOptionTextSelected: {
     color: '#92400E',
@@ -684,7 +686,7 @@ const styles = StyleSheet.create({
     marginVertical: scale(4),
   },
   sortDividerDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   categoryScrollView: {
     marginBottom: scale(12),
@@ -704,7 +706,7 @@ const styles = StyleSheet.create({
     gap: scale(6),
   },
   categoryChipDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   categoryChipText: {
     fontSize: fontScale(12),
@@ -715,7 +717,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   categoryChipTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   categoryCountBadge: {
     backgroundColor: '#E5E7EB',
@@ -727,12 +729,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   categoryCountBadgeDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   categoryCountText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   categoryCountTextSelected: {
     color: '#FFFFFF',
@@ -781,8 +783,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   achievementCardDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   achievementCardLocked: {
     opacity: 0.7,
@@ -807,14 +809,14 @@ const styles = StyleSheet.create({
   achievementName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     flex: 1,
   },
   achievementNameDark: {
     color: '#F9FAFB',
   },
   achievementNameLocked: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   completedBadge: {
     backgroundColor: '#10B981',
@@ -828,7 +830,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(8),
   },
   achievementDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   achievementDescriptionLocked: {
     fontStyle: 'italic',
@@ -855,10 +857,10 @@ const styles = StyleSheet.create({
   },
   unlockedAtText: {
     fontSize: fontScale(11),
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   unlockedAtTextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   rewardContainer: {
     flexDirection: 'row',
@@ -879,7 +881,7 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     marginTop: scale(12),
   },
   emptyStateTitleDark: {
@@ -892,7 +894,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyStateSubtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   // Compact mode styles
   compactContainer: {
@@ -902,7 +904,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(12),
   },
   compactContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   compactHeader: {
     flexDirection: 'row',
@@ -914,7 +916,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   compactTitleDark: {
     color: '#F9FAFB',
@@ -940,7 +942,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   compactProgressBarDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   compactProgressFill: {
     height: '100%',
@@ -955,7 +957,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   compactPercentageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

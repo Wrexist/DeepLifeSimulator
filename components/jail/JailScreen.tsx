@@ -213,12 +213,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       case 'prison_job': return ['#10B981', '#34D399'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'legal_appeal': return ['#1F2937', '#6B7280'];
+      case 'legal_appeal': return ['#1E293B', '#6B7280'];
       case 'good_behavior': return ['#059669', '#34D399'];
       case 'prison_meditation': return ['#6366F1', '#818CF8'];
       case 'prison_exercise': return ['#EF4444', '#F87171'];
       case 'prison_yoga': return ['#EC4899', '#F472B6'];
-      default: return ['#6B7280', '#9CA3AF'];
+      default: return ['#6B7280', '#94A3B8'];
     }
   };
 
@@ -269,7 +269,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1F2937', '#111827']}
+        colors={['#1E293B', '#0F172A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.background}
@@ -423,7 +423,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     style={styles.foodCard}
                   >
                     <LinearGradient
-                      colors={canAfford ? ['#1F2937', '#374151'] : ['#111827', '#1F2937']}
+                      colors={canAfford ? ['#1E293B', '#334155'] : ['#0F172A', '#1E293B']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.foodCardGradient}
@@ -482,7 +482,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     style={styles.activityCard}
                   >
                     <LinearGradient
-                      colors={canPerform && !onCooldown && !doneThisWeek ? (colors as [string, string]) : ['#374151', '#1F2937'] as [string, string]}
+                      colors={canPerform && !onCooldown && !doneThisWeek ? (colors as [string, string]) : ['#334155', '#1E293B'] as [string, string]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.activityGradient}
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     // paddingTop is set dynamically (safe-area aware) on the element.
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#334155',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -681,12 +681,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   bailCard: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#334155',
   },
   sectionTitle: {
     fontSize: 18,
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: 15,
     lineHeight: 20,
   },
@@ -837,13 +837,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statsCard: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     marginBottom: 30,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#334155',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -855,13 +855,13 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderRadius: 8,
     marginBottom: 10,
   },
   statLabel: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
   },
   statValue: {

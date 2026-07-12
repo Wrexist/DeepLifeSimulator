@@ -38,6 +38,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
@@ -229,13 +230,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <View style={[styles.card, settings.darkMode && styles.cardDark]}>
  <LinearGradient
- colors={settings.darkMode ? ['#374151', '#1F2937']: ['#FDF2F8', '#FCE7F3']}
+ colors={settings.darkMode ? ['#334155', '#1E293B']: ['#FDF2F8', '#FCE7F3']}
  style={styles.cardGradient}
  >
  <View style={styles.cardHeader}>
  <View style={styles.avatarContainer}>
  <Image
- source={getRelationshipImage(spouse.age || 25, spouse.gender || 'female', 'spouse')}
+ source={getRelationshipImage(spouse.age || 25, spouse.gender || 'female', 'spouse', spouse.id)}
  style={styles.avatar}
  />
  <View style={styles.statusBadge}>
@@ -323,13 +324,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <View style={[styles.card, settings.darkMode && styles.cardDark]}>
  <LinearGradient
- colors={settings.darkMode ? ['#374151', '#1F2937']: ['#FEF3C7', '#FDE68A']}
+ colors={settings.darkMode ? ['#334155', '#1E293B']: ['#FEF3C7', '#FDE68A']}
  style={styles.cardGradient}
  >
  <View style={styles.cardHeader}>
  <View style={styles.avatarContainer}>
  <Image
- source={getRelationshipImage(partner.age || 25, partner.gender || 'female', 'partner')}
+ source={getRelationshipImage(partner.age || 25, partner.gender || 'female', 'partner', partner.id)}
  style={styles.avatar}
  />
  </View>
@@ -471,7 +472,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  >
  <View style={styles.childAvatarContainer}>
  <Image
- source={getCharacterImage(childAge, child.gender || 'male')}
+ source={getCharacterImage(childAge, child.gender || 'male', child.id)}
  style={styles.childAvatar}
  />
  {isAdult && (
@@ -494,7 +495,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  )}
  </View>
- <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF': '#6B7280'} />
+ <ChevronRight size={20} color={settings.darkMode ? '#94A3B8': '#6B7280'} />
  </TouchableOpacity>
  );
  };
@@ -519,14 +520,14 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {child.name}
  </Text>
  <TouchableOpacity onPress={() => setShowChildModal(false)}>
- <X size={24} color={settings.darkMode ? '#F9FAFB': '#111827'} />
+ <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  </View>
 
  <ScrollView style={styles.modalScroll}>
  <View style={styles.childProfileHeader}>
  <Image
- source={getCharacterImage(childAge, child.gender || 'male')}
+ source={getCharacterImage(childAge, child.gender || 'male', child.id)}
  style={styles.childProfileAvatar}
  />
  <View style={styles.childProfileInfo}>
@@ -619,7 +620,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <View style={[styles.container, settings.darkMode && styles.containerDark]}>
  <LinearGradient
- colors={settings.darkMode ? ['#1F2937', '#111827']: ['#FFFFFF', '#F8FAFC']}
+ colors={settings.darkMode ? ['#1E293B', '#0F172A']: ['#FFFFFF', '#F8FAFC']}
  style={styles.gradient}
  >
  {/* Header */}
@@ -632,7 +633,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  {onClose && (
  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
- <X size={24} color={settings.darkMode ? '#F9FAFB': '#111827'} />
+ <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  )}
  </View>
@@ -709,7 +710,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {/* No Relationship State */}
  {!partner &&!spouse && (
  <View style={[styles.emptyState, settings.darkMode && styles.emptyStateDark]}>
- <Heart size={48} color={settings.darkMode ? '#4B5563': '#D1D5DB'} />
+ <Heart size={48} color={settings.darkMode ? '#475569': '#D1D5DB'} />
  <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
  No Partner Yet
  </Text>
@@ -732,7 +733,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {/* Empty Children State */}
  {spouse && children.length === 0 && (
  <View style={[styles.emptyChildrenState, settings.darkMode && styles.emptyChildrenStateDark]}>
- <Baby size={32} color={settings.darkMode ? '#4B5563': '#D1D5DB'} />
+ <Baby size={32} color={settings.darkMode ? '#475569': '#D1D5DB'} />
  <Text style={[styles.emptyChildrenText, settings.darkMode && styles.textMuted]}>
  No children yet. Start your family!
  </Text>
@@ -771,7 +772,7 @@ const styles = StyleSheet.create({
  flex: 1,
  },
  containerDark: {
- backgroundColor: '#111827',
+ backgroundColor: '#0F172A',
  },
  gradient: {
  flex: 1,
@@ -792,7 +793,7 @@ const styles = StyleSheet.create({
  fontSize: fontScale(24),
  fontWeight: 'bold',
  marginLeft: scale(12),
- color: '#111827',
+ color: '#0F172A',
  },
  closeButton: {
  padding: scale(8),
@@ -835,7 +836,7 @@ const styles = StyleSheet.create({
  elevation: 3,
  },
  statsCardDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  statsItem: {
  flex: 1,
@@ -843,13 +844,13 @@ const styles = StyleSheet.create({
  },
  statsDivider: {
  width: 1,
- backgroundColor: '#E5E7EB',
+ backgroundColor: '#475569',
  marginHorizontal: scale(8),
  },
  statsValue: {
  fontSize: fontScale(18),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginTop: scale(4),
  },
  statsLabel: {
@@ -868,7 +869,7 @@ const styles = StyleSheet.create({
  sectionTitle: {
  fontSize: fontScale(18),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  marginBottom: scale(12),
  },
  card: {
@@ -887,7 +888,7 @@ const styles = StyleSheet.create({
  },
  cardDark: {
  borderWidth: 1,
- borderColor: '#374151',
+ borderColor: '#334155',
  },
  cardGradient: {
  padding: scale(16),
@@ -926,7 +927,7 @@ const styles = StyleSheet.create({
  cardName: {
  fontSize: fontScale(18),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginRight: scale(8),
  },
  cardSubtitle: {
@@ -1029,9 +1030,9 @@ const styles = StyleSheet.create({
  elevation: 1,
  },
  childCardDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  borderWidth: 1,
- borderColor: '#374151',
+ borderColor: '#334155',
  },
  childAvatarContainer: {
  position: 'relative',
@@ -1056,7 +1057,7 @@ const styles = StyleSheet.create({
  childName: {
  fontSize: fontScale(16),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  },
  childAge: {
  fontSize: fontScale(13),
@@ -1088,12 +1089,12 @@ const styles = StyleSheet.create({
  marginVertical: scale(20),
  },
  emptyStateDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  emptyStateTitle: {
  fontSize: fontScale(18),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  marginTop: scale(16),
  },
  emptyStateText: {
@@ -1109,7 +1110,7 @@ const styles = StyleSheet.create({
  borderRadius: scale(12),
  },
  emptyChildrenStateDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  emptyChildrenText: {
  fontSize: fontScale(14),
@@ -1131,9 +1132,10 @@ const styles = StyleSheet.create({
  backgroundColor: '#FFF',
  borderRadius: scale(20),
  overflow: 'hidden',
+ ...getPlatformShadows(6, 0.25, 4, 14),
  },
  modalContentDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  modalHeader: {
  flexDirection: 'row',
@@ -1141,12 +1143,12 @@ const styles = StyleSheet.create({
  justifyContent: 'space-between',
  padding: scale(16),
  borderBottomWidth: 1,
- borderBottomColor: '#E5E7EB',
+ borderBottomColor: '#475569',
  },
  modalTitle: {
  fontSize: fontScale(20),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  },
  modalScroll: {
  padding: scale(16),
@@ -1169,7 +1171,7 @@ const styles = StyleSheet.create({
  childProfileName: {
  fontSize: fontScale(22),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  },
  childProfileAge: {
  fontSize: fontScale(14),
@@ -1190,12 +1192,12 @@ const styles = StyleSheet.create({
  margin: scale(4),
  },
  childStatCardDark: {
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  childStatValue: {
  fontSize: fontScale(16),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginTop: scale(6),
  textAlign: 'center',
  },
@@ -1212,7 +1214,7 @@ const styles = StyleSheet.create({
  borderRadius: scale(12),
  },
  traitsSectionDark: {
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  traitsContainer: {
  flexDirection: 'row',
@@ -1256,7 +1258,7 @@ const styles = StyleSheet.create({
  color: '#F9FAFB',
  },
  textMuted: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  },
  pregnancySection: {
  marginTop: scale(12),

@@ -42,6 +42,7 @@ import {
     fontScale,
     getTabBarSafePadding,
 } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -860,7 +861,7 @@ function WorkScreenContent() {
                                         if (unlockedCareers.length === 0) {
                                             return (
                                                 <View style={styles.lockedCareerContainer}>
-                                                    <Lock size={scale(24)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                                    <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                                                     <Text style={[styles.lockedCareerText, styles.lockedCareerTextDark]}>
                                                         Complete education, gain experience, and build reputation to unlock advanced careers.
                                                     </Text>
@@ -1069,6 +1070,7 @@ const local = StyleSheet.create({
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'rgba(255, 255, 255, 0.08)',
+        ...getPlatformShadows(6, 0.25, 4, 14),
     },
     heroRingIcon: {
         width: scale(44),

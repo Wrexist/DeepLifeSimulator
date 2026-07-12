@@ -86,6 +86,6 @@ export function AnimatedMoneyNative({
 const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
 });

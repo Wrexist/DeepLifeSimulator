@@ -29,6 +29,8 @@ export default {
     tabs: {
         home: 'Home',
         work: 'Work',
+        apps: 'Apps',
+        life: 'Life',
         mobile: 'Phone',
         computer: 'Computer',
         progression: 'Progress',

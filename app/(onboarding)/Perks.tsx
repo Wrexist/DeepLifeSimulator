@@ -6,12 +6,9 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Dimensions,
-  Animated,
   Platform,
   Alert,
   ActivityIndicator,
-  type DimensionValue,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -38,7 +35,7 @@ import {
 } from 'lucide-react-native';
 
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
-import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
+import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 import usePressableScale from '@/hooks/usePressableScale';
 
@@ -82,7 +79,6 @@ type TabType = 'perks' | 'mindset';
 
 const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 
-const { width: screenWidth } = Dimensions.get('window');
 const log = logger.scope('Perks');
 
 // Lazy-loaded lucide icons for stat display (avoids importing all at top level)
@@ -140,10 +136,10 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent
               ? ['rgba(245, 158, 11, 0.3)', 'rgba(217, 119, 6, 0.3)']
               : isSelected
-                ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
                 : isLocked
-                  ? ['rgba(75, 85, 99, 0.6)', 'rgba(55, 65, 81, 0.6)']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.6)']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -165,7 +161,7 @@ const PerkCard = React.memo(function PerkCard({
               </View>
               {isLocked ? (
                 <View style={styles.statusIconContainer}>
-                  <Lock size={32} color="#6B7280" />
+                  <Lock size={32} color="#94A3B8" />
                 </View>
               ) : isPermanent ? (
                 <View style={styles.statusIconContainer}>
@@ -173,7 +169,7 @@ const PerkCard = React.memo(function PerkCard({
                 </View>
               ) : isSelected ? (
                 <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#10B981" />
+                  <Check size={32} color="#3B82F6" />
                 </View>
               ) : null}
             </View>
@@ -283,7 +279,7 @@ const MindsetCard = React.memo(function MindsetCard({
           colors={
             isSelected
               ? ['rgba(139, 92, 246, 0.3)', 'rgba(124, 58, 237, 0.3)']
-              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -332,7 +328,7 @@ const MindsetCard = React.memo(function MindsetCard({
                       backgroundColor:
                         trait.category === 'personality'
                           ? 'rgba(139, 92, 246, 0.2)'
-                          : 'rgba(16, 185, 129, 0.2)',
+                          : 'rgba(59, 130, 246,0.2)',
                     },
                   ]}
                 >
@@ -422,22 +418,8 @@ export default function Perks() {
     [achievements, permanentPerks]
   );
 
-  // R-perf: stable particle positions — were re-rolled with Math.random() on every
-  // render, so the 8 background particles jumped/flickered each re-render.
-  const particlePositions = useMemo<{ left: DimensionValue; top: DimensionValue }[]>(
-    () =>
-      Array.from({ length: 8 }, () => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-      })),
-    []
-  );
-
-  const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
-    duration: 1000,
-    offsetY: 50,
-    rotateBackground: true,
-  });
+  // Backdrop, entrance animation, and floating particles are all owned by
+  // OnboardingScreenShellV2 now — no need to hand-roll them here.
 
   const toggle = useCallback((id: string) => {
     haptic.selection();
@@ -573,33 +555,41 @@ export default function Perks() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Animated background circles */}
-      <Animated.View
-        style={[
-          styles.backgroundGradient1,
-          { transform: [{ rotate }] },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.backgroundGradient2,
-          { transform: [{ rotate }] },
-        ]}
-      />
-
-      {/* Main content */}
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity,
-            transform: [{ translateY }],
-            paddingTop: 50 + insets.top,
-          },
-        ]}
+  const floatingStartButton = (
+    <StartButtonScale style={startButtonScaleStyle}>
+      <TouchableOpacity
+        onPress={start}
+        onPressIn={onStartPressIn}
+        onPressOut={onStartPressOut}
+        disabled={isStarting}
+        style={styles.floatingButton}
+        activeOpacity={0.8}
       >
+        <LinearGradient
+          colors={['#3B82F6', '#2563EB', '#1D4ED8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.floatingGlassButton}
+        >
+          <View style={styles.buttonContent}>
+            <Text style={styles.glassButtonTitle}>
+              {isStarting ? 'Starting…' : 'Start Your Life'}
+            </Text>
+            <View style={styles.glassIconContainer}>
+              {isStarting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <ArrowRight size={24} color="#FFFFFF" />
+              )}
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </StartButtonScale>
+  );
+
+  return (
+    <OnboardingScreenShellV2 showParticles floatingButton={floatingStartButton}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity accessibilityLabel="Go back" onPress={handleBack} style={styles.backButton}>
@@ -651,14 +641,14 @@ export default function Perks() {
             <LinearGradient
               colors={
                 activeTab === 'perks'
-                  ? ['#10B981', '#059669']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['#3B82F6', '#2563EB']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
               <Gift
                 size={18}
-                color={activeTab === 'perks' ? '#FFFFFF' : '#9CA3AF'}
+                color={activeTab === 'perks' ? '#FFFFFF' : '#94A3B8'}
               />
               <Text
                 style={[
@@ -682,14 +672,14 @@ export default function Perks() {
             <LinearGradient
               colors={
                 activeTab === 'mindset'
-                  ? ['#8B5CF6', '#7C3AED']
-                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  ? ['#3B82F6', '#2563EB']
+                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
               <Brain
                 size={18}
-                color={activeTab === 'mindset' ? '#FFFFFF' : '#9CA3AF'}
+                color={activeTab === 'mindset' ? '#FFFFFF' : '#94A3B8'}
               />
               <Text
                 style={[
@@ -757,95 +747,15 @@ export default function Perks() {
           </View>
         </ScrollView>
 
-        {/* Floating Start Button */}
-        <View
-          style={[
-            styles.floatingButtonContainer,
-            { bottom: 20 + insets.bottom },
-          ]}
-        >
-          <StartButtonScale style={startButtonScaleStyle}>
-            <TouchableOpacity
-              onPress={start}
-              onPressIn={onStartPressIn}
-              onPressOut={onStartPressOut}
-              disabled={isStarting}
-              style={styles.floatingButton}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669', '#047857']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.floatingGlassButton}
-              >
-                <View style={styles.buttonContent}>
-                  <Text style={styles.glassButtonTitle}>
-                    {isStarting ? 'Starting…' : 'Start Your Life'}
-                  </Text>
-                  <View style={styles.glassIconContainer}>
-                    {isStarting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <ArrowRight size={24} color="#FFFFFF" />
-                    )}
-                  </View>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </StartButtonScale>
-        </View>
-
-        {/* Floating particles */}
-        <View style={styles.particlesContainer}>
-          {particlePositions.map((pos, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.particle,
-                {
-                  left: pos.left,
-                  top: pos.top,
-                  transform: [{ rotate }],
-                },
-              ]}
-            />
-          ))}
-        </View>
-      </Animated.View>
-    </View>
+    </OnboardingScreenShellV2>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    overflow: 'hidden',
-  },
-  backgroundGradient1: {
-    position: 'absolute',
-    width: screenWidth * 2,
-    height: screenWidth * 2,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    top: -screenWidth / 2,
-    left: -screenWidth / 2,
-  },
-  backgroundGradient2: {
-    position: 'absolute',
-    width: screenWidth * 1.5,
-    height: screenWidth * 1.5,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-    bottom: -screenWidth / 3,
-    right: -screenWidth / 3,
-  },
-  content: { flex: 1 },
   guidanceText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -855,7 +765,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'rgba(59, 130, 246,0.25)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1009,13 +919,13 @@ const styles = StyleSheet.create({
 
   perkDescription: {
     fontSize: responsiveFontSize.base,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     lineHeight: 20,
     marginBottom: 8,
   },
   lockedPerkCard: { opacity: 0.6 },
-  lockedPerkTitle: { color: '#9CA3AF' },
-  lockedPerkDescription: { color: '#9CA3AF' },
+  lockedPerkTitle: { color: '#94A3B8' },
+  lockedPerkDescription: { color: '#94A3B8' },
 
   permanentPerkCard: { borderWidth: 2, borderColor: '#F59E0B' },
   permanentBadge: {
@@ -1036,7 +946,7 @@ const styles = StyleSheet.create({
 
   requirementText: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#94A3B8',
     fontStyle: 'italic',
   },
 
@@ -1073,9 +983,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246,0.3)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -1097,13 +1007,13 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   tabTextActive: {
     color: '#FFFFFF',
   },
   tabBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#3B82F6',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1149,24 +1059,18 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '500',
   },
   bottomSpacing: { height: 120 },
 
-  floatingButtonContainer: {
-    position: 'absolute',
-    left: responsivePadding.horizontal,
-    right: responsivePadding.horizontal,
-    zIndex: 10,
-  },
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      web: { boxShadow: '0px 8px 20px rgba(59, 130, 246,0.6)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.6,
         shadowRadius: 20,
@@ -1184,9 +1088,9 @@ const styles = StyleSheet.create({
     minHeight: 64,
     justifyContent: 'center',
     ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
+      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246,0.5)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.5,
         shadowRadius: 12,
@@ -1195,19 +1099,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  particlesContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
-  },
-  particle: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    backgroundColor: 'rgba(59,130,246,0.3)',
-    borderRadius: 2,
-  },
   glassButton: {
     paddingVertical: 18,
     paddingHorizontal: 24,

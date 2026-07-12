@@ -134,7 +134,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
               end={{ x: 1, y: 1 }}
               style={styles.avatarRing}
             >
-              <Image source={getDatingProfileImage(profile.gender)} style={styles.avatar} />
+              <Image source={getDatingProfileImage(profile)} style={styles.avatar} />
             </LinearGradient>
             <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
               {profile.name}, {profile.age}

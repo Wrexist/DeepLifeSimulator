@@ -133,7 +133,7 @@ export default function ContextualInfoCard({
                 <View style={styles.header}>
                   <Text style={[styles.title, darkMode && styles.titleDark]}>{title}</Text>
                   <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                    <X size={scale(20)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                    <X size={scale(20)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                   </TouchableOpacity>
                 </View>
 
@@ -267,7 +267,7 @@ export default function ContextualInfoCard({
                   <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                       {unlockRequirements.some(r => r.includes('Locked')) ? (
-                        <Lock size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                        <Lock size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                       ) : (
                         <Unlock size={scale(16)} color={darkMode ? '#10B981' : '#059669'} />
                       )}
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
   },
   modalContentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   titleDark: {
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   sectionTitleDark: {
     color: '#F9FAFB',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(20),
   },
   descriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statusCard: {
     backgroundColor: '#F3F4F6',
@@ -460,11 +460,11 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   statusCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   statusText: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
     marginBottom: responsiveSpacing.sm,
   },
   statusTextDark: {
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   healthCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   healthRow: {
     flexDirection: 'row',
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   healthLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
     width: scale(80),
   },
   healthLabelDark: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   healthValue: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     minWidth: scale(40),
   },
   healthValueDark: {
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   trendTextStableDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   relatedSystemCard: {
     backgroundColor: '#F9FAFB',
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
   },
   relatedSystemCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   relatedSystemHeader: {
     flexDirection: 'row',
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   relatedSystemName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   relatedSystemNameDark: {
     color: '#F9FAFB',
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(16),
   },
   relatedSystemDescDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   requirementItem: {
     backgroundColor: '#F9FAFB',
@@ -608,11 +608,11 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   requirementItemDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   requirementText: {
     fontSize: fontScale(13),
-    color: '#374151',
+    color: '#334155',
     lineHeight: fontScale(18),
   },
   requirementTextDark: {
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   performanceCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   performanceRow: {
     flexDirection: 'row',
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   performanceLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
   },
   performanceLabelDark: {
     color: '#D1D5DB',
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   performanceValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   performanceValueDark: {
     color: '#F9FAFB',

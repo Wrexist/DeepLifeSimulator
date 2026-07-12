@@ -402,7 +402,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Settings size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Settings size={16} color="#94A3B8" style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
                   </View>
                 )}
@@ -424,7 +424,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Target size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Target size={16} color="#94A3B8" style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
                   </View>
                 )}
@@ -456,7 +456,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                         <View style={styles.settingInfo}>
                           <View style={styles.settingHeader}>
                             <LinearGradient
-                              colors={item.value ? ['#10B981', '#059669'] as const : ['#6B7280', '#4B5563'] as const}
+                              colors={item.value ? ['#10B981', '#059669'] as const : ['#94A3B8', '#475569'] as const}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.settingIconContainer}
@@ -477,9 +477,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                           <Switch
                             value={item.value}
                             onValueChange={(value) => handleToggle(item.id, value)}
-                            trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                            trackColor={{ false: '#475569', true: '#10B981' }}
                             thumbColor={item.value ? '#FFFFFF' : '#F3F4F6'}
-                            ios_backgroundColor="#E5E7EB"
+                            ios_backgroundColor="#475569"
                             accessibilityLabel={item.title}
                             accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}
                             accessibilityRole="switch"

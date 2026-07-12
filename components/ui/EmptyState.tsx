@@ -29,7 +29,7 @@ export default function EmptyState({
   return (
     <View style={[styles.container, style]}>
       <LinearGradient
-        colors={darkMode ? ['#374151', '#1F2937'] : ['#F9FAFB', '#F3F4F6']}
+        colors={darkMode ? ['#334155', '#1E293B'] : ['#F9FAFB', '#F3F4F6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   descriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   actionContainer: {
     backgroundColor: '#3B82F6',

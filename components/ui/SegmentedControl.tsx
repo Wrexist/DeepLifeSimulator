@@ -27,6 +27,13 @@ interface SegmentedControlProps<T extends string> {
   /** Active tint + icon color. Default: theme info blue. */
   activeColor?: string;
   style?: ViewStyle;
+  /**
+   * Subordinate variant — flatter background, shorter tabs, smaller text. Use
+   * when this control is nested UNDER a primary segmented control (e.g. Market's
+   * Items/Food/Gym inside the Life tab's Health/Shop/Stats) so the two levels
+   * read as a hierarchy instead of two identical stacked bars.
+   */
+  compact?: boolean;
 }
 
 const MUTED = 'rgba(226, 232, 240, 0.45)';
@@ -38,24 +45,25 @@ export default function SegmentedControl<T extends string>({
   onChange,
   activeColor = accent.info,
   style,
+  compact = false,
 }: SegmentedControlProps<T>) {
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, compact && styles.containerCompact, style]}>
       {segments.map((seg) => {
         const active = seg.key === value;
         const Icon = seg.icon;
         return (
           <View key={seg.key} style={styles.slot}>
             <TouchableOpacity
-              style={[styles.tab, active && { backgroundColor: activeColor + '2E' }]}
+              style={[styles.tab, compact && styles.tabCompact, active && { backgroundColor: activeColor + '2E' }]}
               onPress={() => onChange(seg.key)}
               activeOpacity={0.85}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={seg.label}
             >
-              {Icon ? <Icon size={scale(16)} color={active ? activeColor : MUTED} /> : null}
-              <Text style={[styles.text, { color: active ? ACTIVE_TEXT : MUTED }]} numberOfLines={1}>
+              {Icon ? <Icon size={compact ? scale(14) : scale(16)} color={active ? activeColor : MUTED} /> : null}
+              <Text style={[styles.text, compact && styles.textCompact, { color: active ? ACTIVE_TEXT : MUTED }]} numberOfLines={1}>
                 {seg.label}
               </Text>
             </TouchableOpacity>
@@ -77,6 +85,13 @@ const styles = StyleSheet.create({
     padding: scale(4),
     gap: scale(4),
   },
+  // Subordinate (nested) look: flatter fill, tighter padding, no rim.
+  containerCompact: {
+    backgroundColor: 'rgba(15, 23, 42, 0.32)',
+    borderColor: 'transparent',
+    padding: scale(3),
+    gap: scale(3),
+  },
   slot: {
     flex: 1,
     flexDirection: 'row',
@@ -93,8 +108,16 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.sm,
     minHeight: scale(40),
   },
+  tabCompact: {
+    gap: scale(5),
+    paddingVertical: responsiveSpacing.xs,
+    minHeight: scale(32),
+  },
   text: {
     fontSize: fontScale(12.5),
     fontWeight: '600',
+  },
+  textCompact: {
+    fontSize: fontScale(11.5),
   },
 });

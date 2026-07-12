@@ -91,7 +91,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           <View style={styles.header}>
             <Text style={styles.title}>Report a Problem</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#D1D5DB" />
+              <X size={24} color="#CBD5E1" />
             </TouchableOpacity>
           </View>
 
@@ -110,7 +110,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
             <TextInput
               style={styles.input}
               placeholder="What happened? What were you doing?"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#94A3B8"
               value={bugReportText}
               onChangeText={setBugReportText}
               multiline
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modal: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '90%',
@@ -195,12 +195,12 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: responsivePadding.medium,
     lineHeight: 22,
   },
   input: {
-    backgroundColor: 'rgba(17, 24, 39, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: responsiveBorderRadius.lg,

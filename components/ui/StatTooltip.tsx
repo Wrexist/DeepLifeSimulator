@@ -150,7 +150,7 @@ export function StatTooltip({ stat, visible, onClose, currentValue, darkMode = t
             <Pressable style={styles.overlay} onPress={onClose}>
                 <View style={styles.tooltipContainer}>
                     <LinearGradient
-                        colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F9FAFB']}
+                        colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F9FAFB']}
                         style={styles.tooltip}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -175,7 +175,7 @@ export function StatTooltip({ stat, visible, onClose, currentValue, darkMode = t
                                 )}
                             </View>
                             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                                <X size={18} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                                <X size={18} color={darkMode ? '#94A3B8' : '#6B7280'} />
                             </TouchableOpacity>
                         </View>
 
@@ -253,7 +253,7 @@ export function StatInfoButton({ stat, size = 14, darkMode = true, currentValue 
                 accessibilityLabel={`Info about ${STAT_INFO[stat]?.name || stat}`}
                 accessibilityRole="button"
             >
-                <Info size={size} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+                <Info size={size} color={darkMode ? '#6B7280' : '#94A3B8'} />
             </TouchableOpacity>
 
             <StatTooltip
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
         borderWidth: 1,
-        borderColor: '#374151',
+        borderColor: '#334155',
         ...Platform.select({
           web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
           default: {
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
         color: '#F9FAFB',
     },
     statNameLight: {
-        color: '#111827',
+        color: '#0F172A',
     },
     currentValue: {
         fontSize: fontScale(13),
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: fontScale(12),
         fontWeight: '700',
-        color: '#9CA3AF',
+        color: '#94A3B8',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginBottom: 8,

@@ -44,7 +44,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
       <View style={styles.overlay}>
         <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           <LinearGradient
-            colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F9FAFB']}
+            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F9FAFB']}
             style={styles.modalGradient}
           >
             {/* Header */}
@@ -138,7 +138,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 disabled={youthPills <= 0}
               >
                 <LinearGradient
-                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : ['#9CA3AF', '#6B7280']}
+                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : ['#94A3B8', '#6B7280']}
                   style={styles.useButtonGradient}
                 >
                   <Image 
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalGradient: {
     borderRadius: responsiveBorderRadius.lg,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   closeButton: {
     padding: responsiveSpacing.sm,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   infoLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   pillCountContainer: {
     flexDirection: 'row',
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   infoValueDark: {
     color: '#FFFFFF',
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     lineHeight: responsiveFontSize.sm * 1.5,
   },
   descriptionTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   warningCard: {
     borderRadius: responsiveBorderRadius.md,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonDark: {
-    borderColor: '#374151',
+    borderColor: '#334155',
   },
   cancelButtonText: {
     fontSize: responsiveFontSize.base,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   cancelButtonTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   useButton: {
     flex: 1,

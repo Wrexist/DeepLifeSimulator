@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
@@ -46,6 +47,7 @@ import {
   getTabBarSafePadding,
 } from '@/utils/scaling';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
+import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -69,7 +71,7 @@ function MobileScreen() {
   );
 }
 
-function MobileScreenContent() {
+export function MobileScreenContent({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const { gameState } = useGame();
   const router = useRouter();
@@ -89,23 +91,28 @@ function MobileScreenContent() {
 
   // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
 
-  // Prevent staying on mobile screen when in prison - redirect to work tab
+  // Prevent staying on mobile screen when in prison - redirect to work tab.
+  // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
+    if (embedded) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [embedded, gameState.jailWeeks, router]);
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
   // screen mounted until the user navigates — leaving them stranded on a tab
   // that's no longer in the bar. Mirror computer.tsx and redirect to home.
+  // Embedded, the Apps tab chooses Computer-vs-Mobile by ownership, so this
+  // stranding can't happen — skip the redirect to avoid fighting the parent.
   useEffect(() => {
+    if (embedded) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (ownsComputer) {
       router.replace('/(tabs)/home');
     }
-  }, [gameState.items, router]);
+  }, [embedded, gameState.items, router]);
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();
@@ -207,12 +214,12 @@ function MobileScreenContent() {
   if (!(gameState.items ?? []).find(item => item.id === 'smartphone')?.owned) {
     return (
       <LinearGradient
-        colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+        colors={settings.darkMode ? ['#1E3A8A', '#1E293B'] : ['#FFFFFF', '#F8FAFC']}
         style={styles.container}
       >
         <View style={styles.noPhoneContainer}>
           <View style={styles.noPhoneIconContainer}>
-            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
           </View>
           <Text style={[styles.noPhoneTitle, settings.darkMode && styles.noPhoneTitleDark]}>
             {t('mobile.noPhoneAvailable')}
@@ -268,7 +275,7 @@ function MobileScreenContent() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
         <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
           {t('mobile.mobileApps')}
         </Text>
@@ -301,19 +308,30 @@ function MobileScreenContent() {
                 settings.darkMode && styles.appCardGlassInnerDark
               ]}>
                 <View style={styles.appIconGlassContainer}>
-                  <View style={[
-                    styles.appIconGlass,
-                    settings.darkMode && styles.appIconGlassDark
-                  ]}>
-                    <LinearGradient
-                      colors={app.iconGradient as [string, string]}
-                      style={styles.appIconGradientGlass}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
-                    </LinearGradient>
-                  </View>
+                  {getAppIconAsset(app.id) ? (
+                    // Custom designed icon (full-bleed PNG, gradient baked in).
+                    <Image
+                      source={getAppIconAsset(app.id)!}
+                      style={styles.appIconImage}
+                      resizeMode="cover"
+                      accessibilityIgnoresInvertColors
+                    />
+                  ) : (
+                    // Fallback: Lucide glyph on a gradient circle (unchanged).
+                    <View style={[
+                      styles.appIconGlass,
+                      settings.darkMode && styles.appIconGlassDark
+                    ]}>
+                      <LinearGradient
+                        colors={app.iconGradient as [string, string]}
+                        style={styles.appIconGradientGlass}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
+                      </LinearGradient>
+                    </View>
+                  )}
                 </View>
                 <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
                   {app.name}
@@ -342,7 +360,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   loadingContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   loadingText: {
     marginTop: responsiveSpacing.md,
@@ -363,7 +381,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '800',
-    color: '#111827',
+    color: '#0F172A',
     letterSpacing: -0.5,
   },
   headerTitleDark: {
@@ -420,6 +438,27 @@ const styles = StyleSheet.create({
   appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
   },
+  // Custom PNG icon — same footprint as the gradient circle, but a rounded
+  // square (iOS-style squircle) since the assets are full-bleed app icons.
+  appIconImage: {
+    width: responsiveIconSize['2xl'] + scale(8),
+    height: responsiveIconSize['2xl'] + scale(8),
+    borderRadius: (responsiveIconSize['2xl'] + scale(8)) * 0.235,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scale(4) },
+        shadowOpacity: 0.22,
+        shadowRadius: scale(8),
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.24)',
+      },
+    }),
+  },
   appIconGlass: {
     width: responsiveIconSize['2xl'] + scale(8),
     height: responsiveIconSize['2xl'] + scale(8),
@@ -458,7 +497,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: responsiveSpacing.xs,
     textAlign: 'center',
   },
@@ -487,7 +526,7 @@ const styles = StyleSheet.create({
   noPhoneTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: responsiveSpacing.md,
     textAlign: 'center',
   },
@@ -501,7 +540,7 @@ const styles = StyleSheet.create({
     lineHeight: responsiveFontSize.base * 1.4,
   },
   noPhoneMessageDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

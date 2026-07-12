@@ -202,7 +202,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
 
           <LinearGradient
             colors={isDarkMode
-              ? ['#1F2937', '#111827', '#0F172A']
+              ? ['#1E293B', '#0F172A', '#0F172A']
               : ['#FFFFFF', '#F8FAFC', '#EFF6FF']
             }
             start={{ x: 0, y: 0 }}
@@ -242,7 +242,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 {getWelcomeMessage()}
               </Text>
               <View style={styles.timeAwayContainer}>
-                <Clock size={scale(16)} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
                 <Text style={[styles.timeAway, isDarkMode && styles.timeAwayDark]}>
                   Last played: {getTimeAwayText()}
                 </Text>
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     textAlign: 'center',
     marginBottom: responsiveSpacing.sm,
   },
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   timeAwayDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statsContainer: {
     width: '100%',
@@ -543,11 +543,11 @@ const styles = StyleSheet.create({
     marginBottom: scale(2),
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statValue: {
     fontSize: responsiveFontSize.base,
-    color: '#1F2937',
+    color: '#1E293B',
     fontWeight: '700',
   },
   statValueDark: {

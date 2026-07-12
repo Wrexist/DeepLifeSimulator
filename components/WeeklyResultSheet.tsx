@@ -191,17 +191,17 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   cardDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   title: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     textAlign: 'center',
     marginBottom: scale(16),
   },
   textLight: { color: '#F9FAFB' },
-  textMuted: { color: '#9CA3AF' },
+  textMuted: { color: '#94A3B8' },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -249,12 +249,12 @@ const styles = StyleSheet.create({
     marginVertical: scale(10),
   },
   dividerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   netLabel: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
   },
   netValue: {
     fontSize: fontScale(18),
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: fontScale(11),
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: scale(2),
     textAlign: 'right',
   },

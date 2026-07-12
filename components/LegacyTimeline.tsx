@@ -137,7 +137,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <LinearGradient
-          colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+          colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F3F4F6']}
           style={styles.container}
         >
           {/* Header */}
@@ -149,7 +149,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={scale(24)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+              <X size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -204,7 +204,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
             {sortedLives.length === 0 ? (
               <View style={styles.emptyState}>
-                <Crown size={scale(48)} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+                <Crown size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
                 <Text style={[styles.emptyText, settings.darkMode && styles.emptyTextDark]}>
                   No previous generations yet
                 </Text>
@@ -235,7 +235,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                         <LinearGradient
                           colors={
                             settings.darkMode
-                              ? ['#374151', '#1F2937']
+                              ? ['#334155', '#1E293B']
                               : ['#F9FAFC', '#F3F4F6']
                           }
                           style={styles.cardGradient}
@@ -249,7 +249,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                               </View>
                               {life.timestamp && (
                                 <View style={styles.dateBadge}>
-                                  <Calendar size={scale(12)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                  <Calendar size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                                   <Text style={[styles.dateText, settings.darkMode && styles.dateTextDark]}>
                                     {formatDate(life.timestamp)}
                                   </Text>
@@ -258,9 +258,9 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                             </View>
                             <View style={styles.expandButton}>
                               {isExpanded ? (
-                                <ChevronUp size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                <ChevronUp size={scale(20)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                               ) : (
-                                <ChevronDown size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                <ChevronDown size={scale(20)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                               )}
                             </View>
                           </View>
@@ -331,7 +331,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                               {life.careerHistory && life.careerHistory.length > 0 && (
                                 <View style={styles.careerSection}>
                                   <View style={styles.sectionHeader}>
-                                    <Briefcase size={scale(14)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                    <Briefcase size={scale(14)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
                                     <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
                                       Career History
                                     </Text>
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   titleDark: {
     color: '#FFFFFF',
@@ -508,12 +508,12 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
   },
   summaryStatDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   summaryValue: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginTop: scale(4),
   },
   summaryValueDark: {
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     marginTop: scale(2),
   },
   summaryLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   scrollView: {
     flex: 1,
@@ -542,16 +542,16 @@ const styles = StyleSheet.create({
     marginTop: scale(16),
   },
   emptyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   emptySubtext: {
     fontSize: fontScale(14),
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: scale(8),
     textAlign: 'center',
   },
   emptySubtextDark: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   timeline: {
     paddingBottom: scale(20),
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   timelineLineDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   generationCard: {
     borderRadius: scale(16),
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   dateTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   expandButton: {
     padding: scale(4),
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statCardDark: {
-    backgroundColor: 'rgba(55, 65, 81, 0.6)',
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
   },
   statLabel: {
     fontSize: fontScale(11),
@@ -651,12 +651,12 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statValue: {
     fontSize: fontScale(15),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
     marginTop: scale(2),
   },
   statValueDark: {
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   detailTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   careerSection: {
     marginBottom: scale(12),
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   sectionTitleDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   careerList: {
     gap: scale(4),
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   careerTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   eventsSection: {
     marginBottom: scale(12),
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
   },
   eventTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   deathReason: {
     flexDirection: 'row',
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   deathReasonLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   deathReasonText: {
     fontSize: fontScale(14),
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   achievementsTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   achievementsTitleDark: {
     color: '#FFFFFF',
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   moreAchievementsDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

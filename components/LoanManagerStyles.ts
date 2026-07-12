@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
     ...getShadow(4, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -62,8 +62,8 @@ export const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   cardDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -100,7 +100,7 @@ export const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   summaryValueDark: {
     color: '#F9FAFB',
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 12,
   },
   sectionTitleDark: {
@@ -123,8 +123,8 @@ export const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   loanItemDark: {
-    backgroundColor: '#4B5563',
-    borderColor: '#6B7280',
+    backgroundColor: '#475569',
+    borderColor: '#94A3B8',
   },
   loanHeader: {
     flexDirection: 'row',
@@ -147,7 +147,7 @@ export const styles = StyleSheet.create({
   loanName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   loanNameDark: {
     color: '#F9FAFB',
@@ -179,7 +179,7 @@ export const styles = StyleSheet.create({
   loanAmount: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   loanAmountDark: {
     color: '#F9FAFB',
@@ -194,7 +194,7 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
   },
   progressBarDark: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#94A3B8',
   },
   progressFill: {
     height: '100%',
@@ -206,7 +206,7 @@ export const styles = StyleSheet.create({
     textAlign: 'right',
   },
   progressTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   loanPayment: {
     flexDirection: 'row',
@@ -218,7 +218,7 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
   },
   paymentLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   emptyState: {
     alignItems: 'center',
@@ -227,7 +227,7 @@ export const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -241,7 +241,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   emptyStateTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   modalBackdrop: {
     flex: 1,
@@ -255,7 +255,7 @@ export const styles = StyleSheet.create({
     maxHeight: '90%',
   },
   modalContentDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -266,12 +266,12 @@ export const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   modalHeaderDark: {
-    borderBottomColor: '#4B5563',
+    borderBottomColor: '#475569',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   modalTitleDark: {
     color: '#F9FAFB',
@@ -283,7 +283,7 @@ export const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 8,
     marginTop: 16,
   },
@@ -296,13 +296,13 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1E293B',
     backgroundColor: '#FFFFFF',
   },
   inputDark: {
-    borderColor: '#6B7280',
+    borderColor: '#94A3B8',
     color: '#F9FAFB',
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   loanTypeGrid: {
     flexDirection: 'row',
@@ -324,12 +324,12 @@ export const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
   loanTypeCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   loanTypeName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -357,13 +357,13 @@ export const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   termButtonDark: {
-    backgroundColor: '#374151',
-    borderColor: '#6B7280',
+    backgroundColor: '#334155',
+    borderColor: '#94A3B8',
   },
   termText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   termTextSelected: {
     color: '#FFFFFF',
@@ -378,12 +378,12 @@ export const styles = StyleSheet.create({
     marginTop: 16,
   },
   loanDetailsDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   detailsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 12,
   },
   detailsTitleDark: {
@@ -399,12 +399,12 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
   },
   detailsLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   detailsValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   detailsValueDark: {
     color: '#F9FAFB',
@@ -450,7 +450,7 @@ export const styles = StyleSheet.create({
   modalButtonTextSecondary: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   modalButtonTextPrimary: {
     fontSize: 16,
@@ -476,13 +476,13 @@ export const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   repaySourceButtonDark: {
-    backgroundColor: '#374151',
-    borderColor: '#6B7280',
+    backgroundColor: '#334155',
+    borderColor: '#94A3B8',
   },
   repaySourceText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   repaySourceTextSelected: {
     color: '#FFFFFF',
@@ -529,13 +529,13 @@ export const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
   },
   quickPayButtonDark: {
-    backgroundColor: '#374151',
-    borderColor: '#6B7280',
+    backgroundColor: '#334155',
+    borderColor: '#94A3B8',
   },
   quickPayText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   quickPayTextDark: {
     color: '#F9FAFB',

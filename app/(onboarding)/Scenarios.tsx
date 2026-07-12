@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, type ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
@@ -53,6 +53,26 @@ type ScenarioCard = OnboardingScenario | ChallengeScenarioCard;
 
 const CHALLENGE_FALLBACK_ICON = require('@/assets/images/Scenarios/Street Hustler.png');
 
+// Challenges have no artwork of their own, so reuse the existing Scenarios
+// paintings that best fit each challenge's fantasy instead of showing the same
+// Street Hustler fallback on every card. Keyed by CHALLENGE_SCENARIOS id.
+const CHALLENGE_ICONS: Record<string, ImageSourcePropType> = {
+  rags_to_riches: require('@/assets/images/Scenarios/Rags to Riches_final.png'),
+  academic_excellence: require('@/assets/images/Scenarios/Corporate Intern.png'),
+  social_butterfly: require('@/assets/images/Scenarios/Influencer Wannabe.png'),
+  entrepreneur: require('@/assets/images/Scenarios/Aspiring Entrepreneur.png'),
+  family_focused: require('@/assets/images/Scenarios/Single Parent_final.png'),
+  single_parent: require('@/assets/images/Scenarios/Single Parent_final.png'),
+  criminal_empire: require('@/assets/images/Scenarios/Street Hustler.png'),
+  political_dynasty: require('@/assets/images/Scenarios/Corporate Intern.png'),
+  tech_mogul: require('@/assets/images/Scenarios/Aspiring Entrepreneur.png'),
+  real_estate_tycoon: require('@/assets/images/Scenarios/Trust Fund Baby_final.png'),
+  speedrun: require('@/assets/images/Scenarios/Uber Driver.png'),
+  balanced_life: require('@/assets/images/Scenarios/Fitness Enthusiast.png'),
+  debt_escape: require('@/assets/images/Scenarios/Second Chance_final.png'),
+  fame_seeker: require('@/assets/images/Scenarios/Aspiring Streamer.png'),
+};
+
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
 // Display-only ordering so brand-new players see the gentlest starts first.
@@ -102,7 +122,7 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
     case 'expert':
       return '#EF4444';
     default:
-      return '#6B7280';
+      return '#94A3B8';
   }
 };
 
@@ -170,7 +190,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const rewardGems = isChallenge ? scenario.rewardGems : 0;
   const difficultyBadgeColor = isChallenge
     ? safeGetDifficultyColor(scenario.difficultyKey)
-    : '#6B7280';
+    : '#94A3B8';
   const difficultyColor =
     scenario.difficulty === 'Easy'
       ? '#10B981'
@@ -178,7 +198,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         ? '#3B82F6'
         : scenario.difficulty === 'Hard'
           ? '#F59E0B'
-          : '#6B7280';
+          : '#94A3B8';
 
   return (
     <TouchableOpacity
@@ -190,8 +210,8 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         <LinearGradient
           colors={
             isSelected
-              ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+              ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
+              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -228,7 +248,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             </View>
             {isSelected ? (
               <View style={styles.selectedDot}>
-                <Check size={scale(14)} color="#10B981" />
+                <Check size={scale(14)} color="#3B82F6" />
               </View>
             ) : null}
           </View>
@@ -354,7 +374,7 @@ export default function Scenarios() {
           items: startItems,
           traits: [],
         },
-        icon: CHALLENGE_FALLBACK_ICON,
+        icon: CHALLENGE_ICONS[challengeId] ?? CHALLENGE_FALLBACK_ICON,
         isChallenge: true,
         difficultyKey,
         iconEmoji: challengeIcon,
@@ -464,12 +484,12 @@ export default function Scenarios() {
           <LinearGradient
             colors={
               activeTab === 'life_paths'
-                ? ['#10B981', '#059669']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                ? ['#3B82F6', '#2563EB']
+                : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
             }
             style={styles.tabGradient}
           >
-            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#9CA3AF'} />
+            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#94A3B8'} />
             <Text style={[styles.tabText, activeTab === 'life_paths' && styles.tabTextActive]}>
               Life Paths
             </Text>
@@ -483,12 +503,12 @@ export default function Scenarios() {
           <LinearGradient
             colors={
               activeTab === 'challenges'
-                ? ['#EF4444', '#DC2626']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                ? ['#3B82F6', '#2563EB']
+                : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
             }
             style={styles.tabGradient}
           >
-            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#9CA3AF'} />
+            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#94A3B8'} />
             <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>
               Challenges
             </Text>
@@ -531,9 +551,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246,0.3)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -543,9 +563,9 @@ const styles = StyleSheet.create({
   },
   tabActiveRed: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(239, 68, 68, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)' } as any,
       default: {
-        shadowColor: '#EF4444',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -567,7 +587,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   tabTextActive: {
     color: '#FFFFFF',
@@ -575,7 +595,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -585,7 +605,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'rgba(59, 130, 246,0.25)',
     paddingVertical: 6,
     marginBottom: 4,
   },
@@ -683,7 +703,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: responsiveFontSize.base,
     fontWeight: '500',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     lineHeight: fontScale(16),
     marginBottom: verticalScale(3),
   },
@@ -721,7 +741,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: verticalScale(2),
   },
   statValue: {

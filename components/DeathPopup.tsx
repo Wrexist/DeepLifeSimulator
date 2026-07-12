@@ -722,7 +722,7 @@ function DeathPopup() {
                     activeOpacity={0.8}
                   >
                     <LinearGradient
-                      colors={canAffordRevive ? [accent.success, '#059669'] : ['#9CA3AF', '#6B7280']}
+                      colors={canAffordRevive ? [accent.success, '#059669'] : ['#94A3B8', '#6B7280']}
                       style={styles.buttonGradient}
                     >
                       <Heart size={18} color="#FFF" />
@@ -891,7 +891,7 @@ function DeathPopup() {
                               >
                                 <View style={styles.childCardHeader}>
                                   <Image
-                                    source={getCharacterImage(age, child.gender)}
+                                    source={getCharacterImage(age, child.gender, child.id)}
                                     style={styles.childImage}
                                   />
                                   <View style={styles.childInfo}>
@@ -972,7 +972,7 @@ function DeathPopup() {
                     activeOpacity={0.8}
                   >
                     <LinearGradient
-                      colors={!canContinueLegacy ? ['#9CA3AF', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
+                      colors={!canContinueLegacy ? ['#94A3B8', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
                       style={styles.buttonGradient}
                     >
                       <Crown size={18} color="#FFF" />

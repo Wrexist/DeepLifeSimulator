@@ -2,6 +2,8 @@ import React from 'react';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import Home from '@/app/(tabs)/home';
 import Work from '@/app/(tabs)/work';
+import Apps from '@/app/(tabs)/apps';
+import Life from '@/app/(tabs)/life';
 import Market from '@/app/(tabs)/market';
 import Computer from '@/app/(tabs)/computer';
 import Health from '@/app/(tabs)/health';
@@ -21,6 +23,18 @@ describe('render — in-game tab screens', () => {
 
   it('work mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<Work />);
+    expect(json.length).toBeGreaterThan(0);
+    unmount();
+  });
+
+  it('apps (merged device tab) mounts without throwing', () => {
+    const { json, unmount } = renderWithProviders(<Apps />);
+    expect(json.length).toBeGreaterThan(0);
+    unmount();
+  });
+
+  it('life (merged personal tab) mounts without throwing', () => {
+    const { json, unmount } = renderWithProviders(<Life />);
     expect(json.length).toBeGreaterThan(0);
     unmount();
   });

@@ -35,7 +35,7 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
       <LinearGradient
         colors={
           darkMode
-            ? ['#1F2937', '#111827']
+            ? ['#1E293B', '#0F172A']
             : ['#FFFFFF', '#F3F4F6']
         }
         start={{ x: 0, y: 0 }}
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   sparkleIcon: {
     width: 40,
@@ -222,11 +222,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   progressLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressText: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '600',
   },
   progressTextDark: {
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   progressPercentDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   benefitsContainer: {
     marginTop: 8,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 8,
   },
   benefitsTitleDark: {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   benefitTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

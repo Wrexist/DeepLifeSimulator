@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
  elevation: 3,
  },
  containerDark: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  },
  header: {
  flexDirection: 'row',
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
  title: {
  fontSize: fontScale(18),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginLeft: scale(10),
  },
  healthBadge: {
@@ -593,12 +593,12 @@ const styles = StyleSheet.create({
  margin: scale(4),
  },
  statCardDark: {
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  statCardValue: {
  fontSize: fontScale(14),
  fontWeight: 'bold',
- color: '#111827',
+ color: '#0F172A',
  marginTop: scale(6),
  },
  statCardLabel: {
@@ -614,12 +614,12 @@ const styles = StyleSheet.create({
  marginBottom: scale(12),
  },
  sectionDark: {
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  },
  sectionTitle: {
  fontSize: fontScale(14),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  marginBottom: scale(12),
  },
  miniBarContainer: {
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
  overflow: 'hidden',
  },
  miniBarTrackDark: {
- backgroundColor: '#4B5563',
+ backgroundColor: '#475569',
  },
  miniBarFill: {
  height: '100%',
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
  projectionTitle: {
  fontSize: fontScale(14),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  },
  projectionGrid: {
  flexDirection: 'row',
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
  compactTitle: {
  fontSize: fontScale(14),
  fontWeight: '600',
- color: '#111827',
+ color: '#0F172A',
  marginLeft: scale(8),
  flex: 1,
  },
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
  color: '#F9FAFB',
  },
  textMuted: {
- color: '#9CA3AF',
+ color: '#94A3B8',
  },
 });
 

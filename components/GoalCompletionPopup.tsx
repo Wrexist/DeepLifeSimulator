@@ -135,7 +135,7 @@ export default function GoalCompletionPopup({
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1F2937', '#374151'] : ['#FFFFFF', '#F8FAFC']}
+            colors={darkMode ? ['#1E293B', '#334155'] : ['#FFFFFF', '#F8FAFC']}
             style={styles.popup}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     textAlign: 'center',
   },
   titleDark: {
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   goalTitle: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginLeft: responsiveSpacing.sm,
   },
   goalTitleDark: {
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   rewardLabel: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     marginBottom: responsiveSpacing.sm,
   },
   rewardLabelDark: {
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   rewardText: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   rewardTextDark: {
     color: '#F9FAFB',
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   nextGoalLabel: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
     marginLeft: responsiveSpacing.xs,
   },
   nextGoalLabelDark: {
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   nextGoalTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: responsiveSpacing.sm,
   },
   nextGoalTitleDark: {
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   nextGoalProgressText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   nextGoalProgressTextDark: {
     color: '#D1D5DB',
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   closeButtonTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

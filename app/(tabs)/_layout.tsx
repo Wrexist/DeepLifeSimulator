@@ -1,7 +1,7 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Platform, View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell } from 'lucide-react-native';
+import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -105,8 +105,9 @@ export default function TabLayout() {
   const ownsComputer = items.some(
     (item) => item.id === 'computer' && item.owned
   );
-  // Hide mobile tab if computer is owned (mobile apps accessible through desktop)
-  const showMobileTab = ownsSmartphone && !ownsComputer;
+  // The merged Apps tab appears in the bar once the player owns any device.
+  // (Which launcher shows — phone grid vs desktop — is decided inside apps.tsx.)
+  const ownsAnyDevice = ownsSmartphone || ownsComputer;
 
   return (
     <View style={{ flex: 1 }}>
@@ -126,7 +127,7 @@ export default function TabLayout() {
           marginTop: -2,
         },
         tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
-        tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#6B7280',
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#6B7280',
         // Hide tab bar completely when in prison
         tabBarStyle: (isInPrison || fullscreenApp) ? { display: 'none' } : {
           position: 'absolute',
@@ -173,11 +174,37 @@ export default function TabLayout() {
           // Always allow work tab (prison screen is shown here)
         }}
       />
+      {/* Apps — merged device tab. Shows the phone grid or (once owned) the
+          desktop launcher with its own Desktop/Mobile sub-toggle. Hidden from
+          the bar until the player owns any device, and while in prison. */}
+      <Tabs.Screen
+        name="apps"
+        options={{
+          title: t('tabs.apps') || 'Apps',
+          tabBarIcon: ({ size, color }) => <LayoutGrid size={size} color={color} />,
+          href: (isInPrison || !ownsAnyDevice) ? null : undefined,
+        }}
+      />
+      {/* Life — merged personal tab: a Health / Shop / Stats sub-menu that opens
+          on Health, so vitals stay one tap away without their own bar icon. */}
+      <Tabs.Screen
+        name="life"
+        options={{
+          title: t('tabs.life') || 'Life',
+          tabBarIcon: ({ size, color }) => <Activity size={size} color={color} />,
+          href: isInPrison ? null : undefined,
+        }}
+      />
+      {/* The five screens below are no longer their own bottom-bar tabs — they're
+          folded into Apps (mobile, computer) and Life (market, health,
+          progression). Their routes stay registered with href: null so deep
+          links and direct router.push() navigation still resolve; they just
+          never render a tab button. Without an explicit entry, expo-router would
+          auto-surface each file as a default tab and undo the merge. */}
       <Tabs.Screen
         name="mobile"
         options={{
-          // Hide until a smartphone is owned, hide if computer is owned (mobile apps in desktop tab), or disable when in prison
-          href: (isInPrison || !showMobileTab) ? null : undefined,
+          href: null,
           title: t('tabs.mobile'),
           tabBarIcon: ({ size, color }) => <Smartphone size={size} color={color} />,
         }}
@@ -185,8 +212,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="computer"
         options={{
-          // Hide until a computer is owned, or disable when in prison
-          href: (isInPrison || !ownsComputer) ? null : undefined,
+          href: null,
           title: t('tabs.computer'),
           tabBarIcon: ({ size, color }) => <Monitor size={size} color={color} />,
         }}
@@ -194,8 +220,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="progression"
         options={{
-          // Hidden from the bottom nav — the route still exists for direct
-          // navigation, but it's no longer surfaced as a tab.
           href: null,
           title: t('tabs.progression') || 'Progress',
           tabBarIcon: ({ size, color }) => <Trophy size={size} color={color} />,
@@ -204,19 +228,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="market"
         options={{
+          href: null,
           title: t('tabs.market'),
           tabBarIcon: ({ size, color }) => <ShoppingCart size={size} color={color} />,
-          // Disable navigation when in prison
-          href: isInPrison ? null : undefined,
         }}
       />
       <Tabs.Screen
         name="health"
         options={{
+          href: null,
           title: t('tabs.health'),
           tabBarIcon: ({ size, color }) => <Heart size={size} color={color} />,
-          // Disable navigation when in prison
-          href: isInPrison ? null : undefined,
         }}
       />
     </Tabs>

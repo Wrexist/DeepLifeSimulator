@@ -52,7 +52,7 @@ export default function LifeGoalsPanel() {
               <LinearGradient
                 colors={
                   isCompleted
-                    ? ['rgba(16, 185, 129, 0.15)', 'rgba(5, 150, 105, 0.2)']
+                    ? ['rgba(59, 130, 246, 0.15)', 'rgba(37, 99, 235, 0.2)']
                     : settings?.darkMode
                     ? ['rgba(55, 65, 81, 0.4)', 'rgba(31, 41, 55, 0.5)']
                     : ['rgba(243, 244, 246, 0.8)', 'rgba(229, 231, 235, 0.9)']
@@ -104,7 +104,7 @@ export default function LifeGoalsPanel() {
 
                 <View style={styles.requirementSection}>
                   <View style={styles.requirementRow}>
-                    <Sparkles size={14} color={settings?.darkMode ? '#9CA3AF' : '#6B7280'} />
+                    <Sparkles size={14} color={settings?.darkMode ? '#94A3B8' : '#6B7280'} />
                     <Text style={[styles.requirementText, settings?.darkMode && styles.requirementTextDark]}>
                       {perk.requirement}
                     </Text>
@@ -133,7 +133,7 @@ export default function LifeGoalsPanel() {
                           styles.progressFill,
                           {
                             width: `${progressPercent}%`,
-                            backgroundColor: isCompleted ? '#10B981' : '#3B82F6',
+                            backgroundColor: '#3B82F6',
                           },
                         ]}
                       />
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(4),
     letterSpacing: -0.5,
   },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
   },
   subtitleDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   list: {
     flex: 1,
@@ -231,14 +231,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: scale(2) },
         shadowOpacity: 0.3,
         shadowRadius: scale(8),
       },
       android: { elevation: 6 },
       web: {
-        shadowColor: '#10B981',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: scale(2) },
         shadowOpacity: 0.3,
         shadowRadius: scale(8),
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   perkIconContainerCompleted: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   perkIcon: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
     letterSpacing: -0.3,
   },
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   rewardDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   requirementSection: {
     marginBottom: scale(14),
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requirementTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressSection: {
     marginTop: scale(4),
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   progressLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressPercent: {
     fontSize: fontScale(13),
@@ -408,6 +408,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   progressTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });

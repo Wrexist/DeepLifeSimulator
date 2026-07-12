@@ -324,7 +324,7 @@ export default function SaveSlots() {
           {slots.map((slot) => {
             const isSelected = selectedSlot === slot.id;
             const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#9CA3AF';
+            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
@@ -334,8 +334,8 @@ export default function SaveSlots() {
                     <LinearGradient
                       colors={
                         isSelected
-                          ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-                          : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                          ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
+                          : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
                       }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   slotName: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   statsRow: {
     flexDirection: 'row',
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: verticalScale(2),
   },
   statValue: {

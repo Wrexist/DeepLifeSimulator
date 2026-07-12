@@ -310,7 +310,7 @@ function SicknessModal() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.closeButtonInner, darkMode && styles.closeButtonInnerDark]}>
-                    <X size={18} color={darkMode ? '#FFFFFF' : '#1F2937'} />
+                    <X size={18} color={darkMode ? '#FFFFFF' : '#1E293B'} />
                   </View>
                 </TouchableOpacity>
               </View>

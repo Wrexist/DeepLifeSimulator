@@ -277,7 +277,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F3F4F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -291,7 +291,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={darkMode ? '#FFFFFF' : '#1F2937'} />
+                <X size={24} color={darkMode ? '#FFFFFF' : '#1E293B'} />
               </TouchableOpacity>
             </View>
 
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
@@ -446,12 +446,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   summaryLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   summaryValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   summaryValueDark: {
     color: '#FFFFFF',
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   categoryTitleDark: {
     color: '#FFFFFF',
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   categoryCountDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   bonusItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   bonusName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   bonusNameDark: {
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     marginLeft: 24,
   },
   bonusEffectDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   emptyState: {
     padding: 40,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

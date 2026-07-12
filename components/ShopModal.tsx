@@ -226,7 +226,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Shop</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
+              <X size={24} color={settings.darkMode ? '#CBD5E1' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -287,7 +287,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                           )}
                           <View style={styles.itemInfo}>
                             <View style={styles.itemHeader}>
-                              <item.icon size={20} color={item.owned ? '#FFFFFF' : (settings.darkMode ? '#D1D5DB' : '#374151')} />
+                              <item.icon size={20} color={item.owned ? '#FFFFFF' : (settings.darkMode ? '#CBD5E1' : '#334155')} />
                               <Text style={[
                                 styles.itemName, 
                                 settings.darkMode && styles.itemNameDark,
@@ -400,7 +400,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                               {item.image ? (
                                 <Image source={item.image} style={styles.itemImage} />
                               ) : (
-                                <item.icon size={20} color={settings.darkMode ? '#D1D5DB' : '#374151'} />
+                                <item.icon size={20} color={settings.darkMode ? '#CBD5E1' : '#334155'} />
                               )}
                               <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>
                                 {item.name}
@@ -430,7 +430,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
               onPress={handleRestorePurchases}
               disabled={iapLoading}
             >
-              <RefreshCw size={18} color={iapLoading ? '#9CA3AF' : '#6B7280'} />
+              <RefreshCw size={18} color={iapLoading ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled]}>
                 {iapLoading ? 'Restoring...' : 'Restore Purchases'}
               </Text>
@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   containerDark: {
-    backgroundColor: '#1F2937',
-    borderBottomColor: '#374151',
+    backgroundColor: '#1E293B',
+    borderBottomColor: '#334155',
   },
   topRow: {
     flexDirection: 'row',
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressBarDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   progressFill: {
     height: '100%',
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -616,8 +616,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   shopItemDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   itemInfo: {
     flex: 1,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginLeft: 8,
   },
   itemNameDark: {
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   itemDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   purchaseButton: {
     backgroundColor: '#3B82F6',
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
-    color: '#1F2937',
+    color: '#1E293B',
   },
   packAmount: {
     marginLeft: 8,
@@ -818,8 +818,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   footerDark: {
-    borderTopColor: '#374151',
-    backgroundColor: '#1F2937',
+    borderTopColor: '#334155',
+    backgroundColor: '#1E293B',
   },
   restoreButton: {
     flexDirection: 'row',
@@ -835,6 +835,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   restoreButtonTextDisabled: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });

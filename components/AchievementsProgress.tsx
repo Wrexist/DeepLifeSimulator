@@ -303,7 +303,7 @@ export default function AchievementsProgress() {
           onPress={() => setShowFilters(!showFilters)}
           style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
         >
-          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#9CA3AF' : '#6B7280')} />
+          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#94A3B8' : '#6B7280')} />
           <Text style={[
             styles.filterToggleText,
             showFilters && styles.filterToggleTextActive,
@@ -373,7 +373,7 @@ export default function AchievementsProgress() {
             {showSecret ? (
               <Eye size={scale(14)} color="#F59E0B" />
             ) : (
-              <EyeOff size={scale(14)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
+              <EyeOff size={scale(14)} color={darkMode ? '#6B7280' : '#94A3B8'} />
             )}
             <Text style={[
               styles.secretToggleText,
@@ -543,7 +543,7 @@ export default function AchievementsProgress() {
 const styles = StyleSheet.create({
   container: {
     marginTop: verticalScale(20),
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.lg,
     ...Platform.select({
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerBlur: {
@@ -619,11 +619,11 @@ const styles = StyleSheet.create({
   },
   statsText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 2,
   },
   statsTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   controls: {
     flexDirection: 'row',
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   },
   filterToggleText: {
     fontSize: fontScale(13),
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '500',
   },
   filterToggleTextActive: {
@@ -665,14 +665,14 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     fontSize: fontScale(12),
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   sortButtonTextActive: {
     color: '#6366F1',
     fontWeight: '600',
   },
   controlTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   filtersContainer: {
     marginBottom: responsiveSpacing.md,
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     gap: scale(6),
   },
   categoryChipDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   categoryChipText: {
     fontSize: fontScale(12),
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Platform.select({
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   cardCompleted: {
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
   },
   stackText: {
     marginRight: responsiveSpacing.sm,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontSize: responsiveFontSize.sm,
   },
   cardDesc: {
@@ -914,12 +914,12 @@ const styles = StyleSheet.create({
   progressPercent: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
     minWidth: scale(40),
     textAlign: 'right',
   },
   progressPercentDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   claimedBadge: {
     flexDirection: 'row',
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   narrativeTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   claimButtonBlur: {
     borderRadius: responsiveBorderRadius.md,

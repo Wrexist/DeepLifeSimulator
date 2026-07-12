@@ -42,6 +42,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 interface DMConversation {
@@ -480,7 +481,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  case'quest':
  return { icon: Star, color: '#EAB308', label: 'Quest'};
  default:
- return { icon: MessageCircle, color:'#9CA3AF', label: 'Message'};
+ return { icon: MessageCircle, color:'#94A3B8', label: 'Message'};
  }
  };
 
@@ -516,11 +517,11 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  {/* Search */}
  <View style={styles.searchContainer}>
- <Search size={scale(18)} color="#9CA3AF" />
+ <Search size={scale(18)} color="#94A3B8" />
  <TextInput
  style={styles.searchInput}
  placeholder="Search messages..."
- placeholderTextColor="#9CA3AF"
+ placeholderTextColor="#94A3B8"
  value={searchQuery}
  onChangeText={setSearchQuery}
  />
@@ -530,7 +531,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <ScrollView style={styles.conversationsScroll} showsVerticalScrollIndicator={false}>
  {filteredConversations.length === 0 ? (
  <View style={styles.emptyState}>
- <Mail size={scale(48)} color="#9CA3AF" />
+ <Mail size={scale(48)} color="#94A3B8" />
  <Text style={styles.emptyStateText}>No messages yet</Text>
  <Text style={styles.emptyStateSubtext}>
  Mysterious contacts will reach out with tips and secrets...
@@ -567,7 +568,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  {conversation.senderName}
  </Text>
  {conversation.isVerified && (
- <CheckCircle size={14} color="#1D9BF0" />
+ <CheckCircle size={14} color="#3B82F6" />
  )}
  {clueInfo && ClueIcon && (
  <View style={[styles.clueTypeBadge, { backgroundColor:`${clueInfo.color}20`}]}>
@@ -689,7 +690,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <TextInput
  style={styles.messageInput}
  placeholder="Reply..."
- placeholderTextColor="#9CA3AF"
+ placeholderTextColor="#94A3B8"
  value={messageInput}
  onChangeText={setMessageInput}
  multiline
@@ -699,7 +700,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  onPress={handleSendMessage}
  disabled={!messageInput.trim()}
  >
- <Send size={scale(20)} color={messageInput.trim() ?'#1D9BF0': '#9CA3AF'} />
+ <Send size={scale(20)} color={messageInput.trim() ?'#3B82F6': '#94A3B8'} />
  </TouchableOpacity>
  </View>
  </View>
@@ -722,7 +723,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <View style={styles.modalOverlay}>
  <View style={styles.clueModal}>
  <LinearGradient
- colors={[`${clueInfo.color}40`,'#1F2937']}
+ colors={[`${clueInfo.color}40`,'#1E293B']}
  style={styles.clueModalGradient}
  >
  {/* Header */}
@@ -789,7 +790,7 @@ function formatTimestamp(timestamp: number): string {
 const styles = StyleSheet.create({
  container: {
  flex: 1,
- backgroundColor: '#0B0C10',
+ backgroundColor: '#0F172A',
  },
  
  // Conversation List styles
@@ -803,7 +804,7 @@ const styles = StyleSheet.create({
  paddingTop: scale(16),
  paddingBottom: scale(12),
  borderBottomWidth: 1,
- borderBottomColor: '#1F2937',
+ borderBottomColor: '#334155',
  },
  backButton: {
  padding: scale(8),
@@ -816,7 +817,7 @@ const styles = StyleSheet.create({
  color: '#F9FAFB',
  },
  unreadBadge: {
- backgroundColor: '#1D9BF0',
+ backgroundColor: '#3B82F6',
  borderRadius: scale(12),
  paddingHorizontal: scale(8),
  paddingVertical: scale(2),
@@ -829,7 +830,7 @@ const styles = StyleSheet.create({
  searchContainer: {
  flexDirection: 'row',
  alignItems: 'center',
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  borderRadius: scale(20),
  margin: scale(16),
  paddingHorizontal: scale(16),
@@ -849,13 +850,13 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  padding: scale(16),
  borderBottomWidth: 1,
- borderBottomColor: '#1F2937',
+ borderBottomColor: '#334155',
  },
  avatar: {
  width: scale(50),
  height: scale(50),
  borderRadius: scale(25),
- backgroundColor: '#374151',
+ backgroundColor: '#334155',
  alignItems: 'center',
  justifyContent: 'center',
  position: 'relative',
@@ -892,12 +893,12 @@ const styles = StyleSheet.create({
  },
  conversationHandle: {
  fontSize: fontScale(13),
- color: '#9CA3AF',
+ color: '#94A3B8',
  marginTop: scale(2),
  },
  conversationPreview: {
  fontSize: fontScale(13),
- color: '#9CA3AF',
+ color: '#94A3B8',
  marginTop: scale(4),
  },
  clueTypeBadge: {
@@ -911,10 +912,10 @@ const styles = StyleSheet.create({
  },
  conversationTime: {
  fontSize: fontScale(12),
- color: '#9CA3AF',
+ color: '#94A3B8',
  },
  unreadDot: {
- backgroundColor: '#1D9BF0',
+ backgroundColor: '#3B82F6',
  borderRadius: scale(10),
  width: scale(20),
  height: scale(20),
@@ -940,7 +941,7 @@ const styles = StyleSheet.create({
  },
  emptyStateSubtext: {
  fontSize: fontScale(14),
- color: '#9CA3AF',
+ color: '#94A3B8',
  textAlign: 'center',
  marginTop: scale(8),
  },
@@ -956,7 +957,7 @@ const styles = StyleSheet.create({
  paddingTop: scale(16),
  paddingBottom: scale(12),
  borderBottomWidth: 1,
- borderBottomColor: '#1F2937',
+ borderBottomColor: '#334155',
  },
  threadHeaderInfo: {
  flex: 1,
@@ -968,7 +969,7 @@ const styles = StyleSheet.create({
  },
  threadHeaderHandle: {
  fontSize: fontScale(13),
- color: '#9CA3AF',
+ color: '#94A3B8',
  },
  mysteriousTag: {
  flexDirection: 'row',
@@ -999,14 +1000,16 @@ const styles = StyleSheet.create({
  marginBottom: scale(12),
  },
  otherMessage: {
- backgroundColor: '#1F2937',
+ backgroundColor: '#334155',
  alignSelf: 'flex-start',
  borderBottomLeftRadius: scale(4),
+ ...getPlatformShadows(3, 0.18, 2, 6),
  },
  playerMessage: {
- backgroundColor: '#1D9BF0',
+ backgroundColor: '#3B82F6',
  alignSelf: 'flex-end',
  borderBottomRightRadius: scale(4),
+ ...getPlatformShadows(3, 0.28, 2, 6),
  },
  messageText: {
  fontSize: fontScale(14),
@@ -1018,7 +1021,7 @@ const styles = StyleSheet.create({
  },
  messageTime: {
  fontSize: fontScale(11),
- color: '#9CA3AF',
+ color: '#94A3B8',
  marginTop: scale(6),
  },
  playerMessageTime: {
@@ -1061,12 +1064,13 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  padding: scale(12),
  borderTopWidth: 1,
- borderTopColor: '#1F2937',
- backgroundColor: '#0B0C10',
+ borderTopColor: '#334155',
+ backgroundColor: '#0F172A',
+ ...getPlatformShadows(8, 0.3, -4, 16),
  },
  messageInput: {
  flex: 1,
- backgroundColor: '#1F2937',
+ backgroundColor: '#1E293B',
  borderRadius: scale(20),
  paddingHorizontal: scale(16),
  paddingVertical: scale(10),
@@ -1133,7 +1137,7 @@ const styles = StyleSheet.create({
  },
  clueRewardLabel: {
  fontSize: fontScale(12),
- color: '#9CA3AF',
+ color: '#94A3B8',
  marginBottom: scale(4),
  },
  clueRewardValue: {
@@ -1144,7 +1148,7 @@ const styles = StyleSheet.create({
  clueActionSection: {},
  clueActionLabel: {
  fontSize: fontScale(12),
- color: '#9CA3AF',
+ color: '#94A3B8',
  marginBottom: scale(4),
  },
  clueActionValue: {
@@ -1153,7 +1157,7 @@ const styles = StyleSheet.create({
  fontWeight: '600',
  },
  clueModalButton: {
- backgroundColor: '#1D9BF0',
+ backgroundColor: '#3B82F6',
  borderRadius: scale(10),
  paddingVertical: scale(12),
  alignItems: 'center',

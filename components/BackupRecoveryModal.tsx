@@ -332,7 +332,7 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={creating ? ['#4B5563', '#374151'] : ['#3B82F6', '#2563EB']}
+                colors={creating ? ['#4B5563', '#334155'] : ['#3B82F6', '#2563EB']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.createButtonGradient}

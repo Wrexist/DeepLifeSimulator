@@ -200,7 +200,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X size={20} color="#9CA3AF" />
+                <X size={20} color="#94A3B8" />
               </TouchableOpacity>
             </View>
 
@@ -361,7 +361,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         styles.pathIconContainer,
                         selectedPath === 'reset' && styles.pathIconContainerSelected,
                       ]}>
-                        <RotateCcw size={22} color={selectedPath === 'reset' ? '#3B82F6' : '#6B7280'} />
+                        <RotateCcw size={22} color={selectedPath === 'reset' ? '#3B82F6' : '#94A3B8'} />
                       </View>
                       <View style={styles.pathTextContainer}>
                         <Text style={[
@@ -385,7 +385,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     </View>
                     <View style={styles.pathBenefits}>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -394,7 +394,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         </Text>
                       </View>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -403,7 +403,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         </Text>
                       </View>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -414,7 +414,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     </View>
                     {selectedPath === 'reset' && (
                       <Image
-                        source={getCharacterImage(18, gameState.userProfile?.sex || 'male')}
+                        source={getCharacterImage(18, gameState.userProfile?.sex || 'male', gameState.userProfile?.name)}
                         style={styles.characterImage}
                       />
                     )}
@@ -443,7 +443,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         selectedPath === 'child' && styles.pathIconContainerSelected,
                         children.length === 0 && styles.pathIconContainerDisabled,
                       ]}>
-                        <Users size={22} color={selectedPath === 'child' ? '#8B5CF6' : children.length === 0 ? '#4B5563' : '#6B7280'} />
+                        <Users size={22} color={selectedPath === 'child' ? '#8B5CF6' : children.length === 0 ? '#475569' : '#94A3B8'} />
                       </View>
                       <View style={styles.pathTextContainer}>
                         <Text style={[
@@ -473,7 +473,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                       <>
                         <View style={styles.pathBenefits}>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -482,7 +482,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                             </Text>
                           </View>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -491,7 +491,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                             </Text>
                           </View>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -518,7 +518,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                                 activeOpacity={0.8}
                               >
                                 <Image
-                                  source={getCharacterImage(childAge, child.gender || 'male')}
+                                  source={getCharacterImage(childAge, child.gender || 'male', child.id)}
                                   style={styles.childImage}
                                 />
                                 <Text style={[
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     maxHeight: 700,
   },
   content: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 13,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     fontWeight: '500',
   },
   breakdownValue: {
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -921,18 +921,18 @@ const styles = StyleSheet.create({
     color: '#60A5FA',
   },
   pathTitleDisabled: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   pathDescription: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     lineHeight: 20,
   },
   pathDescriptionSelected: {
     color: '#93C5FD',
   },
   pathDescriptionDisabled: {
-    color: '#6B7280',
+    color: '#94A3B8',
   },
   checkmarkContainer: {
     width: 32,
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '500',
   },
   benefitTextSelected: {
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
   },
   childAge: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
   },
   bonusesCard: {
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   moreBonuses: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     alignSelf: 'center',
     fontWeight: '500',
   },
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   confirmationText: {
     fontSize: 15,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     marginBottom: 16,
     fontWeight: '500',
     lineHeight: 22,
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
   },
   listBullet: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 2,
   },
   warningItem: {
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   prestigeButton: {
     flex: 1,
@@ -1179,7 +1179,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
 });
 

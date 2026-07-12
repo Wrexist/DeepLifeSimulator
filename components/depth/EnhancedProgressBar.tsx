@@ -116,7 +116,7 @@ export default function EnhancedProgressBar({
                 styles.milestoneIcon,
                 { backgroundColor: isReached ? (milestone.color || color) : (darkMode ? '#4B5563' : '#E5E7EB') },
               ]}>
-                <MilestoneIcon size={scale(10)} color={isReached ? '#FFFFFF' : (darkMode ? '#9CA3AF' : '#6B7280')} />
+                <MilestoneIcon size={scale(10)} color={isReached ? '#FFFFFF' : (darkMode ? '#94A3B8' : '#6B7280')} />
               </View>
             </View>
           );
@@ -149,7 +149,7 @@ export default function EnhancedProgressBar({
           {/* Time to Completion */}
           {timeToCompletion !== undefined && timeToCompletion > 0 && (
             <View style={styles.detailItem}>
-              <Clock size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <Clock size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.detailText, darkMode && styles.detailTextDark]}>
                 ~{timeToCompletion} week{timeToCompletion !== 1 ? 's' : ''} to completion
               </Text>
@@ -159,7 +159,7 @@ export default function EnhancedProgressBar({
           {/* Next Milestone */}
           {nextMilestone && (
             <View style={styles.detailItem}>
-              <Target size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <Target size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.detailText, darkMode && styles.detailTextDark]}>
                 Next: {nextMilestone.label} ({Math.round(nextMilestone.position)}%)
               </Text>
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     marginVertical: responsiveSpacing.xs,
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     flex: 1,
   },
   labelDark: {
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   progressBarContainerDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   progressFill: {
     height: '100%',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   secondaryLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   secondaryProgressBar: {
     height: scale(12),
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   secondaryProgressTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   details: {
     marginTop: responsiveSpacing.sm,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   detailTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   improvingText: {
     color: '#10B981',

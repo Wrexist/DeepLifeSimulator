@@ -39,12 +39,12 @@ const ACCENT: Record<HealthAccent, { reward: string; button: [string, string, st
   vitality: {
     reward: '#F87171',
     button: ['#EF4444', '#DC2626', '#B91C1C'],
-    disabled: ['#1F2937', '#111827'],
+    disabled: ['#1E293B', '#0F172A'],
   },
   diet: {
     reward: '#34D399',
     button: ['#10B981', '#059669', '#047857'],
-    disabled: ['#1F2937', '#111827'],
+    disabled: ['#1E293B', '#0F172A'],
   },
 };
 

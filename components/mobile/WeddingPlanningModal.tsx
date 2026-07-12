@@ -193,7 +193,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                         isDarkMode && styles.venueCardContentDark,
                         isSelected && { borderColor: venueColor, borderWidth: 2 }
                       ]}>
-                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#9CA3AF' : '#6B7280')} />
+                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#94A3B8' : '#6B7280')} />
                         <Text style={[
                           styles.venueName, 
                           isDarkMode && styles.venueNameDark,
@@ -234,14 +234,14 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                   Guest Count
                 </Text>
                 <View style={[styles.guestInputContainer, isDarkMode && styles.guestInputContainerDark]}>
-                  <Users size={scale(20)} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                  <Users size={scale(20)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
                   <TextInput
                     style={[styles.guestInput, isDarkMode && styles.guestInputDark]}
                     value={guestCount}
                     onChangeText={setGuestCount}
                     keyboardType="numeric"
                     placeholder="Enter number of guests"
-                    placeholderTextColor={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                    placeholderTextColor={isDarkMode ? '#94A3B8' : '#6B7280'}
                     maxLength={3}
                   />
                   <Text style={[styles.guestHint, isDarkMode && styles.guestHintDark]}>
@@ -332,7 +332,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               disabled={!selectedVenueId || !canAfford}
             >
               <LinearGradient
-                colors={(!selectedVenueId || !canAfford) ? ['#9CA3AF', '#6B7280'] : ['#EC4899', '#DB2777']}
+                colors={(!selectedVenueId || !canAfford) ? ['#94A3B8', '#6B7280'] : ['#EC4899', '#DB2777']}
                 style={styles.confirmButtonGradient}
               >
                 <Heart size={scale(18)} color="#FFFFFF" />
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     ...getShadow(20, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   titleDark: {
     color: '#F9FAFB',
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   statsBarDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   statItem: {
     flexDirection: 'row',
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   textMuted: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   moneyText: {
     fontSize: fontScale(13),
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: scale(12),
   },
   sectionTitleDark: {
@@ -489,14 +489,14 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
   },
   emptyStateDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   emptyStateText: {
     fontSize: fontScale(14),
     color: '#6B7280',
   },
   emptyStateTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   venueCard: {
     width: scale(180),
@@ -516,12 +516,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   venueCardContentDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   venueName: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
     marginTop: scale(8),
     textAlign: 'center',
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   venueCapacityDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   venueCost: {
     fontSize: fontScale(14),
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   venueDescriptionCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   venueDescription: {
     fontSize: fontScale(14),
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(20),
   },
   venueDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   guestInputContainer: {
     flexDirection: 'row',
@@ -584,13 +584,13 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   guestInputContainerDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   guestInput: {
     flex: 1,
     fontSize: fontScale(16),
-    color: '#1F2937',
+    color: '#1E293B',
   },
   guestInputDark: {
     color: '#FFFFFF',
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   guestHintDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   serviceOption: {
     flexDirection: 'row',
@@ -613,15 +613,15 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   serviceOptionDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   checkbox: {
     width: scale(20),
     height: scale(20),
     borderRadius: scale(6),
     borderWidth: 2,
-    borderColor: '#9CA3AF',
+    borderColor: '#94A3B8',
     marginRight: scale(12),
     justifyContent: 'center',
     alignItems: 'center',
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: scale(2),
   },
   serviceNameDark: {
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   serviceDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   serviceCost: {
     fontSize: fontScale(14),
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   costBreakdownDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   costRow: {
     flexDirection: 'row',
@@ -681,12 +681,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   costLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   costValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   costValueDark: {
     color: '#FFFFFF',
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   cancelButtonText: {
     fontSize: fontScale(16),
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   cancelButtonTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   confirmButton: {
     flex: 2,

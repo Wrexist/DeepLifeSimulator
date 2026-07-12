@@ -113,7 +113,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const getRarityColor = (rarity?: string) => {
     switch (rarity) {
       case 'common':
-        return '#9CA3AF';
+        return '#94A3B8';
       case 'uncommon':
         return '#10B981';
       case 'rare':
@@ -152,7 +152,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
         >
           <LinearGradient
             colors={isDarkMode 
-              ? ['rgba(31, 41, 55, 0.95)', 'rgba(17, 24, 39, 0.98)'] 
+              ? ['rgba(30, 41, 59, 0.95)', 'rgba(15, 23, 42, 0.98)']
               : ['rgba(255, 255, 255, 0.95)', 'rgba(243, 244, 246, 0.98)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -181,7 +181,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                 activeOpacity={0.7}
               >
                 <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
-                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
+                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1E293B'} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -209,13 +209,13 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                         colors={isSelected 
                           ? colors 
                           : isDarkMode 
-                          ? ['rgba(55, 65, 81, 0.6)', 'rgba(31, 41, 55, 0.7)'] 
+                          ? ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.7)']
                           : ['rgba(243, 244, 246, 0.8)', 'rgba(229, 231, 235, 0.9)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
                       >
-                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#D1D5DB' : '#6B7280')} />
+                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#CBD5E1' : '#6B7280')} />
                         <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
@@ -259,7 +259,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             : hasAnyLevel
                             ? ['rgba(59, 130, 246, 0.4)', 'rgba(37, 99, 235, 0.5)']
                             : isDarkMode
-                            ? ['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.4)']
+                            ? ['rgba(51, 65, 85, 0.3)', 'rgba(30, 41, 59, 0.4)']
                             : ['rgba(243, 244, 246, 0.6)', 'rgba(229, 231, 235, 0.7)']
                         }
                         start={{ x: 0, y: 0 }}
@@ -443,12 +443,12 @@ const styles = StyleSheet.create({
     marginBottom: scale(2),
   },
   pointsLabelDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   pointsText: {
     fontSize: fontScale(24),
     fontWeight: '800',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   pointsTextDark: {
     color: '#FFFFFF',
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   categoryTabTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   bonusesList: {
     flex: 1,
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   emptyTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   bonusCard: {
     marginBottom: scale(12),
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   bonusName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   bonusNameDark: {
     color: '#FFFFFF',
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   bonusDescriptionDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   bonusDescriptionOwned: {
     color: 'rgba(255, 255, 255, 0.9)',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   levelTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   ownedBadge: {
     width: scale(32),
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   costText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   costTextDark: {
     color: '#FFFFFF',

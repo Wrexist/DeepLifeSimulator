@@ -113,7 +113,7 @@ export default function ActionFeedbackModal({
                     </Text>
                   </View>
                   <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                    <X size={scale(20)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                    <X size={scale(20)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                   </TouchableOpacity>
                 </View>
 
@@ -170,7 +170,7 @@ export default function ActionFeedbackModal({
                           <Text style={[styles.systemEffectSource, darkMode && styles.systemEffectSourceDark]}>
                             {effect.sourceSystem}
                           </Text>
-                          <ArrowRight size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                          <ArrowRight size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
                           <Text style={[styles.systemEffectTarget, darkMode && styles.systemEffectTargetDark]}>
                             {effect.targetSystem}
                           </Text>
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
   },
   modalDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
   },
   header: {
     flexDirection: 'row',
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   headerTitleDark: {
     color: '#F9FAFB',
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   sectionTitleDark: {
     color: '#F9FAFB',
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   effectsCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   effectRow: {
     flexDirection: 'row',
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   effectLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
     flex: 1,
   },
   effectLabelDark: {
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
   },
   systemEffectCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   systemEffectHeader: {
     flexDirection: 'row',
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   systemEffectTarget: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   systemEffectTargetDark: {
     color: '#F9FAFB',
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(16),
   },
   systemEffectDescDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   chainReactionsCard: {
     backgroundColor: '#FEF3C7',
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   modifiersCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   modifierRow: {
     flexDirection: 'row',
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   modifierLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
     flex: 1,
   },
   modifierLabelDark: {
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   calculationCardDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   calculationRow: {
     flexDirection: 'row',
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   },
   calculationLabel: {
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#334155',
   },
   calculationLabelDark: {
     color: '#D1D5DB',
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   calculationValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
   },
   calculationValueDark: {
     color: '#F9FAFB',
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(16),
   },
   modifierBreakdownTextDark: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
     borderTopColor: '#4B5563',
   },
   closeButtonContainer: {

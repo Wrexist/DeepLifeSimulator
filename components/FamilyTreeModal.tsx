@@ -6,6 +6,7 @@ import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
@@ -63,13 +64,13 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
           {member.deathYear ? (
             // Calculate age at death for image
             <Image
-              source={getCharacterImage(member.deathYear - member.birthYear, member.gender)}
+              source={getCharacterImage(member.deathYear - member.birthYear, member.gender, member.id)}
               style={styles.avatarImage}
             />
           ) : (
             // Use current age if still alive
             <Image
-              source={getCharacterImage(25, member.gender)}
+              source={getCharacterImage(25, member.gender, member.id)}
               style={styles.avatarImage}
             />
           )}
@@ -101,7 +102,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#111827', '#1F2937'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -162,6 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     overflow: 'hidden',
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   header: {
     flexDirection: 'row',
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   closeButton: {
     padding: 5,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#475569',
   },
   membersGrid: {
     flexDirection: 'row',
@@ -232,14 +234,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   nodeDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   avatarContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -256,7 +258,7 @@ const styles = StyleSheet.create({
   nodeName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
   },
   nodeDetails: {
     fontSize: 12,
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#475569',
   },
   detailText: {
     fontSize: 12,
@@ -277,7 +279,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDarkSecondary: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
 });
 

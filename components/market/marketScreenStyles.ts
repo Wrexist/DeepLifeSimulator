@@ -10,6 +10,7 @@
  */
 import { StyleSheet } from 'react-native';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { accent } from '@/lib/config/theme';
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
@@ -75,6 +76,12 @@ export const styles = StyleSheet.create({
   marketTabs: {
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.md,
+  },
+  // Embedded in the Life tab: the primary Health/Shop/Stats control sits right
+  // above, so tuck this secondary control up tight instead of adding a full gap.
+  marketTabsEmbedded: {
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: scale(2),
   },
   scrollView: {
     flex: 1,
@@ -178,6 +185,7 @@ export const styles = StyleSheet.create({
     gap: scale(12),
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: GLASS_BORDER,
+    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   itemCardDark: {
     backgroundColor: GLASS_BG,

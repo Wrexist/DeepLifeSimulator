@@ -1,19 +1,20 @@
 /**
  * Dating Profiles
- * 
+ *
  * Shared dating profiles that can be used across the app
  * for social media posts and other features
  */
+import { getPortrait } from '@/utils/facePool';
 
 /**
- * Get the appropriate Face image based on gender
- * @param gender - Profile's gender ('male' or 'female')
+ * Get a stable, unique Face image for a dating profile.
+ * Seeded by the profile id so each person keeps their own face, while people of
+ * the same age+gender still look different (was: 1 face per gender for everyone).
+ * @param profile - Profile (needs id, age, gender)
  * @returns Image source for the profile
  */
-export function getDatingProfileImage(gender: 'male' | 'female') {
- return gender === 'female'
- ? require('@/assets/images/Face/Female.png')
- : require('@/assets/images/Face/Male.png');
+export function getDatingProfileImage(profile: Pick<DatingProfile, 'id' | 'age' | 'gender'>) {
+ return getPortrait(profile.id, profile.age, profile.gender);
 }
 
 export interface DatingProfile {

@@ -56,7 +56,11 @@ export function calculateGovernmentContractBonus(
     5: 0.75, // President - 75% bonus
   };
 
-  const multiplier = contractMultipliers[politics.careerLevel] || 0;
+  // careerLevel is the 1-based office rank (1=Council … 6=President); this table
+  // is a 0-based office index, so shift down by one. Without the -1, every office
+  // earned the next tier up and the President (rank 6) read off the end of the
+  // table and earned $0 in contract bonuses.
+  const multiplier = contractMultipliers[politics.careerLevel - 1] || 0;
   const bonus = Math.round(baseIncome * multiplier);
 
   // Approval rating affects contract value (higher approval = better contracts)
@@ -93,8 +97,8 @@ export function areGovernmentContractsAvailable(gameState: GameState): boolean {
     return false;
   }
 
-  // Contracts available at Mayor level (level 1) and above
-  return politics.careerLevel >= 1 && politics.approvalRating >= 60;
+  // Contracts pay from Mayor (1-based rank 2) upward; Council (rank 1) earns none.
+  return politics.careerLevel >= 2 && politics.approvalRating >= 60;
 }
 
 /**
@@ -103,8 +107,9 @@ export function areGovernmentContractsAvailable(gameState: GameState): boolean {
  * @returns Contract type
  */
 export function getContractType(careerLevel: number): 'local' | 'state' | 'federal' {
-  if (careerLevel >= 4) return 'federal'; // Senator and President
-  if (careerLevel >= 2) return 'state'; // State Representative and Governor
-  return 'local'; // Mayor
+  // careerLevel is the 1-based office rank (1=Council … 6=President).
+  if (careerLevel >= 5) return 'federal'; // Senator, President
+  if (careerLevel >= 3) return 'state'; // State Representative, Governor
+  return 'local'; // Council, Mayor
 }
 

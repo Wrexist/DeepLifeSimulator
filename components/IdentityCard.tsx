@@ -463,7 +463,7 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getCharacterImage(date?.age ?? 0, sex);
+  const avatar = getCharacterImage(date?.age ?? 0, sex, name);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.
@@ -477,7 +477,7 @@ function IdentityCard() {
   return (
     <View style={styles.cardContainer}>
       <LinearGradient
-        colors={['#1F2937', '#111827']}
+        colors={['#1E293B', '#0F172A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.card}
@@ -602,7 +602,7 @@ function IdentityCard() {
       </LinearGradient>
 
       <LinearGradient
-        colors={['#1F2937', '#111827']}
+        colors={['#1E293B', '#0F172A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.list}
@@ -614,7 +614,7 @@ function IdentityCard() {
               {t('game.weeklyCashFlow')}: {formatMoney(cashFlow)}
             </Text>
           </View>
-          <ChevronRight size={20} color="#9CA3AF" />
+          <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowPerks(true)}>
           <View style={styles.listItemContent}>
@@ -623,7 +623,7 @@ function IdentityCard() {
               {perksCount} {t('game.perks')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#9CA3AF" />
+          <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowTraits(true)}>
           <View style={styles.listItemContent}>
@@ -632,7 +632,7 @@ function IdentityCard() {
               {traitsCount} {t('game.traits')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#9CA3AF" />
+          <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
         {gameState.mindset?.activeTraitId && (
           <TouchableOpacity style={styles.listItem} onPress={() => setShowMindset(true)}>
@@ -642,7 +642,7 @@ function IdentityCard() {
                 Mindset: {MINDSET_TRAITS.find(t => t.id === gameState.mindset?.activeTraitId)?.name || 'Unknown'}
               </Text>
             </View>
-            <ChevronRight size={20} color="#9CA3AF" />
+            <ChevronRight size={20} color="#94A3B8" />
           </TouchableOpacity>
         )}
         {(gameState.previousLives && gameState.previousLives.length > 0) && (
@@ -653,7 +653,7 @@ function IdentityCard() {
                 Legacy Timeline ({gameState.previousLives.length} generation{gameState.previousLives.length !== 1 ? 's' : ''})
               </Text>
             </View>
-            <ChevronRight size={20} color="#9CA3AF" />
+            <ChevronRight size={20} color="#94A3B8" />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.listItem} onPress={() => setShowModifiers(true)}>
@@ -663,7 +663,7 @@ function IdentityCard() {
               {t('game.weeklyModifiers')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#9CA3AF" />
+          <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
       </LinearGradient>
 
@@ -674,7 +674,7 @@ function IdentityCard() {
           marginTop: responsiveSpacing.sm,
           borderRadius: scale(16),
           padding: scale(14),
-          backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+          backgroundColor: isDarkMode ? '#1E293B' : '#FFFFFF',
           borderWidth: 1,
           borderColor: healthIssues.length > 0
             ? 'rgba(239,68,68,0.35)'
@@ -692,7 +692,7 @@ function IdentityCard() {
               marginLeft: scale(8),
               fontSize: fontScale(15),
               fontWeight: '700',
-              color: isDarkMode ? '#F9FAFB' : '#111827',
+              color: isDarkMode ? '#F9FAFB' : '#0F172A',
             }}
           >
             {`Health Issues${healthIssues.length > 0 ? ` (${healthIssues.length})` : ''}`}
@@ -700,7 +700,7 @@ function IdentityCard() {
         </View>
 
         {healthIssues.length === 0 ? (
-          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>
+          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#94A3B8' : '#6B7280' }}>
             You&apos;re in good shape — no health issues right now.
           </Text>
         ) : (
@@ -727,7 +727,7 @@ function IdentityCard() {
                     style={{
                       fontSize: fontScale(13.5),
                       fontWeight: '600',
-                      color: isDarkMode ? '#F3F4F6' : '#1F2937',
+                      color: isDarkMode ? '#F3F4F6' : '#1E293B',
                     }}
                   >
                     {issue.title}
@@ -735,7 +735,7 @@ function IdentityCard() {
                   <Text
                     style={{
                       fontSize: fontScale(12),
-                      color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                      color: isDarkMode ? '#94A3B8' : '#6B7280',
                       marginTop: scale(1),
                     }}
                   >
@@ -812,7 +812,7 @@ function IdentityCard() {
           </Text>
           {passiveInfo.breakdown.stocks > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <TrendingUp size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <TrendingUp size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
               </Text>
@@ -820,7 +820,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Home size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Home size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
               </Text>
@@ -828,7 +828,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.companies > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Building2 size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Building2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Companies: {formatMoney(passiveInfo.breakdown.companies)}
               </Text>
@@ -843,7 +843,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Smartphone size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Smartphone size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
               </Text>
@@ -851,7 +851,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.patents > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <FlaskConical size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <FlaskConical size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Patents: {formatMoney(passiveInfo.breakdown.patents)}
               </Text>
@@ -859,7 +859,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.businessOpportunities > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Sparkles size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
               </Text>
@@ -867,7 +867,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.political > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Landmark size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Landmark size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Political: {formatMoney(passiveInfo.breakdown.political)}
               </Text>
@@ -875,7 +875,7 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Gamepad2 size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+              <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
               </Text>
