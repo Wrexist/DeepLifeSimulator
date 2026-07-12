@@ -1,37 +1,48 @@
 /**
- * AdRewardOrb — a small "watch ad → cash" reward that drifts in from the LEFT
- * edge of the screen at random during play. Tapping it opens the same clean
- * rewarded-ad sheet the Pulse app uses; watching the ad grants a cash reward
- * scaled to the player's wealth (net worth / cash / bank) so it feels rewarding
- * without being game-breaking.
+ * AdRewardOrb — a small "watch ad → reward" orb that drifts in from the LEFT
+ * edge of the screen at random during play. Each appearance randomly offers one
+ * of two rewards:
+ *
+ *   • cash     — a cash bonus scaled to the player's wealth (net worth / cash),
+ *                floored/capped so it's meaningful early and never game-breaking.
+ *   • vitality — a full refill of Health, Happiness and Energy (+100 each).
+ *
+ * Tapping the orb opens a clean rewarded-ad sheet; watching the ad grants the
+ * reward. When the player owns the Remove Ads IAP (or DeepLife+), the orb never
+ * appears at all — see `areAdsRemoved`.
  *
  * Self-contained: owns its own appear/hide scheduling, animations, reward math,
  * and the ad sheet. Mount once (e.g. on the home screen).
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Play, Gift, DollarSign } from 'lucide-react-native';
+import { X, Play, Gift, DollarSign, Heart, Smile, Zap, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats } from '@/contexts/game/actions/StatsActions';
+import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
-import { logger } from '@/utils/logger';
 import type { GameState } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
 const MONEY_GRADIENT = ['#34D399', '#059669'] as const;
+const VITALITY_GRADIENT = ['#FB7185', '#E11D48'] as const;
+
+// Reward kinds offered by the orb, one picked at random per appearance.
+type RewardKind = 'cash' | 'vitality';
+const VITALITY_BOOST = 100; // +100 Health / Happiness / Energy (caps them at 100)
 
 // ── Tuning ──────────────────────────────────────────────────────────────────
-// Reward = a small % of net worth, floored/capped so it's meaningful early and
-// never game-breaking late.
+// Cash reward = a small % of net worth, floored/capped so it's meaningful early
+// and never game-breaking late.
 const REWARD_PCT = 0.015;
 const REWARD_MIN = 50;
 const REWARD_MAX = 15000;
@@ -43,6 +54,17 @@ const VISIBLE_MS = 22000; // orb auto-hides if ignored
 function rand([lo, hi]: [number, number]) {
   return lo + Math.random() * (hi - lo);
 }
+
+function pickKind(): RewardKind {
+  return Math.random() < 0.5 ? 'cash' : 'vitality';
+}
+
+// The three stats a vitality reward refills, with their icon + accent.
+const VITALITY_ROWS = [
+  { key: 'health', label: 'Health', icon: Heart, color: '#FB7185' },
+  { key: 'happiness', label: 'Happiness', icon: Smile, color: '#FBBF24' },
+  { key: 'energy', label: 'Energy', icon: Zap, color: '#38BDF8' },
+] as const;
 
 function computeReward(state: GameState): number {
   let base = 0;
@@ -65,8 +87,12 @@ export default function AdRewardOrb() {
   const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad'>('hidden');
-  const [reward, setReward] = useState(0);
+  const [kind, setKind] = useState<RewardKind>('cash');
+  const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
+
+  // Hard off-switch: a player who paid to remove ads never sees the orb.
+  const adsRemoved = areAdsRemoved(gameState);
 
   const slideX = useRef(new Animated.Value(-160)).current;
   const pulse = useRef(new Animated.Value(1)).current;
@@ -101,21 +127,35 @@ export default function AdRewardOrb() {
   }, [slideX]);
 
   // Schedule the next appearance. Stable identity — reads fresh wealth via gsRef.
+  // Picks a fresh reward kind each time so cash and vitality alternate randomly.
   const scheduleNext = useCallback((delay: number) => {
     clearTimers();
     addTimer(() => {
-      setReward(computeReward(gsRef.current));
+      const nextKind = pickKind();
+      setKind(nextKind);
+      setReward(nextKind === 'cash' ? computeReward(gsRef.current) : 0);
       setGranted(false);
       setPhase('orb');
     }, delay);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // First appearance after mount.
+  // First appearance after mount — but never once the player has removed ads.
   useEffect(() => {
+    if (adsRemoved) { clearTimers(); return; }
     scheduleNext(rand(FIRST_DELAY));
     return clearTimers;
-  }, [scheduleNext]);
+  }, [scheduleNext, adsRemoved]);
+
+  // If the Remove Ads entitlement lands mid-session, retract immediately.
+  useEffect(() => {
+    if (!adsRemoved) return;
+    clearTimers();
+    pulseLoop.current?.stop();
+    if (phase !== 'hidden') {
+      setPhase('hidden');
+      slideX.setValue(-160);
+    }
+  }, [adsRemoved, phase, slideX]);
 
   // When the orb becomes visible, animate it in + start the auto-hide timer.
   useEffect(() => {
@@ -160,7 +200,6 @@ export default function AdRewardOrb() {
     pulseLoop.current?.stop();
     haptic.medium();
     setPhase('ad');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocked]);
 
   const dismissOrb = useCallback(() => {
@@ -178,32 +217,29 @@ export default function AdRewardOrb() {
   }, [saveGame, scheduleNext, slideX]);
 
   const grant = useCallback(() => {
-    updateMoney(setGameState, reward, 'Rewarded ad bonus');
+    if (kind === 'cash') {
+      updateMoney(setGameState, reward, 'Rewarded ad bonus');
+    } else {
+      // +100 to each caps Health/Happiness/Energy at 100 — a full vitality refill.
+      updateStats(setGameState, {
+        health: VITALITY_BOOST,
+        happiness: VITALITY_BOOST,
+        energy: VITALITY_BOOST,
+      });
+    }
     setGranted(true);
     haptic.success();
-  }, [reward, setGameState]);
+  }, [kind, reward, setGameState]);
 
   const handleWatch = useCallback(async () => {
-    const adsOn = isFeatureEnabled('adMob') && Platform.OS !== 'web';
-    if (adsOn) {
-      try {
-        const { adMobService } = await import('@/services/AdMobService');
-        const shown = await adMobService.showRewardedAd(grant);
-        if (shown) {
-          finishAfterClaim();
-        } else {
-          haptic.error();
-        }
-      } catch (err) {
-        logger.warn('[AdRewardOrb] rewarded ad failed', { error: err instanceof Error ? err.message : String(err) });
-        haptic.error();
-      }
-      return;
+    const outcome = await runRewardedAd(grant, { adsRemoved });
+    if (isGranted(outcome)) {
+      finishAfterClaim();
+    } else {
+      // no-fill / error — reward NOT granted.
+      haptic.error();
     }
-    // Ads disabled (dev / no-ads build) — grant directly.
-    grant();
-    finishAfterClaim();
-  }, [grant, finishAfterClaim]);
+  }, [grant, finishAfterClaim, adsRemoved]);
 
   const dismissAd = useCallback(() => {
     setPhase('hidden');
@@ -211,7 +247,25 @@ export default function AdRewardOrb() {
     scheduleNext(rand(REPEAT_DELAY));
   }, [scheduleNext, slideX]);
 
-  if (phase === 'hidden') return null;
+  if (adsRemoved || phase === 'hidden') return null;
+
+  // ── Per-kind presentation ──────────────────────────────────────────────────
+  const isCash = kind === 'cash';
+  const gradient = (isCash ? MONEY_GRADIENT : VITALITY_GRADIENT) as unknown as string[];
+  const OrbIcon = isCash ? Gift : Sparkles;
+  const orbAmount = isCash ? `+${formatMoney(reward)}` : 'Full refill';
+  const orbA11y = isCash
+    ? `Watch an ad to earn ${formatMoney(reward)}`
+    : 'Watch an ad to refill health, happiness and energy';
+  const sheetTitle = granted ? 'Reward added!' : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
+  const sheetSubtitle = granted
+    ? isCash
+      ? `${formatMoney(reward)} was added to your wallet.`
+      : 'Health, Happiness and Energy topped up to full.'
+    : isCash
+      ? 'Watch a short video ad to collect a cash bonus.'
+      : 'Watch a short video ad to refill Health, Happiness and Energy.';
+  const GrantedIcon = isCash ? DollarSign : Sparkles;
 
   return (
     <>
@@ -225,14 +279,14 @@ export default function AdRewardOrb() {
             <Pressable
               onPress={openAd}
               accessibilityRole="button"
-              accessibilityLabel={`Watch an ad to earn ${formatMoney(reward)}`}
-              style={styles.orb}
+              accessibilityLabel={orbA11y}
+              style={[styles.orb, isCash ? styles.orbCash : styles.orbVitality]}
             >
-              <LinearGradient colors={MONEY_GRADIENT as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
-                <Gift size={scale(20)} color="#FFFFFF" strokeWidth={2.3} />
+              <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
+                <OrbIcon size={scale(20)} color="#FFFFFF" strokeWidth={2.3} />
               </LinearGradient>
               <View style={styles.orbLabel}>
-                <Text style={styles.orbAmount} numberOfLines={1}>+{formatMoney(reward)}</Text>
+                <Text style={styles.orbAmount} numberOfLines={1}>{orbAmount}</Text>
                 <Text style={styles.orbSub} numberOfLines={1}>Watch ad</Text>
               </View>
               <Pressable onPress={dismissOrb} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.orbClose}>
@@ -243,7 +297,7 @@ export default function AdRewardOrb() {
         </Animated.View>
       ) : null}
 
-      {/* ── The rewarded-ad sheet (money variant of the Pulse flow) ── */}
+      {/* ── The rewarded-ad sheet (cash / vitality variants) ── */}
       <Modal visible={phase === 'ad'} transparent animationType="slide" onRequestClose={dismissAd}>
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: responsiveSpacing.xl + insets.bottom }]}>
@@ -253,39 +307,52 @@ export default function AdRewardOrb() {
               </Pressable>
             </View>
 
-            <LinearGradient colors={MONEY_GRADIENT as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBadge}>
-              {granted ? <DollarSign size={scale(34)} color="#FFFFFF" strokeWidth={2.6} /> : <Play size={scale(34)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />}
+            <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBadge}>
+              {granted ? <GrantedIcon size={scale(34)} color="#FFFFFF" strokeWidth={2.6} /> : <Play size={scale(34)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />}
             </LinearGradient>
 
-            <Text style={[styles.title, { color: theme.text }]}>
-              {granted ? 'Reward added!' : 'Watch ad → cash'}
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {granted
-                ? `${formatMoney(reward)} was added to your wallet.`
-                : 'Watch a short video ad to collect a cash bonus.'}
-            </Text>
+            <Text style={[styles.title, { color: theme.text }]}>{sheetTitle}</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{sheetSubtitle}</Text>
 
             <View style={[styles.rewardCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-              <View style={styles.rewardRow}>
-                <DollarSign size={fontScale(20)} color={MONEY_GRADIENT[0]} />
-                <Text style={[styles.rewardValue, { color: theme.text }]}>+{formatMoney(reward)}</Text>
-                <Text style={[styles.rewardLabel, { color: theme.textSecondary }]}>cash</Text>
-              </View>
-              <Text style={[styles.note, { color: theme.textSecondary }]}>
-                Scaled to your wealth · appears now and then.
-              </Text>
+              {isCash ? (
+                <>
+                  <View style={styles.rewardRow}>
+                    <DollarSign size={fontScale(20)} color={MONEY_GRADIENT[0]} />
+                    <Text style={[styles.rewardValue, { color: theme.text }]}>+{formatMoney(reward)}</Text>
+                    <Text style={[styles.rewardLabel, { color: theme.textSecondary }]}>cash</Text>
+                  </View>
+                  <Text style={[styles.note, { color: theme.textSecondary }]}>
+                    Scaled to your wealth · appears now and then.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={styles.vitalityRows}>
+                    {VITALITY_ROWS.map(({ key, label, icon: RowIcon, color }) => (
+                      <View key={key} style={styles.vitalityRow}>
+                        <RowIcon size={fontScale(18)} color={color} />
+                        <Text style={[styles.vitalityLabel, { color: theme.text }]}>{label}</Text>
+                        <Text style={[styles.vitalityValue, { color: theme.text }]}>+{VITALITY_BOOST}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={[styles.note, { color: theme.textSecondary }]}>
+                    Tops each stat up to full · appears now and then.
+                  </Text>
+                </>
+              )}
             </View>
 
             {!granted ? (
               <Pressable onPress={handleWatch} accessibilityRole="button" accessibilityLabel="Watch ad" style={styles.cta}>
-                <LinearGradient colors={MONEY_GRADIENT as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
+                <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
                   <Text style={styles.ctaText}>Watch ad ▶</Text>
                 </LinearGradient>
               </Pressable>
             ) : (
               <Pressable onPress={dismissAd} accessibilityRole="button" accessibilityLabel="Done" style={styles.cta}>
-                <LinearGradient colors={MONEY_GRADIENT as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
+                <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
                   <Text style={styles.ctaText}>Nice!</Text>
                 </LinearGradient>
               </Pressable>
@@ -311,11 +378,17 @@ const styles = StyleSheet.create({
     paddingLeft: scale(4),
     paddingVertical: scale(4),
     borderRadius: scale(26),
-    backgroundColor: 'rgba(6, 78, 59, 0.92)',
     borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.5)',
     ...getPlatformShadows(8, 0.4, 6, 14),
     elevation: 8,
+  },
+  orbCash: {
+    backgroundColor: 'rgba(6, 78, 59, 0.92)',
+    borderColor: 'rgba(52, 211, 153, 0.5)',
+  },
+  orbVitality: {
+    backgroundColor: 'rgba(76, 5, 25, 0.92)',
+    borderColor: 'rgba(251, 113, 133, 0.5)',
   },
   orbCircle: {
     width: scale(40),
@@ -411,6 +484,25 @@ const styles = StyleSheet.create({
   },
   rewardLabel: {
     fontSize: fontScale(13),
+  },
+  vitalityRows: {
+    alignSelf: 'stretch',
+    gap: responsiveSpacing.xs,
+  },
+  vitalityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+  },
+  vitalityLabel: {
+    flex: 1,
+    fontSize: fontScale(15),
+    fontWeight: '600',
+  },
+  vitalityValue: {
+    fontSize: fontScale(17),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   note: {
     fontSize: fontScale(11),

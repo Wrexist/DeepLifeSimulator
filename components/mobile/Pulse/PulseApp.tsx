@@ -14,6 +14,7 @@ import { ArrowLeft, BarChart3, Bell, Briefcase, Flame, Home, Mail, Radio } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
+import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -56,6 +57,8 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  // Remove Ads / DeepLife+ hides every "watch ad" affordance in Pulse.
+  const adsRemoved = areAdsRemoved(gameState);
   // When the app runs full-screen the game tab bar is hidden, so only the home
   // indicator needs clearing at the bottom — not the (now absent) tab bar.
   const fullscreenApp = useFullscreenApp();
@@ -287,7 +290,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
             onOpenBrandDeals={openBrandDeals}
             onOpenPostDetail={openPostDetail}
             onOpenScandalRecovery={() => setShowScandalRecovery(true)}
-            onWatchAd={() => setShowRewardedAd(true)}
+            onWatchAd={adsRemoved ? undefined : () => setShowRewardedAd(true)}
           />
         )}
         {activeTab === 'dms' && <MessagesScreen onBack={() => setActiveTab('home')} />}
