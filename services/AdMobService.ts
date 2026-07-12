@@ -98,11 +98,20 @@ function recordSuccess() {
 }
 
 // ---------------------------------------------------------------------------
-// Ad unit IDs — loaded from env vars. The Google TEST IDs are a DEVELOPMENT
-// fallback only. In a production build an unset env var resolves to '' (no ad),
-// never a Google test ID: serving test ads in production is a policy violation
-// (store rejection) and earns $0. Real IDs MUST come from the EXPO_PUBLIC_ADMOB_*
-// EAS secrets — scripts/preflight-check.js hard-checks them before a build.
+// Ad unit IDs — resolved with a three-tier priority (see resolveAdUnitId):
+//   1. The EXPO_PUBLIC_ADMOB_* env var / EAS secret, if set (always wins).
+//   2. In DEV builds only, the Google TEST id (so dev/test builds show ads).
+//   3. In a PRODUCTION build, the committed real production default for that
+//      slot — or '' (no ad) if none exists.
+// A production build NEVER falls back to a Google TEST id: serving test ads in
+// production is a policy violation (store rejection) and earns $0.
+//
+// Ad unit IDs are PUBLIC identifiers (they ship inside the app binary and are
+// trivially extractable), not secrets, so the real iOS units are committed
+// below as production defaults. This guarantees a release iOS build serves real
+// ads even if the EXPO_PUBLIC_ADMOB_* secrets are never configured, while still
+// letting a secret override per build. scripts/preflight-check.js validates
+// any configured values and warns on unconfigured slots.
 // ---------------------------------------------------------------------------
 const TEST_BANNER_IOS = 'ca-app-pub-3940256099942544/2934735716';
 const TEST_BANNER_ANDROID = 'ca-app-pub-3940256099942544/6300978111';
@@ -111,33 +120,50 @@ const TEST_INTERSTITIAL_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_IOS = 'ca-app-pub-3940256099942544/1712485313';
 const TEST_REWARDED_ANDROID = 'ca-app-pub-3940256099942544/5224354917';
 
+// Real production ad unit IDs for the iOS AdMob app (pub-2286247955186424).
+// Committed as defaults so a release build monetizes without depending on
+// secrets being wired. Env vars still take precedence.
+const PROD_BANNER_IOS = 'ca-app-pub-2286247955186424/8520540300'; // "Banner"
+const PROD_REWARDED_IOS = 'ca-app-pub-2286247955186424/7390605700'; // "Awarded" (Rewarded)
+// The AdMob "Ad-win" unit (…/2329850711) is a *rewarded interstitial* — a
+// distinct format that cannot be served through the standard InterstitialAd
+// class this app uses (lib/ads/interstitial.ts). The standard interstitial slot
+// is left unconfigured (safe no-op) until a real standard Interstitial unit
+// exists; set EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS to enable it.
+const PROD_INTERSTITIAL_IOS = '';
+
 /**
- * Resolve an ad unit ID: prefer the configured env value; fall back to the
- * Google TEST id ONLY in development. In a production build an unset/empty value
- * resolves to '' (no ad) — never a Google test ad (policy violation + $0 revenue).
- * Exported for testing.
+ * Resolve an ad unit ID with three-tier priority:
+ *   1. `envValue` (trimmed) if non-empty — the configured env var / EAS secret.
+ *   2. `devFallbackTestId` when `isDev` — Google TEST id, DEV builds only.
+ *   3. `prodFallbackId` otherwise — the committed real production default
+ *      (or '' for slots without one).
+ * A production build never returns a Google TEST id. Exported for testing.
  */
 export function resolveAdUnitId(
   envValue: string | undefined,
   devFallbackTestId: string,
   isDev: boolean,
+  prodFallbackId = '',
 ): string {
-  // Trim so a whitespace-only env value fails closed (no ad) instead of an invalid request.
+  // Trim so a whitespace-only env value falls through to the fallback instead of
+  // issuing an invalid ad request.
   const normalized = typeof envValue === 'string' ? envValue.trim() : '';
-  return normalized || (isDev ? devFallbackTestId : '');
+  if (normalized) return normalized;
+  return isDev ? devFallbackTestId : prodFallbackId;
 }
 
 const AD_UNITS = {
   BANNER: Platform.select({
-    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS, TEST_BANNER_IOS, __DEV__),
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS, TEST_BANNER_IOS, __DEV__, PROD_BANNER_IOS),
     android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID, TEST_BANNER_ANDROID, __DEV__),
   }) || '',
   INTERSTITIAL: Platform.select({
-    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS, TEST_INTERSTITIAL_IOS, __DEV__),
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS, TEST_INTERSTITIAL_IOS, __DEV__, PROD_INTERSTITIAL_IOS),
     android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID, TEST_INTERSTITIAL_ANDROID, __DEV__),
   }) || '',
   REWARDED: Platform.select({
-    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS, TEST_REWARDED_IOS, __DEV__),
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS, TEST_REWARDED_IOS, __DEV__, PROD_REWARDED_IOS),
     android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID, TEST_REWARDED_ANDROID, __DEV__),
   }) || '',
 };
