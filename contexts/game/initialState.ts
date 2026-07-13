@@ -775,6 +775,8 @@ export const initialGameState: GameState = {
       owned: false,
     },
   ],
+  // Luxury & Collectibles — owned catalog ids (see lib/luxury). Additive/optional.
+  luxuryItems: [],
   darkWebItems: [
     {
       id: 'usb',

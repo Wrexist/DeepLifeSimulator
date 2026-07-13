@@ -2002,6 +2002,14 @@ export interface GameState {
   careers: Career[];
   hobbies: Hobby[]; // DEPRECATED: Hobbies removed from game
   items: Item[];
+  /**
+   * Owned Luxury & Collectibles — a list of `LUXURY_CATALOG` ids (see
+   * `lib/luxury`). Optional/additive: absent on pre-luxury saves and treated as
+   * "none owned" by every consumer (no migration / no save-version bump). Each
+   * owned id contributes weekly upkeep (deducted from stats.money), a small
+   * happiness + prestige benefit, and a resale fraction toward net worth.
+   */
+  luxuryItems?: string[];
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];

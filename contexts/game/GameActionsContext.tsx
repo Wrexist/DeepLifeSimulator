@@ -94,6 +94,8 @@ import {
   PET_WEEKLY_FOOD_COST,
 } from './actions/weekly/applyPets';
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
+import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
@@ -1148,6 +1150,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  applyPetDeathSideEffects(prevState.pets, updatedPets, weeklyCtx);
  let updatedVehicles = applyVehiclesForWeek(prevState.vehicles, weeklyCtx);
+ // Luxury & Collectibles weekly tick — upkeep (mirror-safe cash deduction from
+ // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
+ // money overwrite, before the stat clamp and before pulseRep reads reputation)
+ // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
+ const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
+ // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
+ // screen but never completed in normal play). Luxury ownership only changes via
+ // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
+ // on the flip to complete — otherwise reuse the same reference (no churn).
+ const updatedAchievements =
+ (isLuxuryLifeComplete(prevState.luxuryItems) &&
+ (prevState.achievements || []).some((a) => a.id === 'luxury_life' && !a.completed))
+ ? (prevState.achievements || []).map((a) =>
+ a.id === 'luxury_life' ? { ...a, completed: true } : a)
+ : prevState.achievements;
  applyPetLivingSideEffects(updatedPets, weeklyCtx);
  // Downstream week-result block at line ~2075 reports `petFoodCost` as part
  // of `totalExpenses`. The helper applies the cost atomically (clamped to
@@ -1277,7 +1294,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Build week result for the result sheet
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep;
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep + luxuryUpkeep;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
@@ -1402,6 +1419,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'taxes', amount: incomeTax },
  { category: 'debt', amount: totalLoanAutoPaid },
  { category: 'lifestyle', amount: petFoodCost },
+ // Luxury upkeep: same owned-item sum applyLuxuryItemsForWeek deducted above.
+ { category: 'lifestyle', amount: luxuryUpkeep },
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
@@ -1636,6 +1655,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  const nextState: GameState = {
 ...prevState,
+ // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
+ // just flipped to complete — see updatedAchievements above).
+ achievements: updatedAchievements,
  careers: updatedCareers,
  currentJob: newCurrentJob,
  educations: updatedEducations,

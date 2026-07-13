@@ -1,6 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { isLuxuryLifeComplete } from '@/lib/luxury';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.png');
 const familyIcon = require('@/assets/images/Achivements/Generational Wealth.png');
@@ -578,6 +579,14 @@ export const achievements: Achievement[] = [
     },
     goldReward: 250,
     group: 'real_estate',
+  },
+  {
+    id: 'luxury_life',
+    title: 'Luxury Life',
+    description: 'Build a luxury collection — own 3 collectibles or $25M in trophies.',
+    progressSpec: { kind: 'boolean', met: gs => isLuxuryLifeComplete(gs.luxuryItems) },
+    goldReward: 200,
+    group: 'luxury',
   },
   {
     id: 'savings_million',
