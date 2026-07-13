@@ -53,9 +53,11 @@ export function applyChoiceConsequences(
       },
     ];
     
-    return { 
-      newConsequences: currentConsequences, 
-      updatedState: { choiceHistory: newChoiceHistory },
+    return {
+      newConsequences: currentConsequences,
+      // choiceHistory is a pure log; keep only the most recent entries so it
+      // can't grow into the thousands over a long life (serialized every save).
+      updatedState: { choiceHistory: newChoiceHistory.slice(-200) },
     };
   }
   
@@ -101,11 +103,22 @@ export function applyChoiceConsequences(
     },
   ];
   
+  // Cap unbounded growth. choiceHistory is a pure log (keep the most recent).
+  // consequences keep every still-active entry plus the most recent spent ones —
+  // over an 18→80 life (~3000+ weeks) both otherwise grew into the thousands and
+  // were mapped every tick + serialized into every save.
+  const mergedConsequences = [...currentConsequences, ...newConsequences];
+  const activeConsequences = mergedConsequences.filter(c => c.active);
+  const inactiveConsequences = mergedConsequences.filter(c => !c.active);
+  const cappedConsequences = [
+    ...activeConsequences,
+    ...inactiveConsequences.slice(-Math.max(0, 100 - activeConsequences.length)),
+  ];
   return {
-    newConsequences: [...currentConsequences, ...newConsequences],
+    newConsequences: cappedConsequences,
     updatedState: {
       ...updatedState,
-      choiceHistory: newChoiceHistory,
+      choiceHistory: newChoiceHistory.slice(-200),
     },
   };
 }

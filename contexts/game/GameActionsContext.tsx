@@ -2161,9 +2161,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Apply relationship change
  let updatedRelationships = prevState.relationships || [];
- if (effects.relationship!== undefined && event.relationId) {
+ // Prefer the event's bound relationId. Several event templates
+ // (personalCrises/enhancedEvents/cliffhangerEvents/seasonalEvents) specify a
+ // relationship delta but never set relationId, which silently dropped the
+ // effect after the player had already paid the choice's money/stat cost. Fall
+ // back to the most relevant relationship: the spouse/partner if any, else the
+ // highest-scored relationship.
+ if (effects.relationship!== undefined) {
+ let targetRelId = event.relationId;
+ if (!targetRelId && updatedRelationships.length > 0) {
+ const romantic = updatedRelationships.find(r => r.type === 'spouse' || r.type === 'partner');
+ const fallback = romantic
+ ?? [...updatedRelationships].sort((a, b) => (b.relationshipScore ?? 50) - (a.relationshipScore ?? 50))[0];
+ targetRelId = fallback?.id;
+ }
+ if (targetRelId) {
  updatedRelationships = updatedRelationships.map(rel => {
- if (rel.id === event.relationId) {
+ if (rel.id === targetRelId) {
  const updated = {
 ...rel,
  relationshipScore: Math.max(0, Math.min(100, (rel.relationshipScore ?? 50) + effects.relationship!)),
@@ -2181,6 +2195,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  return rel;
  });
+ }
  }
 
  // Apply pet changes

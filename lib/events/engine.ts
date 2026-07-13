@@ -3369,9 +3369,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
   const economyRisk = state.stats.money < 200 ? 0.4 : 0.15;
   const healthRisk = state.stats.health < 60 ? 0.4 : 0.15;
+  const relations = state.relationships ?? [];
   const avgRelation =
-    state.relationships.length > 0
-      ? state.relationships.reduce((sum, r) => sum + r.relationshipScore, 0) / state.relationships.length
+    relations.length > 0
+      ? relations.reduce((sum, r) => sum + (r.relationshipScore ?? 50), 0) / relations.length
       : 50;
   const relationRisk = avgRelation < 50 ? 0.35 : 0.15;
 
