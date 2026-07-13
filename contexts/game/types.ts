@@ -2508,6 +2508,26 @@ export interface GameState {
   timeMachineUsesThisLife?: number;
 }
 
+export interface DMMessage {
+  id: string;
+  senderId: string;
+  content: string;
+  timestamp: number;
+  isPlayer: boolean;
+  hasClue: boolean;
+  clueRevealed: boolean;
+  clueType?: 'location' | 'money' | 'career' | 'relationship' | 'item' | 'secret' | 'quest';
+  clueData?: {
+    hint: string;
+    reward?: string;
+    action?: string;
+    destination?: string;
+    requirement?: string;
+    completed?: boolean;
+  };
+  reactions?: string[];
+}
+
 export interface DMConversation {
   id: string;
   senderName: string;
@@ -2528,6 +2548,12 @@ export interface DMConversation {
     requirement?: string;
     completed?: boolean;
   };
+  /**
+   * Persisted message thread for this conversation. Optional & additive so
+   * pre-existing saves (which never stored it) migrate cleanly — DMSystem
+   * seeds the generated intro template the first time the thread is opened.
+   */
+  messages?: DMMessage[];
 }
 
 export interface BusinessOpportunity {
