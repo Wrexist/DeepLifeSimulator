@@ -263,7 +263,7 @@ export function processOpenOrders(
   const remaining: CryptoOrder[] = [];
   let cashLeft = typeof cashAvailable === 'number' && isFinite(cashAvailable) ? cashAvailable : Infinity;
 
-  for (const order of market.openOrders) {
+  for (const order of market.openOrders || []) {
     const coin = cryptos.find((c) => c.id === order.cryptoId);
     if (!coin) {
       remaining.push(order);

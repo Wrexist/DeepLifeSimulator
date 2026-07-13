@@ -1339,6 +1339,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // One seeded roll source for all subsystem ticks this week. Namespaced keys
  // (crypto.* / darkweb.* / politics.* / stock.*) keep the draws independent.
  const weeklyRoll = makeWeeklyRoll(nextWeeksLived);
+ // Crypto tick wrapped like the other subsystem ticks (banking/stocks/politics):
+ // an unguarded throw here aborts the whole nextWeek updater and soft-locks
+ // "Next Week". The tick self-guards missing top-level slices, but a
+ // present-but-null sub-field (e.g. a CloudSync-merged or hand-edited save with
+ // `cryptoMarket.openOrders: null` / `coinMarkets: null`) can still throw. On
+ // failure, carry the prior crypto/banking state forward so progression completes.
+ let finalCryptos = updatedCryptos;
+ let finalCryptoMarket = prevState.cryptoMarket ?? initialGameState.cryptoMarket!;
+ let bankingAfterCrypto = prevState.banking ?? initialGameState.banking!;
+ try {
  const cryptoTick = runCryptoWeeklyTick({
  market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
  cryptos: updatedCryptos,
@@ -1353,14 +1363,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // makes outcomes reproducible from the save (no save-scum drift).
  rollFor: weeklyRoll,
  });
- const finalCryptos = cryptoTick.cryptos;
- const finalCryptoMarket = cryptoTick.market;
- const bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
+ finalCryptos = cryptoTick.cryptos;
+ finalCryptoMarket = cryptoTick.market;
+ bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
  newStats.money = Math.max(0, newStats.money + cryptoTick.cashDelta);
  }
  for (const note of cryptoTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
+ }
+ } catch (cryptoErr) {
+ logger.error('[CRYPTO TICK] failed:', cryptoErr);
  }
 
  // Banking system tick (STATE_VERSION 14, AdvancedBankApp remake).
@@ -1481,13 +1494,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Decays heat, refreshes marketplace listings, settles laundering, expires
  // overdue jobs, and rolls police events at high heat. Police outcomes are
  // folded into jailWeeks and cash/dirty-BTC deltas below.
- const darkWebTick = runDarkWebWeeklyTick({
+ // Wrapped in try/catch like the sibling subsystem ticks: the tick only
+ // normalizes some of its sub-arrays, so a present-but-null slice
+ // (`darkWeb.vendors`/`skills`/`laundering` from a CloudSync-merged or
+ // hand-edited save) could throw and abort the whole week. On failure, carry
+ // the prior darkWeb slice forward with zeroed deltas so progression completes.
+ let darkWebTick: ReturnType<typeof runDarkWebWeeklyTick> = {
+ darkWeb: prevState.darkWeb ?? initialGameState.darkWeb!,
+ jailWeeksAdded: 0,
+ dirtyBtcSeized: 0,
+ relationshipDeltas: [],
+ notifications: [],
+ };
+ try {
+ darkWebTick = runDarkWebWeeklyTick({
  darkWeb: prevState.darkWeb ?? initialGameState.darkWeb!,
  currentWeek: nextWeeksLived,
  relationships: processedRelationships,
  rollFor: weeklyRoll,
  inJail: (prevState.jailWeeks ?? 0) > 0,
  });
+ } catch (dwErr) {
+ logger.error('[DARKWEB TICK] failed:', dwErr);
+ }
 
  tickProfiler.mark('crypto_banking_darkweb');
 

@@ -50,13 +50,20 @@ export interface DarkWebWeeklyTickResult {
 }
 
 export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeeklyTickResult {
-  // Normalize optional array slices up front: a partially-migrated save can carry
-  // `darkWeb` without `activeJobs`/`recentEvents`, and an unguarded read
-  // (.length / spread) throws inside the weekly-tick updater, silently bricking
-  // "Next Week". Spread into a fresh object so we never mutate the input.
+  // Normalize optional slices up front: a partially-migrated / CloudSync-merged /
+  // hand-edited save can carry `darkWeb` with a present-but-null slice, and an
+  // unguarded read downstream (`for (const v of dw.vendors)` in refreshMarketplace,
+  // `dw.skills[id]` in getSkill, `for (const tx of dw.laundering)` in
+  // settleLaunderingTransactions, `.length`/spread) throws inside the weekly-tick
+  // updater, silently bricking "Next Week". Normalize EVERY iterated slice, not
+  // just activeJobs/recentEvents. Spread into a fresh object so we never mutate input.
   let dw: DarkWebState = {
     ...input.darkWeb,
+    vendors: input.darkWeb.vendors || [],
+    listings: input.darkWeb.listings || [],
     activeJobs: input.darkWeb.activeJobs || [],
+    laundering: input.darkWeb.laundering || [],
+    skills: input.darkWeb.skills || ({} as DarkWebState['skills']),
     recentEvents: input.darkWeb.recentEvents || [],
   };
   const notifications: DarkWebWeeklyTickResult['notifications'] = [];

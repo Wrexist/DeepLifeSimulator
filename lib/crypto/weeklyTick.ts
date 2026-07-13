@@ -168,7 +168,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       lastHalvingWeek: input.currentWeek,
       halvingCount: newHalvingCount,
     };
-    const btcMarket = market.coinMarkets.btc;
+    const btcMarket = market.coinMarkets?.btc;
     if (btcMarket) {
       market = {
         ...market,
