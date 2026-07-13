@@ -473,11 +473,19 @@ export const enactPolicy = (
     return { success: false, message: 'This policy is already enacted' };
   }
 
-  // Check implementation cost
-  if (gameState.stats.money < policy.implementationCost) {
+  // Policy Influence finally does something: it discounts the implementation
+  // cost (up to 25% off, reached at influence >= 25). Before this it was a pure
+  // vanity stat — accumulated by enact/lobby/hireLobbyist but never spent or
+  // checked by any politics mechanic.
+  const influenceCost = (influence: number | undefined): number =>
+    Math.max(0, Math.round((policy.implementationCost || 0) * (1 - Math.min(0.25, Math.max(0, influence || 0) / 100))));
+
+  // Check implementation cost (after the influence discount).
+  const discountedCost = influenceCost(politics.policyInfluence);
+  if (gameState.stats.money < discountedCost) {
     return {
       success: false,
-      message: `Need ${formatMoney(policy.implementationCost)} to implement this policy — you have ${formatMoney(gameState.stats.money)} (${formatMoney(policy.implementationCost - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(discountedCost)} to implement this policy — you have ${formatMoney(gameState.stats.money)} (${formatMoney(discountedCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -490,7 +498,7 @@ export const enactPolicy = (
   setGameState(prev => {
     const prevPolitics = prev.politics;
     if (prevPolitics?.policiesEnacted?.includes(policyId)) return prev;
-    if ((prev.stats?.money || 0) < (policy.implementationCost || 0)) return prev;
+    if ((prev.stats?.money || 0) < influenceCost(prev.politics?.policyInfluence)) return prev;
 
     const updatedPoliciesEnacted = [...(prevPolitics?.policiesEnacted || []), policyId];
     const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
@@ -500,7 +508,7 @@ export const enactPolicy = (
       ...prev,
       stats: {
         ...prev.stats,
-        money: Math.max(0, prev.stats.money - (policy.implementationCost || 0) + (policy.effects.money || 0)),
+        money: Math.max(0, prev.stats.money - influenceCost(prev.politics?.policyInfluence) + (policy.effects.money || 0)),
         happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
         health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),
         reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + (policy.effects.reputation || 0))),

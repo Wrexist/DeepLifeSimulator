@@ -211,8 +211,21 @@ function createResetGameState(
   // Preserve memories
   newState.memories = [...(oldState.memories || [])];
 
-  // Preserve previous lives
-  newState.previousLives = [...(oldState.previousLives || [])];
+  // Preserve previous lives AND append the life that just ended. This was
+  // copy-only before, so previousLives stayed permanently empty and the whole
+  // Legacy Timeline UI, the IdentityCard generations counter, and the
+  // secret_full_circle event never populated.
+  newState.previousLives = [
+    ...(oldState.previousLives || []),
+    {
+      generation: oldState.generationNumber || 1,
+      netWorth: Math.round(netWorth(oldState)),
+      ageAtDeath: Math.floor(oldState.date?.age || 0),
+      deathReason: oldState.deathReason,
+      timestamp: Date.now(),
+      summaryAchievements: getEarnedAchievementNames(oldState),
+    },
+  ];
 
   // Preserve ribbon collection across prestiges
   newState.ribbonCollection = oldState.ribbonCollection;
@@ -485,8 +498,19 @@ function createChildGameState(
   const childMemories = generateChildMemories(selectedChild, oldState, newState.generationNumber);
   newState.memories = [...(oldState.memories || []), ...childMemories];
 
-  // Preserve previous lives
-  newState.previousLives = [...(oldState.previousLives || [])];
+  // Preserve previous lives AND append the life that just ended (heir path),
+  // so the Legacy Timeline and generations counter populate across generations.
+  newState.previousLives = [
+    ...(oldState.previousLives || []),
+    {
+      generation: oldState.generationNumber || 1,
+      netWorth: Math.round(netWorth(oldState)),
+      ageAtDeath: Math.floor(oldState.date?.age || 0),
+      deathReason: oldState.deathReason,
+      timestamp: Date.now(),
+      summaryAchievements: getEarnedAchievementNames(oldState),
+    },
+  ];
 
   // Preserve ribbon collection and discovered secrets across legacy transitions
   newState.ribbonCollection = oldState.ribbonCollection;
