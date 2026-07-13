@@ -14,6 +14,7 @@ import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/
 import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
+import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import IdentityCard from '@/components/IdentityCard';
@@ -527,6 +528,12 @@ function HomeScreenContent() {
         {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
           <View style={{ height: 200 }} />
         )}
+
+        {/* Banner ad at the end of the scroll content — non-obscuring (scrolls
+            with content, never overlaps the tab bar). Self-gating: BannerAd
+            renders nothing unless the AdMob SDK is configured and the player
+            hasn't bought Remove Ads / Lifetime Premium. */}
+        <BannerAd style={{ marginTop: scale(12) }} />
       </ScrollView>
 
       {/* First Week Guide Overlay - Floating at bottom */}
