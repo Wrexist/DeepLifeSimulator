@@ -17,7 +17,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, AlertTriangle, Briefcase, GraduationCap, Heart, MapPin, MessageCircle, Sparkles, UserX } from 'lucide-react-native';
+import { ArrowLeft, AlertTriangle, Briefcase, DollarSign, GraduationCap, Heart, MapPin, MessageCircle, ShieldCheck, Sparkles, UserX } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -25,13 +25,17 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
-import { unmatch, reportProfile } from '@/contexts/game/actions/SparkActions';
+import { unmatch, reportProfile, exposeCatfish, fallForCatfish } from '@/contexts/game/actions/SparkActions';
+import { isCatfish } from '@/lib/dating/sparkLogic';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
+
+/** Money the player loses if they fall for a catfish's "send money" ask. */
+const CATFISH_SCAM_LOSS = 500;
 
 interface PartnerProfileScreenProps {
   matchId: string;
@@ -50,6 +54,10 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const lastMessages = useMemo(() => messages.slice(-3), [messages]);
+
+  // Catfish determination — same seed `swipeOnProfile` / the swipe-deck chip use,
+  // so the "Expose" / "Send money" actions only appear on a genuine catfish.
+  const catfishSuspected = profile ? isCatfish(profile, gameState.lineageId ?? 'initial') : false;
 
   const handleUnmatch = useCallback(() => {
     Alert.alert(
@@ -95,6 +103,54 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
       ],
     );
   }, [profile, setGameState, saveGame, onClosed]);
+
+  // 1c: expose a matched catfish — unmatches and grants reputation for calling
+  // out the fake profile. Mirrors handleReport's confirm → act → save → close.
+  const handleExpose = useCallback(() => {
+    if (!profile) return;
+    Alert.alert(
+      'Expose catfish?',
+      `Call out ${profile.name} as a fake profile? You'll unmatch and gain reputation for protecting other users.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Expose',
+          style: 'default',
+          onPress: () => {
+            sparkHaptics.warning();
+            const result = exposeCatfish(setGameState, gameState, profile.id);
+            if (result.success) {
+              saveGame?.();
+              onClosed();
+            }
+          },
+        },
+      ],
+    );
+  }, [profile, gameState, setGameState, saveGame, onClosed]);
+
+  // 1e: the risky counterpart to Expose — trust the catfish and send money.
+  // Loses money + reputation (the scam downside) via the existing action.
+  const handleSendMoney = useCallback(() => {
+    if (!profile) return;
+    Alert.alert(
+      'Send money?',
+      `${profile.name} is asking you to send $${CATFISH_SCAM_LOSS}. If this is a scam, the money is gone for good.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send money',
+          style: 'destructive',
+          onPress: () => {
+            sparkHaptics.error();
+            fallForCatfish(setGameState, gameState, profile.id, CATFISH_SCAM_LOSS);
+            saveGame?.();
+            onClosed();
+          },
+        },
+      ],
+    );
+  }, [profile, gameState, setGameState, saveGame, onClosed]);
 
   if (!match || !profile) {
     return (
@@ -213,6 +269,31 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
               </View>
             ))}
           </Section>
+        ) : null}
+
+        {/* Catfish actions — only shown when this match is a suspected catfish.
+            Expose (safe, +reputation) vs. Send money (risky, the scam downside). */}
+        {catfishSuspected ? (
+          <View style={styles.actions}>
+            <Pressable
+              onPress={handleExpose}
+              accessibilityRole="button"
+              accessibilityLabel={`Expose ${profile.name} as a catfish`}
+              style={[getGlassButton(isDark), styles.actionBtn]}
+            >
+              <ShieldCheck size={fontScale(16)} color={SPARK_COLORS.success} />
+              <Text style={[styles.actionText, { color: SPARK_COLORS.success }]}>Expose</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSendMoney}
+              accessibilityRole="button"
+              accessibilityLabel={`Send money to ${profile.name}`}
+              style={[getGlassButton(isDark), styles.actionBtn]}
+            >
+              <DollarSign size={fontScale(16)} color={SPARK_COLORS.danger} />
+              <Text style={[styles.actionText, { color: SPARK_COLORS.danger }]}>Send money</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {/* Destructive actions — quiet glass buttons; danger lives on the label only. */}

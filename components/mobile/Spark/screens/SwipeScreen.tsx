@@ -22,13 +22,15 @@ import { Heart, Rewind, Star, X, Zap } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/contexts/ToastContext';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
   swipeOnProfile,
   rewindLastSwipe,
+  dismissCatfishSuspicion,
 } from '@/contexts/game/actions/SparkActions';
-import { swipesRemaining, superLikesRemaining } from '@/lib/dating/sparkLogic';
+import { swipesRemaining, superLikesRemaining, isCatfish } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import ProfileCard from '../components/ProfileCard';
 import EmptyState from '../components/EmptyState';
@@ -60,8 +62,21 @@ interface SwipeScreenProps {
 export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: SwipeScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme, isDark } = useTheme();
+  const { showInfo } = useToast();
   // Auto-cleaned timers so the post-match callback can't fire after unmount.
   const timers = useTimerManager();
+
+  // Catfish suspicion — the seed MUST match the one `swipeOnProfile` uses
+  // (contexts/game/actions/SparkActions.ts), otherwise the warning chip would
+  // contradict the swipe result. A profile the player has deliberately proceeded
+  // on (recorded in `dismissedCatfishIds`) no longer shows the chip.
+  const catfishSeed = gameState.lineageId ?? 'initial';
+  const dismissedCatfish = useMemo(
+    () => new Set(gameState.sparkApp?.dismissedCatfishIds ?? []),
+    [gameState.sparkApp?.dismissedCatfishIds],
+  );
+  const showCatfishWarning = (p: DatingProfile): boolean =>
+    isCatfish(p, catfishSeed) && !dismissedCatfish.has(p.id);
 
   // Filter out already-swiped, reported, or promoted profiles.
   const queue: DatingProfile[] = useMemo(() => {
@@ -99,8 +114,19 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       const result = swipeOnProfile(setGameState, gameState, profile.id, direction);
       if (result.success) {
         sparkHaptics.swipe();
+        // 1d: liking / super-liking a suspected catfish means the player chose to
+        // proceed despite the warning. Record that choice so the chip won't
+        // re-surface for this profile (e.g. if a rewind brings it back).
+        if (result.catfishSuspected && direction !== 'left') {
+          dismissCatfishSuspicion(setGameState, profile.id);
+        }
         if (result.matched) {
           sparkHaptics.match();
+          // 1b: the swipe result carries the catfish signal — surface it so the
+          // player learns of the risk at the moment they match.
+          if (result.catfishSuspected) {
+            showInfo('This match seems suspicious — be cautious about sending money or sharing personal details.');
+          }
           // P1-5: open the exact match the action just created (its id is returned),
           // instead of guessing the last entry from stale closure state.
           const matchId = result.matchId;
@@ -118,7 +144,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       // rejected swipe (out of swipes), nothing changes and the card snaps back.
       pan.setValue({ x: 0, y: 0 });
     },
-    [setGameState, gameState, onMatch, saveGame, pan],
+    [setGameState, gameState, onMatch, saveGame, pan, showInfo],
   );
 
   const animateOff = useCallback(
@@ -213,7 +239,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       <View style={styles.deck}>
         {next ? (
           <View style={[styles.cardSlot, styles.cardBehind]}>
-            <ProfileCard profile={next} />
+            <ProfileCard profile={next} catfishSuspected={showCatfishWarning(next)} />
           </View>
         ) : null}
 
@@ -232,6 +258,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         >
           <ProfileCard
             profile={top}
+            catfishSuspected={showCatfishWarning(top)}
             likeOpacity={likeOpacity as any as number}
             nopeOpacity={nopeOpacity as any as number}
             superOpacity={superOpacity as any as number}
