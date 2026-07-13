@@ -849,14 +849,17 @@ function WorkScreenContent() {
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         const { getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
-                                        const unlockedCareers = getUnlockedAdvancedCareers({
+                                        // eslint-disable-next-line @typescript-eslint/no-require-imports
+                                        const { calculateNetWorth } = require('@/lib/statistics/statisticsTracker');
+                                        // Shared gate input: live claimed-achievement store + consolidated net worth.
+                                        const advCareerGate = {
                                             education: gameState.educations || [],
-                                            achievements: gameState.achievements || [],
+                                            claimedAchievements: gameState.claimedProgressAchievements || [],
                                             stats: gameState.stats,
                                             weeksLived: gameState.weeksLived,
-                                            companies: gameState.companies || [],
-                                            realEstate: gameState.realEstate || [],
-                                        });
+                                            netWorth: calculateNetWorth(gameState),
+                                        };
+                                        const unlockedCareers = getUnlockedAdvancedCareers(advCareerGate);
 
                                         if (unlockedCareers.length === 0) {
                                             return (
@@ -870,14 +873,7 @@ function WorkScreenContent() {
                                         }
 
                                         return unlockedCareers.map((career: AdvancedCareer) => {
-                                            const isLocked = !isCareerUnlocked(career, {
-                                                education: gameState.educations || [],
-                                                achievements: gameState.achievements || [],
-                                                stats: gameState.stats,
-                                                weeksLived: gameState.weeksLived,
-                                                companies: gameState.companies || [],
-                                                realEstate: gameState.realEstate || [],
-                                            });
+                                            const isLocked = !isCareerUnlocked(career, advCareerGate);
                                             const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
                                             const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
 

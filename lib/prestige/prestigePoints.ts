@@ -56,9 +56,11 @@ export function calculatePrestigePoints(
   // and first-generation (gen 1) players were getting +50 free points.
   const generationBonus = Math.max(0, (gameState.generationNumber || 1) - 1) * 50;
 
-  // Age bonus: +1 point per year lived (max 100 points)
+  // Age bonus: +1 point per year lived (max 100 points). Floor at 0 like its
+  // siblings above — a sub-18 age (e.g. child-heir path) would otherwise make
+  // this negative and silently subtract from the prestige total.
   const age = Math.floor(gameState.date?.age || ADULTHOOD_AGE);
-  const ageBonus = Math.min(100, age - ADULTHOOD_AGE);
+  const ageBonus = Math.max(0, Math.min(100, age - ADULTHOOD_AGE));
 
   // Career bonus: +25 points per maxed career
   const maxedCareers = (gameState.careers || []).filter(c => {

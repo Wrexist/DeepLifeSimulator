@@ -96,7 +96,7 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     unlockRequirements: {
       education: ['phd'],
       reputation: 40,
-      achievements: ['first_publication'],
+      achievements: ['scholar'],
     },
   },
   {
@@ -140,7 +140,7 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
       education: ['bachelors'],
       experience: 156, // 3 years
       reputation: 35,
-      achievements: ['artistic_achievement'],
+      achievements: ['social_celebrity'],
     },
   },
   {
@@ -238,11 +238,12 @@ export function isCareerUnlocked(
   career: AdvancedCareer,
   gameState: {
     education: { id: string; completed: boolean }[];
-    achievements: { id: string; completed: boolean }[];
-    stats: { reputation: number; money: number };
+    /** Live claimed-achievement IDs (state.claimedProgressAchievements). */
+    claimedAchievements: string[];
+    stats: { reputation: number };
     weeksLived: number;
-    companies: { weeklyIncome: number }[];
-    realEstate: { owned: boolean; value: number }[];
+    /** Precomputed via the shared calculateNetWorth helper (task #64). */
+    netWorth: number;
   }
 ): boolean {
   const req = career.unlockRequirements;
@@ -265,22 +266,20 @@ export function isCareerUnlocked(
     return false;
   }
 
-  // Check achievements
+  // Check achievements — read the LIVE claimed-achievement store. The old code
+  // read `achievements[].completed`, a flag never set in normal play (task #65),
+  // so every achievement-gated career was permanently locked.
   if ('achievements' in req && req.achievements && req.achievements.length > 0) {
     const hasRequiredAchievements = req.achievements.every(achId =>
-      gameState.achievements.some(ach => ach.id === achId && ach.completed)
+      gameState.claimedAchievements.includes(achId)
     );
     if (!hasRequiredAchievements) return false;
   }
 
-  // Check net worth
+  // Check net worth — use the caller-precomputed shared net worth (includes
+  // savings/stocks/crypto/vehicles), not a cash+company+realEstate subset.
   if ('netWorth' in req && req.netWorth) {
-    const companyValue = gameState.companies.reduce((sum, c) => sum + c.weeklyIncome * 10, 0);
-    const realEstateValue = gameState.realEstate
-      .filter(p => p.owned)
-      .reduce((sum, p) => sum + p.value, 0);
-    const netWorth = gameState.stats.money + companyValue + realEstateValue;
-    if (netWorth < req.netWorth) return false;
+    if (gameState.netWorth < req.netWorth) return false;
   }
 
   return true;
