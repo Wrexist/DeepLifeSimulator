@@ -10,7 +10,7 @@ import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS, canRunForOffice } from '@/lib/careers/political';
 import { getPolicyById } from '@/lib/politics/policies';
-import { getLobbyistById, calculateTotalLobbyistInfluence } from '@/lib/politics/lobbyists';
+import { getLobbyistById } from '@/lib/politics/lobbyists';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getNextElectionWeek } from '@/lib/politics/elections';
 import type { Dispatch, SetStateAction } from 'react';
@@ -211,6 +211,25 @@ export const runForOffice = (
     }
   }
   
+  // Reject running for an office you already hold (or a higher one). Without
+  // this, a sitting Council Member (which has no previousLevel prerequisite)
+  // could re-run for council_member every week and net the reward minus the
+  // campaign cost each time (a cash + approval + electionsWon farm). Gate on
+  // `accepted` so a never-elected player (level 0, not accepted) can still run
+  // for their first seat.
+  const OFFICE_LEVEL: Record<string, number> = {
+    council_member: 0, mayor: 1, state_representative: 2, governor: 3, senator: 4, president: 5,
+  };
+  const heldPoliticalCareer = gameState.careers?.find(c => c.id === 'political');
+  const targetOfficeLevel = OFFICE_LEVEL[office];
+  if (
+    heldPoliticalCareer?.accepted &&
+    typeof targetOfficeLevel === 'number' &&
+    (heldPoliticalCareer.level ?? 0) >= targetOfficeLevel
+  ) {
+    return { success: false, message: 'You already hold this office (or a higher one).' };
+  }
+
   if ('previousLevel' in requirements && requirements.previousLevel) {
     // Safe to use non-null assertion here because we checked requirements.previousLevel exists above
     const previousLevelStr = requirements.previousLevel;
@@ -225,8 +244,11 @@ export const runForOffice = (
         )
       : -1;
     
-    // CRITICAL: Check if findIndex found a valid index (not -1) before accessing array
-    if (previousLevelIndex >= 0 && career.level <= previousLevelIndex) {
+    // CRITICAL: Check if findIndex found a valid index (not -1) before accessing array.
+    // Must have REACHED the prerequisite level, not exceeded it — `<=` rejected a
+    // sitting Council Member (level 0) from running for Mayor (prereq index 0),
+    // making the ladder above Council unwinnable.
+    if (previousLevelIndex >= 0 && career.level < previousLevelIndex) {
       const previousOfficeName = POLITICAL_CAREER.levels[previousLevelIndex]?.name || requirements.previousLevel;
       return { success: false, message: `You must first serve as ${previousOfficeName} before running for this office.` };
     }
@@ -539,7 +561,9 @@ export const lobby = (
   }
 
   // Increase policy influence (lobbying makes policies easier to pass)
-  const influenceGain = Math.min(10, Math.floor(amount / 10000));
+  // Any real spend must buy at least +1 influence (capped at 10). The old
+  // floor(amount/10000) granted 0 for a $1,000–$9,999 spend — money gone, no effect.
+  const influenceGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 10000))) : 0;
 
   // Atomic: merge money deduction + influence update into single update
   setGameState(prev => ({
@@ -666,7 +690,9 @@ export const campaign = (
   }
 
   // Increase approval rating (diminishing returns)
-  const approvalGain = Math.min(10, Math.floor(amount / 5000));
+  // Any real spend must buy at least +1 approval (capped at 10). The old
+  // floor(amount/5000) granted 0 for a $500–$4,999 spend — money gone, no effect.
+  const approvalGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 5000))) : 0;
 
   // Atomic: merge money deduction + politics update into single update
   setGameState(prev => ({
@@ -789,9 +815,6 @@ export const fireLobbyist = (
 
   // Remove lobbyist and recalculate influence
   const remainingLobbyists = politics.lobbyists.filter(l => l.id !== lobbyistId);
-  const remainingIds = remainingLobbyists.map(l => l.id);
-  const totalInfluence = calculateTotalLobbyistInfluence(remainingIds);
-
   setGameState(prev => ({
     ...prev,
     politics: {
@@ -806,7 +829,10 @@ export const fireLobbyist = (
         campaignFunds: 0,
       },
       lobbyists: remainingLobbyists,
-      policyInfluence: Math.max(0, Math.min(100, totalInfluence)),
+      // Only remove the fired lobbyist's contribution. Recomputing influence from
+      // just the remaining lobbyists discarded the +5/policy and campaign
+      // influence, which could un-earn the "≥50 influence" achievement.
+      policyInfluence: Math.max(0, Math.min(100, (prev.politics?.policyInfluence ?? 0) - lobbyist.influence)),
     },
   }));
 

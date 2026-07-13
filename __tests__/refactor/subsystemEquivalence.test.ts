@@ -3950,14 +3950,16 @@ describe('pre-tick equivalence — applyPregnancyProgression', () => {
     }
   });
 
-  it('birth: childId format = `child_<timestamp>_<suffix>`', () => {
+  it('birth: childId format = `child_<timestamp>_<suffix>_<parentRelId>`', () => {
     const ctx = pregStubCtx(pregStubStats(), 100, { timestamp: 555, childIdSuffix: 'xyz' });
     const rel = {
       id: 'r1', name: 'IdTest', type: 'partner',
       isPregnant: true, pregnancyStartWeek: 88, relationshipScore: 70,
     } as any;
     const result = applyPregnancyProgression(rel, ctx);
-    expect(result?.newborn?.id).toBe('child_555_xyz');
+    // The parent relationship id is now part of the child id so two births in
+    // the same tick (two pregnant partners) can't collide on an identical id.
+    expect(result?.newborn?.id).toBe('child_555_xyz_r1');
   });
 
   // -------- Gate 2: late pregnancy energy drain --------

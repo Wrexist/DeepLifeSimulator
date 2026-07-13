@@ -30,7 +30,10 @@ function candidateState(money: number): GameState {
     stats: { money, reputation: 60 } as never,
     date: { age: 40 } as never,
     educations: [{ id: 'business_degree', completed: true }] as never,
-    careers: [{ ...POLITICAL_CAREER, level: 0, progress: 0, applied: true, accepted: true }] as never,
+    // accepted:false — a first-time candidate who has not yet won the seat.
+    // (A sitting Council Member re-running for council is now correctly blocked
+    // as an office-already-held farm; this test exercises the same-batch race.)
+    careers: [{ ...POLITICAL_CAREER, level: 0, progress: 0, applied: true, accepted: false }] as never,
     politics: {
       careerLevel: 0, approvalRating: 50, policyInfluence: 0, electionsWon: 0,
       policiesEnacted: [], lobbyists: [], alliances: [], campaignFunds: 0,

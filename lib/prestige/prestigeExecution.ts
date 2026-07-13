@@ -569,9 +569,14 @@ function createChildGameState(
     children: [],
   };
 
-  // Preserve relationships that are not immediate family
+  // Preserve only genuine extended family for the heir. The deceased's personal
+  // relationships (spouse/partner/friend/parent/ex) must NOT carry over —
+  // otherwise the heir starts already dating the deceased's romantic partner,
+  // inherits stale-age "friends", keeps the wrong parents, and a leaked pregnant
+  // partner produces a negative pregnancy duration (stuck pregnant forever).
+  const DROP_FOR_HEIR = new Set(['spouse', 'partner', 'child', 'friend', 'parent', 'ex']);
   newState.relationships = (oldState.relationships || []).filter(
-    r => r.type !== 'spouse' && r.type !== 'child' && r.id !== selectedChild.id
+    r => !DROP_FOR_HEIR.has(r.type) && r.id !== selectedChild.id
   );
 
   // BUG FIX: Preserve family businesses on prestige

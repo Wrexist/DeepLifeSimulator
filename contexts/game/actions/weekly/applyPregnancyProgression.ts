@@ -78,7 +78,11 @@ export function applyPregnancyProgression(
     const namePool = childGender === 'male' ? MALE_BABY_NAMES : FEMALE_BABY_NAMES;
     const pickedName = namePool[Math.abs(Math.floor(preRolls.timestamp)) % namePool.length];
     const childName = rel.pregnancyChildName || pickedName;
-    const childId = `child_${preRolls.timestamp}_${preRolls.childIdSuffix}`;
+    // Include the parent relationship's id so two births in the SAME tick (two
+    // pregnant partners reaching term together) don't collide on an identical
+    // child id — which dropped one twin on the next load-time child merge and
+    // caused a React key collision.
+    const childId = `child_${preRolls.timestamp}_${preRolls.childIdSuffix}_${rel.id}`;
 
     const newChild: Relationship = {
       id: childId,

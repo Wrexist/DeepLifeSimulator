@@ -1590,6 +1590,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  careerLevel: 0,
  nextElectionWeek: undefined,
  };
+ // Also reset the political career entry + currentJob so lifestyle costs and
+ // the "in office?" UI stop treating a voted-out / resigned player as a sitting
+ // official — zeroing politics.careerLevel alone left careers.political (read by
+ // lifestyle.ts) and currentJob desynced.
+ updatedCareers = updatedCareers.map(c =>
+ c.id === 'political' ? {...c, accepted: false, applied: false, level: 0 }: c
+ );
+ if (newCurrentJob === 'political') newCurrentJob = undefined;
  }
  } catch (polErr) {
  logger.error('[POLITICS TICK] failed:', polErr);
@@ -1758,16 +1766,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  })(),
  // Process weddings, pregnancy, and relationship health
  relationships: processedRelationships,
- // Update family with newborn children + a spouse from a scheduled
- // wedding executed this tick (mirrors executeWedding's family.spouse).
- family: (newBornChildren.length > 0 || newWeddingSpouse) ? {
+ // Rebuild family.children from the aged child relationships EVERY tick, plus a
+ // spouse from a scheduled wedding executed this tick. Previously family.children
+ // (what the Family UI + heir logic read) was only rebuilt on birth/wedding weeks
+ // and copied the stale prevState list, so children showed "Age 0" forever and
+ // never crossed the >=18 adult/heir boundary. processedRelationships already
+ // holds every child (freshly aged via applyChildAging) plus any newborns pushed
+ // this tick; merge by id to preserve extra family-only fields.
+ family: (() => {
+ const childRels = processedRelationships.filter((r) => r.type === 'child');
+ const prevChildById = new Map((prevState.family?.children || []).map((c) => [c.id, c]));
+ const children = childRels.map((rel) => {
+ const existing = prevChildById.get(rel.id);
+ return existing ? {...existing, ...rel }: {...rel, birthWeeksLived: nextWeeksLived };
+ });
+ return {
 ...prevState.family,
 ...(newWeddingSpouse ? { spouse: newWeddingSpouse }: {}),
- children: [
-...(prevState.family?.children || []),
-...newBornChildren.map(child => ({...child, birthWeeksLived: nextWeeksLived })),
- ],
- }: prevState.family,
+ children,
+ };
+ })(),
  // Add birth milestone.
  // P0-12: store the absolute week so the LifeStoryModal timeline orders
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
