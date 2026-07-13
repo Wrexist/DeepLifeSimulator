@@ -160,8 +160,11 @@ export const openNewAccount = (
       return prev;
     }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
-    if (spec.initialDeposit > currentMoney) {
-      log.warn(`Open account rejected: insufficient cash for initial deposit`);
+    // Reject a non-finite or negative deposit as well as an unaffordable one — a
+    // negative initialDeposit previously passed the `> currentMoney` check and
+    // credited free money (currentMoney - (-X) = +X).
+    if (!Number.isFinite(spec.initialDeposit) || spec.initialDeposit < 0 || spec.initialDeposit > currentMoney) {
+      log.warn(`Open account rejected: invalid or unaffordable initial deposit`);
       return prev;
     }
     const result = openAccount(state.banking, { ...spec, openedWeek: state.weeksLived });

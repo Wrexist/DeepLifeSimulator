@@ -19,6 +19,7 @@
  * Pure function. No React, no setGameState, no wall-clock — uses `currentWeek`.
  */
 import type { BankingState, SavingsGoal } from '@/contexts/game/types';
+import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -86,7 +87,12 @@ export function applySavingsGoals(input: SavingsGoalsInput): SavingsGoalsResult 
     const desired = Math.max(0, safe(goal.autoContribute));
     const remainingToTarget = Math.max(0, target - current);
     if (!alreadyComplete && desired > 0 && remainingToTarget > 0) {
-      const linked = goal.linkedAccountId ? accountById.get(goal.linkedAccountId) : undefined;
+      // Never fund from a mirrored (read-only cash-mirror) account — its balance
+      // is overwritten from the legacy fields every tick, so debiting it prints
+      // money. Same guard the manual contribute path uses; fall through to cash.
+      const linked = goal.linkedAccountId && !MIRRORED_ACCOUNT_IDS.has(goal.linkedAccountId)
+        ? accountById.get(goal.linkedAccountId)
+        : undefined;
       if (linked) {
         const available = Math.max(0, safe(linked.balance));
         const amount = Math.min(desired, remainingToTarget, available);

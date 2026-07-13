@@ -210,15 +210,26 @@ export const sellVehicle = (
       ? (vehicles.length > 0 ? vehicles[0].id : undefined)
       : prev.activeVehicleId;
 
+    // Pay off any outstanding auto loan for this vehicle from the proceeds and
+    // remove it, so a sold-but-financed car doesn't keep auto-paying forever
+    // against a vehicle the player no longer owns. Mirrors sellOwnedProperty.
+    const vehicleLoan = (prev.loans || []).find(l => l.vehicleId === vehicleId);
+    const rem = vehicleLoan?.remaining;
+    const loanPayoff = typeof rem === 'number' && isFinite(rem) && rem > 0 ? rem : 0;
+    const newLoans = vehicleLoan
+      ? (prev.loans || []).filter(l => l.id !== vehicleLoan.id)
+      : prev.loans;
+
     return {
       ...prev,
       stats: {
         ...prev.stats,
-        money: prev.stats.money + sellPrice,
+        money: Math.max(0, prev.stats.money + sellPrice - loanPayoff),
         reputation: Math.max(0, (prev.stats.reputation || 0) + repLoss),
       },
       vehicles,
       activeVehicleId,
+      loans: newLoans,
     };
   });
 

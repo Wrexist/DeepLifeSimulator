@@ -1411,10 +1411,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  loansWithTrackers: processedLoans,
  notifications: [],
  lateFeesDeducted: 0,
+ billsPaidFromCash: 0,
  };
  }
  if (bankingTick.lateFeesDeducted > 0) {
  newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
+ }
+ // Bills paid from a mirrored (checking-default) account must hit real cash —
+ // the mirror's balance is overwritten from stats.money every tick, so without
+ // this a "paid" bill cost the player nothing (inverted bill-pay).
+ if (bankingTick.billsPaidFromCash > 0) {
+ newStats.money = Math.max(0, newStats.money - bankingTick.billsPaidFromCash);
  }
  for (const note of bankingTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });

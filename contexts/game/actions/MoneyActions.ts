@@ -40,7 +40,9 @@ export const updateMoney = (
     }
 
     const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + amount));
-    const moneyChange = newMoney - prev.stats.money;
+    // Use the validated currentMoney, not the raw prev.stats.money, so a
+    // corrupted NaN balance can't propagate into the daily-summary moneyChange.
+    const moneyChange = newMoney - currentMoney;
 
     if (moneyChange !== 0 && updateDailySummary) {
       // Log significant transactions
