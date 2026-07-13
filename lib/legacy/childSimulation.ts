@@ -1,6 +1,9 @@
 import { ChildInfo, GameState } from '@/contexts/game/types';
 import { getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { getNurtureStat, NURTURE_DEFAULT } from '@/lib/parenting';
+
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 /**
  * Simulate a child's growth until they reach age 18
@@ -46,6 +49,22 @@ export function simulateChildToAge(
   const careerRoll = getDeterministicRoll(parentState, `${rngPrefix}:career`);
   const savingsRateRoll = getDeterministicRoll(parentState, `${rngPrefix}:savings_rate`);
 
+  // NURTURE INFLUENCE (parenting). Nurture stats are deterministic values stored
+  // on the child, so folding them into the rolls keeps this simulation
+  // reproducible (no savescum window). When a child has never been parented the
+  // stats default to NURTURE_DEFAULT (50) and every boost below is exactly 0 —
+  // preserving the original behaviour for old saves and un-nurtured children.
+  const intelligence = getNurtureStat(child, 'intelligence');
+  const discipline = getNurtureStat(child, 'discipline');
+  const eduNurtureBoost =
+    ((intelligence - NURTURE_DEFAULT) / 100) * 0.35 +
+    ((discipline - NURTURE_DEFAULT) / 100) * 0.15; // ~[-0.25, +0.25]
+  const careerNurtureBoost =
+    ((discipline - NURTURE_DEFAULT) / 100) * 0.25 +
+    ((intelligence - NURTURE_DEFAULT) / 100) * 0.15; // ~[-0.20, +0.20]
+  const effectiveEducationRoll = clamp01(educationRoll + eduNurtureBoost);
+  const effectiveCareerRoll = clamp01(careerRoll + careerNurtureBoost);
+
   // Simulate education progression
   // Ages 0-5: No formal education
   // Ages 6-17: High school (if parent has money for education)
@@ -57,10 +76,10 @@ export function simulateChildToAge(
     const canAffordUniversity = parentNetWorth > 50_000;
     const canAffordSpecialized = parentNetWorth > 100_000;
 
-    // Education probability based on parent wealth
-    if (canAffordSpecialized && educationRoll > 0.3) {
+    // Education probability based on parent wealth (nurture-boosted roll)
+    if (canAffordSpecialized && effectiveEducationRoll > 0.3) {
       simulatedChild.educationLevel = 'specialized';
-    } else if (canAffordUniversity && educationRoll > 0.5) {
+    } else if (canAffordUniversity && effectiveEducationRoll > 0.5) {
       simulatedChild.educationLevel = 'university';
     } else if (targetAge >= 6) {
       simulatedChild.educationLevel = 'highSchool';
@@ -77,16 +96,16 @@ export function simulateChildToAge(
   if (targetAge >= ADULTHOOD_AGE && simulatedChild.educationLevel) {
     if (simulatedChild.educationLevel === 'specialized') {
       // Specialized education -> professional or entrepreneur
-      simulatedChild.careerPath = careerRoll > 0.5 ? 'professional' : 'entrepreneur';
-      simulatedChild.jobTier = careerRoll > 0.7 ? 4 : 3;
+      simulatedChild.careerPath = effectiveCareerRoll > 0.5 ? 'professional' : 'entrepreneur';
+      simulatedChild.jobTier = effectiveCareerRoll > 0.7 ? 4 : 3;
     } else if (simulatedChild.educationLevel === 'university') {
       // University -> professional or white collar
-      simulatedChild.careerPath = careerRoll > 0.6 ? 'professional' : 'whiteCollar';
-      simulatedChild.jobTier = careerRoll > 0.5 ? 3 : 2;
+      simulatedChild.careerPath = effectiveCareerRoll > 0.6 ? 'professional' : 'whiteCollar';
+      simulatedChild.jobTier = effectiveCareerRoll > 0.5 ? 3 : 2;
     } else if (simulatedChild.educationLevel === 'highSchool') {
       // High school -> white collar or blue collar
-      simulatedChild.careerPath = careerRoll > 0.5 ? 'whiteCollar' : 'blueCollar';
-      simulatedChild.jobTier = careerRoll > 0.4 ? 2 : 1;
+      simulatedChild.careerPath = effectiveCareerRoll > 0.5 ? 'whiteCollar' : 'blueCollar';
+      simulatedChild.jobTier = effectiveCareerRoll > 0.4 ? 2 : 1;
     } else {
       // No education -> blue collar
       simulatedChild.careerPath = 'blueCollar';
@@ -115,8 +134,10 @@ export function simulateChildToAge(
       estimatedWeeklyIncome = 200 + (simulatedChild.jobTier || 1) * 50; // $200-$350/week
     }
 
-    // Simulate savings (save 15-25% of income, deterministic variation)
-    const savingsRate = 0.15 + (savingsRateRoll * 0.1); // 15-25% savings rate (deterministic)
+    // Simulate savings (save 15-25% of income, deterministic variation).
+    // A disciplined upbringing nudges the savings rate up to ~±2.5%.
+    const disciplineSavingsBias = ((discipline - NURTURE_DEFAULT) / 100) * 0.05;
+    const savingsRate = clamp01(0.15 + (savingsRateRoll * 0.1) + disciplineSavingsBias);
     const annualSavings = estimatedWeeklyIncome * WEEKS_PER_YEAR * savingsRate;
     accumulatedSavings += annualSavings * workingYears;
   }

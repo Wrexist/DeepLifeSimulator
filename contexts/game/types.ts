@@ -39,6 +39,21 @@ export interface GameDate {
 
 export type LifeStage = 'child' | 'teen' | 'adult' | 'senior';
 
+/**
+ * Per-child parenting bookkeeping (weekly cap + per-action cooldowns).
+ * Additive/optional — absent on old saves; treated as a fresh slate when missing.
+ */
+export interface ChildParentingState {
+  /** weeksLived value that `actionsThisWeek` is counted against. */
+  weekStamp: number;
+  /** Number of parenting actions performed during `weekStamp` (resets when the week advances). */
+  actionsThisWeek: number;
+  /** actionId -> weeksLived when that action was last performed (drives cooldown checks). */
+  lastUsedWeek: Record<string, number>;
+  /** Lifetime count of parenting actions performed on this child (flavour/stats). */
+  totalActions: number;
+}
+
 export interface ChildInfo extends Relationship {
   birthWeeksLived?: number;
   educationLevel?: 'none' | 'highSchool' | 'university' | 'specialized';
@@ -50,6 +65,21 @@ export interface ChildInfo extends Relationship {
   expenses?: number;
   familyHappiness?: number;
   geneticTraits?: string[];
+  // ── Nurture stats (parenting-side). All 0-100, optional & additive: absent on
+  // old saves and on newborns, where readers default to NURTURE_DEFAULT (50).
+  // These are the "nurture" complement to the genetic ("nature") derivation —
+  // parenting actions raise them, and the heir/prestige-child pipeline prefers
+  // them when present without disturbing the trait-based nature side.
+  /** Academic aptitude — biases the child's simulated education & career upward. */
+  intelligence?: number;
+  /** Physical health/robustness — feeds heir starting health & fitness. */
+  health?: number;
+  /** Emotional wellbeing — feeds heir starting happiness. */
+  happiness?: number;
+  /** Self-control & behaviour — feeds heir reputation and savings discipline. */
+  discipline?: number;
+  /** Weekly-cap + cooldown bookkeeping for the parenting action loop. */
+  parenting?: ChildParentingState;
 }
 
 export interface FamilyState {

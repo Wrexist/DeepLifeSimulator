@@ -2,6 +2,7 @@ import { ChildInfo, GameStats } from '@/contexts/game/types';
 import { FamilyMemberNode } from './familyTree';
 import { GeneticsSystem } from './genetics';
 import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { getNurtureStat, NURTURE_DEFAULT } from '@/lib/parenting';
 
 export interface HeirGenerationResult {
   node: FamilyMemberNode;
@@ -52,7 +53,18 @@ export class HeirGenerator {
       startingStats.fitness += Math.min(50, (age - ADULTHOOD_AGE) * 1);
       startingStats.reputation += Math.min(30, (age - ADULTHOOD_AGE) * 2);
     }
-    
+
+    // NURTURE modifiers (parenting). Each nurture stat is centred on
+    // NURTURE_DEFAULT (50): an un-parented child reads 50 → 0 adjustment, so the
+    // heir preview is unchanged for old saves. Applied before genetic multipliers
+    // so nature still scales the nurtured base.
+    const nurtureAdj = (stat: 'health' | 'happiness' | 'discipline', divisor: number) =>
+      Math.round((getNurtureStat(child, stat) - NURTURE_DEFAULT) / divisor);
+    startingStats.health = Math.max(0, startingStats.health + nurtureAdj('health', 4));
+    startingStats.happiness = Math.max(0, startingStats.happiness + nurtureAdj('happiness', 4));
+    startingStats.fitness = Math.max(0, startingStats.fitness + nurtureAdj('health', 6));
+    startingStats.reputation = Math.max(0, startingStats.reputation + nurtureAdj('discipline', 5));
+
     // 3. Apply Genetic Modifiers to Stats
     const modifiedStats = GeneticsSystem.applyStatModifiers(startingStats, inheritedTraits);
     

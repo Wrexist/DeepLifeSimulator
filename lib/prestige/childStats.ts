@@ -2,6 +2,7 @@ import { GameState , ChildInfo } from '@/contexts/game/types';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { PrestigeData } from './prestigeTypes';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
+import { getNurtureStat, NURTURE_DEFAULT } from '@/lib/parenting';
 
 /**
  * Calculate starting stats for a child character
@@ -36,12 +37,25 @@ export function calculateChildStats(
   // Prestige bonus: +10 to all stats if prestige level > 0
   const prestigeBonus = prestigeData.prestigeLevel > 0 ? 10 : 0;
 
+  // NURTURE influence (parenting). A well-raised child starts life stronger.
+  // Each nurture stat is centred on NURTURE_DEFAULT (50): a child never parented
+  // reads 50 and contributes exactly 0, so old saves and un-nurtured children
+  // keep their previous starting stats. Range roughly ±12 at the extremes.
+  const nurtureBonus = (stat: number, divisor: number) =>
+    Math.round((stat - NURTURE_DEFAULT) / divisor);
+  const healthNurture = nurtureBonus(getNurtureStat(child, 'health'), 4);
+  const happyNurture = nurtureBonus(getNurtureStat(child, 'happiness'), 4);
+  const disciplineNurture = nurtureBonus(getNurtureStat(child, 'discipline'), 5);
+  const clampStat = (v: number) => Math.max(0, Math.min(100, v));
+
   return {
-    health: Math.min(100, baseHealth + parentHealthInfluence + ageBonus + prestigeBonus),
-    happiness: Math.min(100, baseHappiness + parentHappinessInfluence + ageBonus + prestigeBonus),
-    energy: Math.min(100, baseEnergy + parentEnergyInfluence + ageBonus + prestigeBonus),
-    fitness: Math.min(100, baseFitness + parentFitnessInfluence + ageBonus + prestigeBonus),
-    reputation: Math.min(100, Math.floor(parentStats.reputation * 0.3) + prestigeBonus),
+    health: clampStat(baseHealth + parentHealthInfluence + ageBonus + prestigeBonus + healthNurture),
+    happiness: clampStat(baseHappiness + parentHappinessInfluence + ageBonus + prestigeBonus + happyNurture),
+    energy: clampStat(baseEnergy + parentEnergyInfluence + ageBonus + prestigeBonus),
+    // Physical fitness benefits from a healthy upbringing too.
+    fitness: clampStat(baseFitness + parentFitnessInfluence + ageBonus + prestigeBonus + Math.round(healthNurture / 2)),
+    // Discipline instilled in childhood carries into the heir's reputation.
+    reputation: clampStat(Math.floor(parentStats.reputation * 0.3) + prestigeBonus + disciplineNurture),
     money: 0, // Will be set by inheritance calculation
     gems: parentState.stats.gems, // Preserve gems
   };
