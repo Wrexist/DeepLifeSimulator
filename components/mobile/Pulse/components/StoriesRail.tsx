@@ -15,12 +15,14 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
 
 const LinearGradient = LinearGradientFallback;
 
 interface StoriesRailProps {
   onGoLive: () => void;
-  onTapNpc?: (npcId: string) => void;
+  /** Tap an NPC story bubble → open the NPC follow sheet (owned by PulseApp). */
+  onTapNpc?: (npc: NpcStoryTarget) => void;
 }
 
 const BUBBLE = scale(60);
@@ -115,7 +117,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
         {npcStories.map((npc) => (
           <Pressable
             key={npc.id}
-            onPress={() => onTapNpc?.(npc.id)}
+            onPress={() => onTapNpc?.({ id: npc.id, name: npc.name, profilePicture: npc.profilePicture })}
             accessibilityRole="button"
             accessibilityLabel={`${npc.name}'s story`}
             style={styles.item}
