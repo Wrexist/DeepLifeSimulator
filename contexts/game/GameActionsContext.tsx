@@ -2012,35 +2012,45 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  if (executions.length > 0) {
  // Calculate total money spent by successful automation actions
- const totalAutomationCost = executions
-.filter(e => e.success)
+ const saveTransfer = executions
+.filter(e => e.success && e.type === 'save')
 .reduce((sum, e) => sum + e.actionsTaken
 .filter(a => a.result === 'success')
 .reduce((s, a) => s + (a.value || 0), 0), 0);
 
- // Update state with automation execution history AND apply money changes
+ // Only 'save' rules move real money, and they do so as a net-worth-neutral
+ // transfer from cash into bank savings. The pay/invest/renew executors don't
+ // yet perform their asset-producing side (loan paydown / share buy / insurance
+ // renewal) — and loans are already fully serviced by the weekly loan tick — so
+ // charging their reported value would simply destroy the player's money.
+ // Record every execution in history but apply no cash change for those types.
  setGameState(prevState => {
  if (!prevState.automation) return prevState;
 
- // P2-1: automation must not spend money the player doesn't have. The old code
- // clamped `money - cost` to 0, effectively granting the actions' value for
- // free. If the batch isn't affordable, skip it (don't deduct, don't record).
  const currentMoney = prevState.stats?.money || 0;
- if (totalAutomationCost > currentMoney) {
- logger.warn(`[AUTOMATION] Insufficient funds: cost $${totalAutomationCost} > $${currentMoney}. Batch skipped.`);
- return prevState;
- }
+ // Never transfer more cash than the player actually has.
+ const transfer = Math.max(0, Math.min(saveTransfer, currentMoney));
 
  const currentHistory = prevState.automation.executionHistory || [];
  const newHistory = [...currentHistory,...executions].slice(-50);
- const newMoney = totalAutomationCost > 0 ? currentMoney - totalAutomationCost : currentMoney;
+
+ if (transfer <= 0) {
+ return {
+...prevState,
+ automation: {
+...prevState.automation,
+ executionHistory: newHistory,
+ },
+ };
+ }
 
  return {
 ...prevState,
  stats: {
 ...prevState.stats,
- money: newMoney,
+ money: currentMoney - transfer,
  },
+ bankSavings: (prevState.bankSavings || 0) + transfer,
  automation: {
 ...prevState.automation,
  executionHistory: newHistory,
@@ -2048,7 +2058,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  });
 
- logger.info(`[AUTOMATION] Executed ${executions.length} rules, cost $${totalAutomationCost}`);
+ logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}`);
  }
  } catch (error) {
  logger.error('[AUTOMATION] Failed to process automation rules:', error);

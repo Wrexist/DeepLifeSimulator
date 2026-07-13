@@ -231,7 +231,13 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     const acctIdx = banking.accounts.findIndex((a) => a.id === rule.fromAccountId);
     if (acctIdx === -1) continue;
     const account = banking.accounts[acctIdx];
-    if (account.balance < rule.amount) {
+    // Affordability + debit both run against the authoritative cash pool
+    // (stats.money via cashDelta). rule.fromAccountId is the checking-default
+    // mirror, whose balance is overwritten from stats.money every tick, so
+    // charging only the mirror let DCA print free coins. Check live cash and
+    // charge cashDelta; mirror the balance too for same-tick UI consistency.
+    const availableCashForDca = safe(input.cashIn, 0) + cashDelta;
+    if (availableCashForDca < rule.amount) {
       // Insufficient funds — skip this execution but bump nextExecutionWeek so we retry.
       market = recordDCAExecution(market, rule.id, 0, 0, input.currentWeek);
       continue;
@@ -240,6 +246,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     const fillPrice = marketFillPrice(coin.price, 'buy', rule.amount, regime);
     const coinsBought = rule.amount / fillPrice;
 
+    cashDelta -= rule.amount;
     const accounts = [...banking.accounts];
     accounts[acctIdx] = { ...account, balance: account.balance - rule.amount };
     banking = { ...banking, accounts };
@@ -273,24 +280,35 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   // --- 4) Yearly capital-gains tax — debit from checking on the year boundary.
   // 52-week game year. Tax rate: 25% of realized gains. Losses don't generate a refund here.
   if (input.currentWeek > 0 && input.currentWeek % 52 === 0 && market.realizedGainsThisYear > 0) {
-    const tax = market.realizedGainsThisYear * 0.25;
-    if (banking) {
-      const checkingIdx = banking.accounts.findIndex((a) => a.type === 'checking');
-      if (checkingIdx !== -1) {
-        const checking = banking.accounts[checkingIdx];
-        const debited = Math.min(checking.balance, tax);
-        const accounts = [...banking.accounts];
-        accounts[checkingIdx] = { ...checking, balance: checking.balance - debited };
-        banking = { ...banking, accounts };
-        notifications.push({
-          id: 'crypto-tax-paid',
-          title: '🧾 Capital Gains Tax',
-          message: `Debited $${Math.round(debited).toLocaleString()} (25% of $${Math.round(market.realizedGainsThisYear).toLocaleString()} realized gains) from checking.`,
-        });
+    const gains = market.realizedGainsThisYear;
+    const tax = gains * 0.25;
+    // Debit from the authoritative cash pool (stats.money via cashDelta), not a
+    // mirror account whose balance is overwritten every tick (which dodged the
+    // tax entirely). Collect only what the player can afford this tick and carry
+    // the untaxed portion of gains forward rather than zeroing them unpaid.
+    const availableCashForTax = safe(input.cashIn, 0) + cashDelta;
+    const collected = Math.max(0, Math.min(tax, availableCashForTax));
+    if (collected > 0) {
+      cashDelta -= collected;
+      // Mirror the checking balance too so the same-tick UI matches.
+      if (banking) {
+        const checkingIdx = banking.accounts.findIndex((a) => a.type === 'checking');
+        if (checkingIdx !== -1) {
+          const checking = banking.accounts[checkingIdx];
+          const accounts = [...banking.accounts];
+          accounts[checkingIdx] = { ...checking, balance: Math.max(0, checking.balance - collected) };
+          banking = { ...banking, accounts };
+        }
       }
+      notifications.push({
+        id: 'crypto-tax-paid',
+        title: '🧾 Capital Gains Tax',
+        message: `Debited $${Math.round(collected).toLocaleString()} (25% of $${Math.round(gains).toLocaleString()} realized gains).`,
+      });
     }
-    // Reset YTD regardless of whether banking debit succeeded (cash debit fallback could go here).
-    market = { ...market, realizedGainsThisYear: 0 };
+    // Reduce YTD realized gains only by the fraction actually taxed this year.
+    const taxedGains = collected / 0.25;
+    market = { ...market, realizedGainsThisYear: Math.max(0, gains - taxedGains) };
   }
 
   // --- 5) Economy state tracking (for regime forcing memory) -------------

@@ -124,9 +124,14 @@ export const netWorth = (state: GameState): number => {
     }, 0);
   }
 
-  // Calculate real estate value
+  // Calculate real estate value. Skip SOLD properties — sellProperty keeps the
+  // entry with owned:false, so summing every property ever owned permanently
+  // inflated net worth and let players farm the prestige gate/points. Test
+  // `owned === false` (not `!owned`) so legacy entries lacking the flag still
+  // count. Prefer the live currentValue over the original purchase price.
   const realEstateValue = state.realEstate?.reduce((total, property) => {
-    const value = (property.price || 0);
+    if (property?.owned === false) return total;
+    const value = (property?.currentValue ?? property?.price ?? 0);
     const sum = total + value;
     return sum > MAX_SAFE_VALUE ? MAX_SAFE_VALUE : sum;
   }, 0) || 0;
@@ -172,9 +177,11 @@ export const netWorth = (state: GameState): number => {
   // Final validation
   if (!isFinite(vehicleValue) || vehicleValue < 0) vehicleValue = 0;
 
-  // Calculate loans (liabilities)
+  // Calculate loans (liabilities). Use the outstanding balance (remaining), not
+  // the fixed origination principal, so paying a loan down actually raises net
+  // worth (loans are removed at payoff). Fall back to principal on legacy saves.
   const loansValue = state.loans?.reduce((total, loan) => {
-    return total + (loan.principal || 0);
+    return total + (loan.remaining ?? loan.principal ?? 0);
   }, 0) || 0;
 
   // CRITICAL FIX: Validate all components and prevent overflow in final calculation

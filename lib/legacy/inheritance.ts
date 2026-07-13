@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
+import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { Memory, MEMORY_TEMPLATES, generateMemoryId } from './memories';
 import {
   generateHeirloom,
@@ -70,7 +71,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
     totalNetWorth < 0 ? Math.max(totalNetWorth, -5000) : totalNetWorth;
 
   // Calculate Legacy Bonuses
-  const completedCount = (state.achievements || []).filter(a => a.completed).length;
+  const completedCount = getEarnedAchievementCount(state);
   
   const incomeMultiplier =
     1 + Math.min(Math.max(clampedNetWorth, 0), 10_000_000) / 10_000_000 / 10; // up to +10%

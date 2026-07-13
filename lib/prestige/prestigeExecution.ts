@@ -3,6 +3,7 @@ import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
+import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
@@ -49,7 +50,7 @@ export function executePrestige(
   );
 
   // Create prestige record
-  const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
+  const earnedAchievementNames = getEarnedAchievementNames(gameState);
   const prestigeRecord: PrestigeRecord = {
     prestigeNumber: prestigeData.totalPrestiges + 1,
     netWorthAtPrestige: currentNetWorth,
@@ -59,7 +60,7 @@ export function executePrestige(
     timestamp: Date.now(),
     chosenPath,
     childId: chosenPath === 'child' ? childId : undefined,
-    keyAchievements: completedAchievements.slice(0, 5).map(a => a.name), // Top 5 achievements
+    keyAchievements: earnedAchievementNames.slice(0, 5), // Top 5 achievements
   };
 
   // STABILITY FIX: Cap prestige history to last MAX_PRESTIGE_HISTORY records to prevent unbounded growth
@@ -223,7 +224,7 @@ function createResetGameState(
   // Legacy bonuses should be calculated from previous life's net worth and achievements
   // This ensures the "Inherited Bonuses" section shows correct values
   const previousNetWorth = netWorth(oldState);
-  const completedAchievements = (oldState.achievements || []).filter(a => a.completed).length;
+  const completedAchievements = getEarnedAchievementCount(oldState);
   
   const incomeMultiplier = 1 + Math.min(Math.max(previousNetWorth, 0), 10_000_000) / 10_000_000 / 10; // up to +10%
   const learningMultiplier = 1 + Math.min(completedAchievements, 20) / 200; // up to +10%

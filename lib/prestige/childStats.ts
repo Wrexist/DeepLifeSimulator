@@ -1,6 +1,7 @@
 import { GameState , ChildInfo } from '@/contexts/game/types';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { PrestigeData } from './prestigeTypes';
+import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 
 /**
  * Calculate starting stats for a child character
@@ -107,8 +108,8 @@ export function generateChildMemories(
   }
   
   // Memory about parent's achievements
-  const completedAchievements = (parentState.achievements || []).filter(a => a.completed);
-  if (completedAchievements.length > 5) {
+  const completedAchievements = getEarnedAchievementCount(parentState);
+  if (completedAchievements > 5) {
     memories.push({
       id: `child_mem_achievements_${child.id}`,
       title: 'A Legacy of Excellence',
