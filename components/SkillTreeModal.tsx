@@ -398,7 +398,7 @@ interface SkillTreeModalProps {
 }
 
 export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState } = useGame();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
@@ -489,40 +489,18 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   }, [gameState.stats.money, gameState.date.age, isNodeUnlocked]);
 
   const handleUnlockNode = useCallback((node: SkillNode) => {
-    if (!canUnlockNode(node)) {
-      if (gameState.stats.money < node.cost) {
-        Alert.alert('Insufficient Funds', `You need $${node.cost.toLocaleString()} to unlock this skill.`);
-      } else if (gameState.date.age < node.levelRequired) {
-        Alert.alert('Too Young', `You need to be at least ${node.levelRequired} years old.`);
-      } else if (node.requires) {
-        Alert.alert('Prerequisites Required', 'You must unlock the required skills first.');
-      }
-      return;
-    }
-
+    if (isNodeUnlocked(node.id)) return;
+    // GUARD: the Life Skills tree's bonuses (unlockedLifeSkills) aren't consumed
+    // by ANY gameplay system yet — the node "effect" fields are display-only
+    // strings. Unlocking used to charge up to $10,000 for zero effect. Until the
+    // effects are wired into salary/passive-income/expenses/etc., do not take the
+    // player's money for a no-op; explain it's coming soon instead.
     Alert.alert(
-      `Unlock ${node.name}?`,
-      `This will cost $${node.cost.toLocaleString()}\n\nEffect: ${node.effect}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unlock',
-          onPress: () => {
-            setGameState(prev => ({
-              ...prev,
-              stats: {
-                ...prev.stats,
-                money: prev.stats.money - node.cost,
-              },
-              unlockedLifeSkills: [...(prev.unlockedLifeSkills || []), node.id],
-            }));
-            saveGame();
-            Alert.alert('Skill Unlocked!', `${node.name} is now active.\n\n${node.effect}`);
-          },
-        },
-      ]
+      'Coming Soon',
+      `Life Skills aren't active yet — their bonuses (e.g. "${node.effect}") don't apply to gameplay, so unlocking is disabled for now. You were not charged.`,
+      [{ text: 'OK' }]
     );
-  }, [canUnlockNode, setGameState, saveGame, gameState.stats.money, gameState.date.age]);
+  }, [isNodeUnlocked]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return 'unlocked';

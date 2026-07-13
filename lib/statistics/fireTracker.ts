@@ -28,40 +28,50 @@ export function calculateFIRETracker(state: GameState): FIRETrackerResult {
   const career = state.careers?.find(c => c.id === state.currentJob);
   const annualSalary = career?.levels?.[career.level]?.salary || 0;
   const weeklyIncome = annualSalary / WEEKS_PER_YEAR;
-  const estimatedAnnualExpenses = weeklyIncome * 0.7 * WEEKS_PER_YEAR; // Assume 70% of income is expenses
-  
+  // Even with no salary the player still has living expenses, so floor the
+  // estimate. Without this an unemployed/retired/student player had
+  // estimatedAnnualExpenses = 0 → fireNumber = 0 → progressToFIRE =
+  // netWorth / 0 (NaN or a false 100%) and achieved = netWorth >= 0 (true for
+  // anyone non-negative).
+  const MIN_ANNUAL_EXPENSES = 15600; // ~$300/week baseline cost of living
+  const estimatedAnnualExpenses = Math.max(
+    MIN_ANNUAL_EXPENSES,
+    weeklyIncome * 0.7 * WEEKS_PER_YEAR
+  ); // Assume 70% of income is expenses, floored at a baseline
+
   // FIRE number (25x annual expenses - 4% rule)
   const fireNumber = estimatedAnnualExpenses * 25;
-  
+
   // Calculate current net worth
   const currentNetWorth = calculateNetWorth(state);
-  
-  // Progress to FIRE
-  const progressToFIRE = Math.min(100, (currentNetWorth / fireNumber) * 100);
-  
+  const achieved = currentNetWorth >= fireNumber;
+
+  // Progress to FIRE (fireNumber is always > 0 thanks to the expense floor)
+  const progressToFIRE = Math.max(0, Math.min(100, (currentNetWorth / fireNumber) * 100));
+
   // Calculate savings rate
   const weeklySavings = (state.bankSavings || 0) / Math.max(1, state.weeksLived || 1);
-  const savingsRate = weeklyIncome > 0 
-    ? (weeklySavings / weeklyIncome) * 100 
+  const savingsRate = weeklyIncome > 0
+    ? (weeklySavings / weeklyIncome) * 100
     : 0;
-  
+
   // Estimate years to FIRE (simplified calculation)
   const savingsGap = fireNumber - currentNetWorth;
   const annualSavings = weeklySavings * WEEKS_PER_YEAR;
-  const yearsToFIRE = annualSavings > 0 && savingsGap > 0
-    ? savingsGap / annualSavings
-    : Infinity;
-  
+  const yearsToFIRE = achieved
+    ? 0
+    : annualSavings > 0 && savingsGap > 0
+      ? savingsGap / annualSavings
+      : Infinity;
+
   // Coast FIRE (enough saved to coast to retirement without additional savings)
   const coastFIRE = estimatedAnnualExpenses * 12.5; // Simplified
-  const coastFIREProgress = Math.min(100, (currentNetWorth / coastFIRE) * 100);
-  
+  const coastFIREProgress = Math.max(0, Math.min(100, (currentNetWorth / coastFIRE) * 100));
+
   // FIRE milestones
   const leanFIRE = estimatedAnnualExpenses * 0.7 * 25; // 70% expenses
   const regularFIRE = fireNumber;
   const fatFIRE = estimatedAnnualExpenses * 1.5 * 25; // 150% expenses
-  
-  const achieved = currentNetWorth >= fireNumber;
   
   return {
     fireNumber,

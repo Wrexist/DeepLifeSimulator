@@ -299,10 +299,23 @@ export function attemptJobStage(
       status: failedOut ? 'failed' : job.status,
       completedStages: [...job.completedStages, { stage: job.currentStage, week: currentWeek, outcome: 'fail' }],
     };
-    updatedDw = {
-      ...updatedDw,
-      activeJobs: updatedDw.activeJobs.map((j) => (j.id === jobId ? updatedJob : j)),
-    };
+    if (failedOut) {
+      // Terminal failure — archive to history and remove from activeJobs, exactly
+      // like completion. Previously a burned job kept status:'failed' but stayed
+      // in activeJobs, so startJob's templateId dedupe blocked that template
+      // forever and OnionApp rendered a dead "RUN STAGE" button that always
+      // returned "Job not active"; jobHistory also undercounted.
+      updatedDw = {
+        ...updatedDw,
+        activeJobs: updatedDw.activeJobs.filter((j) => j.id !== jobId),
+        jobHistory: [updatedJob, ...updatedDw.jobHistory].slice(0, JOB_HISTORY_CAP),
+      };
+    } else {
+      updatedDw = {
+        ...updatedDw,
+        activeJobs: updatedDw.activeJobs.map((j) => (j.id === jobId ? updatedJob : j)),
+      };
+    }
     outcome = 'fail';
   } else {
     const newCompleted = [

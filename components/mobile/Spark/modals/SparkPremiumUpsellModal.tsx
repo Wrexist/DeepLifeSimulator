@@ -14,6 +14,8 @@ import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scali
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { subscribeSparkPremium } from '@/contexts/game/actions/SparkActions';
+import { iapService } from '@/services/IAPService';
+import { logger } from '@/utils/logger';
 import { SPARK_GRADIENT, SPARK_GRADIENT_GOLD, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
@@ -44,13 +46,33 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   const { theme } = useTheme();
 
   const handleSubscribe = useCallback(
-    (tier: 'plus' | 'ultra') => {
+    async (tier: 'plus' | 'ultra') => {
       sparkHaptics.boost();
+      // Real IAP path: route through the store and grant the entitlement only on
+      // a successful purchase. Previously this called subscribeSparkPremium
+      // directly, handing out Spark Plus/Ultra (unlimited swipes, see-who-liked,
+      // verified badge) for free with no charge. Mirrors Pulse's Verified Pro flow.
       const sku = tier === 'ultra' ? 'deeplife_spark_ultra_monthly' : 'deeplife_spark_plus_monthly';
       const expires = Date.now() + 30 * MS_PER_DAY;
-      subscribeSparkPremium(setGameState, tier, sku, expires);
-      saveGame();
-      onDismiss();
+      const grant = () => {
+        subscribeSparkPremium(setGameState, tier, sku, expires);
+        saveGame();
+        onDismiss();
+      };
+      try {
+        const result = await iapService.purchaseProduct(sku);
+        if (result.success) {
+          grant();
+        } else {
+          logger.warn('[Spark] Premium purchase failed', { sku, message: result.message });
+          // Dev fallback so the perks can be demoed without store config;
+          // production builds skip this branch (no free grant).
+          if (__DEV__) grant();
+        }
+      } catch (err) {
+        logger.error('[Spark] Premium purchase threw', err);
+        if (__DEV__) grant();
+      }
     },
     [setGameState, saveGame, onDismiss],
   );
