@@ -10,6 +10,7 @@ import { travelEventTemplates } from './travelEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
 import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
+import { hobbyEventTemplates } from './hobbyEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import {
@@ -2732,6 +2733,8 @@ export const eventTemplates: EventTemplate[] = [
   ...fameEventTemplates,
   // Secret/Easter egg events (hidden triggers, community discovery)
   ...secretEventTemplates,
+  // Hobby-mastery events (fire for the hobbies you actively practice)
+  ...hobbyEventTemplates,
 ];
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──

@@ -13,6 +13,9 @@ import {
   getPursuitDef,
   levelFromXp,
   levelUpBonus,
+  tierUpBonus,
+  tierIndexForLevel,
+  tierForLevel,
   PRACTICE_XP,
   MAX_PURSUIT_LEVEL,
   type PursuitReward,
@@ -40,6 +43,10 @@ export interface PracticeResult {
   message: string;
   leveledUp?: boolean;
   newLevel?: number;
+  /** True when this practice crossed into a new named mastery tier. */
+  tierUp?: boolean;
+  /** Name of the mastery tier reached (only set when tierUp is true). */
+  tierName?: string;
 }
 
 export const practicePursuit = (
@@ -71,6 +78,8 @@ export const practicePursuit = (
   const prevPursuit = gameState.pursuits?.[pursuitId] ?? { xp: 0, level: 0 };
   const projectedLevel = levelFromXp(prevPursuit.xp + xpGain);
   const willLevelUp = projectedLevel > (prevPursuit.level ?? 0);
+  const projectedTier = tierIndexForLevel(projectedLevel);
+  const willTierUp = projectedTier > tierIndexForLevel(prevPursuit.level ?? 0);
 
   setGameState((prev) => {
     // Atomic re-checks against prev.
@@ -85,7 +94,15 @@ export const practicePursuit = (
     let stats = { ...prev.stats, energy: clamp100((prev.stats?.energy ?? 0) - def.energyCost) };
     stats = applyReward(stats, def.reward(newLevel));
     if (newLevel > (cur.level ?? 0)) {
-      stats = applyReward(stats, levelUpBonus(def, newLevel));
+      // A tier-crossing level-up pays the (bigger) named-tier milestone spike
+      // instead of the plain level-up spike; a within-tier level-up pays the
+      // plain spike. They never stack.
+      const prevTierIdx = tierIndexForLevel(cur.level ?? 0);
+      const newTierIdx = tierIndexForLevel(newLevel);
+      stats = applyReward(
+        stats,
+        newTierIdx > prevTierIdx ? tierUpBonus(def, newLevel, newTierIdx) : levelUpBonus(def, newLevel),
+      );
     }
 
     return {
@@ -100,14 +117,19 @@ export const practicePursuit = (
   });
 
   if (willLevelUp) {
-    log.info(`Pursuit level up: ${pursuitId} → ${projectedLevel}`);
+    log.info(`Pursuit level up: ${pursuitId} → ${projectedLevel}${willTierUp ? ` (tier: ${tierForLevel(projectedLevel).name})` : ''}`);
+    const tierName = tierForLevel(projectedLevel).name;
     return {
       success: true,
       leveledUp: true,
       newLevel: projectedLevel,
+      tierUp: willTierUp,
+      tierName: willTierUp ? tierName : undefined,
       message: projectedLevel >= MAX_PURSUIT_LEVEL
-        ? `${def.name} mastered! You've reached the top level.`
-        : `${def.name} leveled up to ${projectedLevel}!`,
+        ? `${def.name} mastered! You've reached the top tier.`
+        : willTierUp
+          ? `${def.name} reached ${tierName} — Lv ${projectedLevel}!`
+          : `${def.name} leveled up to ${projectedLevel}!`,
     };
   }
   return { success: true, message: `Practiced ${def.name}.` };

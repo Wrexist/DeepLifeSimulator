@@ -17,6 +17,7 @@ import {
   xpIntoLevel,
   XP_PER_LEVEL,
   MAX_PURSUIT_LEVEL,
+  tierForLevel,
 } from '@/lib/pursuits/pursuitMastery';
 import { getThemeColors } from '@/lib/config/theme';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
@@ -78,6 +79,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
               const disabled = capped || tooTired;
               const atMax = pursuit.level >= MAX_PURSUIT_LEVEL;
               const into = xpIntoLevel(pursuit.xp);
+              const tier = tierForLevel(pursuit.level);
 
               return (
                 <View key={p.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: p.color + '55' }]}>
@@ -88,6 +90,9 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
                         {p.name} <Text style={{ color: p.color }}>· Lv {pursuit.level}{atMax ? ' (Max)' : ''}</Text>
                       </Text>
                       <Text style={[styles.tagline, { color: theme.textSecondary }]}>{p.tagline}</Text>
+                    </View>
+                    <View style={[styles.tierBadge, { backgroundColor: p.color + '22', borderColor: p.color + '66' }]}>
+                      <Text style={[styles.tierText, { color: p.color }]}>{tier.name}</Text>
                     </View>
                   </View>
 
@@ -140,6 +145,8 @@ const styles = StyleSheet.create({
   emoji: { fontSize: fontScale(30) },
   name: { fontSize: fontScale(16), fontWeight: '700' },
   tagline: { fontSize: fontScale(12), marginTop: scale(2) },
+  tierBadge: { paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(999), borderWidth: 1 },
+  tierText: { fontSize: fontScale(10.5), fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
   barBg: { height: scale(6), borderRadius: scale(3), backgroundColor: 'rgba(148,163,184,0.2)', overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: scale(3) },
   perk: { fontSize: fontScale(12), fontWeight: '600' },
