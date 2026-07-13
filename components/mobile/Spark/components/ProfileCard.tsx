@@ -143,7 +143,7 @@ export default function ProfileCard({
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <GraduationCap size={fontScale(12)} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.metaText}>{profile.education}</Text>
+              <Text style={styles.metaText} numberOfLines={1}>{profile.education}</Text>
             </View>
             <View style={styles.wealthChip}>
               <Text style={styles.wealthChipText}>{WEALTH_LABEL[profile.wealth] ?? profile.wealth}</Text>
