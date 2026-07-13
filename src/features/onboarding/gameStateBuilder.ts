@@ -7,6 +7,7 @@
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
+import { avatarSexFromId } from '@/utils/facePool';
 import { perks as perksCatalog } from './perksData';
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,7 @@ export interface BuildGameStateParams {
   lastName: string;
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
+  avatarId?: string;
   scenario: OnboardingScenario;
   challengeScenarioId?: string;
   selectedPerks: string[];
@@ -150,9 +152,11 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     selectedPerks,
     permanentPerks,
     selectedMindset,
+    avatarId,
   } = params;
 
-  const resolvedSex = resolveRandomSex(sex);
+  // A picked avatar's sex wins over "random" so appearance and gameplay agree.
+  const resolvedSex = avatarSexFromId(avatarId) ?? resolveRandomSex(sex);
   const seekingGender = computeSeekingGender(resolvedSex, sexuality);
   const scenarioItems = scenario.start.items || [];
   const mappedItemIds = mapScenarioItemIds(scenarioItems);
@@ -242,6 +246,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       lastName,
       sex: resolvedSex,
       sexuality,
+      avatarId,
       gender: resolvedSex,
       seekingGender,
     },

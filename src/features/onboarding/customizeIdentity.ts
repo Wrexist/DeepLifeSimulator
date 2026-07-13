@@ -6,6 +6,7 @@ export interface OnboardingIdentityStateShape {
   lastName: string;
   sex: IdentitySex;
   sexuality: IdentitySexuality;
+  avatarId?: string;
 }
 
 interface SexChangeRegenerationArgs {

@@ -30,6 +30,7 @@ import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
+import { getAvatarPortrait } from '@/utils/facePool';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
@@ -463,7 +464,7 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getCharacterImage(date?.age ?? 0, sex, name);
+  const avatar = getAvatarPortrait(userProfile?.avatarId, date?.age ?? 0, name, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.

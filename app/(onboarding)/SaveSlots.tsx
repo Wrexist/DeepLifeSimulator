@@ -55,12 +55,18 @@ export default function SaveSlots() {
 
   // R3-C: Android hardware back → return to the main menu instead of leaving
   // the user on a half-loaded scene with no exit affordance.
-  useHardwareBack(() => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       router.back();
-    } else {
-      router.replace('/(onboarding)/MainMenu');
+      return;
     }
+    // L: go straight to the menu. "/" is the boot loader, which would
+    // re-mount the full loading screen + preload before bouncing here.
+    router.replace('/(onboarding)/MainMenu');
+  }, [navigation, router]);
+
+  useHardwareBack(() => {
+    handleBack();
     return true;
   });
 
@@ -299,15 +305,7 @@ export default function SaveSlots() {
       >
         <OnboardingGlassHeader
           title="Save Slots"
-          onBack={() => {
-            if (navigation.canGoBack()) {
-              router.back();
-            } else {
-              // L: go straight to the menu. "/" is the boot loader, which would
-              // re-mount the full loading screen + preload before bouncing here.
-              router.replace('/(onboarding)/MainMenu');
-            }
-          }}
+          onBack={handleBack}
           onInfo={() =>
             Alert.alert(
               'Save Slots',
@@ -328,7 +326,13 @@ export default function SaveSlots() {
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
-              <TouchableOpacity key={slot.id} activeOpacity={0.9} onPress={() => selectSlot(slot.id)}>
+              <TouchableOpacity
+                key={slot.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Save slot ${slot.id}, ${slot.hasData ? fullName || 'Unnamed Character' : 'empty'}`}
+                activeOpacity={0.9}
+                onPress={() => selectSlot(slot.id)}
+              >
                 <View style={styles.cardContainer}>
                   <BlurView intensity={20} style={styles.cardBlur}>
                     <LinearGradient

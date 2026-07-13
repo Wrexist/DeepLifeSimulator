@@ -205,6 +205,8 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
       activeOpacity={0.92}
       style={styles.cardContainer}
       onPress={() => onSelect(scenario)}
+      accessibilityRole="button"
+      accessibilityLabel={`${scenario.title}, ${scenario.difficulty} difficulty${isSelected ? ', selected' : ''}`}
     >
       <BlurView intensity={20} style={styles.cardBlur}>
         <LinearGradient
@@ -229,19 +231,11 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             <View style={styles.cardTextWrap}>
               <View style={styles.cardTitleRow}>
                 <Text style={styles.cardTitle}>{scenario.title}</Text>
-                {isChallenge ? (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+                <View style={[styles.difficultyChip, { backgroundColor: isChallenge ? difficultyBadgeColor : difficultyColor }]}>
+                  <Text style={styles.difficultyText}>
+                    {scenario.difficulty.toUpperCase()}
+                  </Text>
+                </View>
               </View>
               <Text style={styles.cardDescription}>{scenario.description}</Text>
               <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
@@ -471,7 +465,7 @@ export default function Scenarios() {
 
       <Text style={styles.guidanceText}>
         {activeTab === 'life_paths'
-          ? 'Pick how your life begins. New here? Tap the green "Recommended" path at the top.'
+          ? 'Pick how your life begins. New here? Tap the "Recommended" path at the top.'
           : 'Challenges add tougher goals and gem rewards — best once you know the game.'}
       </Text>
 
@@ -480,6 +474,9 @@ export default function Scenarios() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'life_paths' && styles.tabActive]}
           onPress={() => { haptic.light(); setActiveTab('life_paths'); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'life_paths' }}
+          accessibilityLabel="Life Paths"
         >
           <LinearGradient
             colors={
@@ -497,8 +494,11 @@ export default function Scenarios() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'challenges' && styles.tabActiveRed]}
+          style={[styles.tab, activeTab === 'challenges' && styles.tabActive]}
           onPress={() => { haptic.light(); setActiveTab('challenges'); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'challenges' }}
+          accessibilityLabel="Challenges"
         >
           <LinearGradient
             colors={
@@ -561,18 +561,6 @@ const styles = StyleSheet.create({
     }),
     elevation: 4,
   },
-  tabActiveRed: {
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)' } as any,
-      default: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 4,
-  },
   tabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -612,7 +600,7 @@ const styles = StyleSheet.create({
   recommendedBannerText: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#34D399',
+    color: '#60A5FA',
     letterSpacing: 0.8,
   },
   scrollContainer: {

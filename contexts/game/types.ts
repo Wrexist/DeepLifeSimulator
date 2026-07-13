@@ -828,6 +828,7 @@ export interface UserProfile {
   lastName?: string;
   sex?: 'male' | 'female';
   sexuality?: 'straight' | 'gay' | 'bi';
+  avatarId?: string; // Chosen starter face id (`<m|f><index>`, utils/facePool)
   // Enhanced profile fields for X.com-style social
   profilePhoto?: string; // Base64 or URI from gallery
   headerPhoto?: string; // Cover/banner photo

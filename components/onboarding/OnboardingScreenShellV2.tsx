@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
   },
   floatingButtonWrap: {
     position: 'absolute',
-    left: responsivePadding.horizontal,
-    right: responsivePadding.horizontal,
+    left: responsivePadding.large,
+    right: responsivePadding.large,
     zIndex: 10,
   },
   particlesContainer: {

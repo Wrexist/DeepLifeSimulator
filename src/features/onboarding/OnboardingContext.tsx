@@ -11,6 +11,7 @@ interface OnboardingState {
   lastName: string;
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
+  avatarId?: string; // Chosen starter face (utils/facePool listStarterAvatars id)
   perks: string[];
 }
 

@@ -192,3 +192,58 @@ export function getHeroPortrait(role: 'mom' | 'dad'): ImageSourcePropType {
 export const POOL_SIZES: Record<string, number> = Object.fromEntries(
   Object.entries(POOL).map(([k, v]) => [k, v.length]),
 );
+
+// ── Player avatar picker ─────────────────────────────────────────────────────
+// The player chooses their starting face in character creation. We store a
+// compact id `<m|f><index>` (sex + index into the young-adult bucket) on the
+// user profile, then resolve it age-aware so the chosen character keeps a
+// consistent slot as the player ages.
+
+function parseAvatarId(avatarId: string): { letter: 'm' | 'f'; index: number } | null {
+  const m = /^([mf])(\d+)$/.exec(avatarId);
+  if (!m) return null;
+  return { letter: m[1] as 'm' | 'f', index: parseInt(m[2], 10) };
+}
+
+/** The young-adult faces the player picks from, for a given sex. */
+export function listStarterAvatars(sex: string): { id: string; source: ImageSourcePropType }[] {
+  const build = (letter: 'm' | 'f') =>
+    (POOL[`${letter}_ya`] ?? []).map((source, i) => ({ id: `${letter}${i}`, source }));
+  if (sex === 'male') return build('m');
+  if (sex === 'female') return build('f');
+  // random → interleave so the grid shows a mix of women and men
+  const f = build('f');
+  const m = build('m');
+  const out: { id: string; source: ImageSourcePropType }[] = [];
+  for (let i = 0; i < Math.max(f.length, m.length); i++) {
+    if (i < f.length) out.push(f[i]);
+    if (i < m.length) out.push(m[i]);
+  }
+  return out;
+}
+
+/** The sex encoded in a chosen avatar id (so appearance and gameplay sex agree). */
+export function avatarSexFromId(avatarId: string | undefined | null): 'male' | 'female' | undefined {
+  const p = avatarId ? parseAvatarId(avatarId) : null;
+  if (!p) return undefined;
+  return p.letter === 'f' ? 'female' : 'male';
+}
+
+/**
+ * The player's face. If they picked an avatar, keep that pick's sex + slot and
+ * follow their age band; otherwise fall back to the seeded portrait by name.
+ */
+export function getAvatarPortrait(
+  avatarId: string | undefined | null,
+  age: number,
+  fallbackSeed: string | undefined | null,
+  fallbackSex: string,
+): ImageSourcePropType {
+  const p = avatarId ? parseAvatarId(avatarId) : null;
+  if (!p) return getPortrait(fallbackSeed, age, fallbackSex);
+  const band = bandForAge(age);
+  if (band === 'baby') return BASE.baby;
+  const bucket = POOL[`${p.letter}_${band}`];
+  if (!bucket || bucket.length === 0) return legacyFace(age, p.letter === 'f' ? 'female' : 'male');
+  return bucket[Math.min(p.index, bucket.length - 1)];
+}
