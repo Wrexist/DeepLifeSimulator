@@ -5,7 +5,6 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { GameProvider } from '@/contexts/GameContext';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext';
-import DailySummaryModal from '@/components/DailySummaryModal';
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
 import { setViewportOverride } from '@/utils/scaling';
@@ -104,7 +103,6 @@ function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) 
             <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             </Stack>
-            <DailySummaryModal />
             <AchievementToast />
             <UIUXOverlay />
           </View>
