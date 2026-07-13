@@ -20,6 +20,7 @@ import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
+import { buyStockMarket } from '@/contexts/game/actions/StockActions';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -2045,12 +2046,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 .filter(a => a.result === 'success')
 .reduce((s, a) => s + (a.value || 0), 0), 0);
 
- // Only 'save' rules move real money, and they do so as a net-worth-neutral
- // transfer from cash into bank savings. The pay/invest/renew executors don't
- // yet perform their asset-producing side (loan paydown / share buy / insurance
- // renewal) — and loans are already fully serviced by the weekly loan tick — so
- // charging their reported value would simply destroy the player's money.
- // Record every execution in history but apply no cash change for those types.
+ // 'save' rules move cash into bank savings (net-worth-neutral) inside this
+ // updater. 'invest' rules now perform REAL stock buys as well, but those run
+ // through the canonical buyStockMarket action below — which owns the cash
+ // debit — so this updater must NOT charge for them (doing so would DOUBLE-
+ // charge). 'pay'/'renew' still record to history only; loans are already
+ // serviced by the weekly loan tick.
  setGameState(prevState => {
  if (!prevState.automation) return prevState;
 
@@ -2059,7 +2060,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const transfer = Math.max(0, Math.min(saveTransfer, currentMoney));
 
  const currentHistory = prevState.automation.executionHistory || [];
- const newHistory = [...currentHistory,...executions].slice(-50);
+ // Strip the transient investOrders before persisting — it's apply-time wiring,
+ // not history, and is executed exactly once below (never replayed from a save).
+ const newHistory = [...currentHistory,...executions.map(e => ({...e, investOrders: undefined }))].slice(-50);
 
  if (transfer <= 0) {
  return {
@@ -2085,7 +2088,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  });
 
- logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}`);
+ // Execute the REAL stock purchases planned by 'invest' rules via the canonical
+ // buy action. buyStockMarket owns the cash debit + 2% broker fee + affordability
+ // check and writes ONLY stats.money (never a mirrored banking account). It
+ // re-checks live cash on every call, so multiple orders share one running budget
+ // and none can overspend; an unaffordable order is rejected (no fake fill).
+ const plannedInvestOrders = executions
+.filter(e => e.type === 'invest' && e.success)
+.flatMap(e => e.investOrders ?? []);
+ for (const order of plannedInvestOrders) {
+ try {
+ buyStockMarket(setGameState, order.symbol, order.amountUSD, order.midPrice);
+ } catch (buyErr) {
+ logger.warn('[AUTOMATION] Invest order failed:', { order, buyErr });
+ }
+ }
+
+ logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}, invest orders: ${plannedInvestOrders.length}`);
  }
  } catch (error) {
  logger.error('[AUTOMATION] Failed to process automation rules:', error);
