@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
+import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
 import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
@@ -90,6 +91,11 @@ export function executePrestige(
     // H-5: record how many achievements have now been credited toward points so
     // they can't be farmed again on the next prestige.
     achievementsCreditedForPoints: (gameState.achievements || []).filter((a) => a.completed).length,
+    // Preserve the prestige-achievement claimed store across the reset. This
+    // object is rebuilt field-by-field (not spread), so without carrying it over
+    // every prestige would reset the store and re-award each achievement — the
+    // award pass below relies on it to stay one-time / idempotent.
+    claimedPrestigeAchievements: [...(prestigeData.claimedPrestigeAchievements ?? [])],
   };
 
   // Award challenge scenario gems only on first prestige
@@ -139,6 +145,41 @@ export function executePrestige(
   // Add gems to the new game state if any were earned
   if (gemsToAward > 0) {
     newGameState.stats.gems = (newGameState.stats.gems || 0) + gemsToAward;
+  }
+
+  // --- Award prestige achievements (idempotent) ------------------------------
+  // Evaluate against a MERGED view of the life that just ended plus the freshly
+  // updated prestige accumulators:
+  //   • old life (gameState): stats / loans / relationships / educations — lets
+  //     the "prestige with 100 stats / zero debt / all educations / 20+
+  //     relationships" conditions read the ending life (post-reset stats would
+  //     be wrong).
+  //   • new prestige data + previousLives (newGameState): incremented
+  //     totalPrestiges, preserved unlockedBonuses, and the just-appended life
+  //     with weeksLivedAtEnd/netWorth — lets the count / speed / net-worth
+  //     conditions read the accumulators.
+  // The claimed store (carried into updatedPrestigeData) makes each award
+  // one-time and gives existing veterans a one-shot retroactive catch-up on
+  // their next prestige.
+  const updatedPrestige = newGameState.prestige;
+  if (updatedPrestige) {
+    const evalState: GameState = {
+      ...gameState,
+      prestige: updatedPrestige,
+      previousLives: newGameState.previousLives,
+    };
+    const { newlyAwarded, pointsAwarded } = collectNewlyEarnedPrestigeAchievements(evalState);
+    if (newlyAwarded.length > 0) {
+      const alreadyClaimed = updatedPrestige.claimedPrestigeAchievements ?? [];
+      newGameState.prestige = {
+        ...updatedPrestige,
+        prestigePoints: updatedPrestige.prestigePoints + pointsAwarded,
+        claimedPrestigeAchievements: [
+          ...alreadyClaimed,
+          ...newlyAwarded.map(a => a.id),
+        ],
+      };
+    }
   }
 
   return newGameState;
@@ -224,6 +265,8 @@ function createResetGameState(
       deathReason: oldState.deathReason,
       timestamp: Date.now(),
       summaryAchievements: getEarnedAchievementNames(oldState),
+      // Weeks lived when this life ended — feeds the prestige-speed achievements.
+      weeksLivedAtEnd: oldState.weeksLived || 0,
     },
   ];
 
@@ -509,6 +552,8 @@ function createChildGameState(
       deathReason: oldState.deathReason,
       timestamp: Date.now(),
       summaryAchievements: getEarnedAchievementNames(oldState),
+      // Weeks lived when this life ended — feeds the prestige-speed achievements.
+      weeksLivedAtEnd: oldState.weeksLived || 0,
     },
   ];
 

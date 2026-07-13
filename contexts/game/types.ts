@@ -2073,6 +2073,9 @@ export interface GameState {
     deathReason?: string;
     timestamp?: number;
     summaryAchievements?: string[];
+    /** Weeks lived when this life ended (feeds the prestige-speed achievements).
+     *  Optional: entries recorded before this field existed simply lack it. */
+    weeksLivedAtEnd?: number;
     [key: string]: any;
   }[];
   lifeStage: LifeStage;

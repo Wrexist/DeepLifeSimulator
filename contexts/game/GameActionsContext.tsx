@@ -32,6 +32,7 @@ import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
+import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
 import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
@@ -3593,6 +3594,42 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(newGameState);
  logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
 
+ // Surface any prestige achievements this prestige awarded. The award itself
+ // already happened inside executePrestige (points + claimed store); here we
+ // just diff the claimed store to announce them via the same friendly,
+ // auto-dismissing info banner gameplay events use.
+ const beforePrestigeAchievements = new Set(currentState.prestige?.claimedPrestigeAchievements ?? []);
+ const newlyAwardedPrestigeAchievements = (newGameState.prestige?.claimedPrestigeAchievements ?? [])
+ .filter(id => !beforePrestigeAchievements.has(id))
+ .map(id => PRESTIGE_ACHIEVEMENTS.find(a => a.id === id))
+ .filter((a): a is PrestigeAchievement => Boolean(a));
+ if (newlyAwardedPrestigeAchievements.length > 0) {
+ // Mirror the weekly-notify pattern: ≤2 show individually, more collapse into
+ // one summary banner so a veteran's one-shot retroactive catch-up (many at
+ // once) can't flood the screen.
+ if (newlyAwardedPrestigeAchievements.length <= 2) {
+ for (const a of newlyAwardedPrestigeAchievements) {
+ showInfoBanner(
+ `prestige-achievement-${a.id}`,
+ `${a.name} — +${(a.reward?.prestigePoints ?? 0).toLocaleString()} prestige points`,
+ 'Prestige Achievement',
+ );
+ }
+ } else {
+ const totalPoints = newlyAwardedPrestigeAchievements.reduce(
+ (sum, a) => sum + (a.reward?.prestigePoints ?? 0),
+ 0,
+ );
+ const names = newlyAwardedPrestigeAchievements.slice(0, 3).map(a => a.name).join(', ');
+ const more = newlyAwardedPrestigeAchievements.length - 3;
+ showInfoBanner(
+ 'prestige-achievements-summary',
+ `${names}${more > 0 ? ` +${more} more` : ''}\n+${totalPoints.toLocaleString()} prestige points`,
+ `${newlyAwardedPrestigeAchievements.length} Prestige Achievements`,
+ );
+ }
+ }
+
  // Save after prestige
  const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
  // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
@@ -3612,7 +3649,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[executePrestige] Error:', error);
  showError('Prestige Error', 'Failed to execute prestige. Please try again.');
  }
- }, [setGameState, currentSlot, showError]);
+ }, [setGameState, currentSlot, showError, showInfoBanner]);
 
  const value = useMemo<GameActionsContextType>(() => ({
  nextWeek,
