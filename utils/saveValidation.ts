@@ -457,6 +457,46 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // Reconcile each saved career's `levels` ladder with the current catalog.
+  // Several ladders were extended to 6 levels (task #46), but saves persist the
+  // FULL career object — including its `levels` snapshot — so a player who
+  // started before the extension would otherwise stay capped at the old, shorter
+  // ladder. When the catalog now offers MORE levels for a career, adopt the
+  // catalog's `levels` (which also carries the new per-level `experienceRequired`
+  // promotion gates) while preserving every dynamic field the player earned
+  // (level, progress, accepted/applied, performance, raiseMultiplier,
+  // startedWeeksLived, …). Idempotent and one-directional: only runs when the
+  // save is behind, never shrinks a ladder, and never moves the player's level.
+  // No save-version bump — repairGameState runs on every load.
+  if (Array.isArray(s.careers)) {
+    // Lazy require keeps the career catalogs out of every import of this module.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { INITIAL_CAREERS } = require('@/lib/careers/careerData');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ADVANCED_CAREERS } = require('@/lib/careers/advancedCareers');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { POLITICAL_CAREER } = require('@/lib/careers/political');
+    const catalogLevelsById = new Map<string, { name: string; salary: number }[]>();
+    for (const c of [...(INITIAL_CAREERS || []), ...(ADVANCED_CAREERS || []), POLITICAL_CAREER]) {
+      if (c && typeof c.id === 'string' && Array.isArray(c.levels)) {
+        catalogLevelsById.set(c.id, c.levels);
+      }
+    }
+    for (const career of s.careers as { id?: unknown; levels?: unknown; level?: unknown }[]) {
+      if (!career || typeof career.id !== 'string' || !Array.isArray(career.levels)) continue;
+      const catalogLevels = catalogLevelsById.get(career.id);
+      if (catalogLevels && catalogLevels.length > career.levels.length) {
+        career.levels = JSON.parse(JSON.stringify(catalogLevels));
+        // Defensive: keep the player's level index inside the (now longer) bounds.
+        if (typeof career.level === 'number') {
+          career.level = Math.max(0, Math.min(career.level, catalogLevels.length - 1));
+        }
+        repairs.push(`Extended ${career.id} career ladder to ${catalogLevels.length} levels from catalog`);
+        repaired = true;
+      }
+    }
+  }
+
   // Backfill the v14/v16/v18 app subsystems. Their migrations only create the
   // slice when it is ENTIRELY missing (`if (!state.banking)`), so a save with a
   // present-but-PARTIAL object (CloudSync merge, hand-edit, future field rename)

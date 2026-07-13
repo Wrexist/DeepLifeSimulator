@@ -40,6 +40,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Chief Executive Officer',
       },
+      {
+        name: 'Chairman & CEO',
+        salary: 21500, // ~$1.1M/yr — a deliberately restrained prestige rung
+        experienceRequired: 650, // 12.5 years
+        description: 'Chair the board while leading the company',
+      },
+      {
+        name: 'Executive Chairman',
+        salary: 24000, // ~$1.25M/yr — game-top pinnacle, gated behind a long tenure
+        experienceRequired: 800, // ~15 years
+        description: 'Elder statesman of the corporation',
+      },
     ],
     level: 0,
     applied: false,
@@ -84,6 +96,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Lead major research initiatives',
       },
+      {
+        name: 'Department Chair',
+        salary: 4700, // ~$245k/yr
+        experienceRequired: 650, // 12.5 years
+        description: 'Chair a research department',
+      },
+      {
+        name: 'Chief Scientist',
+        salary: 6200, // ~$320k/yr
+        experienceRequired: 800, // ~15 years
+        description: 'Set the scientific direction of the institution',
+      },
     ],
     level: 0,
     applied: false,
@@ -126,6 +150,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         salary: 2875, // ~$150k/yr
         experienceRequired: 416, // 8 years
         description: 'Oversee all creative direction',
+      },
+      {
+        name: 'VP of Creative',
+        salary: 4000, // ~$208k/yr
+        experienceRequired: 572, // 11 years
+        description: 'Lead creative across the whole brand',
+      },
+      {
+        name: 'Chief Creative Officer',
+        salary: 5500, // ~$286k/yr
+        experienceRequired: 728, // 14 years
+        description: 'Own the creative vision company-wide',
       },
     ],
     level: 0,
@@ -171,6 +207,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Top-level investment banking',
       },
+      {
+        name: 'Partner',
+        salary: 13000, // ~$675k/yr
+        experienceRequired: 676, // 13 years
+        description: 'Share in the firm\'s profits',
+      },
+      {
+        name: 'Head of Investment Banking',
+        salary: 16500, // ~$860k/yr
+        experienceRequired: 832, // 16 years
+        description: 'Run the entire banking division',
+      },
     ],
     level: 0,
     applied: false,
@@ -213,6 +261,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         salary: 9625, // ~$500k/yr
         experienceRequired: 520, // 10 years
         description: 'Lead surgical department',
+      },
+      {
+        name: 'Surgical Director',
+        salary: 13000, // ~$675k/yr
+        experienceRequired: 676, // 13 years
+        description: 'Direct surgery across the hospital network',
+      },
+      {
+        name: 'Chief Medical Officer',
+        salary: 16500, // ~$860k/yr
+        experienceRequired: 832, // 16 years
+        description: 'Top clinical leadership of the institution',
       },
     ],
     level: 0,

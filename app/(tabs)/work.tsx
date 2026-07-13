@@ -51,6 +51,7 @@ import { colors as themeColors } from '@/lib/config/theme';
 import { styles } from '@/components/work/workScreenStyles';
 import { CareerPathCard } from '@/components/CareerPathCard';
 import type { AdvancedCareer } from '@/lib/careers/advancedCareers';
+import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 const LinearGradient = LinearGradientFallback;
 
 
@@ -520,7 +521,16 @@ function WorkScreenContent() {
         // bounds for `levels`, making this undefined and crashing the card.
         const level = career.levels?.[career.level] ?? career.levels?.[0];
         const isEmployedHere = gameState.currentJob === career.id;
-        const canPromote = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
+        // Progress bar is full and there's a higher rung — but the promotion may
+        // still be gated on performance / experience (getPromotionEligibility).
+        const promotionReady = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
+        const promotionEligibility = promotionReady
+            ? getPromotionEligibility(career, gameState.weeksLived)
+            : null;
+        const canPromote = promotionReady && !!promotionEligibility?.eligible;
+        // Full progress but blocked by a review/experience gate — surfaced in the
+        // footer with the reason, while "Manage Job" stays available.
+        const promotionGated = promotionReady && !promotionEligibility?.eligible;
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
@@ -624,6 +634,15 @@ function WorkScreenContent() {
                             Quit instead
                         </Text>
                     </TouchableOpacity>
+                );
+            } else if (promotionGated) {
+                // Progress is maxed but the promotion is locked behind a
+                // performance review or tenure requirement — show why.
+                footer = (
+                    <View style={local.cardLockRow}>
+                        <Lock size={scale(14)} color="rgba(251, 191, 36, 0.92)" />
+                        <Text style={local.cardLockText}>{promotionEligibility?.reason}</Text>
+                    </View>
                 );
             } else {
                 footer = (
@@ -1149,6 +1168,20 @@ const local = StyleSheet.create({
         fontWeight: '500',
         color: 'rgba(226, 232, 240, 0.55)',
         marginTop: scale(1),
+    },
+    // Promotion-gated footer — full progress but locked on performance/experience.
+    cardLockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scale(8),
+        paddingVertical: scale(4),
+        paddingHorizontal: scale(2),
+    },
+    cardLockText: {
+        flex: 1,
+        fontSize: fontScale(11.5),
+        fontWeight: '600',
+        color: 'rgba(251, 191, 36, 0.92)',
     },
     // Action sheet
     sheetOverlay: {
