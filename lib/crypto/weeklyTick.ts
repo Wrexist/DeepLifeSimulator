@@ -169,6 +169,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       halvingCount: newHalvingCount,
     };
     const btcMarket = market.coinMarkets?.btc;
+    let btcBullApplied = false;
     if (btcMarket) {
       market = {
         ...market,
@@ -177,11 +178,15 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
           btc: { ...btcMarket, regime: 'bull', regimeWeeksRemaining: 24 },
         },
       };
+      btcBullApplied = true;
     }
+    // Only announce the bull regime if it was actually applied — on a malformed /
+    // partial market (`coinMarkets` absent) the halving still cuts mining rewards,
+    // but BTC's regime was not changed, so don't claim it was.
     notifications.push({
       id: 'crypto-halving',
       title: '⛏️ Bitcoin Halving',
-      message: `Mining rewards halved (now ${(Math.pow(0.5, newHalvingCount) * 100).toFixed(2)}% of original). BTC enters a bull regime.`,
+      message: `Mining rewards halved (now ${(Math.pow(0.5, newHalvingCount) * 100).toFixed(2)}% of original).${btcBullApplied ? ' BTC enters a bull regime.' : ''}`,
     });
   }
 
@@ -236,7 +241,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       market = recordDCAExecution(market, rule.id, 0, 0, input.currentWeek);
       continue;
     }
-    const regime = market.coinMarkets[rule.cryptoId]?.regime ?? 'stable';
+    const regime = market.coinMarkets?.[rule.cryptoId]?.regime ?? 'stable';
     const fillPrice = marketFillPrice(coin.price, 'buy', rule.amount, regime);
     const coinsBought = rule.amount / fillPrice;
 
@@ -249,8 +254,8 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       costBasis: {
         ...market.costBasis,
         [rule.cryptoId]: {
-          totalCost: safe(market.costBasis[rule.cryptoId]?.totalCost) + rule.amount,
-          totalShares: safe(market.costBasis[rule.cryptoId]?.totalShares) + coinsBought,
+          totalCost: safe(market.costBasis?.[rule.cryptoId]?.totalCost) + rule.amount,
+          totalShares: safe(market.costBasis?.[rule.cryptoId]?.totalShares) + coinsBought,
         },
       },
     };

@@ -57,14 +57,20 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
   // settleLaunderingTransactions, `.length`/spread) throws inside the weekly-tick
   // updater, silently bricking "Next Week". Normalize EVERY iterated slice, not
   // just activeJobs/recentEvents. Spread into a fresh object so we never mutate input.
+  // Validate by runtime SHAPE, not truthiness: a malformed but truthy value
+  // (e.g. `vendors: {}` from a corrupt/hand-edited save) would pass `|| []` and
+  // still throw on the downstream `for…of`/spread — and the outer fallback would
+  // then write that malformed slice back, re-throwing every subsequent week.
+  const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const isRecord = (v: unknown): boolean => !!v && typeof v === 'object' && !Array.isArray(v);
   let dw: DarkWebState = {
     ...input.darkWeb,
-    vendors: input.darkWeb.vendors || [],
-    listings: input.darkWeb.listings || [],
-    activeJobs: input.darkWeb.activeJobs || [],
-    laundering: input.darkWeb.laundering || [],
-    skills: input.darkWeb.skills || ({} as DarkWebState['skills']),
-    recentEvents: input.darkWeb.recentEvents || [],
+    vendors: asArray(input.darkWeb.vendors),
+    listings: asArray(input.darkWeb.listings),
+    activeJobs: asArray(input.darkWeb.activeJobs),
+    laundering: asArray(input.darkWeb.laundering),
+    skills: isRecord(input.darkWeb.skills) ? input.darkWeb.skills : ({} as DarkWebState['skills']),
+    recentEvents: asArray(input.darkWeb.recentEvents),
   };
   const notifications: DarkWebWeeklyTickResult['notifications'] = [];
   const relationshipDeltas: DarkWebWeeklyTickResult['relationshipDeltas'] = [];
