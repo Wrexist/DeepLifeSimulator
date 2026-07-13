@@ -9,7 +9,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
 import { createFamilyBusiness as createFamilyBusinessModule } from './actions/FamilyBusinessActions';
-import { enterCompetition as enterCompetitionModule, processCompetitionResults } from './actions/RDActions';
+import { enterCompetition as enterCompetitionModule, processCompetitionResults, advanceResearch } from './actions/RDActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import type { GameState } from './types';
 
@@ -69,6 +69,23 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   const weeksLived = gameState?.weeksLived ?? 0;
   useEffect(() => {
     processCompetitionResults(setGameState, weeksLived);
+  }, [weeksLived, setGameState]);
+
+  // R&D research tick — the previously-missing driver that makes labs actually
+  // finish research (before this, `completeResearch` had ZERO callers, so
+  // research never completed). `advanceResearch` bumps each in-progress project's
+  // progress by the lab's speed and finalises any that hit 100% (recording the
+  // tech, rolling the patent opportunity + breakthrough income event).
+  //
+  // The `lastResearchWeekRef` guard makes it idempotent per week: a remount
+  // (save reload / React StrictMode) or an unrelated re-render never grants a
+  // free increment — it only advances when `weeksLived` genuinely changes.
+  const lastResearchWeekRef = useRef<number>(weeksLived);
+  useEffect(() => {
+    if (lastResearchWeekRef.current === weeksLived) return; // already advanced this week
+    lastResearchWeekRef.current = weeksLived;
+    const state = stateRef.current;
+    if (state) advanceResearch(state, setGameState);
   }, [weeksLived, setGameState]);
 
   const buyWarehouse = useCallback(() => {
