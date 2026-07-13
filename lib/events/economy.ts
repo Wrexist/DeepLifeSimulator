@@ -1,5 +1,4 @@
 import type { EventTemplate } from './engine';
-import { adjustStockPrice } from '../economy/stockMarket';
 
 export const marketCrash: EventTemplate = {
   id: 'market_crash',
@@ -33,15 +32,17 @@ export const earningsReport: EventTemplate = {
   id: 'earnings_report',
   category: 'economy',
   weight: 0.3,
-  generate: () => {
-    adjustStockPrice('aapl', 1.05);
-    return {
-      id: 'earnings_report',
-      description: 'Positive earnings report boosts AAPL stock by 5%.',
-      choices: [
-        { id: 'buy', text: 'Invest $100 in AAPL', effects: { money: -100 } },
-        { id: 'ignore', text: 'Ignore', effects: {} },
-      ],
-    };
-  },
+  // Pure generate(): the old body mutated a MODULE-LEVEL stock singleton at
+  // selection time (before the player even resolved the event), so AAPL
+  // compounded +5% every time this was rolled and the change persisted across
+  // lives. The stock-market model moves prices on its own; this is now a
+  // sentiment/flavor event whose choice no longer burns $100 for zero shares.
+  generate: () => ({
+    id: 'earnings_report',
+    description: 'Strong earnings reports are lifting the market this week — tech stocks are up on the news.',
+    choices: [
+      { id: 'optimistic', text: 'Feel good about your investments', effects: { stats: { happiness: 2 } } },
+      { id: 'ignore', text: 'Ignore the news', effects: {} },
+    ],
+  }),
 };

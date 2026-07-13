@@ -76,7 +76,11 @@ export function applyEducationProgression(
   // Defensive `|| []` like every sibling weekly helper — a stale save could
   // omit `educations`, and an unguarded .map() throws inside the weekly tick.
   const updatedEducations = (input.prevEducations || []).map((edu) => {
-    if (edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0) {
+    // `>= 0` (not `> 0`) so an education the Study button already drove to
+    // weeksRemaining 0 still enters here and gets finalized — completion flag,
+    // enrolled-class stat bonuses, and the "🎓 Completed!" toast. Study leaves
+    // `completed` false precisely so the tick does this once, in one place.
+    if (edu && !edu.completed && !edu.paused && typeof edu.weeksRemaining === 'number' && edu.weeksRemaining >= 0) {
       const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
       const isCompleted = newWeeksRemaining === 0;
 

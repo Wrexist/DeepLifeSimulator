@@ -2662,7 +2662,7 @@ exports[`pre-tick equivalence — applyEducationProgression study group bonus: +
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0: untouched (filter predicate excludes) 1`] = `
+exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0 (not yet completed): tick finalizes graduation 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2678,7 +2678,7 @@ exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0: 
     "pendingCampusEvent": undefined,
     "updatedEducations": [
       {
-        "completed": false,
+        "completed": true,
         "cost": 0,
         "duration": 52,
         "id": "cs101",
@@ -2686,6 +2686,7 @@ exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0: 
         "name": "CS 101",
         "paused": false,
         "requirements": {},
+        "semesterNumber": 2,
         "weeksRemaining": 0,
       },
     ],
@@ -8872,6 +8873,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick earlyCareer 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],
@@ -8932,6 +8934,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick freshGame 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],
@@ -8992,6 +8995,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick inPrison 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],
@@ -9052,6 +9056,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick midGame 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],
@@ -9112,6 +9117,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick nearDeath 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],
@@ -9172,6 +9178,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick wealthyGame 1`] = `
     "totalInterestPaid": 0,
     "totalLateFeesPaid": 0,
   },
+  "billsPaidFromCash": 0,
   "lateFeesDeducted": 0,
   "loansWithTrackers": [],
   "notifications": [],

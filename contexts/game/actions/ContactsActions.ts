@@ -131,6 +131,7 @@ export function redeemFavor(
   // both paid out (a credit never overdraft-rejects) while the ledger closed
   // once: a same-batch double-credit money printer. Re-checking `prev` here makes
   // the second tap a no-op.
+  let redeemed = false;
   setGameState((prev) => {
     const prevLedger = ledgerOf(prev);
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
@@ -158,15 +159,22 @@ export function redeemFavor(
         `Favor redeemed from ${fresh.contactId}`
       );
       if (!credit) return prev; // credit rejected → leave the favor open
+      redeemed = true;
       return { ...flipped, ...credit };
     }
 
     // Non-money favor → just flip the ledger.
+    redeemed = true;
     return {
       ...prev,
       favorLedger: redeemFavorPure(prevLedger, favorId),
     } as GameState;
   });
+  if (!redeemed) {
+    // The updater bailed (favor already closed this batch, or an invalid/rejected
+    // amount) — don't report success on a no-op.
+    return { success: false, message: 'Could not redeem this favor right now.', favor: target };
+  }
   log.info(`Redeemed favor ${favorId}`);
   return { success: true, message: 'Favor redeemed', favor: target };
 }

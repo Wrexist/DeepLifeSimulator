@@ -1000,10 +1000,11 @@ export const boostPostWithGems = (
     const sm = { ...ensureSocial(prev) };
     sm.recentPosts = (sm.recentPosts ?? []).map((p) => {
       if (p.id !== postId) return p;
-      // Tripled-virality re-roll
-      const viral = checkViralChance(sm.influenceLevel, p.contentType) ||
-        checkViralChance(sm.influenceLevel, p.contentType) ||
-        checkViralChance(sm.influenceLevel, p.contentType);
+      // Tripled-virality re-roll — distinct nonces so the three rolls are
+      // genuinely independent (≈ 3× the base viral chance), not one repeated.
+      const viral = checkViralChance(sm.influenceLevel, p.contentType, 0) ||
+        checkViralChance(sm.influenceLevel, p.contentType, 1) ||
+        checkViralChance(sm.influenceLevel, p.contentType, 2);
       const eng = calculatePostEngagement(sm.followers ?? 0, p.contentType, viral);
       return {
         ...p,

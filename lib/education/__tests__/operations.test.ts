@@ -156,10 +156,14 @@ describe('applyStudySession', () => {
     expect(r[0].weeksRemaining).toBe(25);
   });
 
-  it('completes when weeksRemaining hits 0', () => {
+  it('drives weeksRemaining to 0 but leaves finalization to the weekly tick', () => {
+    // Study must NOT set `completed` — the weekly education tick finalizes
+    // graduation (enrolled-class stat bonuses + "🎓 Completed!" toast) when it
+    // sees weeksRemaining at 0. Setting completed here made the tick skip it
+    // (it guards on !completed), silently forfeiting the class bonuses.
     const r = applyStudySession([active({ weeksRemaining: 1 })], 'cs101');
     expect(r[0].weeksRemaining).toBe(0);
-    expect(r[0].completed).toBe(true);
+    expect(r[0].completed).toBe(false);
   });
 
   it('does nothing when paused', () => {

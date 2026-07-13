@@ -700,7 +700,10 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('weeksRemaining = 0: untouched (filter predicate excludes)', () => {
+  it('weeksRemaining = 0 (not yet completed): tick finalizes graduation', () => {
+    // M6: the guard is `weeksRemaining >= 0` (not `> 0`) so a program the Study
+    // button already drove to 0 is finalized here — `completed` flips true and
+    // semesterNumber caps — instead of falling through untouched.
     const ctx = progStubCtx(progStubStats());
     const result = applyEducationProgression({
       prevEducations: [anEduP({ weeksRemaining: 0 })],

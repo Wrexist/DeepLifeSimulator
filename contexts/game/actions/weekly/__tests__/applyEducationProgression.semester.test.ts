@@ -71,6 +71,32 @@ describe('applyEducationProgression — semesterNumber', () => {
     expect(res.updatedEducations[0].semesterNumber).toBe(4); // ceil(104/26)
   });
 
+  it('finalizes an education the Study button already drove to weeksRemaining 0', () => {
+    // M6: applyStudySession leaves `completed` false when it hits 0 so the tick
+    // does the finalization once, in one place. Before the guard changed from
+    // `> 0` to `>= 0`, such an education fell through untouched — never marked
+    // complete and forfeiting its enrolled-class stat bonuses.
+    const ctx = makeCtx();
+    const already0 = ed({
+      weeksRemaining: 0,
+      completed: false,
+      enrolledClasses: [
+        { id: 'c1', name: 'Finance 101', category: 'core', difficulty: 2, completed: false,
+          statBonuses: { reputation: 5, happiness: 3 } },
+      ],
+    });
+    const res = applyEducationProgression(
+      { prevEducations: [already0], nextWeeksLived: 200, goldFastLearner: false, perkFastLearner: false },
+      ctx,
+    );
+    expect(res.updatedEducations[0].completed).toBe(true);
+    // Class bonuses applied to running stats (50 baseline in makeCtx()).
+    expect(ctx.newStats.reputation).toBe(55);
+    expect(ctx.newStats.happiness).toBe(53);
+    // Completion toast pushed.
+    expect(ctx.notifications.some((n) => n.title?.includes('Completed'))).toBe(true);
+  });
+
   it('does not advance a paused program', () => {
     const paused = ed({ paused: true, weeksRemaining: 52, semesterNumber: 1 });
     const res = applyEducationProgression(

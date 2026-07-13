@@ -116,6 +116,7 @@ import { applyNPCDepthTick } from './actions/weekly/applyNPCDepthTick';
 import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
+import { clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
@@ -3405,6 +3406,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(prev => ({
 ...prev,
  relationships: (prev.relationships || []).filter(r => r.id!== partnerId),
+ // Clear the backing Spark match's `promoted` flag so the ex stops rendering
+ // as your partner in Spark and can be re-dated later.
+ sparkApp: clearPromotedSparkMatch(prev.sparkApp, partnerId),
  }));
 
  updateStats({ happiness: -20 });

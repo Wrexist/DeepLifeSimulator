@@ -31,7 +31,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
-import { bumpSparkLifetimeStat } from '@/lib/dating/sparkStats';
+import { bumpSparkLifetimeStat, clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
@@ -994,8 +994,13 @@ export const fileDivorce = (
 
     return {
       ...prev,
-      // Spark lifetime stat: a divorce was finalized.
-      sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDivorces'),
+      // Spark lifetime stat: a divorce was finalized. Also clear the backing
+      // match's `promoted` flag so the ex stops rendering as your partner in
+      // Spark and can be re-dated later.
+      sparkApp: clearPromotedSparkMatch(
+        bumpSparkLifetimeStat(prev.sparkApp, 'totalDivorces'),
+        spouseId
+      ),
       stats: nextStats,
       bankSavings: Math.max(0, workingSavings),
       stocks: prev.stocks

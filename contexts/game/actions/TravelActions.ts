@@ -42,7 +42,9 @@ export const travelTo = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   destinationId: string,
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+  // Kept for signature compatibility; the cost debit is now folded into the
+  // guarded updater below instead of a separate updateMoney call.
+  _deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): TravelToResult => {
   const currentWeek = gameState.weeksLived || 0;
   const quote = quoteTrip(destinationId, gameState, currentWeek);
@@ -53,35 +55,51 @@ export const travelTo = (
 
   const { destination, adjustedCost, adjustedDuration, returnWeek } = quote;
 
-  deps.updateMoney(setGameState, -adjustedCost, `Travel to ${destination.name}`);
-
-  setGameState((prev) => ({
-    ...prev,
-    // Budget tab: trip bookings are entertainment spending (cost was deducted
-    // by the updateMoney call above).
-    banking: prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived || 0, 'entertainment', adjustedCost)
-      : prev.banking,
-    travel: {
-      ...prev.travel,
-      currentTrip: {
-        destinationId: destination.id,
-        returnWeek,
-        startWeek: prev.weeksLived || 0,
-      },
-      visitedDestinations: prev.travel?.visitedDestinations || [],
-      passportOwned: prev.travel?.passportOwned || false,
-      travelHistory: [
-        ...(prev.travel?.travelHistory || []),
-        {
+  // Single guarded updater folds the cost debit + trip booking, so a rapid
+  // double-tap can't charge twice or double-book (mirrors the currentTrip
+  // re-entry guard in returnFromTrip / purchasePassport).
+  let booked = false;
+  setGameState((prev) => {
+    if (prev.travel?.currentTrip) return prev;
+    const currentMoney =
+      typeof prev.stats?.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0;
+    if (currentMoney < adjustedCost) return prev;
+    booked = true;
+    return {
+      ...prev,
+      stats: { ...prev.stats, money: Math.max(0, currentMoney - adjustedCost) },
+      // Budget tab: trip bookings are entertainment spending.
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived || 0, 'entertainment', adjustedCost)
+        : prev.banking,
+      travel: {
+        ...prev.travel,
+        currentTrip: {
           destinationId: destination.id,
-          week: prev.weeksLived || 0,
-          year: prev.date.year,
+          returnWeek,
+          startWeek: prev.weeksLived || 0,
         },
-      ].slice(-TRAVEL_HISTORY_CAP),
-      businessOpportunities: prev.travel?.businessOpportunities || {},
-    } as TravelState,
-  }));
+        visitedDestinations: prev.travel?.visitedDestinations || [],
+        passportOwned: prev.travel?.passportOwned || false,
+        travelHistory: [
+          ...(prev.travel?.travelHistory || []),
+          {
+            destinationId: destination.id,
+            week: prev.weeksLived || 0,
+            year: prev.date.year,
+          },
+        ].slice(-TRAVEL_HISTORY_CAP),
+        businessOpportunities: prev.travel?.businessOpportunities || {},
+      } as TravelState,
+    };
+  });
+
+  if (!booked) {
+    return {
+      success: false,
+      message: `Could not book this trip — you may already be traveling or short on funds.`,
+    };
+  }
 
   log.info(`Traveled to ${destination.name}, returning week ${returnWeek} (cost ${formatMoney(adjustedCost)})`);
   return {
