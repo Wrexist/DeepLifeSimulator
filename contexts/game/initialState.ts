@@ -1715,6 +1715,10 @@ export const initialGameState: GameState = {
   challengeStreak: undefined,
   activeChapterId: 'ch1_fresh_start',
   completedChapters: [],
+  // Life Ambition (additive/optional) — set from onboarding; absent = freeform life.
+  ambitionId: undefined,
+  ambitionCompletedMilestones: [],
+  ambitionRewardClaimed: false,
   completedTutorialSteps: [],
 
   // Wave 2: Addiction Mechanics

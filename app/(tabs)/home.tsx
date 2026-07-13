@@ -31,6 +31,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
+import AmbitionCard from '@/components/AmbitionCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -466,6 +467,12 @@ function HomeScreenContent() {
         {/* Life Chapter — the chunked-goal spine (was built but had no UI). */}
         <FadeInUp delay={50}>
           <LifeChapterCard />
+        </FadeInUp>
+
+        {/* Life Ambition — the lifelong goal chosen at character creation.
+            Renders only when an ambition was picked (freeform lives skip it). */}
+        <FadeInUp delay={55}>
+          <AmbitionCard />
         </FadeInUp>
 
         {/* Active Goals Section */}

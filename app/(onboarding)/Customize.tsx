@@ -191,7 +191,7 @@ export default function Customize() {
         avatarId,
       })
     );
-    router.push('/(onboarding)/Perks');
+    router.push('/(onboarding)/Ambitions');
   }, [avatarId, firstName, lastName, router, setState, sex, sexuality, state.scenario]);
 
   const selectedSexLabel = useMemo(() => {
@@ -223,7 +223,7 @@ export default function Customize() {
         }
       />
 
-      <OnboardingStepBar currentStep={2} totalSteps={3} />
+      <OnboardingStepBar currentStep={2} totalSteps={4} />
 
       <Text style={styles.guidanceText}>
         Name, sex, and sexuality only shape your story and relationships — not difficulty. Tap Shuffle for a random name.

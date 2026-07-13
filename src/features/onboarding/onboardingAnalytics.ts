@@ -12,6 +12,7 @@ export type OnboardingFunnelStep =
   | 'SaveSlots'
   | 'Scenarios'
   | 'Customize'
+  | 'Ambitions'
   | 'Perks';
 
 export function logOnboardingStepView(step: OnboardingFunnelStep, meta?: Record<string, unknown>): void {

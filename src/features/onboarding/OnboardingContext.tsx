@@ -13,6 +13,7 @@ interface OnboardingState {
   sexuality: 'straight' | 'gay' | 'bi';
   avatarId?: string; // Chosen starter face (utils/facePool listStarterAvatars id)
   perks: string[];
+  ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional — skippable.
 }
 
 interface OnboardingContextType {
@@ -53,6 +54,7 @@ const isPristineDraft = (s: OnboardingState): boolean =>
   !s.firstName &&
   !s.lastName &&
   !s.avatarId &&
+  !s.ambitionId &&
   s.perks.length === 0;
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);

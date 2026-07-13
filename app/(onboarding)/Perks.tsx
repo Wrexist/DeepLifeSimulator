@@ -491,6 +491,7 @@ export default function Perks() {
         selectedPerks: selected,
         permanentPerks,
         selectedMindset,
+        ambitionId: state.ambitionId,
       });
 
       const slotToUse = state.slot || 1;
@@ -565,7 +566,7 @@ export default function Perks() {
           }
         />
 
-        <OnboardingStepBar currentStep={3} totalSteps={3} />
+        <OnboardingStepBar currentStep={4} totalSteps={4} />
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'

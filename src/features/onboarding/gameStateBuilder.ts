@@ -47,6 +47,8 @@ export interface BuildGameStateParams {
   selectedPerks: string[];
   permanentPerks: string[];
   selectedMindset: MindsetId | null;
+  /** Chosen Life Ambition id (lib/ambitions). Optional — undefined = freeform life. */
+  ambitionId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +156,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     permanentPerks,
     selectedMindset,
     avatarId,
+    ambitionId,
   } = params;
 
   // A picked avatar's sex wins over "random" so appearance and gameplay agree.
@@ -264,6 +267,11 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       : undefined,
     scenarioId: scenario.id,
     challengeScenarioId,
+    // Life Ambition — the chosen lifelong goal (or undefined for a freeform life).
+    // Milestone tracking + payoff flag start clean so progress accrues over the life.
+    ambitionId: ambitionId || undefined,
+    ambitionCompletedMilestones: [],
+    ambitionRewardClaimed: false,
     activeTraits: scenario.start.traits || [],
     items: initialGameState.items.map((i: any) => {
       if (mappedItemIds.includes(i.id)) return { ...i, owned: true };

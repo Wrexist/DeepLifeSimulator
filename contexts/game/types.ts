@@ -2460,6 +2460,16 @@ export interface GameState {
   activeChapterId?: string;
   completedChapters?: string[];
   /**
+   * Life Ambition (v22.x, additive/optional) — a lifelong aspiration chosen at
+   * character creation. `ambitionId` references lib/ambitions catalogue;
+   * `ambitionCompletedMilestones` is the sticky set of reached milestone ids
+   * (staged progress); `ambitionRewardClaimed` gates the one-time payoff.
+   * All optional so old saves and freeform (no-ambition) lives load unchanged.
+   */
+  ambitionId?: string;
+  ambitionCompletedMilestones?: string[];
+  ambitionRewardClaimed?: boolean;
+  /**
    * Hobby mastery (v21) — pursuits you practice weekly to level up, each with a
    * compounding perk. `pursuits[id]` accrues xp; `weeklyPursuitPractice` caps
    * practices per week and is reset on week advance (like weeklyStudySessions).

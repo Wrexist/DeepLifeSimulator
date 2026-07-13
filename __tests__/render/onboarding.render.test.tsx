@@ -4,6 +4,7 @@ import MainMenu from '@/app/(onboarding)/MainMenu';
 import SaveSlots from '@/app/(onboarding)/SaveSlots';
 import Scenarios from '@/app/(onboarding)/Scenarios';
 import Customize from '@/app/(onboarding)/Customize';
+import Ambitions from '@/app/(onboarding)/Ambitions';
 import Perks from '@/app/(onboarding)/Perks';
 
 /**
@@ -33,6 +34,12 @@ describe('render — onboarding screens', () => {
 
   it('Customize mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<Customize />);
+    expect(json.length).toBeGreaterThan(0);
+    unmount();
+  });
+
+  it('Ambitions mounts without throwing', () => {
+    const { json, unmount } = renderWithProviders(<Ambitions />);
     expect(json.length).toBeGreaterThan(0);
     unmount();
   });
