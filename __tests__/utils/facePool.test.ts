@@ -172,6 +172,13 @@ describe('facePool', () => {
       expect(mixed.every((o) => o.source)).toBe(true); // every face has an image
     });
 
+    it('matches the scenario starting-age band', () => {
+      expect(listStarterAvatars('female', 22).length).toBe(POOL_SIZES.f_ya);
+      expect(listStarterAvatars('male', 22).length).toBe(POOL_SIZES.m_ya);
+      expect(listStarterAvatars('female', 45).length).toBe(POOL_SIZES.f_mid);
+      expect(listStarterAvatars('male', 33).length).toBe(POOL_SIZES.m_ad);
+    });
+
     it('reads the sex encoded in an avatar id', () => {
       expect(avatarSexFromId('m3')).toBe('male');
       expect(avatarSexFromId('f0')).toBe('female');

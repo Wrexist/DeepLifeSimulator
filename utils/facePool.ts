@@ -205,13 +205,20 @@ function parseAvatarId(avatarId: string): { letter: 'm' | 'f'; index: number } |
   return { letter: m[1] as 'm' | 'f', index: parseInt(m[2], 10) };
 }
 
-/** The young-adult faces the player picks from, for a given sex. */
-export function listStarterAvatars(sex: string): { id: string; source: ImageSourcePropType }[] {
-  const build = (letter: 'm' | 'f') =>
-    (POOL[`${letter}_ya`] ?? []).map((source, i) => ({ id: `${letter}${i}`, source }));
+/**
+ * The starter faces the player picks from — matched to their sex AND the
+ * scenario's starting age band (e.g. a scenario that begins at 30 shows adult
+ * faces, not young-adult). `age` defaults to adulthood.
+ */
+export function listStarterAvatars(sex: string, age = 18): { id: string; source: ImageSourcePropType }[] {
+  const band = bandForAge(age);
+  const build = (letter: 'm' | 'f') => {
+    const key = band === 'baby' ? 'baby' : `${letter}_${band}`;
+    return (POOL[key] ?? []).map((source, i) => ({ id: `${letter}${i}`, source }));
+  };
   if (sex === 'male') return build('m');
   if (sex === 'female') return build('f');
-  // random → interleave so the grid shows a mix of women and men
+  // random → interleave so the row shows a mix of women and men
   const f = build('f');
   const m = build('m');
   const out: { id: string; source: ImageSourcePropType }[] = [];
@@ -242,8 +249,7 @@ export function getAvatarPortrait(
   const p = avatarId ? parseAvatarId(avatarId) : null;
   if (!p) return getPortrait(fallbackSeed, age, fallbackSex);
   const band = bandForAge(age);
-  if (band === 'baby') return BASE.baby;
-  const bucket = POOL[`${p.letter}_${band}`];
+  const bucket = POOL[band === 'baby' ? 'baby' : `${p.letter}_${band}`];
   if (!bucket || bucket.length === 0) return legacyFace(age, p.letter === 'f' ? 'female' : 'male');
   return bucket[Math.min(p.index, bucket.length - 1)];
 }
