@@ -5,7 +5,6 @@ import {
   isPerkPermanent,
   getPerkBenefits,
   getStatColor,
-  getStatIconName,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
 
@@ -140,18 +139,11 @@ describe('getPerkBenefits', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getStatColor / getStatIconName
+// getStatColor
 // ---------------------------------------------------------------------------
 
 describe('getStatColor', () => {
   it('returns red for happiness', () => expect(getStatColor('happiness')).toBe('#EF4444'));
   it('returns green for health', () => expect(getStatColor('health')).toBe('#10B981'));
   it('returns gray for unknown', () => expect(getStatColor('unknown')).toBe('#6B7280'));
-});
-
-describe('getStatIconName', () => {
-  it('returns Heart for happiness', () => expect(getStatIconName('happiness')).toBe('Heart'));
-  it('returns Shield for health', () => expect(getStatIconName('health')).toBe('Shield'));
-  it('returns DollarSign for money', () => expect(getStatIconName('money')).toBe('DollarSign'));
-  it('returns TrendingUp for unknown', () => expect(getStatIconName('unknown')).toBe('TrendingUp'));
 });

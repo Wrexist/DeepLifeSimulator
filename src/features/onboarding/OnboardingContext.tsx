@@ -41,6 +41,20 @@ interface PersistedDraft {
   savedAt: number;
 }
 
+/**
+ * A draft carrying no real user choices (default sex/sexuality/slot don't
+ * count). We never persist a pristine draft — that keeps the debounced writer
+ * from resurrecting the key right after clearDraft() resets state on
+ * completion, and stops a brand-new session from writing an empty draft.
+ */
+const isPristineDraft = (s: OnboardingState): boolean =>
+  !s.scenario &&
+  !s.challengeScenarioId &&
+  !s.firstName &&
+  !s.lastName &&
+  !s.avatarId &&
+  s.perks.length === 0;
+
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export const OnboardingProvider = ({ children }: { children: React.ReactNode }) => {
@@ -87,6 +101,14 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!hasHydratedRef.current) return; // don't persist the default before hydration finishes
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    // Never persist a pristine draft. This is what stops the debounced writer
+    // from re-creating the key ~500ms after clearDraft() resets state on
+    // completion (the provider is app-level and never remounts).
+    if (isPristineDraft(state)) {
+      persistTimerRef.current = null;
+      void safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
+      return;
+    }
     persistTimerRef.current = setTimeout(() => {
       const payload: PersistedDraft = { state, savedAt: Date.now() };
       void safeAsyncStorage.setItem(ONBOARDING_DRAFT_KEY, payload).then((ok) => {
@@ -102,6 +124,14 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
   }, [state]);
 
   const clearDraft = React.useCallback(async () => {
+    // Cancel any pending debounced write so it can't resurrect the key, and
+    // reset the in-memory draft so the next New Life starts clean rather than
+    // silently reusing the finished life's name/scenario/perks.
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    setState(defaultState);
     try {
       await safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
     } catch (error) {

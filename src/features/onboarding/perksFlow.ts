@@ -139,28 +139,3 @@ export function getStatColor(stat: string): string {
       return '#6B7280';
   }
 }
-
-/**
- * Map a stat name to a lucide icon name.
- * Returns the icon name string — the component must resolve it.
- */
-export function getStatIconName(stat: string): string {
-  switch (stat) {
-    case 'happiness':
-      return 'Heart';
-    case 'health':
-      return 'Shield';
-    case 'energy':
-      return 'Zap';
-    case 'fitness':
-    case 'Income Boost':
-      return 'TrendingUp';
-    case 'reputation':
-      return 'Users';
-    case 'money':
-    case 'Starting Money':
-      return 'DollarSign';
-    default:
-      return 'TrendingUp';
-  }
-}

@@ -29,7 +29,6 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getCharacterImage } from '@/utils/characterImages';
 import { getAvatarPortrait } from '@/utils/facePool';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';

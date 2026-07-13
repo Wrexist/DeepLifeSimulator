@@ -116,6 +116,9 @@ export function hashSeed(seed: string): number {
 }
 
 export function bandForAge(age: number): Band {
+  // A non-finite age (NaN/undefined coerced) would fall through every `<`
+  // comparison to 'sr'; default such callers to young-adult instead.
+  if (!Number.isFinite(age)) return 'ya';
   if (age < 5) return 'baby';
   if (age < 13) return 'kid';
   if (age < 18) return 'tn';

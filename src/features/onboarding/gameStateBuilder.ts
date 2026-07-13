@@ -82,9 +82,10 @@ const ITEM_ID_MAP: Record<string, string> = {
   driver_license: 'driver_license',
 };
 
-/** Map scenario education names to game education IDs. */
+/** Map scenario education names to game education IDs (keys are lower-cased so
+ *  both life-path 'College' and challenge 'college' resolve the same). */
 const EDUCATION_MAP: Record<string, string> = {
-  College: 'business_degree',
+  college: 'business_degree',
 };
 
 /** Display names for seeded educations (mirrors the EducationApp catalog). */
@@ -203,7 +204,9 @@ export function buildNewGameState(params: BuildGameStateParams): any {
         const eduFromScenario = scenario.start.education;
         if (!eduFromScenario) return e;
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
-        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        const mappedWanted = wanted
+          .map((w) => EDUCATION_MAP[w.toLowerCase()] || w)
+          .filter((w) => w.toLowerCase() !== 'dropout');
         if (mappedWanted.length > 0 && mappedWanted.includes(e.id)) {
           return {
             ...e,
@@ -223,7 +226,9 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       const eduFromScenario = scenario.start.education;
       if (eduFromScenario) {
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
-        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        const mappedWanted = wanted
+          .map((w) => EDUCATION_MAP[w.toLowerCase()] || w)
+          .filter((w) => w.toLowerCase() !== 'dropout');
         for (const eduId of mappedWanted) {
           if (!existing.find((e) => e.id === eduId)) {
             existing.push({
