@@ -10,6 +10,15 @@ export interface SmartNotification {
   priority: 'low' | 'medium' | 'high' | 'critical';
   category: 'wealth' | 'health' | 'social' | 'career' | 'family' | 'education' | 'general';
   icon?: string;
+  /**
+   * Gem reward for a GENUINE achievement notification. Only notifications that are
+   * both `type: 'achievement'` and carry a positive `rewardGems` are allowed to use
+   * the "ACHIEVEMENT UNLOCKED!" popup (see `displayNotification`). Every other
+   * notification — tips, warnings, celebrations, milestones, reminders, suggestions
+   * and the legacy 0-reward "achievement" entries — surfaces in the notification
+   * center instead. Undefined/0 means "not a rewarded achievement": no popup.
+   */
+  rewardGems?: number;
   action?: {
     label: string;
     onPress: () => void;
@@ -610,25 +619,41 @@ class SmartNotificationSystem {
   }
 
   private displayNotification(notification: SmartNotification): void {
-    // Use the existing achievement toast system for now
-    // In a real implementation, you might want a more sophisticated notification system
-    const iconValue = typeof notification.icon === 'string' ? 0 : (notification.icon || 0);
-    showAchievementToast(notification.title, notification.message, iconValue);
+    // The AchievementToast is the hard-branded "ACHIEVEMENT UNLOCKED!" popup (gem
+    // reward chip + trophy). It is reserved for GENUINE achievements. Tips,
+    // warnings (e.g. "You've contracted a health condition"), celebrations (e.g.
+    // "perfect week"), milestones, reminders, suggestions and the legacy 0-reward
+    // pseudo-"achievement" entries are NOT achievements — routing them here made
+    // the popup fire for non-accomplishments awarding "+0". Those are surfaced by
+    // the SmartNotificationCenter list (the Bell) and must never use this popup.
+    //
+    // Enqueue-site predicate (copy-agnostic): only a `type: 'achievement'`
+    // notification that carries a positive gem reward may pop. No current entry
+    // sets `rewardGems`, so today none pop here — but the gate stays correct if a
+    // genuinely rewarded achievement notification is ever added. (utils/achievementToast
+    // also enforces reward > 0 as a systemic backstop.)
+    if (notification.type === 'achievement' && (notification.rewardGems ?? 0) > 0) {
+      showAchievementToast(notification.title, notification.category, notification.rewardGems as number);
+    }
   }
 
   private triggerFeedback(notification: SmartNotification): void {
+    // Haptics + sound ONLY. Do NOT forward `notification.message` — the
+    // feedbackSystem.{error,warning,info}(message) helpers render any message
+    // through the same "ACHIEVEMENT UNLOCKED!" popup, which was a second path by
+    // which tips/warnings/celebrations mis-fired as achievements. The copy is
+    // shown by the notification center (and, for genuine rewarded achievements, by
+    // displayNotification above).
     switch (notification.priority) {
       case 'critical':
-        this.feedbackSystem.error(notification.message);
+        this.feedbackSystem.error();
         break;
       case 'high':
-        this.feedbackSystem.warning(notification.message);
+        this.feedbackSystem.warning();
         break;
       case 'medium':
-        this.feedbackSystem.info(notification.message);
-        break;
       case 'low':
-        this.feedbackSystem.info(notification.message);
+        this.feedbackSystem.info();
         break;
     }
   }
