@@ -1,5 +1,6 @@
 import type { GameState } from '@/contexts/game/types';
 import type { AchievementProgress } from '@/lib/progress/achievements';
+import { PRESTIGE_BONUSES } from './prestigeBonuses';
 
 /**
  * Prestige-specific achievements
@@ -245,10 +246,17 @@ export function evaluatePrestigeAchievement(
     case 'prestige_speed_week_10':
     case 'prestige_speed_week_5':
     case 'prestige_speed_week_3': {
-      // Check if any previous life reached prestige quickly
+      // Check if any previous life reached prestige within N weeks.
+      // FIX: the old check compared ageAtDeath (YEARS) to targetWeeks*7 (DAYS),
+      // a unit mismatch that could never be correct. previousLives entries now
+      // carry weeksLivedAtEnd (weeks lived when the life ended), so we compare
+      // weeks-to-weeks. Entries recorded before this field existed lack it and
+      // are simply skipped (can't retroactively know their weeks lived).
       const targetWeeks = achievement.id === 'prestige_speed_week_3' ? 3
         : achievement.id === 'prestige_speed_week_5' ? 5 : 10;
-      return previousLives.some(life => life.ageAtDeath && life.ageAtDeath < targetWeeks * 7);
+      return previousLives.some(
+        life => typeof life.weeksLivedAtEnd === 'number' && life.weeksLivedAtEnd <= targetWeeks
+      );
     }
 
     case 'prestige_networth_100m':
@@ -275,9 +283,11 @@ export function evaluatePrestigeAchievement(
     case 'prestige_bonuses_20':
       return new Set(unlockedBonuses).size >= 20;
     case 'prestige_bonuses_all': {
-      // This would need to check against all available bonuses
-      // For now, check if they have a large number
-      return new Set(unlockedBonuses).size >= 30;
+      // "Unlock all prestige bonuses." Compare distinct unlocked bonus IDs
+      // against the canonical purchasable list (PRESTIGE_BONUSES). Stackable
+      // bonuses appear multiple times in unlockedBonuses, so we de-dupe with a
+      // Set: owning at least one level of every bonus satisfies this.
+      return new Set(unlockedBonuses).size >= PRESTIGE_BONUSES.length;
     }
 
     case 'prestige_perfect_stats': {
@@ -306,30 +316,56 @@ export function evaluatePrestigeAchievement(
 }
 
 /**
- * Get all unlocked prestige achievements
+ * Get all unlocked (already-claimed) prestige achievements.
+ * Reads the canonical claimed store `state.prestige.claimedPrestigeAchievements`
+ * (previously read `state.progress.achievements`, a store never written in
+ * normal play, so this always returned []).
  */
 export function getUnlockedPrestigeAchievements(state: GameState): PrestigeAchievement[] {
   if (!state.prestige) return [];
-  
+
+  const claimed = new Set(state.prestige?.claimedPrestigeAchievements ?? []);
+  return PRESTIGE_ACHIEVEMENTS.filter(achievement => claimed.has(achievement.id));
+}
+
+/**
+ * Get all currently-satisfied prestige achievements that have not yet been
+ * claimed. Reads the canonical claimed store (see above).
+ */
+export function getAvailablePrestigeAchievements(state: GameState): PrestigeAchievement[] {
+  if (!state.prestige) return [];
+
+  const claimedIds = new Set(state.prestige?.claimedPrestigeAchievements ?? []);
+
   return PRESTIGE_ACHIEVEMENTS.filter(achievement => {
-    const progress = state.progress?.achievements || [];
-    return progress.some(a => a.id === achievement.id);
+    return !claimedIds.has(achievement.id) &&
+           evaluatePrestigeAchievement(achievement, state);
   });
 }
 
 /**
- * Get all available but not yet unlocked prestige achievements
+ * Collect the prestige achievements that are satisfied by `state` but not yet
+ * present in `state.prestige.claimedPrestigeAchievements`, together with the
+ * total prestige-point reward they carry. Pure — it does not mutate state; the
+ * caller appends the ids and adds the points. The claimed store makes this
+ * idempotent: each achievement is reported (and therefore awarded) exactly once.
  */
-export function getAvailablePrestigeAchievements(state: GameState): PrestigeAchievement[] {
-  if (!state.prestige) return [];
-  
-  const unlockedIds = new Set(
-    (state.progress?.achievements || []).map(a => a.id)
-  );
-  
-  return PRESTIGE_ACHIEVEMENTS.filter(achievement => {
-    return !unlockedIds.has(achievement.id) && 
-           evaluatePrestigeAchievement(achievement, state);
-  });
+export function collectNewlyEarnedPrestigeAchievements(state: GameState): {
+  newlyAwarded: PrestigeAchievement[];
+  pointsAwarded: number;
+} {
+  const claimed = new Set(state.prestige?.claimedPrestigeAchievements ?? []);
+  const newlyAwarded: PrestigeAchievement[] = [];
+  let pointsAwarded = 0;
+
+  for (const achievement of PRESTIGE_ACHIEVEMENTS) {
+    if (claimed.has(achievement.id)) continue;
+    if (evaluatePrestigeAchievement(achievement, state)) {
+      newlyAwarded.push(achievement);
+      pointsAwarded += achievement.reward?.prestigePoints ?? 0;
+    }
+  }
+
+  return { newlyAwarded, pointsAwarded };
 }
 

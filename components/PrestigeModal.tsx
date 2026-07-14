@@ -15,6 +15,7 @@ import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { getCharacterImage } from '@/utils/characterImages';
+import { getAvatarPortrait } from '@/utils/facePool';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
 
@@ -414,7 +415,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     </View>
                     {selectedPath === 'reset' && (
                       <Image
-                        source={getCharacterImage(18, gameState.userProfile?.sex || 'male', gameState.userProfile?.name)}
+                        source={getAvatarPortrait(gameState.userProfile?.avatarId, 18, gameState.userProfile?.name, gameState.userProfile?.sex || 'male')}
                         style={styles.characterImage}
                       />
                     )}

@@ -129,7 +129,10 @@ export function applyStudySession(
     return {
       ...e,
       weeksRemaining: remaining,
-      completed: remaining === 0,
+      // Do NOT finalize `completed` here. The weekly education tick finalizes
+      // graduation — applying the enrolled-class stat bonuses + the "Completed!"
+      // toast — when weeksRemaining reaches 0. Setting completed in this Study
+      // path made the tick skip it (it guards on !completed), forfeiting both.
     };
   });
 }

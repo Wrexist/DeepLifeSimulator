@@ -700,7 +700,10 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('weeksRemaining = 0: untouched (filter predicate excludes)', () => {
+  it('weeksRemaining = 0 (not yet completed): tick finalizes graduation', () => {
+    // M6: the guard is `weeksRemaining >= 0` (not `> 0`) so a program the Study
+    // button already drove to 0 is finalized here — `completed` flips true and
+    // semesterNumber caps — instead of falling through untouched.
     const ctx = progStubCtx(progStubStats());
     const result = applyEducationProgression({
       prevEducations: [anEduP({ weeksRemaining: 0 })],
@@ -3950,14 +3953,16 @@ describe('pre-tick equivalence — applyPregnancyProgression', () => {
     }
   });
 
-  it('birth: childId format = `child_<timestamp>_<suffix>`', () => {
+  it('birth: childId format = `child_<timestamp>_<suffix>_<parentRelId>`', () => {
     const ctx = pregStubCtx(pregStubStats(), 100, { timestamp: 555, childIdSuffix: 'xyz' });
     const rel = {
       id: 'r1', name: 'IdTest', type: 'partner',
       isPregnant: true, pregnancyStartWeek: 88, relationshipScore: 70,
     } as any;
     const result = applyPregnancyProgression(rel, ctx);
-    expect(result?.newborn?.id).toBe('child_555_xyz');
+    // The parent relationship id is now part of the child id so two births in
+    // the same tick (two pregnant partners) can't collide on an identical id.
+    expect(result?.newborn?.id).toBe('child_555_xyz_r1');
   });
 
   // -------- Gate 2: late pregnancy energy drain --------

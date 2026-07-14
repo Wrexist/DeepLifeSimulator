@@ -8,7 +8,6 @@ import {
   Image,
   Platform,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -26,18 +25,17 @@ import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset
 import {
   Lock,
   Check,
-  ArrowLeft,
-  ArrowRight,
   Gift,
   Brain,
-  Info,
   Star,
+  Play,
 } from 'lucide-react-native';
 
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
+import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
+import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
-import usePressableScale from '@/hooks/usePressableScale';
 
 // Extracted modules
 import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
@@ -58,6 +56,8 @@ import {
   logOnboardingValidationError,
 } from '@/src/features/onboarding/onboardingAnalytics';
 import {
+  fontScale,
+  responsiveBorderRadius,
   responsiveFontSize,
   responsivePadding,
   responsiveSpacing,
@@ -124,9 +124,22 @@ const PerkCard = React.memo(function PerkCard({
   onToggle,
 }: PerkCardProps) {
   const benefits = getPerkBenefits(perk);
+  const rarityColor =
+    perk.rarity === 'Legendary'
+      ? '#F59E0B'
+      : perk.rarity === 'Epic'
+        ? '#8B5CF6'
+        : perk.rarity === 'Rare'
+          ? '#3B82F6'
+          : '#10B981';
   return (
     <TouchableOpacity
       style={styles.perkContainer}
+      accessibilityRole="button"
+      accessibilityLabel={`${perk.title}, ${perk.rarity} perk${
+        isPermanent ? ', permanently unlocked' : isLocked ? ', locked' : ''
+      }`}
+      accessibilityState={{ disabled: isLocked || isPermanent, selected: isSelected }}
       onPress={() => !isLocked && !isPermanent && onToggle(perk.id)}
       disabled={isLocked || isPermanent}
     >
@@ -149,109 +162,96 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent && styles.permanentPerkCard,
           ]}
         >
-          {isPermanent && (
-            <View style={styles.permanentBadge}>
-              <Text style={styles.permanentBadgeText}>PERMANENT</Text>
-            </View>
-          )}
-          <View style={styles.perkHeader}>
-            <View style={styles.iconSection}>
-              <View style={styles.iconContainer}>
-                <Image source={perk.icon} style={styles.perkIcon} />
+          {/* Hero artwork — the perk's own painting, full-bleed with a scrim so
+              the title and rarity read cleanly over any illustration. */}
+          <View style={styles.heroWrap}>
+            <Image source={perk.icon} style={styles.heroImage} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.heroScrim}
+            />
+            {isPermanent ? (
+              <View style={styles.permanentPill}>
+                <Text style={styles.permanentPillText}>PERMANENT</Text>
               </View>
-              {isLocked ? (
-                <View style={styles.statusIconContainer}>
-                  <Lock size={32} color="#94A3B8" />
-                </View>
-              ) : isPermanent ? (
-                <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#F59E0B" />
-                </View>
-              ) : isSelected ? (
-                <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#3B82F6" />
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.perkInfo}>
-              <View style={styles.perkTitleRow}>
-                <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>
-                  {perk.title}
-                </Text>
-                <View style={styles.glassRarityBadge}>
-                  <View style={styles.glassOverlay} />
-                  <Text
-                    style={[
-                      styles.rarityText,
-                      {
-                        color:
-                          perk.rarity === 'Legendary'
-                            ? '#F59E0B'
-                            : perk.rarity === 'Epic'
-                              ? '#8B5CF6'
-                              : perk.rarity === 'Rare'
-                                ? '#3B82F6'
-                                : '#10B981',
-                      },
-                    ]}
-                  >
-                    {perk.rarity}
-                  </Text>
-                </View>
+            ) : null}
+            {isLocked ? (
+              <View style={styles.statusOverlay}>
+                <Lock size={scale(15)} color="#94A3B8" />
               </View>
-
+            ) : isPermanent ? (
+              <View style={[styles.statusOverlay, styles.statusOverlayAmber]}>
+                <Check size={scale(15)} color="#F59E0B" />
+              </View>
+            ) : isSelected ? (
+              <View style={[styles.statusOverlay, styles.statusOverlayBlue]}>
+                <Check size={scale(15)} color="#3B82F6" />
+              </View>
+            ) : null}
+            <View style={styles.heroTitleRow}>
               <Text
-                style={[
-                  styles.perkDescription,
-                  isLocked && styles.lockedPerkDescription,
-                ]}
+                style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}
+                numberOfLines={1}
               >
-                {perk.description}
+                {perk.title}
               </Text>
-              {perk.unlock && isLocked && (
-                <Text style={styles.requirementText}>
-                  Requires achievement: {perk.unlock.achievementId}
-                </Text>
-              )}
+              <View style={styles.glassRarityBadge}>
+                <Text style={[styles.rarityText, { color: rarityColor }]}>{perk.rarity}</Text>
+              </View>
             </View>
           </View>
 
-          {benefits.length > 0 && (
-            <View style={styles.benefitsContainer}>
-              {benefits.map((benefit, index) => {
-                const Icon = getStatIcon(benefit.stat);
-                const displayValue =
-                  benefit.type === 'start'
-                    ? `+${formatMoney(benefit.value)}`
-                    : benefit.type === 'income'
-                      ? `+${benefit.value}%`
-                      : `+${benefit.value}`;
+          <View style={styles.perkBody}>
+            <Text
+              style={[styles.perkDescription, isLocked && styles.lockedPerkDescription]}
+              numberOfLines={2}
+            >
+              {perk.description}
+            </Text>
+            {perk.unlock && isLocked && (
+              <Text style={styles.requirementText}>
+                Requires achievement: {perk.unlock.achievementId}
+              </Text>
+            )}
 
-                const displayStat =
-                  benefit.stat === 'Starting Money'
-                    ? 'Starting Money'
-                    : benefit.stat === 'Income Boost'
-                      ? 'Income Boost'
-                      : benefit.stat;
+            {benefits.length > 0 && (
+              <View style={styles.benefitsContainer}>
+                {benefits.map((benefit) => {
+                  const Icon = getStatIcon(benefit.stat);
+                  const displayValue =
+                    benefit.type === 'start'
+                      ? `+${formatMoney(benefit.value)}`
+                      : benefit.type === 'income'
+                        ? `+${benefit.value}%`
+                        : `+${benefit.value}`;
 
-                return (
-                  <View key={index} style={styles.glassBenefitItem}>
-                    <View style={styles.glassOverlay} />
-                    <Icon size={16} color={getStatColor(benefit.stat)} />
-                    <Text
-                      style={[
-                        styles.benefitText,
-                        { color: getStatColor(benefit.stat) },
-                      ]}
-                    >
-                      {displayValue} {displayStat}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
+                  const displayStat =
+                    benefit.stat === 'Starting Money'
+                      ? 'Starting Money'
+                      : benefit.stat === 'Income Boost'
+                        ? 'Income Boost'
+                        : benefit.stat;
+
+                  return (
+                    <View key={benefit.stat} style={styles.glassBenefitItem}>
+                      <Icon size={16} color={getStatColor(benefit.stat)} />
+                      <Text
+                        style={[
+                          styles.benefitText,
+                          { color: getStatColor(benefit.stat) },
+                        ]}
+                      >
+                        {displayValue} {displayStat}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
         </LinearGradient>
       </BlurView>
     </TouchableOpacity>
@@ -273,7 +273,15 @@ const MindsetCard = React.memo(function MindsetCard({
 }: MindsetCardProps) {
   const isRecommended = RECOMMENDED_MINDSETS.includes(trait.id);
   return (
-    <TouchableOpacity style={styles.perkContainer} onPress={() => onSelect(trait.id)}>
+    <TouchableOpacity
+      style={styles.perkContainer}
+      accessibilityRole="button"
+      accessibilityLabel={`${trait.name}, ${
+        trait.category === 'personality' ? 'Personality' : 'Financial'
+      } mindset`}
+      accessibilityState={{ selected: isSelected }}
+      onPress={() => onSelect(trait.id)}
+    >
       <BlurView intensity={20} style={styles.perkBlur}>
         <LinearGradient
           colors={
@@ -285,78 +293,64 @@ const MindsetCard = React.memo(function MindsetCard({
           end={{ x: 1, y: 1 }}
           style={[styles.perkCard, isSelected && styles.mindsetCardSelected]}
         >
-          {isRecommended ? (
-            <View style={styles.recommendedBadge}>
-              <Star size={10} color="#FFFFFF" />
-              <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
-            </View>
-          ) : null}
-          <View style={styles.perkHeader}>
-            <View style={styles.iconSection}>
+          {/* Hero symbol — the mindset's glowing icon, full-bleed with a scrim
+              to match the perk cards; the purple accent marks the category. */}
+          <View style={styles.heroWrap}>
+            <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.heroScrim}
+            />
+            {isRecommended ? (
+              <View style={[styles.recommendedPill, styles.recommendedPillPurple]}>
+                <Star size={11} color="#A78BFA" />
+                <Text style={[styles.recommendedPillText, styles.recommendedPillTextPurple]}>
+                  RECOMMENDED
+                </Text>
+              </View>
+            ) : null}
+            {isSelected ? (
+              <View style={[styles.statusOverlay, styles.statusOverlayPurple]}>
+                <Check size={scale(15)} color="#8B5CF6" />
+              </View>
+            ) : null}
+            <View style={styles.heroTitleRow}>
+              <Text
+                style={[styles.perkTitle, isSelected && styles.mindsetNameSelected]}
+                numberOfLines={1}
+              >
+                {trait.name}
+              </Text>
               <View
                 style={[
-                  styles.mindsetIconContainer,
-                  isSelected && styles.mindsetIconSelected,
+                  styles.glassRarityBadge,
+                  {
+                    backgroundColor:
+                      trait.category === 'personality'
+                        ? 'rgba(139, 92, 246, 0.2)'
+                        : 'rgba(59, 130, 246,0.2)',
+                  },
                 ]}
               >
-                <Image
-                  source={trait.icon}
-                  style={styles.mindsetIconImage}
-                  resizeMode="contain"
-                />
-              </View>
-              {isSelected && (
-                <View style={styles.statusIconContainer}>
-                  <Check size={24} color="#8B5CF6" />
-                </View>
-              )}
-            </View>
-            <View style={styles.perkInfo}>
-              <View style={styles.perkTitleRow}>
                 <Text
                   style={[
-                    styles.perkTitle,
-                    isSelected && styles.mindsetNameSelected,
+                    styles.rarityText,
+                    { color: trait.category === 'personality' ? '#A78BFA' : '#60A5FA' },
                   ]}
                 >
-                  {trait.name}
+                  {trait.category === 'personality' ? 'Personality' : 'Financial'}
                 </Text>
-                <View
-                  style={[
-                    styles.glassRarityBadge,
-                    {
-                      backgroundColor:
-                        trait.category === 'personality'
-                          ? 'rgba(139, 92, 246, 0.2)'
-                          : 'rgba(59, 130, 246,0.2)',
-                    },
-                  ]}
-                >
-                  <View style={styles.glassOverlay} />
-                  <Text
-                    style={[
-                      styles.rarityText,
-                      {
-                        color:
-                          trait.category === 'personality'
-                            ? '#A78BFA'
-                            : '#34D399',
-                      },
-                    ]}
-                  >
-                    {trait.category === 'personality' ? 'Personality' : 'Financial'}
-                  </Text>
-                </View>
               </View>
-              <Text
-                style={[
-                  styles.perkDescription,
-                  isSelected && styles.mindsetDescSelected,
-                ]}
-              >
-                {trait.description}
-              </Text>
             </View>
+          </View>
+
+          <View style={styles.perkBody}>
+            <Text style={[styles.perkDescription, isSelected && styles.mindsetDescSelected]}>
+              {trait.description}
+            </Text>
           </View>
         </LinearGradient>
       </BlurView>
@@ -365,7 +359,7 @@ const MindsetCard = React.memo(function MindsetCard({
 });
 
 export default function Perks() {
-  const { state, setState, clearDraft } = useOnboarding();
+  const { state, clearDraft } = useOnboarding();
   // R-perf: subscribe only to `achievements` (used for perk unlock state) instead
   // of the whole game state, so settings/theme changes don't re-render this screen.
   const achievements = useGameSelector((s) => s.achievements);
@@ -440,13 +434,6 @@ export default function Perks() {
   // the continueInFlightRef pattern already used in SaveSlots.
   const startInFlightRef = useRef(false);
   const [isStarting, setIsStarting] = useState(false);
-  // Native-driver press scale for the "Start Your Life" button (instant tactile feedback).
-  const {
-    AnimatedView: StartButtonScale,
-    animatedStyle: startButtonScaleStyle,
-    onPressIn: onStartPressIn,
-    onPressOut: onStartPressOut,
-  } = usePressableScale({ haptic: false });
 
   const start = () => {
     if (startInFlightRef.current) return;
@@ -495,6 +482,7 @@ export default function Perks() {
         lastName: state.lastName,
         sex: state.sex,
         sexuality: state.sexuality,
+        avatarId: state.avatarId,
         scenario: {
           id: state.scenario!.id,
           start: state.scenario!.start,
@@ -503,6 +491,7 @@ export default function Perks() {
         selectedPerks: selected,
         permanentPerks,
         selectedMindset,
+        ambitionId: state.ambitionId,
       });
 
       const slotToUse = state.slot || 1;
@@ -538,9 +527,9 @@ export default function Perks() {
       }
 
       haptic.success();
-      setState((prev) => ({ ...prev, perks: selected }));
       // R3-B: drop the persisted onboarding draft once the player has actually
-      // started the life — the next "New Life" entry should start clean.
+      // started the life — clearDraft() also resets the in-memory onboarding
+      // state so the next "New Life" entry starts clean (no leaked name/perks).
       void clearDraft();
       navigating = true;
       setTimeout(() => {
@@ -556,75 +545,28 @@ export default function Perks() {
   };
 
   const floatingStartButton = (
-    <StartButtonScale style={startButtonScaleStyle}>
-      <TouchableOpacity
-        onPress={start}
-        onPressIn={onStartPressIn}
-        onPressOut={onStartPressOut}
-        disabled={isStarting}
-        style={styles.floatingButton}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#3B82F6', '#2563EB', '#1D4ED8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.floatingGlassButton}
-        >
-          <View style={styles.buttonContent}>
-            <Text style={styles.glassButtonTitle}>
-              {isStarting ? 'Starting…' : 'Start Your Life'}
-            </Text>
-            <View style={styles.glassIconContainer}>
-              {isStarting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <ArrowRight size={24} color="#FFFFFF" />
-              )}
-            </View>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-    </StartButtonScale>
+    <OnboardingFloatingButton
+      title="Start Your Life"
+      onPress={start}
+      loading={isStarting}
+      icon={<Play size={24} color="#FFFFFF" />}
+    />
   );
 
   return (
     <OnboardingScreenShellV2 showParticles floatingButton={floatingStartButton}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity accessibilityLabel="Go back" onPress={handleBack} style={styles.backButton}>
-            <View style={styles.glassButton}>
-              <View style={styles.glassOverlay} />
-              <View style={styles.glassIconContainer}>
-                <ArrowLeft size={24} color="#FFFFFF" />
-              </View>
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.title}>
-            {activeTab === 'perks' ? 'Choose Perks' : 'Choose Mindset'}
-          </Text>
-          <TouchableOpacity
-            accessibilityLabel="More information"
-            onPress={() =>
-              Alert.alert(
-                activeTab === 'perks' ? 'Perks (Optional)' : 'Mindset (Optional)',
-                activeTab === 'perks'
-                  ? 'Perks give small head-starts. Most of them unlock by earning achievements as you play, so they will be locked on your first game — that is normal. This step is optional: tap "Start Your Life" whenever you are ready.'
-                  : 'A mindset is one optional trait that shapes your run with bonuses and trade-offs. Pick one that fits your plan, or skip it and start.'
-              )
-            }
-            style={styles.infoButton}
-          >
-            <View style={styles.glassButton}>
-              <View style={styles.glassOverlay} />
-              <View style={styles.glassIconContainer}>
-                <Info size={20} color="#FFFFFF" />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <OnboardingGlassHeader
+          title="Choose Perks"
+          onBack={handleBack}
+          onInfo={() =>
+            Alert.alert(
+              'Perks & Mindset',
+              'Perks give small head-starts and mostly unlock by earning achievements as you play — so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your run with bonuses and trade-offs. Both are optional: tap "Start Your Life" whenever you are ready.'
+            )
+          }
+        />
 
-        <OnboardingStepBar currentStep={3} totalSteps={3} />
+        <OnboardingStepBar currentStep={4} totalSteps={4} />
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
@@ -636,6 +578,9 @@ export default function Perks() {
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'perks' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityLabel="Perks"
+            accessibilityState={{ selected: activeTab === 'perks' }}
             onPress={() => { haptic.light(); setActiveTab('perks'); }}
           >
             <LinearGradient
@@ -667,6 +612,9 @@ export default function Perks() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'mindset' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityLabel="Mindset"
+            accessibilityState={{ selected: activeTab === 'mindset' }}
             onPress={() => { haptic.light(); setActiveTab('mindset'); }}
           >
             <LinearGradient
@@ -741,9 +689,7 @@ export default function Perks() {
               </View>
             )}
 
-            <View
-              style={[styles.bottomSpacing, { height: 140 + insets.bottom }]}
-            />
+            <View style={{ height: 140 + insets.bottom }} />
           </View>
         </ScrollView>
 
@@ -753,81 +699,41 @@ export default function Perks() {
 
 const styles = StyleSheet.create({
   guidanceText: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(13),
     fontWeight: '500',
     color: '#94A3B8',
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
   },
-  recommendedBadge: {
+  recommendedPill: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    backgroundColor: 'rgba(59, 130, 246,0.25)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 8,
+    gap: 5,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: responsiveBorderRadius.full,
   },
-  recommendedBadgeText: {
-    fontSize: 10,
+  recommendedPillPurple: {
+    borderColor: 'rgba(167, 139, 250, 0.6)',
+  },
+  recommendedPillText: {
+    fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#34D399',
-    letterSpacing: 0.5,
+    color: '#60A5FA',
+    letterSpacing: 0.6,
+  },
+  recommendedPillTextPurple: {
+    color: '#A78BFA',
   },
   scrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: responsivePadding.large,
-    paddingTop: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.lg,
-  },
-  backButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 8,
-  },
-  infoButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-
-  title: {
-    fontSize: responsiveFontSize['3xl'],
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' },
-      ios: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 3,
-      },
-      android: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 3,
-      },
-    }),
-    marginBottom: 8,
-    textAlign: 'center',
-    flex: 1,
-  },
 
   perksContainer: {
     gap: responsiveSpacing.lg,
@@ -850,99 +756,103 @@ const styles = StyleSheet.create({
   },
   perkBlur: { borderRadius: 16, overflow: 'hidden' },
   perkCard: {
-    padding: 20,
-    // Match the parent's rounded clip so the white border doesn't get sliced
-    // off at the corners (square border inside an overflow:hidden rounded box).
+    // Hero image is full-bleed, so the card clips its children to the rounded
+    // corners and the body supplies its own padding (no card-level padding).
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-
-  perkHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  iconSection: {
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
     overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 6,
   },
-  statusIconContainer: {
-    marginTop: 8,
-    padding: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+  heroWrap: {
+    position: 'relative',
+    width: '100%',
+    height: scale(132),
+    backgroundColor: '#0F172A',
   },
-  perkIcon: { width: 80, height: 80, borderRadius: 16, resizeMode: 'cover' },
-  perkInfo: { flex: 1 },
-  perkTitleRow: {
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroTitleRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: responsiveSpacing.xs,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  perkBody: {
+    padding: 16,
+    gap: responsiveSpacing.sm,
+  },
+  statusOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 2,
+    borderColor: 'rgba(148, 163, 184, 0.6)',
+  },
+  statusOverlayBlue: { borderColor: 'rgba(96, 165, 250, 0.85)' },
+  statusOverlayAmber: { borderColor: 'rgba(245, 158, 11, 0.85)' },
+  statusOverlayPurple: { borderColor: 'rgba(167, 139, 250, 0.85)' },
+  permanentPill: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.9)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.full,
+    zIndex: 10,
+  },
+  permanentPillText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   perkTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
     flex: 1,
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   glassRarityBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginLeft: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    position: 'relative',
-    overflow: 'hidden',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   rarityText: { fontSize: responsiveFontSize.xs, fontWeight: 'bold' },
 
   perkDescription: {
     fontSize: responsiveFontSize.base,
+    fontWeight: '500',
     color: '#CBD5E1',
-    lineHeight: 20,
-    marginBottom: 8,
+    lineHeight: fontScale(16),
   },
   lockedPerkCard: { opacity: 0.6 },
   lockedPerkTitle: { color: '#94A3B8' },
   lockedPerkDescription: { color: '#94A3B8' },
 
   permanentPerkCard: { borderWidth: 2, borderColor: '#F59E0B' },
-  permanentBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(245, 158, 11, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    zIndex: 10,
-  },
-  permanentBadgeText: {
-    color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
-    fontWeight: 'bold',
-  },
 
   requirementText: {
     fontSize: responsiveFontSize.sm,
@@ -966,8 +876,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-    overflow: 'hidden',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -1030,21 +938,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
   },
-  mindsetIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mindsetIconSelected: {
-    backgroundColor: 'transparent',
-  },
-  mindsetIconImage: {
-    width: scale(80),
-    height: scale(80),
-  },
   mindsetNameSelected: {
     color: '#A78BFA',
   },
@@ -1061,106 +954,5 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
     color: '#94A3B8',
     fontWeight: '500',
-  },
-  bottomSpacing: { height: 120 },
-
-  floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 8px 20px rgba(59, 130, 246,0.6)' } as any,
-      default: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.6,
-        shadowRadius: 20,
-      },
-    }),
-    elevation: 16,
-  },
-  floatingGlassButton: {
-    width: '100%',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 64,
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246,0.5)' } as any,
-      default: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 8,
-  },
-
-  glassButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassButtonTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
-    ...Platform.select({
-      web: { textShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
-      },
-    }),
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    width: '100%',
-  },
-  glassIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)' } as any,
-      default: {
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-    }),
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
   },
 });

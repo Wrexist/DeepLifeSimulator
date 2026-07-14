@@ -4,6 +4,7 @@
 import React from 'react';
 import { GameState } from '../types';
 import { clampRelationshipScore } from '@/utils/stateValidation';
+import { applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 
 export const updateRelationship = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -18,6 +19,8 @@ export const updateRelationship = (
       const modifiers = getKarmaModifiers(prev.karma);
       adjustedChange = Math.round(change * modifiers.npcTrustMultiplier);
     }
+    // Life Skills: Charisma / Social Master boost positive relationship gains.
+    adjustedChange = applyRelationshipGain(prev, adjustedChange);
 
     const relationships = (prev.relationships || []).map(r => {
       if (r.id === relationshipId) {

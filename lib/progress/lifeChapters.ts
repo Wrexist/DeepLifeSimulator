@@ -122,8 +122,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch3_partner',
         title: 'Find a Partner',
         description: 'Start a romantic relationship',
-        checkComplete: (s) => !!s.family?.spouse || s.relationships?.some((r: any) => r.type === 'romantic'),
-        checkProgress: (s) => (s.family?.spouse || s.relationships?.some((r: any) => r.type === 'romantic')) ? 1 : 0,
+        checkComplete: (s) => !!s.family?.spouse || (s.relationships?.some((r: any) => r.type === 'partner' || r.type === 'spouse') ?? false),
+        checkProgress: (s) => (s.family?.spouse || s.relationships?.some((r: any) => r.type === 'partner' || r.type === 'spouse')) ? 1 : 0,
       },
       {
         id: 'ch3_invest',

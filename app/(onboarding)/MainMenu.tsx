@@ -28,7 +28,7 @@ import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnaly
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { haptic } from '@/utils/haptics';
 
 const MAIN_MENU_BACKGROUNDS = [
   require('@/assets/images/Main_Menu.png'),
@@ -49,7 +49,6 @@ export default function MainMenu() {
   const [selectedBackground] = useState(
     () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
   );
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
@@ -112,6 +111,7 @@ export default function MainMenu() {
   );
 
   const continueGame = () => {
+    haptic.light();
     if (continueInFlightRef.current) return;
     continueInFlightRef.current = true;
     setContinuing(true);
@@ -228,6 +228,7 @@ export default function MainMenu() {
   };
 
   const startNew = async () => {
+    haptic.light();
     try {
       // Always target the first EMPTY slot. Previously a new life inherited the
       // default slot (1) and could silently overwrite an existing save — tapping
@@ -294,14 +295,20 @@ export default function MainMenu() {
             icon={<Save color={onboardingTheme.title} size={scale(24)} />}
             title={t('mainMenu.saveSlots')}
             subtitle={t('mainMenu.saveSlotsSubtitle')}
-            onPress={() => router.push('/(onboarding)/SaveSlots')}
+            onPress={() => {
+              haptic.light();
+              router.push('/(onboarding)/SaveSlots');
+            }}
           />
 
           <GlassActionButton
             icon={<Settings color={onboardingTheme.title} size={scale(24)} />}
             title={t('mainMenu.settings')}
             subtitle={t('mainMenu.settingsSubtitle')}
-            onPress={() => setShowSettings(true)}
+            onPress={() => {
+              haptic.light();
+              setShowSettings(true);
+            }}
           />
         </View>
       </OnboardingScreenShell>

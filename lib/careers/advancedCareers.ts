@@ -40,6 +40,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Chief Executive Officer',
       },
+      {
+        name: 'Chairman & CEO',
+        salary: 21500, // ~$1.1M/yr — a deliberately restrained prestige rung
+        experienceRequired: 650, // 12.5 years
+        description: 'Chair the board while leading the company',
+      },
+      {
+        name: 'Executive Chairman',
+        salary: 24000, // ~$1.25M/yr — game-top pinnacle, gated behind a long tenure
+        experienceRequired: 800, // ~15 years
+        description: 'Elder statesman of the corporation',
+      },
     ],
     level: 0,
     applied: false,
@@ -84,6 +96,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Lead major research initiatives',
       },
+      {
+        name: 'Department Chair',
+        salary: 4700, // ~$245k/yr
+        experienceRequired: 650, // 12.5 years
+        description: 'Chair a research department',
+      },
+      {
+        name: 'Chief Scientist',
+        salary: 6200, // ~$320k/yr
+        experienceRequired: 800, // ~15 years
+        description: 'Set the scientific direction of the institution',
+      },
     ],
     level: 0,
     applied: false,
@@ -96,7 +120,7 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     unlockRequirements: {
       education: ['phd'],
       reputation: 40,
-      achievements: ['first_publication'],
+      achievements: ['scholar'],
     },
   },
   {
@@ -127,6 +151,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 416, // 8 years
         description: 'Oversee all creative direction',
       },
+      {
+        name: 'VP of Creative',
+        salary: 4000, // ~$208k/yr
+        experienceRequired: 572, // 11 years
+        description: 'Lead creative across the whole brand',
+      },
+      {
+        name: 'Chief Creative Officer',
+        salary: 5500, // ~$286k/yr
+        experienceRequired: 728, // 14 years
+        description: 'Own the creative vision company-wide',
+      },
     ],
     level: 0,
     applied: false,
@@ -140,7 +176,7 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
       education: ['bachelors'],
       experience: 156, // 3 years
       reputation: 35,
-      achievements: ['artistic_achievement'],
+      achievements: ['social_celebrity'],
     },
   },
   {
@@ -170,6 +206,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         salary: 9625, // ~$500k/yr
         experienceRequired: 520, // 10 years
         description: 'Top-level investment banking',
+      },
+      {
+        name: 'Partner',
+        salary: 13000, // ~$675k/yr
+        experienceRequired: 676, // 13 years
+        description: 'Share in the firm\'s profits',
+      },
+      {
+        name: 'Head of Investment Banking',
+        salary: 16500, // ~$860k/yr
+        experienceRequired: 832, // 16 years
+        description: 'Run the entire banking division',
       },
     ],
     level: 0,
@@ -214,6 +262,18 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 520, // 10 years
         description: 'Lead surgical department',
       },
+      {
+        name: 'Surgical Director',
+        salary: 13000, // ~$675k/yr
+        experienceRequired: 676, // 13 years
+        description: 'Direct surgery across the hospital network',
+      },
+      {
+        name: 'Chief Medical Officer',
+        salary: 16500, // ~$860k/yr
+        experienceRequired: 832, // 16 years
+        description: 'Top clinical leadership of the institution',
+      },
     ],
     level: 0,
     applied: false,
@@ -238,11 +298,12 @@ export function isCareerUnlocked(
   career: AdvancedCareer,
   gameState: {
     education: { id: string; completed: boolean }[];
-    achievements: { id: string; completed: boolean }[];
-    stats: { reputation: number; money: number };
+    /** Live claimed-achievement IDs (state.claimedProgressAchievements). */
+    claimedAchievements: string[];
+    stats: { reputation: number };
     weeksLived: number;
-    companies: { weeklyIncome: number }[];
-    realEstate: { owned: boolean; value: number }[];
+    /** Precomputed via the shared calculateNetWorth helper (task #64). */
+    netWorth: number;
   }
 ): boolean {
   const req = career.unlockRequirements;
@@ -265,22 +326,20 @@ export function isCareerUnlocked(
     return false;
   }
 
-  // Check achievements
+  // Check achievements — read the LIVE claimed-achievement store. The old code
+  // read `achievements[].completed`, a flag never set in normal play (task #65),
+  // so every achievement-gated career was permanently locked.
   if ('achievements' in req && req.achievements && req.achievements.length > 0) {
     const hasRequiredAchievements = req.achievements.every(achId =>
-      gameState.achievements.some(ach => ach.id === achId && ach.completed)
+      gameState.claimedAchievements.includes(achId)
     );
     if (!hasRequiredAchievements) return false;
   }
 
-  // Check net worth
+  // Check net worth — use the caller-precomputed shared net worth (includes
+  // savings/stocks/crypto/vehicles), not a cash+company+realEstate subset.
   if ('netWorth' in req && req.netWorth) {
-    const companyValue = gameState.companies.reduce((sum, c) => sum + c.weeklyIncome * 10, 0);
-    const realEstateValue = gameState.realEstate
-      .filter(p => p.owned)
-      .reduce((sum, p) => sum + p.value, 0);
-    const netWorth = gameState.stats.money + companyValue + realEstateValue;
-    if (netWorth < req.netWorth) return false;
+    if (gameState.netWorth < req.netWorth) return false;
   }
 
   return true;

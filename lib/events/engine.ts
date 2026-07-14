@@ -10,6 +10,11 @@ import { travelEventTemplates } from './travelEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
 import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
+import { hobbyEventTemplates } from './hobbyEvents';
+import { childhoodEventTemplates } from './childhoodEvents';
+import { parentEventTemplates } from './parentEvents';
+import { midlifeEventTemplates } from './midlifeEvents';
+import { seniorEventTemplates } from './seniorEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import {
@@ -2732,6 +2737,16 @@ export const eventTemplates: EventTemplate[] = [
   ...fameEventTemplates,
   // Secret/Easter egg events (hidden triggers, community discovery)
   ...secretEventTemplates,
+  // Hobby-mastery events (fire for the hobbies you actively practice)
+  ...hobbyEventTemplates,
+  // Life-stage event packs (each strictly gated so it only fires in its own
+  // chapter — see the pack files for the exact age/status conditions):
+  //   childhood/teen (age 5-17), parent (has a child in-band),
+  //   midlife (age 50-64), senior/retirement (age 65+ and/or retired).
+  ...childhoodEventTemplates,
+  ...parentEventTemplates,
+  ...midlifeEventTemplates,
+  ...seniorEventTemplates,
 ];
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──
@@ -3369,9 +3384,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
   const economyRisk = state.stats.money < 200 ? 0.4 : 0.15;
   const healthRisk = state.stats.health < 60 ? 0.4 : 0.15;
+  const relations = state.relationships ?? [];
   const avgRelation =
-    state.relationships.length > 0
-      ? state.relationships.reduce((sum, r) => sum + r.relationshipScore, 0) / state.relationships.length
+    relations.length > 0
+      ? relations.reduce((sum, r) => sum + (r.relationshipScore ?? 50), 0) / relations.length
       : 50;
   const relationRisk = avgRelation < 50 ? 0.35 : 0.15;
 

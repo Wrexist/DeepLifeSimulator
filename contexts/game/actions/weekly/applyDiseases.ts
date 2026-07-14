@@ -302,15 +302,20 @@ export function applyDiseasesForWeek(
 
     // Natural recovery.
     if ('naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number') {
-      let recoveryWeeks = disease.naturalRecoveryWeeks - 1;
-
-      // Faster recovery with good health/fitness.
+      // Base 1 week of recovery progress per tick, plus health/fitness bonuses.
+      let recoveryDecrement = 1;
       if (ctx.newStats.health > 70) {
-        recoveryWeeks -= 0.5; // Recover faster.
+        recoveryDecrement += 0.5; // Recover faster.
       }
       if (ctx.newStats.fitness > 50) {
-        recoveryWeeks -= 0.5;
+        recoveryDecrement += 0.5;
       }
+      // Life Skills: Resilience (+25% recovery speed) scales the whole decrement.
+      const recoveryMult = ctx.lifeSkillMods?.recoveryMult ?? 1;
+      if (typeof recoveryMult === 'number' && isFinite(recoveryMult) && recoveryMult > 1) {
+        recoveryDecrement *= recoveryMult;
+      }
+      const recoveryWeeks = disease.naturalRecoveryWeeks - recoveryDecrement;
 
       if (recoveryWeeks <= 0) {
         // Disease naturally recovered.

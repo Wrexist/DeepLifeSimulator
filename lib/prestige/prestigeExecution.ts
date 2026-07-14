@@ -1,8 +1,10 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
+import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
+import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
@@ -49,7 +51,7 @@ export function executePrestige(
   );
 
   // Create prestige record
-  const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
+  const earnedAchievementNames = getEarnedAchievementNames(gameState);
   const prestigeRecord: PrestigeRecord = {
     prestigeNumber: prestigeData.totalPrestiges + 1,
     netWorthAtPrestige: currentNetWorth,
@@ -59,7 +61,7 @@ export function executePrestige(
     timestamp: Date.now(),
     chosenPath,
     childId: chosenPath === 'child' ? childId : undefined,
-    keyAchievements: completedAchievements.slice(0, 5).map(a => a.name), // Top 5 achievements
+    keyAchievements: earnedAchievementNames.slice(0, 5), // Top 5 achievements
   };
 
   // STABILITY FIX: Cap prestige history to last MAX_PRESTIGE_HISTORY records to prevent unbounded growth
@@ -87,8 +89,28 @@ export function executePrestige(
     unlockedBonuses: [...prestigeData.unlockedBonuses], // Preserve unlocked bonuses
     prestigeHistory: cappedHistory,
     // H-5: record how many achievements have now been credited toward points so
-    // they can't be farmed again on the next prestige.
-    achievementsCreditedForPoints: (gameState.achievements || []).filter((a) => a.completed).length,
+    // they can't be farmed again on the next prestige. Two things are required for
+    // this to actually close the farm:
+    //   1. Credit from the SAME source `calculatePrestigePoints` reads
+    //      (`getEarnedAchievementCount` / claimedProgressAchievements). The old
+    //      deprecated `achievements[].completed` source is never set in normal
+    //      play, so the stamp was always 0 and the guard no-oped.
+    //   2. The stamp must be a MONOTONIC high-water mark. claimedProgressAchievements
+    //      resets to [] each prestige, so writing the raw current-life count would
+    //      let a low-achievement life erode the stamp below the lifetime peak and
+    //      let the next life re-credit the difference (a throttled but real farm) —
+    //      and it would strip honest players of credit for genuinely new
+    //      achievements. Math.max keeps it non-decreasing: points are only ever
+    //      paid for pushing the peak per-life earned count higher.
+    achievementsCreditedForPoints: Math.max(
+      prestigeData.achievementsCreditedForPoints ?? 0,
+      getEarnedAchievementCount(gameState)
+    ),
+    // Preserve the prestige-achievement claimed store across the reset. This
+    // object is rebuilt field-by-field (not spread), so without carrying it over
+    // every prestige would reset the store and re-award each achievement — the
+    // award pass below relies on it to stay one-time / idempotent.
+    claimedPrestigeAchievements: [...(prestigeData.claimedPrestigeAchievements ?? [])],
   };
 
   // Award challenge scenario gems only on first prestige
@@ -138,6 +160,41 @@ export function executePrestige(
   // Add gems to the new game state if any were earned
   if (gemsToAward > 0) {
     newGameState.stats.gems = (newGameState.stats.gems || 0) + gemsToAward;
+  }
+
+  // --- Award prestige achievements (idempotent) ------------------------------
+  // Evaluate against a MERGED view of the life that just ended plus the freshly
+  // updated prestige accumulators:
+  //   • old life (gameState): stats / loans / relationships / educations — lets
+  //     the "prestige with 100 stats / zero debt / all educations / 20+
+  //     relationships" conditions read the ending life (post-reset stats would
+  //     be wrong).
+  //   • new prestige data + previousLives (newGameState): incremented
+  //     totalPrestiges, preserved unlockedBonuses, and the just-appended life
+  //     with weeksLivedAtEnd/netWorth — lets the count / speed / net-worth
+  //     conditions read the accumulators.
+  // The claimed store (carried into updatedPrestigeData) makes each award
+  // one-time and gives existing veterans a one-shot retroactive catch-up on
+  // their next prestige.
+  const updatedPrestige = newGameState.prestige;
+  if (updatedPrestige) {
+    const evalState: GameState = {
+      ...gameState,
+      prestige: updatedPrestige,
+      previousLives: newGameState.previousLives,
+    };
+    const { newlyAwarded, pointsAwarded } = collectNewlyEarnedPrestigeAchievements(evalState);
+    if (newlyAwarded.length > 0) {
+      const alreadyClaimed = updatedPrestige.claimedPrestigeAchievements ?? [];
+      newGameState.prestige = {
+        ...updatedPrestige,
+        prestigePoints: updatedPrestige.prestigePoints + pointsAwarded,
+        claimedPrestigeAchievements: [
+          ...alreadyClaimed,
+          ...newlyAwarded.map(a => a.id),
+        ],
+      };
+    }
   }
 
   return newGameState;
@@ -210,8 +267,23 @@ function createResetGameState(
   // Preserve memories
   newState.memories = [...(oldState.memories || [])];
 
-  // Preserve previous lives
-  newState.previousLives = [...(oldState.previousLives || [])];
+  // Preserve previous lives AND append the life that just ended. This was
+  // copy-only before, so previousLives stayed permanently empty and the whole
+  // Legacy Timeline UI, the IdentityCard generations counter, and the
+  // secret_full_circle event never populated.
+  newState.previousLives = [
+    ...(oldState.previousLives || []),
+    {
+      generation: oldState.generationNumber || 1,
+      netWorth: Math.round(netWorth(oldState)),
+      ageAtDeath: Math.floor(oldState.date?.age || 0),
+      deathReason: oldState.deathReason,
+      timestamp: Date.now(),
+      summaryAchievements: getEarnedAchievementNames(oldState),
+      // Weeks lived when this life ended — feeds the prestige-speed achievements.
+      weeksLivedAtEnd: oldState.weeksLived || 0,
+    },
+  ];
 
   // Preserve ribbon collection across prestiges
   newState.ribbonCollection = oldState.ribbonCollection;
@@ -223,7 +295,7 @@ function createResetGameState(
   // Legacy bonuses should be calculated from previous life's net worth and achievements
   // This ensures the "Inherited Bonuses" section shows correct values
   const previousNetWorth = netWorth(oldState);
-  const completedAchievements = (oldState.achievements || []).filter(a => a.completed).length;
+  const completedAchievements = getEarnedAchievementCount(oldState);
   
   const incomeMultiplier = 1 + Math.min(Math.max(previousNetWorth, 0), 10_000_000) / 10_000_000 / 10; // up to +10%
   const learningMultiplier = 1 + Math.min(completedAchievements, 20) / 200; // up to +10%
@@ -247,6 +319,16 @@ function createResetGameState(
       sexuality: oldState.userProfile.sexuality || newState.userProfile.sexuality,
       seekingGender: oldState.userProfile.seekingGender || newState.userProfile.seekingGender,
     };
+  }
+
+  // Preserve the chosen Life Ambition — the prestige RESET keeps the SAME
+  // character, so their aspiration carries over. Milestones + reward-claimed
+  // are already reset via initialGameState, so it's a fresh run of the same
+  // ambition. Without this, ambitionId was wiped and the feature went
+  // permanently dark after the first prestige (there is no in-game re-picker).
+  // The child/heir path deliberately does NOT copy it (the heir never chose one).
+  if (oldState.ambitionId) {
+    newState.ambitionId = oldState.ambitionId;
   }
 
   // BUG FIX: Preserve scenarioId to prevent "unknown" scenario title
@@ -428,7 +510,10 @@ function createChildGameState(
       if (!oldState.currentJob) return 'Unknown';
       const career = oldState.careers?.find(c => c.id === oldState.currentJob);
       if (career && career.levels && career.levels.length > 0) {
-        const currentLevel = career.levels[career.level - 1] || career.levels[0];
+        // career.level is 0-indexed everywhere else (salary reads levels[level]
+        // directly). The old `level - 1` mislabeled every promoted career one
+        // rung low in the family tree. Clamp into bounds.
+        const currentLevel = career.levels[Math.min(Math.max(0, career.level), career.levels.length - 1)] || career.levels[0];
         return currentLevel.name || 'Unknown';
       }
       return 'Unknown';
@@ -484,8 +569,21 @@ function createChildGameState(
   const childMemories = generateChildMemories(selectedChild, oldState, newState.generationNumber);
   newState.memories = [...(oldState.memories || []), ...childMemories];
 
-  // Preserve previous lives
-  newState.previousLives = [...(oldState.previousLives || [])];
+  // Preserve previous lives AND append the life that just ended (heir path),
+  // so the Legacy Timeline and generations counter populate across generations.
+  newState.previousLives = [
+    ...(oldState.previousLives || []),
+    {
+      generation: oldState.generationNumber || 1,
+      netWorth: Math.round(netWorth(oldState)),
+      ageAtDeath: Math.floor(oldState.date?.age || 0),
+      deathReason: oldState.deathReason,
+      timestamp: Date.now(),
+      summaryAchievements: getEarnedAchievementNames(oldState),
+      // Weeks lived when this life ended — feeds the prestige-speed achievements.
+      weeksLivedAtEnd: oldState.weeksLived || 0,
+    },
+  ];
 
   // Preserve ribbon collection and discovered secrets across legacy transitions
   newState.ribbonCollection = oldState.ribbonCollection;
@@ -568,9 +666,14 @@ function createChildGameState(
     children: [],
   };
 
-  // Preserve relationships that are not immediate family
+  // Preserve only genuine extended family for the heir. The deceased's personal
+  // relationships (spouse/partner/friend/parent/ex) must NOT carry over —
+  // otherwise the heir starts already dating the deceased's romantic partner,
+  // inherits stale-age "friends", keeps the wrong parents, and a leaked pregnant
+  // partner produces a negative pregnancy duration (stuck pregnant forever).
+  const DROP_FOR_HEIR = new Set(['spouse', 'partner', 'child', 'friend', 'parent', 'ex']);
   newState.relationships = (oldState.relationships || []).filter(
-    r => r.type !== 'spouse' && r.type !== 'child' && r.id !== selectedChild.id
+    r => !DROP_FOR_HEIR.has(r.type) && r.id !== selectedChild.id
   );
 
   // BUG FIX: Preserve family businesses on prestige

@@ -47,6 +47,14 @@ export interface PrestigeData {
    * as 0, which preserves the original behavior on the first prestige).
    */
   achievementsCreditedForPoints?: number;
+  /**
+   * IDs of prestige achievements (see lib/prestige/prestigeAchievements.ts) whose
+   * point reward has already been granted. Guarantees each achievement pays out
+   * exactly once and persists across prestige resets. Optional/additive for
+   * backward-compat with old saves — absent is treated as [] (no achievements
+   * claimed yet), so the first evaluation pass retroactively catches veterans up.
+   */
+  claimedPrestigeAchievements?: string[];
 }
 
 /**
@@ -70,6 +78,7 @@ export const defaultPrestigeData: PrestigeData = {
   unlockedBonuses: [],
   prestigeHistory: [],
   achievementsCreditedForPoints: 0,
+  claimedPrestigeAchievements: [],
 };
 
 /**

@@ -29,17 +29,90 @@ import {
  ChevronRight,
  Activity,
  TrendingUp,
+ BookOpen,
+ Stethoscope,
+ Trees,
+ Blocks,
+ PencilRuler,
+ Trophy,
+ Music,
+ HeartHandshake,
+ Plane,
+ MessageCircleHeart,
+ Wallet,
+ ShieldAlert,
+ Car,
+ Brain,
+ Dumbbell,
+ Smile,
+ ShieldCheck,
 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
-import { updateMoney as rawUpdateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import {
+ getActionsForAge,
+ getActionById,
+ getNurtureStat,
+ canPerformParentingAction,
+ applyParentingAction,
+ describeRejectReason,
+ MAX_PARENTING_ACTIONS_PER_WEEK,
+ type ParentingAction,
+ type NurtureStatKey,
+} from '@/lib/parenting';
+import type { ChildInfo } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
+
+// Maps a parenting action's icon hint to a concrete lucide component. Falls back
+// to Sparkles so an unknown hint can never crash the modal.
+const PARENTING_ICONS: Record<string, LucideIcon> = {
+ BookOpen,
+ Baby,
+ Stethoscope,
+ Trees,
+ Blocks,
+ PencilRuler,
+ Trophy,
+ Music,
+ HeartHandshake,
+ Plane,
+ GraduationCap,
+ MessageCircleHeart,
+ Wallet,
+ ShieldAlert,
+ Car,
+};
+
+// Nurture stat readout config (label, icon, semantic color). `relationship`
+// reuses the child's relationshipScore (bond with the parent).
+const NURTURE_DISPLAY: { key: NurtureStatKey; label: string; icon: LucideIcon; color: string }[] = [
+ { key: 'intelligence', label: 'Intellect', icon: Brain, color: '#3B82F6' },
+ { key: 'health', label: 'Health', icon: Dumbbell, color: '#10B981' },
+ { key: 'happiness', label: 'Happiness', icon: Smile, color: '#F59E0B' },
+ { key: 'discipline', label: 'Discipline', icon: ShieldCheck, color: '#8B5CF6' },
+ { key: 'relationship', label: 'Bond', icon: Heart, color: '#EF4444' },
+];
+
+const NURTURE_LABEL_BY_KEY = NURTURE_DISPLAY.reduce(
+ (acc, d) => { acc[d.key] = d.label; return acc; },
+ {} as Record<NurtureStatKey, string>,
+);
+
+// "+2 Intellect, +1 Bond" — compact effect summary for an action button.
+function formatParentingEffects(action: ParentingAction): string {
+ return (Object.entries(action.effects) as [NurtureStatKey, number][])
+ .filter(([, v]) => typeof v === 'number' && v !== 0)
+ .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${NURTURE_LABEL_BY_KEY[k]}`)
+ .join(' · ');
+}
 
 interface FamilyTabProps {
  onClose?: () => void;
@@ -457,6 +530,69 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  );
  };
 
+ // Perform a parenting action on a child. Costs (money/energy) are charged
+ // through the canonical mirror-safe paths and the child's nurture stats +
+ // cooldown/weekly-cap bookkeeping are updated — all in ONE atomic setGameState
+ // so rapid double-taps can neither double-charge nor double-apply.
+ const handleParentingAction = useCallback((childId: string, actionId: string) => {
+ const action = getActionById(actionId);
+ if (!action) return;
+
+ const snapChild = (gameState.family?.children || []).find(c => c.id === childId);
+ if (!snapChild) return;
+ const weeksLived = gameState.weeksLived || 0;
+ const money = gameState.stats.money || 0;
+ const energy = gameState.stats.energy || 0;
+
+ // Pre-check against the current snapshot purely for user feedback.
+ const pre = canPerformParentingAction(snapChild, action, weeksLived, money, energy);
+ if (!pre.ok) {
+ Alert.alert(
+ action.label,
+ describeRejectReason(pre.reason, { cooldownUntilWeek: pre.cooldownUntilWeek, weeksLived }),
+ [{ text: 'OK' }]
+ );
+ return;
+ }
+
+ setGameState(prev => {
+ const w = prev.weeksLived || 0;
+ const prevChildren = prev.family?.children || [];
+ const child = prevChildren.find(c => c.id === childId);
+ if (!child) return prev;
+
+ const outcome = applyParentingAction(child, actionId, w, prev.stats.money || 0, prev.stats.energy || 0);
+ if (!outcome.ok || !outcome.child) return prev;
+
+ // Money via the canonical mirror-safe path (overdraft-reject + summary).
+ let stats = prev.stats;
+ let dailySummary = prev.dailySummary;
+ if (outcome.moneyDelta && outcome.moneyDelta !== 0) {
+ const spend = applyMoneyDelta(prev, outcome.moneyDelta, `Parenting: ${action.label}`);
+ if (!spend) return prev; // unaffordable → reject atomically (no negative money)
+ stats = spend.stats;
+ dailySummary = spend.dailySummary;
+ }
+
+ // Energy via stats — never below 0 (eligibility already guaranteed enough).
+ const energyDelta = outcome.energyDelta || 0;
+ if (energyDelta !== 0) {
+ stats = { ...stats, energy: Math.max(0, (stats.energy || 0) + energyDelta) };
+ }
+
+ return {
+ ...prev,
+ stats,
+ dailySummary,
+ family: {
+ ...prev.family,
+ children: prevChildren.map(c => (c.id === childId ? outcome.child! : c)),
+ },
+ };
+ });
+ saveGame();
+ }, [gameState.family?.children, gameState.weeksLived, gameState.stats.money, gameState.stats.energy, setGameState, saveGame]);
+
  const renderChildCard = (child: any) => {
  const childAge = Math.floor(child.age);
  const isAdult = childAge >= 18;
@@ -497,6 +633,102 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <ChevronRight size={20} color={settings.darkMode ? '#94A3B8': '#6B7280'} />
  </TouchableOpacity>
+ );
+ };
+
+ // Age-appropriate parenting actions + nurture readout. Renders only while the
+ // child is a minor (getActionsForAge returns [] once grown).
+ const renderParentingSection = (child: ChildInfo) => {
+ const actions = getActionsForAge(child.age);
+ if (actions.length === 0) return null;
+
+ const weeksLived = gameState.weeksLived || 0;
+ const money = gameState.stats.money || 0;
+ const energy = gameState.stats.energy || 0;
+ const usedThisWeek = child.parenting?.weekStamp === weeksLived ? (child.parenting?.actionsThisWeek || 0) : 0;
+ const remaining = Math.max(0, MAX_PARENTING_ACTIONS_PER_WEEK - usedThisWeek);
+
+ return (
+ <View style={[styles.parentingSection, settings.darkMode && styles.parentingSectionDark]}>
+ <View style={styles.parentingHeader}>
+ <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark, styles.parentingHeaderTitle]}>
+ Parenting
+ </Text>
+ <View style={styles.parentingQuotaBadge}>
+ <Text style={styles.parentingQuotaText}>{remaining}/{MAX_PARENTING_ACTIONS_PER_WEEK} this week</Text>
+ </View>
+ </View>
+
+ {/* Nurture stat readout — reflects the child's growing stats */}
+ <View style={styles.nurtureRow}>
+ {NURTURE_DISPLAY.map(({ key, label, icon: Icon, color }) => (
+ <View key={key} style={styles.nurtureChip}>
+ <Icon size={14} color={color} />
+ <Text style={[styles.nurtureValue, settings.darkMode && styles.textDark]}>
+ {getNurtureStat(child, key)}
+ </Text>
+ <Text style={[styles.nurtureLabel, settings.darkMode && styles.textMuted]} numberOfLines={1}>
+ {label}
+ </Text>
+ </View>
+ ))}
+ </View>
+
+ {/* Age-appropriate actions */}
+ {actions.map(action => {
+ const elig = canPerformParentingAction(child, action, weeksLived, money, energy);
+ const Icon = PARENTING_ICONS[action.icon] || Sparkles;
+ const disabled = !elig.ok;
+ const reasonText = disabled
+ ? describeRejectReason(elig.reason, { cooldownUntilWeek: elig.cooldownUntilWeek, weeksLived })
+ : '';
+ return (
+ <TouchableOpacity
+ key={action.id}
+ style={[
+ styles.parentingAction,
+ settings.darkMode && styles.parentingActionDark,
+ disabled && styles.parentingActionDisabled,
+ ]}
+ onPress={() => handleParentingAction(child.id, action.id)}
+ disabled={disabled}
+ activeOpacity={0.7}
+ >
+ <View style={[styles.parentingActionIcon, settings.darkMode && styles.parentingActionIconDark]}>
+ <Icon size={20} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+ </View>
+ <View style={styles.parentingActionBody}>
+ <Text style={[styles.parentingActionLabel, settings.darkMode && styles.textDark]}>
+ {action.label}
+ </Text>
+ <Text style={[styles.parentingActionDesc, settings.darkMode && styles.textMuted]} numberOfLines={2}>
+ {action.description}
+ </Text>
+ <View style={styles.parentingActionMetaRow}>
+ {action.moneyCost > 0 && (
+ <View style={styles.parentingCostChip}>
+ <DollarSign size={11} color="#10B981" />
+ <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#10B981' : '#059669' }]}>{action.moneyCost.toLocaleString()}</Text>
+ </View>
+ )}
+ {action.energyCost > 0 && (
+ <View style={styles.parentingCostChip}>
+ <Activity size={11} color="#F59E0B" />
+ <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#F59E0B' : '#B45309' }]}>{action.energyCost}</Text>
+ </View>
+ )}
+ <Text style={[styles.parentingEffectText, settings.darkMode && { color: '#93C5FD' }]} numberOfLines={1}>
+ {formatParentingEffects(action)}
+ </Text>
+ </View>
+ {disabled && !!reasonText && (
+ <Text style={styles.parentingReason}>{reasonText}</Text>
+ )}
+ </View>
+ </TouchableOpacity>
+ );
+ })}
+ </View>
  );
  };
 
@@ -544,7 +776,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={[styles.childStatCard, settings.darkMode && styles.childStatCardDark]}>
  <Heart size={20} color="#EF4444" />
  <Text style={[styles.childStatValue, settings.darkMode && styles.textDark]}>
- {child.familyHappiness || 50}%
+ {child.happiness ?? child.familyHappiness ?? 50}%
  </Text>
  <Text style={[styles.childStatLabel, settings.darkMode && styles.textMuted]}>
  Happiness
@@ -582,6 +814,8 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </>
  )}
  </View>
+
+ {renderParentingSection(child)}
 
  {child.geneticTraits && child.geneticTraits.length > 0 && (
  <View style={[styles.traitsSection, settings.darkMode && styles.traitsSectionDark]}>
@@ -1259,6 +1493,127 @@ const styles = StyleSheet.create({
  },
  textMuted: {
  color: '#94A3B8',
+ },
+ // ── Parenting section ─────────────────────────────────────────────────
+ parentingSection: {
+ marginTop: scale(16),
+ padding: scale(12),
+ backgroundColor: '#F3F4F6',
+ borderRadius: scale(12),
+ },
+ parentingSectionDark: {
+ backgroundColor: '#334155',
+ },
+ parentingHeader: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'space-between',
+ marginBottom: scale(10),
+ },
+ parentingHeaderTitle: {
+ marginBottom: 0,
+ },
+ parentingQuotaBadge: {
+ backgroundColor: 'rgba(59, 130, 246, 0.12)',
+ borderRadius: scale(10),
+ paddingHorizontal: scale(8),
+ paddingVertical: scale(3),
+ },
+ parentingQuotaText: {
+ fontSize: fontScale(11),
+ fontWeight: '600',
+ color: '#3B82F6',
+ },
+ nurtureRow: {
+ flexDirection: 'row',
+ justifyContent: 'space-between',
+ marginBottom: scale(12),
+ },
+ nurtureChip: {
+ flex: 1,
+ alignItems: 'center',
+ paddingVertical: scale(4),
+ },
+ nurtureValue: {
+ fontSize: fontScale(14),
+ fontWeight: 'bold',
+ color: '#0F172A',
+ marginTop: scale(2),
+ },
+ nurtureLabel: {
+ fontSize: fontScale(9),
+ color: '#6B7280',
+ marginTop: scale(1),
+ },
+ parentingAction: {
+ flexDirection: 'row',
+ alignItems: 'flex-start',
+ backgroundColor: '#FFFFFF',
+ borderRadius: scale(12),
+ padding: scale(10),
+ marginBottom: scale(8),
+ borderWidth: 1,
+ borderColor: 'rgba(148, 163, 184, 0.2)',
+ },
+ parentingActionDark: {
+ backgroundColor: '#1E293B',
+ borderColor: 'rgba(148, 163, 184, 0.25)',
+ },
+ parentingActionDisabled: {
+ opacity: 0.5,
+ },
+ parentingActionIcon: {
+ width: scale(38),
+ height: scale(38),
+ borderRadius: scale(10),
+ backgroundColor: '#EFF6FF',
+ alignItems: 'center',
+ justifyContent: 'center',
+ marginRight: scale(10),
+ },
+ parentingActionIconDark: {
+ backgroundColor: 'rgba(96, 165, 250, 0.15)',
+ },
+ parentingActionBody: {
+ flex: 1,
+ },
+ parentingActionLabel: {
+ fontSize: fontScale(14),
+ fontWeight: '700',
+ color: '#0F172A',
+ },
+ parentingActionDesc: {
+ fontSize: fontScale(11),
+ color: '#6B7280',
+ marginTop: scale(1),
+ },
+ parentingActionMetaRow: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ flexWrap: 'wrap',
+ marginTop: scale(6),
+ gap: scale(8),
+ },
+ parentingCostChip: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(2),
+ },
+ parentingCostText: {
+ fontSize: fontScale(11),
+ fontWeight: '600',
+ },
+ parentingEffectText: {
+ fontSize: fontScale(11),
+ fontWeight: '600',
+ color: '#3B82F6',
+ flexShrink: 1,
+ },
+ parentingReason: {
+ fontSize: fontScale(10),
+ color: '#DC2626',
+ marginTop: scale(4),
+ fontWeight: '500',
  },
  pregnancySection: {
  marginTop: scale(12),

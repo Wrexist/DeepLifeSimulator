@@ -2,6 +2,7 @@ import { GameState } from '@/contexts/game/types';
 import { PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 
 /**
  * Breakdown of prestige points calculation
@@ -43,9 +44,9 @@ export function calculatePrestigePoints(
   // NOT already credited on a prior prestige. Achievements persist across resets,
   // so crediting the full count every time (the old behavior) let a player farm
   // the same achievements for points each prestige (H-5).
-  const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
+  const completedCount = getEarnedAchievementCount(gameState);
   const alreadyCredited = prestigeData.achievementsCreditedForPoints ?? 0;
-  const newlyCreditedAchievements = Math.max(0, completedAchievements.length - alreadyCredited);
+  const newlyCreditedAchievements = Math.max(0, completedCount - alreadyCredited);
   const achievementBonus = newlyCreditedAchievements * 10;
 
   // Generation bonus: +50 points per *completed* generation.
@@ -55,9 +56,11 @@ export function calculatePrestigePoints(
   // and first-generation (gen 1) players were getting +50 free points.
   const generationBonus = Math.max(0, (gameState.generationNumber || 1) - 1) * 50;
 
-  // Age bonus: +1 point per year lived (max 100 points)
+  // Age bonus: +1 point per year lived (max 100 points). Floor at 0 like its
+  // siblings above — a sub-18 age (e.g. child-heir path) would otherwise make
+  // this negative and silently subtract from the prestige total.
   const age = Math.floor(gameState.date?.age || ADULTHOOD_AGE);
-  const ageBonus = Math.min(100, age - ADULTHOOD_AGE);
+  const ageBonus = Math.max(0, Math.min(100, age - ADULTHOOD_AGE));
 
   // Career bonus: +25 points per maxed career
   const maxedCareers = (gameState.careers || []).filter(c => {
@@ -127,7 +130,7 @@ export function calculateLifetimeStats(
   gameState: GameState,
   currentLifetimeStats: PrestigeData['lifetimeStats']
 ): PrestigeData['lifetimeStats'] {
-  const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
+  const completedAchievementsCount = getEarnedAchievementCount(gameState);
   const maxedCareers = (gameState.careers || []).filter(c => {
     const maxLevel = c.levels?.length || 0;
     return c.level >= maxLevel;
@@ -144,7 +147,7 @@ export function calculateLifetimeStats(
     totalMoneyEarned: currentLifetimeStats.totalMoneyEarned + (gameState.stats.money || 0),
     totalWeeksLived: currentLifetimeStats.totalWeeksLived + (gameState.weeksLived || 0),
     maxNetWorth: Math.max(currentLifetimeStats.maxNetWorth, netWorth),
-    achievementsUnlocked: Math.max(currentLifetimeStats.achievementsUnlocked, completedAchievements.length),
+    achievementsUnlocked: Math.max(currentLifetimeStats.achievementsUnlocked, completedAchievementsCount),
     generationsCompleted: Math.max(currentLifetimeStats.generationsCompleted, gameState.generationNumber || 1),
     totalChildren: currentLifetimeStats.totalChildren + children.length,
     careersMaxed: Math.max(currentLifetimeStats.careersMaxed, maxedCareers.length),

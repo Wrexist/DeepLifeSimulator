@@ -195,8 +195,12 @@ describe('jobs', () => {
       if (res.ok) dw = res.result.dw;
     }
 
-    const job = dw.activeJobs.find((j) => j.id === jobId);
-    expect(job?.status).toBe('failed');
+    // A burned-out job is archived to history (like completion), not left
+    // lingering in activeJobs where it blocked its template forever and left a
+    // dead "RUN STAGE" button.
+    expect(dw.activeJobs.find((j) => j.id === jobId)).toBeUndefined();
+    const archived = dw.jobHistory.find((j) => j.id === jobId);
+    expect(archived?.status).toBe('failed');
 
     // A further attempt is rejected — the free infinite-retry exploit is closed.
     const retry = attemptJobStage(dw, jobId, 0.01, 10);

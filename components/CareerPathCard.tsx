@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { GameState, Career, Education, Item } from '@/contexts/game/types';
+import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
@@ -93,7 +94,9 @@ function CareerItem({
     const tierInfo = CAREER_TIERS[tier];
 
     const isCurrentJob = gameState.currentJob === career.id && career.accepted;
-    const canPromote = career.accepted && career.progress >= 100 && nextLevel;
+    // Promotion is offered only when progress is full AND the performance /
+    // experience gates pass (getPromotionEligibility) — same rule the Work tab uses.
+    const canPromote = !!nextLevel && getPromotionEligibility(career, gameState.weeksLived).eligible;
 
     // Check requirements met
     const requirements = career.requirements || {};
@@ -294,7 +297,7 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
     if (compact && currentCareer) {
         const currentLevel = currentCareer.levels && (currentCareer.levels[currentCareer.level] || currentCareer.levels[0]);
         const nextLevel = currentCareer.levels && currentCareer.levels[currentCareer.level + 1];
-        const canPromote = currentCareer.progress >= 100 && nextLevel;
+        const canPromote = !!nextLevel && getPromotionEligibility(currentCareer, gameState.weeksLived).eligible;
         const careerDisplayName = formatCareerName(currentCareer.id);
 
         return (

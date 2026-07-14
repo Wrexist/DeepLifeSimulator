@@ -3,6 +3,7 @@ import type { AutomationRule, AutomationExecution, AutomationState } from './aut
 import { executeAutoPay } from './autoPay';
 import { executeAutoRenew } from './autoRenew';
 import { executeAutoInvest } from './autoInvest';
+import { executeAutoSave } from './autoSave';
 import { hasAutomationBonus, getMaxAutomationSlots, isAutomationTypeUnlocked } from './automationGuards';
 import { logger } from '@/utils/logger';
 
@@ -150,20 +151,10 @@ function executeAutomationRule(
     case 'invest':
       return executeAutoInvest(rule, state);
     case 'save':
-      // Auto-save: calculate amount to set aside from cash
-      return {
-        ruleId: rule.id,
-        ruleName: rule.name,
-        type: rule.type,
-        executedAt: Date.now(),
-        success: true,
-        message: `Saved per rule ${rule.name}`,
-        actionsTaken: rule.actions.map(action => ({
-          type: action.type,
-          value: action.value,
-          result: 'success' as const,
-        })),
-      };
+      // Auto-save: compute the real amount to move from cash into savings
+      // (excess-above-threshold / percentage / fixed). The raw action.value is
+      // the *threshold*, not the amount to save, so it must not be used directly.
+      return executeAutoSave(rule, state);
     default:
       logger.warn(`Unknown automation rule type: ${rule.type}`);
       return null;

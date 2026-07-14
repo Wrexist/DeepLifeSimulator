@@ -37,6 +37,7 @@ import VerifiedProUpsellModal from './modals/VerifiedProUpsellModal';
 import ProfileEditModal from './modals/ProfileEditModal';
 import BoostPostModal from './modals/BoostPostModal';
 import RewardedAdModal from './modals/RewardedAdModal';
+import NpcProfileSheet, { type NpcStoryTarget } from './modals/NpcProfileSheet';
 import { formatPulseNumber } from './utils/formatPulseNumber';
 import { subscribeVerifiedPro } from '@/contexts/game/actions/PulseActions';
 import { iapService } from '@/services/IAPService';
@@ -75,6 +76,8 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [boostPostId, setBoostPostId] = useState<string | null>(null);
   const [showRewardedAd, setShowRewardedAd] = useState(false);
+  // NPC tapped from the StoriesRail — drives the follow/unfollow sheet.
+  const [sheetNpc, setSheetNpc] = useState<NpcStoryTarget | null>(null);
 
   const sm = gameState.socialMedia;
   const followers = sm?.followers ?? 0;
@@ -91,6 +94,8 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const dismissOverlay = useCallback(() => setOverlay(null), []);
   const openProUpsell = useCallback(() => setShowProUpsell(true), []);
   const dismissProUpsell = useCallback(() => setShowProUpsell(false), []);
+  const openNpcSheet = useCallback((npc: NpcStoryTarget) => setSheetNpc(npc), []);
+  const dismissNpcSheet = useCallback(() => setSheetNpc(null), []);
 
   const handleSubscribePro = useCallback(
     async (plan: 'monthly' | 'yearly') => {
@@ -282,6 +287,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
             onOpenPostDetail={openPostDetail}
             onGoLive={openLive}
             onBoostPost={(postId) => setBoostPostId(postId)}
+            onTapNpc={openNpcSheet}
           />
         )}
         {activeTab === 'trending' && <TrendingScreen />}
@@ -354,6 +360,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
         onDismiss={() => setBoostPostId(null)}
       />
       <RewardedAdModal visible={showRewardedAd} onDismiss={() => setShowRewardedAd(false)} />
+      <NpcProfileSheet visible={!!sheetNpc} npc={sheetNpc} onDismiss={dismissNpcSheet} />
     </View>
   );
 }

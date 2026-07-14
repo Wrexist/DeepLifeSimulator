@@ -129,20 +129,20 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
 const getScenarioItemIcon = (itemId: string): string => {
   switch (itemId) {
     case 'smartphone':
-      return 'PHONE';
+      return '📱';
     case 'driver_license':
-      return 'CAR';
+      return '🪪';
     case 'business_suit':
     case 'suit':
-      return 'SUIT';
+      return '👔';
     case 'gym_membership':
-      return 'FIT';
+      return '🏋️';
     case 'computer':
-      return 'PC';
+      return '💻';
     case 'bike':
-      return 'BIKE';
+      return '🚲';
     default:
-      return 'ITEM';
+      return '🎒';
   }
 };
 
@@ -205,6 +205,8 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
       activeOpacity={0.92}
       style={styles.cardContainer}
       onPress={() => onSelect(scenario)}
+      accessibilityRole="button"
+      accessibilityLabel={`${scenario.title}, ${scenario.difficulty} difficulty${isSelected ? ', selected' : ''}`}
     >
       <BlurView intensity={20} style={styles.cardBlur}>
         <LinearGradient
@@ -217,97 +219,107 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {isRecommended ? (
-            <View style={styles.recommendedBanner}>
-              <Star size={12} color="#FFFFFF" />
-              <Text style={styles.recommendedBannerText}>RECOMMENDED FOR BEGINNERS</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.cardHeader}>
-            <Image source={scenario.icon} style={styles.cardImage} />
-            <View style={styles.cardTextWrap}>
-              <View style={styles.cardTitleRow}>
-                <Text style={styles.cardTitle}>{scenario.title}</Text>
-                {isChallenge ? (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+          {/* Hero artwork — the scenario's own painting, full-bleed, with a
+              scrim so the title and difficulty read cleanly over any art. */}
+          <View style={styles.heroWrap}>
+            <Image source={scenario.icon} style={styles.heroImage} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.heroScrim}
+            />
+            {isRecommended ? (
+              <View style={styles.recommendedPill}>
+                <Star size={11} color="#60A5FA" />
+                <Text style={styles.recommendedPillText}>RECOMMENDED</Text>
               </View>
-              <Text style={styles.cardDescription}>{scenario.description}</Text>
-              <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
-            </View>
+            ) : null}
             {isSelected ? (
               <View style={styles.selectedDot}>
                 <Check size={scale(14)} color="#3B82F6" />
               </View>
             ) : null}
+            <View style={styles.heroTitleRow}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {scenario.title}
+              </Text>
+              <View style={[styles.difficultyChip, { backgroundColor: isChallenge ? difficultyBadgeColor : difficultyColor }]}>
+                <Text style={styles.difficultyText}>{scenario.difficulty.toUpperCase()}</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>{scenario.start.age}</Text>
-            </View>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Cash</Text>
-              <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
-            </View>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Study</Text>
-              <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
-            </View>
-            {isChallenge ? (
+          <View style={styles.cardBody}>
+            <Text style={styles.cardDescription} numberOfLines={2}>
+              {scenario.description}
+            </Text>
+            <Text style={styles.goalText} numberOfLines={1}>
+              Goal: {scenario.lifeGoal}
+            </Text>
+
+            <View style={styles.statsRow}>
               <View style={styles.statCell}>
-                <Text style={styles.statLabel}>Reward</Text>
-                <View style={styles.rewardRow}>
-                  <Gem size={scale(13)} color="#FBBF24" />
-                  <Text style={styles.rewardValue}>{rewardGems}</Text>
+                <Text style={styles.statLabel}>Age</Text>
+                <Text style={styles.statValue}>{scenario.start.age}</Text>
+              </View>
+              <View style={styles.statCell}>
+                <Text style={styles.statLabel}>Cash</Text>
+                <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
+              </View>
+              <View style={styles.statCell}>
+                <Text style={styles.statLabel}>Study</Text>
+                <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
+              </View>
+              {isChallenge ? (
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>Reward</Text>
+                  <View style={styles.rewardRow}>
+                    <Gem size={scale(13)} color="#FBBF24" />
+                    <Text style={styles.rewardValue}>{rewardGems}</Text>
+                  </View>
                 </View>
+              ) : null}
+            </View>
+
+            {scenario.start.items?.length ||
+            scenario.start.traits?.length ||
+            (isChallenge && scenario.iconEmoji) ? (
+              <View style={styles.tagsWrap}>
+                {isChallenge && scenario.iconEmoji ? (
+                  <View style={styles.tag}>
+                    <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
+                  </View>
+                ) : null}
+                {scenario.start.items?.map((item) => (
+                  <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
+                    <Text style={styles.tagText}>
+                      {getScenarioItemIcon(item)} {formatTokenLabel(item)}
+                    </Text>
+                  </View>
+                ))}
+                {scenario.start.traits?.map((trait) => (
+                  <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
+                    <Text style={styles.tagText}>✨ {formatTokenLabel(trait)}</Text>
+                  </View>
+                ))}
               </View>
             ) : null}
           </View>
-
-          {scenario.start.items?.length ||
-          scenario.start.traits?.length ||
-          (isChallenge && scenario.iconEmoji) ? (
-            <View style={styles.tagsWrap}>
-              {isChallenge && scenario.iconEmoji ? (
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
-                </View>
-              ) : null}
-              {scenario.start.items?.map((item) => (
-                <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {getScenarioItemIcon(item)} {formatTokenLabel(item)}
-                  </Text>
-                </View>
-              ))}
-              {scenario.start.traits?.map((trait) => (
-                <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                  <Text style={styles.tagText}>TRAIT {formatTokenLabel(trait)}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
         </LinearGradient>
       </BlurView>
     </TouchableOpacity>
   );
 });
 
+// Module-scope so it is a STABLE reference. Creating it in the component body
+// returned a fresh ScopedLogger every render, which invalidated the
+// challengeScenarios `useMemo` (dep [log]) on every render and defeated the
+// downstream ScenarioCardView memoization the Challenges tab relies on.
+const log = logger.scope('Scenarios');
+
 export default function Scenarios() {
-  const log = logger.scope('Scenarios');
   const router = useRouter();
   const navigation = useNavigation();
   const { state, setState } = useOnboarding();
@@ -381,7 +393,7 @@ export default function Scenarios() {
         rewardGems,
       };
     }).filter((scenario): scenario is ChallengeScenarioCard => scenario !== null);
-  }, [log]);
+  }, []);
 
   // Easiest-first, recommended pinned to the top. Stable for equal ranks so the
   // original authored order is preserved within a difficulty tier.
@@ -467,11 +479,11 @@ export default function Scenarios() {
         }
       />
 
-      <OnboardingStepBar currentStep={1} totalSteps={3} />
+      <OnboardingStepBar currentStep={1} totalSteps={4} />
 
       <Text style={styles.guidanceText}>
         {activeTab === 'life_paths'
-          ? 'Pick how your life begins. New here? Tap the green "Recommended" path at the top.'
+          ? 'Pick how your life begins. New here? Tap the "Recommended" path at the top.'
           : 'Challenges add tougher goals and gem rewards — best once you know the game.'}
       </Text>
 
@@ -480,6 +492,9 @@ export default function Scenarios() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'life_paths' && styles.tabActive]}
           onPress={() => { haptic.light(); setActiveTab('life_paths'); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'life_paths' }}
+          accessibilityLabel="Life Paths"
         >
           <LinearGradient
             colors={
@@ -497,8 +512,11 @@ export default function Scenarios() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'challenges' && styles.tabActiveRed]}
+          style={[styles.tab, activeTab === 'challenges' && styles.tabActive]}
           onPress={() => { haptic.light(); setActiveTab('challenges'); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'challenges' }}
+          accessibilityLabel="Challenges"
         >
           <LinearGradient
             colors={
@@ -561,18 +579,6 @@ const styles = StyleSheet.create({
     }),
     elevation: 4,
   },
-  tabActiveRed: {
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)' } as any,
-      default: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 4,
-  },
   tabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -600,20 +606,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
   },
-  recommendedBanner: {
+  recommendedPill: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(59, 130, 246,0.25)',
-    paddingVertical: 6,
-    marginBottom: 4,
+    gap: 5,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: responsiveBorderRadius.full,
   },
-  recommendedBannerText: {
+  recommendedPillText: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#34D399',
-    letterSpacing: 0.8,
+    color: '#60A5FA',
+    letterSpacing: 0.6,
   },
   scrollContainer: {
     flex: 1,
@@ -643,51 +654,53 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    padding: 20,
-    // Match the parent's rounded clip so the white border doesn't get sliced
-    // off at the corners (square border inside an overflow:hidden rounded box).
+    // Hero image is full-bleed, so the card clips its children to the rounded
+    // corners and the body supplies its own padding (no card-level padding).
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    gap: responsiveSpacing.sm,
+    overflow: 'hidden',
   },
   cardSelected: {
     borderColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
   },
-  cardHeader: {
+  heroWrap: {
+    position: 'relative',
+    width: '100%',
+    height: scale(150),
+    backgroundColor: '#0F172A',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroTitleRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
-  cardImage: {
-    borderRadius: 16,
-    height: scale(74),
-    width: scale(74),
-    ...Platform.select({
-      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 6,
-  },
-  cardTextWrap: {
-    flex: 1,
-  },
-  cardTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: responsiveSpacing.xs,
-    marginBottom: verticalScale(4),
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  cardBody: {
+    padding: 16,
+    gap: responsiveSpacing.sm,
   },
   cardTitle: {
     flex: 1,
     fontSize: responsiveFontSize.xl,
     fontWeight: '800',
     color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   difficultyChip: {
     borderRadius: responsiveBorderRadius.full,
@@ -714,11 +727,14 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(15),
   },
   selectedDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(96, 165, 250, 0.85)',
     height: scale(28),
     justifyContent: 'center',
     width: scale(28),
@@ -768,7 +784,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: verticalScale(5),
   },

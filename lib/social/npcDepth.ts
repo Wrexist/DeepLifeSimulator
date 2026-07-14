@@ -10,8 +10,9 @@
  * - Dynamic mood based on recent events
  */
 
-import type { Relationship, NPCGoal, NPCOpinion, NPCMemory } from '@/contexts/game/types';
+import type { Relationship, NPCGoal, NPCOpinion, NPCMemory, NPCWant, NPCWantId } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 // ─── Personality → Gift Preferences Mapping ──────────────────────────────
 
@@ -272,9 +273,15 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  * Roll a random NPC life event. Only triggers ~15% of weeks.
  * Returns null if no event occurs.
  */
-export function rollNPCLifeEvent(relationship: Relationship): NPCLifeEvent | null {
+export function rollNPCLifeEvent(
+ relationship: Relationship,
+ // Optional seeded roll (key → [0,1)). Passed from the weekly tick so the
+ // background life event is deterministic / resume-safe (not save-scummable);
+ // falls back to Math.random so existing callers + tests keep working.
+ rng?: (key: string) => number,
+): NPCLifeEvent | null {
  // 15% chance per NPC per week
- if (Math.random() > 0.15) return null;
+ if ((rng ? rng('npc-life-gate') : Math.random()) > 0.15) return null;
 
  // Don't fire events for children under age 16
  if (relationship.type === 'child' && relationship.age < 16) return null;
@@ -290,7 +297,7 @@ export function rollNPCLifeEvent(relationship: Relationship): NPCLifeEvent | nul
 
  // Weighted random selection
  const totalWeight = applicableEvents.reduce((sum, e) => sum + e.weight, 0);
- let roll = Math.random() * totalWeight;
+ let roll = (rng ? rng('npc-life-pick') : Math.random()) * totalWeight;
  for (const event of applicableEvents) {
  roll -= event.weight;
  if (roll <= 0) return event;
@@ -350,11 +357,364 @@ export function applyNPCLifeEvent(
  * Mood naturally returns to neutral over time.
  * Call weekly — mood shifts toward 'neutral' after ~3 weeks.
  */
-export function decayMood(currentMood: Relationship['npcMood']): Relationship['npcMood'] {
+export function decayMood(currentMood: Relationship['npcMood'], roll?: number): Relationship['npcMood'] {
  if (!currentMood || currentMood === 'neutral') return 'neutral';
- // 33% chance per week to shift back to neutral
- if (Math.random() < 0.33) return 'neutral';
+ // 33% chance per week to shift back to neutral. Optional seeded roll makes
+ // this deterministic/resume-safe in the tick; falls back to Math.random.
+ if ((typeof roll === 'number' ? roll : Math.random()) < 0.33) return 'neutral';
  return currentMood;
+}
+
+// ─── Mood ladder (deterministic transitions) ──────────────────────────────
+// Ordered worst → best. `sourMood` / `brightenMood` step one rung and clamp at
+// the ends, so mood only ever drifts one notch per event and can never fall off
+// the ladder.
+const MOOD_LADDER: NonNullable<Relationship['npcMood']>[] = [
+ 'angry', 'sad', 'stressed', 'neutral', 'happy',
+];
+
+export function brightenMood(mood: Relationship['npcMood']): NonNullable<Relationship['npcMood']> {
+ const i = MOOD_LADDER.indexOf(mood ?? 'neutral');
+ const idx = i < 0 ? MOOD_LADDER.indexOf('neutral') : i;
+ return MOOD_LADDER[Math.min(MOOD_LADDER.length - 1, idx + 1)];
+}
+
+export function sourMood(mood: Relationship['npcMood']): NonNullable<Relationship['npcMood']> {
+ const i = MOOD_LADDER.indexOf(mood ?? 'neutral');
+ const idx = i < 0 ? MOOD_LADDER.indexOf('neutral') : i;
+ return MOOD_LADDER[Math.max(0, idx - 1)];
+}
+
+/**
+ * Deterministic weekly mood drift from CONTEXT (relationship score + neglect),
+ * layered on top of the episodic life-event mood + `decayMood`. Neglect or a low
+ * bond sours the mood a notch; an actively-tended, high-bond NPC brightens. The
+ * `roll` is a seeded [0,1) (same week + same NPC → same drift) so a reload can't
+ * be used to re-roll a mood.
+ */
+export const NEGLECT_MOOD_WEEKS = 6;
+
+export function driftMoodFromContext(
+ rel: Relationship,
+ weeksLived: number,
+ roll: number,
+): Relationship['npcMood'] {
+ const mood = rel.npcMood ?? 'neutral';
+ const score = rel.relationshipScore ?? 0;
+ const since = rel.lastInteractionWeek;
+ const neglect = typeof since === 'number' ? Math.max(0, weeksLived - since) : 0;
+ const neglected = neglect >= NEGLECT_MOOD_WEEKS;
+ const tended = typeof since === 'number' && neglect <= 1;
+ // Souring: neglect or a weak bond pulls the mood down ~40% of weeks.
+ if ((neglected || score < 30) && roll < 0.4) return sourMood(mood);
+ // Brightening: a well-tended, strong bond lifts the mood ~30% of weeks.
+ if (tended && score >= 65 && roll >= 0.7) return brightenMood(mood);
+ return mood;
+}
+
+// ─── NPC Wants (rotating, satisfiable short-term desires) ──────────────────
+
+/** How many weeks a want stays current before it rotates. */
+export const WANT_ROTATION_WEEKS = 4;
+
+interface WantTemplate {
+ label: string;
+ /** Interaction action ids that satisfy this want. Empty = satisfied by leaving them alone. */
+ satisfiedBy: string[];
+ /** Relationship types this want can be assigned to. */
+ types: Relationship['type'][];
+}
+
+const ALL_TYPES: Relationship['type'][] = ['parent', 'friend', 'partner', 'spouse', 'child'];
+
+const WANT_TEMPLATES: Record<NPCWantId, WantTemplate> = {
+ hear_from_you: { label: 'Wishes you would call more', satisfiedBy: ['call'], types: ALL_TYPES },
+ quality_time: { label: 'Wants to spend time together', satisfiedBy: ['hangout', 'date'], types: ALL_TYPES },
+ deep_talk: { label: 'Hoping for a real heart-to-heart', satisfiedBy: ['hangout', 'date'], types: ALL_TYPES },
+ a_gift: { label: 'Would love a little gift', satisfiedBy: ['gift'], types: ['partner', 'spouse'] },
+ meet_friends: { label: 'Wants to meet your friends', satisfiedBy: ['hangout', 'date'], types: ['partner', 'spouse', 'friend'] },
+ space: { label: 'Could use a little space right now', satisfiedBy: [], types: ALL_TYPES },
+};
+
+/** Short phrase used inside memories/copy, e.g. "to spend time". */
+const WANT_SHORT: Record<NPCWantId, string> = {
+ hear_from_you: 'to hear from you',
+ quality_time: 'to spend time together',
+ deep_talk: 'a real conversation',
+ a_gift: 'a little gift',
+ meet_friends: 'to meet your friends',
+ space: 'some space',
+};
+
+function wantPoolFor(type: Relationship['type']): NPCWantId[] {
+ const ids = (Object.keys(WANT_TEMPLATES) as NPCWantId[]).filter(id => WANT_TEMPLATES[id].types.includes(type));
+ return ids.length > 0 ? ids : ['quality_time'];
+}
+
+function cycleOf(weeksLived: number): number {
+ return Math.floor(weeksLived / WANT_ROTATION_WEEKS);
+}
+
+/** Deterministically choose a want for (npc, cycle) — stable across reloads. */
+export function pickWant(relId: string, cycle: number, type: Relationship['type']): NPCWantId {
+ const pool = wantPoolFor(type);
+ const roll = makeWeeklyRoll(cycle)(`want:${relId}`);
+ return pool[Math.min(pool.length - 1, Math.floor(roll * pool.length))];
+}
+
+function makeWant(id: NPCWantId, weeksLived: number): NPCWant {
+ return { id, label: WANT_TEMPLATES[id].label, since: weeksLived, satisfiedCount: 0 };
+}
+
+export function wantSatisfiedBy(want: NPCWant | undefined, action: string): boolean {
+ if (!want) return false;
+ return (WANT_TEMPLATES[want.id]?.satisfiedBy ?? []).includes(action);
+}
+
+/** Diminishing per-cycle reward for satisfying a want: 4, 2, 1, then 0. */
+export function wantBonus(satisfiedCount: number): number {
+ if (satisfiedCount <= 0) return 4;
+ if (satisfiedCount === 1) return 2;
+ if (satisfiedCount === 2) return 1;
+ return 0;
+}
+
+/**
+ * Apply a satisfying interaction to a want. Returns the (possibly) advanced want,
+ * the bonus to add to the relationship-score delta, and whether it counted as a
+ * meaningful satisfy (bonus > 0). Repeated satisfies in the same cycle diminish.
+ */
+export function applyWantProgress(
+ want: NPCWant | undefined,
+ action: string,
+ _weeksLived: number,
+): { want: NPCWant | undefined; bonus: number; satisfied: boolean } {
+ if (!want || !wantSatisfiedBy(want, action)) return { want, bonus: 0, satisfied: false };
+ const bonus = wantBonus(want.satisfiedCount);
+ return {
+ want: { ...want, satisfiedCount: want.satisfiedCount + 1 },
+ bonus,
+ satisfied: bonus > 0,
+ };
+}
+
+/**
+ * Initialise (first tick) or rotate (every WANT_ROTATION_WEEKS) an NPC's want.
+ * On rotation of a "needy" want that was left entirely unmet AND ignored, applies
+ * a small cost (sour mood, −2 bond, a negative memory + a notification). When a
+ * "space" want is honoured (no interaction during its cycle) applies a small
+ * reward. Deterministic — no Math.random.
+ */
+export function rotateWantIfDue(
+ rel: Relationship,
+ weeksLived: number,
+): { rel: Relationship; notification?: string } {
+ const want = rel.npcWant;
+ // First encounter — assign a want, no cost.
+ if (!want) {
+ return { rel: { ...rel, npcWant: makeWant(pickWant(rel.id, cycleOf(weeksLived), rel.type), weeksLived) } };
+ }
+ const age = weeksLived - want.since;
+ if (age < WANT_ROTATION_WEEKS) return { rel };
+
+ const interactedDuringCycle =
+ typeof rel.lastInteractionWeek === 'number' && rel.lastInteractionWeek >= want.since;
+ let next: Relationship = { ...rel };
+ let notification: string | undefined;
+
+ if (want.id === 'space') {
+ // Honoured their space (left alone the whole cycle) → small reward.
+ if (!interactedDuringCycle) {
+ next.npcMood = brightenMood(next.npcMood);
+ next.relationshipScore = clamp((next.relationshipScore ?? 0) + 1);
+ next.npcMemories = addMemory(next.npcMemories ?? [], {
+ type: 'kindness',
+ description: `You gave ${rel.name} space when they needed it`,
+ weeksLived,
+ sentiment: 'positive',
+ });
+ }
+ } else if (want.satisfiedCount <= 0 && !interactedDuringCycle) {
+ // A needy want, left entirely unmet AND ignored → a small, remembered slight.
+ next.npcMood = sourMood(next.npcMood);
+ next.relationshipScore = clamp((next.relationshipScore ?? 0) - 2);
+ next.npcMemories = addMemory(next.npcMemories ?? [], {
+ type: 'conflict',
+ description: `You never made time when ${rel.name} wanted ${WANT_SHORT[want.id]}`,
+ weeksLived,
+ sentiment: 'negative',
+ });
+ notification = `${rel.name} felt a little neglected lately.`;
+ }
+
+ // Assign the next cycle's want.
+ next.npcWant = makeWant(pickWant(rel.id, cycleOf(weeksLived), rel.type), weeksLived);
+ return { rel: next, notification };
+}
+
+// ─── Memory age-decay ─────────────────────────────────────────────────────
+
+/** weeks a memory stays before it fades (in addition to the MAX_MEMORIES cap). */
+export const MEMORY_TTL_WEEKS = 52;
+
+/**
+ * Drop memories older than `ttl` weeks, but always keep at least `keepMin` most
+ * recent so an NPC is never left blank. Bounded: never grows the list.
+ */
+export function decayMemories(
+ memories: NPCMemory[] | undefined,
+ weeksLived: number,
+ ttl: number = MEMORY_TTL_WEEKS,
+ keepMin = 3,
+): NPCMemory[] {
+ const list = memories ?? [];
+ if (list.length <= keepMin) return list;
+ const recent = list.filter(m => weeksLived - m.weeksLived <= ttl);
+ if (recent.length >= keepMin) return recent;
+ return list.slice(list.length - keepMin);
+}
+
+// ─── Varied interaction resolution ────────────────────────────────────────
+
+export interface InteractionOutcome {
+ /** Relationship-score delta to apply (always ≥ 1 for these friendly actions). */
+ scoreDelta: number;
+ /** Mood after the interaction (may brighten when a want is satisfied). */
+ npcMood: Relationship['npcMood'];
+ /** Updated want if this interaction advanced it (else undefined → leave as-is). */
+ npcWant?: NPCWant;
+ /** A memory to record, if the interaction was notable. */
+ memory?: Omit<NPCMemory, 'id'>;
+ /** Player-facing result line. */
+ message: string;
+ /** Whether the interaction satisfied the NPC's current want. */
+ wantSatisfied: boolean;
+ tone: 'warm' | 'neutral' | 'cool';
+}
+
+const ACTION_LABEL: Record<string, string> = {
+ call: 'called',
+ hangout: 'spent time with them',
+ date: 'took them out',
+ gift: 'gave them a gift',
+};
+
+function pickFrom(arr: string[], roll: number): string {
+ return arr[Math.min(arr.length - 1, Math.floor(roll * arr.length))];
+}
+
+/**
+ * Resolve a lightweight relationship interaction (Call / Hang Out / …) into a
+ * VARIED outcome: the score delta and the copy both shift with the NPC's mood,
+ * their memory of you, and whether the action satisfies their current want.
+ *
+ * Deterministic: the flavour roll is seeded on (weeksLived, npc id, action), so
+ * reloading and re-tapping yields the SAME result (no save-scum). With no depth
+ * fields present (fresh contact / old save) the delta collapses to exactly
+ * `baseBonus`, preserving the legacy flat-bonus behaviour.
+ */
+export function resolveInteraction(
+ rel: Relationship,
+ action: string,
+ baseBonus: number,
+ weeksLived: number,
+): InteractionOutcome {
+ const roll = makeWeeklyRoll(weeksLived)(`interact:${rel.id}:${action}`);
+ const mood = rel.npcMood ?? 'neutral';
+ const want = rel.npcWant;
+ const name = rel.name;
+
+ let delta = baseBonus;
+ let tone: InteractionOutcome['tone'] = 'neutral';
+ let wantSatisfied = false;
+ let updatedWant: NPCWant | undefined;
+ let memory: Omit<NPCMemory, 'id'> | undefined;
+ let nextMood: Relationship['npcMood'] = mood;
+ let message: string;
+
+ // Recent emotional colour from memory (last ~8 weeks).
+ const mems = rel.npcMemories ?? [];
+ const recentNeg = mems.some(m => m.sentiment === 'negative' && weeksLived - m.weeksLived <= 8);
+ const recentPos = mems.some(m => m.sentiment === 'positive' && weeksLived - m.weeksLived <= 8);
+
+ if (want && wantSatisfiedBy(want, action)) {
+ // Reading the room: this action is exactly what they wanted.
+ const prog = applyWantProgress(want, action, weeksLived);
+ updatedWant = prog.want;
+ if (prog.satisfied) {
+ wantSatisfied = true;
+ delta += prog.bonus;
+ tone = 'warm';
+ nextMood = brightenMood(mood);
+ memory = {
+ type: 'kindness',
+ description: `You ${ACTION_LABEL[action] ?? 'reached out'} when ${name} wanted ${WANT_SHORT[want.id]}`,
+ weeksLived,
+ sentiment: 'positive',
+ };
+ message = pickFrom([
+ `${name} lit up — exactly what they needed right now.`,
+ `You read ${name} perfectly. They loved it.`,
+ `${name} felt truly seen. That meant a lot.`,
+ ], roll);
+ } else {
+ // Want already indulged this cycle — still nice, but diminishing.
+ tone = 'neutral';
+ message = pickFrom([
+ `${name} enjoyed it, though you've done this a lot lately.`,
+ `Nice, but ${name} is a little spoiled for it this week.`,
+ ], roll);
+ }
+ } else if (want && want.id === 'space' && (action === 'call' || action === 'hangout')) {
+ // They wanted space; showing up is unwelcome — reduced, cool.
+ delta = Math.max(1, Math.round(baseBonus * 0.5));
+ tone = 'cool';
+ message = pickFrom([
+ `${name} clearly wanted some space. It was a little awkward.`,
+ `${name} kept it short — they need room right now.`,
+ ], roll);
+ } else {
+ // General interaction — colour by mood + memory.
+ let moodMod = 0;
+ if (mood === 'happy') { moodMod = 1; tone = 'warm'; }
+ else if (mood === 'sad' || mood === 'angry') { moodMod = -1; tone = 'cool'; }
+ else if (mood === 'stressed') { moodMod = 0; tone = recentNeg ? 'cool' : 'neutral'; }
+ else { tone = recentPos ? 'warm' : recentNeg ? 'cool' : 'neutral'; }
+
+ let memMod = 0;
+ if (recentNeg && !recentPos) { memMod = -1; if (tone === 'warm') tone = 'neutral'; else tone = 'cool'; }
+
+ delta = baseBonus + moodMod + memMod;
+
+ if (tone === 'warm') {
+ message = pickFrom([
+ `${name} was in great spirits and glad you reached out.`,
+ `${name} beamed the whole time.`,
+ ], roll);
+ } else if (tone === 'cool') {
+ message = pickFrom([
+ `${name} was distant and kept it short.`,
+ `${name} seemed preoccupied and a little cold.`,
+ recentNeg ? `${name} still hasn't quite forgotten the last time.` : `${name} wasn't very talkative.`,
+ ], roll);
+ } else {
+ message = pickFrom([
+ `A good, easy catch-up with ${name}.`,
+ `${name} appreciated you thinking of them.`,
+ ], roll);
+ }
+ }
+
+ delta = Math.max(1, Math.round(delta));
+ return {
+ scoreDelta: delta,
+ npcMood: nextMood,
+ npcWant: updatedWant,
+ memory,
+ message: `${message} (+${delta})`,
+ wantSatisfied,
+ tone,
+ };
 }
 
 // ─── Weekly NPC Processing ───────────────────────────────────────────────
@@ -368,6 +728,10 @@ export function processWeeklyNPCDepth(
  weeksLived: number,
 ): { relationships: Relationship[]; notifications: string[] } {
  const notifications: string[] = [];
+
+ // Deterministic per-week roll stream (seeded on weeksLived) — the mood drift
+ // + want rotation below are reproducible across reloads (no save-scum).
+ const weeklyRoll = makeWeeklyRoll(weeksLived);
 
  const updated = relationships.map(rel => {
  let r = { ...rel };
@@ -391,18 +755,23 @@ export function processWeeklyNPCDepth(
  r.npcMemories = [];
  }
 
- // Roll for life events
- const event = rollNPCLifeEvent(r);
+ // Roll for life events — seeded per NPC so it's deterministic/resume-safe.
+ const event = rollNPCLifeEvent(r, (k) => weeklyRoll(`${k}:${r.id}`));
  if (event) {
  r = applyNPCLifeEvent(r, event, weeksLived);
  notifications.push(event.description.replace('{name}', r.name));
  }
 
- // Decay mood toward neutral
- r.npcMood = decayMood(r.npcMood);
+ // Decay mood toward neutral (episodic), then apply deterministic CONTEXT
+ // drift (neglect / bond strength) so mood also tracks how you treat them.
+ r.npcMood = decayMood(r.npcMood, weeklyRoll(`mood-decay:${r.id}`));
+ r.npcMood = driftMoodFromContext(r, weeksLived, weeklyRoll(`mood-drift:${r.id}`));
 
- // Age NPCs if they have age
- if (r.age && weeksLived % WEEKS_PER_YEAR === 0) {
+ // Age NPCs if they have age — but NEVER children: applyChildAging already
+ // advances every child +1/52 each week (continuous). Aging them here too (a
+ // full +1 at each year boundary) double-aged kids, reaching adulthood/heir
+ // eligibility in ~9 years instead of 18.
+ if (r.type !== 'child' && r.age && weeksLived % WEEKS_PER_YEAR === 0) {
  r.age = r.age + 1;
  }
 
@@ -429,6 +798,16 @@ export function processWeeklyNPCDepth(
  });
  }
 
+ // Rotate the current WANT (init on first encounter; every WANT_ROTATION_WEEKS
+ // after). A needy want left unmet AND ignored costs a little bond + a memory;
+ // honouring a "space" want is quietly rewarded.
+ const wantResult = rotateWantIfDue(r, weeksLived);
+ r = wantResult.rel;
+ if (wantResult.notification) notifications.push(wantResult.notification);
+
+ // Age-decay memories (bounded — never grows; keeps at least the most recent few).
+ r.npcMemories = decayMemories(r.npcMemories, weeksLived);
+
  return r;
  });
 
@@ -439,12 +818,12 @@ export function processWeeklyNPCDepth(
 
 export function getMoodEmoji(mood: Relationship['npcMood']): string {
  switch (mood) {
- case 'happy': return '';
- case 'stressed': return '';
- case 'sad': return '';
- case 'angry': return '';
+ case 'happy': return '😊';
+ case 'stressed': return '😰';
+ case 'sad': return '😔';
+ case 'angry': return '😠';
  case 'neutral':
- default: return '';
+ default: return '😐';
  }
 }
 

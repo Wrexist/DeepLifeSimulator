@@ -5,6 +5,7 @@ import React from 'react';
 import { GameState, GameStats } from '../types';
 import { logger } from '@/utils/logger';
 import { clampStatByKey } from '@/utils/statUtils';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 const log = logger.scope('StatsActions');
 
@@ -16,6 +17,9 @@ export const updateStats = (
   setGameState(prev => {
     const updatedStats = { ...prev.stats };
     const actualChanges: Partial<GameStats> = {};
+    // Life Skills: Peak Performance (+15% gym efficiency) amplifies POSITIVE
+    // fitness gains from player actions (workouts, sports, gym). Bounded mult.
+    const fitnessGainMult = getLifeSkillModifiers(prev).fitnessGainMult;
 
     Object.entries(newStats).forEach(([key, value]) => {
       const k = key as keyof GameStats;
@@ -28,8 +32,12 @@ export const updateStats = (
         return;
       }
       if (typeof value === 'number' && !isNaN(value)) {
+        // Apply the gym-efficiency multiplier to positive fitness gains only.
+        const effectiveValue = (k === 'fitness' && value > 0 && fitnessGainMult > 1)
+          ? value * fitnessGainMult
+          : value;
         const currentVal = prev.stats[k];
-        const newVal = clampStatByKey(k, currentVal + value);
+        const newVal = clampStatByKey(k, currentVal + effectiveValue);
         updatedStats[k] = newVal;
         actualChanges[k] = newVal - currentVal;
       } else {

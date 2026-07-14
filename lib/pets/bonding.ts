@@ -32,7 +32,7 @@ export interface BondingSummary {
  *   - A pet with happiness ≥ 70 contributes +0.5 player happiness / week.
  *   - A pet with happiness ≥ 85 contributes +1.0.
  *   - A pet with happiness < 30 OR health < 30 actively saps player happiness (-0.5).
- *   - A healthy pet (health ≥ 70) contributes +0.2 player health (rounded later).
+ *   - A healthy pet (health ≥ 70) contributes +0.6 player health (rounded later).
  *   - Elderly pets give a small bonus (the "loyal companion" effect).
  */
 export function bondingSummary(pets: Pet[] | undefined): BondingSummary {

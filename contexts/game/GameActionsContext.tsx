@@ -20,6 +20,7 @@ import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
+import { buyStockMarket } from '@/contexts/game/actions/StockActions';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -32,6 +33,7 @@ import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
+import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
 import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
@@ -51,6 +53,7 @@ import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice 
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
@@ -92,8 +95,11 @@ import {
   PET_WEEKLY_FOOD_COST,
 } from './actions/weekly/applyPets';
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
+import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
+import { getRetirementIncomeWeekly } from '@/lib/retirement';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
@@ -116,6 +122,7 @@ import { applyNPCDepthTick } from './actions/weekly/applyNPCDepthTick';
 import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
+import { clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
@@ -452,11 +459,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // every subsequent reducer (career, diet, rent, disease, pet, vehicle)
  // shares the same instance. `newStats`, `pendingNotifications`, and
  // `preRolls` are stable references — mutations propagate naturally.
+ // Life Skills tree modifiers (unlockedLifeSkills → bounded multipliers),
+ // computed ONCE per tick and shared with every weekly reducer via weeklyCtx.
+ // Neutral (all-1) for old saves / players who unlocked nothing.
+ const lifeSkillMods = getLifeSkillModifiers(prevState);
  const weeklyCtx: WeekContext = {
    newStats,
    notifications: pendingNotifications,
    preRolls,
    nextWeeksLived,
+   lifeSkillMods,
  };
 
  // Energy REGAINS when advancing weeks (like sleeping/resting)
@@ -476,7 +488,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so the original framing did nothing. Reframe as a regen
  // boost (the cap stays 100, but you reach it 50% faster).
  const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5: 1.0;
- const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus); // Full regen amount (don't cap here)
+ // Life Skills: Stamina (+15% energy regen — reinterpreted from "+10 max energy"
+ // since the energy ceiling is a hard 100). Bounded mult from the accessor.
+ const staminaRegenMult = lifeSkillMods.energyRegenMult;
+ const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
  newStats.energy = (newStats.energy || 0) + energyRegen;
 
@@ -568,6 +583,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevCareers: prevState.careers,
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
+   prevIsRetired: prevState.isRetired,
  });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
@@ -586,6 +602,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    legacyBuffs: prevState.legacyBuffs,
    goldMindset: Boolean(prevState.goldUpgrades?.mindset),
    perkMindset: Boolean(prevState.perks?.mindset),
+   // Life Skills: Leadership (+10%) / Executive (+15%) promotion-progress speed.
+   lifeSkillCareerProgressMult: lifeSkillMods.careerProgressMult,
  }).updatedCareers;
 
  // Progress enrolled educations automatically
@@ -675,6 +693,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // gold upgrade + onboarding-perk income bonuses. Byte-faithful to the
  // legacy inline code — verified by snapshot tests in __tests__/refactor.
  const weeksLivedNow = prevState.weeksLived || 0;
+ // Retirement pension — 0 while working; the frozen weekly pension once retired.
+ // Credited flat through the canonical income path below (no minting/amplifying).
+ const retirementIncome = getRetirementIncomeWeekly(prevState);
  const incomeResult = computeWeeklyIncome({
    prevState,
    careerSalary,
@@ -684,6 +705,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    unlockedBonuses,
    // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
    economyIncomeMultiplier: prevState.economy?.economyEvents?.modifiers?.incomeMultiplier,
+   retirementIncome,
  });
  const { partnerIncome, baseTotalIncome, totalIncome } = incomeResult;
 
@@ -737,8 +759,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  const { savingsInterest, newBankSavings } = savingsResult;
 
- // Progressive income tax on weekly earnings
- const incomeTax = calculateIncomeTax(totalIncome);
+ // Progressive income tax on weekly earnings.
+ // Life Skills: Tax Strategy (-10% tax) scales the owed tax down (bounded mult).
+ const incomeTax = Math.round(calculateIncomeTax(totalIncome) * lifeSkillMods.taxMult);
 
  // R7 Phase 2 step 2.4e: per-loan autopay extracted into
  // ./actions/weekly/applyLoanAutopay.ts. Pure helper threads cash through
@@ -865,7 +888,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (!isImmortal) {
  const yearsPast80 = nextAge - 80;
  // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
- const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95);
+ // Life Skills: Vitality (slow aging) scales the annual death chance down
+ // (agingMult ≤ 1, clamped). Never raises it; never fully immortalizes.
+ const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95) * lifeSkillMods.agingMult;
  const weeklyChance = 1 - Math.pow(1 - annualChance, 1 / WEEKS_PER_YEAR);
  if (oldAgeDeathRoll < weeklyChance) {
  newShowDeathPopup = true;
@@ -1145,6 +1170,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  applyPetDeathSideEffects(prevState.pets, updatedPets, weeklyCtx);
  let updatedVehicles = applyVehiclesForWeek(prevState.vehicles, weeklyCtx);
+ // Luxury & Collectibles weekly tick — upkeep (mirror-safe cash deduction from
+ // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
+ // money overwrite, before the stat clamp and before pulseRep reads reputation)
+ // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
+ const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
+ // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
+ // screen but never completed in normal play). Luxury ownership only changes via
+ // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
+ // on the flip to complete — otherwise reuse the same reference (no churn).
+ const updatedAchievements =
+ (isLuxuryLifeComplete(prevState.luxuryItems) &&
+ (prevState.achievements || []).some((a) => a.id === 'luxury_life' && !a.completed))
+ ? (prevState.achievements || []).map((a) =>
+ a.id === 'luxury_life' ? { ...a, completed: true } : a)
+ : prevState.achievements;
  applyPetLivingSideEffects(updatedPets, weeklyCtx);
  // Downstream week-result block at line ~2075 reports `petFoodCost` as part
  // of `totalExpenses`. The helper applies the cost atomically (clamped to
@@ -1274,7 +1314,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Build week result for the result sheet
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep;
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep + luxuryUpkeep;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
@@ -1399,6 +1439,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'taxes', amount: incomeTax },
  { category: 'debt', amount: totalLoanAutoPaid },
  { category: 'lifestyle', amount: petFoodCost },
+ // Luxury upkeep: same owned-item sum applyLuxuryItemsForWeek deducted above.
+ { category: 'lifestyle', amount: luxuryUpkeep },
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
@@ -1411,10 +1453,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  loansWithTrackers: processedLoans,
  notifications: [],
  lateFeesDeducted: 0,
+ billsPaidFromCash: 0,
  };
  }
  if (bankingTick.lateFeesDeducted > 0) {
  newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
+ }
+ // Bills paid from a mirrored (checking-default) account must hit real cash —
+ // the mirror's balance is overwritten from stats.money every tick, so without
+ // this a "paid" bill cost the player nothing (inverted bill-pay).
+ if (bankingTick.billsPaidFromCash > 0) {
+ newStats.money = Math.max(0, newStats.money - bankingTick.billsPaidFromCash);
  }
  for (const note of bankingTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1590,6 +1639,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  careerLevel: 0,
  nextElectionWeek: undefined,
  };
+ // Also reset the political career entry + currentJob so lifestyle costs and
+ // the "in office?" UI stop treating a voted-out / resigned player as a sitting
+ // official — zeroing politics.careerLevel alone left careers.political (read by
+ // lifestyle.ts) and currentJob desynced.
+ updatedCareers = updatedCareers.map(c =>
+ c.id === 'political' ? {...c, accepted: false, applied: false, level: 0 }: c
+ );
+ if (newCurrentJob === 'political') newCurrentJob = undefined;
  }
  } catch (polErr) {
  logger.error('[POLITICS TICK] failed:', polErr);
@@ -1618,6 +1675,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  const nextState: GameState = {
 ...prevState,
+ // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
+ // just flipped to complete — see updatedAchievements above).
+ achievements: updatedAchievements,
  careers: updatedCareers,
  currentJob: newCurrentJob,
  educations: updatedEducations,
@@ -1758,16 +1818,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  })(),
  // Process weddings, pregnancy, and relationship health
  relationships: processedRelationships,
- // Update family with newborn children + a spouse from a scheduled
- // wedding executed this tick (mirrors executeWedding's family.spouse).
- family: (newBornChildren.length > 0 || newWeddingSpouse) ? {
+ // Rebuild family.children from the aged child relationships EVERY tick, plus a
+ // spouse from a scheduled wedding executed this tick. Previously family.children
+ // (what the Family UI + heir logic read) was only rebuilt on birth/wedding weeks
+ // and copied the stale prevState list, so children showed "Age 0" forever and
+ // never crossed the >=18 adult/heir boundary. processedRelationships already
+ // holds every child (freshly aged via applyChildAging) plus any newborns pushed
+ // this tick; merge by id to preserve extra family-only fields.
+ family: (() => {
+ const childRels = processedRelationships.filter((r) => r.type === 'child');
+ const prevChildById = new Map((prevState.family?.children || []).map((c) => [c.id, c]));
+ const children = childRels.map((rel) => {
+ const existing = prevChildById.get(rel.id);
+ return existing ? {...existing, ...rel }: {...rel, birthWeeksLived: nextWeeksLived };
+ });
+ return {
 ...prevState.family,
 ...(newWeddingSpouse ? { spouse: newWeddingSpouse }: {}),
- children: [
-...(prevState.family?.children || []),
-...newBornChildren.map(child => ({...child, birthWeeksLived: nextWeeksLived })),
- ],
- }: prevState.family,
+ children,
+ };
+ })(),
  // Add birth milestone.
  // P0-12: store the absolute week so the LifeStoryModal timeline orders
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
@@ -2012,35 +2082,47 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  if (executions.length > 0) {
  // Calculate total money spent by successful automation actions
- const totalAutomationCost = executions
-.filter(e => e.success)
+ const saveTransfer = executions
+.filter(e => e.success && e.type === 'save')
 .reduce((sum, e) => sum + e.actionsTaken
 .filter(a => a.result === 'success')
 .reduce((s, a) => s + (a.value || 0), 0), 0);
 
- // Update state with automation execution history AND apply money changes
+ // 'save' rules move cash into bank savings (net-worth-neutral) inside this
+ // updater. 'invest' rules now perform REAL stock buys as well, but those run
+ // through the canonical buyStockMarket action below — which owns the cash
+ // debit — so this updater must NOT charge for them (doing so would DOUBLE-
+ // charge). 'pay'/'renew' still record to history only; loans are already
+ // serviced by the weekly loan tick.
  setGameState(prevState => {
  if (!prevState.automation) return prevState;
 
- // P2-1: automation must not spend money the player doesn't have. The old code
- // clamped `money - cost` to 0, effectively granting the actions' value for
- // free. If the batch isn't affordable, skip it (don't deduct, don't record).
  const currentMoney = prevState.stats?.money || 0;
- if (totalAutomationCost > currentMoney) {
- logger.warn(`[AUTOMATION] Insufficient funds: cost $${totalAutomationCost} > $${currentMoney}. Batch skipped.`);
- return prevState;
- }
+ // Never transfer more cash than the player actually has.
+ const transfer = Math.max(0, Math.min(saveTransfer, currentMoney));
 
  const currentHistory = prevState.automation.executionHistory || [];
- const newHistory = [...currentHistory,...executions].slice(-50);
- const newMoney = totalAutomationCost > 0 ? currentMoney - totalAutomationCost : currentMoney;
+ // Strip the transient investOrders before persisting — it's apply-time wiring,
+ // not history, and is executed exactly once below (never replayed from a save).
+ const newHistory = [...currentHistory,...executions.map(e => ({...e, investOrders: undefined }))].slice(-50);
+
+ if (transfer <= 0) {
+ return {
+...prevState,
+ automation: {
+...prevState.automation,
+ executionHistory: newHistory,
+ },
+ };
+ }
 
  return {
 ...prevState,
  stats: {
 ...prevState.stats,
- money: newMoney,
+ money: currentMoney - transfer,
  },
+ bankSavings: (prevState.bankSavings || 0) + transfer,
  automation: {
 ...prevState.automation,
  executionHistory: newHistory,
@@ -2048,7 +2130,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  });
 
- logger.info(`[AUTOMATION] Executed ${executions.length} rules, cost $${totalAutomationCost}`);
+ // Execute the REAL stock purchases planned by 'invest' rules via the canonical
+ // buy action. buyStockMarket owns the cash debit + 2% broker fee + affordability
+ // check and writes ONLY stats.money (never a mirrored banking account). It
+ // re-checks live cash on every call, so multiple orders share one running budget
+ // and none can overspend; an unaffordable order is rejected (no fake fill).
+ const plannedInvestOrders = executions
+.filter(e => e.type === 'invest' && e.success)
+.flatMap(e => e.investOrders ?? []);
+ for (const order of plannedInvestOrders) {
+ try {
+ buyStockMarket(setGameState, order.symbol, order.amountUSD, order.midPrice);
+ } catch (buyErr) {
+ logger.warn('[AUTOMATION] Invest order failed:', { order, buyErr });
+ }
+ }
+
+ logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}, invest orders: ${plannedInvestOrders.length}`);
  }
  } catch (error) {
  logger.error('[AUTOMATION] Failed to process automation rules:', error);
@@ -2151,9 +2249,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Apply relationship change
  let updatedRelationships = prevState.relationships || [];
- if (effects.relationship!== undefined && event.relationId) {
+ // Prefer the event's bound relationId. Several event templates
+ // (personalCrises/enhancedEvents/cliffhangerEvents/seasonalEvents) specify a
+ // relationship delta but never set relationId, which silently dropped the
+ // effect after the player had already paid the choice's money/stat cost. Fall
+ // back to the most relevant relationship: the spouse/partner if any, else the
+ // highest-scored relationship.
+ if (effects.relationship!== undefined) {
+ let targetRelId = event.relationId;
+ if (!targetRelId && updatedRelationships.length > 0) {
+ const romantic = updatedRelationships.find(r => r.type === 'spouse' || r.type === 'partner');
+ // Secondary fallback: highest-scored NON-FAMILY relationship. Excluding
+ // child/parent stops an unbound (often romantic-context) delta from landing on
+ // a newborn child (relationshipScore 100 would otherwise win the sort). Drop the
+ // effect if nothing qualifies rather than mis-target a family member.
+ const nonFamily = updatedRelationships.filter(r => r.type !== 'child' && r.type !== 'parent');
+ const fallback = romantic
+ ?? [...nonFamily].sort((a, b) => (b.relationshipScore ?? 50) - (a.relationshipScore ?? 50))[0];
+ targetRelId = fallback?.id;
+ }
+ if (targetRelId) {
  updatedRelationships = updatedRelationships.map(rel => {
- if (rel.id === event.relationId) {
+ if (rel.id === targetRelId) {
  const updated = {
 ...rel,
  relationshipScore: Math.max(0, Math.min(100, (rel.relationshipScore ?? 50) + effects.relationship!)),
@@ -2171,6 +2288,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  return rel;
  });
+ }
  }
 
  // Apply pet changes
@@ -3355,6 +3473,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(prev => ({
 ...prev,
  relationships: (prev.relationships || []).filter(r => r.id!== partnerId),
+ // Clear the backing Spark match's `promoted` flag so the ex stops rendering
+ // as your partner in Spark and can be re-dated later.
+ sparkApp: clearPromotedSparkMatch(prev.sparkApp, partnerId),
  }));
 
  updateStats({ happiness: -20 });
@@ -3539,6 +3660,42 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(newGameState);
  logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
 
+ // Surface any prestige achievements this prestige awarded. The award itself
+ // already happened inside executePrestige (points + claimed store); here we
+ // just diff the claimed store to announce them via the same friendly,
+ // auto-dismissing info banner gameplay events use.
+ const beforePrestigeAchievements = new Set(currentState.prestige?.claimedPrestigeAchievements ?? []);
+ const newlyAwardedPrestigeAchievements = (newGameState.prestige?.claimedPrestigeAchievements ?? [])
+ .filter(id => !beforePrestigeAchievements.has(id))
+ .map(id => PRESTIGE_ACHIEVEMENTS.find(a => a.id === id))
+ .filter((a): a is PrestigeAchievement => Boolean(a));
+ if (newlyAwardedPrestigeAchievements.length > 0) {
+ // Mirror the weekly-notify pattern: ≤2 show individually, more collapse into
+ // one summary banner so a veteran's one-shot retroactive catch-up (many at
+ // once) can't flood the screen.
+ if (newlyAwardedPrestigeAchievements.length <= 2) {
+ for (const a of newlyAwardedPrestigeAchievements) {
+ showInfoBanner(
+ `prestige-achievement-${a.id}`,
+ `${a.name} — +${(a.reward?.prestigePoints ?? 0).toLocaleString()} prestige points`,
+ 'Prestige Achievement',
+ );
+ }
+ } else {
+ const totalPoints = newlyAwardedPrestigeAchievements.reduce(
+ (sum, a) => sum + (a.reward?.prestigePoints ?? 0),
+ 0,
+ );
+ const names = newlyAwardedPrestigeAchievements.slice(0, 3).map(a => a.name).join(', ');
+ const more = newlyAwardedPrestigeAchievements.length - 3;
+ showInfoBanner(
+ 'prestige-achievements-summary',
+ `${names}${more > 0 ? ` +${more} more` : ''}\n+${totalPoints.toLocaleString()} prestige points`,
+ `${newlyAwardedPrestigeAchievements.length} Prestige Achievements`,
+ );
+ }
+ }
+
  // Save after prestige
  const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
  // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
@@ -3558,7 +3715,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[executePrestige] Error:', error);
  showError('Prestige Error', 'Failed to execute prestige. Please try again.');
  }
- }, [setGameState, currentSlot, showError]);
+ }, [setGameState, currentSlot, showError, showInfoBanner]);
 
  const value = useMemo<GameActionsContextType>(() => ({
  nextWeek,

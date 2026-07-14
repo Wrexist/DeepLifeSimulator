@@ -22,6 +22,7 @@
 
 import type { GameStats } from '@/contexts/game/types';
 import type { PreRolls } from './preTick';
+import type { LifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 /**
  * Notification pushed by a weekly reducer. Flushed to the UI via the
@@ -66,4 +67,11 @@ export interface WeekContext {
    * effect math.
    */
   nextWeeksLived: number;
+  /**
+   * Bounded Life Skills tree modifiers (`unlockedLifeSkills` → multipliers),
+   * computed ONCE per tick by the caller from `getLifeSkillModifiers(prevState)`.
+   * Read-only for reducers. Optional so existing test fixtures / callers that
+   * omit it keep working — consumers fall back to the neutral (all-1) set.
+   */
+  lifeSkillMods?: LifeSkillModifiers;
 }

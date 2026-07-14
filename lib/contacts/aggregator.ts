@@ -173,7 +173,7 @@ export function aggregateContacts(
         kind: 'business',
         name: opp.name,
         subtitle: opp.invested
-          ? `Partner · $${opp.weeklyIncome.toLocaleString()}/wk`
+          ? `Partner · $${safe(opp.weeklyIncome, 0).toLocaleString()}/wk`
           : `Prospect · ${opp.destinationId}`,
         strength: opp.invested ? 80 : 30,
         tags: [opp.invested ? 'partner' : 'prospect'],

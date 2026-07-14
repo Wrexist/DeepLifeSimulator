@@ -278,7 +278,11 @@ export function calculateFollowerGrowthFull(
  */
 export function checkViralChance(
   influenceLevel: InfluenceLevel,
-  contentType: ContentType
+  contentType: ContentType,
+  // Distinguishes otherwise-identical rolls made in the same millisecond (e.g. a
+  // "tripled virality" boost that calls this 3×). Without it, all three shared a
+  // seed and returned the same boolean, so `a || a || a === a` — a no-op boost.
+  nonce = 0,
 ): boolean {
   // Base viral chance by influence level
   const levelChances: Record<InfluenceLevel, number> = {
@@ -303,7 +307,7 @@ export function checkViralChance(
 
   // ANTI-EXPLOIT: Use deterministic hash instead of Math.random() to prevent save/reload abuse
   // Same inputs at same game state = same outcome every time
-  const hashInput = `viral:${influenceLevel}:${contentType}:${Date.now()}`;
+  const hashInput = `viral:${influenceLevel}:${contentType}:${nonce}:${Date.now()}`;
   const hash = hashInput.split('').reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
   const pseudoRandom = (Math.abs(hash) % 10000) / 10000;
   return pseudoRandom < viralChance;

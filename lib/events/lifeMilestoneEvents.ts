@@ -267,6 +267,86 @@ const retirementThoughts: EventTemplate = {
   }),
 };
 
+// ---------------------------------------------------------------------------
+// Retirement / Elder chapter events (age ≥ 65 / retired). Gentle, age-appropriate
+// beats that complement the Retirement mechanic + elder activities. Nothing here
+// is punishing — the "health scare" resolves gracefully.
+// ---------------------------------------------------------------------------
+
+/** Thrown shortly after retiring — a warm send-off. */
+const retirementParty: EventTemplate = {
+  id: 'retirement_party',
+  category: 'general',
+  weight: 0.5,
+  condition: state => {
+    if (!state.isRetired) return false;
+    const retiredWeek = typeof state.retiredAtWeek === 'number' ? state.retiredAtWeek : 0;
+    const weeksLived = typeof state.weeksLived === 'number' ? state.weeksLived : 0;
+    return weeksLived - retiredWeek <= 10; // only in the first ~10 weeks of retirement
+  },
+  generate: () => ({
+    id: 'retirement_party',
+    description: 'Friends, family, and old colleagues gather to celebrate your retirement. Speeches, cake, and a few happy tears.',
+    choices: [
+      { id: 'toast', text: 'Give a heartfelt toast', effects: { stats: { happiness: 12, reputation: 6 } } },
+      { id: 'humble', text: 'Keep it low-key', effects: { stats: { happiness: 8 } } },
+    ],
+  }),
+};
+
+/** A pension milestone / cost-of-living adjustment — a modest, bounded bonus. */
+const pensionMilestone: EventTemplate = {
+  id: 'pension_milestone',
+  category: 'economy',
+  weight: 0.2,
+  condition: state => !!state.isRetired,
+  generate: () => ({
+    id: 'pension_milestone',
+    description: 'Your pension fund posts a strong year and issues a one-time cost-of-living bonus.',
+    choices: [
+      { id: 'save_it', text: 'Bank the bonus', effects: { money: 600, stats: { happiness: 4 } } },
+      { id: 'treat_family', text: 'Treat the family', effects: { money: 300, stats: { happiness: 9 } } },
+    ],
+  }),
+};
+
+/** A health scare in old age — resolves gracefully, never fatal. */
+const elderHealthScare: EventTemplate = {
+  id: 'elder_health_scare',
+  category: 'health',
+  weight: 0.25,
+  condition: state => (state.date?.age || ADULTHOOD_AGE) >= 65,
+  generate: () => ({
+    id: 'elder_health_scare',
+    description: 'A dizzy spell sends a jolt of worry through you. It passes — but it was a reminder to take care of yourself.',
+    choices: [
+      { id: 'see_doctor', text: 'See the doctor for a full check-up', effects: { money: -250, stats: { health: 9, happiness: 4 } } },
+      { id: 'rest', text: 'Rest and take it easy', effects: { stats: { health: 4, energy: 6 } } },
+      { id: 'shrug', text: 'Shrug it off', effects: { stats: { health: -2, happiness: -2 } } },
+    ],
+  }),
+};
+
+/** Grandchildren come to visit — pure warmth. Needs at least one child. */
+const grandchildVisit: EventTemplate = {
+  id: 'grandchild_visit',
+  category: 'relationship',
+  weight: 0.3,
+  condition: state => {
+    const age = state.date?.age || ADULTHOOD_AGE;
+    const hasChildren = Array.isArray(state.family?.children) && state.family.children.length > 0;
+    return age >= 65 && hasChildren;
+  },
+  generate: () => ({
+    id: 'grandchild_visit',
+    description: 'The grandchildren come to stay for the weekend. The house is loud, messy, and wonderfully full of life.',
+    choices: [
+      { id: 'spoil', text: 'Spoil them rotten', effects: { money: -120, stats: { happiness: 12 } } },
+      { id: 'stories', text: 'Tell them the old family stories', effects: { stats: { happiness: 9, reputation: 2 } } },
+    ],
+  }),
+};
+
 const quarterLifeCrisis: EventTemplate = {
   id: 'quarter_life_crisis',
   category: 'general',
@@ -514,6 +594,11 @@ export const lifeMilestoneEventTemplates: EventTemplate[] = [
   retirementThoughts,
   quarterLifeCrisis,
   emptyNest,
+  // Retirement / elder chapter
+  retirementParty,
+  pensionMilestone,
+  elderHealthScare,
+  grandchildVisit,
   // Mental health & wellness
   burnout,
   loneliness,

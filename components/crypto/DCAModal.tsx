@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { BankAccount, Crypto } from '@/contexts/game/types';
@@ -24,17 +24,25 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
   const [cryptoId, setCryptoId] = useState<string>(cryptos[0]?.id ?? '');
   const [amountText, setAmountText] = useState('');
   const [cadence, setCadence] = useState<'weekly' | 'monthly'>('weekly');
-  const checkingAccounts = accounts.filter((a) => a.type === 'checking');
+  // Memoized so it isn't a new array reference every render — otherwise it (and
+  // its use in the reset effect below) re-fired the effect on every keystroke,
+  // wiping the amount field and leaving the Schedule button permanently disabled.
+  const checkingAccounts = useMemo(
+    () => accounts.filter((a) => a.type === 'checking'),
+    [accounts]
+  );
   const [accountId, setAccountId] = useState<string>(checkingAccounts[0]?.id ?? '');
 
+  // Reset the form only when the modal opens (deriving defaults from the latest
+  // props at that moment), never on every render while it's open.
   useEffect(() => {
-    if (visible) {
-      setCryptoId(cryptos[0]?.id ?? '');
-      setAmountText('');
-      setCadence('weekly');
-      setAccountId(checkingAccounts[0]?.id ?? '');
-    }
-  }, [visible, cryptos, checkingAccounts]);
+    if (!visible) return;
+    setCryptoId(cryptos[0]?.id ?? '');
+    setAmountText('');
+    setCadence('weekly');
+    setAccountId(checkingAccounts[0]?.id ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const amount = parseFloat(amountText) || 0;
   const canSubmit = cryptoId && amount > 0 && accountId;

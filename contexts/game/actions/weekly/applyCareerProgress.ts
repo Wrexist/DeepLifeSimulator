@@ -52,6 +52,12 @@ export interface CareerProgressInput {
   goldMindset: boolean;
   /** `prevState.perks?.mindset` truthy. */
   perkMindset: boolean;
+  /**
+   * Life Skills career-progress multiplier (Leadership +10%, Executive +15%).
+   * Clamped [1, 1.5] by the accessor. Defaults to 1 (neutral) when omitted so
+   * existing callers / test fixtures are unaffected.
+   */
+  lifeSkillCareerProgressMult?: number;
 }
 
 export interface CareerProgressResult {
@@ -97,7 +103,12 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
       let mindsetMultiplier = 1;
       if (input.goldMindset) mindsetMultiplier *= 1.5;
       if (input.perkMindset) mindsetMultiplier *= 1.5;
-      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier);
+      // Life Skills: Leadership/Executive accelerate promotion progress.
+      const lifeSkillMult = typeof input.lifeSkillCareerProgressMult === 'number'
+        && isFinite(input.lifeSkillCareerProgressMult) && input.lifeSkillCareerProgressMult > 0
+        ? input.lifeSkillCareerProgressMult
+        : 1;
+      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult);
       const newProgress = Math.min(100, (c.progress || 0) + progressRate);
       return {
         ...c,

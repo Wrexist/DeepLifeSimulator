@@ -34,6 +34,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="SaveSlots" options={{ headerShown: false }} />
       <Stack.Screen name="Scenarios" options={{ headerShown: false }} />
       <Stack.Screen name="Customize" options={{ headerShown: false }} />
+      <Stack.Screen name="Ambitions" options={{ headerShown: false }} />
       <Stack.Screen name="Perks" options={{ headerShown: false }} />
     </Stack>
   );

@@ -76,7 +76,11 @@ export function applyEducationProgression(
   // Defensive `|| []` like every sibling weekly helper — a stale save could
   // omit `educations`, and an unguarded .map() throws inside the weekly tick.
   const updatedEducations = (input.prevEducations || []).map((edu) => {
-    if (edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0) {
+    // `>= 0` (not `> 0`) so an education the Study button already drove to
+    // weeksRemaining 0 still enters here and gets finalized — completion flag,
+    // enrolled-class stat bonuses, and the "🎓 Completed!" toast. Study leaves
+    // `completed` false precisely so the tick does this once, in one place.
+    if (edu && !edu.completed && !edu.paused && typeof edu.weeksRemaining === 'number' && edu.weeksRemaining >= 0) {
       const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
       const isCompleted = newWeeksRemaining === 0;
 
@@ -112,7 +116,10 @@ export function applyEducationProgression(
 
       // Exam check (every ~13 weeks).
       if (isExamWeek(edu, input.nextWeeksLived)) {
-        const examResult = runExam(edu, ctx.newStats.energy, !!edu.studyGroupActive);
+        // Life Skills: Critical Thinking / Memory Palace / Polymath raise the
+        // exam pass chance (bounded). Neutral 0 when nothing unlocked / old save.
+        const examBonus = ctx.lifeSkillMods?.examPassBonus ?? 0;
+        const examResult = runExam(edu, ctx.newStats.energy, !!edu.studyGroupActive, examBonus);
         updatedEdu.lastExamWeek = input.nextWeeksLived;
         updatedEdu.examsPassed = (edu.examsPassed || 0) + (examResult.passed ? 1 : 0);
         updatedEdu.examsFailed = (edu.examsFailed || 0) + (examResult.passed ? 0 : 1);

@@ -9,6 +9,7 @@ import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
+import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 
 const log = logger.scope('CompanyActions');
 
@@ -65,9 +66,13 @@ export const createCompany = (
   const hasEntrepreneurshipEducation = (gameState.educations || []).find(
     e => e.id === 'entrepreneurship'
   )?.completed;
-  
-  if (!hasEntrepreneurshipEducation) {
-    return { success: false, message: 'You need to complete Entrepreneurship Course first!' };
+  // Mirror company.ts: the "Early Company Access" prestige bonus bypasses the
+  // education gate. Without this, an early-access player could tap "Found …" in
+  // the UI (which offers it) and hit a dead-end "complete Entrepreneurship" error.
+  const hasEarlyAccess = hasEarlyCompanyAccess(gameState.prestige?.unlockedBonuses || []);
+
+  if (!hasEarlyAccess && !hasEntrepreneurshipEducation) {
+    return { success: false, message: 'You need to complete Entrepreneurship Course first! (Or unlock Early Company Access prestige bonus)' };
   }
 
   // Logic moved from company.ts but adapted for split architecture

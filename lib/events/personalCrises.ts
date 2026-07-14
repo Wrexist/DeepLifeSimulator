@@ -246,9 +246,12 @@ export const investmentOpportunity: EventTemplate = {
           id: 'invest',
           text: `Invest $${investmentAmount.toLocaleString()}`,
           effects: {
-            money: isSuccess 
-              ? investmentAmount * 1.5 // 50% return
-              : isLoss 
+            // Net-outcome model (the principal is never separately withdrawn):
+            // success = +50% net, loss = -50% net, break-even = 0. The old
+            // success value (+150%) handed back the principal you never paid.
+            money: isSuccess
+              ? investmentAmount * 0.5 // net +50%
+              : isLoss
                 ? -investmentAmount * 0.5 // 50% loss
                 : 0, // Break even
             stats: {
@@ -309,18 +312,22 @@ export const jobOffer: EventTemplate = {
     
     return {
       id: 'job_offer',
-      description: `You receive a job offer with a weekly salary of $${newSalary.toLocaleString()}. This is ${currentSalary > 0 ? `${Math.floor(((newSalary / currentSalary) - 1) * 100)}%` : 'significantly'} more than your current job.`,
+      // Honest copy + a real reward: there is no generic "switch to this exact
+      // job" hook, so accepting pays a one-time signing bonus (≈ its first
+      // paycheck) instead of silently promising an ongoing salary that never
+      // applied. The happiness/reputation still land.
+      description: `You receive a strong job offer — accepting comes with a $${newSalary.toLocaleString()} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
       choices: [
         {
           id: 'accept',
-          text: 'Accept the new job',
+          text: 'Accept the offer',
           effects: {
+            money: newSalary,
             stats: {
               happiness: 10,
               reputation: 5,
             },
           },
-          // Note: Actual job change would be handled in the choice handler
         },
         {
           id: 'decline',

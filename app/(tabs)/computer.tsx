@@ -29,6 +29,7 @@ import {
   BarChart3,
   Car,
   Video,
+  Crown,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -62,6 +63,7 @@ import TravelApp from '@/components/computer/TravelApp';
 import PoliticalApp from '@/components/computer/PoliticalApp';
 import StatisticsApp from '@/components/computer/StatisticsApp';
 import VehicleApp from '@/components/computer/VehicleApp';
+import LuxuryApp from '@/components/computer/LuxuryApp';
 
 import {
   responsivePadding,
@@ -312,11 +314,20 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
       iconGradient: ['#6366F1', '#8B5CF6'],
       available: true,
     },
+    {
+      id: 'luxury',
+      name: 'Luxury',
+      description: 'Buy luxury & collectibles',
+      icon: Crown,
+      gradient: ['#3B82F6', '#60A5FA'], // Blue accent for luxury
+      iconGradient: ['#3B82F6', '#60A5FA'],
+      available: true,
+    },
   ], [t]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 
-    ['bitcoin', 'realestate', 'onion', 'gaming', 'streaming', 'travel', 'political', 'statistics', 'vehicle', 'company', 'education'].includes(app.id)
+    ['bitcoin', 'realestate', 'onion', 'gaming', 'streaming', 'travel', 'political', 'statistics', 'vehicle', 'luxury', 'company', 'education'].includes(app.id)
   ), [appsList]);
   
   const mobileApps = useMemo(() => appsList.filter(app => 
@@ -375,6 +386,7 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
       political: PoliticalApp,
       statistics: StatisticsApp,
       vehicle: VehicleApp,
+      luxury: LuxuryApp,
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];

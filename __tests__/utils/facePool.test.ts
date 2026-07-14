@@ -8,6 +8,9 @@ import {
   _portraitSlot,
   _parentUsesHero,
   POOL_SIZES,
+  listStarterAvatars,
+  avatarSexFromId,
+  getAvatarPortrait,
 } from '@/utils/facePool';
 
 describe('facePool', () => {
@@ -151,6 +154,51 @@ describe('facePool', () => {
       expect(POOL_SIZES.f_tn).toBe(3);
       expect(POOL_SIZES.f_kid).toBe(3);
       expect(POOL_SIZES.baby).toBe(3);
+    });
+  });
+
+  describe('starter avatar picker', () => {
+    it('lists male / female / mixed starter faces with parseable, unique ids', () => {
+      const males = listStarterAvatars('male');
+      const females = listStarterAvatars('female');
+      const mixed = listStarterAvatars('random');
+      expect(males.length).toBe(POOL_SIZES.m_ya);
+      expect(females.length).toBe(POOL_SIZES.f_ya);
+      expect(mixed.length).toBe(POOL_SIZES.m_ya + POOL_SIZES.f_ya);
+      expect(males.every((o) => o.id.startsWith('m'))).toBe(true);
+      expect(females.every((o) => o.id.startsWith('f'))).toBe(true);
+      const ids = new Set(mixed.map((o) => o.id));
+      expect(ids.size).toBe(mixed.length); // unique
+      expect(mixed.every((o) => o.source)).toBe(true); // every face has an image
+    });
+
+    it('matches the scenario starting-age band', () => {
+      expect(listStarterAvatars('female', 22).length).toBe(POOL_SIZES.f_ya);
+      expect(listStarterAvatars('male', 22).length).toBe(POOL_SIZES.m_ya);
+      expect(listStarterAvatars('female', 45).length).toBe(POOL_SIZES.f_mid);
+      expect(listStarterAvatars('male', 33).length).toBe(POOL_SIZES.m_ad);
+    });
+
+    it('reads the sex encoded in an avatar id', () => {
+      expect(avatarSexFromId('m3')).toBe('male');
+      expect(avatarSexFromId('f0')).toBe('female');
+      expect(avatarSexFromId('x9')).toBeUndefined();
+      expect(avatarSexFromId(undefined)).toBeUndefined();
+      expect(avatarSexFromId('')).toBeUndefined();
+    });
+
+    it('resolves a chosen avatar to a face at any age (clamps out-of-range)', () => {
+      expect(getAvatarPortrait('m0', 18, 'Ada', 'male')).toBeTruthy();
+      expect(getAvatarPortrait('f2', 25, 'Ada', 'female')).toBeTruthy();
+      expect(getAvatarPortrait('m3', 70, 'Ada', 'male')).toBeTruthy(); // ages into senior band
+      expect(getAvatarPortrait('m3', 3, 'Ada', 'male')).toBeTruthy(); // baby band
+      expect(getAvatarPortrait('f999', 30, 'Ada', 'female')).toBeTruthy(); // clamps, no crash
+    });
+
+    it('falls back to the seeded portrait when no avatar is chosen', () => {
+      expect(getAvatarPortrait(undefined, 25, 'Ada', 'female')).toBeTruthy();
+      expect(getAvatarPortrait('', 25, 'Ada', 'male')).toBeTruthy();
+      expect(getAvatarPortrait('garbage', 25, 'Ada', 'male')).toBeTruthy();
     });
   });
 });

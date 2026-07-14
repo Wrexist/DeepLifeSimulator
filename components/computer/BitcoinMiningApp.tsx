@@ -1141,7 +1141,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <DCAModal
         visible={showDCA}
-        cryptos={gameState.cryptos}
+        cryptos={cryptos}
         accounts={banking?.accounts ?? []}
         darkMode={darkMode}
         onClose={() => setShowDCA(false)}

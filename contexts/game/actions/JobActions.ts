@@ -9,6 +9,8 @@ import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
+import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 const log = logger.scope('JobActions');
 
@@ -566,6 +568,12 @@ export const applyForJob = (
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
 
+  // Retirement is a one-way latch — a retired life draws a fixed pension and
+  // cannot re-enter the career workforce (anti-farm: no un-retire via a new job).
+  if (gameState.isRetired) {
+    return { success: false, message: "You've retired — enjoy your pension. There's no going back to work." };
+  }
+
   const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
@@ -665,11 +673,14 @@ export const applyForJob = (
   // (caps the attempt at the best available chance) but employers can still
   // reject — it's a roll capped at `100 - criminalPenalty`, never a guarantee.
   const cleanGuarantee = guaranteedAcceptance && criminalPenalty <= 0;
+  // Life Skills: Networking (+5% job application success). Additive percentage
+  // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
+  const networkingBonus = getLifeSkillModifiers(gameState).jobApplicationBonus;
   const acceptanceChance = cleanGuarantee
     ? 100
     : guaranteedAcceptance
-      ? Math.min(90, Math.max(10, 100 - criminalPenalty))
-      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty));
+      ? Math.min(90, Math.max(10, 100 - criminalPenalty + networkingBonus))
+      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
   const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
   const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];
@@ -691,6 +702,11 @@ export const applyForJob = (
         applicationAttempts: applicationAttempts,
         // If not immediately accepted, start tracking weeks pending
         applicationWeeksPending: accepted ? undefined : 0,
+        // Stamp the career start on immediate acceptance so the raise-cooldown
+        // baseline (and the early-career progress boost) are correct from week 1.
+        // It was only backfilled a week later by applyCareerProgress, so on the
+        // hire week the cooldown read -Infinity and one un-cooled raise slipped in.
+        startedWeeksLived: accepted ? (prev.weeksLived || 0) : c.startedWeeksLived,
       };
     });
 
@@ -763,19 +779,14 @@ export const promoteCareer = (
     return { success: false, message: 'Career not found' };
   }
 
-  // Check if career is accepted
-  if (!career.accepted) {
-    return { success: false, message: 'You must be working in this career to get promoted' };
-  }
-
-  // Check if already at max level
-  if (career.level >= career.levels.length - 1) {
-    return { success: false, message: 'You have reached the maximum level for this career' };
-  }
-
-  // Check if progress is at 100%
-  if (career.progress < 100) {
-    return { success: false, message: `Progress must be 100% to promote. Current: ${career.progress}%` };
+  // Gate the promotion through the shared eligibility helper — the SAME check
+  // the Work-tab UI uses to show lock reasons. Layers: must be accepted, not at
+  // max level, progress 100%, PERFORMANCE >= threshold (ties promotions into the
+  // weekly performance/review system), and the target level's EXPERIENCE (tenure)
+  // requirement met (so a player can't leap to a high-salary rung without the time).
+  const eligibility = getPromotionEligibility(career, gameState.weeksLived);
+  if (!eligibility.eligible) {
+    return { success: false, message: eligibility.reason ?? 'You cannot be promoted right now.' };
   }
 
   // Promote to next level
@@ -789,14 +800,14 @@ export const promoteCareer = (
 
   // R4-K-style guard: re-validate against fresh `prev` INSIDE the updater. The
   // checks above read the stale `gameState` snapshot, so two promote taps in one
-  // React batch would both pass and skip a level / over-grant salary. Computing
-  // the new level from `prev.careers` (not the snapshot) makes the promotion
-  // atomic: the second tap sees progress already reset to 0 and is a no-op.
+  // React batch would both pass and skip a level / over-grant salary. Re-running
+  // the same eligibility gate against `prev` (not the snapshot) makes the
+  // promotion atomic: the second tap sees progress already reset to 0 (and the
+  // performance/experience gates) and is a no-op.
   setGameState(prev => {
     const cur = prev.careers.find(c => c.id === careerId);
-    if (!cur || !cur.accepted) return prev;
-    if (cur.level >= cur.levels.length - 1) return prev;
-    if ((cur.progress ?? 0) < 100) return prev;
+    if (!cur) return prev;
+    if (!getPromotionEligibility(cur, prev.weeksLived).eligible) return prev;
     const promotedLevel = cur.level + 1;
     if (!cur.levels[promotedLevel]) return prev;
     const updatedCareers = prev.careers.map(c => {

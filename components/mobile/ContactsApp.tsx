@@ -53,13 +53,14 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
-import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
+import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
+import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
 import { redeemFavor, repayFavor, recordInteraction } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
-import { getMoodLabel } from '@/lib/social/npcDepth';
+import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   getGlassCard,
@@ -159,6 +160,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const [feedback, setFeedback] = useState<{ id?: string; message: string } | null>(null);
   const [ringTargetId, setRingTargetId] = useState<string | null>(null);
   const [weddingTargetId, setWeddingTargetId] = useState<string | null>(null);
+  const [divorceTargetId, setDivorceTargetId] = useState<string | null>(null);
   // list → detail routing: the network/ally ContactView shown on its own page.
   const [networkDetailId, setNetworkDetailId] = useState<string | null>(null);
   const [showSettled, setShowSettled] = useState(false);
@@ -392,17 +394,21 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         setRingTargetId(contactId);
         return;
       }
-      const fn =
-        action === 'movein' ? moveInTogether :
-        action === 'breakup' ? breakUpWithPartner :
-        () => fileDivorce(contactId);
+      if (action === 'divorce') {
+        // Divorce-confirmation flow → DivorceConfirmModal, where the player can
+        // hire a lawyer to fight the settlement. The actual fileDivorce call
+        // (with the chosen lawyerId) happens in handleConfirmDivorce on confirm.
+        setDivorceTargetId(contactId);
+        return;
+      }
+      const fn = action === 'movein' ? moveInTogether : breakUpWithPartner;
       const r: any = fn(contactId);
       if (r) {
         if (r.success) saveGame();
         flash(r.message, contactId);
       }
     },
-    [moveInTogether, breakUpWithPartner, fileDivorce, saveGame, flash]
+    [moveInTogether, breakUpWithPartner, saveGame, flash]
   );
 
   const handleProposeWithRing = useCallback(
@@ -422,6 +428,24 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       }
     },
     [ringTargetId, gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
+  );
+
+  // Divorce confirmation → fileDivorce(spouseId, lawyerId). The useGame() wrapper
+  // forwards lawyerId to the backend, so "Fight the Settlement" (lawyer choice in
+  // the modal) actually reduces the settlement; a bare confirm passes undefined
+  // and divorces at the base settlement. onClose just clears the target.
+  const handleConfirmDivorce = useCallback(
+    (lawyerId?: string) => {
+      const contactId = divorceTargetId;
+      setDivorceTargetId(null);
+      if (!contactId) return;
+      const r: any = fileDivorce(contactId, lawyerId);
+      if (r) {
+        if (r.success) saveGame();
+        flash(r.message, contactId);
+      }
+    },
+    [divorceTargetId, fileDivorce, saveGame, flash]
   );
 
   // ---- Personal: CRM row (avatar + recency dot + strength ring) --------------
@@ -458,7 +482,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
               {c.subtitle}{r.personality ? ` · ${r.personality}` : ''}
-              {r.npcMood ? ` · ${getMoodLabel(r.npcMood)}` : ''}
+              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={styles.recencyRow}>
               <View style={[styles.recencyDotInline, { backgroundColor: rec.color }]} />
@@ -529,6 +553,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             {r.isPregnant ? (
               <Text style={innerLine} numberOfLines={1}>
                 🤰 Expecting{r.pregnancyChildName ? ` · ${r.pregnancyChildName}` : ''}
+              </Text>
+            ) : null}
+            {/* Current WANT — the actionable "right now" ask (rotates over time).
+                Satisfying it via the matching action below gives a bond boost. */}
+            {r.npcWant ? (
+              <Text style={innerLine} numberOfLines={1}>
+                💭 Right now: <Text style={{ color: theme.text, fontWeight: '700' }}>{r.npcWant.label}</Text>
               </Text>
             ) : null}
             {(r.npcGoals ?? []).filter((g) => !g.fulfilled).slice(0, 3).map((g) => (
@@ -1095,6 +1126,35 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             partnerName={weddingTarget.name}
           />
         ) : null;
+      })()}
+      {(() => {
+        // Only actual spouses can be divorced (fileDivorce requires type
+        // 'spouse'); the "File for divorce" button is already gated the same way.
+        const divorceTarget = divorceTargetId
+          ? gameState.relationships?.find((rel) => rel.id === divorceTargetId && rel.type === 'spouse')
+          : undefined;
+        if (!divorceTarget) return null;
+        // Preview numbers come from calculateDivorceCosts — the SAME helper path
+        // fileDivorce uses for its base settlement (calculateDivorceNetWorth ×
+        // the deterministic spouse-hash ratio) and base lawyer fee
+        // (DIVORCE_LAWYER_BASE_FEE), so the modal's estimate matches the actual
+        // divorce. No formula is duplicated here.
+        const costs = calculateDivorceCosts(gameState, divorceTarget.id);
+        if (!costs) return null;
+        return (
+          <DivorceConfirmModal
+            visible
+            onClose={() => setDivorceTargetId(null)}
+            onConfirm={handleConfirmDivorce}
+            spouseName={divorceTarget.name}
+            estimatedSettlement={costs.settlement}
+            lawyerFees={costs.lawyerFees}
+            currentMoney={gameState.stats.money}
+            currentGems={gameState.stats.gems}
+            netWorth={costs.netWorth}
+            isDarkMode={darkMode}
+          />
+        );
       })()}
     </View>
   );

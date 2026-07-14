@@ -90,7 +90,11 @@ export function canRunForOffice(
     const previousLevelIndex = POLITICAL_CAREER.levels.findIndex(
       l => l.name.toLowerCase().includes(requirements.previousLevel!.split('_')[0])
     );
-    if (currentLevel <= previousLevelIndex) return false;
+    // Must have REACHED the prerequisite level (index), not exceeded it. Using
+    // <= rejected a sitting Council Member (level 0) from running for Mayor
+    // (previousLevel 'council' → index 0, 0 <= 0), making the whole ladder above
+    // Council unwinnable.
+    if (currentLevel < previousLevelIndex) return false;
     if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious !== undefined && weeksInCurrentLevel < requirements.minWeeksInPrevious) return false;
   }
   

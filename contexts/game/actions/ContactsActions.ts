@@ -17,6 +17,7 @@ import {
 } from '@/lib/contacts/favors';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
+import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 
 const log = logger.scope('ContactsActions');
 
@@ -57,6 +58,14 @@ export function recordInteraction(
     return { success: false, message: `Need $${cost.toLocaleString()}.` };
   }
 
+  // VARIED OUTCOME: the same action lands differently depending on the NPC's
+  // mood, their memory of you, and whether it satisfies their current want.
+  // Deterministic (seeded on weeksLived + id + action) so a reload can't re-roll
+  // the result. With no depth fields present the delta collapses to `bonus`
+  // (legacy flat behaviour) — the previewed message here matches what the
+  // updater applies in the common (no concurrent change) case.
+  const preview = resolveInteraction(rel, action, bonus, ws);
+
   let applied = false;
   setGameState((prev) => {
     const rels = prev.relationships ?? [];
@@ -71,12 +80,18 @@ export function recordInteraction(
     const weeklyInteractions =
       target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
 
+    const outcome = resolveInteraction(target, action, bonus, prevWs);
     const updatedRel: Relationship = {
       ...target,
-      relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + bonus)),
+      relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + outcome.scoreDelta)),
       actions: { ...(target.actions ?? {}), [action]: prevWs },
       lastInteractionWeek: prevWs,
       weeklyInteractions,
+      npcMood: outcome.npcMood ?? target.npcMood,
+      // Only advance the want when this action satisfied it.
+      npcWant: outcome.npcWant ?? target.npcWant,
+      // Record a memory only for notable outcomes (satisfying a want).
+      npcMemories: outcome.memory ? addMemory(target.npcMemories ?? [], outcome.memory) : target.npcMemories,
     };
     const newRels = [...rels];
     newRels[idx] = updatedRel;
@@ -91,7 +106,7 @@ export function recordInteraction(
   });
 
   if (!applied) return { success: false, message: 'Could not complete.' };
-  return { success: true, message: `+${bonus} with ${rel.name}.` };
+  return { success: true, message: preview.message };
 }
 
 /**
@@ -131,6 +146,7 @@ export function redeemFavor(
   // both paid out (a credit never overdraft-rejects) while the ledger closed
   // once: a same-batch double-credit money printer. Re-checking `prev` here makes
   // the second tap a no-op.
+  let redeemed = false;
   setGameState((prev) => {
     const prevLedger = ledgerOf(prev);
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
@@ -158,15 +174,22 @@ export function redeemFavor(
         `Favor redeemed from ${fresh.contactId}`
       );
       if (!credit) return prev; // credit rejected → leave the favor open
+      redeemed = true;
       return { ...flipped, ...credit };
     }
 
     // Non-money favor → just flip the ledger.
+    redeemed = true;
     return {
       ...prev,
       favorLedger: redeemFavorPure(prevLedger, favorId),
     } as GameState;
   });
+  if (!redeemed) {
+    // The updater bailed (favor already closed this batch, or an invalid/rejected
+    // amount) — don't report success on a no-op.
+    return { success: false, message: 'Could not redeem this favor right now.', favor: target };
+  }
   log.info(`Redeemed favor ${favorId}`);
   return { success: true, message: 'Favor redeemed', favor: target };
 }

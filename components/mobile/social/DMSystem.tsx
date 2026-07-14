@@ -43,36 +43,11 @@ import { useGame } from '@/contexts/GameContext';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import type { DMConversation, DMMessage } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
 
-interface DMConversation {
- id: string;
- senderName: string;
- senderHandle: string;
- senderAvatar: string;
- isVerified: boolean;
- isMysterious: boolean;
- lastMessage: string;
- timestamp: number;
- unreadCount: number;
- isPinned: boolean;
- clueType?: ClueType;
- clueData?: ClueData;
-}
-
-interface DMMessage {
- id: string;
- senderId: string;
- content: string;
- timestamp: number;
- isPlayer: boolean;
- hasClue: boolean;
- clueRevealed: boolean;
- clueType?: ClueType;
- clueData?: ClueData;
- reactions?: string[];
-}
-
+// DMConversation & DMMessage are shared with game state and imported from
+// contexts/game/types so the persisted inbox + threads share one definition.
 type ClueType = 'location'|'money'|'career'|'relationship'|'item'|'secret'|'quest';
 
 interface ClueData {
@@ -294,35 +269,51 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  const [currentClue, setCurrentClue] = useState<{ type: ClueType; data: ClueData } | null>(null);
  const [revealedClues, setRevealedClues] = useState<string[]>([]);
 
- // Initialize conversations from game state
+ // Initialize conversations from game state.
+ // The inbox is generated ONCE, persisted, and read back from game state on
+ // every later mount. We only ever TOP UP (append) when there are too few —
+ // never regenerate or replace — so senders/badges stay stable.
  useEffect(() => {
  const savedConversations = gameState.dmConversations || [];
  const savedRevealedClues = gameState.revealedDMClues || [];
- 
- // Generate new mysterious messages if needed
+
  if (savedConversations.length < 3) {
- const newConversations = generateNewConversations(3 - savedConversations.length);
- setConversations([...savedConversations,...newConversations]);
+ const newConversations = generateNewConversations(3 - savedConversations.length, savedConversations);
+ if (newConversations.length > 0) {
+ const merged = [...savedConversations, ...newConversations];
+ setConversations(merged);
+ // Persist the freshly generated inbox so it survives remounts.
+ setGameState(prev => ({ ...prev, dmConversations: merged }));
+ saveGame();
  } else {
  setConversations(savedConversations);
  }
- 
- setRevealedClues(savedRevealedClues);
- }, [gameState.dmConversations, gameState.revealedDMClues]);
+ } else {
+ setConversations(savedConversations);
+ }
 
- // Generate new mysterious conversations
- const generateNewConversations = useCallback((count: number): DMConversation[] => {
+ setRevealedClues(savedRevealedClues);
+ // revealedDMClues is intentionally NOT a dependency: revealing a clue must
+ // not re-run this effect (doing so is what used to scramble the inbox).
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [gameState.dmConversations]);
+
+ // Generate new mysterious conversations. Ids are derived from the sender
+ // handle so they are STABLE across remounts — this keeps persisted clue-reveal
+ // flags and message threads matched to their conversation. `existing` is the
+ // set we exclude (and never discard) so top-ups append rather than replace.
+ const generateNewConversations = useCallback((count: number, existing: DMConversation[]): DMConversation[] => {
  const availableContacts = MYSTERIOUS_CONTACTS.filter(
- c =>!conversations.find(conv => conv.senderHandle === c.senderHandle)
+ c => !existing.find(conv => conv.senderHandle === c.senderHandle)
  );
- 
- return availableContacts.slice(0, count).map((contact, index) => {
+
+ return availableContacts.slice(0, count).map((contact) => {
  const clueType = contact.clueType ||'secret';
  const templates = CLUE_TEMPLATES[clueType];
  const template = templates[Math.floor(Math.random() * templates.length)];
- 
+
  return {
- id: `dm_${Date.now()}_${index}`,
+ id: `dm_${contact.senderHandle}`,
 ...contact,
  lastMessage: "New message...",
  timestamp: Date.now() - Math.random() * MS_PER_DAY, // Random time in last 24h
@@ -335,10 +326,15 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  },
  };
  });
- }, [conversations]);
+ }, []);
 
- // Generate messages for a conversation
+ // Generate messages for a conversation. Prefer the PERSISTED thread so the
+ // player's sent replies + the NPC auto-replies survive closing/reopening;
+ // fall back to the generated intro template only when nothing is stored yet.
  const generateMessagesForConversation = useCallback((conversation: DMConversation): DMMessage[] => {
+ if (conversation.messages && conversation.messages.length > 0) {
+ return conversation.messages;
+ }
  const clueType = conversation.clueType || 'secret';
  const templates = CLUE_TEMPLATES[clueType];
  const template = templates[Math.floor(Math.random() * templates.length)];
@@ -385,12 +381,20 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  setSelectedConversation(conversation);
  const msgs = generateMessagesForConversation(conversation);
  setMessages(msgs);
- 
- // Mark as read
- setConversations(prev => prev.map(c => 
- c.id === conversation.id ? {...c, unreadCount: 0 }: c
+
+ // Mark as read AND seed the persisted thread (unreadCount + messages) into
+ // game state, so both the cleared badge and the thread survive a remount.
+ setConversations(prev => prev.map(c =>
+ c.id === conversation.id ? {...c, unreadCount: 0, messages: msgs }: c
  ));
- }, [generateMessagesForConversation]);
+ setGameState(prev => ({
+...prev,
+ dmConversations: (prev.dmConversations || []).map(c =>
+ c.id === conversation.id ? {...c, unreadCount: 0, messages: msgs }: c
+ ),
+ }));
+ saveGame();
+ }, [generateMessagesForConversation, setGameState, saveGame]);
 
  // Handle revealing a clue
  const handleRevealClue = useCallback((message: DMMessage) => {
@@ -415,16 +419,45 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  });
  setShowClueModal(true);
  
- // Update message as revealed
- setMessages(prev => prev.map(m => 
+ // Update message as revealed — locally AND in the persisted thread so the
+ // "Clue Revealed" state sticks after the DM is closed and reopened.
+ setMessages(prev => prev.map(m =>
  m.id === message.id ? {...m, clueRevealed: true }: m
  ));
+ const revealedConvId = selectedConversation?.id;
+ if (revealedConvId) {
+ setGameState(prev => ({
+...prev,
+ dmConversations: (prev.dmConversations || []).map(c =>
+ c.id === revealedConvId
+ ? {...c, messages: (c.messages || []).map(m => m.id === message.id ? {...m, clueRevealed: true }: m) }
+ : c
+ ),
+ }));
+ saveGame();
+ }
  }, [selectedConversation, revealedClues, setGameState, saveGame]);
+
+ // Persist a message into a conversation's stored thread (game state) so the
+ // full exchange is durable — this is what stops sent replies from vanishing.
+ const persistMessageToConversation = useCallback((conversationId: string, message: DMMessage) => {
+ setConversations(prev => prev.map(c =>
+ c.id === conversationId ? {...c, messages: [...(c.messages || []), message] }: c
+ ));
+ setGameState(prev => ({
+...prev,
+ dmConversations: (prev.dmConversations || []).map(c =>
+ c.id === conversationId ? {...c, messages: [...(c.messages || []), message] }: c
+ ),
+ }));
+ saveGame();
+ }, [setGameState, saveGame]);
 
  // Handle sending a reply
  const handleSendMessage = useCallback(() => {
  if (!messageInput.trim() ||!selectedConversation) return;
 
+ const conversationId = selectedConversation.id;
  const newMessage: DMMessage = {
  id: `msg_${Date.now()}`,
  senderId: 'player',
@@ -437,6 +470,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  setMessages(prev => [...prev, newMessage]);
  setMessageInput('');
+ persistMessageToConversation(conversationId, newMessage);
 
  // Generate a response after a short delay
  timers.setTimeout(() => {
@@ -460,8 +494,9 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  };
  
  setMessages(prev => [...prev, responseMessage]);
+ persistMessageToConversation(conversationId, responseMessage);
  }, 1500);
- }, [messageInput, selectedConversation]);
+ }, [messageInput, selectedConversation, persistMessageToConversation]);
 
  // Get clue type icon and color
  const getClueTypeInfo = (type: ClueType) => {

@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getTotalLuxuryResaleValue } from '@/lib/luxury';
 
 export interface AchievementProgress {
   id: string;
@@ -58,6 +59,7 @@ interface NetWorthCacheKey {
   companies: any;
   loans: any;
   vehicles: any;
+  luxury: any;
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -78,7 +80,8 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.realEstate === state.realEstate &&
       lastCacheKey.companies === state.companies &&
       lastCacheKey.loans === state.loans &&
-      lastCacheKey.vehicles === state.vehicles) {
+      lastCacheKey.vehicles === state.vehicles &&
+      lastCacheKey.luxury === state.luxuryItems) {
     return lastNetWorthValue;
   }
 
@@ -124,9 +127,14 @@ export const netWorth = (state: GameState): number => {
     }, 0);
   }
 
-  // Calculate real estate value
+  // Calculate real estate value. Skip SOLD properties — sellProperty keeps the
+  // entry with owned:false, so summing every property ever owned permanently
+  // inflated net worth and let players farm the prestige gate/points. Test
+  // `owned === false` (not `!owned`) so legacy entries lacking the flag still
+  // count. Prefer the live currentValue over the original purchase price.
   const realEstateValue = state.realEstate?.reduce((total, property) => {
-    const value = (property.price || 0);
+    if (property?.owned === false) return total;
+    const value = (property?.currentValue ?? property?.price ?? 0);
     const sum = total + value;
     return sum > MAX_SAFE_VALUE ? MAX_SAFE_VALUE : sum;
   }, 0) || 0;
@@ -172,9 +180,18 @@ export const netWorth = (state: GameState): number => {
   // Final validation
   if (!isFinite(vehicleValue) || vehicleValue < 0) vehicleValue = 0;
 
-  // Calculate loans (liabilities)
+  // Luxury & Collectibles value — resale fraction of owned trophies (a sink, not
+  // an investment, so it counts less than sticker). Pure helper is null-safe for
+  // old saves (absent luxuryItems → 0). Clamp for overflow parity.
+  let luxuryValue = getTotalLuxuryResaleValue(state.luxuryItems);
+  if (!isFinite(luxuryValue) || luxuryValue < 0) luxuryValue = 0;
+  if (luxuryValue > MAX_SAFE_VALUE) luxuryValue = MAX_SAFE_VALUE;
+
+  // Calculate loans (liabilities). Use the outstanding balance (remaining), not
+  // the fixed origination principal, so paying a loan down actually raises net
+  // worth (loans are removed at payoff). Fall back to principal on legacy saves.
   const loansValue = state.loans?.reduce((total, loan) => {
-    return total + (loan.principal || 0);
+    return total + (loan.remaining ?? loan.principal ?? 0);
   }, 0) || 0;
 
   // CRITICAL FIX: Validate all components and prevent overflow in final calculation
@@ -205,9 +222,10 @@ export const netWorth = (state: GameState): number => {
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
   const safeCompanyValue = isFinite(companyValue) ? companyValue : 0;
   const safeVehicleValue = isFinite(vehicleValue) ? vehicleValue : 0;
+  const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
-  
-  const total = safeMoney + safeBank + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue - safeLoansValue;
+
+  const total = safeMoney + safeBank + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values
@@ -223,7 +241,8 @@ export const netWorth = (state: GameState): number => {
     realEstate: state.realEstate,
     companies: state.companies,
     loans: state.loans,
-    vehicles: state.vehicles
+    vehicles: state.vehicles,
+    luxury: state.luxuryItems
   };
   lastNetWorthValue = clampedTotal;
 

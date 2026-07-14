@@ -55,24 +55,36 @@ export default function SaveSlots() {
 
   // R3-C: Android hardware back → return to the main menu instead of leaving
   // the user on a half-loaded scene with no exit affordance.
-  useHardwareBack(() => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       router.back();
-    } else {
-      router.replace('/(onboarding)/MainMenu');
+      return;
     }
+    // L: go straight to the menu. "/" is the boot loader, which would
+    // re-mount the full loading screen + preload before bouncing here.
+    router.replace('/(onboarding)/MainMenu');
+  }, [navigation, router]);
+
+  useHardwareBack(() => {
+    handleBack();
     return true;
   });
 
   const [showBackupManager, setShowBackupManager] = useState<number | null>(null);
   const [backupCounts, setBackupCounts] = useState<Record<number, number>>({});
   const [isBusy, setIsBusy] = useState(false);
+  // Slots start empty and load async. Until the first load resolves, `selectedCard`
+  // is null even for an occupied slot, so acting on the primary button in that
+  // window could start a new life on top of an existing save. Gate on this flag.
+  const [slotsLoaded, setSlotsLoaded] = useState(false);
   // R7 SB-6: synchronous re-entry guard. `isBusy` is a state flag — two rapid
   // taps within the same render cycle BOTH see `isBusy === false` because the
   // state update hasn't flushed yet, so both enter the load path and race for
   // `loadGame` + `router.push`. The ref short-circuits the second tap
   // synchronously; the state flag continues to drive the loading UI.
   const continueInFlightRef = useRef(false);
+  // Same synchronous guard for the new-game path (previously only `isBusy`).
+  const newGameInFlightRef = useRef(false);
 
   const selectedCard = useMemo(
     () => slots.find((slot) => slot.id === selectedSlot) ?? null,
@@ -128,6 +140,8 @@ export default function SaveSlots() {
       setSlots(slotData);
     } catch (error) {
       log.error('Failed loading slots', error);
+    } finally {
+      setSlotsLoaded(true);
     }
   }, [log]);
 
@@ -246,6 +260,7 @@ export default function SaveSlots() {
   };
 
   const startNewGame = useCallback(async () => {
+    if (newGameInFlightRef.current) return;
     if (isBusy) return;
 
     if (selectedCard?.hasData) {
@@ -253,6 +268,7 @@ export default function SaveSlots() {
       return;
     }
 
+    newGameInFlightRef.current = true;
     setIsBusy(true);
     // Yield one frame so the busy spinner paints before the slot scan.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -269,6 +285,7 @@ export default function SaveSlots() {
       router.push('/(onboarding)/Scenarios');
     } finally {
       setIsBusy(false);
+      newGameInFlightRef.current = false;
     }
   }, [isBusy, router, selectedCard]);
 
@@ -291,7 +308,7 @@ export default function SaveSlots() {
           <OnboardingFloatingButton
             title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
             onPress={() => { void primaryAction(); }}
-            disabled={!selectedSlot || isBusy}
+            disabled={!selectedSlot || isBusy || !slotsLoaded}
             loading={isBusy}
             icon={<Play size={24} color="#FFFFFF" />}
           />
@@ -299,15 +316,7 @@ export default function SaveSlots() {
       >
         <OnboardingGlassHeader
           title="Save Slots"
-          onBack={() => {
-            if (navigation.canGoBack()) {
-              router.back();
-            } else {
-              // L: go straight to the menu. "/" is the boot loader, which would
-              // re-mount the full loading screen + preload before bouncing here.
-              router.replace('/(onboarding)/MainMenu');
-            }
-          }}
+          onBack={handleBack}
           onInfo={() =>
             Alert.alert(
               'Save Slots',
@@ -324,11 +333,17 @@ export default function SaveSlots() {
           {slots.map((slot) => {
             const isSelected = selectedSlot === slot.id;
             const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#94A3B8';
+            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
-              <TouchableOpacity key={slot.id} activeOpacity={0.9} onPress={() => selectSlot(slot.id)}>
+              <TouchableOpacity
+                key={slot.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Save slot ${slot.id}, ${slot.hasData ? fullName || 'Unnamed Character' : 'empty'}`}
+                activeOpacity={0.9}
+                onPress={() => selectSlot(slot.id)}
+              >
                 <View style={styles.cardContainer}>
                   <BlurView intensity={20} style={styles.cardBlur}>
                     <LinearGradient

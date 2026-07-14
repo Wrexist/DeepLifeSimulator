@@ -87,7 +87,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
-    marginBottom: 8,
     ...Platform.select({
       web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' } as any,
       default: {

@@ -69,7 +69,10 @@ const SCANDAL_PROGRESS_DECAY = 10;        // severity drop per tick
 const SCANDAL_APOLOGY_BONUS = 15;         // extra drop if resolutionMethod === 'apology'
 const SCANDAL_REP_CASCADE_DIVISOR = 10;   // rep loss = floor(severity / 10)
 const SCANDAL_FOLLOWER_CASCADE_PCT = 0.005; // 0.5% loss per tick per scandal week
-const BRAND_OFFER_MAX_PER_TICK = 3;
+// 4, not 3: the generator emits up to 4 tiers (sponsored / deal / long_campaign
+// / ambassador) and slice(0, N) previously dropped the top-tier ambassador deal
+// (the premier endgame offer) every single week.
+const BRAND_OFFER_MAX_PER_TICK = 4;
 const BRAND_OFFER_FOLLOWER_GATE = 10_000;
 
 // ── Organic scandal spawn (Wave A) ──────────────────────────────────────────
@@ -401,7 +404,10 @@ export function processPulseWeeklyTick(
     const isExpired = deal.expiresAt <= nextWeeksLived;
     const postsDone = deal.postsDelivered || 0;
     const postsNeeded = deal.postsRequired || 1;
-    const breached = (deal.riskOfBreach || 0) > 50 && activeScandal;
+    // riskOfBreach is only ever written as 0, so the old `> 50` guard made this
+    // branch dead. Gate on an active scandal alone: sponsors drop you when a
+    // scandal breaks.
+    const breached = Boolean(activeScandal);
 
     if (breached) {
       const penalty = Math.floor((deal.payment || 0) * 0.5);
@@ -531,12 +537,13 @@ export function processPulseWeeklyTick(
     engagementRate,
     trendingHashtags: trending,
     activeScandal,
-    scandalHistory,
+    // Cap history growth between saves (documented 30-cap; was unbounded).
+    scandalHistory: scandalHistory.slice(-30),
     scandalRiskScore,
     commentThreads,
     followerHistory,
     pendingBoosts,
-    brandInbox: { pending, declined: brandInbox.declined, history },
+    brandInbox: { pending, declined: brandInbox.declined, history: history.slice(-30) },
     activeBrandDeals: activeDeals,
     notifications: notifications.slice(0, NOTIFICATION_CAP),
     verifiedPro,

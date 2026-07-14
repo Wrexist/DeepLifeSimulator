@@ -39,6 +39,21 @@ export interface GameDate {
 
 export type LifeStage = 'child' | 'teen' | 'adult' | 'senior';
 
+/**
+ * Per-child parenting bookkeeping (weekly cap + per-action cooldowns).
+ * Additive/optional — absent on old saves; treated as a fresh slate when missing.
+ */
+export interface ChildParentingState {
+  /** weeksLived value that `actionsThisWeek` is counted against. */
+  weekStamp: number;
+  /** Number of parenting actions performed during `weekStamp` (resets when the week advances). */
+  actionsThisWeek: number;
+  /** actionId -> weeksLived when that action was last performed (drives cooldown checks). */
+  lastUsedWeek: Record<string, number>;
+  /** Lifetime count of parenting actions performed on this child (flavour/stats). */
+  totalActions: number;
+}
+
 export interface ChildInfo extends Relationship {
   birthWeeksLived?: number;
   educationLevel?: 'none' | 'highSchool' | 'university' | 'specialized';
@@ -50,6 +65,21 @@ export interface ChildInfo extends Relationship {
   expenses?: number;
   familyHappiness?: number;
   geneticTraits?: string[];
+  // ── Nurture stats (parenting-side). All 0-100, optional & additive: absent on
+  // old saves and on newborns, where readers default to NURTURE_DEFAULT (50).
+  // These are the "nurture" complement to the genetic ("nature") derivation —
+  // parenting actions raise them, and the heir/prestige-child pipeline prefers
+  // them when present without disturbing the trait-based nature side.
+  /** Academic aptitude — biases the child's simulated education & career upward. */
+  intelligence?: number;
+  /** Physical health/robustness — feeds heir starting health & fitness. */
+  health?: number;
+  /** Emotional wellbeing — feeds heir starting happiness. */
+  happiness?: number;
+  /** Self-control & behaviour — feeds heir reputation and savings discipline. */
+  discipline?: number;
+  /** Weekly-cap + cooldown bookkeeping for the parenting action loop. */
+  parenting?: ChildParentingState;
 }
 
 export interface FamilyState {
@@ -484,6 +514,36 @@ export interface Relationship {
   lastLifeEvent?: { event: string; weeksLived: number };
   job?: string; // NPC's current job
   npcMood?: 'happy' | 'neutral' | 'stressed' | 'sad' | 'angry';
+  // The NPC's CURRENT short-term want (rotates over time in the weekly tick).
+  // Distinct from the long-term `npcGoals` ("dreams of"): a want is a small,
+  // satisfiable ask (spend time / a gift / space) the player can read and fulfil
+  // for a bond boost — with diminishing returns — and pays a small cost for
+  // ignoring. Additive/optional: absent on old saves (defaults to no want until
+  // the next tick assigns one).
+  npcWant?: NPCWant;
+}
+
+/**
+ * A rotating, satisfiable short-term desire. The weekly NPC-depth tick assigns
+ * one, rotates it every few weeks, rewards satisfying it (diminishing per cycle)
+ * and levies a small cost when a "needy" want lapses unmet.
+ */
+export type NPCWantId =
+  | 'hear_from_you'
+  | 'quality_time'
+  | 'deep_talk'
+  | 'a_gift'
+  | 'meet_friends'
+  | 'space';
+
+export interface NPCWant {
+  id: NPCWantId;
+  /** Player-facing phrase, e.g. "Wants to spend time together". */
+  label: string;
+  /** weeksLived when this want was assigned — drives rotation + neglect. */
+  since: number;
+  /** Times satisfied during the CURRENT cycle (drives diminishing returns). */
+  satisfiedCount: number;
 }
 
 export interface NPCGoal {
@@ -828,6 +888,7 @@ export interface UserProfile {
   lastName?: string;
   sex?: 'male' | 'female';
   sexuality?: 'straight' | 'gay' | 'bi';
+  avatarId?: string; // Chosen starter face id (`<m|f><index>`, utils/facePool)
   // Enhanced profile fields for X.com-style social
   profilePhoto?: string; // Base64 or URI from gallery
   headerPhoto?: string; // Cover/banner photo
@@ -2001,6 +2062,14 @@ export interface GameState {
   careers: Career[];
   hobbies: Hobby[]; // DEPRECATED: Hobbies removed from game
   items: Item[];
+  /**
+   * Owned Luxury & Collectibles — a list of `LUXURY_CATALOG` ids (see
+   * `lib/luxury`). Optional/additive: absent on pre-luxury saves and treated as
+   * "none owned" by every consumer (no migration / no save-version bump). Each
+   * owned id contributes weekly upkeep (deducted from stats.money), a small
+   * happiness + prestige benefit, and a resale fraction toward net worth.
+   */
+  luxuryItems?: string[];
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];
@@ -2072,6 +2141,9 @@ export interface GameState {
     deathReason?: string;
     timestamp?: number;
     summaryAchievements?: string[];
+    /** Weeks lived when this life ended (feeds the prestige-speed achievements).
+     *  Optional: entries recorded before this field existed simply lack it. */
+    weeksLivedAtEnd?: number;
     [key: string]: any;
   }[];
   lifeStage: LifeStage;
@@ -2448,6 +2520,41 @@ export interface GameState {
   activeChapterId?: string;
   completedChapters?: string[];
   /**
+   * Life Ambition (v22.x, additive/optional) — a lifelong aspiration chosen at
+   * character creation. `ambitionId` references lib/ambitions catalogue;
+   * `ambitionCompletedMilestones` is the sticky set of reached milestone ids
+   * (staged progress); `ambitionRewardClaimed` gates the one-time payoff.
+   * All optional so old saves and freeform (no-ambition) lives load unchanged.
+   */
+  ambitionId?: string;
+  ambitionCompletedMilestones?: string[];
+  ambitionRewardClaimed?: boolean;
+  /**
+   * Retirement & Elder endgame (v22.x, additive/optional). All fields absent on
+   * old saves and on any life that has not retired — every reader treats a
+   * missing `isRetired` as "still working". No migration / no save-version bump;
+   * already-elderly loaded lives are NOT auto-retired.
+   *
+   * `isRetired` is a one-way latch for the current life (anti-farm: you cannot
+   * un-retire or re-retire to re-roll the pension). `pensionWeekly` is computed
+   * ONCE at retirement from real work history (lib/retirement) and frozen for
+   * life; it is credited weekly through the canonical income → stats.money path.
+   * `elderActivity` holds per-activity cooldown bookkeeping (id → weeksLived last
+   * used) for the age-gated elder activities in lib/retirement/elderActivities.
+   */
+  isRetired?: boolean;
+  retiredAtAge?: number;
+  /** weeksLived at the moment of retirement (drives "years retired" + event gating). */
+  retiredAtWeek?: number;
+  /** Frozen weekly pension (dollars), computed from career history at retirement. */
+  pensionWeekly?: number;
+  elderActivity?: {
+    /** activityId → weeksLived when it was last performed (drives cooldowns). */
+    lastUsedWeek: Record<string, number>;
+    /** Lifetime count of elder activities performed (flavour/stats). */
+    totalActivities: number;
+  };
+  /**
    * Hobby mastery (v21) — pursuits you practice weekly to level up, each with a
    * compounding perk. `pursuits[id]` accrues xp; `weeklyPursuitPractice` caps
    * practices per week and is reset on week advance (like weeklyStudySessions).
@@ -2507,6 +2614,26 @@ export interface GameState {
   timeMachineUsesThisLife?: number;
 }
 
+export interface DMMessage {
+  id: string;
+  senderId: string;
+  content: string;
+  timestamp: number;
+  isPlayer: boolean;
+  hasClue: boolean;
+  clueRevealed: boolean;
+  clueType?: 'location' | 'money' | 'career' | 'relationship' | 'item' | 'secret' | 'quest';
+  clueData?: {
+    hint: string;
+    reward?: string;
+    action?: string;
+    destination?: string;
+    requirement?: string;
+    completed?: boolean;
+  };
+  reactions?: string[];
+}
+
 export interface DMConversation {
   id: string;
   senderName: string;
@@ -2527,6 +2654,12 @@ export interface DMConversation {
     requirement?: string;
     completed?: boolean;
   };
+  /**
+   * Persisted message thread for this conversation. Optional & additive so
+   * pre-existing saves (which never stored it) migrate cleanly — DMSystem
+   * seeds the generated intro template the first time the thread is opened.
+   */
+  messages?: DMMessage[];
 }
 
 export interface BusinessOpportunity {
@@ -2545,6 +2678,13 @@ export interface TravelState {
     destinationId: string;
     returnWeek: number;
     startWeek: number;
+    /**
+     * v23: ids of per-destination travel activities already done on THIS trip.
+     * Acts as the once-per-trip cooldown gate for `lib/travel/activities`.
+     * Optional/additive — old in-progress trips lack it and read as `[]`; it is
+     * cleared automatically when the trip ends (currentTrip → undefined).
+     */
+    activitiesDone?: string[];
   };
   visitedDestinations: string[];
   passportOwned: boolean;

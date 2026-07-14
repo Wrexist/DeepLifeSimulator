@@ -14,6 +14,7 @@ import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/
 import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
+import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import IdentityCard from '@/components/IdentityCard';
@@ -30,6 +31,8 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
+import AmbitionCard from '@/components/AmbitionCard';
+import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -467,6 +470,18 @@ function HomeScreenContent() {
           <LifeChapterCard />
         </FadeInUp>
 
+        {/* Life Ambition — the lifelong goal chosen at character creation.
+            Renders only when an ambition was picked (freeform lives skip it). */}
+        <FadeInUp delay={55}>
+          <AmbitionCard />
+        </FadeInUp>
+
+        {/* Retirement / Elder chapter — retire, pension, elder activities, legacy.
+            Renders only when eligible to retire, elderly, or retired. */}
+        <FadeInUp delay={57}>
+          <ElderCard />
+        </FadeInUp>
+
         {/* Active Goals Section */}
         <FadeInUp delay={60}>
           <ActiveGoalsCard compact={false} />
@@ -527,6 +542,12 @@ function HomeScreenContent() {
         {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
           <View style={{ height: 200 }} />
         )}
+
+        {/* Banner ad at the end of the scroll content — non-obscuring (scrolls
+            with content, never overlaps the tab bar). Self-gating: BannerAd
+            renders nothing unless the AdMob SDK is configured and the player
+            hasn't bought Remove Ads / Lifetime Premium. */}
+        <BannerAd style={{ marginTop: scale(12) }} />
       </ScrollView>
 
       {/* First Week Guide Overlay - Floating at bottom */}

@@ -199,7 +199,12 @@ export const swipeOnProfile = (
       timestamp: Date.now(),
     };
     const newSwipes = [swipe, ...s.swipes].slice(0, SWIPE_HISTORY_CAP);
-    const newMatches = matched
+    // Dedup by profileId: two rapid Like taps (finishSwipe fires from an
+    // animation callback that ignores the `finished` flag) must not append a
+    // second match for the same profile or double-count totalMatches.
+    const alreadyMatched = s.matches.some((m) => m.profileId === profileId);
+    const newMatchAdded = matched && !alreadyMatched;
+    const newMatches = newMatchAdded
       ? [
           ...s.matches,
           {
@@ -234,7 +239,7 @@ export const swipeOnProfile = (
           ...s.lifetimeStats,
           totalSwipes: s.lifetimeStats.totalSwipes + 1,
           totalSuperLikes: s.lifetimeStats.totalSuperLikes + (isSuper ? 1 : 0),
-          totalMatches: s.lifetimeStats.totalMatches + (matched ? 1 : 0),
+          totalMatches: s.lifetimeStats.totalMatches + (newMatchAdded ? 1 : 0),
         },
       },
     };
@@ -779,8 +784,17 @@ export const fallForCatfish = (
   moneyLost: number,
 ): void => {
   const weeksLived = gameState.weeksLived ?? 0;
+  // ANTI-DOUBLE-CHARGE (mirrors exposeCatfish): the Alert "Send money" button can
+  // fire twice in one React batch; without a fresh-state re-check both taps append
+  // a record AND both trailing updateMoney calls debit the loss (charging twice).
+  // Skip the money/reputation legs when the duplicate is rejected.
+  let applied = false;
   setGameState((prev) => {
     const s = ensureSpark(prev);
+    if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'fell_for_it' && r.exposedAtWeek === weeksLived)) {
+      return prev;
+    }
+    applied = true;
     return {
       ...prev,
       sparkApp: {
@@ -792,6 +806,7 @@ export const fallForCatfish = (
       },
     };
   });
+  if (!applied) return;
   updateMoney(setGameState, -moneyLost, 'Spark catfish scam');
   updateStats(setGameState, { reputation: -2 });
 };
@@ -821,11 +836,18 @@ export const resolveJealousy = (
   };
   const { rep, rel, msg } = effects[outcome];
 
+  let applied = false;
   setGameState((prev) => {
+    // Re-check against prev: a same-batch double-tap must not apply the
+    // relationship / history / stat effects twice (the first tap clears the
+    // event). Mirrors the exposeCatfish guard.
+    const active = prev.sparkApp?.activeJealousy;
+    if (!active) return prev;
+    applied = true;
     const s = ensureSpark(prev);
-    const resolvedEvent = { ...event, resolved: true, outcome };
+    const resolvedEvent = { ...active, resolved: true, outcome };
     const relationships = (prev.relationships ?? []).map((r) =>
-      r.id === event.partnerId
+      r.id === active.partnerId
         ? { ...r, relationshipScore: Math.max(0, (r.relationshipScore ?? 0) + rel) }
         : r,
     );
@@ -845,6 +867,11 @@ export const resolveJealousy = (
     };
   });
 
+  // Gate the trailing reputation dispatch on whether the update actually applied
+  // so a no-op second tap doesn't double-hit reputation.
+  if (!applied) {
+    return { success: false, message: 'No active jealousy event', reputationDelta: 0, relationshipDelta: 0 };
+  }
   if (rep !== 0) updateStats(setGameState, { reputation: rep });
   log.info(`Jealousy resolved with ${outcome} (rep ${rep}, rel ${rel}) at week ${weeksLived}`);
   return { success: true, message: msg, reputationDelta: rep, relationshipDelta: rel };

@@ -29,6 +29,7 @@ import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
 import PostCard from '../components/PostCard';
 import EmptyState from '../components/EmptyState';
 import StoriesRail from '../components/StoriesRail';
+import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
 import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseRecentPost, SocialPost } from '@/contexts/game/types';
@@ -93,9 +94,11 @@ interface FeedScreenProps {
   onGoLive?: () => void;
   /** Open the gem-boost modal for a player post (owned by PulseApp). */
   onBoostPost?: (postId: string) => void;
+  /** Tap an NPC story bubble → open the NPC follow sheet (owned by PulseApp). */
+  onTapNpc?: (npc: NpcStoryTarget) => void;
 }
 
-export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBoostPost }: FeedScreenProps) {
+export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBoostPost, onTapNpc }: FeedScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -267,7 +270,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
 
   const header = (
     <>
-      {onGoLive ? <StoriesRail onGoLive={onGoLive} /> : null}
+      {onGoLive ? <StoriesRail onGoLive={onGoLive} onTapNpc={onTapNpc} /> : null}
       {composerEntry}
     </>
   );

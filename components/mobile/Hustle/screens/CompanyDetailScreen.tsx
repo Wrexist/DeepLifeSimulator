@@ -15,8 +15,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronRight,
-  DollarSign, History, Megaphone, Package, Rocket, Star, TrendingUp,
+  AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight,
+  DollarSign, FileText, FlaskConical, History, Megaphone, Package, Rocket, Star, TrendingUp,
   UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,11 @@ import { hustleHaptics } from '../utils/hustleHaptics';
 import { addWorker, removeWorker } from '@/contexts/game/company';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
+import { LAB_TYPES, getLabUpgradeCost, type LabType } from '@/lib/rd/labs';
+import { getAvailableTechnologies, getTechnologiesForCompany, getTechnologyById } from '@/lib/rd/technologyTree';
+import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competitions';
+import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import type { HustleCompanyOverlay } from '@/contexts/game/types';
@@ -106,6 +111,33 @@ export default function CompanyDetailScreen({
     }
   }, [gameState, setGameState, companyId, saveGame]);
 
+  // ───────── R&D handlers — thin wrappers over the canonical RDActions ─────────
+  // (buildRDLab / startResearch / filePatent / enterCompetition). The weekly
+  // research tick + completion/breakthrough live in CompanyActionsContext.
+  const handleBuildLab = useCallback((labType: LabType) => {
+    const r = buildRDLab(gameState, setGameState, companyId, labType, { updateMoney });
+    if (r.success) { hustleHaptics.success(); saveGame?.(); }
+    else { hustleHaptics.error(); Alert.alert('R&D Lab', r.message); }
+  }, [gameState, setGameState, companyId, saveGame]);
+
+  const handleStartResearch = useCallback((technologyId: string) => {
+    const r = startResearch(gameState, setGameState, companyId, technologyId, { updateMoney });
+    if (r.success) { hustleHaptics.success(); saveGame?.(); }
+    else { hustleHaptics.error(); Alert.alert('Research', r.message); }
+  }, [gameState, setGameState, companyId, saveGame]);
+
+  const handleFilePatent = useCallback((technologyId: string) => {
+    const r = filePatent(gameState, setGameState, companyId, technologyId, { updateMoney });
+    if (r.success) { hustleHaptics.success(); saveGame?.(); }
+    else { hustleHaptics.error(); Alert.alert('Patent', r.message); }
+  }, [gameState, setGameState, companyId, saveGame]);
+
+  const handleEnterCompetition = useCallback((competitionId: string) => {
+    const r = enterCompetition(gameState, setGameState, companyId, competitionId, { updateMoney });
+    if (r.success) { hustleHaptics.success(); saveGame?.(); }
+    else { hustleHaptics.error(); Alert.alert('Competition', r.message); }
+  }, [gameState, setGameState, companyId, saveGame]);
+
   if (!company) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -152,6 +184,28 @@ export default function CompanyDetailScreen({
   const upgradeDefs = COMPANY_UPGRADES[company.type] ?? [];
 
   const earningsSeries = (overlay?.ipo?.recentEarnings ?? []).map((e) => e.revenue);
+
+  // ───────── R&D derived state ─────────
+  const rdAccent = HUSTLE_COLORS.accentSecondary;
+  const rdLab = company.rdLab;
+  const labInfo = rdLab ? LAB_TYPES[rdLab.type] : null;
+  const hasTechTree = getTechnologiesForCompany(company.type).length > 0;
+  const showRD = hasTechTree || !!rdLab; // hide for industries with no tech tree unless a lab already exists
+  const unlockedTechIds = company.unlockedTechnologies ?? [];
+  const availableTechs = rdLab ? getAvailableTechnologies(company.type, unlockedTechIds) : [];
+  const activeProjects = (rdLab?.researchProjects ?? []).filter((p) => !p.completed);
+  const canStartMore = labInfo ? activeProjects.length < labInfo.maxConcurrentProjects : false;
+  const activePatents = (company.patents ?? []).filter((p) => p.duration > 0);
+  const patentedTechIds = new Set(activePatents.map((p) => p.technologyId));
+  const nextLabType: LabType | null = !rdLab
+    ? null
+    : rdLab.type === 'basic' ? 'advanced' : rdLab.type === 'advanced' ? 'cutting_edge' : null;
+  const labUpgradeCost = rdLab && nextLabType ? getLabUpgradeCost(rdLab.type, nextLabType) : 0;
+  const rdCompetitions = showRD
+    ? getActiveCompetitions(weeksLived).filter(
+        (comp) => !comp.requirements.companyType || comp.requirements.companyType === company.type,
+      )
+    : [];
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -550,6 +604,253 @@ export default function CompanyDetailScreen({
                 </View>
               );
             })}
+          </>
+        ) : null}
+
+        {/* ───────── R&D Lab department ───────── */}
+        {showRD ? (
+          <>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>R&amp;D Lab</Text>
+
+            {!rdLab ? (
+              /* No lab yet — build options */
+              <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Build a lab</Text>
+                <Text style={[styles.staffHint, { color: theme.textSecondary, marginBottom: responsiveSpacing.xs }]}>
+                  Research technologies that permanently lift company income, file patents for weekly royalties, and enter innovation competitions. Research advances automatically each week.
+                </Text>
+                {(Object.keys(LAB_TYPES) as LabType[]).map((lt, i) => {
+                  const info = LAB_TYPES[lt];
+                  const cost = getLabUpgradeCost(null, lt);
+                  const affordable = money >= cost;
+                  return (
+                    <View key={lt} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                      <View style={[styles.rdIcon, { backgroundColor: rdAccent + '22', borderColor: rdAccent + '44' }]}>
+                        <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
+                      </View>
+                      <View style={styles.rdText}>
+                        <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{info.name}</Text>
+                        <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                          {info.maxConcurrentProjects} project{info.maxConcurrentProjects === 1 ? '' : 's'} · {info.researchSpeedMultiplier}× speed
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => handleBuildLab(lt)}
+                        disabled={!affordable}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Build ${info.name} for $${cost.toLocaleString()}`}
+                        accessibilityState={{ disabled: !affordable }}
+                        style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: affordable ? 1 : 0.5 }]}
+                      >
+                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${cost.toLocaleString()}</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <>
+                {/* Lab summary + upgrade */}
+                <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                  <View style={styles.rdRow}>
+                    <View style={[styles.rdIcon, { backgroundColor: rdAccent + '22', borderColor: rdAccent + '44' }]}>
+                      <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.rdText}>
+                      <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{labInfo!.name}</Text>
+                      <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                        {activeProjects.length}/{labInfo!.maxConcurrentProjects} active · {labInfo!.researchSpeedMultiplier}× speed
+                      </Text>
+                    </View>
+                    {nextLabType ? (
+                      <Pressable
+                        onPress={() => handleBuildLab(nextLabType)}
+                        disabled={money < labUpgradeCost}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Upgrade lab for $${labUpgradeCost.toLocaleString()}`}
+                        accessibilityState={{ disabled: money < labUpgradeCost }}
+                        style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: money < labUpgradeCost ? 0.5 : 1 }]}
+                      >
+                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Upgrade ${labUpgradeCost.toLocaleString()}</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={[styles.rdTag, { backgroundColor: theme.surfaceElevated }]}>
+                        <Text style={[styles.rdTagText, { color: theme.textMuted }]}>MAX</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* In-progress research */}
+                {activeProjects.length > 0 ? (
+                  <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                    <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>In progress</Text>
+                    {activeProjects.map((p, i) => {
+                      const tech = getTechnologyById(p.technologyId);
+                      const pct = Math.max(0, Math.min(100, p.progress));
+                      const perWeek = 100 / Math.max(1, p.duration || 1);
+                      const weeksLeft = Math.max(1, Math.ceil((100 - pct) / perWeek));
+                      return (
+                        <View key={p.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                          <View style={styles.rdText}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech?.name ?? p.technologyId}</Text>
+                            <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated, marginTop: 5 }]}>
+                              <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: rdAccent }]} />
+                            </View>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted, marginTop: 3 }]}>
+                              {pct >= 100 ? 'Finalizing…' : `~${weeksLeft} week${weeksLeft === 1 ? '' : 's'} left`}
+                            </Text>
+                          </View>
+                          <Text style={[styles.rdPct, { color: theme.textSecondary }]}>{Math.round(pct)}%</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
+
+                {/* Available research */}
+                <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                  <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Available research</Text>
+                  {availableTechs.length > 0 ? (
+                    availableTechs.map((tech, i) => {
+                      const affordable = money >= tech.researchCost;
+                      const disabled = !canStartMore || !affordable;
+                      const incomePct = Math.round(((tech.unlocks.incomeMultiplier ?? 1) - 1) * 100);
+                      return (
+                        <View key={tech.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                          <View style={styles.rdText}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech.name} · T{tech.tier}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                              {tech.researchTime}w base{incomePct > 0 ? ` · +${incomePct}% income` : ''}
+                            </Text>
+                          </View>
+                          <Pressable
+                            onPress={() => handleStartResearch(tech.id)}
+                            disabled={disabled}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Research ${tech.name} for $${tech.researchCost.toLocaleString()}`}
+                            accessibilityState={{ disabled }}
+                            style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: disabled ? 0.5 : 1 }]}
+                          >
+                            <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${tech.researchCost.toLocaleString()}</Text>
+                          </Pressable>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={[styles.deptEmpty, { color: theme.textMuted }]}>
+                      {hasTechTree ? 'All available technologies researched.' : 'No technologies for this industry.'}
+                    </Text>
+                  )}
+                  {!canStartMore && availableTechs.length > 0 ? (
+                    <Text style={[styles.staffHint, { color: theme.textMuted }]}>
+                      Lab at capacity ({labInfo!.maxConcurrentProjects}). Finish or upgrade to research more.
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Unlocked technologies → file patents */}
+                {unlockedTechIds.length > 0 ? (
+                  <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                    <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Unlocked technologies</Text>
+                    {unlockedTechIds.map((techId, i) => {
+                      const tech = getTechnologyById(techId);
+                      const patented = patentedTechIds.has(techId);
+                      const patentCost = (tech && PATENT_COSTS[tech.tier]) || 100000;
+                      const affordable = money >= patentCost;
+                      return (
+                        <View key={techId} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                          <View style={styles.rdText}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech?.name ?? techId}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{patented ? 'Patented' : 'Eligible for patent'}</Text>
+                          </View>
+                          {patented ? (
+                            <View style={[styles.rdTag, { backgroundColor: HUSTLE_COLORS.success + '22' }]}>
+                              <FileText size={fontScale(11)} color={HUSTLE_COLORS.success} strokeWidth={2.4} />
+                              <Text style={[styles.rdTagText, { color: HUSTLE_COLORS.success }]}>Patented</Text>
+                            </View>
+                          ) : (
+                            <Pressable
+                              onPress={() => handleFilePatent(techId)}
+                              disabled={!affordable}
+                              accessibilityRole="button"
+                              accessibilityLabel={`File patent for ${tech?.name ?? techId} for $${patentCost.toLocaleString()}`}
+                              accessibilityState={{ disabled: !affordable }}
+                              style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: affordable ? 1 : 0.5 }]}
+                            >
+                              <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Patent ${patentCost.toLocaleString()}</Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
+
+                {/* Patent royalties */}
+                {activePatents.length > 0 ? (
+                  <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                    <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Patent royalties</Text>
+                    {activePatents.map((pt, i) => (
+                      <View key={pt.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                        <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.success + '22', borderColor: HUSTLE_COLORS.success + '44' }]}>
+                          <FileText size={fontScale(13)} color={HUSTLE_COLORS.success} strokeWidth={2.2} />
+                        </View>
+                        <View style={styles.rdText}>
+                          <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{pt.name}</Text>
+                          <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{pt.duration}w remaining</Text>
+                        </View>
+                        <Text style={[styles.rdIncome, { color: HUSTLE_COLORS.success }]}>+${pt.weeklyIncome.toLocaleString()}/wk</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                {/* Innovation competitions */}
+                <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                  <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Innovation competitions</Text>
+                  {rdCompetitions.length > 0 ? (
+                    rdCompetitions.map((comp, i) => {
+                      const entered = (company.competitionHistory ?? []).some((e) => e.competitionId === comp.id && !e.completed);
+                      const eligible = canEnterCompetition(comp, company);
+                      const affordable = money >= comp.entryCost;
+                      const disabled = entered || !eligible || !affordable;
+                      return (
+                        <View key={comp.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                          <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                            <Award size={fontScale(14)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
+                          </View>
+                          <View style={styles.rdText}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{comp.name}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                              1st ${comp.prizes.first.toLocaleString()} · entry ${comp.entryCost.toLocaleString()}
+                            </Text>
+                          </View>
+                          {entered ? (
+                            <View style={[styles.rdTag, { backgroundColor: rdAccent + '22' }]}>
+                              <Text style={[styles.rdTagText, { color: rdAccent }]}>Entered</Text>
+                            </View>
+                          ) : (
+                            <Pressable
+                              onPress={() => handleEnterCompetition(comp.id)}
+                              disabled={disabled}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Enter ${comp.name} for $${comp.entryCost.toLocaleString()}`}
+                              accessibilityState={{ disabled }}
+                              style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: disabled ? 0.5 : 1 }]}
+                            >
+                              <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>{eligible ? 'Enter' : 'Locked'}</Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={[styles.deptEmpty, { color: theme.textMuted }]}>No active competitions right now.</Text>
+                  )}
+                </View>
+              </>
+            )}
           </>
         ) : null}
 
@@ -1188,6 +1489,56 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
+  },
+  // R&D
+  rdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  rdIcon: {
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rdText: { flex: 1 },
+  rdRowTitle: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  rdRowMeta: {
+    fontSize: fontScale(11),
+    marginTop: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  rdPct: {
+    fontSize: fontScale(12),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    minWidth: scale(34),
+    textAlign: 'right',
+  },
+  rdIncome: {
+    fontSize: fontScale(13),
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  rdTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  rdTagText: {
+    fontSize: fontScale(11),
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   notifCard: {
     borderRadius: responsiveBorderRadius.xl,

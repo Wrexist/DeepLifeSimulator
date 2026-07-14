@@ -35,3 +35,24 @@ export function bumpSparkLifetimeStat(
     },
   };
 }
+
+/**
+ * Clear the `promoted` flag on the Spark match backing a now-ended relationship
+ * (a promoted match shares its id with the relationship it created). Without
+ * this a broken-up / divorced match still renders as your partner in Spark, is
+ * filtered out of the swipe deck, and can never be re-dated —
+ * promoteMatchToRelationship returns "Already dating this person" forever.
+ * Pure; returns a NEW sparkApp (or the original when Spark is uninitialized).
+ */
+export function clearPromotedSparkMatch(
+  sparkApp: SparkAppState | undefined,
+  relationshipId: string,
+): SparkAppState | undefined {
+  if (!sparkApp?.matches) return sparkApp;
+  return {
+    ...sparkApp,
+    matches: sparkApp.matches.map((m) =>
+      m.id === relationshipId && m.promoted ? { ...m, promoted: false } : m
+    ),
+  };
+}

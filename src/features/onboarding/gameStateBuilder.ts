@@ -7,6 +7,7 @@
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
+import { avatarSexFromId } from '@/utils/facePool';
 import { perks as perksCatalog } from './perksData';
 
 // ---------------------------------------------------------------------------
@@ -40,11 +41,14 @@ export interface BuildGameStateParams {
   lastName: string;
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
+  avatarId?: string;
   scenario: OnboardingScenario;
   challengeScenarioId?: string;
   selectedPerks: string[];
   permanentPerks: string[];
   selectedMindset: MindsetId | null;
+  /** Chosen Life Ambition id (lib/ambitions). Optional — undefined = freeform life. */
+  ambitionId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,9 +84,10 @@ const ITEM_ID_MAP: Record<string, string> = {
   driver_license: 'driver_license',
 };
 
-/** Map scenario education names to game education IDs. */
+/** Map scenario education names to game education IDs (keys are lower-cased so
+ *  both life-path 'College' and challenge 'college' resolve the same). */
 const EDUCATION_MAP: Record<string, string> = {
-  College: 'business_degree',
+  college: 'business_degree',
 };
 
 /** Display names for seeded educations (mirrors the EducationApp catalog). */
@@ -150,9 +155,12 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     selectedPerks,
     permanentPerks,
     selectedMindset,
+    avatarId,
+    ambitionId,
   } = params;
 
-  const resolvedSex = resolveRandomSex(sex);
+  // A picked avatar's sex wins over "random" so appearance and gameplay agree.
+  const resolvedSex = avatarSexFromId(avatarId) ?? resolveRandomSex(sex);
   const seekingGender = computeSeekingGender(resolvedSex, sexuality);
   const scenarioItems = scenario.start.items || [];
   const mappedItemIds = mapScenarioItemIds(scenarioItems);
@@ -199,7 +207,9 @@ export function buildNewGameState(params: BuildGameStateParams): any {
         const eduFromScenario = scenario.start.education;
         if (!eduFromScenario) return e;
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
-        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        const mappedWanted = wanted
+          .map((w) => EDUCATION_MAP[w.toLowerCase()] || w)
+          .filter((w) => w.toLowerCase() !== 'dropout');
         if (mappedWanted.length > 0 && mappedWanted.includes(e.id)) {
           return {
             ...e,
@@ -219,7 +229,9 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       const eduFromScenario = scenario.start.education;
       if (eduFromScenario) {
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
-        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        const mappedWanted = wanted
+          .map((w) => EDUCATION_MAP[w.toLowerCase()] || w)
+          .filter((w) => w.toLowerCase() !== 'dropout');
         for (const eduId of mappedWanted) {
           if (!existing.find((e) => e.id === eduId)) {
             existing.push({
@@ -242,6 +254,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       lastName,
       sex: resolvedSex,
       sexuality,
+      avatarId,
       gender: resolvedSex,
       seekingGender,
     },
@@ -254,6 +267,11 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       : undefined,
     scenarioId: scenario.id,
     challengeScenarioId,
+    // Life Ambition — the chosen lifelong goal (or undefined for a freeform life).
+    // Milestone tracking + payoff flag start clean so progress accrues over the life.
+    ambitionId: ambitionId || undefined,
+    ambitionCompletedMilestones: [],
+    ambitionRewardClaimed: false,
     activeTraits: scenario.start.traits || [],
     items: initialGameState.items.map((i: any) => {
       if (mappedItemIds.includes(i.id)) return { ...i, owned: true };

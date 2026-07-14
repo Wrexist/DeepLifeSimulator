@@ -7,7 +7,7 @@
 
 import type { Href } from 'expo-router';
 
-export type OnboardingScreenName = 'Scenarios' | 'Customize' | 'Perks';
+export type OnboardingScreenName = 'Scenarios' | 'Customize' | 'Ambitions' | 'Perks';
 
 export interface FlowGuardResult {
   allowed: boolean;
@@ -40,6 +40,25 @@ export function canAccessScreen(
           allowed: false,
           redirectTo: '/(onboarding)/Scenarios' as Href,
           reason: 'No scenario selected',
+        };
+      }
+      return { allowed: true };
+
+    case 'Ambitions':
+      // Ambition is chosen AFTER identity but the choice itself is optional.
+      // We still require the prerequisites so the flow can't be entered early.
+      if (!state.scenario) {
+        return {
+          allowed: false,
+          redirectTo: '/(onboarding)/Scenarios' as Href,
+          reason: 'No scenario selected',
+        };
+      }
+      if (!state.firstName || !state.firstName.trim() || !state.lastName || !state.lastName.trim()) {
+        return {
+          allowed: false,
+          redirectTo: '/(onboarding)/Customize' as Href,
+          reason: 'Identity not set',
         };
       }
       return { allowed: true };

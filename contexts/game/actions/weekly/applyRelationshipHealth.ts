@@ -69,8 +69,14 @@ export function applyRelationshipHealth(
     const weeksAtLow = (rel.weeksAtLowRelationship || 0) + 1;
 
     if (weeksAtLow >= 2) {
-      const breakupChance = Math.min(0.4, (30 - rel.relationshipScore) / 100);
-      const disappointedChance = 0.3;
+      // Life Skills: Empathy softens relationship decay — it scales DOWN both the
+      // breakup and disappointment chance (mult ≤ 1, clamped). Neutral when unset.
+      const decayMult = ctx.lifeSkillMods?.relationshipDecayMult ?? 1;
+      const safeDecayMult = typeof decayMult === 'number' && isFinite(decayMult) && decayMult > 0 && decayMult <= 1
+        ? decayMult
+        : 1;
+      const breakupChance = Math.min(0.4, (30 - rel.relationshipScore) / 100) * safeDecayMult;
+      const disappointedChance = 0.3 * safeDecayMult;
 
       if (preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < breakupChance) {
         logger.info(`[RELATIONSHIP] ${rel.name} broke up due to low relationship (${rel.relationshipScore}%)`);

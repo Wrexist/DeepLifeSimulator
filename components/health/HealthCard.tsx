@@ -49,7 +49,7 @@ const ACCENT: Record<HealthAccent, { reward: string; button: [string, string, st
 };
 
 const STAT_META: Record<HealthStat, { Icon: typeof Heart; color: string; label: string }> = {
-  health: { Icon: Heart, color: '#F472B6', label: 'Health' },
+  health: { Icon: Heart, color: '#34D399', label: 'Health' },
   happiness: { Icon: Smile, color: '#FBBF24', label: 'Happiness' },
   energy: { Icon: Zap, color: '#60A5FA', label: 'Energy' },
 };

@@ -32,18 +32,26 @@ function getNetWorth(s: GameState): number {
         0
       )
     : 0;
+  // RealEstate has no `value` field (it's price/currentValue), so the old
+  // `r.value ?? 0` made property worth $0 toward the ribbon net-worth tiers.
+  // Skip sold entries (owned:false) and use the live value.
   const realEstate = Array.isArray(s.realEstate)
-    ? s.realEstate.reduce((sum: number, r: any) => sum + (r.value ?? 0), 0)
+    ? s.realEstate.reduce(
+        (sum: number, r: any) =>
+          r?.owned === false ? sum : sum + (r?.currentValue ?? r?.price ?? 0),
+        0
+      )
     : 0;
   return cash + bank + stocks + realEstate;
 }
 
 const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
 
+// The live claim store is authoritative; gameState.achievements[].completed is
+// never set in normal play (so this used to always be 0 → "Achiever" ribbon
+// unreachable, "Mediocre" clause always true).
 const getAchievementCount = (s: GameState) =>
-  Array.isArray(s.achievements)
-    ? s.achievements.filter((a: any) => a.completed).length
-    : 0;
+  (s.claimedProgressAchievements ?? []).length;
 
 const getChildrenCount = (s: GameState) =>
   s.family?.children?.length ?? 0;
@@ -55,7 +63,7 @@ const getPetCount = (s: GameState) =>
   (s.pets ?? []).length;
 
 const getPropertyCount = (s: GameState) =>
-  (s.realEstate ?? []).length;
+  (s.realEstate ?? []).filter((r: any) => r?.owned !== false).length;
 
 const getCompanyCount = (s: GameState) =>
   (s.companies ?? []).length;

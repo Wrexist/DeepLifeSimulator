@@ -26,6 +26,9 @@ export interface CareerApplicationsInput {
   prevCurrentJob: string | undefined | null;
   /** Pre-rolled acceptance delay from `buildPreRolls`. Always 1 or 2. */
   careerAcceptDelay: 1 | 2;
+  /** A retired player never auto-accepts a pending application (belt-and-braces
+   *  alongside retirePlayer cancelling pending apps — no salary+pension stack). */
+  prevIsRetired?: boolean;
 }
 
 export interface CareerApplicationsResult {
@@ -54,7 +57,7 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
 
   // Find the first pending application.
   const pendingCareer = prevCareers.find((c) => c && c.applied && !c.accepted);
-  if (pendingCareer && !input.prevCurrentJob) {
+  if (pendingCareer && !input.prevCurrentJob && !input.prevIsRetired) {
     // Track how long the application has been pending.
     const weeksPending = (pendingCareer.applicationWeeksPending || 0) + 1;
 

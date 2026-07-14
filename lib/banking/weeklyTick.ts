@@ -15,7 +15,7 @@
  */
 
 import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
-import { accrueAccountInterest, detectBudgetOverspend, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
+import { accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
 import { getRateEnvironment } from './rateEnvironment';
 
 const safe = (n: number | undefined, fb = 0): number =>
@@ -66,6 +66,14 @@ export interface WeeklyBankingTickResult {
   notifications: { id: string; title: string; message: string }[];
   /** Total late fees deducted this tick. Caller subtracts from cash. */
   lateFeesDeducted: number;
+  /**
+   * Total of bills paid this tick FROM a mirrored (checking-default) account.
+   * Those debits hit a balance that is overwritten from stats.money every tick,
+   * so they must be charged against real cash by the caller — otherwise a "paid"
+   * bill costs the player nothing. Bills paid from a real self-opened account are
+   * excluded (already debited in `banking`).
+   */
+  billsPaidFromCash: number;
 }
 
 /**
@@ -189,6 +197,13 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   //    existing players because billPayRules[] is empty).
   const billResult = tickBillPay(banking, input.currentWeek);
   banking = billResult.banking;
+  // Bills paid from a mirrored account only debited that mirror's balance (wiped
+  // next tick from stats.money), so they must be charged against real cash by the
+  // caller. Bills from a real self-opened account are already debited in `banking`.
+  const billsPaidFromCash = billResult.paid.reduce(
+    (sum, p) => (MIRRORED_ACCOUNT_IDS.has(p.rule.fromAccountId) ? sum + p.amount : sum),
+    0
+  );
   let lateFeesDeducted = 0;
   if (billResult.missed.length > 0) {
     lateFeesDeducted = billResult.missed.reduce((sum) => sum + 35, 0);
@@ -242,5 +257,5 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
     banking = { ...banking, lastEconomyState: input.economyState };
   }
 
-  return { banking, loansWithTrackers, notifications, lateFeesDeducted };
+  return { banking, loansWithTrackers, notifications, lateFeesDeducted, billsPaidFromCash };
 }

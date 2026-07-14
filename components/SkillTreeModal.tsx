@@ -40,6 +40,8 @@ import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { haptic } from '@/utils/haptics';
+import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -398,7 +400,7 @@ interface SkillTreeModalProps {
 }
 
 export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState, setGameState } = useGame();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
@@ -489,40 +491,48 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   }, [gameState.stats.money, gameState.date.age, isNodeUnlocked]);
 
   const handleUnlockNode = useCallback((node: SkillNode) => {
-    if (!canUnlockNode(node)) {
-      if (gameState.stats.money < node.cost) {
-        Alert.alert('Insufficient Funds', `You need $${node.cost.toLocaleString()} to unlock this skill.`);
-      } else if (gameState.date.age < node.levelRequired) {
-        Alert.alert('Too Young', `You need to be at least ${node.levelRequired} years old.`);
-      } else if (node.requires) {
-        Alert.alert('Prerequisites Required', 'You must unlock the required skills first.');
-      }
+    if (isNodeUnlocked(node.id)) return;
+
+    // Friendly pre-checks against the current snapshot (the authoritative
+    // re-checks happen atomically inside the updater below).
+    if (gameState.date.age < node.levelRequired) {
+      Alert.alert('Locked', `You need to be at least age ${node.levelRequired} to learn ${node.name}.`, [{ text: 'OK' }]);
+      return;
+    }
+    if (node.requires && !node.requires.every(req => isNodeUnlocked(req))) {
+      const names = node.requires
+        .map(r => SKILL_CATEGORIES.flatMap(c => c.nodes).find(n => n.id === r)?.name || r)
+        .join(', ');
+      Alert.alert('Locked', `First unlock: ${names}.`, [{ text: 'OK' }]);
+      return;
+    }
+    if (gameState.stats.money < node.cost) {
+      Alert.alert('Not enough money', `${node.name} costs $${node.cost.toLocaleString()}. You have $${Math.floor(gameState.stats.money).toLocaleString()}.`, [{ text: 'OK' }]);
       return;
     }
 
-    Alert.alert(
-      `Unlock ${node.name}?`,
-      `This will cost $${node.cost.toLocaleString()}\n\nEffect: ${node.effect}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unlock',
-          onPress: () => {
-            setGameState(prev => ({
-              ...prev,
-              stats: {
-                ...prev.stats,
-                money: prev.stats.money - node.cost,
-              },
-              unlockedLifeSkills: [...(prev.unlockedLifeSkills || []), node.id],
-            }));
-            saveGame();
-            Alert.alert('Skill Unlocked!', `${node.name} is now active.\n\n${node.effect}`);
-          },
-        },
-      ]
-    );
-  }, [canUnlockNode, setGameState, saveGame, gameState.stats.money, gameState.date.age]);
+    // Atomic purchase via the shared pure reducer — deduct the real cost AND
+    // persist the unlock in ONE setGameState so two rapid taps (or React
+    // StrictMode's double-invoke) can never double-charge or grant a free /
+    // duplicate skill. Every gate is re-validated against FRESH `prev`; money
+    // only ever DECREASES (mirror-safe — no cash minted).
+    let purchased = false;
+    setGameState(prev => {
+      const result = purchaseLifeSkill(prev, {
+        id: node.id,
+        cost: node.cost,
+        levelRequired: node.levelRequired,
+        requires: node.requires,
+      });
+      purchased = result.purchased;
+      return result.state;
+    });
+
+    if (purchased) {
+      haptic.success();
+      Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
+    }
+  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, setGameState]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return 'unlocked';
