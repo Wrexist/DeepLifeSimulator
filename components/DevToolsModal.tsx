@@ -199,6 +199,13 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
   const isSkipping = targetWeek !== null;
 
+  // Simulation summary — declared BEFORE the early `return null` below so this
+  // hook is never called conditionally (Rules of Hooks). Depends only on state.
+  const simSummary = useMemo(() => {
+    const done = Object.values(simResults);
+    return { total: ALL_SIMULATIONS.length, ran: done.length, passed: done.filter((r) => r.pass).length, failed: done.filter((r) => !r.pass).length };
+  }, [simResults]);
+
   if (!gameState) return null;
 
   // -------------------------------------------------------------------------
@@ -533,10 +540,8 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     }, 20);
   };
 
-  const simSummary = useMemo(() => {
-    const done = Object.values(simResults);
-    return { total: ALL_SIMULATIONS.length, ran: done.length, passed: done.filter((r) => r.pass).length, failed: done.filter((r) => !r.pass).length };
-  }, [simResults]);
+  // (simSummary is memoized above, before the early return, to satisfy the
+  // Rules of Hooks.)
 
   // -------------------------------------------------------------------------
   // Cheat + setup group definitions
