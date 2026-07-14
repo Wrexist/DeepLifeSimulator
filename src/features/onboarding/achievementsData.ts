@@ -1,7 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
-import { isLuxuryLifeComplete } from '@/lib/luxury';
+import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.png');
 const familyIcon = require('@/assets/images/Achivements/Generational Wealth.png');
@@ -477,7 +477,7 @@ export const achievements: Achievement[] = [
     description: 'Have 3 children.',
     progressSpec: {
       kind: 'counter',
-      current: gs => gs.relationships?.filter((r: any) => r.type === 'child').length ?? 0,
+      current: gs => gs.family?.children?.length ?? gs.relationships?.filter((r: any) => r.type === 'child').length ?? 0,
       goal: 3,
     },
     goldReward: 50,
@@ -489,7 +489,7 @@ export const achievements: Achievement[] = [
     description: 'Have 10 children.',
     progressSpec: {
       kind: 'counter',
-      current: gs => gs.relationships?.filter((r: any) => r.type === 'child').length ?? 0,
+      current: gs => gs.family?.children?.length ?? gs.relationships?.filter((r: any) => r.type === 'child').length ?? 0,
       goal: 10,
     },
     goldReward: 200,
@@ -1519,5 +1519,158 @@ export const achievements: Achievement[] = [
     progressSpec: { kind: 'counter', current: (gs: GameState) => gs.sparkApp?.lifetimeStats?.totalMatches ?? 0, goal: 250 },
     goldReward: 500,
     group: 'spark',
+  },
+
+  // ── New-content achievements (v23) ────────────────────────────────────────
+  // Give the systems added this cycle a progression payoff: Luxury & Collectibles,
+  // Hobby/pursuit mastery, six-rung career ladders, Life Ambitions, Parenting
+  // nurture/heir, and Retirement. Every predicate is null-safe against partial or
+  // pre-feature saves (the optional stores default to empty), and gold rewards sit
+  // in-band with the existing tiers. Gold is paid into stats.gems by
+  // claimProgressAchievement (never money) — no mirror/cash-path exposure.
+
+  // Luxury & Collectibles — beyond the existing `luxury_life` (3 items / $25M).
+  {
+    id: 'luxury_collector',
+    title: 'Connoisseur',
+    description: 'Own 5 luxury collectibles.',
+    progressSpec: { kind: 'counter', current: gs => getOwnedLuxuryCount(gs.luxuryItems), goal: 5 },
+    goldReward: 150,
+    group: 'luxury',
+  },
+  {
+    id: 'luxury_magnate',
+    title: 'Trophy Cabinet',
+    description: 'Build a luxury collection worth $100,000,000.',
+    progressSpec: { kind: 'counter', current: gs => getTotalLuxuryValue(gs.luxuryItems), goal: 100_000_000 },
+    goldReward: 300,
+    group: 'luxury',
+  },
+
+  // Hobbies / pursuits mastery (Master tier = level ≥ 9 of 10).
+  {
+    id: 'hobby_master',
+    title: 'Master of the Craft',
+    description: 'Reach Master tier in any hobby.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => Object.values(gs.pursuits ?? {}).some((p: any) => (p?.level ?? 0) >= 9),
+    },
+    goldReward: 100,
+    group: 'hobby',
+  },
+  {
+    id: 'hobby_polymath',
+    title: 'Renaissance Soul',
+    description: 'Level up 5 different hobbies.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => Object.values(gs.pursuits ?? {}).filter((p: any) => (p?.level ?? 0) >= 1).length,
+      goal: 5,
+    },
+    goldReward: 75,
+    group: 'hobby',
+  },
+
+  // Careers — reach the top rung of a six-level ladder.
+  {
+    id: 'career_summit',
+    title: 'Corner Office',
+    description: 'Reach the top rung of a six-level career ladder.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs =>
+        (gs.careers ?? []).some(
+          (c: any) =>
+            c?.accepted &&
+            Array.isArray(c.levels) &&
+            c.levels.length >= 6 &&
+            (c.level ?? 0) >= c.levels.length - 1
+        ),
+    },
+    goldReward: 100,
+    group: 'career',
+  },
+
+  // Life Ambition — the durable "reward claimed" latch is the proof of fulfilment.
+  {
+    id: 'ambition_fulfilled',
+    title: "Life's Work",
+    description: 'Fulfill your chosen life ambition.',
+    progressSpec: { kind: 'boolean', met: gs => gs.ambitionRewardClaimed === true },
+    goldReward: 150,
+    group: 'ambition',
+  },
+
+  // Parenting — nurture a child high, and produce a strong heir.
+  {
+    id: 'parenting_devoted',
+    title: 'Devoted Parent',
+    description: "Raise a child to 90+ in a nurture stat.",
+    progressSpec: {
+      kind: 'boolean',
+      met: gs =>
+        (gs.family?.children ?? []).some(
+          (c: any) =>
+            Math.max(
+              c.intelligence ?? 50,
+              c.health ?? 50,
+              c.happiness ?? 50,
+              c.discipline ?? 50
+            ) >= 90
+        ),
+    },
+    goldReward: 75,
+    group: 'parenting',
+  },
+  {
+    id: 'parenting_heir',
+    title: 'Worthy Heir',
+    description: 'Raise a strong, heir-eligible child (80+ overall nurture).',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs =>
+        (gs.family?.children ?? []).some(
+          (c: any) =>
+            c.isHeirEligible !== false &&
+            ((c.intelligence ?? 50) +
+              (c.health ?? 50) +
+              (c.happiness ?? 50) +
+              (c.discipline ?? 50) +
+              (c.relationshipScore ?? 50)) /
+              5 >=
+              80
+        ),
+    },
+    goldReward: 150,
+    group: 'parenting',
+  },
+
+  // Retirement / elder endgame.
+  {
+    id: 'retirement_retire',
+    title: 'Freedom at Last',
+    description: 'Retire from working life.',
+    progressSpec: { kind: 'boolean', met: gs => gs.isRetired === true },
+    goldReward: 50,
+    group: 'retirement',
+  },
+  {
+    id: 'retirement_nest_egg',
+    title: 'Golden Years',
+    description: 'Retire with a net worth of $10,000,000 or more.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => {
+        if (gs.isRetired !== true) return false;
+        try {
+          return netWorth(gs) >= 10_000_000;
+        } catch {
+          return false;
+        }
+      },
+    },
+    goldReward: 150,
+    group: 'retirement',
   },
 ];

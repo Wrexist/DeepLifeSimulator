@@ -60,6 +60,12 @@ import {
   Coins,
   AlertTriangle,
   TrendingUp,
+  Utensils,
+  Mountain,
+  Landmark,
+  Music,
+  ShoppingBag,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,10 +75,18 @@ import { quoteTrip } from '@/lib/travel/operations';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
 import {
+  activitiesForDestination,
+  quoteActivity,
+  netActivityEnergy,
+  TravelActivity,
+  TravelActivityCategory,
+} from '@/lib/travel/activities';
+import {
   travelTo,
   returnFromTrip,
   purchasePassport,
   investInBusinessOpportunity,
+  doTravelActivity,
   TripReturnResult,
 } from '@/contexts/game/actions/TravelActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -140,6 +154,22 @@ const DEST_META: Record<string, { code: string; hue: string; emoji: string }> = 
 };
 const metaFor = (id: string) =>
   DEST_META[id] || { code: id.slice(0, 3).toUpperCase(), hue: IDENTITY, emoji: '🌍' };
+
+// Per-category glyph + semantic hue for the in-trip activities list. Colors are
+// categorical Recipe-C accents (not the teal identity) so each activity type
+// reads distinctly; identity teal is reserved for the CTA.
+const ACTIVITY_META: Record<
+  TravelActivityCategory,
+  { Icon: React.ComponentType<{ size: number; color: string }>; hue: string }
+> = {
+  sightseeing: { Icon: Compass, hue: accent.info },
+  cuisine: { Icon: Utensils, hue: accent.warning },
+  adventure: { Icon: Mountain, hue: accent.success },
+  culture: { Icon: Landmark, hue: accent.purple },
+  nightlife: { Icon: Music, hue: '#F43F5E' },
+  shopping: { Icon: ShoppingBag, hue: accent.amber },
+  relaxation: { Icon: Sparkles, hue: IDENTITY },
+};
 
 // FNV-1a — stable pseudo values for boarding-pass flavor (gate/seat/flight/ref).
 const hashStr = (s: string): number => {
@@ -307,6 +337,130 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     },
     [gameState, setGameState, saveGame, travel.businessOpportunities]
   );
+
+  const handleActivity = useCallback(
+    (activity: TravelActivity) => {
+      const q = quoteActivity(activity.id, gameState);
+      if (!q.ok) {
+        Alert.alert('Cannot do this yet', q.message);
+        return;
+      }
+      const costLine = activity.cost > 0 ? `$${activity.cost.toLocaleString()}` : 'Free';
+      const energyLine = activity.energyCost > 0 ? ` • −${activity.energyCost} energy` : '';
+      Alert.alert(
+        activity.name,
+        `${activity.description}\n\n${costLine}${energyLine}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Do it',
+            onPress: () => {
+              const r = doTravelActivity(gameState, setGameState, activity.id, {
+                updateStats,
+                updateMoney,
+              });
+              if (r.success) {
+                saveGame();
+                if (r.souvenir) Alert.alert(r.activityName || 'Nice!', r.souvenir);
+              } else {
+                Alert.alert('Error', r.message);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [gameState, setGameState, saveGame]
+  );
+
+  // ---- In-trip activities: things to DO at the destination (list on My Trip). --
+  const renderActivities = (destinationId: string) => {
+    const list = activitiesForDestination(destinationId);
+    if (list.length === 0) return null;
+    const doneIds = new Set(currentTrip?.activitiesDone ?? []);
+    const dest = DESTINATIONS.find((d) => d.id === destinationId);
+    return (
+      <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={styles.edgeTitleRow}>
+          <View style={[getGlassIconContainer(darkMode, 30), styles.edgeGlyph, { backgroundColor: tint(0.15), borderColor: tint(0.3) }]}>
+            <Sparkles size={scale(14)} color={IDENTITY} />
+          </View>
+          <Text style={[styles.edgeTitle, { color: theme.text }]}>
+            Things to do{dest ? ` in ${dest.name}` : ''}
+          </Text>
+        </View>
+        <Text style={[styles.cardHint, { color: theme.textMuted }]}>
+          One of each per trip. A fun spend of cash + energy for a memory.
+        </Text>
+        {list.map((a) => {
+          const meta = ACTIVITY_META[a.category];
+          const q = quoteActivity(a.id, gameState);
+          const done = doneIds.has(a.id);
+          const disabled = done || !q.ok;
+          const netEnergy = netActivityEnergy(a);
+          // Reason label when it can't be done (and isn't already done).
+          const blockedLabel =
+            !q.ok && !done
+              ? q.reason === 'needs-money'
+                ? 'Need cash'
+                : q.reason === 'needs-energy'
+                ? 'Low energy'
+                : 'Unavailable'
+              : null;
+          return (
+            <View key={a.id} style={[styles.actRow, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}>
+              <View style={[styles.actGlyph, { backgroundColor: softFill(meta.hue), borderColor: softRim(meta.hue) }]}>
+                <meta.Icon size={scale(16)} color={meta.hue} />
+              </View>
+              <View style={styles.actBody}>
+                <Text style={[styles.actName, { color: theme.text }]} numberOfLines={1}>{a.name}</Text>
+                <Text style={[styles.actDesc, { color: theme.textSecondary }]} numberOfLines={2}>{a.description}</Text>
+                <View style={styles.actChips}>
+                  {a.cost > 0 && (
+                    <BenefitChip Icon={DollarSign} color={theme.textSecondary} value={`$${a.cost.toLocaleString()}`} />
+                  )}
+                  {a.energyCost > 0 && <BenefitChip Icon={Zap} color={accent.warning} value={`−${a.energyCost}`} />}
+                  {!!a.effects.happiness && <BenefitChip Icon={Heart} color={accent.danger} value={`+${a.effects.happiness}`} />}
+                  {!!a.effects.health && (
+                    <BenefitChip Icon={Battery} color={a.effects.health > 0 ? accent.success : accent.danger} value={`${a.effects.health > 0 ? '+' : ''}${a.effects.health}`} />
+                  )}
+                  {netEnergy > 0 && <BenefitChip Icon={Battery} color={accent.success} value={`+${netEnergy} en`} />}
+                  {!!a.effects.reputation && <BenefitChip Icon={Star} color={accent.gold} value={`+${a.effects.reputation} rep`} />}
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleActivity(a)}
+                disabled={disabled}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={done ? `${a.name} already done` : `Do ${a.name}`}
+                accessibilityState={{ disabled }}
+                style={[
+                  styles.actBtn,
+                  done
+                    ? { backgroundColor: softFill(accent.success), borderColor: softRim(accent.success) }
+                    : q.ok
+                    ? { backgroundColor: tint(0.16), borderColor: tint(0.3) }
+                    : { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                {done ? (
+                  <>
+                    <CheckCircle2 size={scale(13)} color={accent.success} />
+                    <Text style={[styles.actBtnText, { color: accent.success }]}>Done</Text>
+                  </>
+                ) : q.ok ? (
+                  <Text style={[styles.actBtnText, { color: IDENTITY }]}>Do it</Text>
+                ) : (
+                  <Text style={[styles.actBtnText, { color: theme.textMuted }]}>{blockedLabel}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
 
   // ---- Travel-edge card (was "transportation"): keeps every readout, adds the
   // applied fare/speed multipliers as chips. Renders unconditionally now so the
@@ -899,6 +1053,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* In-trip activities — the things you can DO while at the destination. */}
+        {renderActivities(currentTrip.destinationId)}
 
         {/* Trip-edge context stays visible on the pass screen too. */}
         {renderTravelEdge()}
@@ -1516,6 +1673,16 @@ const styles = StyleSheet.create({
   recordCount: { fontSize: fs.sm, fontWeight: '800' },
   firstVisitRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.lg, borderWidth: 1 },
   firstVisitText: { fontSize: fs.xs, fontWeight: '700', flex: 1 },
+
+  // In-trip activities
+  actRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, borderWidth: 1 },
+  actGlyph: { width: scale(34), height: scale(34), borderRadius: br.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  actBody: { flex: 1, gap: 2 },
+  actName: { fontSize: fs.sm, fontWeight: '800' },
+  actDesc: { fontSize: fs.xs },
+  actChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs, marginTop: 2 },
+  actBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.sm, paddingVertical: scale(8), borderRadius: br.full, borderWidth: 1, minWidth: scale(56), justifyContent: 'center' },
+  actBtnText: { fontSize: fs.xs, fontWeight: '800' },
 
   // Benefits
   benefitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },

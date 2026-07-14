@@ -2678,6 +2678,13 @@ export interface TravelState {
     destinationId: string;
     returnWeek: number;
     startWeek: number;
+    /**
+     * v23: ids of per-destination travel activities already done on THIS trip.
+     * Acts as the once-per-trip cooldown gate for `lib/travel/activities`.
+     * Optional/additive — old in-progress trips lack it and read as `[]`; it is
+     * cleared automatically when the trip ends (currentTrip → undefined).
+     */
+    activitiesDone?: string[];
   };
   visitedDestinations: string[];
   passportOwned: boolean;

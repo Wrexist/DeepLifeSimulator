@@ -6,6 +6,7 @@ import { updateStats } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
 import { TravelEventDef } from '@/lib/travel/events';
+import { quoteActivity } from '@/lib/travel/activities';
 import { evaluateTravelMilestones, TravelMilestoneTier } from '@/lib/travel/milestones';
 import { formatMoney } from '@/utils/moneyFormatting';
 import type { Dispatch, SetStateAction } from 'react';
@@ -379,5 +380,97 @@ export const investInBusinessOpportunity = (
   return {
     success: true,
     message: `Successfully invested $${opportunity.cost.toLocaleString()} in ${opportunity.name}! You will earn $${opportunity.weeklyIncome.toLocaleString()} per week.`,
+  };
+};
+
+export interface TravelActivityResult {
+  success: boolean;
+  message: string;
+  activityName?: string;
+  souvenir?: string;
+}
+
+/**
+ * Do an in-trip activity (sightseeing, cuisine, excursion, …). Charges the
+ * money + energy cost and grants the bounded happiness/health/reputation lift,
+ * marking the activity done for the rest of THIS trip (once-per-trip cooldown).
+ *
+ * Money-safe: the cash cost runs through `applyMoneyDelta` (overdraft-reject +
+ * daily-summary + budget tracking) folded into the SAME guarded updater that
+ * marks the activity done, so a double-tap can neither charge twice nor apply
+ * the reward twice — the second tap finds the activity already in
+ * `activitiesDone` and no-ops (`applied` stays false). Stat effects are then
+ * applied once, gated on `applied`, exactly like `returnFromTrip`.
+ */
+export const doTravelActivity = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  activityId: string,
+  deps: { updateStats: typeof updateStats; updateMoney?: typeof updateMoney }
+): TravelActivityResult => {
+  const quote = quoteActivity(activityId, gameState);
+  if (!quote.ok) {
+    return { success: false, message: quote.message };
+  }
+  const { activity, netEnergy } = quote;
+
+  let applied = false;
+  setGameState((prev) => {
+    const trip = prev.travel?.currentTrip;
+    if (!trip) return prev;
+    // Re-check destination + cooldown + energy against fresh state.
+    if (activity.destinationId && activity.destinationId !== trip.destinationId) return prev;
+    const done = trip.activitiesDone ?? [];
+    if (done.includes(activity.id)) return prev;
+    const energy =
+      typeof prev.stats?.energy === 'number' && isFinite(prev.stats.energy) ? prev.stats.energy : 0;
+    if (energy < activity.energyCost) return prev;
+
+    // Charge the cash cost atomically (canonical path). Zero-cost activities
+    // skip the debit but still take the same code path so the money guard is
+    // the single source of truth.
+    let spend: Pick<GameState, 'stats' | 'dailySummary'> | null = null;
+    if (activity.cost > 0) {
+      spend = applyMoneyDelta(prev, -activity.cost, `Travel activity: ${activity.name}`);
+      if (!spend) return prev; // unaffordable → reject atomically
+    }
+
+    applied = true;
+    return {
+      ...prev,
+      ...(spend || {}),
+      // Budget tab: in-trip activities are entertainment spending.
+      banking:
+        activity.cost > 0 && prev.banking?.budgetSpend
+          ? trackBudgetSpend(prev.banking, prev.weeksLived || 0, 'entertainment', activity.cost)
+          : prev.banking,
+      travel: {
+        ...prev.travel!,
+        currentTrip: {
+          ...trip,
+          activitiesDone: [...done, activity.id],
+        },
+      },
+    };
+  });
+
+  if (!applied) {
+    return { success: false, message: 'Could not do this activity right now.' };
+  }
+
+  // Apply the stat rewards once (happiness/health/reputation + net energy).
+  deps.updateStats(setGameState, {
+    ...(activity.effects.happiness ? { happiness: activity.effects.happiness } : {}),
+    ...(activity.effects.health ? { health: activity.effects.health } : {}),
+    ...(activity.effects.reputation ? { reputation: activity.effects.reputation } : {}),
+    ...(netEnergy ? { energy: netEnergy } : {}),
+  });
+
+  log.info(`Did travel activity ${activity.id} (cost ${formatMoney(activity.cost)})`);
+  return {
+    success: true,
+    message: `${activity.name} — ${activity.souvenir ?? 'a memory to keep.'}`,
+    activityName: activity.name,
+    souvenir: activity.souvenir,
   };
 };
