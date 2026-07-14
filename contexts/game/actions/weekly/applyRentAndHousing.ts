@@ -134,6 +134,14 @@ export function applyRentAndHousing(
   const freshUnique = newActivity.filter((e) => !seen.has(e.id));
   const realEstateActivity = [...(prevActivity ?? []), ...freshUnique].slice(-ACTIVITY_CAP);
 
+  // Life Skills: Budgeting (-5% weekly expenses) trims recurring housing costs
+  // (rent paid + upkeep). Bounded mult ≤ 1; rental INCOME is never scaled.
+  const expenseMult = ctx.lifeSkillMods?.expenseMult ?? 1;
+  if (typeof expenseMult === 'number' && isFinite(expenseMult) && expenseMult > 0 && expenseMult < 1) {
+    weeklyRent = Math.round(weeklyRent * expenseMult);
+    housingUpkeep = Math.round(housingUpkeep * expenseMult);
+  }
+
   return {
     weeklyRent,
     updatedRealEstate,

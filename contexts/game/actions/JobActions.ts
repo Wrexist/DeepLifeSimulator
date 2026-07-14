@@ -10,6 +10,7 @@ import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 const log = logger.scope('JobActions');
 
@@ -672,11 +673,14 @@ export const applyForJob = (
   // (caps the attempt at the best available chance) but employers can still
   // reject — it's a roll capped at `100 - criminalPenalty`, never a guarantee.
   const cleanGuarantee = guaranteedAcceptance && criminalPenalty <= 0;
+  // Life Skills: Networking (+5% job application success). Additive percentage
+  // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
+  const networkingBonus = getLifeSkillModifiers(gameState).jobApplicationBonus;
   const acceptanceChance = cleanGuarantee
     ? 100
     : guaranteedAcceptance
-      ? Math.min(90, Math.max(10, 100 - criminalPenalty))
-      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty));
+      ? Math.min(90, Math.max(10, 100 - criminalPenalty + networkingBonus))
+      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
   const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
   const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];

@@ -40,6 +40,8 @@ import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { haptic } from '@/utils/haptics';
+import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -398,7 +400,7 @@ interface SkillTreeModalProps {
 }
 
 export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps) {
-  const { gameState } = useGame();
+  const { gameState, setGameState } = useGame();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
@@ -490,17 +492,47 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
 
   const handleUnlockNode = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return;
-    // GUARD: the Life Skills tree's bonuses (unlockedLifeSkills) aren't consumed
-    // by ANY gameplay system yet — the node "effect" fields are display-only
-    // strings. Unlocking used to charge up to $10,000 for zero effect. Until the
-    // effects are wired into salary/passive-income/expenses/etc., do not take the
-    // player's money for a no-op; explain it's coming soon instead.
-    Alert.alert(
-      'Coming Soon',
-      `Life Skills aren't active yet — their bonuses (e.g. "${node.effect}") don't apply to gameplay, so unlocking is disabled for now. You were not charged.`,
-      [{ text: 'OK' }]
-    );
-  }, [isNodeUnlocked]);
+
+    // Friendly pre-checks against the current snapshot (the authoritative
+    // re-checks happen atomically inside the updater below).
+    if (gameState.date.age < node.levelRequired) {
+      Alert.alert('Locked', `You need to be at least age ${node.levelRequired} to learn ${node.name}.`, [{ text: 'OK' }]);
+      return;
+    }
+    if (node.requires && !node.requires.every(req => isNodeUnlocked(req))) {
+      const names = node.requires
+        .map(r => SKILL_CATEGORIES.flatMap(c => c.nodes).find(n => n.id === r)?.name || r)
+        .join(', ');
+      Alert.alert('Locked', `First unlock: ${names}.`, [{ text: 'OK' }]);
+      return;
+    }
+    if (gameState.stats.money < node.cost) {
+      Alert.alert('Not enough money', `${node.name} costs $${node.cost.toLocaleString()}. You have $${Math.floor(gameState.stats.money).toLocaleString()}.`, [{ text: 'OK' }]);
+      return;
+    }
+
+    // Atomic purchase via the shared pure reducer — deduct the real cost AND
+    // persist the unlock in ONE setGameState so two rapid taps (or React
+    // StrictMode's double-invoke) can never double-charge or grant a free /
+    // duplicate skill. Every gate is re-validated against FRESH `prev`; money
+    // only ever DECREASES (mirror-safe — no cash minted).
+    let purchased = false;
+    setGameState(prev => {
+      const result = purchaseLifeSkill(prev, {
+        id: node.id,
+        cost: node.cost,
+        levelRequired: node.levelRequired,
+        requires: node.requires,
+      });
+      purchased = result.purchased;
+      return result.state;
+    });
+
+    if (purchased) {
+      haptic.success();
+      Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
+    }
+  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, setGameState]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return 'unlocked';

@@ -7,6 +7,7 @@ import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
 import { getSocialMediaData } from '@/lib/social/socialMedia';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { netWorth } from '@/lib/progress/achievements';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { 
   PROPERTY_THRESHOLD_1, 
@@ -583,6 +584,12 @@ export function calcWeeklyPassiveIncome(
     companies: 200000,    // $200K/week max from company income
     gamingStreaming: 75000, // $75K/week max from gaming/streaming
   };
+  // Life Skills: Investing (+5% stock returns) scales dividend income before its cap.
+  const lifeSkillMods = getLifeSkillModifiers(state);
+  const stockReturnMult = lifeSkillMods.stockReturnMult;
+  if (typeof stockReturnMult === 'number' && isFinite(stockReturnMult) && stockReturnMult > 1 && stocksIncome > 0) {
+    stocksIncome = Math.round(stocksIncome * stockReturnMult);
+  }
   const safeStocksIncome = Math.min(PER_SOURCE_CAPS.stocks, isFinite(stocksIncome) && stocksIncome >= 0 ? stocksIncome : 0);
   const safeRealEstateIncome = Math.min(PER_SOURCE_CAPS.realEstate, isFinite(realEstateIncome) && realEstateIncome >= 0 ? realEstateIncome : 0);
   const safeSocialMediaIncome = Math.min(PER_SOURCE_CAPS.socialMedia, isFinite(socialMediaIncome) && socialMediaIncome >= 0 ? socialMediaIncome : 0);
@@ -610,6 +617,12 @@ export function calcWeeklyPassiveIncome(
   // This prevents passive income from making the game trivial for ultra-rich players
   // while still allowing wealth growth, just at a slower rate
   let total = isFinite(rawTotal) && rawTotal >= 0 ? rawTotal : 0;
+  // Life Skills: Wealth Mastery (+25% passive income) scales the combined total
+  // BEFORE the ultra-rich net-worth soft cap below, so it never breaks the cap.
+  const passiveIncomeMult = lifeSkillMods.passiveIncomeMult;
+  if (typeof passiveIncomeMult === 'number' && isFinite(passiveIncomeMult) && passiveIncomeMult > 1 && total > 0) {
+    total = Math.round(total * passiveIncomeMult);
+  }
   const currentNetWorth = netWorth(state);
   // CRITICAL: Validate netWorth before comparison
   const safeNetWorth = isFinite(currentNetWorth) && currentNetWorth >= 0 ? currentNetWorth : 0;

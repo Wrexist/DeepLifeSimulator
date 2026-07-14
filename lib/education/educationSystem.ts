@@ -282,6 +282,12 @@ export function runExam(
   education: Education,
   currentEnergy: number,
   hasStudyGroup: boolean,
+  /**
+   * Life Skills exam bonus (Critical Thinking / Memory Palace / Polymath).
+   * Additive to pass chance BEFORE the clamp, so it can't push past the 0.95
+   * ceiling. Bounded [0, 0.3] by the accessor; defaults to 0 (neutral).
+   */
+  lifeSkillPassBonus: number = 0,
 ): ExamResult {
   const difficulty = getAverageDifficulty(education.enrolledClasses || []);
   const gpa = education.gpa || 2.0;
@@ -303,6 +309,11 @@ export function runExam(
   // Difficulty penalty
   if (difficulty >= 2.5) passChance -= 0.10;
   else if (difficulty <= 1.5) passChance += 0.10;
+
+  // Life Skills: study effectiveness / retention bonus (bounded, additive).
+  if (typeof lifeSkillPassBonus === 'number' && isFinite(lifeSkillPassBonus) && lifeSkillPassBonus > 0) {
+    passChance += Math.min(0.3, lifeSkillPassBonus);
+  }
 
   // Clamp
   passChance = Math.max(0.15, Math.min(0.95, passChance));

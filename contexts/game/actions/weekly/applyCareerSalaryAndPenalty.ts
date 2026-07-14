@@ -27,6 +27,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import type { WeekContext } from './weekContext';
 
 export interface CareerSalaryAndPenaltyResult {
@@ -67,6 +68,9 @@ export function applyCareerSalaryAndPenalty(
         let payMultiplier = 1;
         if (prevState.goldUpgrades?.work_boost) payMultiplier *= 1.5;
         if (prevState.perks?.workBoost) payMultiplier *= 1.5;
+        // Life Skills: Negotiation (+15%) / Executive (+10%) salary premium.
+        // Clamped multiplier from the centralized accessor (never negative/NaN).
+        payMultiplier *= getLifeSkillModifiers(prevState).salaryMult;
         if (payMultiplier !== 1) {
           careerSalary = Math.round(careerSalary * payMultiplier);
         }

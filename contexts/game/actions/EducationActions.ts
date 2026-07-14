@@ -19,6 +19,7 @@ import {
 import { mapClassIdsToEnrolled, STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
 import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { highestGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { trackBudgetSpend } from '@/lib/banking/operations';
@@ -181,6 +182,13 @@ export const enrollInProgram = (
     // completion stat-bonus loop, and the detail "Classes" section.
     const classes = mapClassIdsToEnrolled(spec.templateId, spec.classIds ?? []);
 
+    // Life Skills: Quick Learner (-10%) / Polymath (-15%) cut education time.
+    // Applied at enrollment as a bounded reduction in program weeks (on top of
+    // any political weeksReduction), so the fewer-weeks effect is deterministic.
+    const eduTimeReductionPct = getLifeSkillModifiers(prev).educationTimeReductionPct;
+    const safeDuration = typeof spec.duration === 'number' && isFinite(spec.duration) && spec.duration > 0 ? spec.duration : 0;
+    const lifeSkillWeeksReduction = Math.floor(safeDuration * Math.max(0, Math.min(0.4, eduTimeReductionPct)));
+
     const result = enrollPure(prev.educations ?? [], {
       templateId: spec.templateId,
       name: spec.name,
@@ -188,7 +196,7 @@ export const enrollInProgram = (
       cost: spec.cost,
       duration: spec.duration,
       startedWeek: prev.weeksLived,
-      weeksReduction: quote.weeksReductionFromPolitics,
+      weeksReduction: quote.weeksReductionFromPolitics + lifeSkillWeeksReduction,
       classes,
     });
 

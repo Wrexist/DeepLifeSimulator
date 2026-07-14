@@ -53,6 +53,7 @@ import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice 
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
@@ -458,11 +459,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // every subsequent reducer (career, diet, rent, disease, pet, vehicle)
  // shares the same instance. `newStats`, `pendingNotifications`, and
  // `preRolls` are stable references — mutations propagate naturally.
+ // Life Skills tree modifiers (unlockedLifeSkills → bounded multipliers),
+ // computed ONCE per tick and shared with every weekly reducer via weeklyCtx.
+ // Neutral (all-1) for old saves / players who unlocked nothing.
+ const lifeSkillMods = getLifeSkillModifiers(prevState);
  const weeklyCtx: WeekContext = {
    newStats,
    notifications: pendingNotifications,
    preRolls,
    nextWeeksLived,
+   lifeSkillMods,
  };
 
  // Energy REGAINS when advancing weeks (like sleeping/resting)
@@ -482,7 +488,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so the original framing did nothing. Reframe as a regen
  // boost (the cap stays 100, but you reach it 50% faster).
  const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5: 1.0;
- const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus); // Full regen amount (don't cap here)
+ // Life Skills: Stamina (+15% energy regen — reinterpreted from "+10 max energy"
+ // since the energy ceiling is a hard 100). Bounded mult from the accessor.
+ const staminaRegenMult = lifeSkillMods.energyRegenMult;
+ const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
  newStats.energy = (newStats.energy || 0) + energyRegen;
 
@@ -592,6 +601,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    legacyBuffs: prevState.legacyBuffs,
    goldMindset: Boolean(prevState.goldUpgrades?.mindset),
    perkMindset: Boolean(prevState.perks?.mindset),
+   // Life Skills: Leadership (+10%) / Executive (+15%) promotion-progress speed.
+   lifeSkillCareerProgressMult: lifeSkillMods.careerProgressMult,
  }).updatedCareers;
 
  // Progress enrolled educations automatically
@@ -747,8 +758,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  const { savingsInterest, newBankSavings } = savingsResult;
 
- // Progressive income tax on weekly earnings
- const incomeTax = calculateIncomeTax(totalIncome);
+ // Progressive income tax on weekly earnings.
+ // Life Skills: Tax Strategy (-10% tax) scales the owed tax down (bounded mult).
+ const incomeTax = Math.round(calculateIncomeTax(totalIncome) * lifeSkillMods.taxMult);
 
  // R7 Phase 2 step 2.4e: per-loan autopay extracted into
  // ./actions/weekly/applyLoanAutopay.ts. Pure helper threads cash through
@@ -875,7 +887,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (!isImmortal) {
  const yearsPast80 = nextAge - 80;
  // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
- const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95);
+ // Life Skills: Vitality (slow aging) scales the annual death chance down
+ // (agingMult ≤ 1, clamped). Never raises it; never fully immortalizes.
+ const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95) * lifeSkillMods.agingMult;
  const weeklyChance = 1 - Math.pow(1 - annualChance, 1 / WEEKS_PER_YEAR);
  if (oldAgeDeathRoll < weeklyChance) {
  newShowDeathPopup = true;

@@ -116,7 +116,10 @@ export function applyEducationProgression(
 
       // Exam check (every ~13 weeks).
       if (isExamWeek(edu, input.nextWeeksLived)) {
-        const examResult = runExam(edu, ctx.newStats.energy, !!edu.studyGroupActive);
+        // Life Skills: Critical Thinking / Memory Palace / Polymath raise the
+        // exam pass chance (bounded). Neutral 0 when nothing unlocked / old save.
+        const examBonus = ctx.lifeSkillMods?.examPassBonus ?? 0;
+        const examResult = runExam(edu, ctx.newStats.energy, !!edu.studyGroupActive, examBonus);
         updatedEdu.lastExamWeek = input.nextWeeksLived;
         updatedEdu.examsPassed = (edu.examsPassed || 0) + (examResult.passed ? 1 : 0);
         updatedEdu.examsFailed = (edu.examsFailed || 0) + (examResult.passed ? 0 : 1);

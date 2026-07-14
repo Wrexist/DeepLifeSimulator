@@ -15,6 +15,7 @@ import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { rejectIfBlocked } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
@@ -179,9 +180,13 @@ export const goOnDate = (
       // talk / to meet your friends), it satisfies that want for a diminishing
       // bonus (additive; only when a matching want is present).
       const wp = applyWantProgress(r.npcWant, 'date', prev.weeksLived || 0);
+      // Life Skills: Charisma/Social Master (relationship gains) + Persuasion
+      // (dating success) both amplify a date's relationship boost. Bounded mults.
+      const dateMods = getLifeSkillModifiers(prev);
+      const datedBoost = Math.round(config.relationshipBoost * dateMods.relationshipGainMult * dateMods.datingSuccessMult);
       return {
             ...r,
-            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost + wp.bonus),
+            relationshipScore: clampRelationshipScore(r.relationshipScore + datedBoost + wp.bonus),
             datesCount: (r.datesCount || 0) + 1,
             lastDateWeek: prev.weeksLived || 0,
             // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
@@ -292,7 +297,9 @@ export const giveGift = (
         // type (personality-driven), move their opinion, and record a memory so
         // they actually remember it. Previously every gift was identical.
         const mult = getGiftMultiplier(r, giftType);
-        const scaledBoost = Math.max(1, Math.round(config.relationshipBoost * mult));
+        // Life Skills: Charisma / Social Master boost positive relationship gains.
+        const giftGainMult = getLifeSkillModifiers(prev).relationshipGainMult;
+        const scaledBoost = Math.max(1, Math.round(config.relationshipBoost * mult * giftGainMult));
         const disliked = mult < 1.0;
         // If they'd been WANTING a gift, satisfying that want adds a diminishing
         // bonus on top (additive — only fires when a matching want is present).
