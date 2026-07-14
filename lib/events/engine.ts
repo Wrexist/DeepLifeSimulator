@@ -11,6 +11,10 @@ import { nearMissEventTemplates } from './nearMissEvents';
 import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
 import { hobbyEventTemplates } from './hobbyEvents';
+import { childhoodEventTemplates } from './childhoodEvents';
+import { parentEventTemplates } from './parentEvents';
+import { midlifeEventTemplates } from './midlifeEvents';
+import { seniorEventTemplates } from './seniorEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import {
@@ -2735,6 +2739,14 @@ export const eventTemplates: EventTemplate[] = [
   ...secretEventTemplates,
   // Hobby-mastery events (fire for the hobbies you actively practice)
   ...hobbyEventTemplates,
+  // Life-stage event packs (each strictly gated so it only fires in its own
+  // chapter — see the pack files for the exact age/status conditions):
+  //   childhood/teen (age 5-17), parent (has a child in-band),
+  //   midlife (age 50-64), senior/retirement (age 65+ and/or retired).
+  ...childhoodEventTemplates,
+  ...parentEventTemplates,
+  ...midlifeEventTemplates,
+  ...seniorEventTemplates,
 ];
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──
