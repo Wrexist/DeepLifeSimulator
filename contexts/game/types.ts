@@ -514,6 +514,36 @@ export interface Relationship {
   lastLifeEvent?: { event: string; weeksLived: number };
   job?: string; // NPC's current job
   npcMood?: 'happy' | 'neutral' | 'stressed' | 'sad' | 'angry';
+  // The NPC's CURRENT short-term want (rotates over time in the weekly tick).
+  // Distinct from the long-term `npcGoals` ("dreams of"): a want is a small,
+  // satisfiable ask (spend time / a gift / space) the player can read and fulfil
+  // for a bond boost — with diminishing returns — and pays a small cost for
+  // ignoring. Additive/optional: absent on old saves (defaults to no want until
+  // the next tick assigns one).
+  npcWant?: NPCWant;
+}
+
+/**
+ * A rotating, satisfiable short-term desire. The weekly NPC-depth tick assigns
+ * one, rotates it every few weeks, rewards satisfying it (diminishing per cycle)
+ * and levies a small cost when a "needy" want lapses unmet.
+ */
+export type NPCWantId =
+  | 'hear_from_you'
+  | 'quality_time'
+  | 'deep_talk'
+  | 'a_gift'
+  | 'meet_friends'
+  | 'space';
+
+export interface NPCWant {
+  id: NPCWantId;
+  /** Player-facing phrase, e.g. "Wants to spend time together". */
+  label: string;
+  /** weeksLived when this want was assigned — drives rotation + neglect. */
+  since: number;
+  /** Times satisfied during the CURRENT cycle (drives diminishing returns). */
+  satisfiedCount: number;
 }
 
 export interface NPCGoal {

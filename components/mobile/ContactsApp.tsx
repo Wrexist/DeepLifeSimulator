@@ -60,7 +60,7 @@ import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
 import { redeemFavor, repayFavor, recordInteraction } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
-import { getMoodLabel } from '@/lib/social/npcDepth';
+import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   getGlassCard,
@@ -482,7 +482,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
               {c.subtitle}{r.personality ? ` · ${r.personality}` : ''}
-              {r.npcMood ? ` · ${getMoodLabel(r.npcMood)}` : ''}
+              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={styles.recencyRow}>
               <View style={[styles.recencyDotInline, { backgroundColor: rec.color }]} />
@@ -553,6 +553,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             {r.isPregnant ? (
               <Text style={innerLine} numberOfLines={1}>
                 🤰 Expecting{r.pregnancyChildName ? ` · ${r.pregnancyChildName}` : ''}
+              </Text>
+            ) : null}
+            {/* Current WANT — the actionable "right now" ask (rotates over time).
+                Satisfying it via the matching action below gives a bond boost. */}
+            {r.npcWant ? (
+              <Text style={innerLine} numberOfLines={1}>
+                💭 Right now: <Text style={{ color: theme.text, fontWeight: '700' }}>{r.npcWant.label}</Text>
               </Text>
             ) : null}
             {(r.npcGoals ?? []).filter((g) => !g.fulfilled).slice(0, 3).map((g) => (

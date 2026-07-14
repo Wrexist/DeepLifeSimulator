@@ -14,7 +14,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { rejectIfBlocked } from './_guards';
-import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion } from '@/lib/social/npcDepth';
+import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
@@ -173,11 +173,15 @@ export const goOnDate = (
       energy: Math.max(0, Math.min(100, (prev.stats.energy || 0) - config.energy)),
       happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
     },
-    relationships: (prev.relationships || []).map(r =>
-      r.id === partnerId
-        ? {
+    relationships: (prev.relationships || []).map(r => {
+      if (r.id !== partnerId) return r;
+      // A date is quality time — if they'd been wanting time together (or a real
+      // talk / to meet your friends), it satisfies that want for a diminishing
+      // bonus (additive; only when a matching want is present).
+      const wp = applyWantProgress(r.npcWant, 'date', prev.weeksLived || 0);
+      return {
             ...r,
-            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
+            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost + wp.bonus),
             datesCount: (r.datesCount || 0) + 1,
             lastDateWeek: prev.weeksLived || 0,
             // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
@@ -188,6 +192,7 @@ export const goOnDate = (
             lastInteractionWeek: prev.weeksLived || 0,
             weeklyInteractions:
               (r.lastInteractionWeek === (prev.weeksLived || 0) ? (r.weeklyInteractions || 0) : 0) + 1,
+            npcWant: wp.want,
             // NPC reactivity: a date builds trust/attraction and is remembered.
             npcOpinion: updateOpinion(
               r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
@@ -195,13 +200,12 @@ export const goOnDate = (
             ),
             npcMemories: addMemory(r.npcMemories ?? [], {
               type: 'date',
-              description: `You took them on a ${dateType} date`,
+              description: `You took them on a ${dateType} date${wp.satisfied ? ' — exactly the time together they wanted' : ''}`,
               weeksLived: prev.weeksLived || 0,
               sentiment: 'positive',
             }),
-          }
-        : r
-    ),
+          };
+    }),
     // Only record first_date milestone if one doesn't already exist for this partner
     lifeMilestones: (prev.lifeMilestones || []).some(m => m.type === 'first_date' && m.partnerId === partnerId)
       ? prev.lifeMilestones
@@ -290,9 +294,12 @@ export const giveGift = (
         const mult = getGiftMultiplier(r, giftType);
         const scaledBoost = Math.max(1, Math.round(config.relationshipBoost * mult));
         const disliked = mult < 1.0;
+        // If they'd been WANTING a gift, satisfying that want adds a diminishing
+        // bonus on top (additive — only fires when a matching want is present).
+        const wp = applyWantProgress(r.npcWant, 'gift', prevWeek);
         return {
           ...r,
-          relationshipScore: clampRelationshipScore(r.relationshipScore + scaledBoost),
+          relationshipScore: clampRelationshipScore(r.relationshipScore + scaledBoost + wp.bonus),
           giftsReceived: (r.giftsReceived || 0) + 1,
           giftsThisWeek: prevGiftsThisWeek + 1,
           lastGiftWeek: prevWeek,
@@ -300,13 +307,14 @@ export const giveGift = (
           lastInteractionWeek: prevWeek,
           weeklyInteractions:
             (r.lastInteractionWeek === prevWeek ? (r.weeklyInteractions || 0) : 0) + 1,
+          npcWant: wp.want,
           npcOpinion: updateOpinion(
             r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
             disliked ? 'gift_disliked' : 'gift_liked',
           ),
           npcMemories: addMemory(r.npcMemories ?? [], {
             type: 'gift',
-            description: `You gave them ${config.message}${mult > 1 ? ' — a favorite' : disliked ? " — not their taste" : ''}`,
+            description: `You gave them ${config.message}${wp.satisfied ? ' — just what they wanted' : mult > 1 ? ' — a favorite' : disliked ? " — not their taste" : ''}`,
             weeksLived: prevWeek,
             sentiment: disliked ? 'negative' : 'positive',
           }),
@@ -315,13 +323,15 @@ export const giveGift = (
     };
   });
 
-  // Message reflects the NPC's actual taste.
+  // Message reflects the NPC's actual taste — and whether it answered a want.
   const reactMult = getGiftMultiplier(partner, giftType);
+  const wantedGift = applyWantProgress(partner.npcWant, 'gift', currentWeeksLived).satisfied;
   const reaction = reactMult > 1 ? `${partner.name} adored ${config.message}!`
     : reactMult < 1 ? `${partner.name} accepted ${config.message}, but it wasn't quite their taste.`
     : `${partner.name} appreciated ${config.message}.`;
+  const finalReaction = wantedGift ? `${reaction} They'd been hoping for a gift — it really landed.` : reaction;
   log.info(`Gift to ${partner.name} - type: ${giftType}`);
-  return { success: true, message: reaction };
+  return { success: true, message: finalReaction };
 };
 
 /**
