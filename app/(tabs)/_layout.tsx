@@ -14,6 +14,7 @@ import { useStatChanges } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
+import AdRewardOrb from '@/components/AdRewardOrb';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
@@ -307,6 +308,12 @@ export default function TabLayout() {
     ) : null}
     {/* ENGAGEMENT: Floating stat change indicators on week advance */}
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
+    {/* Floating "watch ad → cash / vitality" reward orb — mounted at the
+        tab-group level so it drifts in over ANY game tab (Home / Work / Apps /
+        Life), not just Home. Self-manages its own appear/hide scheduling and
+        hides itself during blocking moments (death/wedding/jail) + when ads are
+        removed. */}
+    <AdRewardOrb />
     </View>
   );
 }

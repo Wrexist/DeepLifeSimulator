@@ -48,7 +48,7 @@ export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boole
  */
 export async function runRewardedAd(
   grant: () => void,
-  opts: { adsRemoved?: boolean } = {}
+  opts: { adsRemoved?: boolean; grantOnNoFill?: boolean } = {}
 ): Promise<RewardedAdOutcome> {
   const adsOn = !opts.adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
   if (!adsOn) {
@@ -60,11 +60,25 @@ export async function runRewardedAd(
   try {
     const { adMobService } = await import('@/services/AdMobService');
     const shown = await adMobService.showRewardedAd(grant);
-    return shown ? 'granted-ad' : 'no-fill';
+    if (shown) return 'granted-ad';
+    // No ad was available to serve (no-fill — very common in TestFlight and on
+    // brand-new ad units). `grantOnNoFill` callers (e.g. the rate-limited reward
+    // orb) grant the reward anyway rather than cheating a player who tapped
+    // "Watch ad" when there was simply no inventory. Real ads still play and earn
+    // revenue whenever inventory IS available — this is only the empty fallback.
+    if (opts.grantOnNoFill) {
+      grant();
+      return 'granted-direct';
+    }
+    return 'no-fill';
   } catch (err) {
     logger.warn('[rewardedAd] rewarded ad failed', {
       error: err instanceof Error ? err.message : String(err),
     });
+    if (opts.grantOnNoFill) {
+      grant();
+      return 'granted-direct';
+    }
     return 'error';
   }
 }
