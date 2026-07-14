@@ -98,6 +98,7 @@ import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
 import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
+import { getRetirementIncomeWeekly } from '@/lib/retirement';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
@@ -680,6 +681,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // gold upgrade + onboarding-perk income bonuses. Byte-faithful to the
  // legacy inline code — verified by snapshot tests in __tests__/refactor.
  const weeksLivedNow = prevState.weeksLived || 0;
+ // Retirement pension — 0 while working; the frozen weekly pension once retired.
+ // Credited flat through the canonical income path below (no minting/amplifying).
+ const retirementIncome = getRetirementIncomeWeekly(prevState);
  const incomeResult = computeWeeklyIncome({
    prevState,
    careerSalary,
@@ -689,6 +693,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    unlockedBonuses,
    // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
    economyIncomeMultiplier: prevState.economy?.economyEvents?.modifiers?.incomeMultiplier,
+   retirementIncome,
  });
  const { partnerIncome, baseTotalIncome, totalIncome } = incomeResult;
 

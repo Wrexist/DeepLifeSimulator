@@ -32,6 +32,7 @@ import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
+import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -473,6 +474,12 @@ function HomeScreenContent() {
             Renders only when an ambition was picked (freeform lives skip it). */}
         <FadeInUp delay={55}>
           <AmbitionCard />
+        </FadeInUp>
+
+        {/* Retirement / Elder chapter — retire, pension, elder activities, legacy.
+            Renders only when eligible to retire, elderly, or retired. */}
+        <FadeInUp delay={57}>
+          <ElderCard />
         </FadeInUp>
 
         {/* Active Goals Section */}

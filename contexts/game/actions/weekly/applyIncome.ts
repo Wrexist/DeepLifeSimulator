@@ -57,6 +57,14 @@ export interface IncomeTickInput {
    * never touched the paycheck. Defaults to 1.0 (no active event / no effect).
    */
   economyIncomeMultiplier?: number;
+  /**
+   * Weekly retirement pension (dollars) for a retired life — 0 while working.
+   * Added FLAT, AFTER all multipliers, so exactly the pre-computed, bounded
+   * `pensionWeekly` reaches the paycheck (no perk/prestige/economy amplification
+   * and no money minted beyond the pension). Defaults to 0 → byte-identical
+   * output for every non-retired tick.
+   */
+  retirementIncome?: number;
 }
 
 export interface IncomeTickResult {
@@ -129,9 +137,17 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
     ? rawEconMult
     : 1.0;
 
+  // 8. Retirement pension — added FLAT after all multipliers so exactly the
+  // pre-computed, bounded weekly pension reaches the paycheck (no amplification,
+  // no minting). Sanitized to a finite, non-negative number.
+  const rawRetirement = input.retirementIncome;
+  const safeRetirementIncome = typeof rawRetirement === 'number' && isFinite(rawRetirement) && rawRetirement > 0
+    ? rawRetirement
+    : 0;
+
   const totalIncome = Math.round(
     baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus * safeEconMult,
-  );
+  ) + safeRetirementIncome;
 
   return { partnerIncome, baseTotalIncome, totalIncome };
 }

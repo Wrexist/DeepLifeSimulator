@@ -2500,6 +2500,31 @@ export interface GameState {
   ambitionCompletedMilestones?: string[];
   ambitionRewardClaimed?: boolean;
   /**
+   * Retirement & Elder endgame (v22.x, additive/optional). All fields absent on
+   * old saves and on any life that has not retired — every reader treats a
+   * missing `isRetired` as "still working". No migration / no save-version bump;
+   * already-elderly loaded lives are NOT auto-retired.
+   *
+   * `isRetired` is a one-way latch for the current life (anti-farm: you cannot
+   * un-retire or re-retire to re-roll the pension). `pensionWeekly` is computed
+   * ONCE at retirement from real work history (lib/retirement) and frozen for
+   * life; it is credited weekly through the canonical income → stats.money path.
+   * `elderActivity` holds per-activity cooldown bookkeeping (id → weeksLived last
+   * used) for the age-gated elder activities in lib/retirement/elderActivities.
+   */
+  isRetired?: boolean;
+  retiredAtAge?: number;
+  /** weeksLived at the moment of retirement (drives "years retired" + event gating). */
+  retiredAtWeek?: number;
+  /** Frozen weekly pension (dollars), computed from career history at retirement. */
+  pensionWeekly?: number;
+  elderActivity?: {
+    /** activityId → weeksLived when it was last performed (drives cooldowns). */
+    lastUsedWeek: Record<string, number>;
+    /** Lifetime count of elder activities performed (flavour/stats). */
+    totalActivities: number;
+  };
+  /**
    * Hobby mastery (v21) — pursuits you practice weekly to level up, each with a
    * compounding perk. `pursuits[id]` accrues xp; `weeklyPursuitPractice` caps
    * practices per week and is reset on week advance (like weeklyStudySessions).

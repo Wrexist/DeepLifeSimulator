@@ -567,6 +567,12 @@ export const applyForJob = (
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
 
+  // Retirement is a one-way latch — a retired life draws a fixed pension and
+  // cannot re-enter the career workforce (anti-farm: no un-retire via a new job).
+  if (gameState.isRetired) {
+    return { success: false, message: "You've retired — enjoy your pension. There's no going back to work." };
+  }
+
   const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
