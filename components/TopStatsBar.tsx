@@ -498,26 +498,19 @@ function TopStatsBarComponent() {
  const containerPadding = isVerySmallDevice
  ? responsivePadding.horizontal * 0.7 // Reduced from 0.8
 : responsivePadding.horizontal * 1.2;
- // Shorter HUD: the redesigned 3-row grid packs tighter than the old left
- // stack, so the min-height floor comes down (content still grows past it when
- // scaled up on iPad / with large text).
  const containerMinHeight = isIPad()
- ? scale(178)
-: (isVerySmallDevice ? scale(120): scale(140));
+ ? scale(200)
+: (isVerySmallDevice ? scale(140): scale(160));
  const containerStyle = [
  styles.container,
  darkMode && styles.containerDark,
  { paddingHorizontal: containerPadding, minHeight: containerMinHeight }
  ];
- // De-emphasized utility cluster: muted icon on a subtle low-contrast chip, so
- // the gem-shop / help / settings / seasonal controls read as one quiet cluster
- // rather than a bright row (they stay reachable via hitSlop on the pressables).
- const utilityIconColor = darkMode ? '#94A3B8': '#64748B';
- const utilityIconSize = isIPad() ? 20: 16;
- const utilityInnerStyle = {
- backgroundColor: darkMode ? 'rgba(255,255,255,0.06)': 'rgba(15,23,42,0.05)',
- borderColor: darkMode ? 'rgba(255,255,255,0.08)': 'rgba(15,23,42,0.08)',
- };
+ const iconColor = darkMode ? '#E5E7EB': '#111827';
+
+ const controlButtonGradient: [string, string] = darkMode
+ ? ['#1F2937', '#111827']
+: ['#FFFFFF', '#F3F4F6'];
 
  const formatGems = (amount: number) => {
  const a = Math.floor(amount || 0);
@@ -581,10 +574,9 @@ function TopStatsBarComponent() {
 
  return (
  <View style={containerStyle}>
-      {/* Row 1 — identity (Gen + prestige + quiet utilities) ↔ compact date + advance */}
-      <View style={styles.topRow}>
-        <View style={styles.identityCluster}>
-          <View style={styles.generationRow}>
+ {/* Left: generation badge + controls + stats */}
+ <View style={[styles.leftSection, { minWidth: 0 }]}>
+ <View style={styles.generationRow}>
  <Text style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
  Gen {generationNumber ?? 1}
  </Text>
@@ -602,54 +594,47 @@ function TopStatsBarComponent() {
  </View>
  )}
  </View>
-          {/* De-emphasized utility cluster — gem shop / help / settings / seasonal */}
-          <View style={styles.utilityCluster}>
-            <TouchableOpacity
-              onPress={() => { buttonPress(); setOpenModal('gemShop'); }}
-              style={styles.utilityButton}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-              accessibilityLabel="Open Gem Shop"
-              accessibilityRole="button"
-              accessibilityHint="Tap to open the gem shop where you can purchase items with gems"
-            >
-              <View style={[styles.utilityButtonInner, utilityInnerStyle]}>
-                <ShoppingCart size={utilityIconSize} color={utilityIconColor} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { buttonPress(); setOpenModal('help'); }}
-              style={styles.utilityButton}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-              accessibilityLabel="Open Help Menu"
-              accessibilityRole="button"
-              accessibilityHint="Tap to open help and information about the game"
-            >
-              <View style={[styles.utilityButtonInner, utilityInnerStyle]}>
-                <HelpCircle size={utilityIconSize} color={utilityIconColor} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { buttonPress(); setOpenModal('settings'); }}
-              style={styles.utilityButton}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-              accessibilityLabel="Open Settings"
-              accessibilityRole="button"
-              accessibilityHint={ACCESSIBILITY_HINTS.BUTTONS.SETTINGS}
-            >
-              <View style={[styles.utilityButtonInner, utilityInnerStyle]}>
-                <Settings size={utilityIconSize} color={utilityIconColor} />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.utilityButton}>
-              <SeasonalIndicator size={utilityIconSize} />
-            </View>
-          </View>
-        </View>
-        <RightSide date={date} />
-      </View>
+ <View style={styles.leftIconRow}>
+ <TouchableOpacity
+ onPress={() => { buttonPress(); setOpenModal('gemShop'); }}
+ style={[styles.iconButton, darkMode && styles.iconButtonDark]}
+ activeOpacity={0.85}
+ accessibilityLabel="Open Gem Shop"
+ accessibilityRole="button"
+ accessibilityHint="Tap to open the gem shop where you can purchase items with gems"
+ >
+ <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <ShoppingCart size={22} color={iconColor} />
+ </LinearGradient>
+ </TouchableOpacity>
+ <TouchableOpacity
+ onPress={() => { buttonPress(); setOpenModal('help'); }}
+ style={[styles.iconButton, darkMode && styles.iconButtonDark]}
+ activeOpacity={0.85}
+ accessibilityLabel="Open Help Menu"
+ accessibilityRole="button"
+ accessibilityHint="Tap to open help and information about the game"
+ >
+ <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <HelpCircle size={22} color={iconColor} />
+ </LinearGradient>
+ </TouchableOpacity>
+ <TouchableOpacity
+ onPress={() => { buttonPress(); setOpenModal('settings'); }}
+ style={[styles.iconButton, darkMode && styles.iconButtonDark]}
+ activeOpacity={0.85}
+ accessibilityLabel="Open Settings"
+ accessibilityRole="button"
+ accessibilityHint={ACCESSIBILITY_HINTS.BUTTONS.SETTINGS}
+ >
+ <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <Settings size={22} color={iconColor} />
+ </LinearGradient>
+ </TouchableOpacity>
+ <View style={[styles.iconButton, darkMode && styles.iconButtonDark]}>
+ <SeasonalIndicator size={22} />
+ </View>
+ </View>
 
  <View style={styles.vitalsRingRow}>
  {progressStats.map(({ key, icon: Icon, gradient, max, quickActions, value, netChange }) => {
@@ -725,7 +710,7 @@ function TopStatsBarComponent() {
  )}
  </View>
  <View style={styles.vitalRingLabelRow}>
- <Text style={[styles.vitalRingValue, !darkMode && styles.vitalRingValueLight]}>{Math.round(value)}</Text>
+ <Text style={styles.vitalRingValue}>{Math.round(value)}</Text>
  {showStatArrows && netChange!== undefined && netChange!== 0 && (
  netChange > 0 ? (
  <ArrowUp size={scale(10)} color="#10B981"/>
@@ -762,9 +747,9 @@ function TopStatsBarComponent() {
  })}
  </View>
 
-      {/* Row 3 — money / bank / gems chips, centered */}
-      <View style={styles.bottomRow}>
-        <View style={styles.moneyCluster}>
+ {/* Money, Bank, Gems — NEW CHIP STYLES */}
+ <View style={styles.moneyRow}>
+ <View style={[styles.leftMoneySection, { flexWrap: isVerySmallDevice ?'wrap': 'nowrap'}]}>
  <TouchableOpacity
  onPress={() => {
  buttonPress();
@@ -869,8 +854,12 @@ function TopStatsBarComponent() {
  </View>
  </LinearGradient>
  </TouchableOpacity>
-        </View>
-      </View>
+ </View>
+ </View>
+ </View>
+
+ {/* Right: date + next week */}
+ <RightSide date={date} />
  {/* Modals — single openModal state controls visibility. Each is lazy and
      only mounted while open, then wrapped in Suspense so the chunk can load. */}
  {openModal && (
@@ -976,50 +965,64 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  return <View style={styles.rightSection} />;
  }
 
- // Bound the compact right cluster (date chip + advance button) so it can never
- // overflow into the identity cluster on the left. Same clamp philosophy as the
- // old date-box math, adapted to the slimmer horizontal layout.
+ // Calculate responsive date box dimensions with better constraints
+ // Use the same breakpoint as the main component
  const SMALL_DEVICE_BREAKPOINT = 360;
  const isVerySmallDevice = isSmallDevice() && width < SMALL_DEVICE_BREAKPOINT;
 
  const containerPadding = responsivePadding.horizontal * 1.2 * 2;
- // Reserve room for the identity cluster on the left; the rest is available to
- // the right cluster (then hard-clamped below).
+ // More conservative left section width to prevent overlap
  const leftSectionMinWidth = isVerySmallDevice
- ? width * 0.44
-: width * 0.48;
+ ? width * 0.62 // Reduced from 0.65
+: width * 0.56; // Reduced from 0.58 to give right section more room on large devices
  const availableRightWidth = Math.max(
- scale(96),
+ scale(80),
  width - containerPadding - leftSectionMinWidth
  );
 
- // Hard clamp to a share of the row width to prevent overflow on wide/tall phones.
- const rightSectionMaxWidth = isIPad()
- ? scale(260)
+ // Handle extra large devices (iPhone 15 Pro Max, large Android phones) - limit date box size
+ const maxDateBoxWidth = isIPad()
+ ? scale(170)
 : isExtraLargeDevice
- ? width * 0.5
+ ? scale(95) // Extra large phones (iPhone 17 Pro Max etc) — give date box enough room
 : isVerySmallDevice
- ? width * 0.52
-: width * 0.5;
+ ? scale(85) // Reduced from 90
+: scale(105); // Reduced from 110 to 105 for better fit
+
+ const dateBoxWidthRaw = isIPad()
+ ? scale(170)
+: isExtraLargeDevice
+ ? Math.min(maxDateBoxWidth, Math.max(scale(75), availableRightWidth * 0.65)) // More conservative for large screens (reduced from 0.7)
+: isVerySmallDevice
+ ? Math.min(scale(85), Math.max(scale(65), availableRightWidth * 0.85)) // More conservative
+: Math.min(maxDateBoxWidth, Math.max(scale(80), availableRightWidth * 0.8)); // Reduced from 0.85
+
+ // Hard clamp to right column width to prevent overflow on wide/tall phones.
+ const rightSectionMaxWidth = isVerySmallDevice
+ ? width * 0.38 // Ensure it doesn't exceed available space
+: width * 0.44; // Increased from 0.42 to prevent overlap on large devices
  const rightSectionWidth = Math.max(
- scale(96),
+ scale(85),
  Math.min(rightSectionMaxWidth, availableRightWidth)
  );
 
- // The advance button + gap are fixed; the date chip gets the remaining width and
- // its text shrinks (adjustsFontSizeToFit), so the cluster always fits.
- const advanceButtonSize = isIPad()
- ? scale(52)
+ const dateBoxWidth = Math.min(dateBoxWidthRaw, rightSectionWidth);
+ const dateBoxMaxWidth = Math.min(maxDateBoxWidth, rightSectionWidth);
+
+ const dateBoxHeight = isIPad()
+ ? scale(140)
 : isExtraLargeDevice
- ? scale(46)
+ ? scale(95) // Slightly smaller height for large screens
 : isVerySmallDevice
- ? scale(38)
-: scale(44);
- const clusterGap = scale(6);
- const dateChipMaxWidth = Math.max(
- scale(54),
- rightSectionWidth - advanceButtonSize - clusterGap
- );
+ ? scale(80) // Extra small height
+: isSmallDevice()
+ ? scale(90)
+: scale(100);
+ const dateBoxMinHeight = isIPad()
+ ? scale(140)
+: isExtraLargeDevice
+ ? scale(90)
+: (isVerySmallDevice ? scale(75): scale(85));
 
  // Calculate responsive margin for right section
  const rightSectionMargin = isVerySmallDevice
@@ -1032,68 +1035,88 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  width: rightSectionWidth,
  maxWidth: rightSectionWidth
  }]}>
-      <View style={styles.dateAdvanceCluster}>
-        <LinearGradient
-          colors={['#3B82F6', '#2563EB'] as const}
-          style={[styles.dateChip, { maxWidth: dateChipMaxWidth }]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text
-            style={[
-              styles.datePrimaryText,
-              isExtraLargeDevice && { fontSize: responsiveFontSize.base, lineHeight: scale(17) },
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.7}
-          >
-            {(() => {
-              const monthLabel = (() => {
-                if (!date?.month) return '';
-                const monthNum = typeof date.month === 'number' ? date.month : parseInt(String(date.month), 10);
-                if (isNaN(monthNum)) return String(date.month).replace(/\s*Week\s*\d+/i, '').replace(/\d+/g, '').trim();
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return monthNames[Math.max(0, Math.min(11, monthNum - 1))] || '';
-              })();
-              const yearLabel = Math.floor(date?.year || 2025);
-              return monthLabel ? `${monthLabel} ${yearLabel}` : `${yearLabel}`;
-            })()}
-          </Text>
-          <Text
-            style={[
-              styles.dateAgeText,
-              isExtraLargeDevice && { fontSize: responsiveFontSize.sm, lineHeight: scale(15) },
-            ]}
-            numberOfLines={1}
-          >
-            Age {Math.floor(date?.age || 0)}
-          </Text>
-          <View style={styles.weekDots}>
-            {[1, 2, 3, 4].map((w, idx) => {
-              const currentWeek = Math.min(4, Math.max(1, Math.floor(date?.week ?? 1)));
-              const isCurrent = w === currentWeek;
-              const isPast = w < currentWeek;
-              return (
-                <Animated.View
-                  key={w}
-                  style={[
-                    styles.weekDot,
-                    isPast && styles.weekDotPast,
-                    isCurrent && styles.weekDotCurrent,
-                    !isPast && !isCurrent && styles.weekDotFuture,
-                    isExtraLargeDevice && styles.weekDotXL,
-                    { transform: [{ scale: weekAnimations[idx] }] },
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </LinearGradient>
+ <LinearGradient
+ colors={['#60A5FA', '#3B82F6', '#2563EB']}
+ style={[
+ styles.dateOuter,
+ {
+ width: dateBoxWidth,
+ maxWidth: dateBoxMaxWidth,
+ height: dateBoxHeight,
+ minHeight: dateBoxMinHeight,
+ }
+ ] as any}
+ start={{ x: 0, y: 0 }}
+ end={{ x: 1, y: 1 }}
+ >
+ <View style={styles.dateInner}>
+ <View style={styles.dateHeader}>
+ <Text
+ style={[
+ styles.yearText,
+ isExtraLargeDevice && {
+ fontSize: responsiveFontSize.base,
+ lineHeight: scale(18),
+ }
+ ]}
+ numberOfLines={1}
+ >{Math.floor(date?.year || 2025)}</Text>
+ </View>
+ <Text
+ style={[
+ styles.monthText,
+ isExtraLargeDevice && {
+ fontSize: responsiveFontSize.sm,
+ lineHeight: scale(15),
+ }
+ ]}
+ numberOfLines={1}
+ adjustsFontSizeToFit={true}
+ minimumFontScale={0.7}
+ >
+ {(() => {
+ if (!date?.month) return 'Unknown';
+ const monthNum = typeof date.month === 'number'? date.month: parseInt(String(date.month), 10);
+ if (isNaN(monthNum)) return String(date.month).replace(/\s*Week\s*\d+/i,'').replace(/\d+/g, '').trim() || 'Unknown';
+ // Convert month number to month name (1-12)
+ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+ return monthNames[Math.max(0, Math.min(11, monthNum - 1))] || 'Unknown';
+ })()}
+ </Text>
+ <Text style={[
+ styles.ageText,
+ isExtraLargeDevice && {
+ fontSize: responsiveFontSize.xs,
+ lineHeight: scale(13),
+ }
+ ]}>Age {Math.floor(date?.age || 0)}</Text>
+ <View style={styles.weekDots}>
+ {[1, 2, 3, 4].map((w, idx) => {
+ const currentWeek = Math.min(4, Math.max(1, Math.floor(date?.week ?? 1)));
+ const isCurrent = w === currentWeek;
+ const isPast = w < currentWeek;
+ return (
+ <Animated.View
+ key={w}
+ style={[
+ styles.weekDot,
+ isPast && styles.weekDotPast,
+ isCurrent && styles.weekDotCurrent,
+ !isPast && !isCurrent && styles.weekDotFuture,
+ isExtraLargeDevice && styles.weekDotXL,
+ { transform: [{ scale: weekAnimations[idx] }] },
+ ]}
+ />
+ );
+ })}
+ </View>
+ </View>
+ </LinearGradient>
 
-        <View style={styles.nextWeekContainer}>
-          <AnimatedView style={animatedStyle}>
-            <TouchableOpacity
+ <View style={styles.seasonalAndNextWeekContainer}>
+ <View style={styles.nextWeekContainer}>
+ <AnimatedView style={animatedStyle}>
+ <TouchableOpacity
  onPress={() => {
  if (isAdvancingWeek) return;
  // Snapshot the week now so we can detect a year boundary after the tick.
@@ -1146,38 +1169,37 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  }
  });
  }}
-              onPressIn={onPressIn}
-              onPressOut={onPressOut}
-              activeOpacity={0.7}
-              disabled={isAdvancingWeek}
-              accessibilityLabel={isAdvancingWeek ? "Advancing to next week": "Advance to next week"}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isAdvancingWeek }}
-            >
-              <LinearGradient colors={isAdvancingWeek ? ['#6B7280','#9CA3AF'] as const: ['#16A34A', '#22C55E'] as const} style={[styles.nextWeekButton, { width: advanceButtonSize, height: advanceButtonSize }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                {isAdvancingWeek ? (
-                  <Animated.View
-                    style={{
-                      transform: [
-                        {
-                          rotate: spinValue.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['0deg', '360deg'],
-                          }),
-                        },
-                      ],
-                    }}
-                  >
-                    <ArrowRightCircle size={20} color="#FFFFFF"/>
-                  </Animated.View>
-                ): (
-                  <ArrowRightCircle size={20} color="#FFFFFF" />
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </AnimatedView>
-        </View>
-      </View>
+ onPressIn={onPressIn}
+ onPressOut={onPressOut}
+ activeOpacity={0.7}
+ disabled={isAdvancingWeek}
+ accessibilityLabel={isAdvancingWeek ? "Advancing to next week": "Advance to next week"}
+ accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
+ >
+ <LinearGradient colors={isAdvancingWeek ? ['#6B7280','#9CA3AF'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ {isAdvancingWeek ? (
+ <Animated.View
+ style={{
+ transform: [
+ {
+ rotate: spinValue.interpolate({
+ inputRange: [0, 1],
+ outputRange: ['0deg', '360deg'],
+ }),
+ },
+ ],
+ }}
+ >
+ <ArrowRightCircle size={20} color="#FFFFFF"/>
+ </Animated.View>
+ ): (
+ <ArrowRightCircle size={20} color="#FFFFFF" />
+ )}
+ </LinearGradient>
+ </TouchableOpacity>
+ </AnimatedView>
+ </View>
+ </View>
  </View>
  );
 }, (prevProps, nextProps) => {

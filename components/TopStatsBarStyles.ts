@@ -1,28 +1,16 @@
 /**
  * Styles for TopStatsBar. Extracted verbatim to slim the component file.
  * Static module-level StyleSheet.
- *
- * Layout model (redesign): a calm vertical 3-row grid instead of a tall left
- * stack vs. a big right block —
- *   Row 1 (topRow):     identity cluster (Gen + prestige + subtle utilities)  ↔  compact date + advance button
- *   Row 2 (vitalsRow):  the 3 vital rings, centered and evenly spaced
- *   Row 3 (bottomRow):  money / bank / gems chips, centered
- * Even spacing, consistent radii, aligned baselines, symmetric padding.
  */
 import { Platform, StyleSheet } from 'react-native';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, isIPad, isSmallDevice } from '@/utils/scaling';
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, touchTargets, scale, isIPad } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-
-// Small, de-emphasized utility button size (gem shop / help / settings / seasonal).
-// Smaller than a primary touch target on purpose — a subtle cluster, not a bright
-// row — but kept reachable via hitSlop on the pressables.
-const UTILITY_SIZE = isIPad() ? scale(42) : isSmallDevice() ? scale(30) : scale(34);
 
 export const styles = StyleSheet.create({
  container: {
- flexDirection: 'column',
- justifyContent: 'center',
- alignItems: 'stretch',
+ flexDirection:'row',
+ justifyContent: 'space-between',
+ alignItems: 'flex-start',
  paddingHorizontal: responsivePadding.horizontal * 1.2,
  paddingVertical: responsiveSpacing.xs,
  backgroundColor: '#FFFFFF',
@@ -60,24 +48,17 @@ export const styles = StyleSheet.create({
  elevation: 6,
  },
 
- // --- Row 1: identity (left) ↔ date + advance (right) ---
- topRow: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'space-between',
- marginBottom: responsiveSpacing.sm,
- },
- identityCluster: {
+ leftSection: {
+ flex: 1,
  flexDirection: 'column',
  alignItems: 'flex-start',
- justifyContent: 'center',
- gap: responsiveSpacing.xs,
+ minWidth: 0, // Allow flex shrinking
  flexShrink: 1,
- minWidth: 0,
  },
  generationRow: {
  flexDirection: 'row',
  alignItems: 'center',
+ marginBottom: responsiveSpacing.xs * 0.5,
  gap: responsiveSpacing.xs,
  },
  generationBadge: {
@@ -102,10 +83,9 @@ export const styles = StyleSheet.create({
  }),
  },
  generationBadgeDark: {
- backgroundColor: 'rgba(96, 165, 250, 0.14)',
- color: '#BFDBFE',
- borderWidth: 1,
- borderColor: 'rgba(96, 165, 250, 0.22)',
+ backgroundColor: 'rgba(255, 255, 255, 0.08)',
+ color: '#E5E7EB',
+ borderWidth: 0,
  shadowColor: 'transparent',
  },
  prestigeBadgeContainer: {
@@ -138,37 +118,310 @@ export const styles = StyleSheet.create({
  fontWeight: 'bold',
  color: '#FFFFFF',
  },
+ leftIconRow: { flexDirection: 'row', marginBottom: responsiveSpacing.xs },
 
- // --- De-emphasized utility cluster (gem shop / help / settings / seasonal) ---
- utilityCluster: {
+ iconButton: {
+ width: isIPad() ? touchTargets.large: touchTargets.minimum,
+ height: isIPad() ? touchTargets.large: touchTargets.minimum,
+ marginRight: responsiveSpacing.xs,
+ borderRadius: (isIPad() ? touchTargets.large: touchTargets.minimum) / 2,
+ overflow: 'hidden',
+ backgroundColor: 'transparent',
+ },
+ iconButtonDark: {},
+ iconButtonGradient: { flex: 1, alignItems: 'center', justifyContent: 'center'},
+
+ statRow: {
+ flexDirection:'row',
+ alignItems: 'center',
+ marginBottom: scale(2), // Minimal spacing to prevent collapsing but reduce dead space
+ minHeight: scale(18), // Ensure minimum height to prevent collapsing
+ },
+ statArrowContainer: {
+ marginLeft: scale(6),
+ alignItems: 'center',
+ justifyContent: 'center',
+ width: scale(20),
+ },
+ diseaseIndicator: {
+ backgroundColor: '#F59E0B',
+ borderRadius: scale(10),
+ paddingHorizontal: scale(6),
+ paddingVertical: scale(2),
  flexDirection: 'row',
  alignItems: 'center',
- gap: responsiveSpacing.xs,
- },
- utilityButton: {
- width: UTILITY_SIZE,
- height: UTILITY_SIZE,
- borderRadius: UTILITY_SIZE / 2,
- overflow: 'hidden',
- alignItems: 'center',
  justifyContent: 'center',
+ minWidth: scale(20),
+ height: scale(18),
  },
- utilityButtonInner: {
- width: '100%',
- height: '100%',
- alignItems: 'center',
- justifyContent: 'center',
- borderRadius: UTILITY_SIZE / 2,
- borderWidth: 1,
+ diseaseIndicatorSerious: {
+ backgroundColor: '#EF4444',
+ },
+ diseaseIndicatorCritical: {
+ backgroundColor: '#DC2626',
+ },
+ diseaseIndicatorCount: {
+ fontSize: scale(10),
+ fontWeight: '700',
+ color: '#FFFFFF',
+ marginLeft: scale(2),
  },
 
- // --- Row 2: vitals activity rings (health / mood / energy), centered ---
+ // Progress bars
+ progressBarWrapper: {
+ height: isIPad() ? scale(24): scale(16),
+ backgroundColor: '#F1F5F9',
+ borderRadius: responsiveBorderRadius.lg,
+ marginLeft: responsiveSpacing.sm,
+ overflow: 'hidden',
+ justifyContent: 'center',
+ borderWidth: 1,
+ borderColor: 'rgba(0,0,0,0.06)',
+ minWidth: scale(60), // Ensure minimum width to prevent collapsing
+ flexShrink: 1, // Allow progress bars to yield space when layout is tight
+ // Light mode: subtle inner shadow
+...Platform.select({
+ web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)'} as any,
+ default: {
+ shadowColor:'rgba(0,0,0,0.08)',
+ shadowOffset: { width: 0, height: 1 },
+ shadowOpacity: 1,
+ shadowRadius: 2,
+ },
+ }),
+ elevation: 1,
+ },
+ progressBarWrapperDark: {
+ backgroundColor: '#334155',
+ borderWidth: 0,
+...Platform.select({
+ web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)'} as any,
+ default: {
+ shadowColor:'#000',
+ shadowOffset: { width: 0, height: 1 },
+ shadowOpacity: 0.1,
+ shadowRadius: 2,
+ },
+ }),
+ elevation: 1,
+ },
+ progressFill: {
+ height: '100%',
+ borderRadius: responsiveBorderRadius.lg,
+ backgroundColor: '#3B82F6',
+ // Subtle glow effect
+...Platform.select({
+ web: { boxShadow: '0px 0px 4px rgba(59, 130, 246, 0.3)'} as any,
+ default: {
+ shadowColor:'#3B82F6',
+ shadowOffset: { width: 0, height: 0 },
+ shadowOpacity: 0.3,
+ shadowRadius: 4,
+ },
+ }),
+ },
+ progressFillDark: {
+ backgroundColor: '#3B82F6',
+ shadowColor: 'transparent',
+ },
+
+ // --- NEW CHIP STYLES ---
+ moneyRow: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'space-between',
+ marginTop: responsiveSpacing.md,
+ width: '100%',
+ },
+ leftMoneySection: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: responsiveSpacing.sm,
+ flexWrap: 'wrap', // Allow wrapping on small devices
+ flexShrink: 1,
+ maxWidth: '100%', // Add max width constraint to prevent overflow
+ },
+ moneyChip: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ paddingHorizontal: 12,
+ height: 28,
+ borderRadius: 999, // true pill
+ flexShrink: 1, // Changed from 0 to allow shrinking on very small screens
+ minWidth: 60, // Reduced from 70
+ overflow: 'hidden', // Prevent text overflow
+ maxWidth: '100%', // Ensure chip doesn't exceed container
+ // Subtle glass rim to match the app design language
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.18)',
+ },
+ chipIcon: {
+ marginRight: 6,
+ flexShrink: 0, // Icon should never shrink
+ },
+ chipTextContainer: {
+ flexShrink: 1, // Allow text container to shrink
+ minWidth: 0, // Allow flex shrinking
+ maxWidth: '100%', // Prevent overflow
+ },
+ chipText: {
+ color: '#FFFFFF',
+ fontWeight: '700',
+ fontSize: responsiveFontSize.sm,
+ lineHeight: 18,
+ flexShrink: 1, // Allow text to shrink if needed
+ },
+
+ // Right side
+ rightSection: {
+ alignItems: 'flex-end',
+ flexShrink: 0, // Changed from 1 to prevent shrinking too much
+ flexBasis: 'auto',
+ minWidth: 0, // Allow flex shrinking
+ marginLeft: responsiveSpacing.md, // Reduced from lg on small devices (will be overridden dynamically)
+ marginTop: responsiveSpacing.md,
+ // Max width will be set dynamically in component to prevent overflow
+ },
+ dateOuter: {
+ padding: 2,
+ borderRadius: responsiveBorderRadius.lg,
+ marginBottom: responsiveSpacing.xs,
+ flexShrink: 1,
+ },
+ dateInner: {
+ alignItems: 'center',
+ justifyContent: 'space-between',
+ paddingHorizontal: 8,
+ paddingVertical: 6,
+ borderRadius: responsiveBorderRadius.md,
+ backgroundColor: 'rgba(255,255,255,0.15)',
+ height: '100%',
+ },
+ dateHeader: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'center',
+ gap: 6,
+ marginTop: 2,
+ },
+ yearText: {
+ fontSize: responsiveFontSize.lg,
+ fontWeight: '800',
+ color: '#FFFFFF',
+ lineHeight: 20,
+ },
+ monthText: {
+ fontSize: responsiveFontSize.base,
+ fontWeight: '700',
+ color: '#FFFFFF',
+ textAlign: 'center',
+ lineHeight: 18,
+ marginTop: 2,
+ },
+ ageText: {
+ fontSize: responsiveFontSize.sm,
+ fontWeight: '700',
+ color: '#FFFFFF',
+ lineHeight: 16,
+ marginTop: 2,
+ },
+
+ weekDots: {
+ flexDirection: 'row',
+ marginTop: 4,
+ marginBottom: 2,
+ justifyContent: 'center',
+ alignItems: 'center',
+ },
+ // Month progress: 4 dots, one per week. Elapsed weeks are filled, the current
+ // week is bright + softly glowing ("you are here"), upcoming weeks are hollow.
+ weekDot: {
+ width: 7,
+ height: 7,
+ borderRadius: 3.5,
+ marginHorizontal: 2.5,
+ backgroundColor: 'rgba(255,255,255,0.22)',
+ },
+ weekDotPast: {
+ backgroundColor: 'rgba(255,255,255,0.55)',
+ },
+ weekDotCurrent: {
+ width: 8,
+ height: 8,
+ borderRadius: 4,
+ backgroundColor: '#FFFFFF',
+...Platform.select({
+ web: { boxShadow: '0px 0px 5px rgba(255,255,255,0.9)'} as any,
+ default: {
+ shadowColor: '#FFFFFF',
+ shadowOffset: { width: 0, height: 0 },
+ shadowOpacity: 0.9,
+ shadowRadius: 4,
+ },
+ }),
+ elevation: 3,
+ },
+ weekDotFuture: {
+ backgroundColor: 'transparent',
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.35)',
+ },
+ weekDotXL: {
+ width: scale(6),
+ height: scale(6),
+ borderRadius: scale(3),
+ marginHorizontal: 1.5,
+ },
+
+ seasonalAndNextWeekContainer: {
+ flexDirection:'row',
+ alignItems: 'center',
+ justifyContent: 'flex-end',
+ gap: responsiveSpacing.sm,
+ marginTop: responsiveSpacing.xs,
+ },
+ nextWeekContainer: { alignItems: 'center'},
+ nextWeekButton: {
+ alignItems:'center',
+ justifyContent: 'center',
+ borderRadius: responsiveBorderRadius.lg,
+ width: 50, // Square button
+ height: 50, // Square button
+ // Light mode button shadow
+...Platform.select({
+ web: { boxShadow: '0px 2px 4px rgba(22, 163, 74, 0.09)'} as any,
+ default: {
+ shadowColor:'rgba(22, 163, 74, 0.3)',
+ shadowOffset: { width: 0, height: 2 },
+ shadowOpacity: 0.3,
+ shadowRadius: 4,
+ },
+ }),
+ elevation: 3,
+ },
+
+ statTouchable: { width: '100%'},
+ statRowContent: {
+ flexDirection:'row',
+ alignItems: 'center',
+ justifyContent: 'flex-start',
+ flex: 1,
+ minHeight: scale(18), // Ensure minimum height
+ },
+ statIconContainer: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ marginRight: responsiveSpacing.xs,
+ flexShrink: 0, // Prevent icon from shrinking
+ },
+
+ // --- Vitals activity rings (health / mood / energy) ---
  vitalsRingRow: {
  flexDirection: 'row',
  alignItems: 'flex-start',
- justifyContent: 'center',
- gap: scale(22),
- marginBottom: responsiveSpacing.sm,
+ gap: scale(16),
+ marginTop: responsiveSpacing.sm,
+ marginBottom: scale(2),
  },
  vitalRingCell: {
  alignItems: 'center',
@@ -194,9 +447,6 @@ export const styles = StyleSheet.create({
  fontVariant: ['tabular-nums'],
  lineHeight: scale(14),
  },
- vitalRingValueLight: {
- color: '#334155',
- },
  vitalRingDisease: {
  position: 'absolute',
  top: -scale(2),
@@ -212,12 +462,6 @@ export const styles = StyleSheet.create({
  zIndex: 10,
  elevation: 10,
  },
- diseaseIndicatorSerious: {
- backgroundColor: '#EF4444',
- },
- diseaseIndicatorCritical: {
- backgroundColor: '#DC2626',
- },
 
  quickActionsContainer: {
  position: 'absolute',
@@ -228,7 +472,6 @@ export const styles = StyleSheet.create({
  borderRadius: responsiveBorderRadius.md,
  padding: responsiveSpacing.sm,
  zIndex: Z_INDEX.DROPDOWN,
- minWidth: scale(120),
  },
  quickActionButton: {
  marginBottom: responsiveSpacing.xs,
@@ -245,158 +488,5 @@ export const styles = StyleSheet.create({
  fontSize: responsiveFontSize.sm,
  fontWeight: '600',
  marginLeft: responsiveSpacing.xs,
- },
-
- // --- Row 3: money / bank / gems chips, centered ---
- bottomRow: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- },
- moneyCluster: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- gap: responsiveSpacing.sm,
- flexWrap: 'wrap',
- flexShrink: 1,
- maxWidth: '100%',
- },
- moneyChip: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- paddingHorizontal: 12,
- height: 28,
- borderRadius: 999, // true pill
- flexShrink: 1,
- minWidth: 60,
- overflow: 'hidden',
- maxWidth: '100%',
- // Subtle glass rim to match the app design language
- borderWidth: 1,
- borderColor: 'rgba(255,255,255,0.18)',
- },
- chipIcon: {
- marginRight: 6,
- flexShrink: 0, // Icon should never shrink
- },
- chipTextContainer: {
- flexShrink: 1,
- minWidth: 0,
- maxWidth: '100%',
- },
- chipText: {
- color: '#FFFFFF',
- fontWeight: '700',
- fontSize: responsiveFontSize.sm,
- lineHeight: 18,
- flexShrink: 1,
- },
-
- // --- Right side of Row 1: compact date read + advance button ---
- rightSection: {
- alignItems: 'flex-end',
- justifyContent: 'center',
- flexShrink: 0,
- flexBasis: 'auto',
- minWidth: 0,
- marginLeft: responsiveSpacing.md,
- },
- dateAdvanceCluster: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'flex-end',
- gap: scale(6),
- },
- dateChip: {
- alignItems: 'center',
- justifyContent: 'center',
- paddingHorizontal: scale(10),
- paddingVertical: scale(5),
- borderRadius: responsiveBorderRadius.lg,
- flexShrink: 1,
- borderWidth: 1,
- borderColor: 'rgba(255,255,255,0.18)',
- },
- datePrimaryText: {
- fontSize: responsiveFontSize.sm,
- fontWeight: '800',
- color: '#FFFFFF',
- letterSpacing: 0.2,
- lineHeight: scale(16),
- textAlign: 'center',
- },
- dateAgeText: {
- fontSize: responsiveFontSize.xs,
- fontWeight: '600',
- color: 'rgba(255,255,255,0.82)',
- lineHeight: scale(13),
- marginTop: 1,
- textAlign: 'center',
- },
-
- weekDots: {
- flexDirection: 'row',
- marginTop: scale(4),
- justifyContent: 'center',
- alignItems: 'center',
- },
- // Month progress: 4 dots, one per week. Elapsed weeks are filled, the current
- // week is bright + softly glowing ("you are here"), upcoming weeks are hollow.
- weekDot: {
- width: 6,
- height: 6,
- borderRadius: 3,
- marginHorizontal: 2,
- backgroundColor: 'rgba(255,255,255,0.22)',
- },
- weekDotPast: {
- backgroundColor: 'rgba(255,255,255,0.55)',
- },
- weekDotCurrent: {
- width: 7,
- height: 7,
- borderRadius: 3.5,
- backgroundColor: '#FFFFFF',
-...Platform.select({
- web: { boxShadow: '0px 0px 5px rgba(255,255,255,0.9)'} as any,
- default: {
- shadowColor: '#FFFFFF',
- shadowOffset: { width: 0, height: 0 },
- shadowOpacity: 0.9,
- shadowRadius: 4,
- },
- }),
- elevation: 3,
- },
- weekDotFuture: {
- backgroundColor: 'transparent',
- borderWidth: 1,
- borderColor: 'rgba(255,255,255,0.35)',
- },
- weekDotXL: {
- width: scale(6),
- height: scale(6),
- borderRadius: scale(3),
- marginHorizontal: 1.5,
- },
-
- nextWeekContainer: { alignItems: 'center' },
- nextWeekButton: {
- alignItems: 'center',
- justifyContent: 'center',
- borderRadius: responsiveBorderRadius.lg,
- // Light mode button shadow
-...Platform.select({
- web: { boxShadow: '0px 2px 4px rgba(22, 163, 74, 0.09)'} as any,
- default: {
- shadowColor:'rgba(22, 163, 74, 0.3)',
- shadowOffset: { width: 0, height: 2 },
- shadowOpacity: 0.3,
- shadowRadius: 4,
- },
- }),
- elevation: 3,
- },
+ }
 });
