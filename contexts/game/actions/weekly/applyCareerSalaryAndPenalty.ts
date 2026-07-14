@@ -52,7 +52,17 @@ export function applyCareerSalaryAndPenalty(
       // Ensure level is within bounds.
       const safeLevel = Math.max(0, Math.min(currentCareer.level, currentCareer.levels.length - 1));
       const levelData = currentCareer.levels[safeLevel];
-      if (levelData && typeof levelData.salary === 'number' && levelData.salary > 0) {
+      // Political office income is OWNED by passiveIncome (lib/economy/passiveIncome.ts),
+      // which reads POLITICAL_CAREER salaries as ANNUAL (÷ WEEKS_PER_YEAR) and gates on
+      // `politics.careerLevel > 0` — so it correctly stops when office is lost. This generic
+      // path treats salary as WEEKLY, so paying `political` here would (a) double-credit the
+      // salary every week and (b) do so at ~52× the intended amount (annual figure paid
+      // weekly → a President printing ~$100k/week that never stopped after losing office).
+      // Skip the salary for political; the stat penalty below still applies.
+      const isPoliticalOffice = prevState.currentJob === 'political';
+      if (isPoliticalOffice) {
+        logger.info('[WEEK PROGRESSION] Political salary owned by passiveIncome (annual÷52); skipping generic weekly pay to avoid double-count');
+      } else if (levelData && typeof levelData.salary === 'number' && levelData.salary > 0) {
         // Salary is stored as weekly amount (e.g., 55 = $55/week). Apply any
         // negotiated raise premium (raiseMultiplier, 1 = base) from the
         // "Ask for a raise" action — clamped defensively to [1, 3].
