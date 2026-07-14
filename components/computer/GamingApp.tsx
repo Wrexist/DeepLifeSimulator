@@ -293,10 +293,22 @@ export default function GamingApp({ onBack }: Props) {
     () => trendBonusForTopic(selectedGame, week, GAME_OPTIONS),
     [selectedGame, week]
   );
+  // Neutral (organic 1.0×, non-viral) baseline — the CENTRE of the estimate.
   const projected = useMemo(
     () => projectVideoOutcome({ quality, subscribers, rollViral: 1, trendBonus: selectedTrendBonus }),
     [quality, subscribers, selectedTrendBonus]
   );
+  // Views now carry per-post organic variance, so the preview shows a plausible
+  // RANGE rather than a fixed promise. The band mirrors the algorithm's typical
+  // organic spread (~0.7×–1.6× of the neutral centre), excluding the rare viral
+  // spike and the deepest flops.
+  const projectedRange = useMemo(() => {
+    const lowViews = Math.round(projected.views * 0.7);
+    const highViews = Math.round(projected.views * 1.6);
+    const lowSubs = Math.round(projected.subscribersGained * 0.7);
+    const highSubs = Math.round(projected.subscribersGained * 1.6);
+    return { lowViews, highViews, lowSubs, highSubs };
+  }, [projected]);
 
   const sortedVideos = useMemo(() => {
     const arr = [...videos];
@@ -636,12 +648,12 @@ export default function GamingApp({ onBack }: Props) {
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Projected reach</Text>
           <View style={styles.aGrid}>
-            <AnalyticStat Icon={Eye} label="Est. views" value={compact(projected.views)} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={Users} label="Est. subs" value={`+${compact(projected.subscribersGained)}`} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Eye} label="Est. views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Users} label="Est. subs" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={TrendingUp} label="At tier" value={quality.tier.toUpperCase()} valueColor={qualityColor(quality.tier)} theme={theme} darkMode={darkMode} />
           </View>
           <Text style={[styles.recordHint, { color: theme.textMuted }]}>
-            Recording costs 15 energy. Views and revenue scale with your {quality.tier.toUpperCase()} gear.
+            Recording costs 15 energy. Every upload performs a little differently — most land in this range, a lucky few go viral. Revenue scales with your {quality.tier.toUpperCase()} gear.
           </Text>
         </View>
 

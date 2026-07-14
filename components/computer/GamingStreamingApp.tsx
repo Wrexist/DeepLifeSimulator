@@ -12,7 +12,7 @@
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,7 @@ import {
   TrendingUp,
   Flame,
   Play,
+  Square,
   Calendar,
   Gamepad2,
 } from 'lucide-react-native';
@@ -55,11 +56,16 @@ import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
 import { nextHypeStreak, hypeChanceForStreak, HYPE_MAX_CHANCE } from '@/lib/content/streamMeta';
 import {
-  runStream,
+  startLiveStream,
+  tickLiveStream,
+  finalizeLiveStream,
   buyAccessory,
   upgradePCComponent,
   ACCESSORY_PRICES,
   PC_BASE_PRICES,
+  LIVE_ENERGY_DRAIN_PER_SEC,
+  LIVE_MIN_ENERGY,
+  LIVE_TICK_MS,
 } from '@/contexts/game/actions/ContentActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -78,7 +84,7 @@ import {
   scale,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-import { GamingStreamingState, StreamHistoryItem } from '@/contexts/game/types';
+import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -161,13 +167,8 @@ function gameArtFor(name: string): ImageSourcePropType {
   return GAME_ART.esports;
 }
 
-const DURATIONS: { label: string; minutes: number; energy: number }[] = [
-  { label: 'Quick (30 min)',  minutes: 30,  energy: 15 },
-  { label: 'Standard (60 min)', minutes: 60, energy: 25 },
-  { label: 'Marathon (180 min)', minutes: 180, energy: 60 },
-];
-
-// "Quick (30 min)" -> ["Quick", "30 min"] for the two-line duration tiles.
+// "Quick (30 min)" -> ["Quick", "30 min"] (still used by the broadcast detail
+// header to split a stored label).
 function splitDur(label: string): [string, string] {
   const m = label.match(/^(.*?)\s*\((.*)\)$/);
   return m ? [m[1], m[2]] : [label, ''];
@@ -190,7 +191,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [route, setRoute] = useState<Route>({ kind: 'main' });
   const [selectedGame, setSelectedGame] = useState(GAME_OPTIONS[0]);
-  const [selectedDuration, setSelectedDuration] = useState(DURATIONS[1]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const channel = gameState.gamingStreaming;
@@ -215,10 +215,13 @@ export default function GamingStreamingApp({ onBack }: Props) {
     : 0;
   const streamsThisWeek =
     channel?.lastStreamWeek === week ? channel?.streamsThisWeek ?? 0 : 0;
-  // "LIVE" = broadcast at least once this in-game week (streams resolve within
-  // the week, so there is no persistent currentStream to key off — this is the
-  // honest read that lights the pill instead of it being OFFLINE forever).
-  const isLive = streamsThisWeek > 0 || !!channel?.currentStream;
+  // The in-progress real-time broadcast, if any (null-guarded — absent on old
+  // saves and whenever offline).
+  const liveSession = channel?.currentStream?.live ? channel.currentStream : null;
+  const isLiveNow = !!liveSession;
+  // "LIVE" pill: actively broadcasting now, OR broadcast at least once this
+  // in-game week (so the dashboard doesn't read OFFLINE right after a stream).
+  const isLive = isLiveNow || streamsThisWeek > 0;
   // Hype-train chance the NEXT stream would roll, given the streak it would be
   // on (consecutive-week streak → higher, bounded at HYPE_MAX_CHANCE).
   const projectedStreak = nextHypeStreak(channel?.hypeStreak, channel?.lastStreamWeek, week);
@@ -280,25 +283,77 @@ export default function GamingStreamingApp({ onBack }: Props) {
     setRoute({ kind: 'main' });
   }, []);
 
-  const handleStream = useCallback(() => {
-    const r = runStream(
-      gameState,
-      setGameState,
-      {
-        game: selectedGame.name,
-        duration: selectedDuration.minutes,
-        energyCost: selectedDuration.energy,
-      },
-      { updateMoney },
-      week
-    );
-    if (r.success) {
-      saveGame();
-      Alert.alert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
-    } else {
-      flash(r.message);
+  // Refs so the interval closure and the ref-stable Stop handler always read the
+  // freshest state/week without re-subscribing the drain loop every render.
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
+  const weekRef = useRef(week);
+  weekRef.current = week;
+
+  const handleGoLive = useCallback(() => {
+    const r = startLiveStream(gameState, setGameState, { game: selectedGame.name }, week);
+    if (r.success) saveGame();
+    else flash(r.message);
+  }, [gameState, setGameState, saveGame, selectedGame, week, flash]);
+
+  // Stop (manual or auto). Ref-stable: reads live state via refs so the drain
+  // effect can depend on it without re-subscribing. Idempotent — finalize is a
+  // no-op once the session is cleared, so a manual Stop racing an auto-stop
+  // can't double-pay.
+  const handleStopStream = useCallback(
+    (autoStopped: boolean) => {
+      const r = finalizeLiveStream(
+        gameStateRef.current,
+        setGameState,
+        { autoStopped },
+        { updateMoney },
+        weekRef.current
+      );
+      if (r.success) {
+        saveGame();
+        if (autoStopped) flash(r.message);
+        else Alert.alert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
+      }
+    },
+    [setGameState, saveGame, flash]
+  );
+
+  // Real-time drain loop: while live, every LIVE_TICK_MS drain energy + accrue
+  // viewers; when energy hits 0 the stream auto-stops. The interval is cleared
+  // on Stop, on auto-stop (isLiveNow flips false), AND on unmount — so no leaked
+  // timers and no setState-after-unmount.
+  useEffect(() => {
+    if (!isLiveNow) return;
+    const interval = setInterval(() => {
+      const gs = gameStateRef.current;
+      if (!gs.gamingStreaming?.currentStream?.live) return;
+      const energyNow = gs.stats?.energy ?? 0;
+      if (energyNow <= 0) {
+        handleStopStream(true);
+        return;
+      }
+      tickLiveStream(setGameState, LIVE_TICK_MS / 1000);
+    }, LIVE_TICK_MS);
+    return () => clearInterval(interval);
+  }, [isLiveNow, setGameState, handleStopStream]);
+
+  // Safety: if a live session survived a save/reload (app closed mid-stream),
+  // resolve it once on mount instead of letting it stream forever.
+  const resolvedStaleRef = useRef(false);
+  useEffect(() => {
+    if (resolvedStaleRef.current) return;
+    resolvedStaleRef.current = true;
+    if (gameStateRef.current.gamingStreaming?.currentStream?.live) {
+      const r = finalizeLiveStream(
+        gameStateRef.current,
+        setGameState,
+        { autoStopped: true },
+        { updateMoney },
+        weekRef.current
+      );
+      if (r.success) saveGame();
     }
-  }, [gameState, setGameState, saveGame, selectedGame, selectedDuration, week, flash]);
+  }, [setGameState, saveGame]);
 
   const handleAccessory = useCallback(
     (id: keyof GamingStreamingState['equipment']) => {
@@ -592,8 +647,128 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   // ── Go Live (broadcast console) ───────────────────────────────────────────
 
+  // Format elapsed seconds as mm:ss for the live timer.
+  const fmtElapsed = (secs: number): string => {
+    const s = Math.max(0, Math.floor(secs));
+    const mm = Math.floor(s / 60);
+    const ss = s % 60;
+    return `${mm}:${ss.toString().padStart(2, '0')}`;
+  };
+
+  // ── LIVE view — shown while a real-time broadcast is running. ──────────────
+  const renderLiveActive = (session: StreamSession) => {
+    const elapsed = session.elapsedSeconds ?? 0;
+    const liveViewers = session.viewers ?? 0;
+    const energyPct = Math.max(0, Math.min(100, energy));
+    // Seconds of stream left at the current drain rate (rough runway readout).
+    const secondsLeft = Math.max(0, Math.floor(energy / LIVE_ENERGY_DRAIN_PER_SEC));
+    return (
+      <ScrollView
+        style={styles.flex1}
+        contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
+      >
+        {/* Live monitor. */}
+        <View
+          style={[
+            getGlassCard(darkMode, 12),
+            { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] },
+          ]}
+        >
+          <View style={styles.monitorInner}>
+            <View style={styles.heroMedia}>
+              <Image source={gameArtFor(session.game)} style={styles.mediaFill} resizeMode="cover" />
+              <View pointerEvents="none" style={styles.mediaScrim} />
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
+              <View style={styles.mediaTopRow}>
+                <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.statusPillText}>LIVE</Text>
+                </View>
+                <View style={styles.viewersPill}>
+                  <Eye size={scale(12)} color="#fff" />
+                  <Text style={styles.viewersPillText}>{fmt(liveViewers)} watching</Text>
+                </View>
+              </View>
+              <View style={styles.mediaBottom}>
+                <Text style={styles.monitorGame} numberOfLines={1}>{session.game}</Text>
+                <View style={styles.monitorMetaRow}>
+                  <View style={styles.monitorMeta}>
+                    <Clock size={scale(12)} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.monitorMetaText}>{fmtElapsed(elapsed)} elapsed</Text>
+                  </View>
+                  <View style={styles.monitorMeta}>
+                    <MessageCircle size={scale(12)} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.monitorMetaText}>{fmt(session.chatMessages)} chat</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Energy bar — drains in real time; empties → auto-stop. */}
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.capRow}>
+            <View style={styles.hintRow}>
+              <Zap size={scale(13)} color={energy < 20 ? accent.danger : accent.warning} />
+              <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Energy</Text>
+            </View>
+            <Text style={[styles.capValue, { color: energy < 20 ? accent.danger : theme.text }]}>{Math.round(energy)} / 100</Text>
+          </View>
+          <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.capFill, { width: `${energyPct}%`, backgroundColor: energy < 20 ? accent.danger : FUCHSIA }]} />
+          </View>
+          <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: sp.xs }]}>
+            Streaming drains energy live — about {fmtElapsed(secondsLeft)} left before you run out.
+          </Text>
+        </View>
+
+        {/* Live session stats. */}
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <SectionHead icon={Activity} title="Live session" />
+          <View style={styles.statGrid}>
+            <StatCell icon={Eye} label="Viewers" value={fmt(liveViewers)} theme={theme} />
+            <StatCell icon={Clock} label="Elapsed" value={fmtElapsed(elapsed)} theme={theme} />
+            <StatCell icon={MessageCircle} label="Chat" value={fmt(session.chatMessages)} theme={theme} />
+            <StatCell icon={Cpu} label="Setup" value={quality.tier.toUpperCase()} color={qualityColor(quality.tier)} theme={theme} />
+          </View>
+        </View>
+
+        {/* Stop Stream — end + finalise the broadcast. */}
+        <TouchableOpacity
+          onPress={() => handleStopStream(false)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Stop stream"
+          style={[styles.publishBtnWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+        >
+          <LinearGradient
+            colors={[LIVE_RED, '#B91C1C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.publishBtn}
+          >
+            <Square size={scale(14)} color="#fff" />
+            <Text style={styles.publishBtnText}>Stop stream</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  };
+
+  // ── Go Live (broadcast console) ───────────────────────────────────────────
+
   const renderLive = () => {
-    const canGo = energy >= selectedDuration.energy;
+    if (liveSession) return renderLiveActive(liveSession);
+    const canGo = energy >= LIVE_MIN_ENERGY;
+    const capped = streamsThisWeek >= 5;
     return (
       <ScrollView
         style={styles.flex1}
@@ -619,8 +794,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
               />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
-                <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
-                  <View style={styles.statusDot} />
+                <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
+                  <View style={[styles.statusDot, { backgroundColor: theme.textMuted }]} />
                   <Text style={styles.statusPillText}>PREVIEW</Text>
                 </View>
                 <View style={styles.monitorTierChip}>
@@ -632,12 +807,12 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 <Text style={styles.monitorGame} numberOfLines={1}>{selectedGame.name}</Text>
                 <View style={styles.monitorMetaRow}>
                   <View style={styles.monitorMeta}>
-                    <Clock size={scale(12)} color="rgba(255,255,255,0.85)" />
-                    <Text style={styles.monitorMetaText}>{selectedDuration.minutes} min</Text>
+                    <Zap size={scale(12)} color={accent.warning} />
+                    <Text style={styles.monitorMetaText}>Drains ~{LIVE_ENERGY_DRAIN_PER_SEC}/s live</Text>
                   </View>
                   <View style={styles.monitorMeta}>
-                    <Zap size={scale(12)} color={accent.warning} />
-                    <Text style={styles.monitorMetaText}>{selectedDuration.energy} energy</Text>
+                    <Eye size={scale(12)} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.monitorMetaText}>{selectedGame.viewersHint}</Text>
                   </View>
                 </View>
               </View>
@@ -684,48 +859,14 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Session length — big duration tiles. */}
-        <View style={styles.section}>
-          <SectionHead icon={Clock} title="Session length" />
-          <View style={styles.durRow}>
-            {DURATIONS.map((d) => {
-              const selected = selectedDuration.label === d.label;
-              const [main, sub] = splitDur(d.label);
-              return (
-                <TouchableOpacity
-                  key={d.label}
-                  onPress={() => setSelectedDuration(d)}
-                  activeOpacity={0.9}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={d.label}
-                  style={[
-                    getGlassCard(darkMode, 6),
-                    styles.durTile,
-                    { backgroundColor: selected ? FUCHSIA_TINT : theme.surface, borderColor: selected ? FUCHSIA_RIM : theme.border, borderWidth: selected ? 2 : 1 },
-                  ]}
-                >
-                  <Clock size={scale(16)} color={selected ? FUCHSIA : theme.textMuted} />
-                  <Text style={[styles.durMain, { color: theme.text }]} numberOfLines={1}>{main}</Text>
-                  <Text style={[styles.durSub, { color: theme.textSecondary }]} numberOfLines={1}>{sub}</Text>
-                  <View style={styles.durEnergy}>
-                    <Zap size={scale(10)} color={accent.warning} />
-                    <Text style={[styles.durEnergyText, { color: theme.textMuted }]}>{d.energy}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Publish console — weekly cap + hint + the one loud CTA. */}
+        {/* Broadcast console — weekly cap + hype + the one loud Go Live CTA. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.capRow}>
             <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
-            <Text style={[styles.capValue, { color: theme.text }]}>{streamsThisWeek} / 5</Text>
+            <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
           </View>
           <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={[styles.capFill, { width: `${Math.min(100, (streamsThisWeek / 5) * 100)}%`, backgroundColor: FUCHSIA }]} />
+            <View style={[styles.capFill, { width: `${Math.min(100, (streamsThisWeek / 5) * 100)}%`, backgroundColor: capped ? accent.warning : FUCHSIA }]} />
           </View>
           <View style={styles.hypeHeadRow}>
             <View style={[styles.hintRow, { flex: 1 }]}>
@@ -745,25 +886,31 @@ export default function GamingStreamingApp({ onBack }: Props) {
               ]}
             />
           </View>
-          <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: sp.xs }]}>
-            Diminishing returns past 90 minutes. Stream every week to build your streak.
-          </Text>
+          <View style={[styles.hintRow, { marginTop: sp.sm }]}>
+            <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
+            <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
+              Energy {Math.round(energy)} · streaming drains it live. Tap Stop any time to bank your earnings.
+            </Text>
+          </View>
           <TouchableOpacity
-            onPress={handleStream}
-            disabled={!canGo}
+            onPress={handleGoLive}
+            disabled={!canGo || capped}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Go live"
-            style={[styles.publishBtnWrap, canGo && getPlatformShadows(5, 0.3, 2, 8)]}
+            accessibilityState={{ disabled: !canGo || capped }}
+            style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
           >
             <LinearGradient
-              colors={canGo ? [FUCHSIA, FUCHSIA_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
+              colors={canGo && !capped ? [FUCHSIA, FUCHSIA_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.publishBtn}
             >
-              <Sparkles size={scale(15)} color={canGo ? 'white' : theme.textMuted} />
-              <Text style={[styles.publishBtnText, { color: canGo ? 'white' : theme.textMuted }]}>Go live</Text>
+              <Play size={scale(15)} color={canGo && !capped ? 'white' : theme.textMuted} />
+              <Text style={[styles.publishBtnText, { color: canGo && !capped ? 'white' : theme.textMuted }]}>
+                {capped ? 'Weekly cap reached' : canGo ? 'Go live' : `Need ${LIVE_MIN_ENERGY} energy`}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

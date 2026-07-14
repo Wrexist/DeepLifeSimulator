@@ -1895,6 +1895,16 @@ export interface StreamSession {
   timestamp?: number; // ms since epoch; used to sort recent streams for income decay
   /** weeksLived when this stream ran — used to decay income by REAL elapsed weeks. */
   uploadedAt?: number;
+  // ── Real-time LIVE session fields (v: live streaming). All optional/additive
+  //    so old saves load unchanged and finished history items simply omit them.
+  //    `currentStream` holds a StreamSession while a broadcast is live; these
+  //    fields carry the live loop's running state. No STATE_VERSION bump.
+  /** True while this session is an in-progress live broadcast (drives the drain loop). */
+  live?: boolean;
+  /** Real-clock ms when the broadcast went live (flavour/debug; loop uses elapsedSeconds). */
+  startedAtMs?: number;
+  /** Seconds actually streamed so far — accrued by the drain loop, survives reload. */
+  elapsedSeconds?: number;
 }
 
 export interface StreamHistoryItem extends StreamSession {

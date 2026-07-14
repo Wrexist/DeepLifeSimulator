@@ -80,6 +80,7 @@ export function publishVideo(
     game?: string;
     energyCost?: number;
     rollViral?: number;
+    rollOrganic?: number;
     trendBonus?: number;
   },
   deps: { updateMoney: typeof updateMoney },
@@ -103,6 +104,9 @@ export function publishVideo(
     quality,
     subscribers: channel.subscribers,
     rollViral: args.rollViral ?? Math.random(),
+    // Live play seeds organic variance so each upload lands a different,
+    // believable view count; tests pass an explicit roll for determinism.
+    rollOrganic: args.rollOrganic ?? Math.random(),
     trendBonus: args.trendBonus,
   });
   const earnings = videoEarnings(outcome.views, quality);
@@ -179,7 +183,7 @@ export interface RunStreamResult {
 export function runStream(
   gameState: GameState,
   setGameState: SetGS,
-  args: { game: string; duration: number; energyCost?: number; rollHype?: number },
+  args: { game: string; duration: number; energyCost?: number; rollHype?: number; rollOrganic?: number },
   deps: { updateMoney: typeof updateMoney },
   currentWeek: number
 ): RunStreamResult {
@@ -206,6 +210,7 @@ export function runStream(
     followers: channel.followers,
     duration: args.duration,
     rollHype: args.rollHype ?? Math.random(),
+    rollOrganic: args.rollOrganic ?? Math.random(),
     hypeChance,
   });
   const earnings = streamEarnings(outcome.viewers, args.duration, outcome.donations, quality);
@@ -278,6 +283,248 @@ export function runStream(
     stream,
     outcome,
     earnings,
+  };
+}
+
+// ── LIVE streaming (real-time drain loop) ────────────────────────────────────
+//
+// Unlike runStream (one-shot: pick duration → pay energy upfront → instant
+// result), a LIVE session is an active broadcast the player starts and stops.
+// While live, a UI-driven interval (NOT the weekly tick) drains stats.energy in
+// real time and accrues viewers; stopping finalises the session through the SAME
+// monetization path as runStream. Money stays canonical (applyMoneyDelta only);
+// energy is clamped ≥ 0; the session lives in `gamingStreaming.currentStream`.
+
+/** Energy drained per real second while live. 100 energy ≈ 62s of streaming. */
+export const LIVE_ENERGY_DRAIN_PER_SEC = 1.6;
+/** Minimum energy required to go live at all. */
+export const LIVE_MIN_ENERGY = 8;
+/** Recommended tick cadence for the UI loop (ms). */
+export const LIVE_TICK_MS = 1000;
+
+/** Type guard: is `currentStream` an in-progress live broadcast? */
+export function isLiveSession(ch: GamingStreamingState | null | undefined): boolean {
+  return !!ch?.currentStream?.live;
+}
+
+export interface StartLiveResult {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Go live. Reserves one weekly stream slot up-front (a live session counts as
+ * one stream, so start/stop can't farm slots), seeds a live `currentStream`, and
+ * does NOT charge energy here — the drain loop does that in real time.
+ */
+export function startLiveStream(
+  gameState: GameState,
+  setGameState: SetGS,
+  args: { game: string },
+  currentWeek: number
+): StartLiveResult {
+  const channel = ensureChannel(gameState);
+  if (isLiveSession(channel)) return { success: false, message: 'You are already live.' };
+
+  const energy = safe(gameState.stats?.energy, 0);
+  if (energy < LIVE_MIN_ENERGY) {
+    return { success: false, message: `Need ${LIVE_MIN_ENERGY} energy to go live (have ${Math.round(energy)}).` };
+  }
+
+  const streamsThisWeek = channel.lastStreamWeek === currentWeek ? safe(channel.streamsThisWeek, 0) : 0;
+  if (streamsThisWeek >= MAX_STREAMS_PER_WEEK) {
+    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week — come back next week.` };
+  }
+
+  setGameState((prev) => {
+    const ch = ensureChannel(prev);
+    if (isLiveSession(ch)) return prev;
+    const count = ch.lastStreamWeek === currentWeek ? safe(ch.streamsThisWeek, 0) : 0;
+    if (count >= MAX_STREAMS_PER_WEEK) return prev;
+    if (safe(prev.stats?.energy, 0) < LIVE_MIN_ENERGY) return prev;
+    // Advance the hype-train streak now (bounded; reset after a gap) — mirrors
+    // runStream so consecutive-week live broadcasts still build the streak.
+    const nextStreak = nextHypeStreak(ch.hypeStreak, ch.lastStreamWeek, currentWeek);
+    const live = {
+      id: `live_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      game: args.game,
+      duration: 0,
+      viewers: 0,
+      earnings: 0,
+      followers: 0,
+      subscribers: 0,
+      chatMessages: 0,
+      donations: 0,
+      live: true,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      uploadedAt: currentWeek,
+    };
+    return {
+      ...prev,
+      gamingStreaming: {
+        ...ch,
+        currentStream: live,
+        hypeStreak: nextStreak,
+        // Reserve the weekly slot now (finalize does NOT re-increment).
+        streamsThisWeek: count + 1,
+        lastStreamWeek: currentWeek,
+      },
+    };
+  });
+  log.info(`Went live (${args.game}).`);
+  return { success: true, message: `You're live with ${args.game}!` };
+}
+
+/**
+ * Advance a live session by `deltaSeconds`: drain energy (clamped ≥ 0), accrue
+ * elapsed time, and tick the concurrent-viewer count organically toward a
+ * follower/quality-derived target with per-tick wobble. Touches NO money. A
+ * no-op if there is no live session.
+ */
+export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
+  setGameState((prev) => {
+    const ch = ensureChannel(prev);
+    const live = ch.currentStream;
+    if (!live?.live) return prev;
+
+    const energyNow = safe(prev.stats?.energy, 0);
+    const energyNext = Math.max(0, energyNow - LIVE_ENERGY_DRAIN_PER_SEC * deltaSeconds);
+    const elapsed = safe(live.elapsedSeconds, 0) + deltaSeconds;
+
+    // Organic viewer ramp: climb from ~0.4× toward a follower/quality-derived
+    // plateau over the first ~45s, wobble each tick, smooth toward the target.
+    const quality = computeQuality(ch.equipment, ch.pcUpgradeLevels);
+    const qMult = qualityMultiplier(quality);
+    const base = (5 + safe(ch.followers, 0) * 0.015) * qMult;
+    const ramp = Math.min(1, elapsed / 45);
+    const wobble = 0.85 + Math.random() * 0.35; // 0.85..1.20
+    const target = base * (0.4 + 0.9 * ramp) * wobble;
+    const prevViewers = safe(live.viewers, 0);
+    const viewers = Math.max(0, Math.round(prevViewers + (target - prevViewers) * 0.4));
+
+    return {
+      ...prev,
+      stats: { ...prev.stats, energy: energyNext },
+      gamingStreaming: {
+        ...ch,
+        currentStream: {
+          ...live,
+          elapsedSeconds: elapsed,
+          duration: Math.max(0, Math.round(elapsed / 60)),
+          viewers,
+          chatMessages: Math.round(viewers * 2),
+        },
+      },
+    };
+  });
+}
+
+export interface FinalizeLiveResult extends RunStreamResult {
+  /** True when the stream ended because energy ran out (vs. a manual Stop). */
+  autoStopped?: boolean;
+}
+
+/**
+ * End a live session and finalise it through the shared monetization path:
+ * viewers/followers/subs/donations/earnings scale by how long the player
+ * actually streamed, earnings credited via applyMoneyDelta, the session is
+ * appended to streamHistory, and `currentStream` is cleared. Idempotent — a
+ * no-op (success:false) if nothing is live, so a reload that resolves a stale
+ * session and a user Stop can't both pay out.
+ */
+export function finalizeLiveStream(
+  gameState: GameState,
+  setGameState: SetGS,
+  args: { rollHype?: number; rollOrganic?: number; autoStopped?: boolean },
+  deps: { updateMoney: typeof updateMoney },
+  currentWeek: number
+): FinalizeLiveResult {
+  const channel = ensureChannel(gameState);
+  const live = channel.currentStream;
+  if (!live?.live) return { success: false, message: 'Not live.' };
+
+  const quality = computeQuality(channel.equipment, channel.pcUpgradeLevels);
+  const elapsedSeconds = safe(live.elapsedSeconds, 0);
+  // Real minutes streamed (fractional), floored to a small minimum so a stream
+  // stopped almost immediately still resolves cleanly.
+  const durationMinutes = Math.max(0.5, elapsedSeconds / 60);
+  const accruedViewers = Math.max(0, Math.round(safe(live.viewers, 0)));
+
+  // Hype uses the same streak model as runStream; the streak was already
+  // advanced for the reserved slot at go-live, so read it (don't re-advance).
+  const hypeChance = hypeChanceForStreak(safe(channel.hypeStreak, 0) || 1);
+  const outcome = projectStreamOutcome({
+    quality,
+    followers: channel.followers,
+    duration: durationMinutes,
+    rollHype: args.rollHype ?? Math.random(),
+    rollOrganic: args.rollOrganic ?? Math.random(),
+    hypeChance,
+    // Everything scales off the viewers the player actually accrued live.
+    viewersOverride: accruedViewers,
+  });
+  const earnings = streamEarnings(outcome.viewers, durationMinutes, outcome.donations, quality);
+
+  const stream: StreamHistoryItem = {
+    id: live.id,
+    game: live.game,
+    duration: Math.max(1, Math.round(durationMinutes)),
+    viewers: outcome.viewers,
+    earnings,
+    followers: outcome.newFollowers,
+    subscribers: outcome.newSubs,
+    chatMessages: Math.round(outcome.viewers * 2),
+    donations: outcome.donations,
+    timestamp: Date.now(),
+    uploadedAt: currentWeek,
+  };
+
+  setGameState((prev) => {
+    const ch = ensureChannel(prev);
+    // Only the session we're finalising may pay out — guards double-finalise.
+    if (!ch.currentStream?.live || ch.currentStream.id !== live.id) return prev;
+    const earn = applyMoneyDelta(prev, earnings, `Live stream: ${live.game}`);
+    if (!earn) return prev;
+    const nextHistory = [stream, ...ch.streamHistory].slice(0, 200);
+    const nextAverageViewers = rollingAverageViewers(nextHistory);
+    const nextExperience = ch.experience + Math.floor(outcome.viewers / 50);
+    const nextLevel = creatorLevelFromExperience(nextExperience);
+    return {
+      ...prev,
+      ...earn,
+      gamingStreaming: {
+        ...ch,
+        currentStream: null,
+        followers: ch.followers + outcome.newFollowers,
+        subscribers: ch.subscribers + outcome.newSubs,
+        totalDonations: ch.totalDonations + outcome.donations,
+        totalEarnings: ch.totalEarnings + earnings,
+        streamHours: ch.streamHours + durationMinutes / 60,
+        streamHistory: nextHistory,
+        averageViewers: nextAverageViewers,
+        experience: nextExperience,
+        level: nextLevel,
+        perkTier: creatorPerkTier(nextLevel),
+        bestStream:
+          !ch.bestStream || outcome.viewers > ch.bestStream.viewers ? stream : ch.bestStream,
+      },
+    };
+  });
+  log.info(
+    `Live stream ended (${live.game}): ${outcome.viewers} viewers, $${earnings}, ${Math.round(elapsedSeconds)}s${args.autoStopped ? ' (auto-stop)' : ''}`
+  );
+  return {
+    success: true,
+    message: args.autoStopped
+      ? `Out of energy — stream ended. ${outcome.viewers} viewers, $${earnings}.`
+      : outcome.hypeTrain
+      ? `Hype train! ${outcome.viewers} viewers, +${outcome.newSubs} subs.`
+      : `Stream ended — ${outcome.viewers} viewers, $${earnings}.`,
+    stream,
+    outcome,
+    earnings,
+    autoStopped: args.autoStopped,
   };
 }
 
