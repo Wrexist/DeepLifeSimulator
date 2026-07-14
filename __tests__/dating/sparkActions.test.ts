@@ -175,7 +175,7 @@ describe('premium subscription', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;
     const { setGameState, getState } = makeHarness(state);
-    const r = subscribeSparkPremium(setGameState, 'ultra', 'weekly');
+    const r = subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
     expect(r.success).toBe(true);
     const sp = getState().sparkApp!;
     expect(sp.premium.active).toBe(true);
@@ -194,7 +194,7 @@ describe('premium subscription', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 5;
     const { setGameState, getState } = makeHarness(state);
-    const r = subscribeSparkPremium(setGameState, 'ultra', 'weekly');
+    const r = subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
     expect(r.success).toBe(false);
     expect(getState().sparkApp!.premium.active).toBe(false);
     expect(getState().stats.money).toBe(5); // untouched
@@ -204,7 +204,7 @@ describe('premium subscription', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;
     const { setGameState, getState } = makeHarness(state);
-    subscribeSparkPremium(setGameState, 'plus', 'weekly');
+    subscribeSparkPremium(setGameState, state, 'plus', 'weekly');
     cancelSparkPremium(setGameState);
     expect(getState().sparkApp!.premium.active).toBe(false);
     expect(getState().sparkApp!.premium.tier).toBe('free');

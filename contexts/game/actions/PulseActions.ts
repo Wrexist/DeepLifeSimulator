@@ -1050,18 +1050,26 @@ export const boostPostWithGems = (
  */
 export const subscribeVerifiedPro = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
   plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
   const price = plan === 'annual' ? VERIFIED_PRO_ANNUAL_PRICE : VERIFIED_PRO_WEEKLY_PRICE;
-  let result: { success: boolean; message: string } = {
-    success: false,
-    message: `You can't afford Pulse Verified Pro ($${price.toLocaleString()}).`,
-  };
+  // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
+  // setGameState is a plain (wrapped) React useState setter — it may defer the
+  // updater, so reading a value the updater assigns is unreliable. The atomic
+  // charge+grant still lives inside the updater below (applyMoneyDelta overdraft-
+  // reject), which remains the source of truth for money safety.
+  if ((gameState.stats?.money ?? 0) < price) {
+    return {
+      success: false,
+      message: `You can't afford Pulse Verified Pro ($${price.toLocaleString()}).`,
+    };
+  }
   setGameState((prev) => {
     // Charge in-game cash atomically (overdraft-reject) in the same updater that
     // grants the perks — closes the charge-then-grant race and never overdrafts.
     const spend = applyMoneyDelta(prev, -price, `Pulse Verified Pro (${plan})`);
-    if (!spend) return prev; // unaffordable → reject; keep default failure message
+    if (!spend) return prev; // funds dropped since the preview → reject atomically
     const sm = { ...ensureSocial(prev) };
     const ws = prev.weeksLived ?? 0;
     sm.verifiedPro = {
@@ -1089,16 +1097,15 @@ export const subscribeVerifiedPro = (
 
     // Flip userProfile.verified
     const userProfile = { ...prev.userProfile, verified: true };
-    result = {
-      success: true,
-      message:
-        plan === 'annual'
-          ? `Pulse Verified Pro active — $${price.toLocaleString()} for 52 weeks.`
-          : `Pulse Verified Pro active — $${price}/week.`,
-    };
     return { ...prev, ...spend, socialMedia: sm, userProfile };
   });
-  return result;
+  return {
+    success: true,
+    message:
+      plan === 'annual'
+        ? `Pulse Verified Pro active — $${price.toLocaleString()} for 52 weeks.`
+        : `Pulse Verified Pro active — $${price}/week.`,
+  };
 };
 
 export const cancelVerifiedPro = (
@@ -1119,7 +1126,12 @@ export const cancelVerifiedPro = (
         },
       };
     }
-    return { ...prev, socialMedia: sm };
+    // The blue check is derived from an ACTIVE Verified Pro subscription. Cancelling
+    // must clear userProfile.verified too — otherwise the checkmark survived forever.
+    const userProfile = prev.userProfile?.verified
+      ? { ...prev.userProfile, verified: false }
+      : prev.userProfile;
+    return { ...prev, socialMedia: sm, userProfile };
   });
 };
 

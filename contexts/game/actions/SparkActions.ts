@@ -621,20 +621,28 @@ export const promoteMatchToRelationship = (
  */
 export const subscribeSparkPremium = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
   tier: 'plus' | 'ultra',
   plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
   const price = plan === 'annual' ? SPARK_TIER_PRICING[tier].annual : SPARK_TIER_PRICING[tier].weekly;
   const tierLabel = tier === 'ultra' ? 'Ultra' : 'Plus';
-  let result: { success: boolean; message: string } = {
-    success: false,
-    message: `You can't afford Spark ${tierLabel} ($${price.toLocaleString()}).`,
-  };
+  // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
+  // setGameState is a plain (wrapped) React useState setter that may defer the
+  // updater, so reading a value the updater assigns is unreliable. The atomic
+  // charge+grant still lives inside the updater below (applyMoneyDelta overdraft-
+  // reject), which remains the source of truth for money safety.
+  if ((gameState.stats?.money ?? 0) < price) {
+    return {
+      success: false,
+      message: `You can't afford Spark ${tierLabel} ($${price.toLocaleString()}).`,
+    };
+  }
   setGameState((prev) => {
     // Charge in-game cash atomically (overdraft-reject) in the same updater that
     // grants the perks.
     const spend = applyMoneyDelta(prev, -price, `Spark ${tier} (${plan})`);
-    if (!spend) return prev; // unaffordable → reject; keep default failure message
+    if (!spend) return prev; // funds dropped since the preview → reject atomically
     const s = ensureSpark(prev);
     const ws = prev.weeksLived ?? 0;
     const tierRank = (t: SparkPremiumTier) => (t === 'ultra' ? 2 : t === 'plus' ? 1 : 0);
@@ -642,13 +650,6 @@ export const subscribeSparkPremium = (
       ? s.lifetimeStats.peakPremiumTier
       : tier;
 
-    result = {
-      success: true,
-      message:
-        plan === 'annual'
-          ? `Spark ${tierLabel} active — $${price.toLocaleString()} for 52 weeks.`
-          : `Spark ${tierLabel} active — $${price}/week.`,
-    };
     return {
       ...prev,
       ...spend,
@@ -668,7 +669,13 @@ export const subscribeSparkPremium = (
       },
     };
   });
-  return result;
+  return {
+    success: true,
+    message:
+      plan === 'annual'
+        ? `Spark ${tierLabel} active — $${price.toLocaleString()} for 52 weeks.`
+        : `Spark ${tierLabel} active — $${price}/week.`,
+  };
 };
 
 export const cancelSparkPremium = (

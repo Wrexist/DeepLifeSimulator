@@ -48,7 +48,13 @@ export interface SubscriptionBillingResult {
 function isInGameBillable(
   sub: { active?: boolean; weeklyPrice?: number } | undefined,
 ): boolean {
-  return !!sub && sub.active === true && typeof sub.weeklyPrice === 'number' && sub.weeklyPrice > 0;
+  return (
+    !!sub &&
+    sub.active === true &&
+    typeof sub.weeklyPrice === 'number' &&
+    Number.isFinite(sub.weeklyPrice) &&
+    sub.weeklyPrice > 0
+  );
 }
 
 /** Whether an annual prepay term is still covering this week (no charge due). */

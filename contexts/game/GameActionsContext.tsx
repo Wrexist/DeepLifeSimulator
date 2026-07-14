@@ -1370,6 +1370,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  if (subscriptionBilling.totalCharged > 0) {
    newStats.money = Math.max(0, newStats.money - subscriptionBilling.totalCharged);
+   // Fold the weekly subscription fee into the recap's expense/net totals so the
+   // cash drop is accounted (was previously debited but invisible to the recap).
+   // Guarded by totalCharged > 0 → exact no-op when no in-game sub is active, so
+   // the seeded-tick equivalence snapshots stay byte-identical.
+   const chargeRounded = Math.round(subscriptionBilling.totalCharged);
+   weekResult.expensesPaid += chargeRounded;
+   weekResult.netChange -= chargeRounded;
+ }
+ // Blue check is derived from an ACTIVE Verified Pro subscription — when a weekly
+ // renewal lapses, clear userProfile.verified too. Only fires on a real lapse (an
+ // active in-game sub that just went inactive), so it's a no-op for equivalence saves.
+ let userProfileNext = prevState.userProfile;
+ if (
+   subscriptionBilling.verifiedProChanged &&
+   subscriptionBilling.verifiedPro?.active !== true &&
+   prevState.userProfile?.verified
+ ) {
+   userProfileNext = { ...prevState.userProfile, verified: false };
  }
  if (subscriptionBilling.verifiedProChanged && pulseSocialMedia) {
    pulseSocialMedia = { ...pulseSocialMedia, verifiedPro: subscriptionBilling.verifiedPro };
@@ -1490,6 +1508,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
+ // In-game subscription fee (Pulse Verified Pro / Spark Premium) — appended only
+ // when a fee was actually charged this tick, so the spendEvents array (and thus
+ // banking.budgetSpend) is byte-identical when no in-game sub is active.
+ ...(subscriptionBilling.totalCharged > 0
+ ? [{ category: 'lifestyle' as const, amount: subscriptionBilling.totalCharged }]
+ : []),
  ],
  });
  } catch (bankingErr) {
@@ -1763,6 +1787,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  socialMedia: pulseSocialMedia,
  sparkApp: sparkAppNext,
  hustleApp: hustleAppNext,
+ // Same reference as prevState.userProfile unless a Verified Pro renewal lapsed
+ // this tick (then verified is cleared) — no-op for saves with no active sub.
+ userProfile: userProfileNext,
  // Final NaN/Infinity guard on the unbounded fields: once money or reputation
  // goes NaN (a bad delta upstream), every later `Math.max(0, NaN + x)` stays NaN
  // and the UI shows "NaN" until the next save/load repair. isFinite catches it.

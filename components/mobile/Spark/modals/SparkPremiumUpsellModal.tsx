@@ -10,7 +10,7 @@
  */
 import React, { useCallback } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { X, Check, Crown, Zap } from 'lucide-react-native';
+import { X, Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -53,7 +53,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
 
   const handleSubscribe = useCallback(
     (tier: 'plus' | 'ultra') => {
-      const result = subscribeSparkPremium(setGameState, tier, 'weekly');
+      const result = subscribeSparkPremium(setGameState, gameState, tier, 'weekly');
       if (result.success) {
         sparkHaptics.boost();
         saveGame();
@@ -62,7 +62,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         Alert.alert('Spark Premium', result.message);
       }
     },
-    [setGameState, saveGame, onDismiss],
+    [setGameState, gameState, saveGame, onDismiss],
   );
 
   const handleCancel = useCallback(() => {
@@ -115,6 +115,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               onPress={() => handleSubscribe('plus')}
               theme={theme}
               active={activeTier === 'plus'}
+              anyTierActive={activeTier !== null}
               affordable={money >= SPARK_TIER_PRICING.plus.weekly}
             />
             <TierCard
@@ -127,6 +128,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               theme={theme}
               recommended
               active={activeTier === 'ultra'}
+              anyTierActive={activeTier !== null}
               affordable={money >= SPARK_TIER_PRICING.ultra.weekly}
             />
           </ScrollView>
@@ -153,18 +155,36 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   );
 }
 
+interface TierCardProps {
+  icon: LucideIcon;
+  gradient: readonly [string, string];
+  name: string;
+  price: string;
+  perks: readonly string[];
+  onPress: () => void;
+  theme: ReturnType<typeof useTheme>['theme'];
+  recommended?: boolean;
+  active: boolean;
+  /** Any tier (this or the other) is currently active — blocks buying a second tier. */
+  anyTierActive: boolean;
+  affordable: boolean;
+}
+
 function TierCard({
-  icon: Icon, gradient, name, price, perks, onPress, theme, recommended, active, affordable,
-}: any) {
+  icon: Icon, gradient, name, price, perks, onPress, theme, recommended, active, anyTierActive, affordable,
+}: TierCardProps): React.ReactElement {
+  // While ANY tier is active, no tier is buyable: the active one shows CURRENT
+  // PLAN; the other is disabled (no silent full-price plan swap / double charge).
+  const buyable = !anyTierActive && affordable;
   return (
     <Pressable
-      onPress={active ? undefined : onPress}
-      disabled={active || !affordable}
+      onPress={buyable ? onPress : undefined}
+      disabled={!buyable}
       accessibilityRole="button"
       accessibilityLabel={active ? `Spark ${name} is your current plan` : `Subscribe to Spark ${name}, ${price}`}
       style={({ pressed }) => [
         styles.tierCard,
-        { borderColor: active ? SPARK_COLORS.success : theme.border, opacity: !active && !affordable ? 0.55 : pressed ? 0.92 : 1 },
+        { borderColor: active ? SPARK_COLORS.success : theme.border, opacity: !buyable && !active ? 0.55 : pressed ? 0.92 : 1 },
       ]}
     >
       <LinearGradient

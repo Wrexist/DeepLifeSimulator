@@ -388,7 +388,7 @@ describe('monetization', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;
     const { setGameState, getState } = makeStateHarness(state);
-    const r = subscribeVerifiedPro(setGameState, 'weekly');
+    const r = subscribeVerifiedPro(setGameState, state, 'weekly');
     expect(r.success).toBe(true);
     const sm = getState().socialMedia!;
     expect(sm.verifiedPro!.active).toBe(true);
@@ -406,7 +406,7 @@ describe('monetization', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 5;
     const { setGameState, getState } = makeStateHarness(state);
-    const r = subscribeVerifiedPro(setGameState, 'weekly');
+    const r = subscribeVerifiedPro(setGameState, state, 'weekly');
     expect(r.success).toBe(false);
     expect(getState().socialMedia!.verifiedPro?.active ?? false).toBe(false);
     expect(getState().stats.money).toBe(5); // untouched
@@ -416,7 +416,7 @@ describe('monetization', () => {
     const state = freshState({ weeksLived: 4 });
     state.stats.money = 5000;
     const { setGameState, getState } = makeStateHarness(state);
-    const r = subscribeVerifiedPro(setGameState, 'annual');
+    const r = subscribeVerifiedPro(setGameState, state, 'annual');
     expect(r.success).toBe(true);
     const sm = getState().socialMedia!;
     expect(sm.verifiedPro!.plan).toBe('annual');
@@ -424,15 +424,18 @@ describe('monetization', () => {
     expect(getState().stats.money).toBe(5000 - 865);
   });
 
-  it('cancelVerifiedPro disables perks but keeps the verified flag (tick handles expiry)', () => {
+  it('cancelVerifiedPro disables perks and clears the blue check (userProfile.verified)', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;
     const { setGameState, getState } = makeStateHarness(state);
-    subscribeVerifiedPro(setGameState, 'weekly');
+    subscribeVerifiedPro(setGameState, state, 'weekly');
+    expect(getState().userProfile.verified).toBe(true);
     cancelVerifiedPro(setGameState);
     const sm = getState().socialMedia!;
     expect(sm.verifiedPro!.active).toBe(false);
     expect(sm.verifiedPro!.perksUnlocked.postBoostMultiplier).toBe(1.0);
+    // Blue check no longer survives cancellation.
+    expect(getState().userProfile.verified).toBe(false);
   });
 
   it('watchAdForFollowerBoost enforces 1-per-week cap using weeksLived', () => {

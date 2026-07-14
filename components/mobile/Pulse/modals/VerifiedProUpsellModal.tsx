@@ -49,7 +49,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
 
   const handleSubscribe = useCallback(
     (plan: 'weekly' | 'annual') => {
-      const result = subscribeVerifiedPro(setGameState, plan);
+      const result = subscribeVerifiedPro(setGameState, gameState, plan);
       if (result.success) {
         pulseHaptics.success();
         saveGame();
@@ -59,7 +59,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
         Alert.alert('Verified Pro', result.message);
       }
     },
-    [setGameState, saveGame, onDismiss],
+    [setGameState, gameState, saveGame, onDismiss],
   );
 
   const handleCancel = useCallback(() => {
@@ -185,7 +185,9 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
 
           <Text style={[styles.legal, { color: theme.textMuted }]}>
             {isActive
-              ? 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
+              ? verifiedPro?.plan === 'annual'
+                ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
+                : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
               : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
