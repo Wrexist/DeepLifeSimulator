@@ -82,8 +82,13 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   // free increment — it only advances when `weeksLived` genuinely changes.
   const lastResearchWeekRef = useRef<number>(weeksLived);
   useEffect(() => {
-    if (lastResearchWeekRef.current === weeksLived) return; // already advanced this week
+    const prevWeek = lastResearchWeekRef.current;
     lastResearchWeekRef.current = weeksLived;
+    // Only a genuine +1 weekly advance advances research. Gating on an exact
+    // forward step of one week means loading a different save slot (any other
+    // delta — a jump forward or a rewind) no longer grants a spurious research
+    // week / breakthrough roll. First mount is a no-op (prevWeek === weeksLived).
+    if (weeksLived !== prevWeek + 1) return;
     const state = stateRef.current;
     if (state) advanceResearch(state, setGameState);
   }, [weeksLived, setGameState]);

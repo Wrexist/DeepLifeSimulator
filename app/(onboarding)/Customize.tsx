@@ -206,7 +206,7 @@ export default function Customize() {
     <OnboardingScreenShellV2
       floatingButton={
         <OnboardingFloatingButton
-          title="Continue To Perks"
+          title="Continue To Ambitions"
           onPress={handleContinue}
           icon={<Play size={24} color="#FFFFFF" />}
         />

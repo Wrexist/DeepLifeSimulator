@@ -2259,8 +2259,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let targetRelId = event.relationId;
  if (!targetRelId && updatedRelationships.length > 0) {
  const romantic = updatedRelationships.find(r => r.type === 'spouse' || r.type === 'partner');
+ // Secondary fallback: highest-scored NON-FAMILY relationship. Excluding
+ // child/parent stops an unbound (often romantic-context) delta from landing on
+ // a newborn child (relationshipScore 100 would otherwise win the sort). Drop the
+ // effect if nothing qualifies rather than mis-target a family member.
+ const nonFamily = updatedRelationships.filter(r => r.type !== 'child' && r.type !== 'parent');
  const fallback = romantic
- ?? [...updatedRelationships].sort((a, b) => (b.relationshipScore ?? 50) - (a.relationshipScore ?? 50))[0];
+ ?? [...nonFamily].sort((a, b) => (b.relationshipScore ?? 50) - (a.relationshipScore ?? 50))[0];
  targetRelId = fallback?.id;
  }
  if (targetRelId) {

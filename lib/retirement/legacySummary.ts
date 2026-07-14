@@ -69,7 +69,12 @@ export function getElderLegacySummary(state: GameState): ElderLegacySummary {
   for (const child of children) {
     if (!child) continue;
     const eligible = child.isHeirEligible !== false;
-    const inheritance = Math.max(0, num(calculateChildInheritance(estateToHeirs, child)));
+    let inheritance = 0;
+    try {
+      inheritance = Math.max(0, num(calculateChildInheritance(estateToHeirs, child)));
+    } catch {
+      inheritance = 0;
+    }
     const preview: ElderHeirPreview = {
       id: child.id,
       name: child.name || 'Heir',
@@ -86,6 +91,18 @@ export function getElderLegacySummary(state: GameState): ElderLegacySummary {
     }
   }
 
+  // Defensive per the file contract: an achievement helper that throws must not
+  // crash the elder surface.
+  let achievementsCount = 0;
+  let topAchievements: string[] = [];
+  try {
+    achievementsCount = getEarnedAchievementCount(state);
+    topAchievements = getEarnedAchievementNames(state).slice(0, 5);
+  } catch {
+    achievementsCount = 0;
+    topAchievements = [];
+  }
+
   return {
     age: getAge(state),
     isRetired: isRetired(state),
@@ -93,8 +110,8 @@ export function getElderLegacySummary(state: GameState): ElderLegacySummary {
     netWorth: canonicalNetWorth,
     estateToHeirs,
     legacyBonuses,
-    achievementsCount: getEarnedAchievementCount(state),
-    topAchievements: getEarnedAchievementNames(state).slice(0, 5),
+    achievementsCount,
+    topAchievements,
     spouseName: state?.family?.spouse?.name,
     childrenCount: children.length,
     primaryHeir,

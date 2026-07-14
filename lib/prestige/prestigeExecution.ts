@@ -89,8 +89,13 @@ export function executePrestige(
     unlockedBonuses: [...prestigeData.unlockedBonuses], // Preserve unlocked bonuses
     prestigeHistory: cappedHistory,
     // H-5: record how many achievements have now been credited toward points so
-    // they can't be farmed again on the next prestige.
-    achievementsCreditedForPoints: (gameState.achievements || []).filter((a) => a.completed).length,
+    // they can't be farmed again on the next prestige. This MUST use the same
+    // source `calculatePrestigePoints` credits from (`getEarnedAchievementCount`,
+    // i.e. claimedProgressAchievements). Writing it from the deprecated
+    // `achievements[].completed` — which is never set in normal play — persisted 0
+    // every prestige, so `alreadyCredited` was always 0 and the same achievements
+    // re-paid +10 each every life (an unbounded prestige-currency farm).
+    achievementsCreditedForPoints: getEarnedAchievementCount(gameState),
     // Preserve the prestige-achievement claimed store across the reset. This
     // object is rebuilt field-by-field (not spread), so without carrying it over
     // every prestige would reset the store and re-award each achievement — the

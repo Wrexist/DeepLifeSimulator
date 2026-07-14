@@ -110,9 +110,14 @@ export function applyChoiceConsequences(
   const mergedConsequences = [...currentConsequences, ...newConsequences];
   const activeConsequences = mergedConsequences.filter(c => c.active);
   const inactiveConsequences = mergedConsequences.filter(c => !c.active);
+  // Keep the most-recent inactive entries up to a 100-total budget. Guard the
+  // zero case explicitly: `slice(-0)` is `slice(0)` and returns the WHOLE array,
+  // so once there are already ≥100 active consequences the cap would silently
+  // self-disable and inactive entries would grow unbounded.
+  const inactiveKeep = Math.max(0, 100 - activeConsequences.length);
   const cappedConsequences = [
     ...activeConsequences,
-    ...inactiveConsequences.slice(-Math.max(0, 100 - activeConsequences.length)),
+    ...(inactiveKeep === 0 ? [] : inactiveConsequences.slice(-inactiveKeep)),
   ];
   return {
     newConsequences: cappedConsequences,

@@ -87,13 +87,16 @@ function ElderCard() {
 
   const doRetire = () => {
     haptic.success();
-    let ok = false;
+    // Decide success from the render snapshot (pure retirePlayer) rather than a
+    // flag mutated inside the async state updater — React does not guarantee the
+    // updater runs synchronously, so the flag could stay false on a successful
+    // retire and skip the toast + immediate save.
+    const preview = retirePlayer(state);
     setGameState((prev) => {
       const res = retirePlayer(prev);
-      ok = res.ok;
       return res.ok ? res.state : prev;
     });
-    if (ok) {
+    if (preview.ok) {
       showSuccess('You have retired. Time for the chapter you earned.');
       void saveGame?.(false);
     }
@@ -106,16 +109,17 @@ function ElderCard() {
       return;
     }
     haptic.light();
-    let ok = false;
-    let toast = '';
+    // Decide success + toast from the render snapshot (pure applyElderActivity),
+    // not a flag mutated inside the async state updater (which React may defer,
+    // leaving `ok` false on a successful activity — a false "Not available" warning
+    // on an action that already charged + applied). Mirrors AmbitionCard.
+    const preview = applyElderActivity(state, id);
     setGameState((prev) => {
       const res = applyElderActivity(prev, id);
-      ok = res.ok;
-      if (res.ok && res.activity) toast = res.activity.toast;
       return res.ok ? res.state : prev;
     });
-    if (ok) {
-      showSuccess(toast || 'Done.');
+    if (preview.ok) {
+      showSuccess((preview.activity && preview.activity.toast) || 'Done.');
       void saveGame?.(false);
     } else {
       showWarning('Not available right now.');

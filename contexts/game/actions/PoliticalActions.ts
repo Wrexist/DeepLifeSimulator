@@ -187,7 +187,18 @@ export const runForOffice = (
   const hasEducation = (id: string) => 
     (gameState.educations || []).some(e => e.id === id && e.completed);
   
-  const weeksInCurrentLevel = career.level > 0 ? career.progress : 0;
+  // Weeks served in the CURRENT office. Prefer the real tenure counter
+  // (`startedWeeksLived`, stamped on each election win below) so the upper rungs —
+  // whose `minWeeksInPrevious` (104/208/260) exceed the 0–100 `progress` ceiling —
+  // are actually reachable. A sitting official is level 0 for Council, so gate on
+  // `accepted` (NOT `level > 0`) or their served weeks are wrongly zeroed and the
+  // ladder dead-ends at Council. Fall back to `progress` for pre-fix saves with no
+  // `startedWeeksLived` yet (enough to clear the 52-week Mayor gate).
+  const weeksInCurrentLevel = career.accepted
+    ? (typeof career.startedWeeksLived === 'number'
+        ? Math.max(0, (gameState.weeksLived || 0) - career.startedWeeksLived)
+        : (career.progress || 0))
+    : 0;
   
   // Check requirements individually to provide specific error messages
   if (gameState.date.age < requirements.minAge) {
@@ -370,6 +381,10 @@ export const runForOffice = (
           progress: 0,
           applied: true,
           accepted: true,
+          // Stamp when this term began so `weeksInCurrentLevel` measures real
+          // tenure — this is what makes the minWeeksInPrevious gates on the upper
+          // rungs (Mayor→…→President) satisfiable.
+          startedWeeksLived: currentWeek,
         };
       }),
       politics: {

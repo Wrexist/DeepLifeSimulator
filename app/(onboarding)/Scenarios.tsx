@@ -313,8 +313,13 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   );
 });
 
+// Module-scope so it is a STABLE reference. Creating it in the component body
+// returned a fresh ScopedLogger every render, which invalidated the
+// challengeScenarios `useMemo` (dep [log]) on every render and defeated the
+// downstream ScenarioCardView memoization the Challenges tab relies on.
+const log = logger.scope('Scenarios');
+
 export default function Scenarios() {
-  const log = logger.scope('Scenarios');
   const router = useRouter();
   const navigation = useNavigation();
   const { state, setState } = useOnboarding();
@@ -388,7 +393,7 @@ export default function Scenarios() {
         rewardGems,
       };
     }).filter((scenario): scenario is ChallengeScenarioCard => scenario !== null);
-  }, [log]);
+  }, []);
 
   // Easiest-first, recommended pinned to the top. Stable for equal ranks so the
   // original authored order is preserved within a difficulty tier.

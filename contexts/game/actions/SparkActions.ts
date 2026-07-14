@@ -784,8 +784,17 @@ export const fallForCatfish = (
   moneyLost: number,
 ): void => {
   const weeksLived = gameState.weeksLived ?? 0;
+  // ANTI-DOUBLE-CHARGE (mirrors exposeCatfish): the Alert "Send money" button can
+  // fire twice in one React batch; without a fresh-state re-check both taps append
+  // a record AND both trailing updateMoney calls debit the loss (charging twice).
+  // Skip the money/reputation legs when the duplicate is rejected.
+  let applied = false;
   setGameState((prev) => {
     const s = ensureSpark(prev);
+    if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'fell_for_it' && r.exposedAtWeek === weeksLived)) {
+      return prev;
+    }
+    applied = true;
     return {
       ...prev,
       sparkApp: {
@@ -797,6 +806,7 @@ export const fallForCatfish = (
       },
     };
   });
+  if (!applied) return;
   updateMoney(setGameState, -moneyLost, 'Spark catfish scam');
   updateStats(setGameState, { reputation: -2 });
 };

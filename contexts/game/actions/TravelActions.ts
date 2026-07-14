@@ -62,13 +62,15 @@ export const travelTo = (
   let booked = false;
   setGameState((prev) => {
     if (prev.travel?.currentTrip) return prev;
-    const currentMoney =
-      typeof prev.stats?.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0;
-    if (currentMoney < adjustedCost) return prev;
+    // Debit through the canonical money path so the trip cost lands in
+    // dailySummary.moneyChange (the daily/weekly money-change readout), matching
+    // doTravelActivity. applyMoneyDelta also does the overdraft-reject + NaN-guard.
+    const spend = applyMoneyDelta(prev, -adjustedCost, `Travel to ${destination.name}`);
+    if (!spend) return prev;
     booked = true;
     return {
       ...prev,
-      stats: { ...prev.stats, money: Math.max(0, currentMoney - adjustedCost) },
+      ...spend,
       // Budget tab: trip bookings are entertainment spending.
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived || 0, 'entertainment', adjustedCost)
