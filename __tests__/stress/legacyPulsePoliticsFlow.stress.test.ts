@@ -499,7 +499,12 @@ describe('processPulseWeeklyTick', () => {
     expect(state.socialMedia!.notifications!.length).toBeLessThanOrEqual(100);
   });
 
-  it('Verified Pro: expires when timestamp passes (lazy expiry)', () => {
+  it('Verified Pro: pure tick no longer wall-clock-expires (in-game billing owns lapse)', () => {
+    // Verified Pro is now an IN-GAME cash subscription. The legacy wall-clock
+    // `expiresTimestamp` expiry was removed from the pure tick — weekly billing +
+    // lapse (on insufficient cash) is handled by applySubscriptionsForWeek in the
+    // nextWeek orchestrator (covered in __tests__/actions/weekly/applySubscriptions
+    // .test.ts). So the stale timestamp must NOT deactivate the sub in the tick.
     const state = createTestGameState({
       socialMedia: {
         followers: 100_000, influenceLevel: 'influencer',
@@ -507,13 +512,15 @@ describe('processPulseWeeklyTick', () => {
         engagementRate: 0.04, lastPostWeek: 0,
         verifiedPro: {
           active: true,
-          expiresTimestamp: Date.now() - 1000, // already expired
+          plan: 'weekly',
+          weeklyPrice: 20,
+          expiresTimestamp: Date.now() - 1000, // legacy field — no longer consulted
           perksUnlocked: { postBoostMultiplier: 1.25, blueCheckmark: true, analyticsUnlocked: true, noAdsInFeed: true, longerPosts: true },
         } as any,
       } as any,
     });
     const r = processPulseWeeklyTick(state, 5);
-    expect(r.socialMedia.verifiedPro?.active).toBe(false);
+    expect(r.socialMedia.verifiedPro?.active).toBe(true);
   });
 
   it('influenceLevel tracks follower bands', () => {

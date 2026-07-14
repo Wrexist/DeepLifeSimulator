@@ -155,6 +155,17 @@ export function perksForTier(tier: SparkPremiumTier): SparkPremium['perks'] {
   return { ...SPARK_PREMIUM_TIERS[tier] };
 }
 
+/**
+ * Spark Premium — in-game (cash) subscription pricing per tier. Paid from
+ * stats.money and auto-renewed weekly on the tick (see applySubscriptionsForWeek).
+ * Ultra is ~2× Plus (mirrors the old $4.99 / $9.99 split) and priced against the
+ * game's weekly job income. NOT a real App Store IAP.
+ */
+export const SPARK_TIER_PRICING: Record<'plus' | 'ultra', { weekly: number; annual: number }> = {
+  plus: { weekly: 12, annual: 520 }, // 52 × 12 = 624 → ~17% off
+  ultra: { weekly: 24, annual: 1040 }, // 52 × 24 = 1248 → ~17% off
+};
+
 // ── Swipe quota ───────────────────────────────────────────────────────────
 
 /** Max swipes per week at the player's current premium tier. */

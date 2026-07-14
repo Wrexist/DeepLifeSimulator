@@ -96,6 +96,7 @@ import {
 } from './actions/weekly/applyPets';
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
 import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
@@ -1343,15 +1344,47 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Pulse tick effects fold into the final return: replace socialMedia,
  // apply reputationDelta (negative when scandals were active this tick).
- const pulseSocialMedia = pulseTickResult?.socialMedia ?? prevState.socialMedia;
+ let pulseSocialMedia = pulseTickResult?.socialMedia ?? prevState.socialMedia;
  const pulseRepAdjusted = pulseTickResult
  ? Math.max(0, (newStats.reputation ?? 50) + pulseTickResult.reputationDelta)
 : newStats.reputation;
 
  // Spark tick: replace sparkApp with the tick's result (quota reset,
- // boost expiry, premium renewal, jealousy spawn). Surfaces tick
- // notifications into the pendingNotifications queue alongside everyone else.
- const sparkAppNext = sparkTickResult?.sparkApp ?? prevState.sparkApp;
+ // boost expiry, jealousy spawn). Surfaces tick notifications into the
+ // pendingNotifications queue alongside everyone else.
+ let sparkAppNext = sparkTickResult?.sparkApp ?? prevState.sparkApp;
+
+ // In-game subscription auto-renew billing (Pulse Verified Pro + Spark
+ // Premium). These are paid from cash — NOT real App Store IAPs — so the weekly
+ // fee is debited from newStats.money here (mirror-safe: stats.money only) and
+ // the subscription lapses (perks off) if the player can't afford the renewal.
+ // Runs AFTER income/rent so it bills real post-income cash. Inert (byte-
+ // identical) when no in-game subscription is active: totalCharged 0, both
+ // *Changed flags false, no notifications, and the app objects pass through by
+ // reference.
+ const subscriptionBilling = applySubscriptionsForWeek({
+   verifiedPro: pulseSocialMedia?.verifiedPro,
+   sparkPremium: sparkAppNext?.premium,
+   moneyAvailable: newStats.money,
+   nextWeeksLived,
+ });
+ if (subscriptionBilling.totalCharged > 0) {
+   newStats.money = Math.max(0, newStats.money - subscriptionBilling.totalCharged);
+ }
+ if (subscriptionBilling.verifiedProChanged && pulseSocialMedia) {
+   pulseSocialMedia = { ...pulseSocialMedia, verifiedPro: subscriptionBilling.verifiedPro };
+ }
+ if (subscriptionBilling.sparkPremiumChanged && sparkAppNext && subscriptionBilling.sparkPremium) {
+   sparkAppNext = { ...sparkAppNext, premium: subscriptionBilling.sparkPremium };
+ }
+ for (const [i, text] of subscriptionBilling.notifications.entries()) {
+   pendingNotifications.push({
+     id: `subscription-tick-${nextWeeksLived}-${i}`,
+     title: 'Subscription',
+     message: text,
+   });
+ }
+
  if (sparkTickResult?.notifications) {
  for (const [i, text] of sparkTickResult.notifications.entries()) {
  pendingNotifications.push({

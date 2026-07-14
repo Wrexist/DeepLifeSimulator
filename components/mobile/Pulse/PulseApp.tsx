@@ -18,7 +18,6 @@ import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
-import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
 import PulseFAB from './components/PulseFAB';
 import ScandalBanner from './components/ScandalBanner';
@@ -39,10 +38,6 @@ import BoostPostModal from './modals/BoostPostModal';
 import RewardedAdModal from './modals/RewardedAdModal';
 import NpcProfileSheet, { type NpcStoryTarget } from './modals/NpcProfileSheet';
 import { formatPulseNumber } from './utils/formatPulseNumber';
-import { subscribeVerifiedPro } from '@/contexts/game/actions/PulseActions';
-import { iapService } from '@/services/IAPService';
-import { SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
-import { logger } from '@/utils/logger';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -97,39 +92,9 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const openNpcSheet = useCallback((npc: NpcStoryTarget) => setSheetNpc(npc), []);
   const dismissNpcSheet = useCallback(() => setSheetNpc(null), []);
 
-  const handleSubscribePro = useCallback(
-    async (plan: 'monthly' | 'yearly') => {
-      // Real IAP path: route through the store. The IAPService fulfillment
-      // chain (services/IAPService.ts) writes the Verified Pro entitlement
-      // into socialMedia.verifiedPro on successful purchase.
-      const productId = plan === 'monthly'
-        ? SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY
-        : SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY;
-      try {
-        const result = await iapService.purchaseProduct(productId);
-        if (result.success) {
-          setShowProUpsell(false);
-        } else {
-          logger.warn('[Pulse] Verified Pro purchase failed', { productId, message: result.message });
-          // Fall back to local-grant in __DEV__ so the perks can be demoed
-          // without store config; production builds skip this branch.
-          if (__DEV__) {
-            const ms = (plan === 'monthly' ? 30 : 365) * MS_PER_DAY;
-            subscribeVerifiedPro(setGameState, productId, Date.now() + ms);
-            setShowProUpsell(false);
-          }
-        }
-      } catch (err) {
-        logger.error('[Pulse] Verified Pro purchase threw', err);
-        if (__DEV__) {
-          const ms = (plan === 'monthly' ? 30 : 365) * MS_PER_DAY;
-          subscribeVerifiedPro(setGameState, productId, Date.now() + ms);
-          setShowProUpsell(false);
-        }
-      }
-    },
-    [setGameState],
-  );
+  // Verified Pro is an IN-GAME cash subscription — the VerifiedProUpsellModal
+  // owns the buy/cancel flow (charges stats.money via subscribeVerifiedPro). No
+  // real-IAP path here anymore.
 
   // ── Overlay routes intercept the entire body when active ──────────────────
   if (detailPostId) {
@@ -172,7 +137,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           onBoostPost={(postId) => setBoostPostId(postId)}
           onEditProfile={() => setShowProfileEdit(true)}
         />
-        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} onSubscribe={handleSubscribePro} />
+        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
         <ProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
       </View>
     );
@@ -206,7 +171,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           <View style={styles.headerBtn} />
         </View>
         <InsightsScreen onUpgradePro={openProUpsell} />
-        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} onSubscribe={handleSubscribePro} />
+        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
       </View>
     );
   }
@@ -352,7 +317,6 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       <VerifiedProUpsellModal
         visible={showProUpsell}
         onDismiss={dismissProUpsell}
-        onSubscribe={handleSubscribePro}
       />
       <BoostPostModal
         visible={!!boostPostId}

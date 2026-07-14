@@ -183,13 +183,19 @@ describe('processPulseWeeklyTick', () => {
     expect(r.reputationDelta).toBeLessThanOrEqual(-5);
   });
 
-  it('deactivates Verified Pro after its expires timestamp passes', () => {
+  it('keeps Verified Pro active regardless of the legacy expires timestamp (in-game billing owns lapse)', () => {
+    // Verified Pro is now an IN-GAME cash subscription. Wall-clock expiry is
+    // removed from the pure tick — weekly billing + lapse (on insufficient cash)
+    // is handled by applySubscriptionsForWeek in the nextWeek orchestrator. So a
+    // stale legacy `expiresTimestamp` must NOT deactivate the sub here.
     const state = freshState({ weeksLived: 1 });
     state.socialMedia!.verifiedPro = {
       active: true,
+      plan: 'weekly',
+      weeklyPrice: 20,
+      startedWeek: 0,
       subscribedTimestamp: Date.now() - 2 * 86400_000,
-      expiresTimestamp: Date.now() - 86400_000, // expired yesterday
-      sku: 'sub',
+      expiresTimestamp: Date.now() - 86400_000, // legacy field — no longer consulted
       perksUnlocked: {
         blueCheckmark: true,
         postBoostMultiplier: 1.25,
@@ -199,8 +205,8 @@ describe('processPulseWeeklyTick', () => {
       },
     };
     const r = processPulseWeeklyTick(state, 2);
-    expect(r.socialMedia.verifiedPro!.active).toBe(false);
-    expect(r.socialMedia.verifiedPro!.perksUnlocked.postBoostMultiplier).toBe(1.0);
+    expect(r.socialMedia.verifiedPro!.active).toBe(true);
+    expect(r.socialMedia.verifiedPro!.perksUnlocked.postBoostMultiplier).toBe(1.25);
   });
 
   it('caps notifications to 100', () => {

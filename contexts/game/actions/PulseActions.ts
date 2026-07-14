@@ -21,6 +21,7 @@ import type {
   PulseNotificationType,
   PulseScandalResolution,
   PulseActiveBrandDeal,
+  InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
 import { updateStats } from './StatsActions';
@@ -37,6 +38,8 @@ import {
   canCreateContent,
   calculateLiveStreamDonations,
   getEngagementMultiplierFromVerifiedPro,
+  VERIFIED_PRO_WEEKLY_PRICE,
+  VERIFIED_PRO_ANNUAL_PRICE,
 } from '@/lib/social/socialMedia';
 
 const log = logger.scope('PulseActions');
@@ -1033,18 +1036,41 @@ export const boostPostWithGems = (
   return { success: true, message: 'Post boosted!' };
 };
 
+/**
+ * Subscribe to Pulse Verified Pro as an IN-GAME cash subscription (NOT a real
+ * IAP). Debits `stats.money` immediately via the canonical `applyMoneyDelta`
+ * (overdraft-reject + NaN-guard) in the SAME updater that grants the perks, and
+ * records the weekly price so the tick can auto-renew it (applySubscriptionsForWeek).
+ *
+ * - plan 'weekly': charge the weekly fee now; auto-renews weekly on the tick.
+ * - plan 'annual': charge the 52-week prepay now (discounted); weekly billing is
+ *   skipped until the prepaid term ends, then normal weekly auto-renew resumes.
+ *
+ * Returns `{ success:false }` with a clear message when the player can't afford it.
+ */
 export const subscribeVerifiedPro = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  sku: string,
-  expiresTimestamp: number,
+  plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
+  const price = plan === 'annual' ? VERIFIED_PRO_ANNUAL_PRICE : VERIFIED_PRO_WEEKLY_PRICE;
+  let result: { success: boolean; message: string } = {
+    success: false,
+    message: `You can't afford Pulse Verified Pro ($${price.toLocaleString()}).`,
+  };
   setGameState((prev) => {
+    // Charge in-game cash atomically (overdraft-reject) in the same updater that
+    // grants the perks — closes the charge-then-grant race and never overdrafts.
+    const spend = applyMoneyDelta(prev, -price, `Pulse Verified Pro (${plan})`);
+    if (!spend) return prev; // unaffordable → reject; keep default failure message
     const sm = { ...ensureSocial(prev) };
+    const ws = prev.weeksLived ?? 0;
     sm.verifiedPro = {
       active: true,
+      plan,
+      weeklyPrice: VERIFIED_PRO_WEEKLY_PRICE,
+      startedWeek: ws,
+      paidThroughWeek: plan === 'annual' ? ws + 52 : undefined,
       subscribedTimestamp: Date.now(),
-      expiresTimestamp,
-      sku,
       perksUnlocked: {
         blueCheckmark: true,
         postBoostMultiplier: 1.25,
@@ -1058,14 +1084,21 @@ export const subscribeVerifiedPro = (
       sm.verifiedProWelcomeClaimed = true;
       sm.followers = (sm.followers ?? 0) + 500;
       sm.influenceLevel = getInfluenceLevel(sm.followers);
-      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', prev.weeksLived ?? 0);
+      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', ws);
     }
 
     // Flip userProfile.verified
     const userProfile = { ...prev.userProfile, verified: true };
-    return { ...prev, socialMedia: sm, userProfile };
+    result = {
+      success: true,
+      message:
+        plan === 'annual'
+          ? `Pulse Verified Pro active — $${price.toLocaleString()} for 52 weeks.`
+          : `Pulse Verified Pro active — $${price}/week.`,
+    };
+    return { ...prev, ...spend, socialMedia: sm, userProfile };
   });
-  return { success: true, message: 'Pulse Pro active.' };
+  return result;
 };
 
 export const cancelVerifiedPro = (

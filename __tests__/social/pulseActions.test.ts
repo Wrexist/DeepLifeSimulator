@@ -384,22 +384,51 @@ describe('monetization', () => {
     expect(getState().socialMedia!.lifetimeStats!.totalGemsBoostsUsed).toBe(1);
   });
 
-  it('subscribeVerifiedPro flips perks + userProfile.verified + grants signup boost', () => {
+  it('subscribeVerifiedPro debits in-game cash, flips perks + userProfile.verified + grants signup boost', () => {
     const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
     const { setGameState, getState } = makeStateHarness(state);
-    subscribeVerifiedPro(setGameState, 'deeplife_premium_monthly', Date.now() + 30 * 86400_000);
+    const r = subscribeVerifiedPro(setGameState, 'weekly');
+    expect(r.success).toBe(true);
     const sm = getState().socialMedia!;
     expect(sm.verifiedPro!.active).toBe(true);
+    expect(sm.verifiedPro!.plan).toBe('weekly');
+    expect(sm.verifiedPro!.weeklyPrice).toBe(20);
     expect(sm.verifiedPro!.perksUnlocked.blueCheckmark).toBe(true);
     expect(sm.verifiedPro!.perksUnlocked.postBoostMultiplier).toBe(1.25);
     expect(sm.followers).toBe(500);
     expect(getState().userProfile.verified).toBe(true);
+    // $20 weekly fee debited from stats.money (canonical applyMoneyDelta).
+    expect(getState().stats.money).toBe(980);
+  });
+
+  it('subscribeVerifiedPro rejects (no perks, no debit) when the player cannot afford it', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 5;
+    const { setGameState, getState } = makeStateHarness(state);
+    const r = subscribeVerifiedPro(setGameState, 'weekly');
+    expect(r.success).toBe(false);
+    expect(getState().socialMedia!.verifiedPro?.active ?? false).toBe(false);
+    expect(getState().stats.money).toBe(5); // untouched
+  });
+
+  it('subscribeVerifiedPro annual prepays 52 weeks and stamps paidThroughWeek', () => {
+    const state = freshState({ weeksLived: 4 });
+    state.stats.money = 5000;
+    const { setGameState, getState } = makeStateHarness(state);
+    const r = subscribeVerifiedPro(setGameState, 'annual');
+    expect(r.success).toBe(true);
+    const sm = getState().socialMedia!;
+    expect(sm.verifiedPro!.plan).toBe('annual');
+    expect(sm.verifiedPro!.paidThroughWeek).toBe(56); // startedWeek 4 + 52
+    expect(getState().stats.money).toBe(5000 - 865);
   });
 
   it('cancelVerifiedPro disables perks but keeps the verified flag (tick handles expiry)', () => {
     const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
     const { setGameState, getState } = makeStateHarness(state);
-    subscribeVerifiedPro(setGameState, 'sku', Date.now() + 30 * 86400_000);
+    subscribeVerifiedPro(setGameState, 'weekly');
     cancelVerifiedPro(setGameState);
     const sm = getState().socialMedia!;
     expect(sm.verifiedPro!.active).toBe(false);

@@ -91,18 +91,13 @@ export function processSparkWeeklyTick(
     sp.boost = null;
   }
 
-  // 4. Premium renewal / expiry
-  if (sp.premium.active && sp.premium.expiresTimestamp) {
-    if (sp.premium.expiresTimestamp < Date.now()) {
-      sp.premium = {
-        active: false,
-        tier: 'free',
-        perks: perksForTier('free'),
-      };
-      notifications.push('Your Spark Premium expired');
-    } else {
-      sp.lifetimeStats.totalPremiumWeeks += 1;
-    }
+  // 4. Premium lifetime-week tally. In-game weekly cash billing + lapse (on
+  //    insufficient funds) is owned by applySubscriptionsForWeek in the nextWeek
+  //    orchestrator, which bills real post-income cash. Here we only tally a week
+  //    while active. (Legacy wall-clock `expiresTimestamp` expiry removed — Spark
+  //    Premium is now an in-game cash subscription, not a real App Store IAP.)
+  if (sp.premium.active) {
+    sp.lifetimeStats.totalPremiumWeeks += 1;
   }
 
   // 5. Jealousy event spawn — at most 1 active at a time, deterministic per week
