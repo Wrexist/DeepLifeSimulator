@@ -708,13 +708,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {action.moneyCost > 0 && (
  <View style={styles.parentingCostChip}>
  <DollarSign size={11} color="#10B981" />
- <Text style={[styles.parentingCostText, { color: '#059669' }]}>{action.moneyCost.toLocaleString()}</Text>
+ <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#10B981' : '#059669' }]}>{action.moneyCost.toLocaleString()}</Text>
  </View>
  )}
  {action.energyCost > 0 && (
  <View style={styles.parentingCostChip}>
  <Activity size={11} color="#F59E0B" />
- <Text style={[styles.parentingCostText, { color: '#B45309' }]}>{action.energyCost}</Text>
+ <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#F59E0B' : '#B45309' }]}>{action.energyCost}</Text>
  </View>
  )}
  <Text style={[styles.parentingEffectText, settings.darkMode && { color: '#93C5FD' }]} numberOfLines={1}>
