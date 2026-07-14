@@ -89,13 +89,23 @@ export function executePrestige(
     unlockedBonuses: [...prestigeData.unlockedBonuses], // Preserve unlocked bonuses
     prestigeHistory: cappedHistory,
     // H-5: record how many achievements have now been credited toward points so
-    // they can't be farmed again on the next prestige. This MUST use the same
-    // source `calculatePrestigePoints` credits from (`getEarnedAchievementCount`,
-    // i.e. claimedProgressAchievements). Writing it from the deprecated
-    // `achievements[].completed` — which is never set in normal play — persisted 0
-    // every prestige, so `alreadyCredited` was always 0 and the same achievements
-    // re-paid +10 each every life (an unbounded prestige-currency farm).
-    achievementsCreditedForPoints: getEarnedAchievementCount(gameState),
+    // they can't be farmed again on the next prestige. Two things are required for
+    // this to actually close the farm:
+    //   1. Credit from the SAME source `calculatePrestigePoints` reads
+    //      (`getEarnedAchievementCount` / claimedProgressAchievements). The old
+    //      deprecated `achievements[].completed` source is never set in normal
+    //      play, so the stamp was always 0 and the guard no-oped.
+    //   2. The stamp must be a MONOTONIC high-water mark. claimedProgressAchievements
+    //      resets to [] each prestige, so writing the raw current-life count would
+    //      let a low-achievement life erode the stamp below the lifetime peak and
+    //      let the next life re-credit the difference (a throttled but real farm) —
+    //      and it would strip honest players of credit for genuinely new
+    //      achievements. Math.max keeps it non-decreasing: points are only ever
+    //      paid for pushing the peak per-life earned count higher.
+    achievementsCreditedForPoints: Math.max(
+      prestigeData.achievementsCreditedForPoints ?? 0,
+      getEarnedAchievementCount(gameState)
+    ),
     // Preserve the prestige-achievement claimed store across the reset. This
     // object is rebuilt field-by-field (not spread), so without carrying it over
     // every prestige would reset the store and re-award each achievement — the
