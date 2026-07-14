@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 
 import { Alert, Animated, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Play, Plus, Save, Settings } from 'lucide-react-native';
@@ -32,6 +32,12 @@ import { haptic } from '@/utils/haptics';
 // Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
 // when the user actually opens Settings.
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
+
+// expo-linear-gradient is a TurboModule that has crashed on iOS 26. The rest of
+// the app aliases this safe View-based fallback (home.tsx, TopStatsBar, …); the
+// main menu is the FIRST screen, so a direct native import here could crash users
+// before they ever reach the menu. Use the same fallback.
+const LinearGradient = LinearGradientFallback;
 
 // A clean, premium deep-slate backdrop rendered in code (no baked-in wordmark,
 // scattered icons, or silhouette) — those lived in the old Main_Menu.png art and
