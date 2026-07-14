@@ -190,11 +190,16 @@ export function retirePlayer(state: GameState): RetireResult {
   // End career work — mirror quitJob: reset the accepted career so no salary or
   // work penalty is applied afterwards (applyCareerSalaryAndPenalty returns 0
   // once currentJob is cleared).
-  const updatedCareers = priorJob
-    ? (state.careers || []).map((c) =>
-        c && c.id === priorJob ? { ...c, accepted: false, applied: false, progress: 0 } : c,
-      )
-    : state.careers;
+  // Reset the job just left AND cancel any pending (applied-but-not-yet-accepted)
+  // application. Without the latter, the weekly auto-accept would hand a retired
+  // player a job 1-2 weeks later, stacking salary on top of the frozen pension
+  // and silently un-retiring them.
+  const updatedCareers = (state.careers || []).map((c) => {
+    if (!c) return c;
+    if (priorJob && c.id === priorJob) return { ...c, accepted: false, applied: false, progress: 0 };
+    if (c.applied && !c.accepted) return { ...c, applied: false, applicationWeeksPending: undefined };
+    return c;
+  });
 
   // Close the open careerHistory entry for the job just left (same as quitJob).
   let updatedLifetimeStatistics = state.lifetimeStatistics;

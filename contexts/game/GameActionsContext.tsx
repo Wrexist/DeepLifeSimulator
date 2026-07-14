@@ -583,6 +583,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevCareers: prevState.careers,
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
+   prevIsRetired: prevState.isRetired,
  });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;

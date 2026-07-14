@@ -306,6 +306,16 @@ function createResetGameState(
     };
   }
 
+  // Preserve the chosen Life Ambition — the prestige RESET keeps the SAME
+  // character, so their aspiration carries over. Milestones + reward-claimed
+  // are already reset via initialGameState, so it's a fresh run of the same
+  // ambition. Without this, ambitionId was wiped and the feature went
+  // permanently dark after the first prestige (there is no in-game re-picker).
+  // The child/heir path deliberately does NOT copy it (the heir never chose one).
+  if (oldState.ambitionId) {
+    newState.ambitionId = oldState.ambitionId;
+  }
+
   // BUG FIX: Preserve scenarioId to prevent "unknown" scenario title
   if (oldState.scenarioId) {
     newState.scenarioId = oldState.scenarioId;
@@ -485,7 +495,10 @@ function createChildGameState(
       if (!oldState.currentJob) return 'Unknown';
       const career = oldState.careers?.find(c => c.id === oldState.currentJob);
       if (career && career.levels && career.levels.length > 0) {
-        const currentLevel = career.levels[career.level - 1] || career.levels[0];
+        // career.level is 0-indexed everywhere else (salary reads levels[level]
+        // directly). The old `level - 1` mislabeled every promoted career one
+        // rung low in the family tree. Clamp into bounds.
+        const currentLevel = career.levels[Math.min(Math.max(0, career.level), career.levels.length - 1)] || career.levels[0];
         return currentLevel.name || 'Unknown';
       }
       return 'Unknown';

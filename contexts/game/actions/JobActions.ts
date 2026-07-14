@@ -702,6 +702,11 @@ export const applyForJob = (
         applicationAttempts: applicationAttempts,
         // If not immediately accepted, start tracking weeks pending
         applicationWeeksPending: accepted ? undefined : 0,
+        // Stamp the career start on immediate acceptance so the raise-cooldown
+        // baseline (and the early-career progress boost) are correct from week 1.
+        // It was only backfilled a week later by applyCareerProgress, so on the
+        // hire week the cooldown read -Infinity and one un-cooled raise slipped in.
+        startedWeeksLived: accepted ? (prev.weeksLived || 0) : c.startedWeeksLived,
       };
     });
 

@@ -32,9 +32,15 @@ const wealthRamp = (s: GameState, target: number): number => clamp01(wealth(s) /
 const companyCount = (s: GameState): number => s.companies?.length ?? 0;
 const childCount = (s: GameState): number => s.family?.children?.length ?? 0;
 const hasSpouse = (s: GameState): boolean => !!s.family?.spouse;
-const relationshipCount = (s: GameState): number => s.relationships?.length ?? 0;
+const relationshipCount = (s: GameState): number =>
+  // Exclude the starting parents (type 'parent') and children so "Make a
+  // Connection" doesn't auto-complete at birth — count chosen relationships.
+  s.relationships?.filter((r: any) => r?.type !== 'parent' && r?.type !== 'child').length ?? 0;
 const hasRomantic = (s: GameState): boolean =>
-  hasSpouse(s) || (s.relationships?.some((r: any) => r?.type === 'romantic') ?? false);
+  // Dating partners are type 'partner' (promoted to 'spouse' on marriage);
+  // no relationship is ever type 'romantic', so the old check collapsed this
+  // into hasSpouse and the "Fall in Love" milestone only flipped on marriage.
+  hasSpouse(s) || (s.relationships?.some((r: any) => r?.type === 'partner' || r?.type === 'spouse') ?? false);
 const educationsCompleted = (s: GameState): number =>
   s.educations?.filter((e: any) => e?.completed).length ?? 0;
 const ownsInvestment = (s: GameState): boolean =>
@@ -79,7 +85,9 @@ const anyCareerAtTop = (s: GameState): boolean =>
   (s.careers ?? []).some((c: any) => c?.id && careerAtTop(s, c.id));
 
 /** "Spotlight" careers for the celebrity ambition. */
-const FAME_CAREERS = ['celebrity', 'musician', 'actor', 'influencer'];
+// Only real career ids — 'actor'/'influencer' don't exist (Influencer is a
+// level name inside the celebrity ladder), so they never matched.
+const FAME_CAREERS = ['celebrity', 'musician'];
 const inAnyFameCareer = (s: GameState): boolean => FAME_CAREERS.some((id) => inCareer(s, id));
 const fameCareerAtLeast = (s: GameState, lvl: number): boolean =>
   FAME_CAREERS.some((id) => careerAtLeast(s, id, lvl));

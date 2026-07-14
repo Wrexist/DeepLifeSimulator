@@ -273,9 +273,15 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  * Roll a random NPC life event. Only triggers ~15% of weeks.
  * Returns null if no event occurs.
  */
-export function rollNPCLifeEvent(relationship: Relationship): NPCLifeEvent | null {
+export function rollNPCLifeEvent(
+ relationship: Relationship,
+ // Optional seeded roll (key → [0,1)). Passed from the weekly tick so the
+ // background life event is deterministic / resume-safe (not save-scummable);
+ // falls back to Math.random so existing callers + tests keep working.
+ rng?: (key: string) => number,
+): NPCLifeEvent | null {
  // 15% chance per NPC per week
- if (Math.random() > 0.15) return null;
+ if ((rng ? rng('npc-life-gate') : Math.random()) > 0.15) return null;
 
  // Don't fire events for children under age 16
  if (relationship.type === 'child' && relationship.age < 16) return null;
@@ -291,7 +297,7 @@ export function rollNPCLifeEvent(relationship: Relationship): NPCLifeEvent | nul
 
  // Weighted random selection
  const totalWeight = applicableEvents.reduce((sum, e) => sum + e.weight, 0);
- let roll = Math.random() * totalWeight;
+ let roll = (rng ? rng('npc-life-pick') : Math.random()) * totalWeight;
  for (const event of applicableEvents) {
  roll -= event.weight;
  if (roll <= 0) return event;
@@ -351,10 +357,11 @@ export function applyNPCLifeEvent(
  * Mood naturally returns to neutral over time.
  * Call weekly — mood shifts toward 'neutral' after ~3 weeks.
  */
-export function decayMood(currentMood: Relationship['npcMood']): Relationship['npcMood'] {
+export function decayMood(currentMood: Relationship['npcMood'], roll?: number): Relationship['npcMood'] {
  if (!currentMood || currentMood === 'neutral') return 'neutral';
- // 33% chance per week to shift back to neutral
- if (Math.random() < 0.33) return 'neutral';
+ // 33% chance per week to shift back to neutral. Optional seeded roll makes
+ // this deterministic/resume-safe in the tick; falls back to Math.random.
+ if ((typeof roll === 'number' ? roll : Math.random()) < 0.33) return 'neutral';
  return currentMood;
 }
 
@@ -748,8 +755,8 @@ export function processWeeklyNPCDepth(
  r.npcMemories = [];
  }
 
- // Roll for life events
- const event = rollNPCLifeEvent(r);
+ // Roll for life events — seeded per NPC so it's deterministic/resume-safe.
+ const event = rollNPCLifeEvent(r, (k) => weeklyRoll(`${k}:${r.id}`));
  if (event) {
  r = applyNPCLifeEvent(r, event, weeksLived);
  notifications.push(event.description.replace('{name}', r.name));
@@ -757,11 +764,14 @@ export function processWeeklyNPCDepth(
 
  // Decay mood toward neutral (episodic), then apply deterministic CONTEXT
  // drift (neglect / bond strength) so mood also tracks how you treat them.
- r.npcMood = decayMood(r.npcMood);
+ r.npcMood = decayMood(r.npcMood, weeklyRoll(`mood-decay:${r.id}`));
  r.npcMood = driftMoodFromContext(r, weeksLived, weeklyRoll(`mood-drift:${r.id}`));
 
- // Age NPCs if they have age
- if (r.age && weeksLived % WEEKS_PER_YEAR === 0) {
+ // Age NPCs if they have age — but NEVER children: applyChildAging already
+ // advances every child +1/52 each week (continuous). Aging them here too (a
+ // full +1 at each year boundary) double-aged kids, reaching adulthood/heir
+ // eligibility in ~9 years instead of 18.
+ if (r.type !== 'child' && r.age && weeksLived % WEEKS_PER_YEAR === 0) {
  r.age = r.age + 1;
  }
 
