@@ -383,14 +383,23 @@ export function startLiveStream(
  * no-op if there is no live session.
  */
 export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
+  // Normalize the delta (guards NaN / Infinity / negative from a bad timer).
+  const seconds = Math.max(0, safe(deltaSeconds, 0));
+  if (seconds === 0) return;
   setGameState((prev) => {
     const ch = ensureChannel(prev);
     const live = ch.currentStream;
     if (!live?.live) return prev;
 
     const energyNow = safe(prev.stats?.energy, 0);
-    const energyNext = Math.max(0, energyNow - LIVE_ENERGY_DRAIN_PER_SEC * deltaSeconds);
-    const elapsed = safe(live.elapsedSeconds, 0) + deltaSeconds;
+    // Accrue only up to the energy actually available: once energy is spent a
+    // tick charges 0s and leaves elapsed/viewers untouched, so the session
+    // self-limits at 0 energy even if the UI's auto-stop is delayed.
+    const chargedSeconds = Math.min(seconds, energyNow / LIVE_ENERGY_DRAIN_PER_SEC);
+    if (chargedSeconds <= 0) return prev;
+
+    const energyNext = Math.max(0, energyNow - LIVE_ENERGY_DRAIN_PER_SEC * chargedSeconds);
+    const elapsed = safe(live.elapsedSeconds, 0) + chargedSeconds;
 
     // Organic viewer ramp: climb from ~0.4× toward a follower/quality-derived
     // plateau over the first ~45s, wobble each tick, smooth toward the target.

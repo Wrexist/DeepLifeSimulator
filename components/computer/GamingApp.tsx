@@ -303,10 +303,14 @@ export default function GamingApp({ onBack }: Props) {
   // organic spread (~0.7×–1.6× of the neutral centre), excluding the rare viral
   // spike and the deepest flops.
   const projectedRange = useMemo(() => {
-    const lowViews = Math.round(projected.views * 0.7);
-    const highViews = Math.round(projected.views * 1.6);
-    const lowSubs = Math.round(projected.subscribersGained * 0.7);
-    const highSubs = Math.round(projected.subscribersGained * 1.6);
+    // Guard against NaN/Infinity leaking into the displayed range from a
+    // corrupt projection (would otherwise render "NaN–NaN").
+    const views = isFinite(projected.views) ? Math.max(0, projected.views) : 0;
+    const subs = isFinite(projected.subscribersGained) ? Math.max(0, projected.subscribersGained) : 0;
+    const lowViews = Math.round(views * 0.7);
+    const highViews = Math.round(views * 1.6);
+    const lowSubs = Math.round(subs * 0.7);
+    const highSubs = Math.round(subs * 1.6);
     return { lowViews, highViews, lowSubs, highSubs };
   }, [projected]);
 

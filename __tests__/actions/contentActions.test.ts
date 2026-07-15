@@ -161,6 +161,23 @@ describe('live streaming — start / tick / finalize', () => {
     expect(store.get().stats.energy).toBe(0);
   });
 
+  it('tickLiveStream stops accruing once energy is exhausted (zero-energy ticks are no-ops)', () => {
+    // Start above the go-live energy gate, then drain to empty.
+    const store = makeStore(lowEnergy(channel({ followers: 10_000 }), 10));
+    const started = startLiveStream(store.get(), store.setState, { game: 'Just Chatting' }, 5);
+    expect(started.success).toBe(true);
+    for (let i = 0; i < 200 && store.get().stats.energy > 0; i++) tickLiveStream(store.setState, 1);
+    expect(store.get().stats.energy).toBe(0);
+    const elapsedAtZero = store.get().gamingStreaming!.currentStream?.elapsedSeconds;
+    const viewersAtZero = store.get().gamingStreaming!.currentStream?.viewers;
+    // Further ticks at zero energy must not advance elapsed time or viewers.
+    tickLiveStream(store.setState, 1);
+    tickLiveStream(store.setState, 5);
+    expect(store.get().gamingStreaming!.currentStream?.elapsedSeconds).toBe(elapsedAtZero);
+    expect(store.get().gamingStreaming!.currentStream?.viewers).toBe(viewersAtZero);
+    expect(store.get().stats.energy).toBe(0);
+  });
+
   it('finalizeLiveStream banks earnings via money, appends history, clears the session, and is idempotent', () => {
     const store = makeStore(baseState(channel({ followers: 10_000 })));
     startLiveStream(store.get(), store.setState, { game: 'Just Chatting' }, 5);

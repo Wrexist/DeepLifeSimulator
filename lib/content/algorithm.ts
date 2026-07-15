@@ -145,7 +145,7 @@ export function projectStreamOutcome(input: StreamOutcomeInput): StreamOutcome {
   // A LIVE session supplies its own accrued viewer count; everything downstream
   // scales off whichever viewer number is authoritative.
   const viewers =
-    input.viewersOverride != null
+    input.viewersOverride != null && isFinite(input.viewersOverride)
       ? Math.max(0, Math.round(input.viewersOverride))
       : computedViewers;
 

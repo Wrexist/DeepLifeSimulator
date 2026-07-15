@@ -286,9 +286,14 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // Refs so the interval closure and the ref-stable Stop handler always read the
   // freshest state/week without re-subscribing the drain loop every render.
   const gameStateRef = useRef(gameState);
-  gameStateRef.current = gameState;
   const weekRef = useRef(week);
-  weekRef.current = week;
+  // Sync refs AFTER commit (not during render): React may replay or discard a
+  // render, so mutating a ref in the render body can leak an uncommitted
+  // snapshot into the drain interval / Stop handler that read these refs.
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    weekRef.current = week;
+  }, [gameState, week]);
 
   const handleGoLive = useCallback(() => {
     const r = startLiveStream(gameState, setGameState, { game: selectedGame.name }, week);
@@ -324,6 +329,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // timers and no setState-after-unmount.
   useEffect(() => {
     if (!isLiveNow) return;
+    let ticksSinceSave = 0;
     const interval = setInterval(() => {
       const gs = gameStateRef.current;
       if (!gs.gamingStreaming?.currentStream?.live) return;
@@ -333,9 +339,17 @@ export default function GamingStreamingApp({ onBack }: Props) {
         return;
       }
       tickLiveStream(setGameState, LIVE_TICK_MS / 1000);
+      // Checkpoint accrued progress ~every 10s so a crash/kill mid-stream can't
+      // make the stale-session resolver finalize from an older snapshot and
+      // under-pay the player. Throttled (saveGame validates + writes) — not
+      // every tick.
+      if (++ticksSinceSave >= 10) {
+        ticksSinceSave = 0;
+        saveGame();
+      }
     }, LIVE_TICK_MS);
     return () => clearInterval(interval);
-  }, [isLiveNow, setGameState, handleStopStream]);
+  }, [isLiveNow, setGameState, handleStopStream, saveGame]);
 
   // Safety: if a live session survived a save/reload (app closed mid-stream),
   // resolve it once on mount instead of letting it stream forever.

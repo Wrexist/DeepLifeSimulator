@@ -40,6 +40,14 @@ export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boole
   return state?.settings?.adsRemoved === true;
 }
 
+/** Options for {@link runRewardedAd}. */
+export interface RunRewardedAdOptions {
+  /** Player owns an ad-free entitlement (Remove Ads / DeepLife+) — grant directly, no ad. */
+  adsRemoved?: boolean;
+  /** On no-fill / error, grant the reward anyway rather than returning ungranted. */
+  grantOnNoFill?: boolean;
+}
+
 /**
  * Show a rewarded ad (when appropriate for this build/entitlement) and grant the
  * reward. `grant` is invoked exactly once on success — either by the ad SDK's
@@ -48,7 +56,7 @@ export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boole
  */
 export async function runRewardedAd(
   grant: () => void,
-  opts: { adsRemoved?: boolean; grantOnNoFill?: boolean } = {}
+  opts: RunRewardedAdOptions = {}
 ): Promise<RewardedAdOutcome> {
   const adsOn = !opts.adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
   if (!adsOn) {
