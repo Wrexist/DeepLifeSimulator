@@ -432,7 +432,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       'Burn this identity?',
       `This is permanent. ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC will be spent. ` +
         `Heat resets, buyer rep resets, all loans + credit cards close, ` +
-        `credit score drops to 580, and ${dw.activeJobs.length} active job${dw.activeJobs.length === 1 ? '' : 's'} will be dropped.`,
+        `credit score drops to 580, and ${(dw.activeJobs ?? []).length} active job${(dw.activeJobs ?? []).length === 1 ? '' : 's'} will be dropped.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -954,7 +954,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             </Text>
             <Text style={styles.hexLine} numberOfLines={1}>
               <Text style={{ color: TERM.muted }}>{'jobs_drop   '}</Text>
-              <Text style={{ color: accent.warning }}>{dw.activeJobs.length}</Text>
+              <Text style={{ color: accent.warning }}>{(dw.activeJobs ?? []).length}</Text>
             </Text>
           </View>
           <BracketButton

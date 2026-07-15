@@ -228,12 +228,12 @@ export function calculateJealousyRisk(state: GameState): number {
 export function scorePlayerProfile(state: GameState): number {
   const sp = state.sparkApp;
   if (!sp) return 0;
-  const photos = sp.profile.photos.length;
-  const bioLen = sp.profile.bio.length;
-  const interests = sp.profile.interests.length;
+  const photos = sp.profile?.photos?.length ?? 0;
+  const bioLen = (sp.profile?.bio ?? '').length;
+  const interests = (sp.profile?.interests ?? []).length;
   const reputation = state.stats?.reputation ?? 0;
   const money = state.stats?.money ?? 0;
-  const verified = sp.premium.perks.verifiedBadge ? 8 : 0;
+  const verified = sp.premium?.perks?.verifiedBadge ? 8 : 0;
 
   let s = 10;
   s += Math.min(25, photos * 8);          // up to 25 from photos
