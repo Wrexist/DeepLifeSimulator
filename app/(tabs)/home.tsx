@@ -16,7 +16,6 @@ import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
 import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
-import AdRewardOrb from '@/components/AdRewardOrb';
 import IdentityCard from '@/components/IdentityCard';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
@@ -617,8 +616,6 @@ function HomeScreenContent() {
       <PrestigeInfoModal visible={showPrestigeInfo} onClose={() => setShowPrestigeInfo(false)} />
       <AchievementsModal visible={showAchievements} onClose={() => setShowAchievements(false)} />
 
-      {/* Floating "watch ad → cash" reward orb (drifts in from the left at random). */}
-      <AdRewardOrb />
     </View>
   );
 }

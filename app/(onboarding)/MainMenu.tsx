@@ -1,18 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Play, Plus, Save, Settings } from 'lucide-react-native';
-// SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
-// imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
-// that heavy graph in the production Hermes bytecode left MainMenu's own default
-// export `undefined` ("Element type is invalid" when the navigator renders it).
-// Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
-// when the user actually opens Settings.
-const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
-import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
@@ -20,6 +14,7 @@ import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
@@ -30,15 +25,32 @@ import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 
-const MAIN_MENU_BACKGROUNDS = [
-  require('@/assets/images/Main_Menu.png'),
-  require('@/assets/images/Main_Menu_2.png'),
-  require('@/assets/images/Main_Menu_3.png'),
-];
+// SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
+// imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
+// that heavy graph in the production Hermes bytecode left MainMenu's own default
+// export `undefined` ("Element type is invalid" when the navigator renders it).
+// Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
+// when the user actually opens Settings.
+const SettingsModal = lazy(() => import('@/components/SettingsModal'));
+
+// expo-linear-gradient is a TurboModule that has crashed on iOS 26. The rest of
+// the app aliases this safe View-based fallback (home.tsx, TopStatsBar, …); the
+// main menu is the FIRST screen, so a direct native import here could crash users
+// before they ever reach the menu. Use the same fallback.
+const LinearGradient = LinearGradientFallback;
+
+// A clean, premium deep-slate backdrop rendered in code (no baked-in wordmark,
+// scattered icons, or silhouette) — those lived in the old Main_Menu.png art and
+// read as noisy + clipped the title on some screens. The title is now crisp text
+// that auto-fits, so it never clips.
+const BG_GRADIENT = ['#0A0F1C', '#0E1526', '#080B14'] as const;
+const BEAM_GRADIENT = ['rgba(96,165,250,0.20)', 'rgba(96,165,250,0.04)', 'transparent'] as const;
 
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { opacity, translateY } = useOnboardingScreenAnimation();
   const { loadGame } = useGameActions();
   const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
@@ -46,9 +58,6 @@ export default function MainMenu() {
   const [showSettings, setShowSettings] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
-  const [selectedBackground] = useState(
-    () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
-  );
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
@@ -261,57 +270,92 @@ export default function MainMenu() {
 
   return (
     <>
-      <OnboardingScreenShell
-        backgroundSource={selectedBackground}
-        footer={
-          <View style={[styles.footerPill, { borderColor: onboardingTheme.glassBorder }]}>
-            <Text style={[styles.footerText, { color: onboardingTheme.subtitle }]}>
-              {hasSave ? 'Saved progress detected' : 'Create your first life story'}
+      <View style={styles.root}>
+        <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+        {/* Soft top spotlight for depth — replaces the old baked light beam. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={BEAM_GRADIENT}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.beam}
+        />
+
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity,
+              transform: [{ translateY }],
+              paddingTop: insets.top + verticalScale(24),
+              paddingBottom: insets.bottom + verticalScale(16),
+            },
+          ]}
+        >
+          {/* Hero wordmark — crisp text so it can never clip like the baked art did. */}
+          <View style={styles.hero}>
+            <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+            <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
+              DEEP LIFE
+            </Text>
+            <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
+              SIMULATOR
             </Text>
           </View>
-        }
-      >
-        <View style={styles.menuSection}>
-          {hasSave ? (
+
+          <View style={styles.spacer} />
+
+          <View style={styles.menuSection}>
+            {hasSave ? (
+              <GlassActionButton
+                highlighted
+                icon={<Play color={onboardingTheme.title} size={scale(24)} />}
+                title={t('mainMenu.continue')}
+                subtitle={t('mainMenu.continueSubtitle')}
+                onPress={continueGame}
+                loading={continuing}
+              />
+            ) : null}
+
             <GlassActionButton
-              highlighted
-              icon={<Play color={onboardingTheme.title} size={scale(24)} />}
-              title={t('mainMenu.continue')}
-              subtitle={t('mainMenu.continueSubtitle')}
-              onPress={continueGame}
-              loading={continuing}
+              highlighted={!hasSave}
+              icon={<Plus color={onboardingTheme.title} size={scale(24)} />}
+              title={t('mainMenu.newGame')}
+              subtitle={t('mainMenu.newGameSubtitle')}
+              onPress={startNew}
             />
-          ) : null}
 
-          <GlassActionButton
-            highlighted={!hasSave}
-            icon={<Plus color={onboardingTheme.title} size={scale(24)} />}
-            title={t('mainMenu.newGame')}
-            subtitle={t('mainMenu.newGameSubtitle')}
-            onPress={startNew}
-          />
+            <GlassActionButton
+              icon={<Save color={onboardingTheme.title} size={scale(24)} />}
+              title={t('mainMenu.saveSlots')}
+              subtitle={t('mainMenu.saveSlotsSubtitle')}
+              onPress={() => {
+                haptic.light();
+                router.push('/(onboarding)/SaveSlots');
+              }}
+            />
 
-          <GlassActionButton
-            icon={<Save color={onboardingTheme.title} size={scale(24)} />}
-            title={t('mainMenu.saveSlots')}
-            subtitle={t('mainMenu.saveSlotsSubtitle')}
-            onPress={() => {
-              haptic.light();
-              router.push('/(onboarding)/SaveSlots');
-            }}
-          />
+            <GlassActionButton
+              icon={<Settings color={onboardingTheme.title} size={scale(24)} />}
+              title={t('mainMenu.settings')}
+              subtitle={t('mainMenu.settingsSubtitle')}
+              onPress={() => {
+                haptic.light();
+                setShowSettings(true);
+              }}
+            />
+          </View>
 
-          <GlassActionButton
-            icon={<Settings color={onboardingTheme.title} size={scale(24)} />}
-            title={t('mainMenu.settings')}
-            subtitle={t('mainMenu.settingsSubtitle')}
-            onPress={() => {
-              haptic.light();
-              setShowSettings(true);
-            }}
-          />
-        </View>
-      </OnboardingScreenShell>
+          <View style={styles.footer}>
+            <View style={styles.footerPill}>
+              <View style={[styles.footerDot, { backgroundColor: hasSave ? '#34D399' : '#60A5FA' }]} />
+              <Text style={styles.footerText}>
+                {hasSave ? 'Saved progress detected' : 'Create your first life story'}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
 
       {showSettings && (
         <Suspense fallback={null}>
@@ -323,19 +367,78 @@ export default function MainMenu() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#080B14',
+  },
+  beam: {
+    position: 'absolute',
+    top: 0,
+    left: '10%',
+    right: '10%',
+    height: verticalScale(360),
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: responsiveSpacing.lg,
+  },
+  hero: {
+    alignItems: 'center',
+    marginTop: verticalScale(36),
+  },
+  eyebrow: {
+    color: '#60A5FA',
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    letterSpacing: scale(3),
+    marginBottom: verticalScale(12),
+  },
+  brandTop: {
+    color: '#F8FAFC',
+    fontSize: fontScale(46),
+    fontWeight: '900',
+    letterSpacing: scale(1),
+    textAlign: 'center',
+  },
+  brandBottom: {
+    color: '#94A3B8',
+    fontSize: fontScale(22),
+    fontWeight: '600',
+    letterSpacing: scale(8),
+    textAlign: 'center',
+    marginTop: verticalScale(2),
+  },
+  spacer: {
+    flex: 1,
+    minHeight: verticalScale(24),
+  },
   menuSection: {
     width: '100%',
-    paddingBottom: responsiveSpacing.md,
+  },
+  footer: {
+    marginTop: verticalScale(14),
+    alignItems: 'center',
   },
   footerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
     borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
     borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(15, 23, 42, 0.3)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(6),
+    paddingVertical: verticalScale(7),
+  },
+  footerDot: {
+    width: scale(7),
+    height: scale(7),
+    borderRadius: scale(4),
   },
   footerText: {
     fontSize: fontScale(11),
     fontWeight: '600',
+    color: '#94A3B8',
   },
 });

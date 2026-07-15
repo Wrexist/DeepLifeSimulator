@@ -164,9 +164,11 @@ const pushNotification = (
 };
 
 const isVerifiedProActive = (vp: PulseVerifiedPro | undefined): boolean => {
-  if (!vp || !vp.active) return false;
-  if (vp.expiresTimestamp && vp.expiresTimestamp < Date.now()) return false;
-  return true;
+  // Perk gate is the in-game `active` flag. Weekly cash billing + lapse is owned
+  // by applySubscriptionsForWeek in the nextWeek orchestrator (it bills real
+  // post-income cash); the old wall-clock `expiresTimestamp` expiry is gone now
+  // that Verified Pro is an in-game subscription rather than a real IAP.
+  return vp?.active === true;
 };
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -472,33 +474,14 @@ export function processPulseWeeklyTick(
   );
   pulseEarnings += impressionEarnings;
 
-  // ── 11. Verified Pro renewal/expiry check ───────────────────────────────
-  let verifiedPro = sm.verifiedPro;
-  let verifiedProWeeksDelta = 0;
-  if (verifiedPro && verifiedPro.active && verifiedPro.expiresTimestamp) {
-    if (verifiedPro.expiresTimestamp < Date.now()) {
-      verifiedPro = {
-        ...verifiedPro,
-        active: false,
-        perksUnlocked: {
-          ...verifiedPro.perksUnlocked,
-          postBoostMultiplier: 1.0,
-          blueCheckmark: false,
-          analyticsUnlocked: false,
-          noAdsInFeed: false,
-          longerPosts: false,
-        },
-      };
-      notifications = pushNotification(
-        notifications,
-        'verified_pro_renewal',
-        'Your Verified Pro subscription expired.',
-        nextWeeksLived,
-      );
-    } else {
-      verifiedProWeeksDelta = 1;
-    }
-  }
+  // ── 11. Verified Pro lifetime-week tally ────────────────────────────────
+  // In-game weekly cash billing + lapse (on insufficient funds) is handled by
+  // applySubscriptionsForWeek in the nextWeek orchestrator, which bills real
+  // post-income cash. Here we only tally a week while the subscription is
+  // active. (Legacy wall-clock `expiresTimestamp` expiry removed — Verified Pro
+  // is now an in-game cash subscription, not a real App Store IAP.)
+  const verifiedPro = sm.verifiedPro;
+  const verifiedProWeeksDelta = verifiedProActive ? 1 : 0;
 
   // ── 12. Lifetime stats ──────────────────────────────────────────────────
   const newInfluence = influenceLevelForFollowers(followers);

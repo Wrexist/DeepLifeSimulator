@@ -27,16 +27,18 @@ import type {
   SparkPlayerProfile,
   SparkJealousyOutcome,
   SparkPremium,
+  InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
 import { updateStats } from './StatsActions';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import {
   rollMatch,
   isCatfish,
   perksForTier,
   swipesRemaining,
   superLikesRemaining,
+  SPARK_TIER_PRICING,
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
@@ -604,14 +606,45 @@ export const promoteMatchToRelationship = (
 // Premium subscription
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Subscribe to Spark Premium (Plus / Ultra) as an IN-GAME cash subscription
+ * (NOT a real IAP). Debits `stats.money` immediately via the canonical
+ * `applyMoneyDelta` (overdraft-reject + NaN-guard) in the same updater that
+ * grants the tier perks, and records the weekly price so the tick can auto-renew
+ * it (applySubscriptionsForWeek).
+ *
+ * - plan 'weekly': charge the weekly fee now; auto-renews weekly on the tick.
+ * - plan 'annual': charge the discounted 52-week prepay now; weekly billing is
+ *   skipped until the prepaid term ends, then normal weekly auto-renew resumes.
+ *
+ * Returns `{ success:false }` with a clear message when the player can't afford it.
+ */
 export const subscribeSparkPremium = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
   tier: 'plus' | 'ultra',
-  sku: string,
-  expiresTimestamp: number,
+  plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
+  const price = plan === 'annual' ? SPARK_TIER_PRICING[tier].annual : SPARK_TIER_PRICING[tier].weekly;
+  const tierLabel = tier === 'ultra' ? 'Ultra' : 'Plus';
+  // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
+  // setGameState is a plain (wrapped) React useState setter that may defer the
+  // updater, so reading a value the updater assigns is unreliable. The atomic
+  // charge+grant still lives inside the updater below (applyMoneyDelta overdraft-
+  // reject), which remains the source of truth for money safety.
+  if ((gameState.stats?.money ?? 0) < price) {
+    return {
+      success: false,
+      message: `You can't afford Spark ${tierLabel} ($${price.toLocaleString()}).`,
+    };
+  }
   setGameState((prev) => {
+    // Charge in-game cash atomically (overdraft-reject) in the same updater that
+    // grants the perks.
+    const spend = applyMoneyDelta(prev, -price, `Spark ${tier} (${plan})`);
+    if (!spend) return prev; // funds dropped since the preview → reject atomically
     const s = ensureSpark(prev);
+    const ws = prev.weeksLived ?? 0;
     const tierRank = (t: SparkPremiumTier) => (t === 'ultra' ? 2 : t === 'plus' ? 1 : 0);
     const peak = tierRank(s.lifetimeStats.peakPremiumTier) >= tierRank(tier)
       ? s.lifetimeStats.peakPremiumTier
@@ -619,21 +652,30 @@ export const subscribeSparkPremium = (
 
     return {
       ...prev,
+      ...spend,
       sparkApp: {
         ...s,
         premium: {
           active: true,
           tier,
+          plan,
+          weeklyPrice: SPARK_TIER_PRICING[tier].weekly,
+          startedWeek: ws,
+          paidThroughWeek: plan === 'annual' ? ws + 52 : undefined,
           subscribedTimestamp: Date.now(),
-          expiresTimestamp,
-          sku,
           perks: perksForTier(tier),
         } as SparkPremium,
         lifetimeStats: { ...s.lifetimeStats, peakPremiumTier: peak },
       },
     };
   });
-  return { success: true, message: `Spark ${tier === 'ultra' ? 'Ultra' : 'Plus'} active` };
+  return {
+    success: true,
+    message:
+      plan === 'annual'
+        ? `Spark ${tierLabel} active — $${price.toLocaleString()} for 52 weeks.`
+        : `Spark ${tierLabel} active — $${price}/week.`,
+  };
 };
 
 export const cancelSparkPremium = (

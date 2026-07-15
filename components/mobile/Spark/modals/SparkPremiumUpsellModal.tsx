@@ -1,21 +1,23 @@
 /**
- * SparkPremiumUpsellModal — promotes Spark Plus / Ultra subscriptions.
+ * SparkPremiumUpsellModal — Spark Plus / Ultra, IN-GAME cash subscriptions.
  *
- * Two tier cards (Plus / Ultra) with perk lists. CTA subscribes via the
- * existing IAPService — fallback to local dev-grant when __DEV__.
+ * The player pays with the in-game money they earn from jobs — NOT a real App
+ * Store IAP. Tapping a tier subscribes weekly: subscribeSparkPremium debits
+ * `stats.money` immediately (canonical applyMoneyDelta, overdraft-reject) and the
+ * fee auto-renews weekly on the game tick (applySubscriptionsForWeek), lapsing if
+ * the player can't afford a renewal. When already subscribed the modal shows the
+ * active tier and a Cancel control.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { X, Check, Crown, Zap } from 'lucide-react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { X, Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { MS_PER_DAY } from '@/lib/config/gameConstants';
-import { subscribeSparkPremium } from '@/contexts/game/actions/SparkActions';
-import { iapService } from '@/services/IAPService';
-import { logger } from '@/utils/logger';
+import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actions/SparkActions';
+import { SPARK_TIER_PRICING } from '@/lib/dating/sparkLogic';
 import { SPARK_GRADIENT, SPARK_GRADIENT_GOLD, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
@@ -42,40 +44,45 @@ interface SparkPremiumUpsellModalProps {
 }
 
 export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPremiumUpsellModalProps) {
-  const { setGameState, saveGame } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
+  const premium = gameState.sparkApp?.premium;
+  const activeTier = premium?.active === true ? premium.tier : null;
+  const money = gameState.stats?.money ?? 0;
+
   const handleSubscribe = useCallback(
-    async (tier: 'plus' | 'ultra') => {
-      sparkHaptics.boost();
-      // Real IAP path: route through the store and grant the entitlement only on
-      // a successful purchase. Previously this called subscribeSparkPremium
-      // directly, handing out Spark Plus/Ultra (unlimited swipes, see-who-liked,
-      // verified badge) for free with no charge. Mirrors Pulse's Verified Pro flow.
-      const sku = tier === 'ultra' ? 'deeplife_spark_ultra_monthly' : 'deeplife_spark_plus_monthly';
-      const expires = Date.now() + 30 * MS_PER_DAY;
-      const grant = () => {
-        subscribeSparkPremium(setGameState, tier, sku, expires);
+    (tier: 'plus' | 'ultra') => {
+      const result = subscribeSparkPremium(setGameState, gameState, tier, 'weekly');
+      if (result.success) {
+        sparkHaptics.boost();
         saveGame();
         onDismiss();
-      };
-      try {
-        const result = await iapService.purchaseProduct(sku);
-        if (result.success) {
-          grant();
-        } else {
-          logger.warn('[Spark] Premium purchase failed', { sku, message: result.message });
-          // Dev fallback so the perks can be demoed without store config;
-          // production builds skip this branch (no free grant).
-          if (__DEV__) grant();
-        }
-      } catch (err) {
-        logger.error('[Spark] Premium purchase threw', err);
-        if (__DEV__) grant();
+      } else {
+        Alert.alert('Spark Premium', result.message);
       }
     },
-    [setGameState, saveGame, onDismiss],
+    [setGameState, gameState, saveGame, onDismiss],
   );
+
+  const handleCancel = useCallback(() => {
+    Alert.alert(
+      'Cancel Spark Premium?',
+      'You will drop back to the free tier and lose your premium perks. You can resubscribe any time.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel subscription',
+          style: 'destructive',
+          onPress: () => {
+            cancelSparkPremium(setGameState);
+            saveGame();
+            onDismiss();
+          },
+        },
+      ],
+    );
+  }, [setGameState, saveGame, onDismiss]);
 
   if (!visible) return null;
 
@@ -89,9 +96,13 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
             </Pressable>
           </View>
 
-          <Text style={[styles.title, { color: theme.text }]}>Upgrade Spark</Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {activeTier ? `Spark ${activeTier === 'ultra' ? 'Ultra' : 'Plus'} active` : 'Upgrade Spark'}
+          </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Unlock unlimited swipes and see who likes you.
+            {activeTier
+              ? 'Billed weekly from your in-game cash.'
+              : 'Unlock unlimited swipes and see who likes you.'}
           </Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(440) }}>
@@ -99,25 +110,44 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               icon={Zap}
               gradient={SPARK_GRADIENT as unknown as readonly [string, string]}
               name="Plus"
-              price="$4.99 / month"
+              price={`$${SPARK_TIER_PRICING.plus.weekly}/wk`}
               perks={PLUS_PERKS}
               onPress={() => handleSubscribe('plus')}
               theme={theme}
+              active={activeTier === 'plus'}
+              anyTierActive={activeTier !== null}
+              affordable={money >= SPARK_TIER_PRICING.plus.weekly}
             />
             <TierCard
               icon={Crown}
               gradient={SPARK_GRADIENT_GOLD as unknown as readonly [string, string]}
               name="Ultra"
-              price="$9.99 / month"
+              price={`$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
               perks={ULTRA_PERKS}
               onPress={() => handleSubscribe('ultra')}
               theme={theme}
               recommended
+              active={activeTier === 'ultra'}
+              anyTierActive={activeTier !== null}
+              affordable={money >= SPARK_TIER_PRICING.ultra.weekly}
             />
           </ScrollView>
 
+          {activeTier ? (
+            <Pressable
+              onPress={handleCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel Spark Premium subscription"
+              style={[styles.cancelBtn, { borderColor: theme.border }]}
+            >
+              <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
+            </Pressable>
+          ) : null}
+
           <Text style={[styles.legal, { color: theme.textMuted }]}>
-            Auto-renews until cancelled. Manage in your App Store / Play Store account.
+            {activeTier
+              ? 'Auto-renews weekly until cancelled; lapses if you run out of money.'
+              : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
       </View>
@@ -125,15 +155,37 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   );
 }
 
+interface TierCardProps {
+  icon: LucideIcon;
+  gradient: readonly [string, string];
+  name: string;
+  price: string;
+  perks: readonly string[];
+  onPress: () => void;
+  theme: ReturnType<typeof useTheme>['theme'];
+  recommended?: boolean;
+  active: boolean;
+  /** Any tier (this or the other) is currently active — blocks buying a second tier. */
+  anyTierActive: boolean;
+  affordable: boolean;
+}
+
 function TierCard({
-  icon: Icon, gradient, name, price, perks, onPress, theme, recommended,
-}: any) {
+  icon: Icon, gradient, name, price, perks, onPress, theme, recommended, active, anyTierActive, affordable,
+}: TierCardProps): React.ReactElement {
+  // While ANY tier is active, no tier is buyable: the active one shows CURRENT
+  // PLAN; the other is disabled (no silent full-price plan swap / double charge).
+  const buyable = !anyTierActive && affordable;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={buyable ? onPress : undefined}
+      disabled={!buyable}
       accessibilityRole="button"
-      accessibilityLabel={`Subscribe to Spark ${name}, ${price}`}
-      style={({ pressed }) => [styles.tierCard, { borderColor: theme.border, opacity: pressed ? 0.92 : 1 }]}
+      accessibilityLabel={active ? `Spark ${name} is your current plan` : `Subscribe to Spark ${name}, ${price}`}
+      style={({ pressed }) => [
+        styles.tierCard,
+        { borderColor: active ? SPARK_COLORS.success : theme.border, opacity: !buyable && !active ? 0.55 : pressed ? 0.92 : 1 },
+      ]}
     >
       <LinearGradient
         colors={gradient as unknown as string[]}
@@ -146,7 +198,11 @@ function TierCard({
           <Text style={styles.tierName}>Spark {name}</Text>
           <Text style={styles.tierPrice}>{price}</Text>
         </View>
-        {recommended ? (
+        {active ? (
+          <View style={styles.recBadge}>
+            <Text style={styles.recBadgeText}>CURRENT PLAN</Text>
+          </View>
+        ) : recommended ? (
           <View style={styles.recBadge}>
             <Text style={styles.recBadgeText}>BEST VALUE</Text>
           </View>
@@ -245,6 +301,18 @@ const styles = StyleSheet.create({
     fontSize: fontScale(13),
     fontWeight: '500',
     flex: 1,
+  },
+  cancelBtn: {
+    paddingVertical: responsiveSpacing.md,
+    borderRadius: scale(14),
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    marginTop: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.sm,
+  },
+  cancelLabel: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
   },
   legal: {
     fontSize: fontScale(10),

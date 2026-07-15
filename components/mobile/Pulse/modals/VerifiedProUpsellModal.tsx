@@ -1,49 +1,88 @@
 /**
- * VerifiedProUpsellModal — promotes the Pulse Verified Pro subscription.
+ * VerifiedProUpsellModal — Pulse Verified Pro, an IN-GAME cash subscription.
  *
- * Lists the perks and a CTA that calls the existing IAP service. The IAP
- * fulfillment handler in services/IAPService.ts wires the SKU to
- * `subscribeVerifiedPro` (mirrored inline; see services/IAPService.ts).
+ * The player pays with the in-game money they earn from jobs — NOT a real App
+ * Store IAP. Buying debits `stats.money` immediately (via subscribeVerifiedPro →
+ * canonical applyMoneyDelta, overdraft-reject) and the fee auto-renews weekly on
+ * the game tick (applySubscriptionsForWeek); it lapses if the player can't afford
+ * a renewal. When already subscribed the modal shows the active state and a
+ * Cancel control.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Check, Crown } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import {
+  VERIFIED_PRO_WEEKLY_PRICE,
+  VERIFIED_PRO_ANNUAL_PRICE,
+} from '@/lib/social/socialMedia';
+import { subscribeVerifiedPro, cancelVerifiedPro } from '@/contexts/game/actions/PulseActions';
 import { PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
 const LinearGradient = LinearGradientFallback;
 
-const PERKS: { icon: string; title: string; subtitle: string }[] = [
-  { icon: '✓', title: 'Blue checkmark', subtitle: 'Verified across every Pulse surface' },
-  { icon: '↑', title: '+25% post boost', subtitle: 'More followers and revenue per post' },
-  { icon: '📊', title: 'Advanced analytics', subtitle: 'See per-post performance trends' },
-  { icon: '⊘', title: 'No ads in feed', subtitle: 'Cleaner browsing experience' },
-  { icon: '⤢', title: 'Longer posts', subtitle: '500-character limit vs 280' },
+const PERKS: { title: string; subtitle: string }[] = [
+  { title: 'Blue checkmark', subtitle: 'Verified across every Pulse surface' },
+  { title: '+25% post boost', subtitle: 'More followers and revenue per post' },
+  { title: 'Advanced analytics', subtitle: 'See per-post performance trends' },
+  { title: 'No ads in feed', subtitle: 'Cleaner browsing experience' },
+  { title: 'Longer posts', subtitle: '500-character limit vs 280' },
 ];
 
 interface VerifiedProUpsellModalProps {
   visible: boolean;
   onDismiss: () => void;
-  /** Called when the user taps Subscribe. Caller wires to IAPService. */
-  onSubscribe?: (plan: 'monthly' | 'yearly') => void;
 }
 
-export default function VerifiedProUpsellModal({
-  visible, onDismiss, onSubscribe,
-}: VerifiedProUpsellModalProps) {
+export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedProUpsellModalProps) {
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
+  const verifiedPro = gameState.socialMedia?.verifiedPro;
+  const isActive = verifiedPro?.active === true;
+  const money = gameState.stats?.money ?? 0;
+
   const handleSubscribe = useCallback(
-    (plan: 'monthly' | 'yearly') => {
-      pulseHaptics.success();
-      onSubscribe?.(plan);
+    (plan: 'weekly' | 'annual') => {
+      const result = subscribeVerifiedPro(setGameState, gameState, plan);
+      if (result.success) {
+        pulseHaptics.success();
+        saveGame();
+        onDismiss();
+      } else {
+        pulseHaptics.error?.();
+        Alert.alert('Verified Pro', result.message);
+      }
     },
-    [onSubscribe],
+    [setGameState, gameState, saveGame, onDismiss],
   );
+
+  const handleCancel = useCallback(() => {
+    Alert.alert(
+      'Cancel Verified Pro?',
+      'You will lose the blue check, post boost, analytics, ad-free feed, and longer posts. You can resubscribe any time.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel subscription',
+          style: 'destructive',
+          onPress: () => {
+            cancelVerifiedPro(setGameState);
+            saveGame();
+            onDismiss();
+          },
+        },
+      ],
+    );
+  }, [setGameState, saveGame, onDismiss]);
+
+  const canAffordWeekly = money >= VERIFIED_PRO_WEEKLY_PRICE;
+  const canAffordAnnual = money >= VERIFIED_PRO_ANNUAL_PRICE;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onDismiss}>
@@ -72,7 +111,9 @@ export default function VerifiedProUpsellModal({
 
           <Text style={[styles.title, { color: theme.text }]}>Pulse Verified Pro</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Unlock the blue check and creator perks.
+            {isActive
+              ? "You're a Verified Pro member."
+              : 'Unlock the blue check and creator perks.'}
           </Text>
 
           <View style={styles.perksList}>
@@ -91,36 +132,63 @@ export default function VerifiedProUpsellModal({
             ))}
           </View>
 
-          <View style={styles.ctaRow}>
-            <Pressable
-              onPress={() => handleSubscribe('monthly')}
-              style={[styles.planBtn, { borderColor: theme.border }]}
-              accessibilityRole="button"
-              accessibilityLabel="Subscribe monthly $4.99"
-            >
-              <Text style={[styles.planLabel, { color: theme.text }]}>Monthly</Text>
-              <Text style={[styles.planPrice, { color: theme.text }]}>$4.99</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleSubscribe('yearly')}
-              accessibilityRole="button"
-              accessibilityLabel="Subscribe yearly $49.99 — save 17%"
-              style={styles.planBtnPrimary}
-            >
-              <LinearGradient
-                colors={PULSE_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.planBtnPrimaryFill}
+          {isActive ? (
+            <>
+              <View style={[styles.activeCard, { borderColor: PULSE_GRADIENT[0], backgroundColor: theme.surfaceElevated }]}>
+                <Text style={[styles.activeLabel, { color: PULSE_GRADIENT[0] }]}>ACTIVE</Text>
+                <Text style={[styles.activeInfo, { color: theme.text }]}>
+                  {verifiedPro?.plan === 'annual'
+                    ? `Prepaid annual plan · then $${VERIFIED_PRO_WEEKLY_PRICE}/week`
+                    : `$${VERIFIED_PRO_WEEKLY_PRICE}/week · auto-renews from your cash`}
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel Verified Pro subscription"
+                style={[styles.cancelBtn, { borderColor: theme.border }]}
               >
-                <Text style={styles.planLabelPrimary}>Yearly · Save 17%</Text>
-                <Text style={styles.planPricePrimary}>$49.99</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
+                <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
+              </Pressable>
+            </>
+          ) : (
+            <View style={styles.ctaRow}>
+              <Pressable
+                onPress={() => handleSubscribe('weekly')}
+                disabled={!canAffordWeekly}
+                style={[styles.planBtn, { borderColor: theme.border, opacity: canAffordWeekly ? 1 : 0.5 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`Subscribe weekly, $${VERIFIED_PRO_WEEKLY_PRICE} per week`}
+              >
+                <Text style={[styles.planLabel, { color: theme.text }]}>Weekly</Text>
+                <Text style={[styles.planPrice, { color: theme.text }]}>${VERIFIED_PRO_WEEKLY_PRICE}/wk</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleSubscribe('annual')}
+                disabled={!canAffordAnnual}
+                accessibilityRole="button"
+                accessibilityLabel={`Subscribe annually, $${VERIFIED_PRO_ANNUAL_PRICE} for 52 weeks — save 17%`}
+                style={[styles.planBtnPrimary, { opacity: canAffordAnnual ? 1 : 0.5 }]}
+              >
+                <LinearGradient
+                  colors={PULSE_GRADIENT as unknown as string[]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.planBtnPrimaryFill}
+                >
+                  <Text style={styles.planLabelPrimary}>Annual · Save 17%</Text>
+                  <Text style={styles.planPricePrimary}>${VERIFIED_PRO_ANNUAL_PRICE.toLocaleString()}/yr</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          )}
 
           <Text style={[styles.legal, { color: theme.textMuted }]}>
-            Auto-renews until cancelled. Manage in your App Store / Play Store account.
+            {isActive
+              ? verifiedPro?.plan === 'annual'
+                ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
+                : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
+              : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
       </View>
@@ -240,6 +308,35 @@ const styles = StyleSheet.create({
     fontSize: fontScale(16),
     fontWeight: '700',
     marginTop: 2,
+  },
+  activeCard: {
+    borderRadius: scale(14),
+    borderWidth: 1,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    alignItems: 'center',
+  },
+  activeLabel: {
+    fontSize: fontScale(11),
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  activeInfo: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  cancelBtn: {
+    paddingVertical: responsiveSpacing.md,
+    borderRadius: scale(14),
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.md,
+  },
+  cancelLabel: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
   },
   legal: {
     fontSize: fontScale(10),

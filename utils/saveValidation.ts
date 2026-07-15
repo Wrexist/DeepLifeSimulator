@@ -806,6 +806,32 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing socialMedia.verifiedPro');
     repaired = true;
   }
+  // Legacy real-money IAP grants (active, has expiresTimestamp, NO weeklyPrice)
+  // must still honor their wall-clock term. The weekly tick no longer expires them
+  // (removed for deterministic-tick safety), so reconcile at load time only here.
+  // NEW in-game cash subs (weeklyPrice set) and still-unexpired legacy grants are
+  // left untouched.
+  if (
+    sm.verifiedPro &&
+    sm.verifiedPro.active === true &&
+    typeof sm.verifiedPro.weeklyPrice !== 'number' &&
+    typeof sm.verifiedPro.expiresTimestamp === 'number' &&
+    sm.verifiedPro.expiresTimestamp < Date.now()
+  ) {
+    sm.verifiedPro.active = false;
+    sm.verifiedPro.perksUnlocked = {
+      blueCheckmark: false,
+      postBoostMultiplier: 1.0,
+      analyticsUnlocked: false,
+      noAdsInFeed: false,
+      longerPosts: false,
+    };
+    if (s.userProfile && typeof s.userProfile === 'object' && s.userProfile.verified) {
+      s.userProfile.verified = false;
+    }
+    repairs.push('Expired legacy Verified Pro IAP grant past its term');
+    repaired = true;
+  }
   if (!Array.isArray(sm.notifications)) {
     sm.notifications = [];
     repairs.push('Created missing socialMedia.notifications');
@@ -874,6 +900,29 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       },
     };
     repairs.push('Created missing sparkApp.premium');
+    repaired = true;
+  }
+  // Legacy Spark Premium IAP grants: same load-time term reconciliation as Verified
+  // Pro above (active + expiresTimestamp + NO weeklyPrice → expire if past term).
+  if (
+    sp.premium &&
+    sp.premium.active === true &&
+    typeof sp.premium.weeklyPrice !== 'number' &&
+    typeof sp.premium.expiresTimestamp === 'number' &&
+    sp.premium.expiresTimestamp < Date.now()
+  ) {
+    sp.premium.active = false;
+    sp.premium.tier = 'free';
+    sp.premium.perks = {
+      unlimitedSwipes: false,
+      seeWhoLikedYou: false,
+      rewindLastSwipe: false,
+      boostMultiplier: 1.0,
+      superLikesPerDay: 1,
+      verifiedBadge: false,
+      travelMode: false,
+    };
+    repairs.push('Expired legacy Spark Premium IAP grant past its term');
     repaired = true;
   }
   if (!Array.isArray(sp.likedYou)) sp.likedYou = [];

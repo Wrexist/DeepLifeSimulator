@@ -21,6 +21,7 @@ import type {
   PulseNotificationType,
   PulseScandalResolution,
   PulseActiveBrandDeal,
+  InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
 import { updateStats } from './StatsActions';
@@ -37,6 +38,8 @@ import {
   canCreateContent,
   calculateLiveStreamDonations,
   getEngagementMultiplierFromVerifiedPro,
+  VERIFIED_PRO_WEEKLY_PRICE,
+  VERIFIED_PRO_ANNUAL_PRICE,
 } from '@/lib/social/socialMedia';
 
 const log = logger.scope('PulseActions');
@@ -1033,18 +1036,49 @@ export const boostPostWithGems = (
   return { success: true, message: 'Post boosted!' };
 };
 
+/**
+ * Subscribe to Pulse Verified Pro as an IN-GAME cash subscription (NOT a real
+ * IAP). Debits `stats.money` immediately via the canonical `applyMoneyDelta`
+ * (overdraft-reject + NaN-guard) in the SAME updater that grants the perks, and
+ * records the weekly price so the tick can auto-renew it (applySubscriptionsForWeek).
+ *
+ * - plan 'weekly': charge the weekly fee now; auto-renews weekly on the tick.
+ * - plan 'annual': charge the 52-week prepay now (discounted); weekly billing is
+ *   skipped until the prepaid term ends, then normal weekly auto-renew resumes.
+ *
+ * Returns `{ success:false }` with a clear message when the player can't afford it.
+ */
 export const subscribeVerifiedPro = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  sku: string,
-  expiresTimestamp: number,
+  gameState: GameState,
+  plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
+  const price = plan === 'annual' ? VERIFIED_PRO_ANNUAL_PRICE : VERIFIED_PRO_WEEKLY_PRICE;
+  // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
+  // setGameState is a plain (wrapped) React useState setter — it may defer the
+  // updater, so reading a value the updater assigns is unreliable. The atomic
+  // charge+grant still lives inside the updater below (applyMoneyDelta overdraft-
+  // reject), which remains the source of truth for money safety.
+  if ((gameState.stats?.money ?? 0) < price) {
+    return {
+      success: false,
+      message: `You can't afford Pulse Verified Pro ($${price.toLocaleString()}).`,
+    };
+  }
   setGameState((prev) => {
+    // Charge in-game cash atomically (overdraft-reject) in the same updater that
+    // grants the perks — closes the charge-then-grant race and never overdrafts.
+    const spend = applyMoneyDelta(prev, -price, `Pulse Verified Pro (${plan})`);
+    if (!spend) return prev; // funds dropped since the preview → reject atomically
     const sm = { ...ensureSocial(prev) };
+    const ws = prev.weeksLived ?? 0;
     sm.verifiedPro = {
       active: true,
+      plan,
+      weeklyPrice: VERIFIED_PRO_WEEKLY_PRICE,
+      startedWeek: ws,
+      paidThroughWeek: plan === 'annual' ? ws + 52 : undefined,
       subscribedTimestamp: Date.now(),
-      expiresTimestamp,
-      sku,
       perksUnlocked: {
         blueCheckmark: true,
         postBoostMultiplier: 1.25,
@@ -1058,14 +1092,20 @@ export const subscribeVerifiedPro = (
       sm.verifiedProWelcomeClaimed = true;
       sm.followers = (sm.followers ?? 0) + 500;
       sm.influenceLevel = getInfluenceLevel(sm.followers);
-      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', prev.weeksLived ?? 0);
+      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', ws);
     }
 
     // Flip userProfile.verified
     const userProfile = { ...prev.userProfile, verified: true };
-    return { ...prev, socialMedia: sm, userProfile };
+    return { ...prev, ...spend, socialMedia: sm, userProfile };
   });
-  return { success: true, message: 'Pulse Pro active.' };
+  return {
+    success: true,
+    message:
+      plan === 'annual'
+        ? `Pulse Verified Pro active — $${price.toLocaleString()} for 52 weeks.`
+        : `Pulse Verified Pro active — $${price}/week.`,
+  };
 };
 
 export const cancelVerifiedPro = (
@@ -1086,7 +1126,12 @@ export const cancelVerifiedPro = (
         },
       };
     }
-    return { ...prev, socialMedia: sm };
+    // The blue check is derived from an ACTIVE Verified Pro subscription. Cancelling
+    // must clear userProfile.verified too — otherwise the checkmark survived forever.
+    const userProfile = prev.userProfile?.verified
+      ? { ...prev.userProfile, verified: false }
+      : prev.userProfile;
+    return { ...prev, socialMedia: sm, userProfile };
   });
 };
 

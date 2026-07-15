@@ -155,6 +155,17 @@ export function perksForTier(tier: SparkPremiumTier): SparkPremium['perks'] {
   return { ...SPARK_PREMIUM_TIERS[tier] };
 }
 
+/**
+ * Spark Premium — in-game (cash) subscription pricing per tier. Paid from
+ * stats.money and auto-renewed weekly on the tick (see applySubscriptionsForWeek).
+ * Ultra is ~2× Plus (mirrors the old $4.99 / $9.99 split) and priced against the
+ * game's weekly job income. NOT a real App Store IAP.
+ */
+export const SPARK_TIER_PRICING: Record<'plus' | 'ultra', { weekly: number; annual: number }> = {
+  plus: { weekly: 12, annual: 520 }, // 52 × 12 = 624 → ~17% off
+  ultra: { weekly: 24, annual: 1040 }, // 52 × 24 = 1248 → ~17% off
+};
+
 // ── Swipe quota ───────────────────────────────────────────────────────────
 
 /** Max swipes per week at the player's current premium tier. */
@@ -217,12 +228,12 @@ export function calculateJealousyRisk(state: GameState): number {
 export function scorePlayerProfile(state: GameState): number {
   const sp = state.sparkApp;
   if (!sp) return 0;
-  const photos = sp.profile.photos.length;
-  const bioLen = sp.profile.bio.length;
-  const interests = sp.profile.interests.length;
+  const photos = sp.profile?.photos?.length ?? 0;
+  const bioLen = (sp.profile?.bio ?? '').length;
+  const interests = (sp.profile?.interests ?? []).length;
   const reputation = state.stats?.reputation ?? 0;
   const money = state.stats?.money ?? 0;
-  const verified = sp.premium.perks.verifiedBadge ? 8 : 0;
+  const verified = sp.premium?.perks?.verifiedBadge ? 8 : 0;
 
   let s = 10;
   s += Math.min(25, photos * 8);          // up to 25 from photos

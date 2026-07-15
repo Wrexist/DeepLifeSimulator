@@ -238,7 +238,11 @@ export default function AdRewardOrb() {
     if (busyRef.current) return; // ignore rapid re-taps while a grant is in flight
     busyRef.current = true;
     try {
-      const outcome = await runRewardedAd(grant, { adsRemoved });
+      // grantOnNoFill: the orb is rate-limited (appears at most every few
+      // minutes), so if there's no ad inventory to serve we still honour the
+      // promised reward instead of leaving the player with nothing after tapping
+      // "Watch ad". Real ads still play + earn when they fill.
+      const outcome = await runRewardedAd(grant, { adsRemoved, grantOnNoFill: true });
       if (isGranted(outcome)) {
         finishAfterClaim();
       } else {

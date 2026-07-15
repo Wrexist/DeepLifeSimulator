@@ -40,6 +40,14 @@ export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boole
   return state?.settings?.adsRemoved === true;
 }
 
+/** Options for {@link runRewardedAd}. */
+export interface RunRewardedAdOptions {
+  /** Player owns an ad-free entitlement (Remove Ads / DeepLife+) — grant directly, no ad. */
+  adsRemoved?: boolean;
+  /** On no-fill / error, grant the reward anyway rather than returning ungranted. */
+  grantOnNoFill?: boolean;
+}
+
 /**
  * Show a rewarded ad (when appropriate for this build/entitlement) and grant the
  * reward. `grant` is invoked exactly once on success — either by the ad SDK's
@@ -48,7 +56,7 @@ export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boole
  */
 export async function runRewardedAd(
   grant: () => void,
-  opts: { adsRemoved?: boolean } = {}
+  opts: RunRewardedAdOptions = {}
 ): Promise<RewardedAdOutcome> {
   const adsOn = !opts.adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
   if (!adsOn) {
@@ -60,11 +68,25 @@ export async function runRewardedAd(
   try {
     const { adMobService } = await import('@/services/AdMobService');
     const shown = await adMobService.showRewardedAd(grant);
-    return shown ? 'granted-ad' : 'no-fill';
+    if (shown) return 'granted-ad';
+    // No ad was available to serve (no-fill — very common in TestFlight and on
+    // brand-new ad units). `grantOnNoFill` callers (e.g. the rate-limited reward
+    // orb) grant the reward anyway rather than cheating a player who tapped
+    // "Watch ad" when there was simply no inventory. Real ads still play and earn
+    // revenue whenever inventory IS available — this is only the empty fallback.
+    if (opts.grantOnNoFill) {
+      grant();
+      return 'granted-direct';
+    }
+    return 'no-fill';
   } catch (err) {
     logger.warn('[rewardedAd] rewarded ad failed', {
       error: err instanceof Error ? err.message : String(err),
     });
+    if (opts.grantOnNoFill) {
+      grant();
+      return 'granted-direct';
+    }
     return 'error';
   }
 }

@@ -171,23 +171,40 @@ describe('promoteMatchToRelationship', () => {
 });
 
 describe('premium subscription', () => {
-  it('subscribeSparkPremium activates tier and perks', () => {
+  it('subscribeSparkPremium debits in-game cash, activates tier and perks', () => {
     const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
     const { setGameState, getState } = makeHarness(state);
-    subscribeSparkPremium(setGameState, 'ultra', 'deeplife_spark_ultra_monthly', Date.now() + 30 * 86400_000);
+    const r = subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
+    expect(r.success).toBe(true);
     const sp = getState().sparkApp!;
     expect(sp.premium.active).toBe(true);
     expect(sp.premium.tier).toBe('ultra');
+    expect(sp.premium.plan).toBe('weekly');
+    expect(sp.premium.weeklyPrice).toBe(24);
     expect(sp.premium.perks.unlimitedSwipes).toBe(true);
     expect(sp.premium.perks.seeWhoLikedYou).toBe(true);
     expect(sp.premium.perks.boostMultiplier).toBe(2.5);
     expect(sp.lifetimeStats.peakPremiumTier).toBe('ultra');
+    // $24 Ultra weekly fee debited from stats.money.
+    expect(getState().stats.money).toBe(976);
+  });
+
+  it('subscribeSparkPremium rejects (no perks, no debit) when the player cannot afford it', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 5;
+    const { setGameState, getState } = makeHarness(state);
+    const r = subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
+    expect(r.success).toBe(false);
+    expect(getState().sparkApp!.premium.active).toBe(false);
+    expect(getState().stats.money).toBe(5); // untouched
   });
 
   it('cancel reverts perks to free', () => {
     const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
     const { setGameState, getState } = makeHarness(state);
-    subscribeSparkPremium(setGameState, 'plus', 'sku', Date.now() + 30 * 86400_000);
+    subscribeSparkPremium(setGameState, state, 'plus', 'weekly');
     cancelSparkPremium(setGameState);
     expect(getState().sparkApp!.premium.active).toBe(false);
     expect(getState().sparkApp!.premium.tier).toBe('free');

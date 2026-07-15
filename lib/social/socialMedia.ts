@@ -368,6 +368,19 @@ export function calculateFollowerDecay(
 }
 
 /**
+ * Pulse Verified Pro — in-game (cash) subscription pricing. The player pays
+ * from stats.money and the fee auto-renews weekly on the tick (see
+ * applySubscriptionsForWeek). Priced against the game's WEEKLY job income
+ * (entry jobs ~$50-65/wk, professionals ~$220-600/wk) so it reads like a real
+ * premium subscription: a few percent of a professional weekly wage, a
+ * noticeable but affordable "want" for an entry earner. NOT a real App Store IAP.
+ */
+export const VERIFIED_PRO_WEEKLY_PRICE = 20; // in-game $/week
+// Annual = 52-week prepay at ~17% off (52 × 20 = 1040 → 865), echoing the old
+// "Save 17%" yearly framing but paid in game cash instead of real money.
+export const VERIFIED_PRO_ANNUAL_PRICE = 865;
+
+/**
  * Pulse Verified Pro engagement multiplier.
  * Returns 1.25 when the subscription is active (matches `perksUnlocked.postBoostMultiplier`),
  * 1.0 otherwise. Reading from the state directly so callers don't have to thread it.

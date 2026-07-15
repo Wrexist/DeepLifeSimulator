@@ -1075,11 +1075,22 @@ export interface PulseBrandInbox {
   history: PulseDealHistoryEntry[];
 }
 
+/** In-game (cash) subscription billing plan. Pulse Verified Pro and Spark
+ *  Premium are paid from stats.money and auto-renew weekly on the tick. */
+export type InGameSubscriptionPlan = 'weekly' | 'annual';
+
 export interface PulseVerifiedPro {
   active: boolean;
   subscribedTimestamp?: number;     // real ms
-  expiresTimestamp?: number;        // real ms; null for lifetime
-  sku?: string;
+  expiresTimestamp?: number;        // legacy IAP field — no longer used for gating
+  sku?: string;                     // legacy IAP field — not set for in-game subs
+  // ── In-game cash subscription (paid from stats.money, billed weekly on the
+  //    tick — see applySubscriptionsForWeek). All optional so pre-existing saves
+  //    load unchanged; reads are null-guarded. No STATE_VERSION bump.
+  plan?: InGameSubscriptionPlan;
+  weeklyPrice?: number;             // in-game $ billed each weekly tick
+  startedWeek?: number;             // weeksLived when subscribed
+  paidThroughWeek?: number;         // annual prepay: skip weekly billing until weeksLived >= this
   perksUnlocked: {
     blueCheckmark: boolean;
     postBoostMultiplier: number;    // 1.0 inactive, 1.25 active
@@ -1179,8 +1190,14 @@ export interface SparkPremium {
   active: boolean;
   tier: SparkPremiumTier;
   subscribedTimestamp?: number;
-  expiresTimestamp?: number;
-  sku?: string;
+  expiresTimestamp?: number;        // legacy IAP field — no longer used for gating
+  sku?: string;                     // legacy IAP field — not set for in-game subs
+  // ── In-game cash subscription (paid from stats.money, billed weekly on the
+  //    tick — see applySubscriptionsForWeek). All optional; old saves unchanged.
+  plan?: InGameSubscriptionPlan;
+  weeklyPrice?: number;             // in-game $ billed each weekly tick
+  startedWeek?: number;             // weeksLived when subscribed
+  paidThroughWeek?: number;         // annual prepay: skip weekly billing until weeksLived >= this
   perks: {
     unlimitedSwipes: boolean;
     seeWhoLikedYou: boolean;
@@ -1878,6 +1895,16 @@ export interface StreamSession {
   timestamp?: number; // ms since epoch; used to sort recent streams for income decay
   /** weeksLived when this stream ran — used to decay income by REAL elapsed weeks. */
   uploadedAt?: number;
+  // ── Real-time LIVE session fields (v: live streaming). All optional/additive
+  //    so old saves load unchanged and finished history items simply omit them.
+  //    `currentStream` holds a StreamSession while a broadcast is live; these
+  //    fields carry the live loop's running state. No STATE_VERSION bump.
+  /** True while this session is an in-progress live broadcast (drives the drain loop). */
+  live?: boolean;
+  /** Real-clock ms when the broadcast went live (flavour/debug; loop uses elapsedSeconds). */
+  startedAtMs?: number;
+  /** Seconds actually streamed so far — accrued by the drain loop, survives reload. */
+  elapsedSeconds?: number;
 }
 
 export interface StreamHistoryItem extends StreamSession {

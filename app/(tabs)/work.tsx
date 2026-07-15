@@ -924,7 +924,7 @@ function WorkScreenContent() {
                                     </View>
 
                                     <View>
-                                        {Object.entries(gameState.crimeSkills).map(([id, skill]) => {
+                                        {Object.entries(gameState.crimeSkills || {}).map(([id, skill]) => {
                                             const skillId = id as CrimeSkillId;
                                             const threshold = skill.level * 100;
                                             const label = id.charAt(0).toUpperCase() + id.slice(1);

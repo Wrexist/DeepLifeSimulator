@@ -10,7 +10,14 @@ export const setAchievementToastRef = (ref: any) => {
 };
 
 export const showAchievementToast = (title: string, category: string, reward: number) => {
-  if (achievementToastRef) {
+  // The AchievementToast is a hard-branded "ACHIEVEMENT UNLOCKED!" popup with a gem
+  // reward chip. Only GENUINE achievements may use it, and every real catalog
+  // achievement carries a positive gem reward. Tips, warnings, celebrations,
+  // milestones, reminders, suggestions, generic feedback messages, and legacy
+  // 0-reward pseudo-"achievement" entries all pass reward <= 0 — they must NOT
+  // hijack this popup (they belong in the notification/toast channel). This is the
+  // robust, copy-agnostic gate: reward > 0 distinguishes a real achievement.
+  if (achievementToastRef && reward > 0) {
     const achievementData: AchievementData = {
       title,
       category,
