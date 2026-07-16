@@ -7,6 +7,7 @@
 import React from 'react';
 import { GameState, Loan, RealEstate } from '../types';
 import { logger } from '@/utils/logger';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   DOWN_PAYMENT_FRACTIONS,
   DownPaymentTier,
@@ -166,7 +167,16 @@ export const buyPropertyWithMortgage = (
       result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
       return prev;
     }
-    const newMoney = cash - downPayment;
+    // Route the down-payment debit through the canonical money helper
+    // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
+    // directly — the amount is unchanged, but a corrupt (NaN) balance can no
+    // longer slip a purchase through (`cash < downPayment` is false for NaN).
+    const spend = applyMoneyDelta(prev, -downPayment, `Property down payment: ${catalog.name}`);
+    if (!spend) {
+      log.info(`Purchase rejected by money guard: down ${downPayment}, cash ${cash}`);
+      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
+      return prev;
+    }
 
     // Create the Loan record if there's a mortgage.
     let updatedLoans = prev.loans ?? [];
@@ -242,8 +252,8 @@ export const buyPropertyWithMortgage = (
 
     return {
       ...prev,
+      ...spend,
       banking,
-      stats: { ...prev.stats, money: newMoney },
       realEstate: updatedRealEstate,
       loans: updatedLoans,
     };

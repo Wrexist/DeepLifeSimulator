@@ -12,7 +12,7 @@
 import { GameState, VehicleInsurance } from '../types';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import {
   VEHICLE_TEMPLATES,
@@ -868,7 +868,16 @@ export const purchaseVehicleWithAutoLoan = (
     }
 
     const cash = prev.stats?.money ?? 0;
-    const newMoney = Math.max(0, cash - (quote.downPaymentUSD ?? 0));
+    const downPayment = quote.downPaymentUSD ?? 0;
+    // Route the down-payment debit through the canonical money helper
+    // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
+    // directly — a corrupt (NaN) balance now rejects the purchase rather than
+    // writing NaN money. The amount charged is unchanged.
+    const spend = applyMoneyDelta(prev, -downPayment, `Vehicle down payment: ${template.name}`);
+    if (!spend) {
+      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
+      return prev;
+    }
 
     let updatedLoans = prev.loans ?? [];
     if (spec.tier !== 'cash' && (quote.loanPrincipal ?? 0) > 0) {
@@ -932,8 +941,9 @@ export const purchaseVehicleWithAutoLoan = (
 
     return {
       ...prev,
+      ...spend,
       banking,
-      stats: { ...prev.stats, money: newMoney, reputation: grantedReputation },
+      stats: { ...spend.stats, reputation: grantedReputation },
       vehicles,
       activeVehicleId,
       loans: updatedLoans,

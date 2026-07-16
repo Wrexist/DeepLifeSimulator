@@ -63,6 +63,7 @@ import {
   findBreed,
   findToy,
   findSickness,
+  vetServicePrice,
 } from '@/lib/pets/catalog';
 import { ageInYears, lifeStage, bandFor, isPastLifespan } from '@/lib/pets/lifecycle';
 import { effectiveHungerDecay } from '@/lib/pets/decay';
@@ -867,7 +868,13 @@ export default function PetApp({ onBack }: PetAppProps) {
         {p ? (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Clinic services</Text>
-            {VET_SERVICES.map((s) => (
+            {VET_SERVICES.map((s) => {
+              // Treatment services bill the pet's active sickness's own cost
+              // (e.g. a mild cold is cheaper than a severe infection); other
+              // services keep the flat price.
+              const price = vetServicePrice(s, sick);
+              const scaled = price !== s.price;
+              return (
               <View
                 key={s.id}
                 style={[getGlassCard(darkMode, 6), styles.svcCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -884,9 +891,9 @@ export default function PetApp({ onBack }: PetAppProps) {
                     style={[styles.tileBtn, styles.svcBtn, styles.goldChip]}
                     onPress={() => handleVet(p.id, s.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Book ${s.name} for $${s.price}`}
+                    accessibilityLabel={`Book ${s.name} for $${price}`}
                   >
-                    <Text style={[styles.chipText, { color: theme.text }]}>Book ${s.price.toLocaleString()}</Text>
+                    <Text style={[styles.chipText, { color: theme.text }]}>Book ${price.toLocaleString()}</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.chipWrap}>
@@ -894,9 +901,11 @@ export default function PetApp({ onBack }: PetAppProps) {
                   {s.happinessBonus ? <InfoChip label={`+${s.happinessBonus} happy`} Icon={Heart} color={accent.danger} theme={theme} /> : null}
                   {s.vaccinates ? <InfoChip label="Vaccinates" Icon={Shield} color={ENERGY_C} theme={theme} /> : null}
                   {s.treatsSickness ? <InfoChip label="Treats illness" color={accent.warning} theme={theme} /> : null}
+                  {scaled && sick ? <InfoChip label={`${sick.name} rate`} color={accent.info} theme={theme} /> : null}
                 </View>
               </View>
-            ))}
+              );
+            })}
           </View>
         ) : null}
       </ScrollView>

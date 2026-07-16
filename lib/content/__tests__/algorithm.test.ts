@@ -104,8 +104,11 @@ describe('projectStreamOutcome', () => {
 
   it('omitting rollOrganic is neutral: viewers match the pre-variance result', () => {
     const omitted = projectStreamOutcome({ quality: 20, followers: 1000, duration: 60, rollHype: 0.99 });
-    // (5 + 1000*0.015) * budget-ish... quality 20 → starter (0.5×): (5+15)*0.5 = 10.
-    expect(omitted.viewers).toBe(10);
+    // base viewers = 5 + 1000*0.015 = 20. The quality multiplier is now a
+    // continuous interpolation (no per-tier dead zone): quality 20 sits between
+    // the 10→0.5× and 40→1.0× anchors → 0.5 + (10/30)*0.5 ≈ 0.6667×, so
+    // round(20 * 0.6667) = 13. (Omitting rollOrganic still applies a neutral 1.0×.)
+    expect(omitted.viewers).toBe(13);
   });
 
   it('rollOrganic spreads viewers: flop < neutral < pop', () => {

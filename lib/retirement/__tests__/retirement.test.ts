@@ -307,8 +307,35 @@ describe('elder activities', () => {
     expect(status?.available).toBe(false);
   });
 
+  it('lets an EARLY (FIRE) retiree do activities despite being under 65', () => {
+    // 48-year-old, retired via the FIRE path. Age is under the elder threshold,
+    // but retirement bypasses the age gate so the elder chapter isn't 20 empty years.
+    const earlyRetiree = makeState({ age: 48, money: 50_000, isRetired: true });
+    expect(isRetired(earlyRetiree)).toBe(true);
+    // A classic activity that is normally 65+ gated:
+    expect(applyElderActivity(earlyRetiree, 'write_memoir').reason).not.toBe('not-elder');
+    expect(getElderActivityStatus(earlyRetiree, 'write_memoir')?.available).toBe(true);
+    // A new early-retiree activity is available too:
+    expect(getElderActivityStatus(earlyRetiree, 'coach_sports')?.available).toBe(true);
+    const res = applyElderActivity(earlyRetiree, 'travel_club'); // costs 2500
+    expect(res.ok).toBe(true);
+    expect(res.state.stats.money).toBe(47_500);
+  });
+
+  it('still turns away a still-working player below an activity minAge', () => {
+    // 48-year-old, NOT retired: below write_memoir's 65 gate and not retired,
+    // so the age gate still bites (no free elder chapter for the un-retired).
+    const working = makeState({ age: 48, money: 50_000, isRetired: false });
+    expect(applyElderActivity(working, 'write_memoir').reason).toBe('not-elder');
+  });
+
   it('exposes a catalog of several activities', () => {
     expect(ELDER_ACTIVITIES.length).toBeGreaterThanOrEqual(5);
+    // The new early-retiree activities are present.
+    const ids = ELDER_ACTIVITIES.map((a) => a.id);
+    expect(ids).toEqual(
+      expect.arrayContaining(['coach_sports', 'travel_club', 'part_time_consulting', 'lifelong_learning']),
+    );
   });
 });
 

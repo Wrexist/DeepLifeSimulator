@@ -1,11 +1,26 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { equipCosmetic, unequipCosmetic, toggleCosmetic } from '@/contexts/game/actions/CosmeticActions';
 import { getCosmetic, resolveOwnedCosmetics } from '@/lib/cosmetics/cosmetics';
+import { FREE_REWARDS, PREMIUM_REWARDS } from '@/lib/legacyPass/legacyPass';
 
 describe('cosmetics catalog', () => {
   it('resolves known ids from the registry', () => {
     expect(getCosmetic('legacy_frame_s_free')).toMatchObject({ type: 'frame' });
     expect(getCosmetic('legacy_theme_s_10')).toMatchObject({ type: 'theme' });
+  });
+
+  it('gives the reward track VISIBLE variety — every cosmetic reward id resolves to a distinct registered look', () => {
+    const cosmeticIds = [...FREE_REWARDS, ...PREMIUM_REWARDS]
+      .filter((r) => r.kind === 'cosmetic')
+      .map((r) => r.id!)
+      .filter(Boolean);
+    // The pass now hands out well more than the old 3 cosmetics.
+    expect(new Set(cosmeticIds).size).toBeGreaterThanOrEqual(6);
+    const resolved = cosmeticIds.map((id) => getCosmetic(id)!);
+    // All resolve to a frame or theme.
+    resolved.forEach((c) => expect(['frame', 'theme']).toContain(c.type));
+    // Distinct colors => not collapsing into one generic look.
+    expect(new Set(resolved.map((c) => c.color)).size).toBeGreaterThanOrEqual(6);
   });
 
   it('falls back by pattern for unregistered legacy ids', () => {

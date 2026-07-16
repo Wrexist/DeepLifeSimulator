@@ -8,6 +8,7 @@
 import React from 'react';
 import { GameState } from '../types';
 import { logger } from '@/utils/logger';
+import { applyMoneyDelta } from './MoneyActions';
 import { executeMarket, placeOrder as placeOrderPure, cancelOrder as cancelOrderPure } from '@/lib/stocks/operations';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 
@@ -99,12 +100,21 @@ export const buyStockMarket = (
       return prev;
     }
     const fee = result.notionalUSD * STOCK_FEE;
+    // Route the debit through the canonical money helper (MONEY_CEILING clamp +
+    // NaN/overdraft guard) instead of writing `stats.money` directly. The charged
+    // amount (committed notional + fee-on-fill) is preserved EXACTLY as before.
+    // A corrupt (NaN) balance now rejects the buy here rather than poisoning money.
+    const spend = applyMoneyDelta(prev, -(amountUSD + fee), `Bought ${symbol}`);
+    if (!spend) {
+      log.warn(`Buy rejected by money guard: ${symbol} (cost=${amountUSD + fee}, cash=${cash})`);
+      return prev;
+    }
     const stocks = ensureStocks(prev);
     const newHoldings = updateHoldingsOnBuy(stocks.holdings ?? [], symbol, result.shares, result.order.filledPrice!);
     const newHistory = [result.order, ...(stocks.orderHistory ?? [])].slice(0, 50);
     return {
       ...prev,
-      stats: { ...prev.stats, money: Math.max(0, cash - amountUSD - fee) },
+      ...spend,
       stocks: { ...stocks, holdings: newHoldings, orderHistory: newHistory },
     };
   });
@@ -135,13 +145,20 @@ export const sellStockMarket = (
       return prev;
     }
     const proceeds = result.notionalUSD * (1 - STOCK_FEE);
+    // Credit proceeds through the canonical money helper so the sale is subject
+    // to the MONEY_CEILING clamp (a huge fill can no longer overflow money to
+    // Infinity) + the NaN guard. Proceeds/fees are unchanged.
+    const credit = applyMoneyDelta(prev, proceeds, `Sold ${symbol}`);
+    if (!credit) {
+      log.warn(`Sell rejected by money guard: ${symbol} (proceeds=${proceeds})`);
+      return prev;
+    }
     const { holdings: newHoldings, basisPerShare } = applySellOnHoldings(stocks.holdings ?? [], symbol, shares);
     const realizedGain = (result.order.filledPrice! - basisPerShare) * shares;
     const newHistory = [result.order, ...(stocks.orderHistory ?? [])].slice(0, 50);
-    const cash = prev.stats?.money ?? 0;
     return {
       ...prev,
-      stats: { ...prev.stats, money: cash + proceeds },
+      ...credit,
       stocks: {
         ...stocks,
         holdings: newHoldings,

@@ -88,12 +88,32 @@ export type LegacyPassTrack = 'free' | 'premium';
  *  - Premium track: bigger gems, regular youth pills, cosmetics, and the marquee
  *    heritable trait at the top.
  */
+// Cosmetic reward slots, keyed to specific tiers so the pass hands out a VARIED
+// set of frames/themes across the ladder (each id has a distinct look in
+// lib/cosmetics/cosmetics.ts) rather than the old lone finale frame + two themes.
+// Invariants preserved: free tiers 1–3 stay gems, free %5 stay youth pills, the
+// free finale + premium finale (trait) are unchanged, premium %10 stay themes,
+// premium %3 stay youth pills — so the reward-table unit tests hold.
+const FREE_COSMETIC_TIERS: Record<number, LegacyPassReward> = {
+  8: { kind: 'cosmetic', id: 'legacy_theme_s_8', label: 'Forest Theme' },
+  12: { kind: 'cosmetic', id: 'legacy_theme_s_12', label: 'Aurora Theme' },
+  16: { kind: 'cosmetic', id: 'legacy_frame_s_16', label: 'Rose Gold Frame' },
+  18: { kind: 'cosmetic', id: 'legacy_frame_s_18', label: 'Verdant Frame' },
+};
+const PREMIUM_COSMETIC_TIERS: Record<number, LegacyPassReward> = {
+  5: { kind: 'cosmetic', id: 'legacy_frame_s_5', label: 'Bronze Frame' },
+  14: { kind: 'cosmetic', id: 'legacy_theme_s_14', label: 'Ocean Theme' },
+  22: { kind: 'cosmetic', id: 'legacy_frame_s_22', label: 'Obsidian Frame' },
+};
+
 function buildRewardTable(track: LegacyPassTrack): LegacyPassReward[] {
   const rewards: LegacyPassReward[] = [];
   for (let tier = 1; tier <= MAX_TIER; tier++) {
     if (track === 'free') {
       if (tier === MAX_TIER) {
         rewards.push({ kind: 'cosmetic', id: `legacy_frame_s_free`, label: 'Legacy Profile Frame' });
+      } else if (FREE_COSMETIC_TIERS[tier]) {
+        rewards.push(FREE_COSMETIC_TIERS[tier]);
       } else if (tier % 5 === 0) {
         rewards.push({ kind: 'youthPills', amount: 1, label: '1 Youth Pill' });
       } else {
@@ -104,6 +124,8 @@ function buildRewardTable(track: LegacyPassTrack): LegacyPassReward[] {
         rewards.push({ kind: 'trait', id: `legacy_trait_s`, label: 'Heritable Legacy Trait' });
       } else if (tier % 10 === 0) {
         rewards.push({ kind: 'cosmetic', id: `legacy_theme_s_${tier}`, label: 'Apartment Theme' });
+      } else if (PREMIUM_COSMETIC_TIERS[tier]) {
+        rewards.push(PREMIUM_COSMETIC_TIERS[tier]);
       } else if (tier % 3 === 0) {
         rewards.push({ kind: 'youthPills', amount: 1, label: '1 Youth Pill' });
       } else {

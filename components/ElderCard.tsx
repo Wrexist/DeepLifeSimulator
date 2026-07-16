@@ -78,7 +78,9 @@ function ElderCard() {
       projectedPension: computePension(state).weekly,
       pensionWeekly: getRetirementIncomeWeekly(state),
       retiredAtAge: state.retiredAtAge,
-      activities: elder ? getElderActivityStatuses(state) : [],
+      // Show activities for anyone RETIRED (FIRE path retires at 45) or elder —
+      // not just 65+, which used to leave early retirees with empty years.
+      activities: retired || elder ? getElderActivityStatuses(state) : [],
       legacy: getElderLegacySummary(state),
     };
   }, [state]);
@@ -177,8 +179,8 @@ function ElderCard() {
         </View>
       ) : null}
 
-      {/* Elder activities (age ≥ 65) */}
-      {view.elder && view.activities.length > 0 ? (
+      {/* Elder activities (retired at any age, or 65+) */}
+      {(view.retired || view.elder) && view.activities.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ways to spend your years</Text>
           <View style={styles.activityList}>

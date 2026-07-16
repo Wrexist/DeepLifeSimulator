@@ -2333,6 +2333,8 @@ export interface GameState {
   };
   achievements: Achievement[];
   claimedProgressAchievements: string[];
+  /** Statistics milestones whose one-time gem reward has been claimed (additive set). */
+  claimedMilestoneRewards?: string[];
   /** Rich achievement unlock context for narrative display */
   achievementUnlocks?: Record<string, {
     unlockedAt: number; // timestamp

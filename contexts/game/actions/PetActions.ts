@@ -14,6 +14,8 @@ import {
   findFood,
   findToy,
   findVetService,
+  findSickness,
+  vetServicePrice,
 } from '@/lib/pets/catalog';
 import { resolveCompetition } from '@/lib/pets/competition';
 import { logger } from '@/utils/logger';
@@ -248,12 +250,17 @@ export function payForVet(
   if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
   const service = findVetService(serviceId);
   if (!service) return { success: false, message: 'Unknown service' };
-  if (safe(gameState.stats?.money, 0) < service.price) {
-    return { success: false, message: `Need $${service.price.toLocaleString()}.` };
+  // Effective price: a sickness-treating service costs the pet's active
+  // sickness's own `treatmentCost` (mild cold << severe infection) instead of a
+  // flat fee; everything else keeps the VET_SERVICES price.
+  const activeSickness = pet.isSick && pet.sickness ? findSickness(pet.sickness) : null;
+  const price = vetServicePrice(service, activeSickness);
+  if (safe(gameState.stats?.money, 0) < price) {
+    return { success: false, message: `Need $${price.toLocaleString()}.` };
   }
   // M-batch-A (R8): atomic debit + grant.
   setGameState((prev) => {
-    const spend = applyMoneyDelta(prev, -service.price, `${service.name} for ${pet.name}`);
+    const spend = applyMoneyDelta(prev, -price, `${service.name} for ${pet.name}`);
     if (!spend) return prev; // race guard
     return {
       ...prev,

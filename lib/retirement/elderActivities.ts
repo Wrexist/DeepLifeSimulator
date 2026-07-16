@@ -14,8 +14,8 @@
  */
 import type { GameState, GameStats } from '@/contexts/game/types';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
-import { getAge } from './pension';
-import { RETIREMENT_AGE } from './constants';
+import { getAge, isRetired } from './pension';
+import { RETIREMENT_AGE, EARLY_RETIRE_MIN_AGE } from './constants';
 
 export type ElderActivityId =
   | 'write_memoir'
@@ -23,7 +23,12 @@ export type ElderActivityId =
   | 'spoil_grandchildren'
   | 'bucket_list_trip'
   | 'volunteer'
-  | 'reconnect_friends';
+  | 'reconnect_friends'
+  // Suited to early (FIRE) retirees who still have decades of energy.
+  | 'coach_sports'
+  | 'travel_club'
+  | 'part_time_consulting'
+  | 'lifelong_learning';
 
 export interface ElderActivity {
   id: ElderActivityId;
@@ -128,6 +133,59 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
     effects: { happiness: 7, health: 2 },
     toast: 'An afternoon of laughter with old friends. Time melted away.',
   },
+  // ── Early-retiree activities (FIRE path retires at 45 — these fill the
+  // decades a 65-only gate used to leave empty). Available to anyone retired
+  // (age gate bypassed) or elder. ──
+  {
+    id: 'coach_sports',
+    label: 'Volunteer coaching',
+    description: 'Coach a youth team on weekends — energy you still have plenty of.',
+    icon: 'Whistle',
+    emoji: '🏅',
+    moneyCost: 0,
+    cooldownWeeks: 3,
+    minAge: EARLY_RETIRE_MIN_AGE,
+    effects: { happiness: 6, health: 3, reputation: 4 },
+    toast: 'The team is fired up — coaching keeps you as sharp as they are.',
+  },
+  {
+    id: 'travel_club',
+    label: 'Join a travel club',
+    description: 'Regular trips with a club of fellow early retirees. See the world slowly.',
+    icon: 'Globe',
+    emoji: '🧳',
+    moneyCost: 2500,
+    cooldownWeeks: 10,
+    minAge: EARLY_RETIRE_MIN_AGE,
+    effects: { happiness: 12, health: 3 },
+    legacyPoints: 1,
+    toast: 'Another stamp in the passport with the travel club. What a life.',
+  },
+  {
+    id: 'part_time_consulting',
+    label: 'Part-time consulting',
+    description: 'Take the occasional advisory gig — keep your skills and network warm.',
+    icon: 'Briefcase',
+    emoji: '💼',
+    moneyCost: 0,
+    cooldownWeeks: 4,
+    minAge: EARLY_RETIRE_MIN_AGE,
+    effects: { happiness: 4, reputation: 6 },
+    legacyPoints: 1,
+    toast: 'A well-received consulting engagement — your reputation grows.',
+  },
+  {
+    id: 'lifelong_learning',
+    label: 'Take up a new skill',
+    description: 'Enroll in a class you never had time for — painting, coding, a language.',
+    icon: 'BookOpen',
+    emoji: '🎓',
+    moneyCost: 400,
+    cooldownWeeks: 6,
+    minAge: EARLY_RETIRE_MIN_AGE,
+    effects: { happiness: 8, energy: 3 },
+    toast: 'A rewarding class — turns out you can teach an old dog new tricks.',
+  },
 ] as const;
 
 export type ElderActivityRejectReason =
@@ -180,8 +238,11 @@ export function getElderActivityStatus(state: GameState, id: string): ElderActiv
   const money = num(state?.stats?.money);
   const affordable = money >= activity.moneyCost;
 
+  // Age gate is bypassed for a RETIRED player: the FIRE path retires at 45, and
+  // a retiree — however young — has earned the elder chapter's activities. Only a
+  // still-working, below-threshold player is turned away with 'not-elder'.
   let reason: ElderActivityRejectReason | undefined;
-  if (age < activity.minAge) reason = 'not-elder';
+  if (age < activity.minAge && !isRetired(state)) reason = 'not-elder';
   else if (activity.requiresChildren && !hasChildren(state)) reason = 'requires-children';
   else if (onCooldown) reason = 'cooldown';
   else if (!affordable) reason = 'insufficient-money';

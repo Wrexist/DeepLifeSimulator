@@ -79,15 +79,44 @@ export function computeQuality(
 }
 
 /**
- * Multiplier applied to views, donations, RPM. Maps tier to a real number.
- *   starter 0.5×  budget 1.0×  pro 1.6×  elite 2.5×
+ * Multiplier anchor points — (total score, multiplier). The four values are the
+ * historical per-tier multipliers (starter 0.5× / budget 1.0× / pro 1.6× /
+ * elite 2.5×), pinned at a representative score inside each band so the smooth
+ * curve still passes through them EXACTLY (keeps the pinned unit tests + the
+ * pre-existing earnings math bit-for-bit at those scores).
+ */
+const QUALITY_ANCHORS: readonly (readonly [number, number])[] = [
+  [10, 0.5], // starter
+  [40, 1.0], // budget
+  [60, 1.6], // pro
+  [90, 2.5], // elite
+] as const;
+
+/**
+ * Multiplier applied to views, donations, RPM.
+ *
+ * Previously a 4-step function keyed on the named tier: buying gear WITHIN a
+ * band moved the on-screen 0–100 quality bar but changed earnings by exactly 0
+ * (a dead zone between every tier boundary). Now the multiplier is a continuous,
+ * monotonic, piecewise-linear interpolation across the total score through the
+ * same anchor points — so every point of gear improves earnings — while the tier
+ * label (`tierFor`) is still used for UI badges. Flat below the first / above the
+ * last anchor. Accepts a `QualityBreakdown` (uses `.total`) or a raw score.
  */
 export function qualityMultiplier(q: QualityBreakdown | number): number {
-  const tier = typeof q === 'number' ? tierFor(q) : q.tier;
-  switch (tier) {
-    case 'starter': return 0.5;
-    case 'budget': return 1.0;
-    case 'pro': return 1.6;
-    case 'elite': return 2.5;
+  const total = typeof q === 'number' ? q : q.total;
+  const t = Math.max(0, Math.min(100, safe(total, 0)));
+  const first = QUALITY_ANCHORS[0];
+  const last = QUALITY_ANCHORS[QUALITY_ANCHORS.length - 1];
+  if (t <= first[0]) return first[1]; // flat starter floor
+  if (t >= last[0]) return last[1]; // flat elite ceiling
+  for (let i = 0; i < QUALITY_ANCHORS.length - 1; i++) {
+    const [x0, y0] = QUALITY_ANCHORS[i];
+    const [x1, y1] = QUALITY_ANCHORS[i + 1];
+    if (t >= x0 && t <= x1) {
+      const frac = (t - x0) / (x1 - x0);
+      return y0 + frac * (y1 - y0);
+    }
   }
+  return last[1]; // unreachable — the loop above always brackets an in-range t
 }

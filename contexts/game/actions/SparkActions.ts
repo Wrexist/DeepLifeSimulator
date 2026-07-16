@@ -42,7 +42,7 @@ import {
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
-import { getNpcReplyPool } from '@/lib/dating/npcReplyPool';
+import { getNpcReplyPool, pickNpcReply } from '@/lib/dating/npcReplyPool';
 
 const log = logger.scope('SparkActions');
 
@@ -396,12 +396,18 @@ export const generateNpcReply = (
   const profile = findProfile(match.profileId);
   if (!profile) return;
 
-  // Deterministic reply pool based on profile personality. Pools are content —
-  // they live in lib/dating/npcReplyPool.ts and cover every catalog personality
-  // (see PREREQ BUG FIX there), so replies actually vary by who you match with
-  // instead of collapsing to the generic `friendly` pool.
+  // Reply pool based on profile personality. Pools are content — they live in
+  // lib/dating/npcReplyPool.ts and cover every catalog personality (see PREREQ
+  // BUG FIX there), so replies vary by who you match with instead of collapsing
+  // to the generic `friendly` pool. `pickNpcReply` additionally skips the line
+  // the NPC last sent in THIS chat so consecutive replies never duplicate.
   const pool = getNpcReplyPool(profile.personality);
-  const reply = pool[Math.floor(Math.random() * pool.length)];
+  const thread = sp.messages[matchId] ?? [];
+  let lastNpcText: string | undefined;
+  for (let i = thread.length - 1; i >= 0; i--) {
+    if (thread[i].from === 'npc') { lastNpcText = thread[i].text; break; }
+  }
+  const reply = pickNpcReply(pool, lastNpcText, Math.random());
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
