@@ -383,6 +383,61 @@ describe('Education flow audit', () => {
     expect(v.valid).toBe(true);
   });
 
+  it('E2E: the weekly student-loan payment actually charges cash (not just the balance)', async () => {
+    // Regression (free-education financing): applyEducationProgression deducts the
+    // weekly payment from newStats.money, but nextWeek recomputed spendable cash
+    // from the ORIGINAL money and overwrote it — so the loan balance dropped every
+    // week while the player was never charged. The fix threads the payment into
+    // cashBeforeLoans exactly like the diet cost. We isolate the payment by ticking
+    // the SAME controlled state twice — once with an outstanding loan, once paid
+    // off — so every other (identical, deterministic) weekly cash flow cancels and
+    // only the payment differs.
+    const WEEKLY_PAYMENT = 200;
+
+    async function tickOnce(loanRemaining: number): Promise<{ moneyDelta: number; loanDelta: number }> {
+      const m = mountGame();
+      act(() => captured!.setGameState(prev => ({
+        ...prev,
+        weeksLived: 100, // past the beginner-luck window → no luck income
+        isRetired: false,
+        currentJob: null,
+        careers: [],
+        loans: [],
+        realEstate: [],
+        companies: [],
+        stocks: { holdings: [], watchlist: [], realizedGains: 0 } as never,
+        stocksOwned: {},
+        relationships: [],
+        dietPlans: undefined,
+        bankSavings: 0,
+        stats: { ...prev.stats, money: 50_000, health: 100, happiness: 100, energy: 100, fitness: 80, reputation: 50, gems: 0 },
+        educations: [fakeEdu({
+          weeksRemaining: 60,
+          lastExamWeek: 100, // no exam this tick (irrelevant to cash; keeps it clean)
+          studentLoan: { remaining: loanRemaining, weeklyPayment: WEEKLY_PAYMENT, principal: 10_000, interestRate: 0.05, termWeeks: 50 } as never,
+        })],
+      })));
+      const moneyBefore = captured!.state.stats.money;
+      const loanBefore = captured!.state.educations![0].studentLoan?.remaining ?? 0;
+      await act(async () => { await captured!.game.nextWeek(); });
+      const moneyAfter = captured!.state.stats.money;
+      const loanAfter = captured!.state.educations![0].studentLoan?.remaining ?? 0;
+      act(() => m.root.unmount());
+      return { moneyDelta: moneyBefore - moneyAfter, loanDelta: loanBefore - loanAfter };
+    }
+
+    const withLoan = await tickOnce(10_000);
+    const paidOff = await tickOnce(0);
+
+    // The loan balance still drops by one weekly payment (unchanged behaviour).
+    expect(withLoan.loanDelta).toBe(WEEKLY_PAYMENT);
+    expect(paidOff.loanDelta).toBe(0);
+    // Cash now drops too: with the loan, money fell strictly more than without it…
+    expect(withLoan.moneyDelta).toBeGreaterThan(paidOff.moneyDelta);
+    // …by exactly the weekly payment (the only differing cash flow between runs).
+    expect(withLoan.moneyDelta - paidOff.moneyDelta).toBe(WEEKLY_PAYMENT);
+  });
+
   it('E2E: completed education does not fire exams on tick', async () => {
     mounted = mountGame();
     act(() => captured!.setGameState(prev => ({

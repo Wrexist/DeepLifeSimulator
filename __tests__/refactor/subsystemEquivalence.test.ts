@@ -1015,7 +1015,12 @@ describe('pre-tick equivalence — applyMiningWarehouse', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('auto-repair enabled, crypto can NOT afford: no repair', () => {
+  it('auto-repair: funding coin budget below fleet cost → partial restore, not a free full repair (exploit fix)', () => {
+    // EXPLOIT FIX: owned 0.05 BTC × $1000 = $50 budget, but the basic rig needs
+    // 125 × (73/100) × 1 = $91.25 to reach 100% (durability 30 - 3 decay = 27).
+    // The old code restored the whole fleet to 100% for a dust balance; now the
+    // restore is capped at what the coin can pay, so durability lands partway
+    // (27 + 73 × 50/91.25 ≈ 67), never 100.
     const result = applyMiningWarehouse({
       prevWarehouse: {
         level: 1,
@@ -1025,9 +1030,9 @@ describe('pre-tick equivalence — applyMiningWarehouse', () => {
         lastDifficultyUpdateAbsoluteWeek: 100,
         autoRepairEnabled: true,
         autoRepairCryptoId: 'btc',
-        autoRepairWeeklyCost: 1.0,
+        autoRepairWeeklyCost: 0.0001, // production dust floor
       } as any,
-      prevCryptos: [aCryptoForW('btc', 0.1)], // can't afford 1.0
+      prevCryptos: [aCryptoForW('btc', 0.05)], // $50 budget < $91.25 full cost
       weeksLived: 100,
       minerDegradationRoll: 3,
     });
@@ -2866,7 +2871,7 @@ describe('pre-tick equivalence — computeWeeklyIncome', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('all income sources during beginner luck phase (deterministic sin-seed)', () => {
+  it('all income sources during beginner luck phase (deterministic seeded roll)', () => {
     const result = computeWeeklyIncome({
       prevState: fixtures.earlyCareer, // weeksLived=30, but we override weeksLivedNow below
       careerSalary: 200,
@@ -2878,7 +2883,7 @@ describe('pre-tick equivalence — computeWeeklyIncome', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('beginner luck week 0 (luckSeed=42, sin(42)*10000 → known float)', () => {
+  it('beginner luck week 0 (makeWeeklyRoll(0) deterministic roll)', () => {
     const result = computeWeeklyIncome({
       prevState: fixtures.freshGame,
       careerSalary: 100,

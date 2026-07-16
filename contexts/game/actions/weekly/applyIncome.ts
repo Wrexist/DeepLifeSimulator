@@ -29,6 +29,7 @@ import {
 } from '@/lib/config/gameConstants';
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
 import { perks as perksCatalog } from '@/src/features/onboarding/perksData';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 /**
  * Upper bound on the combined onboarding-perk income multiplier. Individual
@@ -99,11 +100,14 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   // 3. Base total income (pre-multipliers, pre-beginner-luck).
   let baseTotalIncome = input.careerSalary + input.passiveIncome + partnerIncome + input.pulseEarnings;
 
-  // 4. Beginner luck bonus (weeks 0-19). Deterministic sin-seeded.
+  // 4. Beginner luck bonus (weeks 0-19). DETERMINISM FIX: was seeded off
+  // `Math.sin(weeksLivedNow*777+42)*10000` fractional parts. ECMAScript doesn't
+  // require bit-exact Math.sin, so the early paycheck could diverge between the
+  // device engine (Hermes) and CI (V8). Route through the audited integer-only
+  // seeded RNG (makeWeeklyRoll), keyed by the same absolute week — reproducible
+  // from the save seed and engine-independent.
   if (input.weeksLivedNow < BEGINNER_LUCK_WEEKS) {
-    const luckSeed = input.weeksLivedNow * 777 + 42;
-    const luckX = Math.sin(luckSeed) * 10000;
-    const luckRoll = luckX - Math.floor(luckX);
+    const luckRoll = makeWeeklyRoll(input.weeksLivedNow)('beginner-luck');
     const luckBonus = BEGINNER_LUCK_BASE_BONUS + Math.floor(luckRoll * BEGINNER_LUCK_RANDOM_MAX);
     baseTotalIncome += luckBonus;
   }

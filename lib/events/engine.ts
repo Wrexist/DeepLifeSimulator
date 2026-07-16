@@ -26,6 +26,7 @@ import {
   EARLY_GAME_EVENT_CHANCE,
 } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 export interface EventChoiceEffects {
@@ -3346,14 +3347,14 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // Seasonal events count as events, so they reset the pity counter (guaranteedEvent only triggers if NO events)
   const guaranteedEvent = weeksSinceLastEvent >= pityThreshold && seasonalEvents.length === 0;
 
-  // TESTFLIGHT FIX: Deterministic random based on week number for consistency on resume
-  // Use a simple seeded random function based on week number
-  // TIME PROGRESSION FIX: Use weeksLived for deterministic seeding to handle year boundaries correctly
-  const seededRandom = (seed: number) => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  };
-  const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
+  // DETERMINISM FIX: the weekly event roll previously used `Math.sin(seed)*10000`
+  // fractional parts. ECMAScript does NOT require bit-exact Math.sin, so a device
+  // running Hermes and CI running V8 could diverge on WHICH event fired for a given
+  // week — a save-integrity / reproducibility hole. Route through the audited,
+  // integer-only seeded RNG (makeWeeklyRoll → mulberry32 finalizer) instead: same
+  // week + same key always yields the same, engine-independent roll. Distinct keys
+  // stand in for the old numeric seed offsets (+0 jitter, +1 fire gate, +2 pick).
+  const weeklyEventRoll = makeWeeklyRoll(state.weeksLived || 0);
 
   // ENGAGEMENT: Phase-based event frequency scaling
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
@@ -3365,7 +3366,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   } else {
     baseEventChance = 0.12; // 12% — with the 8-week min-gap cooldown this lands ~1 event/15 weeks late game
   }
-  baseEventChance += seededRandom(weekSeed) * 0.01; // Small deterministic jitter
+  baseEventChance += weeklyEventRoll('event-jitter') * 0.01; // Small deterministic jitter
 
   // Apply prestige event frequency reduction (QoL bonus)
   const unlockedBonuses = state.prestige?.unlockedBonuses || [];
@@ -3376,7 +3377,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // TESTFLIGHT FIX: Use deterministic random for consistency
   // SMOOTHNESS: during the cooldown window only a pity-guaranteed event may
   // fire — routine random rolls are suppressed so popups don't appear every week.
-  if (guaranteedEvent || (!inEventCooldown && seededRandom(weekSeed + 1) < baseEventChance)) {
+  if (guaranteedEvent || (!inEventCooldown && weeklyEventRoll('event-fire') < baseEventChance)) {
     // Event will occur - continue to event selection
   } else {
     return events; // Return seasonal events if any, otherwise empty
@@ -3415,7 +3416,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
         return { item: template, weight: adjustedWeight * riskByCategory[template.category] };
       });
 
-    const chosen = pickWeighted(eligible, seededRandom(weekSeed + 2));
+    const chosen = pickWeighted(eligible, weeklyEventRoll('event-pick'));
     if (chosen) {
       events.push(chosen.generate(state));
     } else if (guaranteedEvent) {

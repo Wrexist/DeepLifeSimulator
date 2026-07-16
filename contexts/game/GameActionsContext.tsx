@@ -610,6 +610,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Progress enrolled educations automatically
  let pendingCampusEvent: string | undefined;
  let updatedEducations = prevState.educations || [];
+ // FREE-EDUCATION FIX: applyEducationProgression deducts the weekly student-loan
+ // payment from newStats.money, but the cashBeforeLoans expression below recomputes
+ // spendable cash from the ORIGINAL currentMoney and overwrites newStats.money — so,
+ // exactly like the diet cost, the loan payment was silently discarded (the loan
+ // balance dropped every week while the player was never charged). Capture the amount
+ // actually deducted here and thread it into cashBeforeLoans, mirroring dietWeeklyCost.
+ let educationWeeklyCost = 0;
 
  // R7 Phase 2 step 2.5c-i: education stress penalties extracted into
  // ./actions/weekly/applyEducationStress.ts. Mutates ctx.newStats.{happiness,
@@ -627,6 +634,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // completion logic. Same external-module calls (isExamWeek, runExam,
  // updateGPA, shouldTriggerCampusEvent). Returns updatedEducations +
  // pendingCampusEvent (last-fire-wins matching legacy behavior).
+ // newStats === weeklyCtx.newStats, so the helper's student-loan deduction lands
+ // on this same object; snapshot money on either side to recover the real charge.
+ const moneyBeforeEducation = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
  const progressionResult = applyEducationProgression({
    prevEducations: updatedEducations,
    nextWeeksLived,
@@ -634,6 +644,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
  }, weeklyCtx);
  updatedEducations = progressionResult.updatedEducations;
+ educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (progressionResult.pendingCampusEvent) {
    pendingCampusEvent = progressionResult.pendingCampusEvent;
  }
@@ -725,14 +736,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R7 Phase 2 step 2.4c: rent + housing module + realEstate weekly tick
  // extracted into ./actions/weekly/applyRentAndHousing.ts. Same try/catch
  // silent-fallback behavior, same notification shapes, same module calls.
- // Production preserves the legacy `() => Math.random()` rollFor exactly.
+ //
+ // DETERMINISM FIX: the real-estate tick (tenant lifecycle, Airbnb realized-rent
+ // variance) was the last weekly subsystem still fed a live `() => Math.random()`,
+ // unlike every sibling (crypto/darkweb/politics/stocks pass the seeded weeklyRoll).
+ // That made tenant arrivals/departures and rent variance resume-unsafe and
+ // inconsistent under React 19 StrictMode double-invoke. Pass the same seeded,
+ // per-key `makeWeeklyRoll(nextWeeksLived)` stream the siblings use — the module
+ // already namespaces its own keys, so outcomes are now reproducible from the save.
  //
  // R7 step 2.5a: `weeklyCtx` was further hoisted to the diet block above
  // so all reducers (diet, rent, disease, pet, vehicle) share one instance.
  const rentAndHousingResult = applyRentAndHousing(
    prevState.realEstate,
    nextWeeksLived,
-   () => Math.random(),
+   makeWeeklyRoll(nextWeeksLived),
    weeklyCtx,
    prevState.realEstateActivity,
  );
@@ -770,7 +788,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // normalization (>1 = percent, else decimal), same weekly-rate math,
  // same bankruptcy-floor + breathing-room logic, same missed-payment
  // compounding penalty.
- const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost);
+ const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost - educationWeeklyCost);
  const loanResult = applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,

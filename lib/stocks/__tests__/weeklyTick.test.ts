@@ -1,5 +1,6 @@
 import { runStocksWeeklyTick, StockHolding } from '../weeklyTick';
 import { SectorSnapshot, SECTOR_MODIFIER } from '../sectors';
+import { StockOrder } from '../orderBook';
 
 // A neutral sector with 1 week left re-rolls this tick; roll 0.1 sends
 // neutral → strong, guaranteeing `changed` is non-empty.
@@ -137,5 +138,54 @@ describe('runStocksWeeklyTick — priceFactors persist tilt + drift to the trade
     const a = runStocksWeeklyTick(factorInput(techStrong, 100, 'boom'));
     const b = runStocksWeeklyTick(factorInput(techStrong, 100, 'boom'));
     expect(a.priceFactors).toEqual(b.priceFactors);
+  });
+});
+
+describe('runStocksWeeklyTick — limit/stop fills pay the 2% commission (parity with market orders)', () => {
+  const STOCK_FEE = 0.02;
+  // No sector snapshots → the tick seeds fresh all-neutral 12-week snapshots that
+  // don't rotate this tick, so prices stay put and cashDelta is the fill alone.
+  const stableRoll = (_: string) => 0.5;
+
+  function fillInput(order: StockOrder, holdings: StockHolding[]) {
+    return {
+      holdings,
+      openOrders: [order],
+      orderHistory: [],
+      yields: {} as Record<string, number>,
+      prices: { AAPL: 100 },
+      currentWeek: 1, // not a dividend week (not divisible by 13)
+      cashIn: 1_000_000, // ample budget so the buy fill is not gated
+      rollFor: stableRoll,
+    };
+  }
+
+  it('a filled limit BUY is debited notional × (1 + fee), not the bare notional', () => {
+    const order: StockOrder = {
+      id: 'o-buy', symbol: 'AAPL', side: 'buy', type: 'limit',
+      amount: 1000, // USD to spend
+      limitPrice: 110, // ask (100.04) <= 110 → fills
+      placedWeek: 1, status: 'open',
+    };
+    const r = runStocksWeeklyTick(fillInput(order, []));
+    // Buy notional == amount == 1000 → debit 1000 × 1.02 = 1020 (was 1000, fee-free).
+    expect(r.cashDelta).toBeCloseTo(-1000 * (1 + STOCK_FEE), 6);
+    expect(Math.abs(r.cashDelta)).toBeGreaterThan(1000); // strictly more than notional
+  });
+
+  it('a filled limit SELL is credited proceeds × (1 − fee), not the bare proceeds', () => {
+    const order: StockOrder = {
+      id: 'o-sell', symbol: 'AAPL', side: 'sell', type: 'limit',
+      amount: 10, // shares to sell
+      limitPrice: 90, // bid (99.96) >= 90 → fills
+      placedWeek: 1, status: 'open',
+    };
+    const holdings: StockHolding[] = [{ symbol: 'AAPL', shares: 10, averagePrice: 50, currentPrice: 100 }];
+    const r = runStocksWeeklyTick(fillInput(order, holdings));
+    // Sell fillPrice = 100 × (1 − 4bps) = 99.96 → proceeds 999.6, netted 0.98.
+    const grossProceeds = 99.96 * 10;
+    expect(r.cashDelta).toBeCloseTo(grossProceeds * (1 - STOCK_FEE), 4);
+    expect(r.cashDelta).toBeGreaterThan(0);
+    expect(r.cashDelta).toBeLessThan(grossProceeds); // fee shaved off the proceeds
   });
 });

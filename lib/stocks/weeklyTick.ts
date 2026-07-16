@@ -19,6 +19,17 @@ import { StockOrder } from './orderBook';
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
+/**
+ * 2% broker commission — identical to the market-order fee charged in
+ * StockActions.ts (buyStockMarket / sellStockMarket). EXPLOIT FIX: limit/stop
+ * orders filled by this weekly tick previously paid NO fee, so a player could
+ * route every trade through resting orders to dodge the commission that market
+ * orders pay. Charging it here restores parity (buys cost notional×1.02, sells
+ * net notional×0.98). Realized gains stay gross (pre-fee), matching the market
+ * path where the fee only reduces cash, not the recorded gain.
+ */
+const STOCK_FEE = 0.02;
+
 export interface StockHolding {
   symbol: string;
   shares: number;
@@ -179,7 +190,8 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   for (const fill of orderResult.fills) {
     const sym = fill.order.symbol.toUpperCase();
     if (fill.order.side === 'buy') {
-      cashDelta -= fill.notionalUSD;
+      // Parity with market buys: pay the 2% commission on top of the notional.
+      cashDelta -= fill.notionalUSD * (1 + STOCK_FEE);
       // Add to holdings.
       const idx = holdings.findIndex((h) => h.symbol.toUpperCase() === sym);
       if (idx === -1) {
@@ -208,7 +220,8 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
         const sellable = Math.min(fill.shares, existing.shares);
         if (sellable > 0) {
           const pricePerShare = fill.shares > 0 ? fill.notionalUSD / fill.shares : safe(fill.order.filledPrice);
-          cashDelta += pricePerShare * sellable;
+          // Parity with market sells: the 2% commission is netted out of proceeds.
+          cashDelta += pricePerShare * sellable * (1 - STOCK_FEE);
           const gainPerShare = fill.order.filledPrice! - existing.averagePrice;
           realizedGains += gainPerShare * sellable;
           const remaining = existing.shares - sellable;
