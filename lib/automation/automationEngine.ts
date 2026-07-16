@@ -5,6 +5,7 @@ import { executeAutoRenew } from './autoRenew';
 import { executeAutoInvest } from './autoInvest';
 import { executeAutoSave } from './autoSave';
 import { hasAutomationBonus, getMaxAutomationSlots, isAutomationTypeUnlocked } from './automationGuards';
+import { netWorth } from '@/lib/progress/achievements';
 import { logger } from '@/utils/logger';
 
 export { hasAutomationBonus, getMaxAutomationSlots, isAutomationTypeUnlocked };
@@ -48,10 +49,16 @@ export function evaluateConditions(
       case 'cash_below':
         result = money < condition.value;
         break;
-      case 'cash_percentage':
-        // This would need total assets, simplified for now
-        result = money > condition.value;
+      case 'cash_percentage': {
+        // Liquid cash as a percentage of total net worth vs the configured
+        // threshold. Uses the canonical netWorth() helper (money + bank +
+        // stocks + real estate + companies + vehicles + luxury − loans).
+        // Divide-by-zero / non-positive guarded: with no positive net worth the
+        // ratio is undefined, so the condition simply can't be satisfied.
+        const totalNetWorth = netWorth(state);
+        result = totalNetWorth > 0 && (money / totalNetWorth) * 100 > condition.value;
         break;
+      }
       case 'income_received': {
         // Check if player has a job with positive salary (income source exists)
         const career = state.careers?.find(c => c.id === state.currentJob);

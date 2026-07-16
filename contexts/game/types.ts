@@ -12,7 +12,6 @@ import type { Memory } from '@/lib/legacy/memories';
 import type { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 
-import type { SocialState } from '@/lib/social/relations';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
@@ -1990,8 +1989,14 @@ export interface GamingStreamingState {
   hypeStreak?: number;
 }
 
-// Re-export from lib/social/relations for convenience
-export type { Relation, RelationAction, SocialState } from '@/lib/social/relations';
+// Legacy social subsystem. The module lib/social/relations was removed as dead
+// code: `state.social` was initialized to `{ relations: [] }` and never read or
+// ticked in production. This minimal inline type is retained only so the
+// `social` field below still type-checks (and old saves round-trip).
+// TODO(flawless-audit): remove state.social entirely.
+export interface SocialState {
+  relations: unknown[];
+}
 
 // Re-export WeeklyEvent from events/engine
 export type { WeeklyEvent } from '@/lib/events/engine';

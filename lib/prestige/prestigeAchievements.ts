@@ -268,8 +268,11 @@ export function evaluatePrestigeAchievement(
 
     case 'legacy_wealth_10m': {
       const legacyBonuses = state.legacyBonuses;
-      // Check if legacy wealth was passed down (would be in legacy bonuses)
-      return legacyBonuses?.incomeMultiplier ? legacyBonuses.incomeMultiplier > 1.1 : false;
+      // Check if legacy wealth was passed down (would be in legacy bonuses).
+      // Use `>= 1.1` (not `> 1.1`): the legacy reset path caps incomeMultiplier
+      // at exactly 1.1, so a strict `> 1.1` could never match and this
+      // achievement was unreachable.
+      return legacyBonuses?.incomeMultiplier ? legacyBonuses.incomeMultiplier >= 1.1 : false;
     }
     case 'legacy_business_3': {
       const familyBusinesses = state.familyBusinesses || [];
@@ -291,11 +294,15 @@ export function evaluatePrestigeAchievement(
     }
 
     case 'prestige_perfect_stats': {
-      // Check if current stats are all 100 (before prestiging)
-      return state.stats.health === 100 &&
-        state.stats.happiness === 100 &&
-        state.stats.energy === 100 &&
-        state.stats.fitness === 100 &&
+      // "Perfect stats" = every core stat maxed (before prestiging). All five
+      // stats are 0-100 capped (see stateValidator statRanges), so `>= 100`
+      // means exactly maxed. We use `>= 100` uniformly for all five rather than
+      // mixing `=== 100` with `reputation >= 100`: it's consistent and robust
+      // to any transient overshoot a buff might introduce before clamping.
+      return state.stats.health >= 100 &&
+        state.stats.happiness >= 100 &&
+        state.stats.energy >= 100 &&
+        state.stats.fitness >= 100 &&
         (state.stats.reputation || 0) >= 100;
     }
     case 'prestige_no_debt': {

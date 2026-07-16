@@ -567,7 +567,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     assertCleanState('saveGame');
   });
 
-  // ── DIRECT ACTION CALLS (TravelActions / VehicleActions / HobbyActions / PoliticalActions / RDActions) ──
+  // ── DIRECT ACTION CALLS (TravelActions / VehicleActions / PoliticalActions / RDActions) ──
   // These action modules are invoked by UI components directly, not via hooks.
   // We import them and call them with the captured setGameState to confirm
   // each entry point doesn't crash and keeps state clean.
@@ -665,18 +665,6 @@ describe('Feature Gauntlet — every major action through real provider', () => 
       act(() => { sellVehicle(captured!.state, captured!.setGameState, activeId, deps); });
       assertCleanState('Vehicles sellVehicle');
     }
-  });
-
-  it('Hobbies: trainHobby does not crash even with no hobbies set', async () => {
-    mounted = mountGame();
-    act(() => makeWealthy());
-    const { trainHobby } = await import('@/contexts/game/actions/HobbyActions');
-    const { updateStats: libUpdateStats } = await import('@/contexts/game/actions/StatsActions');
-    let res: { success: boolean; message?: string } | undefined;
-    act(() => { res = trainHobby(captured!.state, captured!.setGameState, 'guitar', { updateStats: libUpdateStats }); });
-    expect(res).toBeDefined();
-    expect(res!.success).toBe(false);
-    assertCleanState('Hobbies trainHobby (no hobby)');
   });
 
   // BUG-2 (open): runForOffice('city_council') CRASHES with

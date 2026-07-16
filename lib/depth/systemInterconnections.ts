@@ -15,35 +15,6 @@ export interface SystemInterconnection {
   isActive: boolean;
 }
 
-export interface StatChange {
-  health?: number;
-  happiness?: number;
-  energy?: number;
-  fitness?: number;
-  money?: number;
-  reputation?: number;
-  gems?: number;
-}
-
-export interface ActionImpact {
-  actionId: string;
-  actionName: string;
-  directEffects: StatChange;
-  systemEffects: SystemInterconnection[];
-  chainReactions: string[];
-  modifiers: {
-    commitmentBonus?: number;
-    prestigeBonus?: number;
-    lifestyleModifier?: number;
-    mindsetModifier?: number;
-  };
-  calculatedValues: {
-    baseValue: number;
-    finalValue: number;
-    modifierBreakdown: string[];
-  };
-}
-
 export interface SystemHealth {
   systemId: string;
   systemName: string;
@@ -182,149 +153,6 @@ const SYSTEM_DEFINITIONS: Record<string, {
 };
 
 /**
- * Calculate action impact including system interconnections
- */
-export function calculateActionImpact(
-  actionId: string,
-  actionName: string,
-  directEffects: StatChange,
-  gameState: GameState
-): ActionImpact {
-  const systemEffects: SystemInterconnection[] = [];
-  const chainReactions: string[] = [];
-  const modifiers: ActionImpact['modifiers'] = {};
-
-  // Calculate commitment bonuses
-  if (gameState.activityCommitments) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { getCommitmentBonuses } = require('@/lib/commitments/commitmentSystem');
-      const bonuses = getCommitmentBonuses(gameState, getSystemFromAction(actionId));
-      if (bonuses.progressBonus > 0) {
-        modifiers.commitmentBonus = bonuses.progressBonus;
-      }
-    } catch {
-      // Commitment system may not be available
-    }
-  }
-
-  // Calculate prestige bonuses
-  if (gameState.prestige?.prestigeLevel) {
-    modifiers.prestigeBonus = gameState.prestige.prestigeLevel * 2; // 2% per prestige level
-  }
-
-  // Calculate lifestyle modifiers
-  // Lifestyle level is calculated from net worth, not stored directly
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { calculateLifestyleLevel } = require('@/lib/economy/lifestyle');
-    const lifestyleLevel = calculateLifestyleLevel(gameState);
-    // Map lifestyle level to numeric value for calculation
-    const lifestyleLevels: Record<string, number> = {
-      minimal: 1,
-      modest: 2,
-      comfortable: 3,
-      affluent: 4,
-      luxury: 5,
-      elite: 6,
-    };
-    const levelNum = lifestyleLevels[lifestyleLevel] || 1;
-    if (levelNum >= 3) {
-      modifiers.lifestyleModifier = (levelNum - 2) * 5; // 5% per level above 2
-    }
-    } catch {
-      // Lifestyle system may not be available
-    }
-
-  // Calculate mindset modifiers
-  if (gameState.mindset?.activeTraitId) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { applyMindsetEffects } = require('@/lib/mindset/config');
-      const mindsetResult = applyMindsetEffects(gameState, directEffects);
-      if (mindsetResult.feedback) {
-        modifiers.mindsetModifier = mindsetResult.feedback.type === 'bonus' ? 10 : -10;
-      }
-    } catch {
-      // Mindset system may not be available
-    }
-  }
-
-  // Determine affected systems from direct effects
-  const affectedSystems = new Set<string>();
-  if (directEffects.money) affectedSystems.add('money');
-  if (directEffects.health) affectedSystems.add('health');
-  if (directEffects.happiness) affectedSystems.add('happiness');
-  if (directEffects.energy) affectedSystems.add('energy');
-  if (directEffects.reputation) affectedSystems.add('reputation');
-
-  // Calculate system interconnections
-  const sourceSystem = getSystemFromAction(actionId);
-  if (sourceSystem && SYSTEM_DEFINITIONS[sourceSystem]) {
-    const systemDef = SYSTEM_DEFINITIONS[sourceSystem];
-    
-  systemDef.affects.forEach(affect => {
-    if (affectedSystems.has(affect.system) || shouldShowInterconnection(affect.system, gameState)) {
-      systemEffects.push({
-        sourceSystem,
-        targetSystem: affect.system,
-        effectType: affect.effect === 'positive' ? 'positive' : 'negative',
-        magnitude: calculateMagnitude(affect.effect, directEffects, affect.system),
-        description: affect.description,
-        isActive: true,
-      });
-    }
-  });
-
-    // Check for chain reactions
-    systemDef.affects.forEach(affect => {
-      if (SYSTEM_DEFINITIONS[affect.system]) {
-        const targetSystemDef = SYSTEM_DEFINITIONS[affect.system];
-        targetSystemDef.affects.forEach(chainAffect => {
-          if (chainAffect.system !== sourceSystem && chainAffect.system !== affect.system) {
-            chainReactions.push(`${affect.system} → ${chainAffect.system}`);
-          }
-        });
-      }
-    });
-  }
-
-  // Calculate modifier breakdown
-  const modifierBreakdown: string[] = [];
-  if (modifiers.commitmentBonus) {
-    modifierBreakdown.push(`Commitment Bonus: +${modifiers.commitmentBonus}%`);
-  }
-  if (modifiers.prestigeBonus) {
-    modifierBreakdown.push(`Prestige Bonus: +${modifiers.prestigeBonus}%`);
-  }
-  if (modifiers.lifestyleModifier) {
-    modifierBreakdown.push(`Lifestyle Modifier: +${modifiers.lifestyleModifier}%`);
-  }
-  if (modifiers.mindsetModifier) {
-    modifierBreakdown.push(`Mindset Modifier: ${modifiers.mindsetModifier > 0 ? '+' : ''}${modifiers.mindsetModifier}%`);
-  }
-
-  // Calculate base and final values
-  const baseValue = Object.values(directEffects).reduce((sum, val) => sum + (val || 0), 0);
-  const totalModifier = Object.values(modifiers).reduce((sum, val) => sum + (val || 0), 0);
-  const finalValue = baseValue * (1 + totalModifier / 100);
-
-  return {
-    actionId,
-    actionName,
-    directEffects,
-    systemEffects,
-    chainReactions: [...new Set(chainReactions)],
-    modifiers,
-    calculatedValues: {
-      baseValue,
-      finalValue,
-      modifierBreakdown,
-    },
-  };
-}
-
-/**
  * Get active system interconnections
  */
 export function getSystemInterconnections(gameState: GameState): SystemInterconnection[] {
@@ -396,50 +224,6 @@ export function trackSystemEngagement(gameState: GameState): Record<string, numb
 
 // Helper functions
 
-function getSystemFromAction(actionId: string): string | null {
-  if (actionId.includes('work') || actionId.includes('career') || actionId.includes('job')) {
-    return 'career';
-  }
-  if (actionId.includes('relationship') || actionId.includes('social') || actionId.includes('contact')) {
-    return 'relationships';
-  }
-  if (actionId.includes('health') || actionId.includes('gym') || actionId.includes('diet')) {
-    return 'health';
-  }
-  // The 'hobbies' commitment axis is relabeled "Skills" in the UI (hobbies were
-  // removed). Route learning/self-improvement actions here so the committable
-  // axis has a real effect: studying, education, skill practice and training.
-  if (
-    actionId.includes('hobby') || actionId.includes('train') ||
-    actionId.includes('education') || actionId.includes('study') ||
-    actionId.includes('skill') || actionId.includes('practice')
-  ) {
-    return 'hobbies';
-  }
-  if (actionId.includes('travel')) {
-    return 'travel';
-  }
-  if (actionId.includes('political') || actionId.includes('policy')) {
-    return 'politics';
-  }
-  if (actionId.includes('rd') || actionId.includes('research')) {
-    return 'rd';
-  }
-  if (actionId.includes('company') || actionId.includes('business')) {
-    return 'company';
-  }
-  if (actionId.includes('realEstate') || actionId.includes('property')) {
-    return 'realEstate';
-  }
-  if (actionId.includes('stock') || actionId.includes('invest')) {
-    return 'stocks';
-  }
-  if (actionId.includes('socialMedia') || actionId.includes('post')) {
-    return 'socialMedia';
-  }
-  return null;
-}
-
 function shouldShowInterconnection(systemId: string, gameState: GameState): boolean {
   // Only show interconnections for systems that are active or relevant
   const activeSystems = getActiveSystems(gameState);
@@ -461,15 +245,6 @@ function isSystemRelevant(systemId: string, gameState: GameState): boolean {
     default:
       return false;
   }
-}
-
-function calculateMagnitude(
-  _effectType: 'positive' | 'negative',
-  directEffects: StatChange,
-  targetSystem: string
-): number {
-  const value = directEffects[targetSystem as keyof StatChange] || 0;
-  return Math.abs(value) / 10; // Normalize to 0-10 scale
 }
 
 function getActiveSystems(gameState: GameState): string[] {
