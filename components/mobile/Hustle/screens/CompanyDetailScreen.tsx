@@ -39,7 +39,8 @@ import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competition
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import type { HustleCompanyOverlay } from '@/contexts/game/types';
+import { generateBoardSeats, generateSuppliers } from '@/lib/business/hustleLogic';
+import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import { getPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
@@ -160,10 +161,27 @@ export default function CompanyDetailScreen({
   const pendingAcqs = overlay?.pendingAcquisitions ?? [];
   const pendingAcqCount = pendingAcqs.length;
   const namedHires = overlay?.hiringPipeline?.namedHires ?? [];
-  const boardSeats = overlay?.boardSeats ?? [];
-  const suppliers = overlay?.suppliers ?? [];
   const scandalHistory = overlay?.scandalHistory ?? [];
   const isPublic = overlay?.ipo?.status === 'public';
+
+  // Board seats + suppliers were initialized [] and never written, so their
+  // sections rendered as permanently dead. Derive a stable, deterministic roster
+  // when the overlay carries none: a board once the company is public (post-IPO),
+  // suppliers for every company. Seeded by company id (+ the stable IPO week for
+  // the board) so the list is identical across renders and reloads — no
+  // Math.random. Plain (non-hook) computation because it sits after the early
+  // `if (!company)` return; the generators are pure and cheap. Stored data (if a
+  // future tick ever writes real board/supplier records) always wins.
+  const storedBoard = overlay?.boardSeats ?? [];
+  const boardSeats = storedBoard.length > 0
+    ? storedBoard
+    : isPublic
+      ? generateBoardSeats(companyId, overlay?.ipo?.listedWeek ?? weeksLived)
+      : [];
+  const storedSuppliers = overlay?.suppliers ?? [];
+  const suppliers = storedSuppliers.length > 0
+    ? storedSuppliers
+    : generateSuppliers(companyId, company.type as HustleIndustry, company.weeklyIncome ?? 0);
 
   // Revenue composition (surfaces baseWeeklyIncome — previously hidden).
   const weekly = company.weeklyIncome ?? 0;

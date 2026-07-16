@@ -103,27 +103,21 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
     }
     const r = composePost(setGameState, gameState, { content, contentType, hashtags });
     if (r.success) {
-      // If the player chose to sponsor a deal, tag the freshly-composed post.
-      // composePost prepends to recentPosts, so the new id is at index 0 of
-      // the next state read — we use setGameState's most-recent value inside
-      // deliverBrandDealPost via its closure over the same state machine.
-      if (sponsorDealId) {
-        // Defer to a microtask so composePost's setGameState has flushed and
-        // the new post is visible. React batches synchronous updaters, so
-        // a Promise.resolve().then is enough on RN.
-        Promise.resolve().then(() => {
-          // Read the latest post id at call time via a setGameState peek.
-          setGameState((prev: any) => {
-            const latest = prev.socialMedia?.recentPosts?.[0];
-            if (latest?.id) {
-              deliverBrandDealPost(setGameState, sponsorDealId, latest.id);
-            }
-            return prev;
-          });
-        });
+      // If the player chose to sponsor a deal, tag the freshly-composed post as
+      // its delivery. composePost returns the new post's id, so we call
+      // deliverBrandDealPost DIRECTLY (a normal action call) with r.postId.
+      // The old code ran that dispatch INSIDE a setGameState updater that
+      // returned `prev` — an impure updater with a side-effect. React 19
+      // StrictMode double-invokes updaters, so postsDelivered was incremented
+      // twice, and the synchronous save above the dispatch never captured the
+      // completion payout. A direct call fixes both.
+      if (sponsorDealId && r.postId) {
+        deliverBrandDealPost(setGameState, sponsorDealId, r.postId);
       }
       pulseHaptics.success();
-      saveGame?.();
+      // Persist AFTER the commit (post-commit ref-sync pattern) so the delivery
+      // + any completion payout are saved, not the pre-action snapshot.
+      setTimeout(() => { void saveGame?.(); }, 0);
       reset();
       onDismiss();
     } else {

@@ -140,7 +140,10 @@ export const POLICIES: Policy[] = [
     implementationCost: 0,
     requiredLevel: 1, // Council Member
     effects: {
-      money: 50, // Weekly income bonus
+      // TODO(flawless-audit): effects.money is applied ONCE at enactment
+      // (PoliticalActions.enactPolicy), not per week — a true recurring stream
+      // needs a policy tick reducer. Copy is worded as one-time until then.
+      money: 50, // One-time income bonus
       happiness: 5,
     },
   },
@@ -153,7 +156,7 @@ export const POLICIES: Policy[] = [
     implementationCost: 0,
     requiredLevel: 1,
     effects: {
-      money: -30, // Weekly income reduction
+      money: -30, // One-time income reduction
       happiness: -10,
       health: 5, // Better public health services
     },
@@ -167,7 +170,7 @@ export const POLICIES: Policy[] = [
     implementationCost: 5000,
     requiredLevel: 2, // Mayor
     effects: {
-      money: 100, // Weekly income bonus from business growth
+      money: 100, // One-time income bonus from business growth
       reputation: 5,
     },
   },
@@ -190,13 +193,13 @@ export const POLICIES: Policy[] = [
   {
     id: 'universal_basic_income',
     name: 'Universal Basic Income',
-    description: 'Provide basic income to all citizens',
+    description: 'Launch a basic-income program. One-time stimulus: $200 lands in your account when enacted.',
     type: 'economic',
     approvalImpact: 30,
     implementationCost: 200000,
     requiredLevel: 3, // State Representative
     effects: {
-      money: 200, // Weekly UBI payment
+      money: 200, // One-time stimulus payment
       happiness: 15,
       economy: {
         inflationRate: 0.02, // Slight inflation increase
@@ -248,13 +251,13 @@ export const POLICIES: Policy[] = [
   {
     id: 'social_security_boost',
     name: 'Social Security Boost',
-    description: 'Increase social security benefits',
+    description: 'Boost social security. One-time payout: $150 when enacted.',
     type: 'social',
     approvalImpact: 15,
     implementationCost: 100000,
     requiredLevel: 3,
     effects: {
-      money: 150, // Weekly benefit increase
+      money: 150, // One-time benefit payout
       happiness: 10,
     },
   },

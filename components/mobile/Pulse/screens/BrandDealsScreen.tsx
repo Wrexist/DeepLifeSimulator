@@ -27,7 +27,7 @@ interface BrandDealsScreenProps {
 }
 
 export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<BrandTab>('inbox');
@@ -37,8 +37,18 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
   const active: PulseActiveBrandDeal[] = useMemo(() => sm?.activeBrandDeals ?? [], [sm?.activeBrandDeals]);
   const history: PulseDealHistoryEntry[] = useMemo(() => sm?.brandInbox?.history ?? [], [sm?.brandInbox?.history]);
 
-  const handleAccept = useCallback((id: string) => acceptBrandDeal(setGameState, id), [setGameState]);
-  const handleDecline = useCallback((id: string) => declineBrandDeal(setGameState, id), [setGameState]);
+  // Every mutation below persists via the codebase's post-commit pattern: the
+  // action commits through setGameState, but saveGame reads gameStateRef.current
+  // which is synced to state in a POST-COMMIT effect. A synchronous saveGame()
+  // would persist the PRE-action snapshot, so accept/decline/deliver/breach
+  // progress was silently dropped on reload. Deferring to a macrotask lets the
+  // commit + parent ref-sync run first, so the mutated brand-deal state is saved.
+  const persist = useCallback(() => {
+    setTimeout(() => { void saveGame?.(); }, 0);
+  }, [saveGame]);
+
+  const handleAccept = useCallback((id: string) => { acceptBrandDeal(setGameState, id); persist(); }, [setGameState, persist]);
+  const handleDecline = useCallback((id: string) => { declineBrandDeal(setGameState, id); persist(); }, [setGameState, persist]);
 
   // Destructive: confirm before applying the 50% penalty. Tapping the breach
   // button on an active deal opens a 2-button alert; only the "Breach" choice
@@ -53,11 +63,11 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         `You'll lose $${penalty.toLocaleString()} (50% of total payment) and the deal will be marked as breached in your history.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Breach', style: 'destructive', onPress: () => breachBrandDeal(setGameState, id) },
+          { text: 'Breach', style: 'destructive', onPress: () => { breachBrandDeal(setGameState, id); persist(); } },
         ],
       );
     },
-    [setGameState, active],
+    [setGameState, active, persist],
   );
 
   // Deliver-post handler: tags the player's most recent un-sponsored post as
@@ -77,9 +87,11 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       const r = deliverBrandDealPost(setGameState, dealId, candidate.id);
       if (!r.success) {
         Alert.alert('Delivery failed', r.message);
+        return;
       }
+      persist();
     },
-    [setGameState, sm?.recentPosts],
+    [setGameState, sm?.recentPosts, persist],
   );
 
   const tabCount = {
