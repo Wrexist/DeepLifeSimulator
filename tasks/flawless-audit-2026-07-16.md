@@ -37,15 +37,19 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [x] WAVE 5a — Orphaned subsystems wired: mining Upgrades tab (upgrades/pools/staking/energy/automation), lobbyist hiring + alliances, credit-card charge/pay/redeem loop, family business entry + manage (atomicity fixed). (f099c69)
 - [x] WAVE 5b — Tick economy/life-stage: asked rent realized (fill/churn lever, no-dominance sim), $150k rent cap, RentAndHousing NaN guard, stock capital-gains+dividend tax parity, commitment levels decay+rise, life-stage 3.5x event weighting, childhood pack re-banded 13-17. Zero snapshot entries changed. (9ba9e25)
 - [x] WAVE 5c — Content depth + money polish: continuous quality curve, stock/crypto/realEstate/vehicle buys via applyMoneyDelta, NPC replies 9-12/pool + de-dupe, jealousy variants, pets 19 breeds/8 comps/treatmentCost billing, elder activities for FIRE retirees, 10 Legacy-Pass cosmetics, claimable milestone gems. (311ffc5)
+- [x] Chronic diseases now have the promised management loop: doctor/hospital put non-curable
+  conditions under managed care (4/12 weeks) — symptoms halved, worsening blocked, compounded
+  effects reset to baseline, terminal countdowns unaffected; SicknessModal shows managed/unmanaged
+  status + honest mechanics copy; 9 regression tests; 308 snapshots byte-stable. (11e87e6)
+- [x] Lifestyle-cost item resolved as dead code: the UI display was already removed in an earlier
+  cleanup wave, leaving lib/economy/lifestyle.ts with zero importers — module deleted rather than
+  wiring a hidden net-worth-percentage sink nobody can see. (11e87e6)
 
 ## 🔴 CRITICAL — remaining
 
 ## 🟠 HIGH — remaining
 
-
-## 🟡 MEDIUM — remaining (broken-UI "spend does nothing" / correctness)
-- [ ] Lifestyle-cost sink shown in UI, never deducted. (lifestyle.ts:46)
-- [ ] Chronic diseases (6) have no management loop despite "ongoing management" copy. (diseaseDefinitions.ts:179)
+## 🟡 MEDIUM — remaining
 
 ## 🟢 LOW / dead-code cleanup
 
