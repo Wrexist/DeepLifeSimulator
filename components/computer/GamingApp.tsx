@@ -67,6 +67,7 @@ import {
   Coins,
   Upload,
   Zap,
+  Check,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -81,8 +82,10 @@ import {
   upgradePCComponent,
   ACCESSORY_PRICES,
   PC_BASE_PRICES,
+  MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
@@ -510,10 +513,10 @@ export default function GamingApp({ onBack }: Props) {
         <View style={styles.statsRow}>
           <MoneyStat label="RPM" value={`$${monetization.rpm}`} color={accent.success} theme={theme} />
           <MoneyStat label="Members" value={paidMembers.toString()} color={accent.purple} theme={theme} />
-          <MoneyStat label="Total $" value={`$${totalEarnings.toLocaleString()}`} color={accent.info} theme={theme} />
+          <MoneyStat label="Total $" value={formatMoney(totalEarnings)} color={accent.info} theme={theme} />
           <MoneyStat label="$/viewer" value={`$${monetization.viewerPay}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Members/wk" value={`$${monetization.membershipWeekly.toLocaleString()}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Donations" value={`$${totalDonations.toLocaleString()}`} color={accent.info} theme={theme} />
+          <MoneyStat label="Members/wk" value={formatMoney(monetization.membershipWeekly)} color={accent.success} theme={theme} />
+          <MoneyStat label="Donations" value={formatMoney(totalDonations)} color={accent.info} theme={theme} />
         </View>
       </View>
 
@@ -769,7 +772,7 @@ export default function GamingApp({ onBack }: Props) {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Performance</Text>
           <View style={styles.aGrid}>
             <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString()} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={TrendingUp} label="Earned" value={`$${v.earnings.toLocaleString()}`} valueColor={accent.success} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={TrendingUp} label="Earned" value={formatMoney(v.earnings)} valueColor={accent.success} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={Users} label="Subs" value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} theme={theme} darkMode={darkMode} />
             {v.rpm != null ? <AnalyticStat Icon={Coins} label="RPM ×" value={`${v.rpm}`} theme={theme} darkMode={darkMode} /> : null}
             {v.likes != null ? <AnalyticStat Icon={Heart} label="Likes" value={compact(v.likes)} theme={theme} darkMode={darkMode} /> : null}
@@ -826,8 +829,11 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       </View>
 
-      {/* Accessories grid. */}
-      <Text style={[styles.sectionTitle, { color: theme.text, marginTop: sp.xs }]}>Accessories</Text>
+      {/* Studio kit grid. */}
+      <View style={[styles.sectionHeadGroup, { marginTop: sp.xs }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Studio kit</Text>
+        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>One-time buys that lift your gear score.</Text>
+      </View>
       <View style={styles.gearGrid}>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
@@ -850,10 +856,14 @@ export default function GamingApp({ onBack }: Props) {
       </View>
 
       {/* PC components grid. */}
-      <Text style={[styles.sectionTitle, { color: theme.text, marginTop: sp.sm }]}>PC components</Text>
+      <View style={[styles.sectionHeadGroup, { marginTop: sp.sm }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>PC components</Text>
+        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>Upgrade tiers up to T{MAX_PC_TIER} — each tier adds gear score.</Text>
+      </View>
       <View style={styles.gearGrid}>
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
+          const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
           return (
             <GearTile
@@ -863,8 +873,12 @@ export default function GamingApp({ onBack }: Props) {
               art={PC_ART[k]}
               Icon={PC_ICON[k]}
               tier={tier}
-              actionLabel={tier > 0 ? `Tier ${tier + 1}` : 'Upgrade'}
+              maxed={maxed}
+              // Bug-3 fix: the corner badge shows the OWNED tier (T{tier}); this
+              // pill names the UPGRADE TARGET so the two can't be confused.
+              actionLabel={maxed ? 'Maxed' : `→ T${tier + 1}`}
               onPress={() => handlePCUpgrade(k)}
+              disabled={maxed}
               theme={theme}
               darkMode={darkMode}
             />
@@ -888,7 +902,7 @@ export default function GamingApp({ onBack }: Props) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{inDetail ? 'Video' : 'YouVideo'}</Text>
         <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.30) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 
@@ -1018,7 +1032,7 @@ function VideoRow({
       <View style={{ flex: 1 }}>
         <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>{v.title}</Text>
         <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-          {v.views.toLocaleString()} views · ${v.earnings.toLocaleString()}
+          {v.views.toLocaleString()} views · {formatMoney(v.earnings)}
           {age != null ? ` · ${age === 0 ? 'new' : `${age}w`}` : ''}
         </Text>
       </View>
@@ -1058,7 +1072,7 @@ function VideoCard({
         <View style={styles.videoStatRow}>
           <VideoStat Icon={Eye} value={v.views.toLocaleString()} color={accent.info} theme={theme} />
           <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} color={accent.purple} theme={theme} />
-          <VideoStat Icon={TrendingUp} value={`$${v.earnings.toLocaleString()}`} color={accent.success} theme={theme} />
+          <VideoStat Icon={TrendingUp} value={formatMoney(v.earnings)} color={accent.success} theme={theme} />
         </View>
       </View>
     </TouchableOpacity>
@@ -1072,6 +1086,7 @@ function GearTile({
   Icon,
   owned,
   tier,
+  maxed,
   actionLabel,
   onPress,
   disabled,
@@ -1084,35 +1099,52 @@ function GearTile({
   Icon: IconType;
   owned?: boolean;
   tier?: number;
+  maxed?: boolean;
   actionLabel: string;
   onPress: () => void;
   disabled?: boolean;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
 }) {
+  const accessibilityLabel = owned
+    ? `${title}, owned`
+    : maxed
+    ? `${title}, maxed at tier ${tier ?? 0}`
+    : tier != null && tier > 0
+    ? `${title}, tier ${tier}, upgrade to tier ${tier + 1} for ${formatMoney(price)}`
+    : `${title}, ${formatMoney(price)}`;
+  const done = !!owned || !!maxed;
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${owned ? 'owned' : `$${price.toLocaleString()}`}`}
-      accessibilityState={{ disabled: !!disabled, selected: !!owned }}
-      style={[getGlassCard(darkMode, 6), styles.gearTile, { backgroundColor: theme.surface, borderColor: owned ? 'rgba(16,185,129,0.35)' : theme.border }]}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !!disabled, selected: done }}
+      style={[getGlassCard(darkMode, 6), styles.gearTile, { backgroundColor: theme.surface, borderColor: done ? 'rgba(16,185,129,0.35)' : theme.border }]}
     >
       <View style={styles.gearMediaClip}>
         {art ? (
           <Image source={art} style={styles.gearMediaImg} resizeMode="cover" />
         ) : (
-          <View style={[styles.gearIconPanel, { backgroundColor: tint(0.14) }]}>
-            <Icon size={scale(30)} color={IDENTITY} />
-          </View>
+          // Bug-4 fix: parts with no illustration (Cooling/PSU/Case) get a
+          // DESIGNED gradient panel + centred glyph instead of a flat, broken-
+          // looking blank. No misleading photo stand-ins.
+          <LinearGradient
+            colors={[tint(0.22), tint(0.06)]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gearIconPanel}
+          >
+            <Icon size={scale(40)} color={IDENTITY} />
+          </LinearGradient>
         )}
         <View style={[styles.gearIconBadge, getGlassIconContainer(darkMode, 26), { backgroundColor: tint(0.16), borderColor: tint(0.30), borderWidth: 1 }]}>
           <Icon size={scale(12)} color={IDENTITY} />
         </View>
         {tier != null && tier > 0 ? (
-          <View style={[styles.gearTierBadge, { backgroundColor: tint(0.92) }]}>
+          <View style={[styles.gearTierBadge, { backgroundColor: maxed ? 'rgba(16,185,129,0.95)' : tint(0.92) }]}>
             <Text style={styles.gearTierText}>T{tier}</Text>
           </View>
         ) : null}
@@ -1124,11 +1156,12 @@ function GearTile({
       </View>
       <Text style={[styles.gearTileName, { color: theme.text }]} numberOfLines={1}>{title}</Text>
       <View style={styles.gearTileFooter}>
-        <Text style={[styles.gearTilePrice, { color: owned ? accent.success : theme.textSecondary }]} numberOfLines={1}>
-          {owned ? 'In your kit' : `$${price.toLocaleString()}`}
+        <Text style={[styles.gearTilePrice, { color: done ? accent.success : theme.textSecondary }]} numberOfLines={1}>
+          {owned ? 'In your kit' : maxed ? 'Max tier' : formatMoney(price)}
         </Text>
-        <View style={[styles.gearAction, { backgroundColor: owned ? 'rgba(16,185,129,0.16)' : tint(0.16) }]}>
-          <Text style={[styles.gearActionText, { color: owned ? accent.success : IDENTITY }]}>{actionLabel}</Text>
+        <View style={[styles.gearAction, { backgroundColor: done ? 'rgba(16,185,129,0.16)' : tint(0.16) }]}>
+          {maxed ? <Check size={scale(12)} color={accent.success} /> : null}
+          <Text style={[styles.gearActionText, { color: done ? accent.success : IDENTITY }]}>{actionLabel}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -1318,6 +1351,8 @@ const styles = StyleSheet.create({
   // Section headers with an action chip.
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.sm },
   sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
+  sectionHeadGroup: { gap: scale(2) },
+  sectionCaption: { fontSize: fs.xs, fontWeight: '500' },
 
   // Featured cover.
   featuredCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
@@ -1443,7 +1478,7 @@ const styles = StyleSheet.create({
   gearTileName: { fontSize: fs.sm, fontWeight: '800', paddingHorizontal: sp.md, paddingTop: sp.sm },
   gearTileFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, paddingHorizontal: sp.md, paddingBottom: sp.md, paddingTop: sp.xs },
   gearTilePrice: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1 },
-  gearAction: { minHeight: scale(36), justifyContent: 'center', paddingHorizontal: sp.md, borderRadius: br.full },
+  gearAction: { minHeight: scale(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(4), paddingHorizontal: sp.md, borderRadius: br.full },
   gearActionText: { fontSize: fs.xs, fontWeight: '800' },
 
   // Empty states.

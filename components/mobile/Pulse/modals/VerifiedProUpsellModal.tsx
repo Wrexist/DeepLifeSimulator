@@ -15,6 +15,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import {
   VERIFIED_PRO_WEEKLY_PRICE,
@@ -188,7 +189,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
               ? verifiedPro?.plan === 'annual'
                 ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
                 : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
-              : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
+              : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
       </View>

@@ -42,10 +42,13 @@ const VITALITY_BOOST = 100; // +100 Health / Happiness / Energy (caps them at 10
 
 // ── Tuning ──────────────────────────────────────────────────────────────────
 // Cash reward = a small % of net worth, floored/capped so it's meaningful early
-// and never game-breaking late.
+// and never game-breaking late. The cap must stay proportional to late-game
+// wealth: at $15k a $19M player was offered ~0.08% of their worth per ad and
+// (correctly) never tapped it. $500k keeps the full 1.5% meaningful through
+// ~$33M net worth and still caps ad income for whales.
 const REWARD_PCT = 0.015;
 const REWARD_MIN = 50;
-const REWARD_MAX = 15000;
+const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
 const FIRST_DELAY: [number, number] = [22000, 48000];
 const REPEAT_DELAY: [number, number] = [110000, 210000];

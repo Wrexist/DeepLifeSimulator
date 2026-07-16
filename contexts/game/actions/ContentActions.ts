@@ -30,6 +30,18 @@ const safe = (n: number | undefined, fb = 0): number =>
 const MAX_STREAMS_PER_WEEK = 5;
 const MAX_VIDEOS_PER_WEEK = 5;
 
+/**
+ * ANTI-EXPLOIT: per-component PC upgrade tier ceiling. Gear quality
+ * (lib/content/quality.ts) clamps the combined score at 100 and the earnings
+ * multiplier is flat above score 90 — a fully-kitted rig reaches that ceiling at
+ * low single-digit tiers, so every tier beyond it costs (exponentially) more but
+ * changes quality/earnings by EXACTLY 0: a pure money sink. Capping each
+ * component here bounds that sink while still leaving ample headroom to reach the
+ * elite tier. The cost formula doubles per tier, so the cap also stops prices
+ * from escalating into the tens of millions.
+ */
+export const MAX_PC_TIER = 10;
+
 type SetGS = Dispatch<SetStateAction<GameState>>;
 
 function ensureChannel(state: GameState): GamingStreamingState {
@@ -578,6 +590,12 @@ export function upgradePCComponent(
 ): { success: boolean; message: string; newTier?: number } {
   const channel = ensureChannel(gameState);
   const currentTier = channel.pcUpgradeLevels[id] || 0;
+  // Anti-exploit: refuse once a component hits the tier ceiling. Past this point
+  // the upgrade is a no-op for quality/earnings, so charging for it would be a
+  // pure money sink. Refuse BEFORE any debit — never charge on a failure path.
+  if (currentTier >= MAX_PC_TIER) {
+    return { success: false, message: `${String(id)} is maxed (tier ${MAX_PC_TIER}).` };
+  }
   const nextTier = currentTier + 1;
   const cost = Math.round(basePrice * Math.pow(2, currentTier));
   if (safe(gameState.stats?.money, 0) < cost) {
@@ -589,6 +607,9 @@ export function upgradePCComponent(
     const ch = ensureChannel(prev);
     const prevTier = ch.pcUpgradeLevels[id] || 0;
     if (prevTier !== currentTier) return prev;
+    // Cap re-guard inside the atomic updater (defends against a stale read that
+    // slipped past the pre-check).
+    if (prevTier >= MAX_PC_TIER) return prev;
     const spend = applyMoneyDelta(prev, -cost, `Upgraded ${String(id)} tier ${nextTier}`);
     if (!spend) return prev;
     return {

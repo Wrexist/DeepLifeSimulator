@@ -101,6 +101,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   getGlassCard,
   getGlassIconContainer,
@@ -1277,7 +1278,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
         <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.3) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 

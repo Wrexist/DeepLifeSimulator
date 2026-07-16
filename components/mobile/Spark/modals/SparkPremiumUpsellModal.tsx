@@ -15,6 +15,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actions/SparkActions';
 import { SPARK_TIER_PRICING } from '@/lib/dating/sparkLogic';
@@ -191,8 +192,8 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
                 ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
                 : 'Auto-renews weekly until cancelled; lapses if you run out of money.'
               : plan === 'annual'
-                ? `Prepaid 52 weeks from your in-game cash ($${money.toLocaleString()} available), then renews weekly. Save ~17% vs weekly.`
-                : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
+                ? `Prepaid 52 weeks from your in-game cash (${formatMoney(money)} available), then renews weekly. Save ~17% vs weekly.`
+                : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
       </View>

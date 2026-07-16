@@ -88,6 +88,7 @@ import {
   scale,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   getGlassCard,
   getGlassIconContainer,
@@ -1040,7 +1041,7 @@ export default function PetApp({ onBack }: PetAppProps) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Pets</Text>
         <View style={[styles.cashChip, { backgroundColor: GOLD_CHIP, borderColor: GOLD_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 
