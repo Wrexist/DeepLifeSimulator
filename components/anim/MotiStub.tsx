@@ -59,6 +59,19 @@ const TRANSFORM_KEYS = new Set(['translateY', 'translateX', 'scale', 'scaleX', '
 const STYLE_KEYS = new Set(['opacity', 'shadowOpacity', 'shadowRadius', 'width', 'height']);
 const ALL_KEYS = [...TRANSFORM_KEYS, ...STYLE_KEYS] as const;
 
+// Keys the native animation driver can handle: opacity + the transform family.
+// A node runs on the native driver only when EVERY animated key is native-safe;
+// if any key is layout (width/height) or paint (shadow*/color) the whole node
+// stays JS-driven, so one style object never mixes native- and JS-driven values
+// (RN throws when a single node receives both).
+const NATIVE_SAFE_KEYS = new Set([
+  'opacity',
+  'scale', 'scaleX', 'scaleY',
+  'translateX', 'translateY',
+  'rotate', 'rotateX', 'rotateY', 'rotateZ',
+  'perspective', 'skewX', 'skewY',
+]);
+
 // `rotate` takes string degree values like '360deg'; everything else is numeric.
 function toNumber(key: string, val: number | string | undefined): number {
   if (val == null) return 0;
@@ -91,10 +104,14 @@ function useAnimatedValues(
     }
   }
 
-  // Animate to target on mount (and when animate changes)
-  // useNativeDriver: false for broad property support (shadow, layout props)
+  // Animate to target on mount (and when animate changes).
+  // Native driver when every animated key is transform/opacity; otherwise JS so
+  // layout/shadow/color props still animate (see NATIVE_SAFE_KEYS). The decision
+  // is made once per node, so a node never mixes native- and JS-driven values.
   useEffect(() => {
     if (!animate || keys.length === 0) return;
+
+    const useNative = keys.every((key) => NATIVE_SAFE_KEYS.has(key));
 
     let animations = keys.map((key) => {
       const av = animatedValues.current[key];
@@ -108,7 +125,7 @@ function useAnimatedValues(
           stiffness: transition.stiffness ?? 150,
           mass: transition.mass ?? 1,
           delay: transition.delay ?? 0,
-          useNativeDriver: false,
+          useNativeDriver: useNative,
         });
       }
 
@@ -116,7 +133,7 @@ function useAnimatedValues(
         toValue,
         duration: transition?.duration ?? 300,
         delay: transition?.delay ?? 0,
-        useNativeDriver: false,
+        useNativeDriver: useNative,
       });
     }).filter(Boolean) as Animated.CompositeAnimation[];
 

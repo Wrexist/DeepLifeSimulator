@@ -94,6 +94,8 @@ describe('sellProperty', () => {
     expect(r.mortgagePayoff).toBe(100_000);
     expect(r.releasedMortgageId).toBe('m1');
     expect(r.properties[0].owned).toBe(false);
+    // Fully covered — no deficiency left, so the caller deletes the loan.
+    expect(r.residualDebt).toBe(0);
   });
 
   it('records capital gain over purchase price', () => {
@@ -102,10 +104,15 @@ describe('sellProperty', () => {
     expect(r.capitalGain).toBe(100_000);
   });
 
-  it('floors at zero when underwater', () => {
+  it('floors at zero when underwater and keeps the uncovered debt as a deficiency balance', () => {
+    // value 100k − closing (6% = 6k), no gain → netSaleValue 94k vs debt 200k.
     const props = [owned({ currentValue: 100_000, mortgageId: 'm1' })];
     const r = sellProperty(props, 'p1', 200_000);
     expect(r.saleProceeds).toBe(0);
+    // The sale retires only what it covers; the rest stays owed (no free debt erasure).
+    expect(r.mortgagePayoff).toBe(94_000);
+    expect(r.residualDebt).toBe(106_000);
+    expect(r.releasedMortgageId).toBe('m1');
   });
 });
 
@@ -225,6 +232,88 @@ describe('tickProperty', () => {
     });
     expect(r.property.tenant).toBeDefined();
     expect(r.notifications.find((n) => n.id.startsWith('re-tenant-arrive-'))).toBeDefined();
+  });
+});
+
+describe('tickProperty — asked rent is realized (Fix 1)', () => {
+  // A satisfied long-term tenant, move-out suppressed via a high roll.
+  const suppressMoveOut = () => 0.99;
+
+  it('occupied income uses the ASKED rent, not the computed market rent', () => {
+    // marketRent for a $200k stable long-term unit = 200000*0.0015*1.0 = 300.
+    const withAsk = tickProperty({
+      property: owned({
+        rentMode: 'longTerm', status: 'rented', rent: 500, condition: 90,
+        tenant: { id: 't1', name: 'Sam', satisfaction: 90, movedInWeek: 0, weeklyRent: 300 },
+      }),
+      currentWeek: 1,
+      rollFor: suppressMoveOut,
+    });
+    // Realized income tracks the ASK (500), not marketRent (300).
+    expect(withAsk.rentReceived).toBe(500);
+
+    const noAsk = tickProperty({
+      property: owned({
+        rentMode: 'longTerm', status: 'rented', rent: undefined, condition: 90,
+        tenant: { id: 't1', name: 'Sam', satisfaction: 90, movedInWeek: 0, weeklyRent: 300 },
+      }),
+      currentWeek: 1,
+      rollFor: suppressMoveOut,
+    });
+    // With no ask configured, it falls back to marketRent (300) — old behavior.
+    expect(noAsk.rentReceived).toBe(300);
+  });
+
+  it('clamps an over-ambitious ask to the value ceiling (0.4%/wk)', () => {
+    const r = tickProperty({
+      property: owned({
+        rentMode: 'longTerm', status: 'rented', rent: 50_000, condition: 90,
+        tenant: { id: 't1', name: 'Sam', satisfaction: 90, movedInWeek: 0, weeklyRent: 300 },
+      }),
+      currentWeek: 1,
+      rollFor: suppressMoveOut,
+    });
+    // ceiling = 200000 * 0.004 = 800; realized rent can't exceed it.
+    expect(r.rentReceived).toBe(800);
+  });
+
+  it('a below-market ask fills a vacancy the same roll leaves a max ask empty', () => {
+    // marketRent = 300. Below-market ask (150) boosts fill odds; max ask (800)
+    // suppresses them. A single roll sits between the two fill probabilities.
+    const vacant = (rent: number) => owned({ rentMode: 'longTerm', status: 'rented', rent, condition: 95, tenant: undefined });
+    // findProb(150) ≈ 0.285*1.25 = 0.356 ; findProb(800) ≈ 0.285*0.333 = 0.095.
+    const roll = (key: string) => (key.startsWith('re.find.') ? 0.2 : 0.5);
+    const low = tickProperty({ property: vacant(150), currentWeek: 1, rollFor: roll });
+    const high = tickProperty({ property: vacant(800), currentWeek: 1, rollFor: roll });
+    expect(low.property.tenant).toBeDefined();   // 0.2 < 0.356 → fills
+    expect(high.property.tenant).toBeUndefined(); // 0.2 > 0.095 → stays vacant
+  });
+
+  it('the max ask does not strictly dominate: a lower ask nets at least as much over a long run', () => {
+    // Deterministic per-week roll source (mirrors production's seeded weeklyRoll,
+    // which varies re.find/re.move each week). Cycle pinned stable (huge
+    // cycleWeeksRemaining) so marketRent stays 300 across the whole run.
+    const rollForWeek = (week: number) => (key: string) => {
+      let h = (week * 2654435761) >>> 0;
+      for (let i = 0; i < key.length; i++) h = (Math.imul(h, 16777619) ^ key.charCodeAt(i)) >>> 0;
+      return (h >>> 0) / 0xffffffff;
+    };
+    const runTotal = (rent: number | undefined, weeks: number): number => {
+      let p: RealEstate = owned({ rentMode: 'longTerm', status: 'rented', rent, condition: 95, cycleWeeksRemaining: 100000, tenant: undefined });
+      let total = 0;
+      for (let w = 1; w <= weeks; w++) {
+        const r = tickProperty({ property: p, currentWeek: w, rollFor: rollForWeek(w) });
+        p = r.property;
+        total += r.rentReceived;
+      }
+      return total;
+    };
+    const WEEKS = 300;
+    const marketTotal = runTotal(300, WEEKS);  // ratio 1.0
+    const modestTotal = runTotal(360, WEEKS);  // ratio 1.2 (the sweet spot)
+    const maxTotal = runTotal(800, WEEKS);     // ratio 2.67 (ceiling)
+    // "Not strictly dominate": at least one lower ask earns >= the max ask.
+    expect(Math.max(marketTotal, modestTotal)).toBeGreaterThanOrEqual(maxTotal);
   });
 });
 

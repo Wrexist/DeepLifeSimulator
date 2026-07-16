@@ -18,7 +18,7 @@
  * and readout the old file had is still reachable.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,8 @@ import {
   Gift,
   DollarSign,
   Coffee,
+  MessageCircle,
+  Sparkles,
   Users,
   Vote,
   ShieldAlert,
@@ -53,11 +55,11 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
-import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts } from '@/contexts/game/actions/DatingActions';
+import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, checkAnniversary, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
-import { redeemFavor, repayFavor, recordInteraction } from '@/contexts/game/actions/ContactsActions';
+import { redeemFavor, repayFavor, recordInteraction, lendMoney, recordFavor } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
 import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
@@ -83,6 +85,26 @@ import {
 const LinearGradient = LinearGradientFallback;
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
+
+// Date sheet metadata — icon + one-line vibe per tier. Prices are read from
+// DATE_CONFIGS (the single source of truth in DatingActions) so the sheet can
+// never drift from what goOnDate actually charges. Order: cheapest → most
+// lavish. `chat` is the free maintain-the-bond option for broke players.
+const DATE_TIER_META: {
+  type: DateType;
+  label: string;
+  vibe: string;
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  color: string;
+}[] = [
+  { type: 'chat', label: 'Chat', vibe: 'Free catch-up to keep things warm', Icon: MessageCircle, color: accent.muted },
+  { type: 'casual', label: 'Casual hangout', vibe: 'Low-key time together', Icon: Coffee, color: accent.info },
+  { type: 'coffee', label: 'Coffee', vibe: 'Quick, cheap and easy', Icon: Coffee, color: accent.info },
+  { type: 'dinner', label: 'Dinner', vibe: 'A proper sit-down date', Icon: Heart, color: accent.danger },
+  { type: 'romantic', label: 'Romantic', vibe: 'Candlelight and full attention', Icon: Heart, color: accent.purple },
+  { type: 'adventure', label: 'Adventure', vibe: 'A big day out to remember', Icon: Sparkles, color: accent.success },
+  { type: 'luxury', label: 'Luxury', vibe: 'Spare no expense', Icon: Star, color: accent.gold },
+];
 
 interface ContactsAppProps {
   onBack: () => void;
@@ -238,8 +260,28 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const updateStatsDep = useCallback((_set: any, stats: any) => updateStats(stats), [updateStats]);
 
+  // ANNIVERSARY (live path): checkAnniversary was exported with no caller, so a
+  // matching anniversary week never fired its happiness bump / milestone / Pulse
+  // post. A cheap check whenever Contacts opens (and whenever weeksLived
+  // advances) wires it live. checkAnniversary is idempotent per year; the ref
+  // stops StrictMode's double-invoke from evaluating the same week twice.
+  const anniversaryCheckedWeek = useRef<number | null>(null);
+  useEffect(() => {
+    const ws = gameState.weeksLived ?? 0;
+    if (anniversaryCheckedWeek.current === ws) return;
+    anniversaryCheckedWeek.current = ws;
+    const spouse = gameState.relationships?.find((r) => r.type === 'spouse');
+    if (!spouse) return;
+    const res = checkAnniversary(gameState, setGameState, { updateStats: updateStatsDep });
+    if (res.isAnniversary) {
+      saveGame();
+      flash(`Happy ${res.yearsMarried}-year anniversary with ${spouse.name}! 🥂`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.weeksLived]);
+
   const handleDate = useCallback(
-    (contactId: string, dateType: 'coffee' | 'dinner' | 'luxury') => {
+    (contactId: string, dateType: DateType) => {
       const r = goOnDate(gameState, setGameState, contactId, dateType, {
         updateMoney: updateMoneyDep,
         updateStats: updateStatsDep,
@@ -256,7 +298,31 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         updateMoney: updateMoneyDep,
         updateStats: updateStatsDep,
       });
-      if (r.success) saveGame();
+      if (r.success) {
+        saveGame();
+        // A generous gift at a strong bond leaves them owing you one — a natural
+        // producer of an owed-to-player (non-money) favor, so the Redeem side of
+        // the ledger actually populates. Deduped to one open goodwill favor per
+        // contact (recordFavor is also id-idempotent).
+        const rel = gameState.relationships?.find((x) => x.id === contactId);
+        const bond = rel?.relationshipScore ?? 0;
+        const ledger = gameState.favorLedger ?? { favors: [] };
+        const alreadyOwes = ledger.favors.some(
+          (f) => f.contactId === contactId && f.direction === 'owed-to-player' && f.status === 'open'
+        );
+        if (bond >= 70 && !alreadyOwes) {
+          const ws = gameState.weeksLived ?? 0;
+          recordFavor(setGameState, {
+            id: `goodwill-${contactId}-${ws}`,
+            contactId,
+            direction: 'owed-to-player',
+            kind: 'intro',
+            value: 25,
+            createdWeek: ws,
+            note: `${rel?.name ?? 'They'} owes you a favor after your generosity`,
+          });
+        }
+      }
       flash(r.message, contactId);
     },
     [gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
@@ -358,6 +424,19 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       saveGame();
     },
     [gameState, setGameState, saveGame, flash, askOutcome]
+  );
+
+  // "Lend $" — the producer for owed-to-player money favors. Debits the player
+  // now and books an IOU the contact repays via the Redeem button (which credits
+  // the cash back). Routed through the ContactsActions.lendMoney helper so the UI
+  // never mutates state inline.
+  const handleLendMoney = useCallback(
+    (contactId: string, amount: number) => {
+      const r = lendMoney(gameState, setGameState, contactId, amount);
+      if (r.success) saveGame();
+      flash(r.message, contactId);
+    },
+    [gameState, setGameState, saveGame, flash]
   );
 
   const handleRedeemFavor = useCallback(
@@ -597,14 +676,43 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} darkMode={darkMode} />
               <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} darkMode={darkMode} />
               <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} darkMode={darkMode} />
+              <ActionBtn label="Lend $100" Icon={Handshake} color={accent.purple} onPress={() => handleLendMoney(c.id, 100)} darkMode={darkMode} />
             </View>
             {isPartner && (
               <>
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dating</Text>
-                <View style={styles.actionsRow}>
-                  <ActionBtn label="Coffee $20" Icon={Coffee} color={accent.info} onPress={() => handleDate(c.id, 'coffee')} darkMode={darkMode} />
-                  <ActionBtn label="Dinner $80" Icon={Heart} color={accent.danger} onPress={() => handleDate(c.id, 'dinner')} darkMode={darkMode} />
-                  <ActionBtn label="Luxury $300" Icon={Star} color={accent.gold} onPress={() => handleDate(c.id, 'luxury')} darkMode={darkMode} />
+                <View style={styles.dateList}>
+                  {DATE_TIER_META.map((t) => {
+                    const cost = DATE_CONFIGS[t.type].cost;
+                    const canAfford = (gameState.stats?.money ?? 0) >= cost;
+                    const DIcon = t.Icon;
+                    return (
+                      <TouchableOpacity
+                        key={t.type}
+                        style={[styles.dateRow, { backgroundColor: theme.surfaceElevated }]}
+                        onPress={() => handleDate(c.id, t.type)}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t.label} date, ${cost === 0 ? 'free' : `$${cost}`} — ${t.vibe}`}
+                      >
+                        <View style={iconBubble(t.color, 34)}>
+                          <DIcon size={scale(16)} color={t.color} />
+                        </View>
+                        <View style={styles.dateRowBody}>
+                          <Text style={[styles.dateRowName, { color: theme.text }]} numberOfLines={1}>{t.label}</Text>
+                          <Text style={[styles.dateRowVibe, { color: theme.textMuted }]} numberOfLines={1}>{t.vibe}</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dateRowPrice,
+                            { color: cost === 0 ? accent.success : canAfford ? theme.textSecondary : accent.warning },
+                          ]}
+                        >
+                          {cost === 0 ? 'Free' : `$${cost}`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Gifts</Text>
                 <View style={styles.actionsRow}>
@@ -1455,6 +1563,20 @@ const styles = StyleSheet.create({
   tagText: { fontSize: fs.xs, fontWeight: '700' },
   actionsBox: { gap: sp.sm, marginTop: sp.md },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  // Date sheet: one tappable row per tier (icon + name/vibe + price).
+  dateList: { gap: sp.xs },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sp.md,
+    paddingHorizontal: sp.sm,
+    paddingVertical: sp.sm,
+    borderRadius: br.md,
+  },
+  dateRowBody: { flex: 1 },
+  dateRowName: { fontSize: fs.sm, fontWeight: '700' },
+  dateRowVibe: { fontSize: fs.xs, marginTop: 1 },
+  dateRowPrice: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
   opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   opinionStat: { fontSize: fontScale(11) },
   innerLifeLine: { fontSize: fontScale(11.5) },

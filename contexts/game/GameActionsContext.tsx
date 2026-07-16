@@ -186,7 +186,7 @@ interface GameActionsProviderProps {
 }
 
 export function GameActionsProvider({ children }: GameActionsProviderProps) {
- const { gameState, setGameState, currentSlot } = useGameState();
+ const { gameState, setGameState, currentSlot, setCurrentSlot } = useGameState();
  const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
  // NOTE: gameplay notifications use `showInfoBanner` (friendly, auto-dismissing) — not
@@ -610,6 +610,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Progress enrolled educations automatically
  let pendingCampusEvent: string | undefined;
  let updatedEducations = prevState.educations || [];
+ // FREE-EDUCATION FIX: applyEducationProgression deducts the weekly student-loan
+ // payment from newStats.money, but the cashBeforeLoans expression below recomputes
+ // spendable cash from the ORIGINAL currentMoney and overwrites newStats.money — so,
+ // exactly like the diet cost, the loan payment was silently discarded (the loan
+ // balance dropped every week while the player was never charged). Capture the amount
+ // actually deducted here and thread it into cashBeforeLoans, mirroring dietWeeklyCost.
+ let educationWeeklyCost = 0;
 
  // R7 Phase 2 step 2.5c-i: education stress penalties extracted into
  // ./actions/weekly/applyEducationStress.ts. Mutates ctx.newStats.{happiness,
@@ -627,6 +634,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // completion logic. Same external-module calls (isExamWeek, runExam,
  // updateGPA, shouldTriggerCampusEvent). Returns updatedEducations +
  // pendingCampusEvent (last-fire-wins matching legacy behavior).
+ // newStats === weeklyCtx.newStats, so the helper's student-loan deduction lands
+ // on this same object; snapshot money on either side to recover the real charge.
+ const moneyBeforeEducation = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
  const progressionResult = applyEducationProgression({
    prevEducations: updatedEducations,
    nextWeeksLived,
@@ -634,6 +644,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
  }, weeklyCtx);
  updatedEducations = progressionResult.updatedEducations;
+ educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (progressionResult.pendingCampusEvent) {
    pendingCampusEvent = progressionResult.pendingCampusEvent;
  }
@@ -725,14 +736,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R7 Phase 2 step 2.4c: rent + housing module + realEstate weekly tick
  // extracted into ./actions/weekly/applyRentAndHousing.ts. Same try/catch
  // silent-fallback behavior, same notification shapes, same module calls.
- // Production preserves the legacy `() => Math.random()` rollFor exactly.
+ //
+ // DETERMINISM FIX: the real-estate tick (tenant lifecycle, Airbnb realized-rent
+ // variance) was the last weekly subsystem still fed a live `() => Math.random()`,
+ // unlike every sibling (crypto/darkweb/politics/stocks pass the seeded weeklyRoll).
+ // That made tenant arrivals/departures and rent variance resume-unsafe and
+ // inconsistent under React 19 StrictMode double-invoke. Pass the same seeded,
+ // per-key `makeWeeklyRoll(nextWeeksLived)` stream the siblings use — the module
+ // already namespaces its own keys, so outcomes are now reproducible from the save.
  //
  // R7 step 2.5a: `weeklyCtx` was further hoisted to the diet block above
  // so all reducers (diet, rent, disease, pet, vehicle) share one instance.
  const rentAndHousingResult = applyRentAndHousing(
    prevState.realEstate,
    nextWeeksLived,
-   () => Math.random(),
+   makeWeeklyRoll(nextWeeksLived),
    weeklyCtx,
    prevState.realEstateActivity,
  );
@@ -770,7 +788,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // normalization (>1 = percent, else decimal), same weekly-rate math,
  // same bankruptcy-floor + breathing-room logic, same missed-payment
  // compounding penalty.
- const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost);
+ const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost - educationWeeklyCost);
  const loanResult = applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,
@@ -2603,6 +2621,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  id: eventId,
  description: event.description,
  choice: choice.text,
+ // Persist the stable choice id so multi-week event chains
+ // (health_scare / business_opportunity / family_crisis) can branch on
+ // `e.choiceId` rather than always falling through to the "ignored" path.
+ choiceId: choice.id,
  week: prevState.weeksLived || 0,
  year: prevState.date?.year || 2025,
  weeksLived: prevState.weeksLived || 0,
@@ -2816,12 +2838,32 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  applied = true;
  const newClaimed = [...(prevState.claimedProgressAchievements || []), achievementId];
- const newGems = (prevState.stats.gems || 0) + goldReward;
+
+ // Cross-life, account-permanent guard on the GEM MINT.
+ // claimedProgressAchievements is per-life and is wiped by prestige
+ // (createResetGameState), so on its own it lets every achievement re-mint its
+ // gems each prestige cycle. prestige.claimedAchievementIds is preserved across
+ // prestige, so it is the authoritative "already minted ever" set: gems are
+ // granted ONLY the first time an id is claimed across all lives. The per-life
+ // set is still recorded (above) so existing per-life UI behavior is unchanged.
+ const priorMinted = prevState.prestige?.claimedAchievementIds || [];
+ const alreadyMintedEver = priorMinted.includes(achievementId);
+ const gemsToMint = alreadyMintedEver ? 0 : goldReward;
+ const newGems = (prevState.stats.gems || 0) + gemsToMint;
+ const newPrestige = prevState.prestige
+ ? {
+...prevState.prestige,
+ claimedAchievementIds: alreadyMintedEver
+ ? priorMinted
+: [...priorMinted, achievementId],
+ }
+: prevState.prestige;
 
  // Achievements are a Legacy Pass XP source (LEGACY_PASS_XP.achievement).
  return awardLegacyPassXp({
 ...prevState,
  claimedProgressAchievements: newClaimed,
+...(newPrestige ? { prestige: newPrestige } : {}),
  achievementUnlocks: {
 ...(prevState.achievementUnlocks || {}),
  [achievementId]: {
@@ -3512,6 +3554,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setHapticsEnabled(safeState.settings.hapticFeedback);
  }
 
+ // DATA-LOSS FIX: sync the in-memory active slot to the slot we just loaded.
+ // Without this, `currentSlot` stayed stuck at its initial value (1) and every
+ // subsequent saveGame/autosave/background-save wrote into slot 1, silently
+ // overwriting it while the player thought they were on slot 2 or 3.
+ // setCurrentSlot (setCurrentSlotSafe) also persists both `currentSlot` and
+ // `lastSlot`; the direct writes below are kept for legacy readers that expect
+ // the markers set synchronously on load.
+ setCurrentSlot(slot);
+
  // Keep both slot markers in sync for legacy and new slot authority readers.
  await AsyncStorage.setItem('currentSlot', String(slot));
  await AsyncStorage.setItem('lastSlot', String(slot));
@@ -3547,7 +3598,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setIsLoading(false);
  saveLoadMutex.release();
  }
- }, [setIsLoading, setLoadingMessage, showError, setGameState]);
+ }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
  // Relationship functions for Contacts app
  const updateRelationship = useCallback((relationshipId: string, change: number) => {

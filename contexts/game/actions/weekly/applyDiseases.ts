@@ -6,10 +6,12 @@
  *   1. Optional new-disease admission (caller pre-generates via
  *      `generateRandomDisease` and passes as `newDisease`).
  *   2. Per-disease validation (drop malformed entries).
- *   3. Per-disease stat-penalty accumulation into a `diseaseEffects` bag.
+ *   3. Per-disease stat-penalty accumulation into a `diseaseEffects` bag
+ *      (halved for diseases under managed chronic care — see
+ *      `lib/diseases/chronicCare.ts`).
  *   4. Complication rolls: chronic untreated diseases worsen up to 3× base
- *      (with a -100 floor); curable untreated diseases can progress
- *      mild → serious + worsen effects.
+ *      (with a -100 floor) unless under managed care; curable untreated
+ *      diseases can progress mild → serious + worsen effects.
  *   5. Death countdown for diseases with `weeksUntilDeath`.
  *   6. Natural recovery for diseases with `naturalRecoveryWeeks` (with
  *      health/fitness bonuses).
@@ -35,6 +37,7 @@
  */
 
 import type { Disease, GameStats } from '@/contexts/game/types';
+import { isDiseaseManagedForWeek, MANAGED_SYMPTOM_FACTOR } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
 import type { WeekContext } from './weekContext';
 
@@ -187,15 +190,21 @@ export function applyDiseasesForWeek(
     const complicationRoll = ctx.preRolls.diseaseComplication[index % ctx.preRolls.diseaseComplication.length];
     const progressionRoll = ctx.preRolls.diseaseProgression[index % ctx.preRolls.diseaseProgression.length];
 
-    // Accumulate stat penalties.
+    // Chronic-care window (doctor visit / hospital stay on a non-curable
+    // disease): while managed, symptoms are halved and complications don't
+    // roll. Absent field = unmanaged = the legacy behavior, byte-for-byte.
+    const isManaged = isDiseaseManagedForWeek(disease, nextWeeksLived);
+
+    // Accumulate stat penalties (halved while under managed care).
     if (disease.effects) {
       Object.entries(disease.effects).forEach(([stat, value]) => {
         if (typeof value === 'number' && value < 0) {
+          const applied = isManaged ? value * MANAGED_SYMPTOM_FACTOR : value;
           const statKey = stat as keyof GameStats;
           if (statKey in diseaseEffects) {
-            (diseaseEffects[statKey] as number) = ((diseaseEffects[statKey] as number) || 0) + value;
+            (diseaseEffects[statKey] as number) = ((diseaseEffects[statKey] as number) || 0) + applied;
           } else {
-            (diseaseEffects[statKey] as number) = value;
+            (diseaseEffects[statKey] as number) = applied;
           }
         }
       });
@@ -206,9 +215,12 @@ export function applyDiseasesForWeek(
     // minimum). Without a cap the 10%/week compounding hit values like
     // ×13,780 after ~100 weeks, eventually producing Infinity and NaN.
     if (disease.treatmentRequired && !disease.curable) {
-      // Chronic diseases that require treatment — check if worsening.
+      // Chronic diseases that require treatment — check if worsening. Managed
+      // care (see lib/diseases/chronicCare.ts) blocks the worsening roll; the
+      // death countdown below is deliberately NOT blocked — management eases
+      // symptoms but never stops a terminal disease's progression.
       const complicationChance = 0.1; // 10% chance per week if untreated.
-      if (complicationRoll < complicationChance) {
+      if (!isManaged && complicationRoll < complicationChance) {
         const baseEffects = (disease as { baseEffects?: typeof disease.effects }).baseEffects ?? disease.effects;
         const worsenedEffects = { ...disease.effects };
         Object.keys(worsenedEffects).forEach((stat) => {

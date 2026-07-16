@@ -13,7 +13,7 @@
  */
 import type { GameState, ChildInfo } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import { eventTemplates, type EventTemplate } from '@/lib/events/engine';
+import { eventTemplates, rollWeeklyEvents, type EventTemplate } from '@/lib/events/engine';
 import { childhoodEventTemplates } from '@/lib/events/childhoodEvents';
 import { parentEventTemplates } from '@/lib/events/parentEvents';
 import { midlifeEventTemplates } from '@/lib/events/midlifeEvents';
@@ -127,15 +127,34 @@ describe('life-stage packs — gating', () => {
     }
   });
 
-  it('a childhood event fires for a young child but not a teen, and vice-versa', () => {
+  it('the re-banded early-teen events fire in 13-17 (reachable from a 16-start) but not below 13', () => {
+    // Fix 7: the five formerly-childhood (5-12) templates were unreachable — no
+    // start scenario begins below 16. They are now banded 13-17, so a 16-year-old
+    // start reaches them, while a (currently impossible) age-10 state does not.
     const child10 = createTestGameState({ date: { year: 2025, month: 'January', week: 1, age: 10 } });
     const teen15 = createTestGameState({ date: { year: 2025, month: 'January', week: 1, age: 15 } });
-    const showAndTell = childhoodEventTemplates.find(t => t.id === 'child_show_and_tell')!;
+    const teen16 = createTestGameState({ date: { year: 2025, month: 'January', week: 1, age: 16 } });
+    const rebanded = ['child_show_and_tell', 'child_playground_friend', 'child_discover_talent', 'child_first_allowance', 'child_family_trip'];
+    for (const id of rebanded) {
+      const t = childhoodEventTemplates.find(e => e.id === id)!;
+      expect(t.condition!(teen15)).toBe(true);
+      expect(t.condition!(teen16)).toBe(true); // lowest realistic young start reaches these
+      expect(t.condition!(child10)).toBe(false); // below the 13-17 band
+    }
+    // The original teen beats still gate on 13-17 as before.
     const firstCrush = childhoodEventTemplates.find(t => t.id === 'teen_first_crush')!;
-    expect(showAndTell.condition!(child10)).toBe(true);
-    expect(showAndTell.condition!(teen15)).toBe(false); // 15 is past the 5-12 child band
     expect(firstCrush.condition!(teen15)).toBe(true);
-    expect(firstCrush.condition!(child10)).toBe(false); // 10 is below the 13-17 teen band
+    expect(firstCrush.condition!(child10)).toBe(false);
+  });
+
+  it('every pack is tagged with its life-stage (Fix 6 weighting hook)', () => {
+    const expectTag = (pack: EventTemplate[], tag: string) => {
+      for (const t of pack) expect(t.lifeStageTag).toBe(tag);
+    };
+    expectTag(childhoodEventTemplates, 'teen');
+    expectTag(parentEventTemplates, 'parent');
+    expectTag(midlifeEventTemplates, 'midlife');
+    expectTag(seniorEventTemplates, 'senior');
   });
 
   it('parent events require a child in the right age band and bind relationId to that child', () => {
@@ -194,6 +213,69 @@ describe('life-stage packs — gating', () => {
     const retired = seniorEventTemplates.find(t => t.id === 'senior_retirement_days')!;
     expect(retired.condition!(createTestGameState({ isRetired: false }))).toBe(false);
     expect(retired.condition!(createTestGameState({ isRetired: true }))).toBe(true);
+  });
+});
+
+describe('life-stage packs — selection weighting (Fix 6)', () => {
+  // A senior (65+, retired, no children) so ONLY the senior pack is eligible among
+  // the life-stage packs (grandchild needs a child; parent/midlife/teen gated out).
+  function seniorState(weeksLived: number): GameState {
+    return createTestGameState({
+      weeksLived,
+      lastEventWeeksLived: weeksLived - 30, // long drought → pity forces an event
+      date: { year: 2025, month: 'January', week: 1, age: 70 },
+      isRetired: true,
+      family: { children: [] },
+      stats: { health: 70, happiness: 70, energy: 70, fitness: 50, money: 5000, reputation: 50, gems: 0 },
+    });
+  }
+
+  it('an age-gated pack actually surfaces during its chapter under a fixed seed', () => {
+    // Deterministic sweep of pity-forced weeks. Without the 3.5x boost, six 0.2-weight
+    // senior beats are buried under the ~150-template generic pool and essentially
+    // never fire; the boost gives them real, repeated airtime.
+    let seniorFires = 0;
+    let totalFires = 0;
+    const seniorIds = new Set<string>();
+    for (let i = 0; i < 240; i++) {
+      const events = rollWeeklyEvents(seniorState(3000 + i));
+      for (const e of events) {
+        totalFires++;
+        const base = e.id.split('-')[0];
+        if (base.startsWith('senior_')) {
+          seniorFires++;
+          seniorIds.add(e.id);
+        }
+      }
+    }
+    expect(totalFires).toBeGreaterThan(0);
+    // Senior beats claim a meaningful share of fired events (boost-dependent) and
+    // multiple DISTINCT senior templates surface (not one fixed rotation).
+    expect(seniorFires / totalFires).toBeGreaterThanOrEqual(0.15);
+    expect(seniorIds.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('the boost does not fire a pack outside its chapter (adult sees no life-stage beats)', () => {
+    // A plain 30-year-old with no children: no teen/parent/midlife/senior event is
+    // eligible, so the tag/boost is inert and none can surface.
+    const seen = new Set<string>();
+    for (let i = 0; i < 120; i++) {
+      const adult = createTestGameState({
+        weeksLived: 3000 + i,
+        lastEventWeeksLived: 3000 + i - 30,
+        date: { year: 2025, month: 'January', week: 1, age: 30 },
+        family: { children: [] },
+        stats: { health: 70, happiness: 70, energy: 70, fitness: 50, money: 5000, reputation: 50, gems: 0 },
+      });
+      for (const e of rollWeeklyEvents(adult)) seen.add(e.id.split('-')[0]);
+    }
+    for (const id of seen) {
+      expect(id.startsWith('senior_')).toBe(false);
+      expect(id.startsWith('midlife_')).toBe(false);
+      expect(id.startsWith('parent_')).toBe(false);
+      expect(id.startsWith('teen_')).toBe(false);
+      expect(id.startsWith('child_')).toBe(false);
+    }
   });
 });
 

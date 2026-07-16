@@ -112,16 +112,101 @@ export function recordInteraction(
 /**
  * Record a new IOU between the player and a contact. Caller provides the
  * Favor sans `status` — we always create with status='open'.
+ *
+ * Idempotent by `favor.id`: a same-batch double-fire (or a producer that runs
+ * again on re-render with a stable per-week id) can't append a duplicate favor
+ * row. Callers should pass a stable id (e.g. `goodwill-<contactId>-<week>`).
  */
 export function recordFavor(
   setGameState: Dispatch<SetStateAction<GameState>>,
   favor: Omit<Favor, 'status'>
 ): void {
-  setGameState((prev) => ({
-    ...prev,
-    favorLedger: addFavorPure(ledgerOf(prev), favor),
-  } as GameState));
+  setGameState((prev) => {
+    const ledger = ledgerOf(prev);
+    if (ledger.favors.some((f) => f.id === favor.id)) return prev; // already recorded
+    return { ...prev, favorLedger: addFavorPure(ledger, favor) } as GameState;
+  });
   log.info(`Favor recorded: ${favor.id} (${favor.direction}, ${favor.kind}, value ${favor.value})`);
+}
+
+/**
+ * Lend cash to a contact — the natural producer of an `owed-to-player` money
+ * favor (the redeem side of the ledger, which otherwise had no producers so the
+ * Redeem button never rendered). Debits the player now and books an IOU the
+ * contact repays later via `redeemFavor` (which credits the cash back).
+ *
+ * Once per week per contact. The debit, the IOU, the small goodwill bump and the
+ * recency stamp all happen in ONE updater against `prev`, so a same-batch
+ * double-tap can neither double-charge nor mint two IOUs (stable per-week id).
+ */
+export function lendMoney(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string,
+  amount: number
+): { success: boolean; message: string } {
+  const rel = gameState.relationships?.find((r) => r.id === contactId);
+  if (!rel) return { success: false, message: 'Contact not found.' };
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, message: 'Invalid amount.' };
+  }
+  const ws = gameState.weeksLived ?? 0;
+  // Pre-checks for immediate UI feedback; the authoritative re-checks are inside
+  // the updater below.
+  if (rel.actions?.['lendmoney'] === ws) {
+    return { success: false, message: `You already lent ${rel.name} money this week.` };
+  }
+  if ((gameState.stats?.money ?? 0) < amount) {
+    return { success: false, message: `Need $${amount.toLocaleString()} to lend.` };
+  }
+
+  let applied = false;
+  setGameState((prev) => {
+    const rels = prev.relationships ?? [];
+    const idx = rels.findIndex((r) => r.id === contactId);
+    if (idx === -1) return prev;
+    const target = rels[idx];
+    const prevWs = prev.weeksLived ?? 0;
+    if (target.actions?.['lendmoney'] === prevWs) return prev; // already lent this week
+
+    // Debit the loan atomically; abort if it can no longer be afforded.
+    const debit = applyMoneyDelta(prev, -amount, `Lent $${amount.toLocaleString()} to ${target.name}`);
+    if (!debit) return prev;
+
+    // Book the owed-to-player money IOU (stable id → same-batch double-tap safe).
+    const favorId = `loan-${contactId}-${prevWs}`;
+    const ledger = ledgerOf(prev);
+    const nextLedger = ledger.favors.some((f) => f.id === favorId)
+      ? ledger
+      : addFavorPure(ledger, {
+          id: favorId,
+          contactId,
+          direction: 'owed-to-player',
+          kind: 'money',
+          value: amount,
+          createdWeek: prevWs,
+          note: `${target.name} owes you $${amount.toLocaleString()}`,
+        });
+
+    // Lending builds goodwill — small bond bump + recency stamp (mirrors the
+    // recency bookkeeping in recordInteraction / handleAskMoney).
+    const weeklyInteractions =
+      target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
+    const updatedRel: Relationship = {
+      ...target,
+      relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + 2)),
+      actions: { ...(target.actions ?? {}), lendmoney: prevWs },
+      lastInteractionWeek: prevWs,
+      weeklyInteractions,
+    };
+    const newRels = [...rels];
+    newRels[idx] = updatedRel;
+    applied = true;
+    return { ...prev, ...debit, relationships: newRels, favorLedger: nextLedger };
+  });
+
+  if (!applied) return { success: false, message: 'Could not complete.' };
+  return { success: true, message: `You lent ${rel.name} $${amount.toLocaleString()}. They owe you one.` };
 }
 
 /**

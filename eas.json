@@ -9,7 +9,8 @@
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
         "EXPO_PUBLIC_ENABLE_IAP": "true",
-        "EXPO_PUBLIC_ENABLE_ATT": "true"
+        "EXPO_PUBLIC_ENABLE_ATT": "true",
+        "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true"
       },
       "ios": {
         "image": "latest"

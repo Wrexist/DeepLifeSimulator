@@ -1,4 +1,8 @@
 import {
+  ASK_RENT_CEILING_RATE,
+  askChurnMultiplier,
+  askFillMultiplier,
+  effectiveAskRent,
   findTenantProbability,
   generateTenant,
   moveOutProbability,
@@ -101,6 +105,59 @@ describe('generateTenant', () => {
     expect(t.satisfaction).toBeGreaterThan(50); // optimistic start
     expect(t.id).toMatch(/^tenant-/);
     expect(t.name).toMatch(/\w+ \w+/);
+  });
+});
+
+describe('effectiveAskRent (Fix 1)', () => {
+  it('falls back to marketRent when no ask is set', () => {
+    expect(effectiveAskRent(undefined, 200_000, 300)).toBe(300);
+    expect(effectiveAskRent(0, 200_000, 300)).toBe(300);
+  });
+
+  it('uses the asked rent when it is below the ceiling', () => {
+    // ceiling = 200_000 * 0.004 = 800; ask 500 is under it → realized as-is.
+    expect(effectiveAskRent(500, 200_000, 300)).toBe(500);
+  });
+
+  it('clamps an over-ambitious ask to the value ceiling', () => {
+    // ceiling = 800; ask 5000 clamps down.
+    expect(effectiveAskRent(5000, 200_000, 300)).toBe(200_000 * ASK_RENT_CEILING_RATE);
+    expect(effectiveAskRent(5000, 200_000, 300)).toBe(800);
+  });
+});
+
+describe('askFillMultiplier / askChurnMultiplier (Fix 1 — direction + balance)', () => {
+  const market = 300;
+
+  it('below-market ask fills FASTER (multiplier > 1)', () => {
+    expect(askFillMultiplier(150, market)).toBeGreaterThan(1);
+  });
+
+  it('at-market ask is neutral on fill and churn', () => {
+    expect(askFillMultiplier(market, market)).toBeCloseTo(1, 6);
+    expect(askChurnMultiplier(market, market)).toBeCloseTo(1, 6);
+  });
+
+  it('above-market ask fills SLOWER (multiplier < 1) and churns MORE (> 1)', () => {
+    expect(askFillMultiplier(800, market)).toBeLessThan(1);
+    expect(askChurnMultiplier(800, market)).toBeGreaterThan(1);
+  });
+
+  it('fill multiplier is monotonically decreasing in the ask', () => {
+    expect(askFillMultiplier(150, market)).toBeGreaterThan(askFillMultiplier(300, market));
+    expect(askFillMultiplier(300, market)).toBeGreaterThan(askFillMultiplier(600, market));
+    expect(askFillMultiplier(600, market)).toBeGreaterThan(askFillMultiplier(800, market));
+  });
+
+  it('churn multiplier never drops below 1 (a cheap ask does not make tenants leave)', () => {
+    expect(askChurnMultiplier(50, market)).toBe(1);
+    expect(askChurnMultiplier(150, market)).toBe(1);
+  });
+
+  it('both multipliers stay bounded (no zero-out / blow-up)', () => {
+    expect(askFillMultiplier(1e9, market)).toBeGreaterThanOrEqual(0.15);
+    expect(askFillMultiplier(0, market)).toBeLessThanOrEqual(1.5);
+    expect(askChurnMultiplier(1e9, market)).toBeLessThanOrEqual(3);
   });
 });
 

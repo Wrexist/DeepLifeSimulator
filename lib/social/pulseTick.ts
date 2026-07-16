@@ -131,8 +131,11 @@ const hashRoll = (...parts: (number | string)[]): number => {
   return ((h >>> 0) % 100000) / 100000;
 };
 
-const newNotificationId = (week: number, kind: string): string =>
-  `notif_${week}_${kind}_${Math.floor(Math.random() * 1e6).toString(36)}`;
+// Deterministic notification id. `seq` (the current list length at push time)
+// discriminates multiple same-kind notifications within one tick, so ids are
+// stable across reloads / StrictMode double-invoke instead of Math.random.
+const newNotificationId = (week: number, kind: string, seq: number): string =>
+  `notif_${week}_${kind}_${seq}`;
 
 const influenceLevelForFollowers = (followers: number): PulseInfluenceLevel => {
   if (followers >= 1_000_000) return 'celebrity';
@@ -151,9 +154,11 @@ const pushNotification = (
 ): PulseNotification[] => {
   return [
     {
-      id: newNotificationId(weeksLived, type),
+      id: newNotificationId(weeksLived, type, list.length),
       type,
-      timestamp: Date.now(),
+      // Seeded from the game week (deterministic) rather than wall-clock
+      // Date.now(), which was save-scummable + StrictMode-inconsistent.
+      timestamp: weeksLived,
       gameWeek: weeksLived,
       read: false,
       text,
@@ -223,11 +228,15 @@ export function processPulseWeeklyTick(
   ];
   for (const tag of organicTags) {
     if (!trending.find(t => t.tag === tag)) {
+      // Deterministic from (week, tag) via hashRoll so re-runs / reloads are
+      // stable — the comment above promised "deterministic from week" but the
+      // body used Math.random(). Distinct seed suffixes keep postCount and
+      // velocity independent.
       trending.push({
         tag,
-        postCount: 50 + Math.floor(Math.random() * 200),
+        postCount: 50 + Math.floor(hashRoll('trendPosts', nextWeeksLived, tag) * 200),
         source: 'organic',
-        velocity: 0.5 + Math.random() * 0.5,
+        velocity: 0.5 + hashRoll('trendVel', nextWeeksLived, tag) * 0.5,
         decayWeek: nextWeeksLived + 3,
       });
     }
@@ -470,6 +479,8 @@ export function processPulseWeeklyTick(
       sm.influenceLevel || influenceLevelForFollowers(followers),
       sm.totalPosts || 0,
       sm.viralPosts || 0,
+      // Seeded ±20% variation — deterministic from week + follower count.
+      hashRoll('impressionVariation', nextWeeksLived, followers),
     ) * proMultiplier,
   );
   pulseEarnings += impressionEarnings;

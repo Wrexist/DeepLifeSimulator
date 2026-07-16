@@ -129,4 +129,6 @@ export const midlifeEventTemplates: EventTemplate[] = [
   agingParents,
   reconnectFriend,
   reinvention,
-];
+  // Fix 6: tag so the weighted picker lifts these out of the generic pool while
+  // the player is in the 50-64 midlife band.
+].map(t => ({ ...t, lifeStageTag: 'midlife' as const }));

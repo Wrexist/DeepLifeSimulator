@@ -63,6 +63,8 @@ import {
   runForOffice,
   campaign,
   joinParty,
+  hireLobbyist,
+  formAlliance,
 } from '@/contexts/game/actions/PoliticalActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
@@ -70,7 +72,7 @@ import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS } from '@/lib/careers/political';
 import { getPolicyById, calculatePolicyEffects } from '@/lib/politics/policies';
 import type { Policy } from '@/lib/politics/policies';
-import { getLobbyistById } from '@/lib/politics/lobbyists';
+import { getLobbyistById, getAvailableLobbyists } from '@/lib/politics/lobbyists';
 import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
@@ -121,7 +123,26 @@ type SubView =
   | { kind: 'ladder' }
   | { kind: 'policy'; id: string }
   | { kind: 'lobbyist'; id: string }
+  | { kind: 'hireLobbyist' }
+  | { kind: 'formAlliance' }
   | null;
+
+// Alliance targets the formAlliance action supports (it accepts any
+// characterId + name and grants a fixed +10 influence + a small approval bump).
+// Defined locally like PARTIES — political blocs/figures the player can court.
+const ALLIANCE_TARGETS: { id: string; name: string; role: string; description: string }[] = [
+  { id: 'labor_union_coalition', name: 'Labor Union Coalition', role: 'Grassroots bloc', description: 'Organized labor turns out voters and volunteers for allied candidates.' },
+  { id: 'business_roundtable', name: 'Business Roundtable', role: 'Corporate bloc', description: 'A coalition of major employers with deep campaign-finance reach.' },
+  { id: 'progressive_caucus', name: 'Progressive Caucus', role: 'Legislative bloc', description: 'Reform-minded legislators who move social and environmental bills.' },
+  { id: 'senator_blake', name: 'Senator Blake', role: 'Senate power broker', description: 'A senior senator whose endorsement carries weight across the aisle.' },
+  { id: 'tech_donor_network', name: 'Tech Donor Network', role: 'Fundraising bloc', description: 'Silicon Valley donors who bankroll data-driven campaigns.' },
+  { id: 'veterans_alliance', name: 'Veterans Alliance', role: 'Advocacy bloc', description: 'Veterans’ groups whose backing signals credibility on security.' },
+  { id: 'faith_coalition', name: 'Faith Coalition', role: 'Community bloc', description: 'Congregational networks that mobilize values-driven voters.' },
+  { id: 'farmers_federation', name: 'Farmers Federation', role: 'Rural bloc', description: 'Agricultural interests that anchor support across rural districts.' },
+];
+
+// Fixed alliance influence — mirrors the value formAlliance stamps on each ally.
+const ALLIANCE_INFLUENCE = 10;
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'office',     label: 'Office',    icon: Briefcase },
@@ -334,6 +355,28 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     if (result.success) {
       setShowEnactPolicy(false);
       queueSave();
+    }
+  }, [gameState, setGameState, queueSave]);
+
+  // Hire a lobbyist from the 15-strong catalog — the action charges the retainer
+  // and raises policy influence by the lobbyist's rating (atomic, in one updater).
+  const handleHireLobbyist = useCallback((lobbyistId: string) => {
+    const result = hireLobbyist(gameState, setGameState, lobbyistId, { updateMoney });
+    Alert.alert(result.success ? 'Lobbyist hired' : 'Cannot hire', result.message);
+    if (result.success) {
+      queueSave();
+      setSubView(null);
+    }
+  }, [gameState, setGameState, queueSave]);
+
+  // Form a political alliance — grants a fixed +10 influence ally + a small
+  // approval bump (formAlliance). Targets come from the local ALLIANCE_TARGETS bloc.
+  const handleFormAlliance = useCallback((characterId: string, characterName: string) => {
+    const result = formAlliance(gameState, setGameState, characterId, characterName);
+    Alert.alert(result.success ? 'Alliance formed' : 'Cannot form alliance', result.message);
+    if (result.success) {
+      queueSave();
+      setSubView(null);
     }
   }, [gameState, setGameState, queueSave]);
 
@@ -646,6 +689,16 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             />
           ))
         )}
+        <TouchableOpacity
+          onPress={() => setSubView({ kind: 'hireLobbyist' })}
+          activeOpacity={0.85}
+          style={[getGlassButton(darkMode), styles.secondaryCta]}
+          accessibilityRole="button"
+          accessibilityLabel="Hire a lobbyist from the catalog"
+        >
+          <Handshake size={scale(15)} color={SKY} />
+          <Text style={[styles.secondaryCtaText, { color: SKY }]}>Hire a lobbyist</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ gap: responsiveSpacing.sm }}>
@@ -655,6 +708,16 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         ) : (
           alliances.map((a) => <AllyRow key={a.id} ally={a} theme={theme} darkMode={darkMode} />)
         )}
+        <TouchableOpacity
+          onPress={() => setSubView({ kind: 'formAlliance' })}
+          activeOpacity={0.85}
+          style={[getGlassButton(darkMode), styles.secondaryCta]}
+          accessibilityRole="button"
+          accessibilityLabel="Form a political alliance"
+        >
+          <Users size={scale(15)} color={SKY} />
+          <Text style={[styles.secondaryCtaText, { color: SKY }]}>Form an alliance</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ gap: responsiveSpacing.sm }}>
@@ -853,11 +916,113 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     );
   };
 
+  // Hire-lobbyist picker — the full catalog minus already-hired, each with cost,
+  // specialty, effect, and affordability-gated Hire. Delegates to hireLobbyist.
+  const renderHireLobbyist = () => {
+    const hiredIds = lobbyists.map((l) => l.id);
+    const available = getAvailableLobbyists(hiredIds);
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={[getGlassCard(darkMode, 6), styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.cardHeadRow}>
+            <Handshake size={scale(15)} color={SKY} />
+            <Text style={[styles.cardHeadText, { color: theme.text }]}>Hire a lobbyist</Text>
+          </View>
+          <Text style={[styles.cardSubText, { color: theme.textMuted }]}>
+            Lobbyists raise your policy influence, making bills cheaper and easier to pass. Each charges a one-time retainer.
+          </Text>
+        </View>
+        {available.length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>You&apos;ve hired every lobbyist in the catalog.</EmptyText>
+        ) : (
+          available.map((lob) => {
+            const affordable = cash >= lob.cost;
+            return (
+              <View key={lob.id} style={[getGlassCard(darkMode, 6), styles.rosterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+                  <Handshake size={scale(17)} color={SKY} />
+                </View>
+                <View style={styles.pickerRowText}>
+                  <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>{lob.name}</Text>
+                  <Text style={[styles.rosterMeta, { color: SKY }]} numberOfLines={1}>{lob.specialty} · +{lob.influence} influence</Text>
+                  <Text style={[styles.cardSubText, { color: theme.textMuted }]} numberOfLines={2}>{lob.description}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleHireLobbyist(lob.id)}
+                  disabled={!affordable}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.pickerBtn,
+                    affordable
+                      ? { backgroundColor: sky(0.16), borderColor: sky(0.3) }
+                      : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Hire ${lob.name} for ${formatMoney(lob.cost)}`}
+                  accessibilityState={{ disabled: !affordable }}
+                >
+                  <Text style={[styles.pickerBtnText, { color: affordable ? SKY : theme.textMuted }]}>{formatMoney(lob.cost)}</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
+      </View>
+    );
+  };
+
+  // Form-alliance picker — political blocs the player can court (ALLIANCE_TARGETS),
+  // minus any already allied. No cash cost; grants a fixed influence ally.
+  const renderFormAlliance = () => {
+    const alliedIds = new Set(alliances.map((a) => a.characterId));
+    const available = ALLIANCE_TARGETS.filter((t) => !alliedIds.has(t.id));
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <View style={[getGlassCard(darkMode, 6), styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.cardHeadRow}>
+            <Users size={scale(15)} color={SKY} />
+            <Text style={[styles.cardHeadText, { color: theme.text }]}>Form an alliance</Text>
+          </View>
+          <Text style={[styles.cardSubText, { color: theme.textMuted }]}>
+            Allies lend you their influence (+{ALLIANCE_INFLUENCE} each) and a small approval bump. Court a bloc below.
+          </Text>
+        </View>
+        {available.length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>You&apos;ve allied with every available bloc.</EmptyText>
+        ) : (
+          available.map((t) => (
+            <View key={t.id} style={[getGlassCard(darkMode, 6), styles.rosterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+                <Users size={scale(17)} color={SKY} />
+              </View>
+              <View style={styles.pickerRowText}>
+                <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>{t.name}</Text>
+                <Text style={[styles.rosterMeta, { color: SKY }]} numberOfLines={1}>{t.role} · +{ALLIANCE_INFLUENCE} influence</Text>
+                <Text style={[styles.cardSubText, { color: theme.textMuted }]} numberOfLines={2}>{t.description}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleFormAlliance(t.id, t.name)}
+                activeOpacity={0.85}
+                style={[styles.pickerBtn, { backgroundColor: sky(0.16), borderColor: sky(0.3) }]}
+                accessibilityRole="button"
+                accessibilityLabel={`Form an alliance with ${t.name}`}
+              >
+                <Text style={[styles.pickerBtnText, { color: SKY }]}>Ally</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </View>
+    );
+  };
+
   const renderDetail = () => {
     if (!subView) return null;
     if (subView.kind === 'ladder') return renderLadderDetail();
     if (subView.kind === 'policy') return renderPolicyDetail(subView.id);
     if (subView.kind === 'lobbyist') return renderLobbyistDetail(subView.id);
+    if (subView.kind === 'hireLobbyist') return renderHireLobbyist();
+    if (subView.kind === 'formAlliance') return renderFormAlliance();
     return null;
   };
 
@@ -865,6 +1030,8 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     subView?.kind === 'ladder' ? 'Career Ladder'
     : subView?.kind === 'policy' ? 'Bill Detail'
     : subView?.kind === 'lobbyist' ? 'Lobbyist'
+    : subView?.kind === 'hireLobbyist' ? 'Hire Lobbyist'
+    : subView?.kind === 'formAlliance' ? 'Form Alliance'
     : 'Politics';
 
   return (
@@ -1668,6 +1835,21 @@ const styles = StyleSheet.create({
   rosterRight: { alignItems: 'flex-end', gap: 1 },
   rosterInfluence: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   rosterInfluenceLabel: { fontSize: responsiveFontSize.xs },
+
+  // --- Hire-lobbyist / form-alliance picker rows -------------------------
+  pickerRowText: { flex: 1, gap: scale(3) },
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.xs,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+    minHeight: touchTargets.minimum,
+  },
+  pickerBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   policyDesc: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   helperText: { fontSize: responsiveFontSize.xs, fontStyle: 'italic', lineHeight: responsiveFontSize.lg },

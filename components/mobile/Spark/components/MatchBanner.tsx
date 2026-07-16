@@ -6,7 +6,7 @@
  * after 1.6s or on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Flame, MessageCircle, X } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -21,14 +21,19 @@ const LinearGradient = LinearGradientFallback;
 interface MatchBannerProps {
   visible: boolean;
   partnerName: string;
+  /** Remote URI for the partner's photo (degrades to an initial on load fail). */
   partnerPhoto?: string;
+  /** Local image source (e.g. from getDatingProfileImage) — takes precedence
+   *  over `partnerPhoto` since dating profiles use bundled portrait assets, not
+   *  URIs. */
+  partnerPhotoSource?: ImageSourcePropType;
   playerPhoto?: string;
   onMessage: () => void;
   onDismiss: () => void;
 }
 
 export default function MatchBanner({
-  visible, partnerName, partnerPhoto, playerPhoto, onMessage, onDismiss,
+  visible, partnerName, partnerPhoto, partnerPhotoSource, playerPhoto, onMessage, onDismiss,
 }: MatchBannerProps) {
   const { theme } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -90,7 +95,11 @@ export default function MatchBanner({
         </Animated.View>
 
         <View style={styles.avatarWrap}>
-          <ImageWithFallback uri={partnerPhoto} fallback={partnerName} style={styles.avatar} />
+          {partnerPhotoSource ? (
+            <Image source={partnerPhotoSource} style={styles.avatar} />
+          ) : (
+            <ImageWithFallback uri={partnerPhoto} fallback={partnerName} style={styles.avatar} />
+          )}
         </View>
       </View>
 

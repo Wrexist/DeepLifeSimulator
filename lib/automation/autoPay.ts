@@ -13,7 +13,15 @@ export type AutoPayActionType =
   | 'pay_specific_loan'; // Pay specific loan
 
 /**
- * Execute auto-pay rule
+ * Execute auto-pay rule.
+ *
+ * IMPORTANT: this planner only computes intended amounts and records them to
+ * `automation.executionHistory`; it does NOT debit the player. The apply-site in
+ * GameActionsContext deliberately records auto-pay/renew to history only (loans
+ * are serviced by the weekly loan tick; bills have no debit path here). So the
+ * result messages use "Would pay …" intent framing, not "Paid …", to stay honest.
+ * TODO(flawless-audit): apply-site wiring — route these planned payments through a
+ * real debit at the (currently forbidden) apply-site so the framing can go past-tense.
  */
 export function executeAutoPay(
   rule: AutomationRule,
@@ -60,7 +68,7 @@ export function executeAutoPay(
     type: 'pay',
     executedAt: Date.now(),
     success: successCount > 0,
-    message: `Paid $${totalPaid.toLocaleString()} (${successCount} payments)`,
+    message: `Would pay $${totalPaid.toLocaleString()} (${successCount} payments)`,
     actionsTaken,
   };
 }
@@ -110,7 +118,7 @@ function executePayLoanMinimum(
   return {
     success: true,
     amount: totalMinimum,
-    message: `Paid $${totalMinimum.toLocaleString()} in minimum payments (${loans.length} loans)`,
+    message: `Would pay $${totalMinimum.toLocaleString()} in minimum payments (${loans.length} loans)`,
   };
 }
 
@@ -136,7 +144,7 @@ function executePayLoanFull(
   return {
     success: true,
     amount: totalBalance,
-    message: `Paid $${totalBalance.toLocaleString()} in full (${loans.length} loans)`,
+    message: `Would pay $${totalBalance.toLocaleString()} in full (${loans.length} loans)`,
   };
 }
 
@@ -182,7 +190,7 @@ function executePayBills(
   return {
     success: true,
     amount: totalBills,
-    message: `Paid $${totalBills.toLocaleString()} in weekly bills`,
+    message: `Would pay $${totalBills.toLocaleString()} in weekly bills`,
   };
 }
 
@@ -214,7 +222,7 @@ function executePaySpecificLoan(
   return {
     success: true,
     amount,
-    message: `Paid $${amount.toLocaleString()} on loan ${loanId}`,
+    message: `Would pay $${amount.toLocaleString()} on loan ${loanId}`,
   };
 }
 

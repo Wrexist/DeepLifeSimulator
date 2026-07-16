@@ -12,7 +12,16 @@ export type AutoRenewActionType =
   | 'renew_all'; // Renew all expiring items
 
 /**
- * Execute auto-renew rule
+ * Execute auto-renew rule.
+ *
+ * IMPORTANT: this planner only computes intended renewal costs and records them
+ * to `automation.executionHistory`; it does NOT charge the player or extend any
+ * subscription/insurance expiry. The apply-site in GameActionsContext records
+ * auto-renew to history only. So the result messages use "Would renew …" intent
+ * framing, not "Renewed …", to stay honest.
+ * TODO(flawless-audit): apply-site wiring — actually debit the cost and push out
+ * the expiry week at the (currently forbidden) apply-site so the framing can go
+ * past-tense.
  */
 export function executeAutoRenew(
   rule: AutomationRule,
@@ -58,7 +67,7 @@ export function executeAutoRenew(
     type: 'renew',
     executedAt: Date.now(),
     success: successCount > 0,
-    message: `Renewed ${successCount} items ($${totalCost.toLocaleString()})`,
+    message: `Would renew ${successCount} items ($${totalCost.toLocaleString()})`,
     actionsTaken,
   };
 }
@@ -100,7 +109,7 @@ function executeRenewSubscription(
   return {
     success: true,
     amount: cost,
-    message: `Renewed subscription ${subscriptionId || 'default'} ($${cost.toLocaleString()})`,
+    message: `Would renew subscription ${subscriptionId || 'default'} ($${cost.toLocaleString()})`,
   };
 }
 
@@ -121,7 +130,7 @@ function executeRenewInsurance(
   return {
     success: true,
     amount: cost,
-    message: `Renewed ${insuranceType} insurance ($${cost.toLocaleString()})`,
+    message: `Would renew ${insuranceType} insurance ($${cost.toLocaleString()})`,
   };
 }
 
@@ -161,7 +170,7 @@ function executeRenewAll(
   return {
     success: true,
     amount: totalCost,
-    message: `Renewed ${renewedCount} expiring items ($${totalCost.toLocaleString()})`,
+    message: `Would renew ${renewedCount} expiring items ($${totalCost.toLocaleString()})`,
   };
 }
 

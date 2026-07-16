@@ -10,10 +10,15 @@
  *      cyclic field, migrated lazily here).
  *   2. Miner durability degradation — each miner type loses
  *      `preRolls.minerDegradation` (2-5%) durability per week, floored at 0.
- *   3. Auto-repair — when enabled AND the player has enough of
- *      `autoRepairCryptoId`, all miners under 50% durability are repaired
- *      to 100% and the weekly cost is "spent" (cost deduction itself
- *      happens in the cryptos pass — step 2.6-ii-A — not here).
+ *   3. Auto-repair — when enabled, miners under 50% durability are repaired
+ *      in a fixed cheapest-first order, BUDGETED by what the funding coin
+ *      (`autoRepairCryptoId`) can actually pay (owned × price, in USD). A rig
+ *      the budget can't fully cover is partially restored to consume exactly
+ *      the remaining budget, then repair stops. This is the anti-exploit fix:
+ *      the old code restored the whole fleet to 100% on a dust balance. The
+ *      crypto itself is debited in the cryptos pass (step 2.6-ii-A / M-6),
+ *      which reads the same funding coin and post-degradation durability, so
+ *      USD-restored here equals USD-charged there (min(fleet cost, budget)).
  *
  * Pure function. No React, no ctx mutation, no notifications, no logger.
  *
@@ -60,6 +65,11 @@ export const MINER_REPAIR_COSTS: Record<string, number> = {
   tera: 2500000,
 };
 
+// Deterministic auto-repair order (cheapest tier first). Iterating a FIXED list
+// — instead of `Object.keys(warehouse.miners)` (insertion-order, save-dependent)
+// — makes "which rigs get repaired when the funding coin is short" reproducible.
+const MINER_TIER_ORDER = ['basic', 'advanced', 'pro', 'industrial', 'quantum', 'mega', 'giga', 'tera'];
+
 export function applyMiningWarehouse(input: MiningWarehouseInput): MiningWarehouseResult {
   if (!input.prevWarehouse) return { updatedWarehouse: input.prevWarehouse };
   const warehouse = input.prevWarehouse;
@@ -94,36 +104,50 @@ export function applyMiningWarehouse(input: MiningWarehouseInput): MiningWarehou
   });
 
   // Handle auto-repair if enabled.
+  //
+  // EXPLOIT FIX (auto-repair free durability): the old gate was
+  // `repairCrypto.owned >= autoRepairWeeklyCost`, where `autoRepairWeeklyCost` is a
+  // dust floor (0.0001). So ANY dust balance of the funding coin restored the ENTIRE
+  // sub-50% fleet to 100% — while the crypto charge (applyMiningCryptos, capped at
+  // `owned`) only ever took what the coin held. Net: a fully repaired million-dollar
+  // fleet for pennies. Now the durability restore is BUDGETED by what the funding
+  // coin can actually pay (owned × price, in USD): repair rigs cheapest-first, and
+  // when the budget can't cover a rig, PARTIALLY restore it to consume exactly the
+  // remaining budget, then stop. The USD worth restored therefore equals the USD the
+  // charge drains (min(fleetCost, budget)) — so the fleet can never be repaired for
+  // more than the coin pays. The crypto is debited in applyMiningCryptos (M-6),
+  // which reads the same funding coin / post-degradation durability.
   if (warehouse.autoRepairEnabled && warehouse.autoRepairCryptoId && warehouse.autoRepairWeeklyCost) {
     const repairCrypto = input.prevCryptos.find((c) => c.id === warehouse.autoRepairCryptoId);
-    if (repairCrypto && repairCrypto.owned >= warehouse.autoRepairWeeklyCost) {
-      // Auto-repair: repair all miners under 50% health.
-      let totalRepairCost = 0;
-      Object.keys(warehouse.miners).forEach((minerId) => {
-        const currentDurability = updatedDurability[minerId] ?? 100;
-        if (currentDurability < 50) {
-          const baseRepairCost = MINER_REPAIR_COSTS[minerId] || 0;
-          const healthToRestore = 100 - currentDurability;
-          const repairCost = (baseRepairCost * (healthToRestore / 100)) * (warehouse.miners[minerId] || 0);
-          totalRepairCost += repairCost;
-          updatedDurability[minerId] = 100; // Repair to 100%.
-        }
-      });
+    const coinOwned = repairCrypto && Number.isFinite(repairCrypto.owned) && repairCrypto.owned > 0 ? repairCrypto.owned : 0;
+    const coinPrice = repairCrypto && Number.isFinite(repairCrypto.price) && repairCrypto.price > 0 ? repairCrypto.price : 0;
+    let remainingBudgetUsd = coinPrice > 0 ? coinOwned * coinPrice : 0;
 
-      // Convert repair cost to crypto (assuming $1 = 1 crypto unit for simplicity).
-      // In reality, we should use the crypto price, but for now use the weekly cost.
-      if (totalRepairCost > 0 && repairCrypto.owned >= warehouse.autoRepairWeeklyCost) {
-        // Deduct the weekly cost (which covers repairs).
-        return {
-          updatedWarehouse: {
-            ...warehouse,
-            minerDurability: updatedDurability,
-            difficultyMultiplier,
-            // P0-12: store the absolute week, not the cyclic 1-4 value.
-            lastDifficultyUpdate: currentAbsoluteWeek,
-            lastDifficultyUpdateAbsoluteWeek: nextDifficultyUpdateAbsoluteWeek,
-          },
-        };
+    if (remainingBudgetUsd > 0) {
+      for (const minerId of MINER_TIER_ORDER) {
+        if (remainingBudgetUsd <= 0) break;
+        const count = warehouse.miners[minerId] || 0;
+        if (count <= 0) continue;
+        const currentDurability = updatedDurability[minerId] ?? 100;
+        if (currentDurability >= 50) continue; // only rigs under 50% qualify
+
+        const baseRepairCost = MINER_REPAIR_COSTS[minerId] || 0;
+        const healthToRestore = 100 - currentDurability;
+        const fullCost = baseRepairCost * (healthToRestore / 100) * count;
+        if (fullCost <= 0) continue;
+
+        if (remainingBudgetUsd >= fullCost) {
+          // Coin covers this rig fully.
+          updatedDurability[minerId] = 100;
+          remainingBudgetUsd -= fullCost;
+        } else {
+          // Coin is short: restore only the fraction the remaining budget buys,
+          // consuming the budget exactly, then stop (deterministic tier order).
+          const fraction = remainingBudgetUsd / fullCost;
+          updatedDurability[minerId] = Math.min(100, currentDurability + healthToRestore * fraction);
+          remainingBudgetUsd = 0;
+          break;
+        }
       }
     }
   }

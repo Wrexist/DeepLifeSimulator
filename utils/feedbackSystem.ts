@@ -43,10 +43,7 @@ export class FeedbackSystem {
   static AnimationTypes = {
     bounce: 'bounce',
     shake: 'shake',
-    pulse: 'pulse',
-    glow: 'glow',
     scale: 'scale',
-    fade: 'fade',
   } as const;
 
   // Configure feedback settings
@@ -170,17 +167,8 @@ export class FeedbackSystem {
       case 'shake':
         this.shakeAnimation(animatedValue, duration, delay, loop);
         break;
-      case 'pulse':
-        this.pulseAnimation(animatedValue, duration, delay, loop);
-        break;
-      case 'glow':
-        this.glowAnimation(animatedValue, duration, delay, loop);
-        break;
       case 'scale':
         this.scaleAnimation(animatedValue, duration, delay, loop);
-        break;
-      case 'fade':
-        this.fadeAnimation(animatedValue, duration, delay, loop);
         break;
     }
   }
@@ -250,62 +238,6 @@ export class FeedbackSystem {
     }
   }
 
-  private pulseAnimation(
-    animatedValue: Animated.Value,
-    duration: number,
-    _delay: number,
-    loop: boolean
-  ) {
-    const animation = Animated.sequence([
-      Animated.timing(animatedValue, {
-        toValue: 1.1,
-        duration: duration / 2,
-        useNativeDriver: true,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: duration / 2,
-        useNativeDriver: true,
-        easing: Easing.inOut(Easing.ease),
-      }),
-    ]);
-
-    if (loop) {
-      Animated.loop(animation).start();
-    } else {
-      animation.start();
-    }
-  }
-
-  private glowAnimation(
-    animatedValue: Animated.Value,
-    duration: number,
-    _delay: number,
-    loop: boolean
-  ) {
-    const animation = Animated.sequence([
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: duration / 2,
-        useNativeDriver: false,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      Animated.timing(animatedValue, {
-        toValue: 0,
-        duration: duration / 2,
-        useNativeDriver: false,
-        easing: Easing.inOut(Easing.ease),
-      }),
-    ]);
-
-    if (loop) {
-      Animated.loop(animation).start();
-    } else {
-      animation.start();
-    }
-  }
-
   private scaleAnimation(
     animatedValue: Animated.Value,
     duration: number,
@@ -324,34 +256,6 @@ export class FeedbackSystem {
         duration: duration / 2,
         useNativeDriver: true,
         easing: Easing.in(Easing.quad),
-      }),
-    ]);
-
-    if (loop) {
-      Animated.loop(animation).start();
-    } else {
-      animation.start();
-    }
-  }
-
-  private fadeAnimation(
-    animatedValue: Animated.Value,
-    duration: number,
-    _delay: number,
-    loop: boolean
-  ) {
-    const animation = Animated.sequence([
-      Animated.timing(animatedValue, {
-        toValue: 0,
-        duration: duration / 2,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.ease),
-      }),
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: duration / 2,
-        useNativeDriver: true,
-        easing: Easing.in(Easing.ease),
       }),
     ]);
 

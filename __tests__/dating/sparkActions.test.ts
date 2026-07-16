@@ -20,6 +20,7 @@ import {
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import { calculateMatchProbability } from '@/lib/dating/sparkLogic';
 
 function freshState(overrides: Partial<GameState> = {}): GameState {
   const s = createTestGameState(overrides);
@@ -250,6 +251,27 @@ describe('boost / catfish / jealousy', () => {
     expect(getState().sparkApp!.boost!.active).toBe(true);
     expect(getState().sparkApp!.boost!.expiresWeek).toBe(6);
     expect(getState().stats.gems).toBe(150);
+  });
+
+  it('boostProfile grants immediate "liked you" entries so free players see a payoff', () => {
+    const state = freshState({ weeksLived: 5 });
+    state.stats.gems = 200;
+    state.sparkApp!.likedYou = [];
+    const before = state.sparkApp!.likedYou.length;
+    const { setGameState, getState } = makeHarness(state);
+    boostProfile(setGameState, state);
+    expect(getState().sparkApp!.likedYou.length).toBe(before + 3);
+  });
+
+  it('an active boost lifts match probability for a free-tier player (not a no-op)', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.reputation = 40;
+    const profile = DATING_PROFILES[0];
+    // Free tier: perks.boostMultiplier is 1.0, so a naive `?? 1.5` no-op'd.
+    const withoutBoost = calculateMatchProbability(state, profile);
+    const boosted = { ...state, sparkApp: { ...state.sparkApp!, boost: { active: true, expiresWeek: 2 } } };
+    const withBoost = calculateMatchProbability(boosted, profile);
+    expect(withBoost).toBeGreaterThan(withoutBoost);
   });
 
   it('reportProfile adds id and unmatches', () => {

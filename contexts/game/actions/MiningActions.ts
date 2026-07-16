@@ -208,20 +208,41 @@ export function calculateMiningEarnings(
     return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0 };
   }
 
-  // Base crypto earnings per miner type (in crypto, not dollars)
-  // These represent weekly crypto amounts earned directly
-  const cryptoEarningsPerMiner: Record<string, number> = {
-    basic: 0.0005,      // ~$22 worth at BTC price
-    advanced: 0.0024,   // ~$105 worth
-    pro: 0.01,          // ~$438 worth
-    industrial: 0.036,  // ~$1575 worth
-    quantum: 0.16,      // ~$7000 worth
-    mega: 0.8,          // ~$35000 worth
-    giga: 3.2,          // ~$140000 worth
-    tera: 16.0,         // ~$700000 worth
+  // Per-tier TARGET weekly USD yield — the "BTC-equivalent" figures the old fixed
+  // crypto-unit table encoded (basic ~$22 … tera ~$700K).
+  //
+  // ALT-COIN FIX: the table used to hold fixed CRYPTO units (e.g. basic 0.0005)
+  // calibrated to BTC's price, then multiplied by the coin's low USD price. So a
+  // basic miner earned 0.0005 × price: ~$22 on BTC, but ~$1 on ETH and effectively
+  // $0 on SOL/XRP/ADA/DOT/MATIC — the target picker was BTC-or-nothing. Instead,
+  // hold the target in USD and derive each coin's base units INVERSELY to its price
+  // (units = targetUSD / price). Then base_units × price = targetUSD for EVERY coin
+  // (100% of the BTC-equivalent band) BEFORE the per-coin multiplier below applies
+  // the intended balance lever — so alts land in a sane band instead of ~$0.
+  const targetWeeklyUsdPerMiner: Record<string, number> = {
+    basic: 22,
+    advanced: 105,
+    pro: 438,
+    industrial: 1575,
+    quantum: 7000,
+    mega: 35000,
+    giga: 140000,
+    tera: 700000,
   };
+  // Normalize base crypto units to the selected coin's price. A corrupt/zero price
+  // falls back to 1 so we never divide by zero or mint Infinity units.
+  const safeCoinPrice = typeof crypto.price === 'number' && isFinite(crypto.price) && crypto.price > 0 ? crypto.price : 1;
+  const cryptoEarningsPerMiner: Record<string, number> = Object.entries(targetWeeklyUsdPerMiner).reduce(
+    (acc, [tier, usd]) => {
+      acc[tier] = usd / safeCoinPrice;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  // Crypto mining difficulty multipliers (affect crypto earned directly)
+  // Per-coin balance lever (applied AFTER the price normalization above). BTC is
+  // the reference (1.0); alts pay a fraction, but of a normalized USD base now, so
+  // e.g. XRP lands at ~10% of the BTC USD yield rather than a rounding error.
   const cryptoMiningMultipliers: Record<string, number> = {
     'btc': 1.0,
     'eth': 0.8,

@@ -24,6 +24,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { composePost, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
+import { getEnergyCost } from '@/lib/social/socialMedia';
 import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseContentType, PulseActiveBrandDeal } from '@/contexts/game/types';
@@ -69,11 +70,13 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
   const remaining = maxLength - content.length;
   const overLimit = remaining < 0;
 
-  // Energy preview — composePost charges 5 energy; show ⚡N → N-5 so the
-  // player isn't surprised by a "Need at least 5 energy" error post-tap.
+  // Energy preview — composePost charges getEnergyCost(contentType) (text 15 /
+  // photo 20 / video 40 / story 12), NOT a flat 5. Show ⚡N · −cost for the
+  // selected type so the player isn't surprised by a "not enough energy" error
+  // post-tap, and disable Post when they can't afford the real cost.
   const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
-  const POST_ENERGY_COST = 5;
-  const lowEnergy = currentEnergy < POST_ENERGY_COST;
+  const postEnergyCost = getEnergyCost(contentType);
+  const lowEnergy = currentEnergy < postEnergyCost;
 
   const hashtags = useMemo(
     () => hashtagsRaw
@@ -100,27 +103,21 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
     }
     const r = composePost(setGameState, gameState, { content, contentType, hashtags });
     if (r.success) {
-      // If the player chose to sponsor a deal, tag the freshly-composed post.
-      // composePost prepends to recentPosts, so the new id is at index 0 of
-      // the next state read — we use setGameState's most-recent value inside
-      // deliverBrandDealPost via its closure over the same state machine.
-      if (sponsorDealId) {
-        // Defer to a microtask so composePost's setGameState has flushed and
-        // the new post is visible. React batches synchronous updaters, so
-        // a Promise.resolve().then is enough on RN.
-        Promise.resolve().then(() => {
-          // Read the latest post id at call time via a setGameState peek.
-          setGameState((prev: any) => {
-            const latest = prev.socialMedia?.recentPosts?.[0];
-            if (latest?.id) {
-              deliverBrandDealPost(setGameState, sponsorDealId, latest.id);
-            }
-            return prev;
-          });
-        });
+      // If the player chose to sponsor a deal, tag the freshly-composed post as
+      // its delivery. composePost returns the new post's id, so we call
+      // deliverBrandDealPost DIRECTLY (a normal action call) with r.postId.
+      // The old code ran that dispatch INSIDE a setGameState updater that
+      // returned `prev` — an impure updater with a side-effect. React 19
+      // StrictMode double-invokes updaters, so postsDelivered was incremented
+      // twice, and the synchronous save above the dispatch never captured the
+      // completion payout. A direct call fixes both.
+      if (sponsorDealId && r.postId) {
+        deliverBrandDealPost(setGameState, sponsorDealId, r.postId);
       }
       pulseHaptics.success();
-      saveGame?.();
+      // Persist AFTER the commit (post-commit ref-sync pattern) so the delivery
+      // + any completion payout are saved, not the pre-action snapshot.
+      setTimeout(() => { void saveGame?.(); }, 0);
       reset();
       onDismiss();
     } else {
@@ -162,9 +159,9 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
                     borderColor: lowEnergy ? PULSE_COLORS.danger : theme.border,
                   },
                 ]}
-                accessibilityLabel={`Energy ${currentEnergy}, costs ${POST_ENERGY_COST} to post`}
+                accessibilityLabel={`Energy ${currentEnergy}, costs ${postEnergyCost} to post a ${contentType}`}
               >
-                ⚡ {currentEnergy} · −{POST_ENERGY_COST}
+                ⚡ {currentEnergy} · −{postEnergyCost}
               </Text>
             </View>
             <Pressable

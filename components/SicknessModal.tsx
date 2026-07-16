@@ -16,6 +16,7 @@ import { useGame, useItemActions } from '@/contexts/game';
 import type { Disease } from '@/contexts/game/types';
 import { styles } from '@/components/SicknessModalStyles';
 import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
+import { DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS, isManageableDisease } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
 const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
@@ -238,8 +239,8 @@ function SicknessModal() {
         recommendations.push('Hospital stay guarantees cure but costs more');
       }
     } else {
-      recommendations.push('This disease is not curable but can be managed');
-      recommendations.push('Regular doctor visits can help manage symptoms');
+      recommendations.push('This condition is chronic — it cannot be cured, but treatment keeps it managed.');
+      recommendations.push(`While managed (doctor visit: ${DOCTOR_MANAGEMENT_WEEKS} weeks, hospital stay: ${HOSPITAL_MANAGEMENT_WEEKS} weeks), symptoms are halved and the condition cannot worsen.`);
     }
 
     if ('naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number') {
@@ -466,6 +467,10 @@ function SicknessModal() {
                   const naturalRecoveryWeeks = 'naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number' ? disease.naturalRecoveryWeeks : null;
                   const contractedWeek = 'contractedWeek' in disease && typeof disease.contractedWeek === 'number' ? disease.contractedWeek : null;
                   const isUrgent = weeksUntilDeath !== null && weeksUntilDeath <= 4;
+                  const manageable = isManageableDisease(disease);
+                  const managedWeeksLeft = manageable && typeof disease.managedUntilWeek === 'number'
+                    ? Math.max(0, disease.managedUntilWeek - (gameState.weeksLived || 0))
+                    : 0;
 
                   return (
                     <View key={index} style={styles.diseaseCardWrapper}>
@@ -613,6 +618,32 @@ function SicknessModal() {
                             >
                               <Text style={[styles.curableText, darkMode && styles.curableTextDark]}>
                                 ✓ Curable - Visit a doctor or hospital
+                              </Text>
+                            </LinearGradient>
+                          </View>
+                        )}
+
+                        {/* Chronic-care status: managed (green, weeks left) vs
+                            unmanaged (amber call-to-action). Only for
+                            non-curable, treatment-requiring conditions. */}
+                        {manageable && (
+                          <View style={styles.curableBadge}>
+                            <LinearGradient
+                              colors={managedWeeksLeft > 0
+                                ? (darkMode ? ['rgba(16, 185, 129, 0.3)', 'rgba(5, 150, 105, 0.4)'] : ['rgba(240, 253, 244, 0.8)', 'rgba(220, 252, 231, 0.9)'])
+                                : (darkMode ? ['rgba(245, 158, 11, 0.3)', 'rgba(217, 119, 6, 0.4)'] : ['rgba(255, 251, 235, 0.8)', 'rgba(254, 243, 199, 0.9)'])}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.curableBadgeGradient}
+                            >
+                              <Text style={[
+                                styles.curableText,
+                                darkMode && styles.curableTextDark,
+                                managedWeeksLeft <= 0 && { color: darkMode ? '#FCD34D' : '#B45309' },
+                              ]}>
+                                {managedWeeksLeft > 0
+                                  ? `✓ Managed — ${managedWeeksLeft} week${managedWeeksLeft !== 1 ? 's' : ''} of care remaining`
+                                  : '⚠ Unmanaged — visit a doctor to manage symptoms'}
                               </Text>
                             </LinearGradient>
                           </View>

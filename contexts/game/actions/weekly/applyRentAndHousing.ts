@@ -42,6 +42,10 @@ import type { WeekContext } from './weekContext';
 /** Newest-40 cap for the persisted portfolio activity slice (matches the migration). */
 const ACTIVITY_CAP = 40;
 
+/** Coerce a possibly-missing/corrupt numeric field to a finite number (else `fb`). */
+const safe = (n: number | undefined, fb = 0): number =>
+  typeof n === 'number' && isFinite(n) ? n : fb;
+
 /** Derive a short `kind` tag for an activity entry from the tick notification id. */
 function activityKind(noteId: string): string {
   if (noteId.startsWith('re-cycle-')) return 'cycle';
@@ -78,7 +82,9 @@ export function applyRentAndHousing(
   let weeklyRent = 0;
   (prevRealEstate || []).forEach((property) => {
     if ('status' in property && property.status === 'rented' && !property.owned) {
-      const rent = Math.round(property.price * PLAYER_RENT_RATE_WEEKLY);
+      // Guard property.price: a non-numeric/corrupt price would make `rent` NaN,
+      // which then poisons weeklyRent → cashAfterIncomeAndRent → stats.money.
+      const rent = Math.round(safe(property.price) * PLAYER_RENT_RATE_WEEKLY);
       weeklyRent += rent;
     }
   });

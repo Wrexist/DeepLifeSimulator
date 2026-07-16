@@ -157,11 +157,18 @@ const MAX_MEMORIES = 20;
  */
 export function addMemory(
  existing: NPCMemory[],
- memory: Omit<NPCMemory, 'id'>
+ memory: Omit<NPCMemory, 'id'>,
+ /**
+  * Optional deterministic id factory. The seeded weekly tick threads one in
+  * (derived from the weekly roll) so reloads / StrictMode double-invoke produce
+  * byte-identical memory ids. Live actions (Contacts/Dating) omit it and keep
+  * the unique wall-clock + random id so concurrent user actions never collide.
+  */
+ makeId?: () => string
 ): NPCMemory[] {
  const newMemory: NPCMemory = {
  ...memory,
- id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+ id: makeId ? makeId() : `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
  };
  const updated = [...existing, newMemory];
  // Keep only most recent
@@ -312,6 +319,8 @@ export function applyNPCLifeEvent(
  relationship: Relationship,
  event: NPCLifeEvent,
  weeksLived: number,
+ /** Deterministic memory-id factory threaded from the seeded weekly tick. */
+ makeMemoryId?: () => string,
 ): Relationship {
  const updated = { ...relationship };
  const effects = event.effects;
@@ -345,7 +354,8 @@ export function applyNPCLifeEvent(
  description: event.description.replace('{name}', relationship.name),
  weeksLived,
  sentiment: effects.mood === 'happy' ? 'positive' : effects.mood === 'sad' || effects.mood === 'angry' ? 'negative' : 'neutral',
- }
+ },
+ makeMemoryId,
  );
 
  return updated;
@@ -508,6 +518,8 @@ export function applyWantProgress(
 export function rotateWantIfDue(
  rel: Relationship,
  weeksLived: number,
+ /** Deterministic memory-id factory threaded from the seeded weekly tick. */
+ makeMemoryId?: () => string,
 ): { rel: Relationship; notification?: string } {
  const want = rel.npcWant;
  // First encounter — assign a want, no cost.
@@ -532,7 +544,7 @@ export function rotateWantIfDue(
  description: `You gave ${rel.name} space when they needed it`,
  weeksLived,
  sentiment: 'positive',
- });
+ }, makeMemoryId);
  }
  } else if (want.satisfiedCount <= 0 && !interactedDuringCycle) {
  // A needy want, left entirely unmet AND ignored → a small, remembered slight.
@@ -543,7 +555,7 @@ export function rotateWantIfDue(
  description: `You never made time when ${rel.name} wanted ${WANT_SHORT[want.id]}`,
  weeksLived,
  sentiment: 'negative',
- });
+ }, makeMemoryId);
  notification = `${rel.name} felt a little neglected lately.`;
  }
 
@@ -758,7 +770,10 @@ export function processWeeklyNPCDepth(
  // Roll for life events — seeded per NPC so it's deterministic/resume-safe.
  const event = rollNPCLifeEvent(r, (k) => weeklyRoll(`${k}:${r.id}`));
  if (event) {
- r = applyNPCLifeEvent(r, event, weeksLived);
+ // Deterministic memory id from the weekly roll so reloads / StrictMode
+ // double-invoke stay byte-identical (was Date.now()/Math.random()).
+ const lifeEventMemId = `mem_${weeksLived}_${r.id}_${event.id}`;
+ r = applyNPCLifeEvent(r, event, weeksLived, () => lifeEventMemId);
  notifications.push(event.description.replace('{name}', r.name));
  }
 
@@ -801,7 +816,7 @@ export function processWeeklyNPCDepth(
  // Rotate the current WANT (init on first encounter; every WANT_ROTATION_WEEKS
  // after). A needy want left unmet AND ignored costs a little bond + a memory;
  // honouring a "space" want is quietly rewarded.
- const wantResult = rotateWantIfDue(r, weeksLived);
+ const wantResult = rotateWantIfDue(r, weeksLived, () => `mem_${weeksLived}_${r.id}_want`);
  r = wantResult.rel;
  if (wantResult.notification) notifications.push(wantResult.notification);
 

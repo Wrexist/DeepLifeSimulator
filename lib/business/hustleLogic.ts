@@ -19,6 +19,8 @@ import type {
   HustleHire,
   HustleAcquisitionOffer,
   HustleIndustry,
+  HustleBoardMember,
+  HustleSupplier,
 } from '@/contexts/game/types';
 
 // ── Candidate generation ─────────────────────────────────────────────────
@@ -52,17 +54,36 @@ function seededRand(seed: string): number {
 /**
  * Generate a deterministic batch of candidates for a company, seeded by
  * `(companyId, weeksLived)` so re-renders / StrictMode reuse the same list.
+ *
+ * `excludeIds` drops any candidate whose deterministic id is already in use —
+ * pass the company's already-hired candidateIds so Refresh can't keep re-emitting
+ * a person you already hired (which let hire → Refresh → hire-same-person repeat
+ * unboundedly). Skipped indices advance to the next unused slot, keeping every
+ * emitted candidate's id + attributes stable/deterministic.
  */
 export function generateCandidates(
   companyId: string,
   weeksLived: number,
   count: number = 3,
+  excludeIds: readonly string[] = [],
+  nonce: number = 0,
 ): HustleCandidate[] {
   const out: HustleCandidate[] = [];
+  const exclude = new Set(excludeIds);
   const roles: HustleCandidateRole[] = ['engineer', 'sales', 'manager', 'designer', 'analyst', 'operations'];
 
-  for (let i = 0; i < count; i++) {
-    const seed = `hustle-candidate|${companyId}|${weeksLived}|${i}`;
+  // A per-open reroll `nonce` mixes into both the id and the seed so tapping
+  // Refresh within the same game week yields a genuinely different set (not the
+  // same 3 people), while staying deterministic for a given (company, week,
+  // nonce). nonce 0 preserves the original ids/values exactly (backward compat).
+  const rerollTag = nonce ? `-r${nonce}` : '';
+
+  // Advance the index past any excluded (already-hired) slots. The cap is a
+  // safety bound so a pathological excludeIds set can never spin forever.
+  for (let i = 0; out.length < count && i < count + exclude.size + 8; i++) {
+    const id = `cand-${companyId}-${weeksLived}${rerollTag}-${i}`;
+    if (exclude.has(id)) continue;
+    const seed = `hustle-candidate|${companyId}|${weeksLived}${rerollTag}|${i}`;
     const r1 = seededRand(seed);
     const r2 = seededRand(seed + 'a');
     const r3 = seededRand(seed + 'b');
@@ -76,7 +97,7 @@ export function generateCandidates(
     const signOnBonus = skill > 70 ? Math.floor(salaryAsk * 4) : undefined;
 
     out.push({
-      id: `cand-${companyId}-${weeksLived}-${i}`,
+      id,
       name: `${FIRST_NAMES[Math.floor(r2 * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(r3 * LAST_NAMES.length)]}`,
       role,
       skill,
@@ -134,6 +155,59 @@ export function projectCampaignROI(
 
 export function brandLiftForCampaign(kind: HustleCampaignKind): number {
   return CAMPAIGN_EFFICIENCY[kind].brandLift;
+}
+
+// Weekly realized-ROI variance band, as a multiplier on a campaign's PROJECTED
+// ROI. The projected number is an optimistic ceiling-ish flavor figure; the
+// actual weekly return is a seeded gamble around it so marketing is never a
+// guaranteed printer. Mean multiplier = 0.6, which pulls the EXPECTED realized
+// ROI below the break-even point of 2.0 even for the highest-ROI kind:
+//   guerrilla  projected 3.2 → mean realized ~1.92 → expected weekly net ≈ −0.08×spend
+//   influencer projected 2.6 → mean realized ~1.56 → expected weekly net ≈ −0.44×spend
+//   social     projected 2.2 → mean realized ~1.32 → expected weekly net ≈ −0.68×spend
+// (net per week = spend × (realizedROI − 2), since spend is paid then lift =
+// spend × (realizedROI − 1) is credited). Good weeks still pay out handsomely
+// (guerrilla can realize up to ~3.36 → +1.36×spend), so campaigns stay a fun,
+// brand-building gamble with real downside instead of free money.
+export const CAMPAIGN_ROI_VARIANCE_MIN = 0.15;
+export const CAMPAIGN_ROI_VARIANCE_MAX = 1.05;
+
+/**
+ * Well-mixed string → [0, 1) hash (xmur3 avalanche + a finalizing mix). Unlike
+ * the lightweight `seededRand` above, this spreads *sequentially incrementing*
+ * seeds (`...|week=1`, `...|week=2`, …) uniformly across the unit interval, so a
+ * campaign's realized ROI genuinely varies week to week instead of clustering
+ * near one value per id. Used only for the campaign gamble; `seededRand` is left
+ * untouched so scandal / candidate / earnings determinism is unchanged.
+ */
+function mixedRoll01(seed: string): number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * The ROI a campaign actually realizes for a given week. Deterministic — seeded
+ * by campaign id + week (no Math.random / wall clock) so the weekly tick stays
+ * reproducible. Applies a uniform variance multiplier in
+ * [CAMPAIGN_ROI_VARIANCE_MIN, CAMPAIGN_ROI_VARIANCE_MAX] to the projected ROI.
+ * Can dip well below break-even (losing week) or spike above it (windfall).
+ */
+export function realizedCampaignROI(
+  campaignId: string,
+  projectedROI: number,
+  weeksLived: number,
+): number {
+  const safeProjected = isFinite(projectedROI) && projectedROI > 0 ? projectedROI : 0;
+  const roll = mixedRoll01(`hustle-campaign-roi|${campaignId}|${weeksLived}`);
+  const mult = CAMPAIGN_ROI_VARIANCE_MIN + roll * (CAMPAIGN_ROI_VARIANCE_MAX - CAMPAIGN_ROI_VARIANCE_MIN);
+  return Math.max(0, safeProjected * mult);
 }
 
 export function campaignCostFloor(kind: HustleCampaignKind): number {
@@ -359,6 +433,95 @@ export function createDefaultCompanyOverlay(
     marketSharePercent: 5,
     notifications: [],
   };
+}
+
+// ── Board & supplier seeding ─────────────────────────────────────────────
+
+const BOARD_ROLE_ORDER: HustleBoardMember['role'][] = [
+  'chair', 'lead_investor', 'cfo', 'cto', 'cmo', 'independent',
+];
+const BOARD_ALIGNMENTS: HustleBoardMember['alignment'][] = [
+  'aggressive_growth', 'cost_cutting', 'employee_focused', 'shareholder_focused',
+];
+
+/**
+ * Deterministic board roster for a public company, seeded by (companyId,
+ * seedWeek) — no Math.random, so re-renders and reloads reproduce the same 3-5
+ * directors. Roles are drawn distinctly from BOARD_ROLE_ORDER (chair first), and
+ * every display field (name/role/votingShare/alignment/satisfaction) is filled.
+ * Used to seed on IPO, or to lazily derive when a public company carries no
+ * stored board (the CompanyDetailScreen "Board of directors" section reads this).
+ */
+export function generateBoardSeats(
+  companyId: string,
+  seedWeek: number,
+  count?: number,
+): HustleBoardMember[] {
+  const base = `hustle-board|${companyId}|${seedWeek}`;
+  const n = count ?? 3 + Math.floor(seededRand(base + '|count') * 3); // 3-5
+  const seats: HustleBoardMember[] = [];
+  for (let i = 0; i < n; i++) {
+    const seed = `${base}|${i}`;
+    const r1 = seededRand(seed);
+    const r2 = seededRand(seed + 'a');
+    const r3 = seededRand(seed + 'b');
+    const role = BOARD_ROLE_ORDER[Math.min(i, BOARD_ROLE_ORDER.length - 1)];
+    const votingShare = role === 'chair' ? 9 + r1 * 6 : 3 + r3 * 6; // chair 9-15%, others 3-9%
+    seats.push({
+      id: `board-${companyId}-${seedWeek}-${i}`,
+      name: `${FIRST_NAMES[Math.floor(r1 * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(r3 * LAST_NAMES.length)]}`,
+      role,
+      votingShare: Number(votingShare.toFixed(1)),
+      alignment: BOARD_ALIGNMENTS[Math.floor(r2 * BOARD_ALIGNMENTS.length)],
+      satisfaction: Math.floor(45 + r1 * 45), // 45-90
+    });
+  }
+  return seats;
+}
+
+const SUPPLIER_NAMES: Record<HustleIndustry, string[]> = {
+  factory: ['Steel & Sons Supply', 'Precision Components Co.', 'BulkRaw Logistics', 'Forge Parts Ltd.'],
+  ai: ['CloudCore Compute', 'DataStream Providers', 'SiliconEdge Chips', 'ModelHost Infra'],
+  restaurant: ['FreshField Produce', 'Harbor Seafood Co.', 'Prime Meats Supply', 'DailyBread Distributors'],
+  realestate: ['BuildRight Contractors', 'Skyline Materials', 'Metro Fixtures Co.', 'Cornerstone Concrete'],
+  bank: ['SecureLedger Systems', 'ComplyTech Services', 'VaultGuard Security', 'DataTrust Providers'],
+};
+
+/**
+ * Deterministic supplier roster for a company, seeded by companyId (stable
+ * across weeks — no Math.random) so a founded company always shows the same 2-4
+ * vendors. costPerWeek scales gently with the company's weekly income (falling
+ * back to a flat band when income is unknown); reliability is 60-95. Derived
+ * suppliers are month-to-month (contractEndWeek undefined) so the "Xw contract"
+ * display never drifts negative as weeks pass. Used to seed on founding, or to
+ * lazily derive when a company carries no stored suppliers.
+ */
+export function generateSuppliers(
+  companyId: string,
+  industry: HustleIndustry,
+  weeklyIncome: number = 0,
+  count?: number,
+): HustleSupplier[] {
+  const base = `hustle-supplier|${companyId}`;
+  const n = count ?? 2 + Math.floor(seededRand(base + '|count') * 3); // 2-4
+  const pool = SUPPLIER_NAMES[industry] ?? SUPPLIER_NAMES.factory;
+  const income = isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
+  const suppliers: HustleSupplier[] = [];
+  for (let i = 0; i < n; i++) {
+    const seed = `${base}|${i}`;
+    const r1 = seededRand(seed);
+    const r2 = seededRand(seed + 'a');
+    const rawCost = income > 0 ? income * (0.03 + r1 * 0.05) : 300 + r1 * 900;
+    suppliers.push({
+      id: `supplier-${companyId}-${i}`,
+      name: pool[i % pool.length],
+      industry,
+      costPerWeek: Math.max(100, Math.round(rawCost / 10) * 10),
+      reliability: Math.floor(60 + r2 * 35), // 60-95
+      contractEndWeek: undefined, // month-to-month; keeps the contract display stable
+    });
+  }
+  return suppliers;
 }
 
 // ── Market share ─────────────────────────────────────────────────────────

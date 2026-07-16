@@ -66,7 +66,7 @@ export const manageFamilyBusiness = (
   const business = gameState.familyBusinesses?.find(fb => fb.companyId === companyId);
   if (!business) {
     log.warn(`Family business not found for ${companyId}`);
-    return;
+    return { success: false, message: 'Family business not found' };
   }
 
   let cost = 0;
@@ -97,21 +97,45 @@ export const manageFamilyBusiness = (
     };
   }
 
-  deps.updateMoney(setGameState, -cost, `Family Business: ${action}`);
+  // ATOMICITY FIX: fold the debit AND the brand/reputation gain into ONE
+  // functional updater that reads `prev` (mirrors createFamilyBusiness above).
+  // The previous code charged via a standalone `deps.updateMoney(-cost)` and then
+  // applied the gains in a SEPARATE, UNCONDITIONAL updater — so a same-batch
+  // double-tap (or a concurrent spend) could apply the benefit twice while the
+  // overdraft-guarded charge only went through once (one charge, TWO benefits), or
+  // apply the benefit even when the charge was rejected. `applyMoneyDelta` returns
+  // null when the spend is unaffordable against fresh state → we `return prev`, so
+  // the gain never lands without a matching debit. The `didManage` flag mirrors the
+  // repairRig pattern for the caller-facing result.
+  void deps; // charge now flows through applyMoneyDelta, not deps.updateMoney
+  let didManage = false;
+  setGameState(prev => {
+    const fresh = prev.familyBusinesses?.find(fb => fb.companyId === companyId);
+    if (!fresh) return prev; // dedup / business vanished between snapshot and commit
+    const spend = applyMoneyDelta(prev, -cost, `Family Business: ${action}`);
+    if (!spend) return prev; // unaffordable against fresh state → reject atomically
+    didManage = true;
+    return {
+      ...prev,
+      ...spend,
+      familyBusinesses: prev.familyBusinesses?.map(fb =>
+        fb.companyId === companyId
+          ? {
+              ...fb,
+              brandValue: Math.min(100, fb.brandValue + brandGain),
+              reputation: Math.min(100, fb.reputation + reputationGain),
+            }
+          : fb
+      ),
+    };
+  });
 
-  setGameState(prev => ({
-    ...prev,
-    familyBusinesses: prev.familyBusinesses?.map(fb => 
-      fb.companyId === companyId
-        ? {
-            ...fb,
-            brandValue: Math.min(100, fb.brandValue + brandGain),
-            reputation: Math.min(100, fb.reputation + reputationGain),
-          }
-        : fb
-    ),
-  }));
-
+  if (!didManage) {
+    return {
+      success: false,
+      message: `Need ${formatMoney(cost)} for "${action}" — you have ${formatMoney(gameState.stats.money)}.`,
+    };
+  }
   return { success: true, message: `${action} completed successfully` };
 };
 

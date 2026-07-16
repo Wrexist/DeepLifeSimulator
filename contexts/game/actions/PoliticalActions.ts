@@ -523,6 +523,10 @@ export const enactPolicy = (
       ...prev,
       stats: {
         ...prev.stats,
+        // TODO(flawless-audit): weekly policy effects need a tick reducer.
+        // policy.effects.money is applied exactly ONCE here at enactment, never
+        // as a recurring weekly stream — the catalog copy is worded as one-time
+        // to match. A true recurring payout would hook a per-week politics tick.
         money: Math.max(0, prev.stats.money - influenceCost(prev.politics?.policyInfluence) + (policy.effects.money || 0)),
         happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
         health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),

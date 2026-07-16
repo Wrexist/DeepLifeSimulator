@@ -15,8 +15,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight,
-  DollarSign, FileText, FlaskConical, History, Megaphone, Package, Rocket, Star, TrendingUp,
+  AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight, Crown,
+  DollarSign, FileText, FlaskConical, Gem, History, Megaphone, Package, Rocket, Star, TrendingUp,
   UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import KPICard from '../components/KPICard';
 import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import { addWorker, removeWorker } from '@/contexts/game/company';
+import { useCompanyActions } from '@/contexts/game/CompanyActionsContext';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
@@ -39,7 +40,8 @@ import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competition
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import type { HustleCompanyOverlay } from '@/contexts/game/types';
+import { generateBoardSeats, generateSuppliers } from '@/lib/business/hustleLogic';
+import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import { getPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
@@ -61,6 +63,16 @@ const BOARD_ROLE: Record<string, string> = {
 const scandalKindLabel = (k: string) => k.split('_').map(cap).join(' ');
 const meterColor = (v: number) => (v >= 70 ? HUSTLE_COLORS.success : v >= 45 ? HUSTLE_COLORS.warning : HUSTLE_COLORS.danger);
 
+// Family-business economy — costs + effects mirror createFamilyBusiness /
+// manageFamilyBusiness in FamilyBusinessActions (those actions stay the source of
+// truth; these are display-only labels for the buttons).
+const FAMILY_BUSINESS_COST = 1_000_000; // one-time conversion cost in createFamilyBusiness
+const FAMILY_MANAGE_OPTIONS: { action: 'marketing' | 'branding' | 'reputation'; label: string; cost: number; effect: string }[] = [
+  { action: 'marketing', label: 'Marketing push', cost: 10_000, effect: '+5 brand value' },
+  { action: 'reputation', label: 'Reputation drive', cost: 25_000, effect: '+10 reputation' },
+  { action: 'branding', label: 'Full rebrand', cost: 50_000, effect: '+15 brand · +2 reputation' },
+];
+
 interface CompanyDetailScreenProps {
   companyId: string;
   onBack: () => void;
@@ -75,6 +87,7 @@ export default function CompanyDetailScreen({
   companyId, onBack, onOpenHire, onOpenCampaign, onOpenScandal, onOpenIPO, onOpenAcquisitions,
 }: CompanyDetailScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  const { createFamilyBusiness, manageFamilyBusiness } = useCompanyActions();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const weeksLived = gameState.weeksLived ?? 0;
@@ -138,6 +151,23 @@ export default function CompanyDetailScreen({
     else { hustleHaptics.error(); Alert.alert('Competition', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
+  // ───────── Family-business handlers — canonical CompanyActionsContext actions ─────────
+  // createFamilyBusiness converts this company into a multi-generation legacy
+  // ($1M, atomic); manageFamilyBusiness spends to build brand + reputation (also
+  // atomic — one charge, one benefit per tap). The button gating below keeps the
+  // disabled states honest, so a press only fires when it can succeed.
+  const handleConvertToFamilyBusiness = useCallback(() => {
+    hustleHaptics.tap();
+    createFamilyBusiness(companyId);
+    saveGame?.();
+  }, [createFamilyBusiness, companyId, saveGame]);
+
+  const handleManageFamilyBusiness = useCallback((action: 'marketing' | 'branding' | 'reputation') => {
+    const r = manageFamilyBusiness(companyId, action);
+    if (r.success) { hustleHaptics.success(); saveGame?.(); }
+    else { hustleHaptics.error(); Alert.alert('Family Business', r.message); }
+  }, [manageFamilyBusiness, companyId, saveGame]);
+
   if (!company) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -160,10 +190,27 @@ export default function CompanyDetailScreen({
   const pendingAcqs = overlay?.pendingAcquisitions ?? [];
   const pendingAcqCount = pendingAcqs.length;
   const namedHires = overlay?.hiringPipeline?.namedHires ?? [];
-  const boardSeats = overlay?.boardSeats ?? [];
-  const suppliers = overlay?.suppliers ?? [];
   const scandalHistory = overlay?.scandalHistory ?? [];
   const isPublic = overlay?.ipo?.status === 'public';
+
+  // Board seats + suppliers were initialized [] and never written, so their
+  // sections rendered as permanently dead. Derive a stable, deterministic roster
+  // when the overlay carries none: a board once the company is public (post-IPO),
+  // suppliers for every company. Seeded by company id (+ the stable IPO week for
+  // the board) so the list is identical across renders and reloads — no
+  // Math.random. Plain (non-hook) computation because it sits after the early
+  // `if (!company)` return; the generators are pure and cheap. Stored data (if a
+  // future tick ever writes real board/supplier records) always wins.
+  const storedBoard = overlay?.boardSeats ?? [];
+  const boardSeats = storedBoard.length > 0
+    ? storedBoard
+    : isPublic
+      ? generateBoardSeats(companyId, overlay?.ipo?.listedWeek ?? weeksLived)
+      : [];
+  const storedSuppliers = overlay?.suppliers ?? [];
+  const suppliers = storedSuppliers.length > 0
+    ? storedSuppliers
+    : generateSuppliers(companyId, company.type as HustleIndustry, company.weeklyIncome ?? 0);
 
   // Revenue composition (surfaces baseWeeklyIncome — previously hidden).
   const weekly = company.weeklyIncome ?? 0;
@@ -174,6 +221,13 @@ export default function CompanyDetailScreen({
 
   // Staff + upgrade derived state
   const money = gameState.stats?.money ?? 0;
+
+  // Family-business (legacy) derived state. A company "qualifies" to convert when
+  // it isn't already a family business (createFamilyBusiness's only precondition
+  // besides the $1M cost); once converted, the manage panel takes over.
+  const familyBusiness = (gameState.familyBusinesses ?? []).find((fb) => fb.companyId === companyId);
+  const canConvertToFamilyBusiness = !familyBusiness && money >= FAMILY_BUSINESS_COST;
+
   const STAFF_CAP = 30; // matches addWorker's hard cap
   const canHireWorker = company.employees < STAFF_CAP && money >= company.workerSalary;
   const canRemoveWorker = company.employees > 0;
@@ -542,6 +596,95 @@ export default function CompanyDetailScreen({
           onPress={() => { hustleHaptics.tap(); onOpenAcquisitions(); }}
           badge={pendingAcqCount}
         />
+
+        {/* ───────── Family legacy department ───────── */}
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Family legacy</Text>
+        {familyBusiness ? (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <View style={styles.rdRow}>
+              <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                <Crown size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
+              </View>
+              <View style={styles.rdText}>
+                <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>Family business</Text>
+                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                  Founded gen {familyBusiness.foundedGeneration} · held {familyBusiness.generationsHeld} generation{familyBusiness.generationsHeld === 1 ? '' : 's'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Brand + reputation meters (the two stats manageFamilyBusiness builds) */}
+            <View style={[styles.rosterMeterRow, { marginTop: responsiveSpacing.xs }]}>
+              <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Brand</Text>
+              <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
+                <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, familyBusiness.brandValue))}%`, backgroundColor: meterColor(familyBusiness.brandValue) }]} />
+              </View>
+              <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(familyBusiness.brandValue)}</Text>
+            </View>
+            <View style={styles.rosterMeterRow}>
+              <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Rep</Text>
+              <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
+                <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, familyBusiness.reputation))}%`, backgroundColor: meterColor(familyBusiness.reputation) }]} />
+              </View>
+              <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(familyBusiness.reputation)}</Text>
+            </View>
+
+            <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
+              Invest in the family name to build brand value and reputation. Both compound across generations as the business passes to your heirs.
+            </Text>
+
+            {FAMILY_MANAGE_OPTIONS.map((opt, i) => {
+              const affordable = money >= opt.cost;
+              return (
+                <View key={opt.action} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={styles.rdText}>
+                    <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{opt.label}</Text>
+                    <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{opt.effect}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => handleManageFamilyBusiness(opt.action)}
+                    disabled={!affordable}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${opt.label} for $${opt.cost.toLocaleString()}`}
+                    accessibilityState={{ disabled: !affordable }}
+                    style={[styles.upgradeBuyBtn, { backgroundColor: HUSTLE_COLORS.warning + '24', opacity: affordable ? 1 : 0.5 }]}
+                  >
+                    <Text style={[styles.upgradeBuyText, { color: HUSTLE_COLORS.warning }]}>${opt.cost.toLocaleString()}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <View style={styles.rdRow}>
+              <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                <Gem size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
+              </View>
+              <View style={styles.rdText}>
+                <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>Convert to family business</Text>
+                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={2}>
+                  A ${FAMILY_BUSINESS_COST.toLocaleString()} legacy that passes to your heirs, compounding brand value and reputation across generations.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.staffBtnRow}>
+              <Pressable
+                onPress={handleConvertToFamilyBusiness}
+                disabled={!canConvertToFamilyBusiness}
+                accessibilityRole="button"
+                accessibilityLabel={`Convert ${company.name} to a family business for $${FAMILY_BUSINESS_COST.toLocaleString()}`}
+                accessibilityState={{ disabled: !canConvertToFamilyBusiness }}
+                style={[styles.staffBtn, canConvertToFamilyBusiness && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.warning, opacity: canConvertToFamilyBusiness ? 1 : 0.5 }]}
+              >
+                <Crown size={fontScale(16)} color="#FFFFFF" strokeWidth={2.2} />
+                <Text style={styles.staffBtnText}>
+                  {money < FAMILY_BUSINESS_COST ? `Need $${FAMILY_BUSINESS_COST.toLocaleString()}` : `Convert · $${FAMILY_BUSINESS_COST.toLocaleString()}`}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* ───────── Upgrades department — tracks as ProgressRings ───────── */}
         {upgradeDefs.length > 0 ? (

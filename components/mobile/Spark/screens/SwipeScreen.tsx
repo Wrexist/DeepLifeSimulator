@@ -12,6 +12,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -22,6 +23,7 @@ import { Heart, Rewind, Star, X, Zap } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useToast } from '@/contexts/ToastContext';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -65,6 +67,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const { showInfo } = useToast();
   // Auto-cleaned timers so the post-match callback can't fire after unmount.
   const timers = useTimerManager();
+  const reduced = useReducedMotion();
 
   // Catfish suspicion — the seed MUST match the one `swipeOnProfile` uses
   // (contexts/game/actions/SparkActions.ts), otherwise the warning chip would
@@ -78,18 +81,26 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const showCatfishWarning = (p: DatingProfile): boolean =>
     isCatfish(p, catfishSeed) && !dismissedCatfish.has(p.id);
 
-  // Filter out already-swiped, reported, or promoted profiles.
+  // The gender the player is seeking. Saves from before this field existed (or
+  // an explicit 'any') should NOT empty the deck — only filter when we have a
+  // concrete male/female preference to honor.
+  const seeking = gameState.userProfile?.seekingGender;
+  const genderFilter = seeking === 'male' || seeking === 'female' ? seeking : null;
+
+  // Filter out already-swiped, reported, or promoted profiles, and profiles
+  // whose gender doesn't match the player's orientation.
   const queue: DatingProfile[] = useMemo(() => {
     const sp = gameState.sparkApp;
-    if (!sp) return DATING_PROFILES;
+    const byGender = (p: DatingProfile) => genderFilter == null || p.gender === genderFilter;
+    if (!sp) return DATING_PROFILES.filter(byGender);
     // Legacy saves can have sparkApp without these arrays — guard each one.
     const swipedIds = new Set((sp.swipes ?? []).map((s: any) => s.profileId));
     const matchedIds = new Set((sp.matches ?? []).map((m: any) => m.profileId));
     const reportedIds = new Set(sp.reportedIds ?? []);
     return DATING_PROFILES.filter(
-      (p) => !swipedIds.has(p.id) && !matchedIds.has(p.id) && !reportedIds.has(p.id),
+      (p) => byGender(p) && !swipedIds.has(p.id) && !matchedIds.has(p.id) && !reportedIds.has(p.id),
     );
-  }, [gameState.sparkApp]);
+  }, [gameState.sparkApp, genderFilter]);
 
   const [cursor, setCursor] = useState(0);
   const top = queue[cursor];
@@ -101,6 +112,10 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
 
   // Pan state for the top card.
   const pan = useRef(new Animated.ValueXY()).current;
+  // Behind-card promotion (0 = rest behind, 1 = full front). Driven in parallel
+  // with the top card's fly-off so the next card rises into place instead of
+  // teleporting when the deck advances.
+  const promote = useRef(new Animated.Value(0)).current;
   const cardRotate = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
     outputRange: ['-15deg', '0deg', '15deg'],
@@ -108,6 +123,10 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const likeOpacity = pan.x.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp' });
   const nopeOpacity = pan.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const superOpacity = pan.y.interpolate({ inputRange: [SUPER_THRESHOLD, 0], outputRange: [1, 0], extrapolate: 'clamp' });
+  // Behind card's transform interpolates from its rest pose (0) to full front (1).
+  const promoteScale = promote.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  const promoteTranslateY = promote.interpolate({ inputRange: [0, 1], outputRange: [scale(12), 0] });
+  const promoteOpacity = promote.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
 
   const finishSwipe = useCallback(
     (direction: 'left' | 'right' | 'super', profile: DatingProfile) => {
@@ -143,25 +162,55 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       // next one. Incrementing here as well skipped every other profile. On a
       // rejected swipe (out of swipes), nothing changes and the card snaps back.
       pan.setValue({ x: 0, y: 0 });
+      // Re-seat the now-revealed behind card at its rest pose instantly (the old
+      // top card's promotion has already played out during the fly-off).
+      promote.setValue(0);
     },
-    [setGameState, gameState, onMatch, saveGame, pan, showInfo],
+    [setGameState, gameState, onMatch, saveGame, pan, promote, showInfo],
   );
 
   const animateOff = useCallback(
-    (direction: 'left' | 'right' | 'super', profile: DatingProfile) => {
+    (
+      direction: 'left' | 'right' | 'super',
+      profile: DatingProfile,
+      velocity?: { vx: number; vy: number },
+    ) => {
       const target =
         direction === 'left'
           ? { x: -SCREEN_WIDTH * 1.5, y: 0 }
           : direction === 'right'
             ? { x: SCREEN_WIDTH * 1.5, y: 0 }
             : { x: 0, y: -SCREEN_HEIGHT * 1.5 };
-      Animated.timing(pan, {
+      if (reduced) {
+        // Reduced motion: no fling, no promote tween — commit instantly.
+        promote.setValue(1);
+        finishSwipe(direction, profile);
+        return;
+      }
+      // Promote the behind card in parallel with the fly-off — a separate node
+      // from pan, so it can run on the native driver. Never gates finishSwipe.
+      Animated.timing(promote, {
+        toValue: 1,
+        duration: SPARK_MOTION.cardSnap,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      // Fling carries the release velocity so fast throws fly faster. PanResponder
+      // velocity is px/ms; Animated.spring integrates in seconds, so convert to px/s.
+      Animated.spring(pan, {
         toValue: target,
-        duration: SPARK_MOTION.cardSwipeOut,
+        velocity: velocity
+          ? { x: velocity.vx * 1000, y: velocity.vy * 1000 }
+          : { x: 0, y: 0 },
+        overshootClamping: true,
+        restDisplacementThreshold: 10,
+        restSpeedThreshold: 10,
         useNativeDriver: false,
-      }).start(() => finishSwipe(direction, profile));
+      }).start(({ finished }) => {
+        if (finished) finishSwipe(direction, profile);
+      });
     },
-    [pan, finishSwipe],
+    [pan, promote, finishSwipe, reduced],
   );
 
   const responder = useMemo(
@@ -172,18 +221,28 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
         onPanResponderRelease: (_evt, gesture) => {
           if (!top) return;
+          const throwVelocity = { vx: gesture.vx, vy: gesture.vy };
           if (gesture.dy < SUPER_THRESHOLD && remainingSuper > 0) {
-            animateOff('super', top);
+            animateOff('super', top, throwVelocity);
           } else if (gesture.dx > SWIPE_THRESHOLD) {
-            animateOff('right', top);
+            animateOff('right', top, throwVelocity);
           } else if (gesture.dx < -SWIPE_THRESHOLD) {
-            animateOff('left', top);
+            animateOff('left', top, throwVelocity);
           } else {
             Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false, friction: 6 }).start();
+            // If this gesture interrupted an in-flight fling, the behind card may
+            // be mid-promotion — retarget it back to its rest pose alongside the
+            // snap-back (starting a new timing supersedes any running one).
+            Animated.timing(promote, {
+              toValue: 0,
+              duration: 160,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }).start();
           }
         },
       }),
-    [pan, top, animateOff, remainingSuper],
+    [pan, promote, top, animateOff, remainingSuper],
   );
 
   const handleButton = useCallback(
@@ -238,9 +297,17 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       {/* Card stack — next card sits behind, top card receives gestures */}
       <View style={styles.deck}>
         {next ? (
-          <View style={[styles.cardSlot, styles.cardBehind]}>
+          <Animated.View
+            style={[
+              styles.cardSlot,
+              {
+                transform: [{ scale: promoteScale }, { translateY: promoteTranslateY }],
+                opacity: promoteOpacity,
+              },
+            ]}
+          >
             <ProfileCard profile={next} catfishSuspected={showCatfishWarning(next)} />
-          </View>
+          </Animated.View>
         ) : null}
 
         <Animated.View
@@ -414,10 +481,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  cardBehind: {
-    transform: [{ scale: 0.94 }, { translateY: scale(12) }],
-    opacity: 0.85,
   },
   statusRow: {
     flexDirection: 'row',

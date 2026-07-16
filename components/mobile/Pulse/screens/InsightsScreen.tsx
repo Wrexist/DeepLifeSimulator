@@ -91,7 +91,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
         <Text style={styles.heroLabel}>Followers</Text>
         <Text style={styles.heroValue}>{formatPulseNumber(followers)}</Text>
         <Text style={styles.heroSub}>
-          {(engagementRate * 100).toFixed(1)}% engagement · {TIER_LABELS[tier] ?? tier}
+          {engagementRate.toFixed(1)}% engagement · {TIER_LABELS[tier] ?? tier}
         </Text>
       </LinearGradient>
 

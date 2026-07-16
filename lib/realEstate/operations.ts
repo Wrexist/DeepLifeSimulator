@@ -8,6 +8,9 @@
 
 import { RealEstate } from '@/contexts/game/types';
 import {
+  askChurnMultiplier,
+  askFillMultiplier,
+  effectiveAskRent,
   findTenantProbability,
   generateTenant,
   moveOutProbability,
@@ -98,12 +101,21 @@ export interface SaleResult {
   capitalGain: number;
   /** True if any mortgage was attached and needs to be removed from gameState.loans. */
   releasedMortgageId?: string;
+  /**
+   * Uncovered mortgage balance left over when an underwater ("short") sale can't
+   * cover the debt. > 0 only when net sale proceeds < remaining mortgage. The
+   * caller MUST keep the loan for this remainder (a deficiency balance) instead
+   * of discharging the mortgage — deleting an underwater loan forgives negative
+   * equity for $0. 0 for a normal above-water sale.
+   */
+  residualDebt: number;
 }
 
 /**
  * Sell a property. Pays off any outstanding mortgage from the proceeds, returns
- * the rest as cash. Capital gain = (sale price − purchase price). Caller deletes
- * the loan and adds the proceeds to stats.money.
+ * the rest as cash. Capital gain = (sale price − purchase price). Caller adds the
+ * proceeds to stats.money and either deletes the loan (above-water) or keeps it
+ * for `residualDebt` (underwater — see below).
  */
 export function sellProperty(
   properties: RealEstate[],
@@ -112,7 +124,7 @@ export function sellProperty(
 ): SaleResult {
   const idx = properties.findIndex((p) => p.id === propertyId);
   if (idx === -1) {
-    return { properties, saleProceeds: 0, mortgagePayoff: 0, capitalGain: 0 };
+    return { properties, saleProceeds: 0, mortgagePayoff: 0, capitalGain: 0, residualDebt: 0 };
   }
   const p = properties[idx];
   const value = safe(p.currentValue ?? p.price);
@@ -123,7 +135,14 @@ export function sellProperty(
   // a buy-then-immediate-sell round trip was nearly free.
   const closingCost = value * 0.06; // 6% realtor + closing
   const capitalGainsTax = gain > 0 ? gain * 0.15 : 0; // 15% on realized gain
-  const proceeds = Math.max(0, value - debt - closingCost - capitalGainsTax);
+  // Net the sale (after costs) BEFORE paying off the mortgage. When it covers the
+  // debt the player pockets the surplus; when it does NOT (underwater / short
+  // sale) the uncovered remainder stays owed via `residualDebt` — the caller
+  // keeps a residual loan rather than discharging the mortgage for $0.
+  const netSaleValue = value - closingCost - capitalGainsTax;
+  const proceeds = Math.max(0, netSaleValue - debt);
+  const residualDebt = Math.max(0, debt - netSaleValue);
+  const mortgagePayoff = debt - residualDebt; // portion of the debt the sale actually retired
   const next = [...properties];
   next[idx] = {
     ...p,
@@ -138,9 +157,10 @@ export function sellProperty(
   return {
     properties: next,
     saleProceeds: proceeds,
-    mortgagePayoff: debt,
+    mortgagePayoff,
     capitalGain: gain,
     releasedMortgageId: p.mortgageId,
+    residualDebt,
   };
 }
 
@@ -246,21 +266,28 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
   let rentReceived = 0;
   const baseValue = safe(updated.currentValue ?? updated.price);
   const marketRent = baseValue * RENT_MODE_PARAMS[updated.rentMode ?? 'longTerm'].weeklyYieldMean * cycleParams.rentMultiplier;
+  // The rent the player ACTUALLY realizes: their asked `rent` clamped to the
+  // value ceiling, or marketRent when no ask is configured. This is what tenants
+  // pay AND what their satisfaction / fill / churn react to, so the rent slider
+  // is no longer cosmetic.
+  const askRent = effectiveAskRent(updated.rent, baseValue, marketRent);
 
   if (updated.status === 'rented' && updated.rentMode) {
     const mode = updated.rentMode;
     // Has a tenant?
     if (updated.tenant) {
-      // Update satisfaction.
+      // Satisfaction reacts to the ASK vs market (overcharging erodes it).
       const newSat = satisfactionStep(
         updated.tenant.satisfaction,
         safe(updated.condition, 70),
-        updated.tenant.weeklyRent,
+        askRent,
         marketRent,
         mode
       );
-      // Roll for move-out.
-      const movesOut = input.rollFor(`re.move.${updated.tenant.id}`) < moveOutProbability(newSat, mode);
+      // Roll for move-out — churn scales UP with an above-market ask (on top of
+      // the satisfaction hit), so a greedy ask is paid for in higher turnover.
+      const churnProb = Math.min(1, moveOutProbability(newSat, mode) * askChurnMultiplier(askRent, marketRent));
+      const movesOut = input.rollFor(`re.move.${updated.tenant.id}`) < churnProb;
       if (movesOut) {
         notifications.push({
           id: `re-tenant-leave-${p.id}-${input.currentWeek}`,
@@ -269,22 +296,29 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
         });
         updated = { ...updated, tenant: undefined, weeksVacant: 0 };
       } else {
-        rentReceived = realizedWeeklyRent(updated.tenant.weeklyRent, mode, {
+        // Realized income is the asked rent (± mode variance), NOT marketRent.
+        rentReceived = realizedWeeklyRent(askRent, mode, {
           u1: input.rollFor(`re.rent.${updated.tenant.id}.u1`),
           u2: input.rollFor(`re.rent.${updated.tenant.id}.u2`),
         });
         updated = {
           ...updated,
-          tenant: { ...updated.tenant, satisfaction: newSat },
+          tenant: { ...updated.tenant, satisfaction: newSat, weeklyRent: askRent },
         };
       }
     } else {
-      // No tenant — try to find one.
+      // No tenant — try to find one. Fill odds shift with the ask: below market
+      // fills faster, above market fills slower.
       const weeksVacant = safe(updated.weeksVacant, 0) + 1;
-      const findProb = findTenantProbability(safe(updated.condition, 70), cycleParams.demandFactor);
+      const findProb = Math.min(
+        0.95,
+        findTenantProbability(safe(updated.condition, 70), cycleParams.demandFactor) *
+          askFillMultiplier(askRent, marketRent)
+      );
       const foundOne = input.rollFor(`re.find.${p.id}`) < findProb;
       if (foundOne) {
-        const newTenant: TenantSnapshot = generateTenant(marketRent, input.currentWeek, input.rollFor(`re.name.${p.id}`));
+        // The new tenant signs at the asked rent (clamped), not marketRent.
+        const newTenant: TenantSnapshot = generateTenant(askRent, input.currentWeek, input.rollFor(`re.name.${p.id}`));
         notifications.push({
           id: `re-tenant-arrive-${p.id}-${input.currentWeek}`,
           title: '🔑 New Tenant',

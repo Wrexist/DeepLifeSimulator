@@ -3,6 +3,7 @@ import { PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
+import { netWorth } from '@/lib/progress/achievements';
 
 /**
  * Breakdown of prestige points calculation
@@ -138,15 +139,18 @@ export function calculateLifetimeStats(
   const ownedProperties = (gameState.realEstate || []).filter(p => p.owned);
   const children = gameState.family?.children || [];
 
-  // Calculate current net worth (simplified - would use actual net worth calculation)
-  const netWorth = (gameState.stats.money || 0) + 
-                   (gameState.bankSavings || 0) +
-                   (gameState.realEstate || []).reduce((sum, p) => sum + (p.owned ? (p.price || 0) : 0), 0);
+  // Canonical net worth (money + bank + stocks + real estate + companies +
+  // vehicles + luxury − loans). This previously recomputed a divergent subset
+  // (money + bank + realEstate purchase price only), which under-counted every
+  // other asset class and used origination price instead of current value.
+  // Reuse netWorth() so lifetime stats match the figure the rest of the game
+  // reports.
+  const currentNetWorth = netWorth(gameState);
 
   return {
     totalMoneyEarned: currentLifetimeStats.totalMoneyEarned + (gameState.stats.money || 0),
     totalWeeksLived: currentLifetimeStats.totalWeeksLived + (gameState.weeksLived || 0),
-    maxNetWorth: Math.max(currentLifetimeStats.maxNetWorth, netWorth),
+    maxNetWorth: Math.max(currentLifetimeStats.maxNetWorth, currentNetWorth),
     achievementsUnlocked: Math.max(currentLifetimeStats.achievementsUnlocked, completedAchievementsCount),
     generationsCompleted: Math.max(currentLifetimeStats.generationsCompleted, gameState.generationNumber || 1),
     totalChildren: currentLifetimeStats.totalChildren + children.length,

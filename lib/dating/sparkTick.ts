@@ -128,27 +128,35 @@ export function processSparkWeeklyTick(
     }
   }
 
-  // 6. Liked-you top-up — Ultra sees who likes them, Plus sees a count only
+  // 6. Liked-you top-up — Ultra sees who likes them, Plus sees a count only.
+  // Deterministic per week: reuse the same seededRandom helper the jealousy
+  // branch above uses so re-runs / reloads produce identical entries (no
+  // save-scum reroll, StrictMode-consistent). Distinct seed labels keep the
+  // count, per-iteration profile pick, and super-like rolls independent.
+  const likedSeed = (label: string): number =>
+    seededRandom(`spark-likedyou|${state.lineageId ?? 'init'}|${nextWeeksLived}|${label}`);
   if (sp.premium.perks.seeWhoLikedYou) {
     // Seed 1-3 fresh "liked you" entries from random profiles each week
-    const targetCount = Math.min(20, sp.likedYou.length + 1 + Math.floor(Math.random() * 3));
+    const targetCount = Math.min(20, sp.likedYou.length + 1 + Math.floor(likedSeed('count') * 3));
+    let i = 0;
     while (sp.likedYou.length < targetCount) {
-      const p = DATING_PROFILES[Math.floor(Math.random() * DATING_PROFILES.length)];
+      const p = DATING_PROFILES[Math.floor(likedSeed(`pick:${i}`) * DATING_PROFILES.length)];
       if (!sp.likedYou.some((l) => l.profileId === p.id)) {
         const entry: SparkLikedYouEntry = {
           profileId: p.id,
           likedAtWeek: nextWeeksLived,
-          superLiked: Math.random() < 0.1,
+          superLiked: likedSeed(`super:${i}`) < 0.1,
         };
         sp.likedYou.push(entry);
       } else {
         break; // avoid infinite loop if all profiles already in the list
       }
+      i++;
     }
   } else {
     // Even free users accumulate hidden "liked you" entries — Plus upsell teaser
-    if (Math.random() < 0.5 && sp.likedYou.length < 20) {
-      const p = DATING_PROFILES[Math.floor(Math.random() * DATING_PROFILES.length)];
+    if (likedSeed('free-gate') < 0.5 && sp.likedYou.length < 20) {
+      const p = DATING_PROFILES[Math.floor(likedSeed('free-pick') * DATING_PROFILES.length)];
       if (!sp.likedYou.some((l) => l.profileId === p.id)) {
         sp.likedYou.push({ profileId: p.id, likedAtWeek: nextWeeksLived, superLiked: false });
       }

@@ -40,6 +40,7 @@ import {
  Eye,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -119,136 +120,151 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id'|'lastMessage'|'timestamp'|'
  },
 ];
 
-// Clue templates by type
+// One-time cash tip paid the first time each mysterious contact's clue is
+// revealed. Kept modest so the seven contacts can't bankroll a run, and gated
+// one-time by the persisted `revealedDMClues` flag (see handleRevealClue).
+const CLUE_REWARD_CASH: Record<ClueType, number> = {
+ money: 500,
+ career: 400,
+ location: 300,
+ relationship: 300,
+ item: 350,
+ secret: 450,
+ quest: 600,
+};
+
+// Clue templates by type. Every clue references a mechanic that actually exists
+// in this week-based sim — no intraday stock timing, casino, or calendar-day
+// drops — so acting on a tip always leads somewhere real.
 const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: string; action: string }[]> = {
  money: [
- { 
- message: "Psst... I know a way to make some quick cash. Check the stock market around 3 PM - there's usually a dip you can exploit.",
- hint: "Stock trading timing",
- reward: "Potential profit from stock dip",
- action: "Open Stocks app in afternoon"},
- { 
- message:"There's a hidden cash stash in the old warehouse district. Go to Real Estate and look for abandoned properties...",
- hint: "Hidden money in properties",
- reward: "Find hidden cash",
- action: "Check Real Estate for special properties"},
- { 
- message:"The bank offers a secret high-yield savings account to customers with over $50K. Ask about 'premium services'.",
- hint: "Premium bank services",
- reward: "Higher interest rates",
- action: "Visit Bank with $50K+"},
- { 
- message:"I heard there's a gambling event this weekend. High risk, but the payout is huge if you know when to fold...",
- hint: "Special gambling event",
- reward: "Big gambling winnings",
- action: "Check casino on weekends"},
+ {
+ message: "The Stocks app moves every week. Buy the dips, hold the winners, and let patience beat the panic sellers.",
+ hint: "Invest through the Stocks app",
+ reward: "A stronger portfolio",
+ action: "Open the Stocks app and invest"},
+ {
+ message:"Rental property pays you passively every single week. One solid building in the Real Estate app beats a dozen risky bets.",
+ hint: "Passive income from property",
+ reward: "Weekly rental income",
+ action: "Buy a rental in the Real Estate app"},
+ {
+ message:"Park spare cash in a Bank savings account — the interest compounds every week while you get on with your life.",
+ hint: "Savings interest compounds weekly",
+ reward: "Compounding interest",
+ action: "Deposit savings in the Bank app"},
+ {
+ message:"Want real leverage? Finish the Entrepreneurship course, then found your own company — it turns your skills into weekly revenue.",
+ hint: "Companies pay weekly revenue",
+ reward: "Business income",
+ action: "Study Entrepreneurship, then found a company"},
  ],
  career: [
- { 
- message:"Your boss is retiring next month. If your relationship with them is good, you might get promoted automatically.",
- hint: "Upcoming promotion opportunity",
- reward: "Automatic promotion",
- action: "Improve boss relationship"},
- { 
- message:"There's a secret job listing for a high-paying position. Companies value candidates with multiple degrees...",
- hint: "Education unlocks jobs",
- reward: "Higher salary positions",
- action: "Complete more education"},
- { 
- message:"I know someone at the company. If you complete the business certification, they'll fast-track your interview.",
- hint: "Certification advantage",
- reward: "Job interview advantage",
- action: "Get business certification"},
- { 
- message:"The CEO is looking for someone with entrepreneurial experience. Starting your own company might open doors...",
- hint: "Own company = career boost",
- reward: "Executive opportunities",
- action: "Start a company"},
+ {
+ message:"Promotions aren't luck. Keep working your job each week and your promotion progress fills — the next level is just persistence.",
+ hint: "Work fills promotion progress",
+ reward: "A higher salary",
+ action: "Work your job in the Work tab"},
+ {
+ message:"The best-paid careers are gated behind degrees. Every course you finish opens new listings in the Work tab.",
+ hint: "Education unlocks careers",
+ reward: "Higher-paying roles",
+ action: "Complete a course in the Education app"},
+ {
+ message:"Elite careers want proof you can lead. A business education in the Education app is what fast-tracks you there.",
+ hint: "Business study unlocks elite careers",
+ reward: "Advanced career access",
+ action: "Study business in the Education app"},
+ {
+ message:"Running your own company builds the reputation top employers notice. Entrepreneurs get the calls others don't.",
+ hint: "Entrepreneurship builds reputation",
+ reward: "Reputation for elite careers",
+ action: "Found a company in the Hustle app"},
  ],
  location: [
- { 
- message:"There's a secret beach in Thailand that tourists don't know about. The travel agent has it listed as 'hidden gem'.",
- hint: "Secret travel destination",
- reward: "Unique travel experience",
- action: "Check Travel App for hidden destinations"},
- { 
- message:"The mountains in Switzerland have a monastery. Visiting gives you inner peace... and something more.",
- hint: "Special location bonus",
- reward: "+Stats from travel",
- action: "Travel to Switzerland"},
- { 
- message:"Did you know each country has a business opportunity? Some are more lucrative than others...",
- hint: "Travel business opportunities",
- reward: "Investment returns",
- action: "Explore travel business tab"},
+ {
+ message:"The Travel app has destinations most players skip. Every trip you take lifts your happiness and broadens your horizons.",
+ hint: "Travel boosts happiness",
+ reward: "Happiness from new places",
+ action: "Book a trip in the Travel app"},
+ {
+ message:"Feeling burnt out? A change of scenery is a real stat boost — don't let your passport gather dust.",
+ hint: "New destinations lift your stats",
+ reward: "+Happiness",
+ action: "Travel somewhere new in the Travel app"},
+ {
+ message:"Happiness fuels everything else you do. When it dips, a well-timed getaway keeps the rest of your life running smooth.",
+ hint: "Keep happiness topped up",
+ reward: "Balanced stats",
+ action: "Take a trip when happiness drops"},
  ],
  relationship: [
- { 
- message:"I noticed someone has been checking your profile... They seem interested. Maybe reach out?",
- hint: "Potential new connection",
- reward: "New relationship opportunity",
- action: "Check Contacts app"},
- { 
- message:"A little birdie told me that expensive gifts work better on certain personality types. Romantics love jewelry!",
- hint: "Gift preferences by personality",
- reward: "Better relationship gains",
- action: "Match gifts to personalities"},
- { 
- message:"Relationships decay over time. But if you move in together, they stay stable longer...",
- hint: "Living together benefit",
+ {
+ message:"Someone's been curious about you. Open the Contacts app and reach out before the moment passes.",
+ hint: "A new connection is waiting",
+ reward: "A new relationship",
+ action: "Reach out in the Contacts app"},
+ {
+ message:"Thoughtful gifts strengthen bonds faster than words ever will. Match the gift to what the person actually values.",
+ hint: "Gifts strengthen bonds",
+ reward: "Faster relationship growth",
+ action: "Give gifts to people you're close to"},
+ {
+ message:"Relationships fade if you neglect them. Regular contact keeps the people who matter close.",
+ hint: "Nurture relationships each week",
  reward: "Slower relationship decay",
- action: "Move in with partner"},
+ action: "Stay in touch in the Contacts app"},
  ],
  item: [
- { 
- message:"The dark web has items you won't find anywhere else. Be careful, but the rewards are worth the risk.",
- hint: "Dark web special items",
- reward: "Unique items",
- action: "Check Onion browser"},
- { 
- message:"There's a collector looking for rare vehicles. If you own a classic car, they'll pay double market value!",
- hint: "Vehicle collector",
- reward: "Double vehicle sale price",
- action: "Sell classic cars"},
- { 
- message:"The pet shop gets rare animals on the 15th of each month. First come, first served!",
- hint: "Rare pet availability",
- reward: "Special pets",
- action: "Visit pet shop on 15th"},
+ {
+ message:"The Onion browser trades in things no normal store carries. It's risky, but the inventory is genuinely one of a kind.",
+ hint: "The dark web has rare items",
+ reward: "Unique gear",
+ action: "Browse the Onion app carefully"},
+ {
+ message:"Vehicles are assets, not just rides. Buy smart in the vehicle shop and your garage holds real value.",
+ hint: "Vehicles hold value",
+ reward: "Asset value",
+ action: "Buy a vehicle you can afford"},
+ {
+ message:"A pet is more than company — caring for one lifts your happiness every week. Adopt when you're ready.",
+ hint: "Pets boost happiness weekly",
+ reward: "Weekly happiness",
+ action: "Adopt a pet in the Pet app"},
  ],
  secret: [
- { 
- message:"Did you know you can prestige and keep some bonuses? The family legacy system is powerful...",
- hint: "Prestige system exists",
+ {
+ message:"When the time comes, Prestige resets your life but keeps powerful legacy bonuses. The long game rewards those who let go.",
+ hint: "Prestige keeps legacy bonuses",
  reward: "Legacy bonuses",
- action: "Check Prestige when available"},
- { 
- message:"There's a skill tree hidden in the crime system. Level up your stealth to unlock it.",
- hint: "Crime skill trees",
- reward: "Crime bonuses",
- action: "Level crime skills"},
- { 
- message:"The statistics app tracks everything. Some achievements unlock secret bonuses when completed.",
- hint: "Achievement rewards",
- reward: "Hidden bonuses",
- action: "Check achievements in Statistics"},
+ action: "Explore Prestige when it unlocks"},
+ {
+ message:"There's a hidden skill tree in the crime system. Level up stealth, hacking, or lockpicking to unlock powerful perks.",
+ hint: "Crime skills have talent trees",
+ reward: "Crime perks",
+ action: "Level crime skills in the Work tab"},
+ {
+ message:"The Statistics app tracks everything you do. Some achievements pay out real bonuses the moment you claim them.",
+ hint: "Achievements pay out on claim",
+ reward: "Achievement bonuses",
+ action: "Claim achievements in the Statistics app"},
  ],
  quest: [
- { 
- message:"A new challenge awaits: Become a millionaire before age 30. The universe rewards the ambitious...",
- hint: "Wealth quest",
- reward: "Special achievement",
- action: "Earn $1M before 30"},
- { 
- message:"Can you visit every country in a single lifetime? Travelers who do are blessed with happiness.",
- hint: "World traveler quest",
- reward: "+Permanent happiness",
- action: "Visit all countries"},
- { 
- message:"The true challenge: Max out all your stats. Few have achieved this... will you be one of them?",
- hint: "Perfect stats quest",
- reward: "Ultimate achievement",
- action: "Max all stats to 100"},
+ {
+ message:"Here's a real goal: become a millionaire before you turn 30. Stack income, invest, and watch your net worth climb.",
+ hint: "An early-wealth milestone",
+ reward: "Bragging rights",
+ action: "Grow your net worth early"},
+ {
+ message:"Try to visit every country in a single lifetime. Few manage it — and the journey itself keeps your happiness high.",
+ hint: "A world-traveler goal",
+ reward: "Happiness along the way",
+ action: "Keep exploring the Travel app"},
+ {
+ message:"The ultimate challenge: push every stat to 100 and hold it there. Balance is the hardest game of all.",
+ hint: "A perfect-stats goal",
+ reward: "True mastery",
+ action: "Balance health, happiness, energy & fitness"},
  ],
 };
 
@@ -266,7 +282,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  const [messageInput, setMessageInput] = useState('');
  const [searchQuery, setSearchQuery] = useState('');
  const [showClueModal, setShowClueModal] = useState(false);
- const [currentClue, setCurrentClue] = useState<{ type: ClueType; data: ClueData } | null>(null);
+ const [currentClue, setCurrentClue] = useState<{ type: ClueType; data: ClueData; rewardCash: number; claimed: boolean } | null>(null);
  const [revealedClues, setRevealedClues] = useState<string[]>([]);
 
  // Initialize conversations from game state.
@@ -399,26 +415,38 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  // Handle revealing a clue
  const handleRevealClue = useCallback((message: DMMessage) => {
  if (!message.hasClue ||!message.clueType ||!message.clueData) return;
- 
+
  const clueId = `${selectedConversation?.id}_clue`;
- 
- if (!revealedClues.includes(clueId)) {
+ const firstReveal = !revealedClues.includes(clueId);
+ const rewardCash = CLUE_REWARD_CASH[message.clueType] ?? 0;
+
+ if (firstReveal) {
  setRevealedClues(prev => [...prev, clueId]);
- 
- // Save to game state
+
+ // Persist the reveal flag AND grant the one-time cash reward. The flag
+ // (revealedDMClues, persisted) is the one-time gate, so the payout can
+ // never be farmed by re-opening the clue. Money goes through the canonical
+ // updateMoney path so daily-summary + earn challenges stay honest.
  setGameState(prev => ({
 ...prev,
  revealedDMClues: [...(prev.revealedDMClues || []), clueId],
  }));
- saveGame();
+ if (rewardCash > 0) {
+ updateMoney(setGameState, rewardCash, `Acted on a tip from ${selectedConversation?.senderName ?? 'a mysterious contact'}`);
  }
- 
+ // Defer the save past the commit + parent ref-sync so the granted money AND
+ // the reveal flag both persist (a synchronous save captures the pre-grant state).
+ setTimeout(() => { void saveGame(); }, 0);
+ }
+
  setCurrentClue({
  type: message.clueType,
  data: message.clueData,
+ rewardCash,
+ claimed: !firstReveal,
  });
  setShowClueModal(true);
- 
+
  // Update message as revealed — locally AND in the persisted thread so the
  // "Clue Revealed" state sticks after the DM is closed and reopened.
  setMessages(prev => prev.map(m =>
@@ -434,7 +462,9 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  : c
  ),
  }));
- saveGame();
+ // On first reveal the deferred save above captures this too; only re-views
+ // need a save here (the message-revealed flag is already persisted anyway).
+ if (!firstReveal) saveGame();
  }
  }, [selectedConversation, revealedClues, setGameState, saveGame]);
 
@@ -773,10 +803,12 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <View style={styles.clueModalContent}>
  <Text style={styles.clueModalHint}>{currentClue.data.hint}</Text>
  
- {currentClue.data.reward && (
+ {currentClue.rewardCash > 0 && (
  <View style={styles.clueRewardSection}>
- <Text style={styles.clueRewardLabel}>Potential Reward:</Text>
- <Text style={styles.clueRewardValue}> {currentClue.data.reward}</Text>
+ <Text style={styles.clueRewardLabel}>
+ {currentClue.claimed ? 'Reward (already claimed):' : 'Reward added to your balance:'}
+ </Text>
+ <Text style={styles.clueRewardValue}> +${currentClue.rewardCash.toLocaleString()}</Text>
  </View>
  )}
  

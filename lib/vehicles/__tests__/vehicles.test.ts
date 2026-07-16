@@ -9,6 +9,8 @@
 import {
   createVehicleFromTemplate,
   getVehicleTemplate,
+  calculateRepairCost,
+  calculateRepairCostAfterInsurance,
   VEHICLE_TEMPLATES,
   DEFAULT_VEHICLE_MAX_SPEED,
   DEFAULT_VEHICLE_FUEL_EFFICIENCY,
@@ -81,5 +83,44 @@ describe('createVehicleFromTemplate — per-template specs', () => {
     const distinctMpg = new Set(VEHICLE_TEMPLATES.map((t) => t.fuelEfficiency));
     expect(distinctMaxSpeeds.size).toBeGreaterThan(1);
     expect(distinctMpg.size).toBeGreaterThan(1);
+  });
+});
+
+describe('calculateRepairCostAfterInsurance — quotes what repairVehicle charges', () => {
+  const damaged = () => {
+    const v = createVehicleFromTemplate(getVehicleTemplate('economy_sedan')!, 0);
+    v.condition = 50; // 50% damage → a non-zero gross repair bill
+    return v;
+  };
+
+  it('equals the gross cost when the vehicle is uninsured', () => {
+    const v = damaged();
+    v.insurance = undefined;
+    expect(calculateRepairCostAfterInsurance(v)).toBe(calculateRepairCost(v));
+    expect(calculateRepairCostAfterInsurance(v)).toBeGreaterThan(0);
+  });
+
+  it('applies the coverage discount (80% → 20% out of pocket)', () => {
+    const v = damaged();
+    const gross = calculateRepairCost(v);
+    v.insurance = { active: true, type: 'comprehensive', coveragePercent: 80, expiresWeek: 100 } as any;
+    // Mirrors production's exact formula (repairVehicle uses `1 - coverage`).
+    expect(calculateRepairCostAfterInsurance(v)).toBe(Math.floor(gross * (1 - 80 / 100)));
+    expect(calculateRepairCostAfterInsurance(v)).toBeGreaterThan(0);
+    // The displayed quote must be strictly cheaper than the gross sticker.
+    expect(calculateRepairCostAfterInsurance(v)).toBeLessThan(gross);
+  });
+
+  it('quotes $0 when insurance fully covers the repair (the premium 100% bug)', () => {
+    const v = damaged();
+    expect(calculateRepairCost(v)).toBeGreaterThan(0);
+    v.insurance = { active: true, type: 'premium', coveragePercent: 100, expiresWeek: 100 } as any;
+    expect(calculateRepairCostAfterInsurance(v)).toBe(0);
+  });
+
+  it('ignores an inactive policy', () => {
+    const v = damaged();
+    v.insurance = { active: false, type: 'basic', coveragePercent: 50, expiresWeek: 100 } as any;
+    expect(calculateRepairCostAfterInsurance(v)).toBe(calculateRepairCost(v));
   });
 });

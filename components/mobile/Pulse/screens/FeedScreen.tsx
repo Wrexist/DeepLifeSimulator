@@ -22,8 +22,10 @@ import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/contexts/ToastContext';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { composePost } from '@/contexts/game/actions/PulseActions';
+import { getEnergyCost } from '@/lib/social/socialMedia';
 import { generateNpcPostsForFeed } from '@/lib/social/npcPosts';
 import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
 import PostCard from '../components/PostCard';
@@ -101,6 +103,7 @@ interface FeedScreenProps {
 export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBoostPost, onTapNpc }: FeedScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const { showError } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -110,10 +113,14 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
     || 'you';
   const avatar = gameState.userProfile?.profilePhoto;
   const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
-  const canPost = draft.trim().length > 0 && currentEnergy >= 5;
+  // A text post really costs getEnergyCost('text') (15), not 5 — gating at 5
+  // let the button enable at 5-14 energy only for composePost to silently
+  // reject. Gate on the true cost so the button reflects what will happen.
+  const textPostCost = getEnergyCost('text');
+  const canPost = draft.trim().length > 0 && currentEnergy >= textPostCost;
 
   const handleInlinePost = useCallback(() => {
-    if (!canPost) {
+    if (draft.trim().length === 0) {
       pulseHaptics.error();
       return;
     }
@@ -123,9 +130,12 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
       setDraft('');
       saveGame?.();
     } else {
+      // Surface the real failure reason (e.g. "Not enough energy…") instead of
+      // just buzzing — previously a 5-14 energy tap did nothing visible.
       pulseHaptics.error();
+      showError(r.message);
     }
-  }, [canPost, draft, gameState, setGameState, saveGame]);
+  }, [draft, gameState, setGameState, saveGame, showError]);
 
   const escalateToModal = useCallback(() => {
     onCompose();

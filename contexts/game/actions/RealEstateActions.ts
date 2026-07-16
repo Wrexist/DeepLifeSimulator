@@ -7,6 +7,7 @@
 import React from 'react';
 import { GameState, Loan, RealEstate } from '../types';
 import { logger } from '@/utils/logger';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   DOWN_PAYMENT_FRACTIONS,
   DownPaymentTier,
@@ -166,7 +167,16 @@ export const buyPropertyWithMortgage = (
       result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
       return prev;
     }
-    const newMoney = cash - downPayment;
+    // Route the down-payment debit through the canonical money helper
+    // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
+    // directly — the amount is unchanged, but a corrupt (NaN) balance can no
+    // longer slip a purchase through (`cash < downPayment` is false for NaN).
+    const spend = applyMoneyDelta(prev, -downPayment, `Property down payment: ${catalog.name}`);
+    if (!spend) {
+      log.info(`Purchase rejected by money guard: down ${downPayment}, cash ${cash}`);
+      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
+      return prev;
+    }
 
     // Create the Loan record if there's a mortgage.
     let updatedLoans = prev.loans ?? [];
@@ -242,8 +252,8 @@ export const buyPropertyWithMortgage = (
 
     return {
       ...prev,
+      ...spend,
       banking,
-      stats: { ...prev.stats, money: newMoney },
       realEstate: updatedRealEstate,
       loans: updatedLoans,
     };
@@ -270,12 +280,23 @@ export const sellOwnedProperty = (
       : 0;
     const result = sellProperty(prev.realEstate ?? [], propertyId, mortgageRemaining);
     const cash = prev.stats?.money ?? 0;
-    const newLoans = result.releasedMortgageId
-      ? (prev.loans ?? []).filter((l) => l.id !== result.releasedMortgageId)
-      : prev.loans;
+    // Underwater ("short") sale: the proceeds didn't cover the mortgage. Keep the
+    // loan as a deficiency balance (reduced to the uncovered remainder) rather
+    // than discharging negative equity for $0 — deleting the loan outright let a
+    // player erase a compounded mortgage for free.
+    const newLoans = !result.releasedMortgageId
+      ? prev.loans
+      : result.residualDebt > 0
+        ? (prev.loans ?? []).map((l) =>
+            l.id === result.releasedMortgageId ? { ...l, remaining: result.residualDebt } : l
+          )
+        : (prev.loans ?? []).filter((l) => l.id !== result.releasedMortgageId);
 
     log.info(
-      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString()}, mortgage paid off $${result.mortgagePayoff.toLocaleString()}, capital gain $${result.capitalGain.toLocaleString()}`
+      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString()}, mortgage paid off $${result.mortgagePayoff.toLocaleString()}, capital gain $${result.capitalGain.toLocaleString()}` +
+        (result.residualDebt > 0
+          ? `, deficiency balance remaining $${result.residualDebt.toLocaleString()}`
+          : '')
     );
 
     return {

@@ -1,8 +1,19 @@
 import { GameState } from '@/contexts/GameContext';
-import type { Relation } from '@/lib/social/relations';
 import { advanceYears } from './helpers/timeHelpers';
 import { setupLargeFamily } from './helpers/scenarioBuilders';
 import { expectNumericalStability } from './helpers/assertions';
+
+// Local shim — lib/social/relations was removed as dead code. state.social is
+// never read/ticked, so these fixtures only need a structural shape.
+type Relation = {
+  id: string;
+  name: string;
+  type: string;
+  age?: number;
+  affection: number;
+  reliability: number;
+  history: unknown[];
+};
 
 describe('Relationships & Family Stress Tests', () => {
   let baseState: GameState;

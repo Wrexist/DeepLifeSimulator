@@ -1,5 +1,5 @@
 // src/utils/animated.ts
-import { Animated, Platform } from 'react-native';
+import { Animated, Easing, Platform } from 'react-native';
 
 /**
  * Native driver is not available on React Native Web. Using it there prints
@@ -18,6 +18,33 @@ const NATIVE_OK = Platform.OS !== 'web';
  *     transform (translate/scale/rotate), opacity
  *   → useNativeDriver:true on device (auto-fallback to false on web).
  */
+
+/* -------------------------------------------------------------------------- */
+/*                                MOTION TOKENS                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Shared motion tokens — the house style for UI motion. Reach for these instead
+ * of ad-hoc magic numbers so entrances, exits and presses feel consistent.
+ *
+ * Rules these encode:
+ *  - Entrances start SCALED at 0.9–0.97 *plus* an opacity fade — never scale
+ *    from 0. A pop-from-nothing reads as a glitch; a gentle scale + fade reads
+ *    as a reveal.
+ *  - UI motion (buttons, toasts, pills, popups) stays UNDER 300ms so it feels
+ *    responsive rather than sluggish.
+ *  - Use EASE-OUT for enter/exit (fast start, soft settle). Reserve ease-in-out
+ *    for symmetric, looping motion.
+ */
+export const MOTION = {
+  enterScale: 0.94,
+  pressScale: 0.96,
+  durationFast: 160,
+  durationBase: 220,
+  durationSlow: 300,
+  easeOut: Easing.bezier(0.23, 1, 0.32, 1),
+  easeInOut: Easing.bezier(0.77, 0, 0.175, 1),
+} as const;
 
 /* -------------------------------------------------------------------------- */
 /*                                   TIMING                                   */

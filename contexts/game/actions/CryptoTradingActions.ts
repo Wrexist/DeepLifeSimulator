@@ -8,6 +8,7 @@ import React from 'react';
 import { Crypto, GameState } from '../types';
 import { initialGameState } from '../initialState';
 import { logger } from '@/utils/logger';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   addDCARule,
   cancelOrder,
@@ -80,9 +81,17 @@ export const buyCryptoMarket = (
       log.warn(`Buy aborted: invalid result notionalUSD=${result.notionalUSD}, coinAmount=${result.coinAmount}`);
       return prev;
     }
+    // Route the debit through the canonical money helper (MONEY_CEILING clamp +
+    // NaN/overdraft guard) instead of writing stats.money directly. Cost is
+    // unchanged; a corrupt (NaN) balance now rejects the buy instead of writing NaN.
+    const spend = applyMoneyDelta(state, -cost, `Bought ${cryptoId}`);
+    if (!spend) {
+      log.warn(`Buy rejected by money guard: ${cryptoId} (cost=${cost}, cash=${cash})`);
+      return prev;
+    }
     return {
       ...state,
-      stats: { ...state.stats, money: Math.max(0, cash - cost) },
+      ...spend,
       cryptos: applyCoinDelta(state.cryptos, cryptoId, coinDelta),
       cryptoMarket: result.market,
     };
@@ -114,16 +123,22 @@ export const sellCryptoMarket = (
       log.warn(`Sell failed: ${result.error}`);
       return prev;
     }
-    const cash = safeMoney(state.stats?.money ?? 0);
     const proceeds = safeMoney(result.notionalUSD);
     const coinDelta = safeMoney(result.coinAmount);
     if (proceeds <= 0 || coinDelta <= 0) {
       log.warn(`Sell aborted: invalid result notionalUSD=${result.notionalUSD}, coinAmount=${result.coinAmount}`);
       return prev;
     }
+    // Credit proceeds through the canonical money helper (MONEY_CEILING clamp +
+    // NaN guard) instead of writing stats.money directly.
+    const credit = applyMoneyDelta(state, proceeds, `Sold ${cryptoId}`);
+    if (!credit) {
+      log.warn(`Sell rejected by money guard: ${cryptoId} (proceeds=${proceeds})`);
+      return prev;
+    }
     return {
       ...state,
-      stats: { ...state.stats, money: cash + proceeds },
+      ...credit,
       cryptos: applyCoinDelta(state.cryptos, cryptoId, -coinDelta),
       cryptoMarket: result.market,
     };

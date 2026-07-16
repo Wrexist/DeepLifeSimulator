@@ -1007,6 +1007,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             // Signing a mortgage is a life milestone — celebrate it (and explain
             // rejections, which previously vanished into the log).
             Alert.alert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
+            // On success the catalog detail would still read "For sale" with a
+            // live Buy CTA (its source is the immutable CATALOG). Drop back to the
+            // list so the now-owned property reflects its portfolio state.
+            if (result.success) setRoute({ kind: 'list' });
             queueSave();
           }
           setBuyTarget(null);

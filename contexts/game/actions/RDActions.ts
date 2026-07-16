@@ -10,7 +10,7 @@ import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { LAB_TYPES, getLabUpgradeCost, LabType } from '@/lib/rd/labs';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getTechnologyById } from '@/lib/rd/technologyTree';
-import { createPatent } from '@/lib/rd/patents';
+import { createPatent, updatePatents } from '@/lib/rd/patents';
 import { triggerBreakthrough, applyBreakthroughEffects, type Breakthrough } from '@/lib/rd/breakthroughs';
 import { 
   COMPETITIONS,
@@ -336,24 +336,45 @@ export const advanceResearch = (
     completeResearch(gameState, setGameState, companyId, projectId);
   });
 
-  // Then advance every still-in-progress project by one week. Derived from
-  // `prev` so it layers cleanly on top of the completion pass above.
+  // Then advance every still-in-progress project by one week AND age patents.
+  // Derived from `prev` so it layers cleanly on top of the completion pass above.
   setGameState(prev => {
     let changed = false;
     const advance = (c: Company): Company => {
-      const lab = c.rdLab;
-      if (!lab || !lab.researchProjects || lab.researchProjects.length === 0) return c;
-      let touched = false;
-      const projects = lab.researchProjects.map(p => {
-        if (p.completed) return p;
-        const increment = 100 / Math.max(1, p.duration || 1);
-        const next = Math.min(100, p.progress + increment);
-        if (next !== p.progress) touched = true;
-        return { ...p, progress: next };
-      });
-      if (!touched) return c;
-      changed = true;
-      return { ...c, rdLab: { ...lab, researchProjects: projects } };
+      let next = c;
+
+      // PATENT EXPIRY FIX: age patents once per weekly R&D tick. `updatePatents`
+      // decrements each patent's `duration` and drops any that reach 0, so patents
+      // finally expire after their `duration` weeks instead of paying `weeklyIncome`
+      // forever. calcWeeklyPassiveIncome (passiveIncome.ts) already gates patent
+      // income on `duration > 0`, so an expired/dropped patent stops paying the
+      // week it ages out. This weekly R&D step is the SOLE per-week driver for
+      // `updatePatents` (previously it had zero callers — patents never aged). It
+      // runs off `prev` inside the updater, so a StrictMode double-invoke re-derives
+      // the same one-week decrement rather than aging twice.
+      if (Array.isArray(c.patents) && c.patents.length > 0) {
+        next = { ...next, patents: updatePatents(c.patents) };
+        changed = true;
+      }
+
+      // Advance in-progress research by one week.
+      const lab = next.rdLab;
+      if (lab && lab.researchProjects && lab.researchProjects.length > 0) {
+        let touched = false;
+        const projects = lab.researchProjects.map(p => {
+          if (p.completed) return p;
+          const increment = 100 / Math.max(1, p.duration || 1);
+          const nextProgress = Math.min(100, p.progress + increment);
+          if (nextProgress !== p.progress) touched = true;
+          return { ...p, progress: nextProgress };
+        });
+        if (touched) {
+          changed = true;
+          next = { ...next, rdLab: { ...lab, researchProjects: projects } };
+        }
+      }
+
+      return next;
     };
     const companiesNext = (prev.companies || []).map(advance);
     const companyNext = prev.company ? advance(prev.company) : prev.company;

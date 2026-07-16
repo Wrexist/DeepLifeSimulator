@@ -18,6 +18,8 @@ import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTarge
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { getInflatedPrice } from '@/lib/economy/inflation';
+import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleIndustry } from '@/contexts/game/types';
@@ -65,7 +67,22 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
   const tabBarOffset = getAppScreenBottomPadding(insets.bottom);
 
   const playerMoney = gameState.stats?.money ?? 0;
-  const affordableCount = INDUSTRIES.filter((i) => playerMoney >= i.cost).length;
+
+  // Mirror createCompany's canonical gating so the UI never advertises a card
+  // that the action will reject on confirm:
+  //  1) founding charges getInflatedPrice(baseCost, priceIndex) — NOT the raw
+  //     catalog cost — so affordability + the "$X startup" figure must inflate.
+  //  2) founding requires the completed Entrepreneurship course OR the Early
+  //     Company Access prestige bonus; without either, every industry is locked.
+  const priceIndex =
+    typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
+      ? gameState.economy.priceIndex
+      : 1;
+  const hasEntrepreneurship = !!(gameState.educations || []).find((e) => e.id === 'entrepreneurship')?.completed;
+  const hasEarlyAccess = hasEarlyCompanyAccess(gameState.prestige?.unlockedBonuses || []);
+  const meetsCompanyGate = hasEntrepreneurship || hasEarlyAccess;
+  const lockReason = 'Requires Entrepreneurship course';
+  const affordableCount = INDUSTRIES.filter((i) => playerMoney >= getInflatedPrice(i.cost, priceIndex)).length;
 
   const handleConfirm = useCallback(() => {
     if (!selected) return;
@@ -113,15 +130,20 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           const Icon = ind.icon;
           const color = industryColor(ind.id);
           const isSelected = selected === ind.id;
-          const canAfford = playerMoney >= ind.cost;
-          const shortfall = Math.max(0, ind.cost - playerMoney);
+          // Gate + display on the INFLATED price (what createCompany actually charges).
+          const inflatedCost = getInflatedPrice(ind.cost, priceIndex);
+          const canAfford = playerMoney >= inflatedCost;
+          const locked = !meetsCompanyGate;
+          const selectable = canAfford && !locked;
+          const shortfall = Math.max(0, inflatedCost - playerMoney);
           const profile = PROFILE[ind.id];
           return (
             <Pressable
               key={ind.id}
               onPress={() => {
-                if (!canAfford) {
+                if (!selectable) {
                   hustleHaptics.error();
+                  setError(locked ? lockReason : `You need $${shortfall.toLocaleString()} more to found ${ind.name}.`);
                   return;
                 }
                 hustleHaptics.tap();
@@ -129,8 +151,8 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                 setError(null);
               }}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected, disabled: !canAfford }}
-              accessibilityLabel={`${ind.name}: $${ind.cost.toLocaleString()}`}
+              accessibilityState={{ selected: isSelected, disabled: !selectable }}
+              accessibilityLabel={`${ind.name}: $${inflatedCost.toLocaleString()}${locked ? `, locked — ${lockReason}` : ''}`}
               style={[
                 getGlassCard(isDark, 6),
                 styles.industryCard,
@@ -138,7 +160,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                   backgroundColor: theme.surface,
                   borderColor: isSelected ? color : theme.border,
                   borderWidth: isSelected ? 2 : 1,
-                  opacity: canAfford ? 1 : 0.6,
+                  opacity: selectable ? 1 : 0.6,
                 },
               ]}
             >
@@ -155,7 +177,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                 <View style={styles.industryRight}>
                   <Text style={[styles.industryCostLabel, { color: theme.textMuted }]}>Startup</Text>
                   <Text style={[styles.industryCost, { color: canAfford ? theme.text : theme.textMuted }]}>
-                    ${ind.cost.toLocaleString()}
+                    ${inflatedCost.toLocaleString()}
                   </Text>
                   {isSelected ? (
                     <View style={[styles.selectedTick, { backgroundColor: color }]}>
@@ -170,7 +192,11 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                 <ProfileChip label="Growth" value={profile.growth} theme={theme} />
                 <ProfileChip label="Volatility" value={profile.volatility} theme={theme} />
                 <ProfileChip label="Moat" value={profile.moat} theme={theme} />
-                {canAfford ? (
+                {locked ? (
+                  <View style={[styles.statusChip, { backgroundColor: HUSTLE_COLORS.warning + '1F' }]}>
+                    <Text style={[styles.statusChipText, { color: HUSTLE_COLORS.warning }]}>{lockReason}</Text>
+                  </View>
+                ) : canAfford ? (
                   <View style={[styles.statusChip, { backgroundColor: HUSTLE_COLORS.success + '1F' }]}>
                     <Text style={[styles.statusChipText, { color: HUSTLE_COLORS.success }]}>Affordable</Text>
                   </View>

@@ -148,3 +148,71 @@ export function buildMilestones(state: GameState): Milestone[] {
     return a.label.localeCompare(b.label);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Milestone rewards — a small ONE-TIME gem grant per milestone the first time
+// it is claimed. Milestones were display-only; this makes crossing a threshold
+// pay out modestly (5–15 gems by category tier). Once-ever per milestone id,
+// gated by the additive `claimedMilestoneRewards` set, granted via the canonical
+// clamped gems path (mirrors lib/ambitions/progress + prestige).
+// ---------------------------------------------------------------------------
+
+/** JS-safe cap, mirrors MONEY_CEILING / the gems clamp used elsewhere. */
+const GEM_CEILING = Number.MAX_SAFE_INTEGER;
+
+/** Gems awarded for reaching a milestone, by category tier (modest, 5–15). */
+export function milestoneGemReward(milestone: Pick<Milestone, 'category'>): number {
+  switch (milestone.category) {
+    case 'wealth': return 15; // hardest to reach
+    case 'career': return 12;
+    case 'creative': return 10;
+    case 'risk': return 10;
+    case 'social': return 8;
+    case 'family': return 8;
+    default: return 5;
+  }
+}
+
+/** Ids of milestones whose gem reward has already been claimed (additive set). */
+export function getClaimedMilestoneRewards(state: GameState): string[] {
+  return Array.isArray(state.claimedMilestoneRewards) ? state.claimedMilestoneRewards : [];
+}
+
+/** True when `milestoneId` is currently reached AND its reward is unclaimed. */
+export function isMilestoneClaimable(state: GameState, milestoneId: string): boolean {
+  if (getClaimedMilestoneRewards(state).includes(milestoneId)) return false;
+  return buildMilestones(state).some((m) => m.id === milestoneId);
+}
+
+export interface MilestoneClaimResult {
+  ok: boolean;
+  /** New state (SAME reference when nothing changed). */
+  state: GameState;
+  /** Gems granted (0 when already claimed or not yet reached). */
+  granted: number;
+}
+
+/**
+ * Claim the one-time gem reward for a REACHED milestone. Pure + idempotent:
+ * returns the same state reference (and `granted: 0`) when the milestone is
+ * already claimed or not currently reached, so a double-tap can't double-grant.
+ * On success it records the id in `claimedMilestoneRewards` and adds the reward
+ * to `stats.gems` (clamped).
+ */
+export function claimMilestoneReward(state: GameState, milestoneId: string): MilestoneClaimResult {
+  const claimed = getClaimedMilestoneRewards(state);
+  if (claimed.includes(milestoneId)) return { ok: false, state, granted: 0 };
+  const milestone = buildMilestones(state).find((m) => m.id === milestoneId);
+  if (!milestone) return { ok: false, state, granted: 0 };
+  const reward = milestoneGemReward(milestone);
+  const gems = Math.min(GEM_CEILING, safe(state.stats?.gems, 0) + reward);
+  return {
+    ok: true,
+    granted: reward,
+    state: {
+      ...state,
+      stats: { ...state.stats, gems },
+      claimedMilestoneRewards: [...claimed, milestoneId],
+    },
+  };
+}

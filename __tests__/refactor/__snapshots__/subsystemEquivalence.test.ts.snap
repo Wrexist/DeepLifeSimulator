@@ -3344,7 +3344,7 @@ exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled with ea
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0042,
+      "owned": 0.0036,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3367,7 +3367,7 @@ exports[`pre-tick equivalence — applyMiningCryptos halving 1: cryptoEarned cut
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0017,
+      "owned": 0.0014,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3405,7 +3405,7 @@ exports[`pre-tick equivalence — applyMiningCryptos mining ETH (lower multiplie
     {
       "id": "eth",
       "name": "Ether",
-      "owned": 0,
+      "owned": 0.04533333333333334,
       "price": 3000,
       "symbol": "ETH",
       "weeklyRate": 0.01,
@@ -3435,7 +3435,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with basic miners
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0021,
+      "owned": 0.0018,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3450,7 +3450,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with industrial m
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.10199999999999998,
+      "owned": 0.0885,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3486,26 +3486,6 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse without selectedC
       "weeklyRate": 0.01,
     },
   ],
-}
-`;
-
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair enabled, crypto can NOT afford: no repair 1`] = `
-{
-  "updatedWarehouse": {
-    "autoRepairCryptoId": "btc",
-    "autoRepairEnabled": true,
-    "autoRepairWeeklyCost": 1,
-    "difficultyMultiplier": 1,
-    "lastDifficultyUpdate": 100,
-    "lastDifficultyUpdateAbsoluteWeek": 100,
-    "level": 1,
-    "minerDurability": {
-      "basic": 27,
-    },
-    "miners": {
-      "basic": 1,
-    },
-  },
 }
 `;
 
@@ -3561,6 +3541,26 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: degradation 
     "level": 1,
     "minerDurability": {
       "basic": 53,
+    },
+    "miners": {
+      "basic": 1,
+    },
+  },
+}
+`;
+
+exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: funding coin budget below fleet cost → partial restore, not a free full repair (exploit fix) 1`] = `
+{
+  "updatedWarehouse": {
+    "autoRepairCryptoId": "btc",
+    "autoRepairEnabled": true,
+    "autoRepairWeeklyCost": 0.0001,
+    "difficultyMultiplier": 1,
+    "lastDifficultyUpdate": 100,
+    "lastDifficultyUpdateAbsoluteWeek": 100,
+    "level": 1,
+    "minerDurability": {
+      "basic": 67,
     },
     "miners": {
       "basic": 1,
@@ -5283,27 +5283,27 @@ exports[`pre-tick equivalence — computeWeeklyIncome Money Multiplier gold upgr
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome all income sources during beginner luck phase (deterministic sin-seed) 1`] = `
+exports[`pre-tick equivalence — computeWeeklyIncome all income sources during beginner luck phase (deterministic seeded roll) 1`] = `
 {
-  "baseTotalIncome": 310,
+  "baseTotalIncome": 298,
   "partnerIncome": 0,
-  "totalIncome": 310,
+  "totalIncome": 298,
 }
 `;
 
 exports[`pre-tick equivalence — computeWeeklyIncome beginner luck final week (weeksLivedNow=19, still in window) 1`] = `
 {
-  "baseTotalIncome": 122,
+  "baseTotalIncome": 119,
   "partnerIncome": 0,
-  "totalIncome": 122,
+  "totalIncome": 119,
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome beginner luck week 0 (luckSeed=42, sin(42)*10000 → known float) 1`] = `
+exports[`pre-tick equivalence — computeWeeklyIncome beginner luck week 0 (makeWeeklyRoll(0) deterministic roll) 1`] = `
 {
-  "baseTotalIncome": 134,
+  "baseTotalIncome": 122,
   "partnerIncome": 0,
-  "totalIncome": 134,
+  "totalIncome": 122,
 }
 `;
 

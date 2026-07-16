@@ -111,6 +111,12 @@ export function executePrestige(
     // every prestige would reset the store and re-award each achievement — the
     // award pass below relies on it to stay one-time / idempotent.
     claimedPrestigeAchievements: [...(prestigeData.claimedPrestigeAchievements ?? [])],
+    // Preserve the cross-life one-time-payout stamps across the reset. Like the
+    // prestige-achievement store above, this object is rebuilt field-by-field
+    // (not spread), so these MUST be carried over explicitly — otherwise every
+    // prestige would clear them and re-enable the ambition/achievement gem farms.
+    claimedAmbitions: [...(prestigeData.claimedAmbitions ?? [])],
+    claimedAchievementIds: [...(prestigeData.claimedAchievementIds ?? [])],
   };
 
   // Award challenge scenario gems only on first prestige

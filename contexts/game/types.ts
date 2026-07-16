@@ -12,7 +12,6 @@ import type { Memory } from '@/lib/legacy/memories';
 import type { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 
-import type { SocialState } from '@/lib/social/relations';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
@@ -1532,6 +1531,20 @@ export interface Disease {
   contractedWeek?: number; // Track when disease was contracted
   description?: string; // Disease description and symptoms
   preventionTips?: string[]; // Tips to prevent this disease
+  /**
+   * Original (pre-complication) effect magnitudes. Written the first time an
+   * untreated disease worsens so compounding stays capped at 3x base, and so
+   * managed care can reset symptoms back to true baseline.
+   */
+  baseEffects?: Partial<GameStats>;
+  /**
+   * Chronic-care window: weekly ticks up to and including this week apply only
+   * half of this disease's stat penalties and skip complication worsening.
+   * Set by doctor visits / hospital stays on non-curable, treatment-requiring
+   * diseases. Optional/additive — absent (old saves / never treated) means
+   * unmanaged, which is exactly the previous behavior.
+   */
+  managedUntilWeek?: number;
 }
 
 export interface RealEstate {
@@ -1990,8 +2003,14 @@ export interface GamingStreamingState {
   hypeStreak?: number;
 }
 
-// Re-export from lib/social/relations for convenience
-export type { Relation, RelationAction, SocialState } from '@/lib/social/relations';
+// Legacy social subsystem. The module lib/social/relations was removed as dead
+// code: `state.social` was initialized to `{ relations: [] }` and never read or
+// ticked in production. This minimal inline type is retained only so the
+// `social` field below still type-checks (and old saves round-trip).
+// TODO(flawless-audit): remove state.social entirely.
+export interface SocialState {
+  relations: unknown[];
+}
 
 // Re-export WeeklyEvent from events/engine
 export type { WeeklyEvent } from '@/lib/events/engine';
@@ -2298,6 +2317,9 @@ export interface GameState {
     id: string;
     description: string;
     choice: string;
+    /** Stable choice identifier used by multi-week event chains to branch
+     * narrative + payouts. Optional so pre-fix saves load unchanged. */
+    choiceId?: string;
     week: number;
     year: number;
     weeksLived?: number; // Track weeksLived for better history
@@ -2325,6 +2347,8 @@ export interface GameState {
   };
   achievements: Achievement[];
   claimedProgressAchievements: string[];
+  /** Statistics milestones whose one-time gem reward has been claimed (additive set). */
+  claimedMilestoneRewards?: string[];
   /** Rich achievement unlock context for narrative display */
   achievementUnlocks?: Record<string, {
     unlockedAt: number; // timestamp

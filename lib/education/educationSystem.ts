@@ -288,7 +288,17 @@ export function runExam(
    * ceiling. Bounded [0, 0.3] by the accessor; defaults to 0 (neutral).
    */
   lifeSkillPassBonus: number = 0,
+  /**
+   * Optional seeded roll source, threaded from the deterministic weekly tick
+   * (`applyEducationProgression`) so the same state + week yields byte-identical
+   * exam outcomes across engines/reloads (no save-scum reroll). Each distinct
+   * label returns an independent [0,1) value. Falls back to `Math.random()` for
+   * live / non-tick callers.
+   */
+  rollFn?: (label: string) => number,
 ): ExamResult {
+  const rand = (label: string): number =>
+    rollFn ? rollFn(label) : Math.random();
   const difficulty = getAverageDifficulty(education.enrolledClasses || []);
   const gpa = education.gpa || 2.0;
 
@@ -318,7 +328,7 @@ export function runExam(
   // Clamp
   passChance = Math.max(0.15, Math.min(0.95, passChance));
 
-  const roll = Math.random();
+  const roll = rand('pass');
   const passed = roll < passChance;
 
   // Determine letter grade
@@ -326,7 +336,7 @@ export function runExam(
   let gpaChange: number;
 
   if (passed) {
-    const gradeRoll = Math.random();
+    const gradeRoll = rand('grade');
     if (gradeRoll < 0.20) {
       grade = 'A';
       gpaChange = 0.3;
@@ -338,7 +348,7 @@ export function runExam(
       gpaChange = 0.05;
     }
   } else {
-    const failRoll = Math.random();
+    const failRoll = rand('fail');
     if (failRoll < 0.6) {
       grade = 'D';
       gpaChange = -0.1;
@@ -357,7 +367,7 @@ export function runExam(
   };
 
   const msgList = messages[grade];
-  const message = msgList[Math.floor(Math.random() * msgList.length)];
+  const message = msgList[Math.floor(rand('message') * msgList.length)];
 
   const statChanges: ExamResult['statChanges'] = {};
   if (grade === 'A') {
@@ -646,12 +656,21 @@ export function isExamWeek(education: Education, currentWeeksLived: number): boo
 /**
  * Check if a campus event should trigger.
  */
-export function shouldTriggerCampusEvent(education: Education, currentWeeksLived: number): boolean {
+export function shouldTriggerCampusEvent(
+  education: Education,
+  currentWeeksLived: number,
+  /**
+   * Optional seeded [0,1) roll threaded from the deterministic weekly tick so
+   * the same state + week is byte-identical across engines/reloads. Falls back
+   * to `Math.random()` for live / non-tick callers.
+   */
+  roll?: number,
+): boolean {
   if (!education.weeksRemaining || education.completed || education.paused) return false;
   const lastEvent = education.lastCampusEventWeek || 0;
   const weeksSinceEvent = currentWeeksLived - lastEvent;
   if (weeksSinceEvent < CAMPUS_EVENT_MIN_INTERVAL) return false;
   // Random chance increases as time passes
   const chance = Math.min(0.5, (weeksSinceEvent - CAMPUS_EVENT_MIN_INTERVAL) * 0.1);
-  return Math.random() < chance;
+  return (typeof roll === 'number' ? roll : Math.random()) < chance;
 }

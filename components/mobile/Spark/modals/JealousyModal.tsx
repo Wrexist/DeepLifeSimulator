@@ -18,7 +18,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { resolveJealousy } from '@/contexts/game/actions/SparkActions';
-import { getJealousyFlavor, getJealousyChoices } from '@/lib/dating/jealousyFlavor';
+import { getJealousyFlavor, getJealousyChoices, pickJealousyAccusation } from '@/lib/dating/jealousyFlavor';
 import type { SparkJealousyOutcome } from '@/contexts/game/types';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
@@ -37,6 +37,20 @@ export default function JealousyModal({ visible, onDismiss }: JealousyModalProps
   const event = gameState.sparkApp?.activeJealousy ?? null;
   const partner = gameState.relationships?.find((r) => r.id === event?.partnerId);
   const partnerName = partner?.name ?? 'Your partner';
+
+  // Pick the accusation ONCE per event (Math.random inside) so it stays stable
+  // across re-renders instead of re-rolling on every render. Keyed on the event
+  // id + severity + partner so a fresh event (or a name change) picks anew.
+  const accusation = React.useMemo(
+    () =>
+      pickJealousyAccusation(event?.triggerType ?? 'spotted_swiping', {
+        partnerName,
+        severity: event?.severity ?? 0,
+      }),
+    // `event` identity keys the pick to each distinct jealousy event; partnerName
+    // is interpolated into the line. (Both are read inside the memo.)
+    [event, partnerName],
+  );
 
   const handleChoice = useCallback(
     (outcome: SparkJealousyOutcome) => {
@@ -89,7 +103,7 @@ export default function JealousyModal({ visible, onDismiss }: JealousyModalProps
           <Text style={[styles.partnerLine, { color: SPARK_COLORS.accent }]}>
             {partnerName} · severity {Math.round(event.severity)}
           </Text>
-          <Text style={[styles.accusation, { color: theme.textSecondary }]}>{flavor.accusation}</Text>
+          <Text style={[styles.accusation, { color: theme.textSecondary }]}>{accusation}</Text>
 
           <View style={styles.choices}>
             {choices.map((c) => (

@@ -34,6 +34,12 @@ import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import { bumpSparkLifetimeStat, clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { formatMoney } from '@/utils/moneyFormatting';
+import {
+  milestoneToPulsePost,
+  shouldAutoPostMilestone,
+  type SparkMilestone,
+} from '@/lib/dating/sparkPulseBridge';
+import { composePost } from './PulseActions';
 
 const log = logger.scope('DatingActions');
 
@@ -100,13 +106,50 @@ const calculateForcedRealEstateLiquidity = (state: GameState): number => {
 };
 
 /**
+ * Date tiers — cost + effects for every date type goOnDate supports. Exported
+ * so the Contacts date sheet renders accurate prices from ONE source of truth
+ * (previously the sheet hard-coded 3 tiers at the wrong prices). `chat` is the
+ * free maintain-the-bond tier for broke players.
+ */
+export const DATE_CONFIGS = {
+  chat: { cost: 0, happiness: 2, relationshipBoost: 1, energy: 5 }, // Free option for maintaining relationships
+  casual: { cost: 50, happiness: 5, relationshipBoost: 3, energy: 10 },
+  coffee: { cost: 30, happiness: 3, relationshipBoost: 2, energy: 5 },
+  dinner: { cost: 150, happiness: 10, relationshipBoost: 5, energy: 15 },
+  romantic: { cost: 300, happiness: 20, relationshipBoost: 8, energy: 20 },
+  adventure: { cost: 500, happiness: 25, relationshipBoost: 10, energy: 30 },
+  luxury: { cost: 500, happiness: 30, relationshipBoost: 12, energy: 25 },
+} as const;
+
+export type DateType = keyof typeof DATE_CONFIGS;
+
+/**
+ * Fire-and-forget: translate a relationship milestone (engagement / wedding /
+ * divorce / anniversary) into an auto-composed Pulse post via sparkPulseBridge,
+ * but only when the player already uses Pulse (shouldAutoPostMilestone skips
+ * never-posted accounts). composePost is idempotent per week + content-type, so
+ * a same-week double-fire can't double-post. Best-effort: it never throws and
+ * never blocks the milestone itself.
+ */
+function autoPostMilestone(
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  gameState: GameState,
+  milestone: SparkMilestone,
+): void {
+  if (!shouldAutoPostMilestone(gameState)) return;
+  const args = milestoneToPulsePost(milestone);
+  if (!args) return;
+  composePost(setGameState, gameState, args);
+}
+
+/**
  * Go on a date with a partner
  */
 export const goOnDate = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   partnerId: string,
-  dateType: 'casual' | 'coffee' | 'dinner' | 'romantic' | 'adventure' | 'luxury',
+  dateType: DateType,
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   // P1-3: dead players can't date.
@@ -118,19 +161,9 @@ export const goOnDate = (
     return { success: false, message: 'Partner not found.' };
   }
 
-  // Date costs and effects
-  // STABILITY FIX: Added free "chat" option for players without money
-  const dateConfigs = {
-    chat: { cost: 0, happiness: 2, relationshipBoost: 1, energy: 5 },  // Free option for maintaining relationships
-    casual: { cost: 50, happiness: 5, relationshipBoost: 3, energy: 10 },
-    coffee: { cost: 30, happiness: 3, relationshipBoost: 2, energy: 5 },
-    dinner: { cost: 150, happiness: 10, relationshipBoost: 5, energy: 15 },
-    romantic: { cost: 300, happiness: 20, relationshipBoost: 8, energy: 20 },
-    adventure: { cost: 500, happiness: 25, relationshipBoost: 10, energy: 30 },
-    luxury: { cost: 500, happiness: 30, relationshipBoost: 12, energy: 25 },
-  };
-
-  const config = dateConfigs[dateType];
+  // Date costs and effects — sourced from the module-level DATE_CONFIGS export
+  // (single source of truth shared with the Contacts date sheet).
+  const config = DATE_CONFIGS[dateType];
 
   // ANTI-EXPLOIT: Limit dates per week per partner (prevent free chat date spam)
   const MAX_DATES_PER_WEEK = 2;
@@ -459,6 +492,13 @@ export const proposeMarriage = (
       };
     });
 
+    // Auto-post the engagement to the player's Pulse feed (fire-and-forget).
+    autoPostMilestone(setGameState, gameState, {
+      kind: 'engagement',
+      partnerName: partner.name,
+      ringTier: ring.name,
+    });
+
     log.info(`Proposal accepted by ${partner.name}`);
     return { success: true, message: `${partner.name} said YES! You're engaged!`, accepted: true };
   } else {
@@ -696,10 +736,17 @@ export const executeWedding = (
     };
   });
 
+  // Auto-post the wedding to the player's Pulse feed (fire-and-forget).
+  autoPostMilestone(setGameState, gameState, {
+    kind: 'wedding',
+    partnerName: partner.name,
+    venue: plan.venueName,
+  });
+
   log.info(`Wedding executed for ${partner.name}`);
-  return { 
-    success: true, 
-    message: `Congratulations! You and ${partner.name} are now married! 💒` 
+  return {
+    success: true,
+    message: `Congratulations! You and ${partner.name} are now married! 💒`
   };
 };
 
@@ -1053,6 +1100,12 @@ export const fileDivorce = (
     };
   });
 
+  // Auto-post the divorce to the player's Pulse feed (fire-and-forget).
+  autoPostMilestone(setGameState, gameState, {
+    kind: 'divorce',
+    partnerName: spouse.name,
+  });
+
   const funnyDivorceQuotes = [
     "'I thought till death do us part meant something.'",
     "'Congratulations, you won... the settlement bill.'",
@@ -1179,8 +1232,22 @@ export const checkAnniversary = (
 
   // Anniversary is every WEEKS_PER_YEAR weeks
   if (weeksMarried > 0 && weeksMarried % WEEKS_PER_YEAR === 0) {
+    // Idempotent per year: the live caller re-checks whenever Contacts opens or
+    // weeksLived changes, so a matching anniversary week could be evaluated more
+    // than once. If this exact anniversary was already celebrated, don't
+    // re-grant happiness, re-log the milestone, or re-post to Pulse.
+    const alreadyCelebrated = (gameState.lifeMilestones || []).some(
+      (m) =>
+        m.type === 'anniversary' &&
+        m.partnerId === spouse.id &&
+        (m.details as { yearsMarried?: number } | undefined)?.yearsMarried === yearsMarried,
+    );
+    if (alreadyCelebrated) {
+      return { isAnniversary: false };
+    }
+
     deps.updateStats(setGameState, { happiness: 10 + yearsMarried });
-    
+
     setGameState(prev => ({
       ...prev,
       // R2-B: cap to 200 milestones.
@@ -1196,6 +1263,13 @@ export const checkAnniversary = (
         },
       ].slice(-200),
     }));
+
+    // Auto-post the anniversary to the player's Pulse feed (fire-and-forget).
+    autoPostMilestone(setGameState, gameState, {
+      kind: 'anniversary',
+      partnerName: spouse.name,
+      yearsMarried,
+    });
 
     return { isAnniversary: true, yearsMarried };
   }

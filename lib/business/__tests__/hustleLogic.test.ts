@@ -15,6 +15,10 @@ import {
   scandalReputationLoss,
   namedHirePerformanceFactor,
   createDefaultCompanyOverlay,
+  generateBoardSeats,
+  generateSuppliers,
+  generateCandidates,
+  realizedCampaignROI,
   scandalRevenueDrag,
   SCANDAL_MIN_WEEKLY_INCOME,
   SCANDAL_COOLDOWN_WEEKS,
@@ -22,6 +26,8 @@ import {
   SCANDAL_MAX_CHANCE,
   SCANDAL_BASE_SEVERITY,
   SCANDAL_HEADLINES,
+  CAMPAIGN_ROI_VARIANCE_MIN,
+  CAMPAIGN_ROI_VARIANCE_MAX,
 } from '../hustleLogic';
 
 function company(id: string, weeklyIncome: number, type: Company['type'] = 'factory'): Company {
@@ -228,6 +234,88 @@ describe('namedHirePerformanceFactor', () => {
   });
 });
 
+describe('realizedCampaignROI', () => {
+  it('is deterministic per campaign id + week', () => {
+    expect(realizedCampaignROI('camp-1', 3.2, 5)).toBe(realizedCampaignROI('camp-1', 3.2, 5));
+  });
+
+  it('stays within [MIN, MAX] × projected ROI', () => {
+    for (let w = 0; w < 40; w++) {
+      const roi = realizedCampaignROI('camp-1', 3.2, w);
+      expect(roi).toBeGreaterThanOrEqual(3.2 * CAMPAIGN_ROI_VARIANCE_MIN - 1e-9);
+      expect(roi).toBeLessThanOrEqual(3.2 * CAMPAIGN_ROI_VARIANCE_MAX + 1e-9);
+    }
+  });
+
+  it('varies week to week (not a fixed per-id multiplier) and can dip below break-even', () => {
+    const rois = Array.from({ length: 40 }, (_, w) => realizedCampaignROI('camp-1', 3.2, w + 1));
+    // distinct values across weeks — real per-week variance, not clustered
+    expect(new Set(rois).size).toBeGreaterThan(20);
+    // at least one week realizes below the break-even ROI of 2 → a losing week
+    expect(rois.some((r) => r < 2)).toBe(true);
+    // at least one week realizes above break-even → a winning week (upside kept)
+    expect(rois.some((r) => r > 2)).toBe(true);
+  });
+
+  it('makes even the highest-ROI kind non-guaranteed: expected net ≤ 0 over many weeks', () => {
+    // net per week (spend 1) = realizedROI − 2. Averaged over a wide seed range,
+    // guerrilla (projected 3.2) nets ≈ 0-or-negative — no risk-free printer.
+    let netSum = 0;
+    const N = 200;
+    for (let w = 1; w <= N; w++) netSum += realizedCampaignROI('camp-1', 3.2, w) - 2;
+    expect(netSum / N).toBeLessThanOrEqual(0);
+  });
+
+  it('guards non-finite / non-positive projected ROI', () => {
+    expect(realizedCampaignROI('camp-1', NaN, 1)).toBe(0);
+    expect(realizedCampaignROI('camp-1', 0, 1)).toBe(0);
+  });
+});
+
+describe('generateCandidates — excludes already-hired ids', () => {
+  it('never re-emits a candidate id passed in excludeIds', () => {
+    const first = generateCandidates('co-1', 0, 3);
+    const hiredId = first[0].id;
+    const refreshed = generateCandidates('co-1', 0, 3, [hiredId]);
+    // still returns the requested count, and the hired id is gone
+    expect(refreshed).toHaveLength(3);
+    expect(refreshed.some((c) => c.id === hiredId)).toBe(false);
+    // ids remain distinct (deterministic slot advance, no collisions)
+    expect(new Set(refreshed.map((c) => c.id)).size).toBe(3);
+  });
+
+  it('is a stable no-op when nothing is excluded', () => {
+    expect(generateCandidates('co-1', 0, 3)).toEqual(generateCandidates('co-1', 0, 3, []));
+  });
+});
+
+describe('generateCandidates — reroll nonce', () => {
+  it('nonce 0 is the original set (backward compatible ids + values)', () => {
+    const withArg = generateCandidates('co-1', 4, 3, [], 0);
+    const withoutArg = generateCandidates('co-1', 4, 3);
+    expect(withArg).toEqual(withoutArg);
+    expect(withArg[0].id).toBe('cand-co-1-4-0');
+  });
+
+  it('different nonces yield genuinely different candidates within the same week', () => {
+    const week = 7;
+    const a = generateCandidates('co-1', week, 3, [], 0);
+    const b = generateCandidates('co-1', week, 3, [], 1);
+    const c = generateCandidates('co-1', week, 3, [], 2);
+    // Ids are distinct across rerolls (so a hire from one reroll can't be
+    // falsely excluded from another), and the people themselves differ.
+    expect(a.map((x) => x.id)).not.toEqual(b.map((x) => x.id));
+    expect(b.map((x) => x.id)).not.toEqual(c.map((x) => x.id));
+    const sig = (set: typeof a) => set.map((x) => `${x.name}|${x.role}|${x.salaryAsk}`).join(',');
+    expect(sig(a)).not.toBe(sig(b));
+    expect(sig(b)).not.toBe(sig(c));
+  });
+
+  it('is deterministic for a given (company, week, nonce)', () => {
+    expect(generateCandidates('co-2', 3, 3, [], 5)).toEqual(generateCandidates('co-2', 3, 3, [], 5));
+  });
+});
+
 describe('createDefaultCompanyOverlay', () => {
   it('returns a fully-formed neutral overlay', () => {
     const o = createDefaultCompanyOverlay('factory', 7);
@@ -239,5 +327,80 @@ describe('createDefaultCompanyOverlay', () => {
     expect(o.ipo.status).toBe('private');
     expect(o.hiringPipeline.namedHires).toEqual([]);
     expect(o.notifications).toEqual([]);
+  });
+});
+
+describe('generateBoardSeats', () => {
+  it('is deterministic for a given (companyId, seedWeek) — no Math.random', () => {
+    const a = generateBoardSeats('ai', 42);
+    const b = generateBoardSeats('ai', 42);
+    expect(a).toEqual(b);
+  });
+
+  it('varies with the seed week (post-IPO listing week)', () => {
+    const a = generateBoardSeats('ai', 42);
+    const b = generateBoardSeats('ai', 43);
+    // Different seed → different roster (ids at least differ by week).
+    expect(a.map((s) => s.id)).not.toEqual(b.map((s) => s.id));
+  });
+
+  it('seats 3-5 directors with distinct roles and filled display fields', () => {
+    for (const week of [1, 5, 12, 30, 99]) {
+      const seats = generateBoardSeats('factory', week);
+      expect(seats.length).toBeGreaterThanOrEqual(3);
+      expect(seats.length).toBeLessThanOrEqual(5);
+      // Distinct roles (no duplicate CFOs etc.)
+      expect(new Set(seats.map((s) => s.role)).size).toBe(seats.length);
+      // Chair is always the first seat.
+      expect(seats[0].role).toBe('chair');
+      for (const s of seats) {
+        expect(s.name.length).toBeGreaterThan(0);
+        expect(s.votingShare).toBeGreaterThan(0);
+        expect(s.votingShare).toBeLessThanOrEqual(100);
+        expect(s.satisfaction).toBeGreaterThanOrEqual(0);
+        expect(s.satisfaction).toBeLessThanOrEqual(100);
+        expect(['aggressive_growth', 'cost_cutting', 'employee_focused', 'shareholder_focused']).toContain(s.alignment);
+      }
+    }
+  });
+
+  it('honors an explicit count', () => {
+    expect(generateBoardSeats('bank', 3, 4)).toHaveLength(4);
+  });
+});
+
+describe('generateSuppliers', () => {
+  it('is deterministic for a given companyId — stable across weeks (no Math.random)', () => {
+    const a = generateSuppliers('factory', 'factory', 5000);
+    const b = generateSuppliers('factory', 'factory', 5000);
+    expect(a).toEqual(b);
+  });
+
+  it('seeds 2-4 month-to-month suppliers with filled fields', () => {
+    for (const id of ['factory', 'ai', 'restaurant', 'realestate', 'bank'] as const) {
+      const suppliers = generateSuppliers(id, id, 8000);
+      expect(suppliers.length).toBeGreaterThanOrEqual(2);
+      expect(suppliers.length).toBeLessThanOrEqual(4);
+      for (const s of suppliers) {
+        expect(s.name.length).toBeGreaterThan(0);
+        expect(s.industry).toBe(id);
+        expect(s.costPerWeek).toBeGreaterThanOrEqual(100);
+        expect(s.reliability).toBeGreaterThanOrEqual(60);
+        expect(s.reliability).toBeLessThanOrEqual(95);
+        // Derived suppliers are month-to-month so the "Xw contract" display
+        // never drifts negative as weeks advance.
+        expect(s.contractEndWeek).toBeUndefined();
+      }
+      // Names are distinct within the roster.
+      expect(new Set(suppliers.map((s) => s.name)).size).toBe(suppliers.length);
+    }
+  });
+
+  it('scales cost with company income but floors at $100 when income is unknown', () => {
+    const big = generateSuppliers('ai', 'ai', 500_000, 3);
+    const zero = generateSuppliers('ai', 'ai', 0, 3);
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(avg(big.map((s) => s.costPerWeek))).toBeGreaterThan(avg(zero.map((s) => s.costPerWeek)));
+    for (const s of zero) expect(s.costPerWeek).toBeGreaterThanOrEqual(100);
   });
 });

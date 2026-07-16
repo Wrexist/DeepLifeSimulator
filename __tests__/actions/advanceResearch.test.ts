@@ -10,6 +10,7 @@
  * snapshot-rebuild would otherwise clobber sibling completions).
  */
 import { advanceResearch } from '@/contexts/game/actions/RDActions';
+import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -104,6 +105,34 @@ describe('advanceResearch — weekly R&D tick', () => {
     expect(other.progress).toBe(100);
     // Exactly one tech unlocked so far (the finalised one).
     expect(co.unlockedTechnologies).toHaveLength(1);
+  });
+
+  it('ages patents each tick and expires them after `duration` weeks → income stops', () => {
+    // Regression: `updatePatents` had ZERO callers, so `duration` never decremented
+    // and passiveIncome.ts paid `weeklyIncome` forever. The weekly R&D tick now ages
+    // patents; passiveIncome only credits patents with duration > 0, so an expired
+    // (dropped) patent stops paying the week it ages out.
+    const patent = {
+      id: 'pat1', technologyId: 'ml_models', name: 'ML Patent',
+      filedWeek: 1, weeklyIncome: 1000, duration: 2, totalDuration: 2,
+    };
+    const co = { ...company([]), patents: [patent] };
+    const snapshot = stateWith(co);
+    const { setState, get } = makeBatchedSetState(snapshot);
+
+    // Initially active → it pays.
+    expect(getCo(get())!.patents).toHaveLength(1);
+    expect(calcWeeklyPassiveIncome(get()).breakdown.patents).toBe(1000);
+
+    // Tick 1: duration 2 → 1, still active and paying.
+    advanceResearch(get(), setState);
+    expect(getCo(get())!.patents[0].duration).toBe(1);
+    expect(calcWeeklyPassiveIncome(get()).breakdown.patents).toBe(1000);
+
+    // Tick 2: duration 1 → 0 → dropped. Expired patent pays nothing.
+    advanceResearch(get(), setState);
+    expect(getCo(get())!.patents).toHaveLength(0);
+    expect(calcWeeklyPassiveIncome(get()).breakdown.patents).toBe(0);
   });
 
   it('is a no-op for a company with no lab', () => {

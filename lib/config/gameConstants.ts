@@ -72,7 +72,19 @@ export const PET_LIFESPANS: Record<string, number> = {
 // now an occasional surprise, not a near-constant interruption.
 export const EARLY_GAME_EVENT_CHANCE = 0.08; // ~8% base event chance weeks 1-8 (was 45%)
 export const EARLY_GAME_THRESHOLD_WEEKS = 8;
-export const EARLY_GAME_PITY_THRESHOLD = 16; // Force event only after 16 dry weeks (was 3)
+// Early game (weeksLived < EARLY_GAME_THRESHOLD_WEEKS) intentionally has NO pity
+// floor. This threshold (16) deliberately exceeds the 8-week early window, so the
+// early branch of the pity check in lib/events/engine.ts (~L3343) can never fire:
+// `weeksSinceLastEvent` there is at most `weeksLived` (< 8), so it never reaches
+// 16. Early game leans on EARLY_GAME_EVENT_CHANCE (8%) alone — matching the
+// "occasional surprise, not a near-constant interruption" intent above (the pity
+// was raised 3 → 16 precisely to stop early droughts from forcing popups). The
+// first pity that CAN fire is the mid-game floor (12, from week 12+).
+// NOTE: giving early game a real, reachable pity would require a CONSUMER edit in
+// the (this-wave-forbidden) engine.ts — lower this below EARLY_GAME_THRESHOLD_WEEKS
+// or widen the gate — so the semantics are documented here rather than flipped,
+// which would reverse the deliberate low-early-event balance decision.
+export const EARLY_GAME_PITY_THRESHOLD = 16;
 
 // ── Event Pacing (smoothness) ────────────────────────────
 // Minimum quiet weeks between discretionary weekly-event popups ("Heads Up"

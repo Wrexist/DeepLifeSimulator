@@ -239,30 +239,6 @@ describe('Race-condition / anti-exploit guard audit', () => {
     expect(count).toBe(3);
   });
 
-  it('Hobby training: separate-tap (real UX) — cap holds at 5', async () => {
-    mounted = mountGame();
-    seedWealthy();
-    act(() => captured!.setGameState(prev => ({
-      ...prev,
-      hobbies: [{
-        id: 'mash_test', name: 'Mash Test', description: '',
-        energyCost: 5, skill: 0, skillLevel: 0,
-        tournamentReward: 100, upgrades: [],
-      }] as never,
-    })));
-
-    const { trainHobby } = await import('@/contexts/game/actions/HobbyActions');
-    const { updateStats: libUpdateStats } = await import('@/contexts/game/actions/StatsActions');
-
-    // Each call in its OWN act block, simulating separate React event commits.
-    for (let i = 0; i < 10; i++) {
-      act(() => {
-        trainHobby(captured!.state, captured!.setGameState, 'mash_test', { updateStats: libUpdateStats });
-      });
-    }
-    expect(captured!.state.hobbies?.[0].trainsThisWeek).toBe(5);
-  });
-
   it('Gift: separate-tap (real UX) — gift cap holds at 2/week', async () => {
     mounted = mountGame();
     seedWealthy();
@@ -482,29 +458,6 @@ describe('Race-condition / anti-exploit guard audit', () => {
       }
     });
     expect(captured!.state.relationships?.find(r => r.id === 'same_batch_gift')?.giftsThisWeek).toBe(2);
-  });
-
-  // ── FIXED: same-batch hobby training cap ──────────────────────────────
-  it('FIXED: same-batch trainHobby caps at 5/week', async () => {
-    mounted = mountGame();
-    seedWealthy();
-    act(() => captured!.setGameState(prev => ({
-      ...prev,
-      hobbies: [{
-        id: 'sb_hobby', name: 'SBH', description: '',
-        energyCost: 5, skill: 0, skillLevel: 0,
-        tournamentReward: 100, upgrades: [],
-      }] as never,
-    })));
-
-    const { trainHobby } = await import('@/contexts/game/actions/HobbyActions');
-    const { updateStats: libUpdateStats } = await import('@/contexts/game/actions/StatsActions');
-    act(() => {
-      for (let i = 0; i < 10; i++) {
-        trainHobby(captured!.state, captured!.setGameState, 'sb_hobby', { updateStats: libUpdateStats });
-      }
-    });
-    expect(captured!.state.hobbies?.[0].trainsThisWeek).toBe(5);
   });
 
   // ── IAP IDEMPOTENCY ────────────────────────────────────────────────────

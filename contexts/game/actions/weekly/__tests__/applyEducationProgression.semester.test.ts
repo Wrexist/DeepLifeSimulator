@@ -126,4 +126,32 @@ describe('applyEducationProgression — semesterNumber', () => {
     );
     expect(a.updatedEducations[0].semesterNumber).toBe(b.updatedEducations[0].semesterNumber);
   });
+
+  // Determinism guard: runExam / shouldTriggerCampusEvent used raw Math.random,
+  // making exam outcomes save-scummable and StrictMode-inconsistent. The tick
+  // now threads a seeded makeWeeklyRoll stream keyed by educationId, so the same
+  // state + week must yield byte-identical exam results (grade, GPA, notif).
+  it('exam outcome on an exam week is deterministic across identical re-runs', () => {
+    // 20 weeks since last exam (>= 13) → exam fires at nextWeeksLived 200.
+    const examEdu = () => ed({ weeksRemaining: 60, lastExamWeek: 180, lastCampusEventWeek: 200 });
+    const ctxA = makeCtx();
+    const ctxB = makeCtx();
+    const a = applyEducationProgression(
+      { prevEducations: [examEdu()], nextWeeksLived: 200, goldFastLearner: false, perkFastLearner: false },
+      ctxA,
+    );
+    const b = applyEducationProgression(
+      { prevEducations: [examEdu()], nextWeeksLived: 200, goldFastLearner: false, perkFastLearner: false },
+      ctxB,
+    );
+    // An exam actually ran this week.
+    expect(a.updatedEducations[0].lastExamWeek).toBe(200);
+    expect(ctxA.notifications.some((n) => n.title?.startsWith('📝'))).toBe(true);
+    // Byte-identical outcomes across the two independent runs.
+    expect(a.updatedEducations[0].gpa).toBe(b.updatedEducations[0].gpa);
+    expect(a.updatedEducations[0].examsPassed).toBe(b.updatedEducations[0].examsPassed);
+    expect(a.updatedEducations[0].examsFailed).toBe(b.updatedEducations[0].examsFailed);
+    expect(ctxA.notifications).toEqual(ctxB.notifications);
+    expect(ctxA.newStats).toEqual(ctxB.newStats);
+  });
 });

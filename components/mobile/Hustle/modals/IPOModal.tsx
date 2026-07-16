@@ -103,6 +103,11 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                   ))
                 )}
               </View>
+              {/* The IPO fires from the private branch, but success flips the
+                  company to public and re-renders HERE — so the "raised $X"
+                  confirmation must also show in the public branch, or a
+                  successful IPO would look like it did nothing. */}
+              {resultMsg ? <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}
             </>
           ) : (
             <>

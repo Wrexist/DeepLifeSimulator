@@ -20,7 +20,7 @@
  * no economy changes — presentation of existing state only.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import Svg, { Polyline, Polygon, Line, Circle } from 'react-native-svg';
 import {
@@ -72,7 +72,15 @@ import { calculateLifeExpectancy } from '@/lib/statistics/lifeExpectancy';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
 import { calculateRetirementPlanning } from '@/lib/statistics/retirementCalculator';
 import { buildCrossSystemSummary, SystemCard } from '@/lib/statistics/crossSystemSummary';
-import { buildMilestones, Milestone } from '@/lib/statistics/milestones';
+import {
+  buildMilestones,
+  Milestone,
+  milestoneGemReward,
+  getClaimedMilestoneRewards,
+  claimMilestoneReward,
+} from '@/lib/statistics/milestones';
+import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { haptic } from '@/utils/haptics';
 import { trendOf } from '@/lib/statistics/trends';
 import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
@@ -127,6 +135,7 @@ const SYSTEM_META: Record<string, { Icon: IconType; color: string }> = {
 
 export default function StatisticsApp({ onBack }: Props) {
   const { gameState } = useGame();
+  const setGameState = useSetGameState();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
@@ -153,6 +162,19 @@ export default function StatisticsApp({ onBack }: Props) {
     [gameState, contactsByKind]
   );
   const milestones = useMemo(() => buildMilestones(gameState), [gameState]);
+  // One-time gem reward per milestone: `claimedMilestoneRewards` is the additive
+  // claimed set; the chip grants via the canonical clamped gems path.
+  const claimedMilestones = useMemo(
+    () => new Set(getClaimedMilestoneRewards(gameState)),
+    [gameState],
+  );
+  const onClaimMilestone = useCallback(
+    (id: string) => {
+      haptic.success();
+      setGameState((prev) => claimMilestoneReward(prev, id).state);
+    },
+    [setGameState],
+  );
 
   // netWorthHistory / weeklyEarningsHistory are NetWorthSnapshot[] ({week,value}).
   const netWorthSeries = useMemo(() => s.netWorthHistory.map((x) => x.value), [s]);
@@ -472,7 +494,16 @@ export default function StatisticsApp({ onBack }: Props) {
             </ScrollView>
             <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               {filtered.map((m, i) => (
-                <TimelineItem key={m.id} milestone={m} isFirst={i === 0} isLast={i === filtered.length - 1} theme={theme} />
+                <TimelineItem
+                  key={m.id}
+                  milestone={m}
+                  isFirst={i === 0}
+                  isLast={i === filtered.length - 1}
+                  theme={theme}
+                  reward={milestoneGemReward(m)}
+                  claimed={claimedMilestones.has(m.id)}
+                  onClaim={() => onClaimMilestone(m.id)}
+                />
               ))}
             </View>
           </>
@@ -1169,7 +1200,23 @@ function SystemRow({ card, theme, darkMode, onPress }: { card: SystemCard; theme
   );
 }
 
-function TimelineItem({ milestone, isFirst, isLast, theme }: { milestone: Milestone; isFirst: boolean; isLast: boolean; theme: Theme }) {
+function TimelineItem({
+  milestone,
+  isFirst,
+  isLast,
+  theme,
+  reward,
+  claimed,
+  onClaim,
+}: {
+  milestone: Milestone;
+  isFirst: boolean;
+  isLast: boolean;
+  theme: Theme;
+  reward: number;
+  claimed: boolean;
+  onClaim: () => void;
+}) {
   const cc = categoryColor(milestone.category);
   return (
     <View style={styles.timelineItem}>
@@ -1187,6 +1234,20 @@ function TimelineItem({ milestone, isFirst, isLast, theme }: { milestone: Milest
           <View style={[styles.tag, { backgroundColor: withAlpha(cc, 0.14) }]}>
             <Text style={[styles.tagText, { color: cc }]}>{milestone.category}</Text>
           </View>
+          {claimed ? (
+            <View style={[styles.tag, { backgroundColor: withAlpha(accent.success, 0.14) }]}>
+              <Text style={[styles.tagText, { color: accent.success }]}>Claimed +{reward}💎</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={onClaim}
+              accessibilityRole="button"
+              accessibilityLabel={`Claim ${reward} gems for ${milestone.label}`}
+              style={[styles.claimChip, { backgroundColor: withAlpha(accent.gold, 0.16), borderColor: withAlpha(accent.gold, 0.5) }]}
+            >
+              <Text style={[styles.claimChipText, { color: accent.gold }]}>Claim +{reward}💎</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -1473,6 +1534,8 @@ const styles = StyleSheet.create({
   cardSub: { fontSize: fs.xs },
   tag: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full },
   tagText: { fontSize: fs.xs, fontWeight: '700', textTransform: 'capitalize' },
+  claimChip: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full, borderWidth: 1 },
+  claimChipText: { fontSize: fs.xs, fontWeight: '800' },
   recItem: { fontSize: fs.xs, marginTop: sp.xs },
   pastLifeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
 

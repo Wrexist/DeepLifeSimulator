@@ -148,4 +148,6 @@ export const seniorEventTemplates: EventTemplate[] = [
   legacyReflection,
   bucketList,
   retirementDays,
-];
+  // Fix 6: tag so the weighted picker lifts these out of the generic pool while
+  // the player is a senior (age >= 65 and/or retired).
+].map(t => ({ ...t, lifeStageTag: 'senior' as const }));

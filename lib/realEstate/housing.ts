@@ -203,7 +203,9 @@ export function processWeeklyHousing(
     if (p.condition == null) p.condition = 100;
     if (p.lastMaintenance == null) p.lastMaintenance = weeksLived;
 
-    // Condition decay
+    // Condition decay (capture the pre-decay value so the maintenance alert can
+    // fire on the downward crossing of 25 rather than a fragile narrow band).
+    const conditionBeforeDecay = p.condition;
     p.condition = Math.max(0, p.condition - CONDITION_DECAY_RATE);
 
     // Property value appreciation/depreciation
@@ -231,8 +233,13 @@ export function processWeeklyHousing(
     const weeklyUpkeep = Math.round((baseUpkeep + upkeepBonus) / 4);
     totalUpkeep += weeklyUpkeep;
 
-    // Condition alerts
-    if (p.condition <= 25 && p.condition > 24.5) {
+    // Condition alerts — fire once on the downward CROSSING of 25 (from above 25
+    // to at/below 25). The old `condition <= 25 && condition > 24.5` band assumed
+    // the decay step landed inside a 0.5-wide window, so a single larger drop
+    // (e.g. after an upgrade/maintenance reset or a legacy-save migration) could
+    // skip the alert entirely — or a value not aligned to the step could fire it
+    // two weeks running. Crossing-detection fires exactly once at the transition.
+    if (conditionBeforeDecay > 25 && p.condition <= 25) {
       notifications.push(`${p.name} is in poor condition! Maintenance needed.`);
     }
 

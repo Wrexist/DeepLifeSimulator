@@ -17,6 +17,14 @@ import type { DatingProfile } from './datingProfiles';
 // ── Match probability ─────────────────────────────────────────────────────
 
 /**
+ * Minimum match-probability multiplier a purchased Boost applies while active.
+ * Free tier's `perks.boostMultiplier` is 1.0, so without this floor the 50-gem
+ * Boost would be a no-op for free players. Kept as a named constant so the
+ * Boost action and modal copy stay in sync with the effect.
+ */
+export const BOOST_MATCH_FLOOR = 1.5;
+
+/**
  * Calculate the probability (0-1) that an NPC swipes right on the player.
  * Inputs: player's reputation/wealth/photos + NPC personality + active boost.
  *
@@ -48,9 +56,13 @@ export function calculateMatchProbability(
     p += premium.tier === 'ultra' ? 0.12 : premium.tier === 'plus' ? 0.06 : 0;
   }
 
-  // Active boost amplifies further.
+  // Active boost amplifies further. A purchased Boost must lift the match rate
+  // even for free-tier players, whose `perks.boostMultiplier` is 1.0 (a no-op
+  // that made the 50-gem spend do nothing). Floor the effect at 1.5× so the
+  // purchase always visibly matters; premium tiers with a higher multiplier
+  // (Plus 1.5, Ultra 2.5) keep theirs.
   if (state.sparkApp?.boost?.active) {
-    p *= premium?.perks?.boostMultiplier ?? 1.5;
+    p *= Math.max(BOOST_MATCH_FLOOR, premium?.perks?.boostMultiplier ?? BOOST_MATCH_FLOOR);
   }
 
   // Wealth gating: millionaire NPCs are pickier when player has no money.

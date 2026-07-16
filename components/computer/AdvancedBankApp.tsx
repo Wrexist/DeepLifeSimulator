@@ -61,7 +61,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
@@ -85,6 +85,8 @@ import {
   openNewAccount,
   applyForCard,
   payDownCard,
+  spendOnCard,
+  redeemRewards,
   addBill,
   removeBill,
   createSavingsGoal,
@@ -169,6 +171,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
+  const [chargeCardId, setChargeCardId] = useState<string | null>(null);
   // v22 Wave A: computer-only budget cap picker + account transfer.
   const [budgetTargetCategory, setBudgetTargetCategory] = useState<BudgetCategory | null>(null);
   const [transferFromId, setTransferFromId] = useState<string | null>(null);
@@ -191,10 +194,27 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     for (const p of (gameState.realEstate ?? [])) {
       if (p.owned) re += p.currentValue ?? p.price ?? 0;
     }
-    const assets = cash + totalBank + stocks + crypto + re;
-    const liabilities = totalCardDebt + totalLoanDebt;
-    return { stocks, crypto, re, assets, liabilities, net: assets - liabilities };
-  }, [cash, totalBank, totalCardDebt, totalLoanDebt, gameState.stocks, gameState.cryptos, gameState.realEstate]);
+    // Mirror accounts (`checking-default`, `savings-default`) are 1:1 reflections
+    // of the authoritative legacy fields — `stats.money` (=cash) and
+    // `bankSavings`. Summing ALL accounts alongside `cash` double-counts the
+    // checking mirror (and would rely on the savings mirror for bankSavings).
+    // Count each authoritative pool once: cash + bankSavings + self-opened
+    // (non-mirror) deposits.
+    // Count each authoritative money pool once. Summing the raw account list
+    // alongside `cash` double-counts the checking mirror (see
+    // computeStatementNetWorth / MIRRORED_ACCOUNT_IDS).
+    const nw = computeStatementNetWorth({
+      cash,
+      bankSavings: gameState.bankSavings ?? 0,
+      accounts: banking.accounts,
+      stocks,
+      crypto,
+      realEstate: re,
+      cardDebt: totalCardDebt,
+      loanDebt: totalLoanDebt,
+    });
+    return { stocks, crypto, re, bankDeposits: nw.bankDeposits, assets: nw.assets, liabilities: nw.liabilities, net: nw.net };
+  }, [cash, banking.accounts, gameState.bankSavings, totalCardDebt, totalLoanDebt, gameState.stocks, gameState.cryptos, gameState.realEstate]);
 
   // Weekly income approximation for the loan quote DTI gate + statement activity.
   const weeklyIncome = useMemo(() => {
@@ -348,7 +368,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const renderStatement = () => {
     const compositionRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; tintRGB: string; label: string; value: number; sign: 1 | -1 }[] = [
       { icon: Coins, tintHex: accent.info, tintRGB: '59, 130, 246', label: 'Cash on hand', value: cash, sign: 1 },
-      { icon: PiggyBank, tintHex: accent.success, tintRGB: '16, 185, 129', label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: totalBank, sign: 1 },
+      { icon: PiggyBank, tintHex: accent.success, tintRGB: '16, 185, 129', label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: parts.bankDeposits, sign: 1 },
     ];
     if (parts.stocks > 0) compositionRows.push({ icon: LineChart, tintHex: '#a855f7', tintRGB: '168, 85, 247', label: 'Stock holdings', value: parts.stocks, sign: 1 });
     if (parts.crypto > 0) compositionRows.push({ icon: Coins, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Crypto holdings', value: parts.crypto, sign: 1 });
@@ -640,6 +660,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const totalLimit = banking.creditCards.reduce((s, c) => s + c.creditLimit, 0);
     const cardUtil = totalLimit > 0 ? totalCardDebt / totalLimit : 0;
     const weeklyLoanPmt = loans.reduce((s, l) => s + l.weeklyPayment, 0);
+    const totalPendingRewards = banking.creditCards.reduce((s, c) => s + Math.max(0, c.pendingRewards ?? 0), 0);
     return (
       <View style={{ gap: responsiveSpacing.md }}>
         {/* Debt summary strip. */}
@@ -658,13 +679,18 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           ))
         )}
 
-        {/* v22 Wave A honesty: pendingRewards can't accrue until the Wave B
-            living-card loop wires charging, so we no longer surface a "$0 rewards"
-            readout that promises an unreachable perk. Card count only. */}
+        {/* The living-card loop is wired: charge posts to the balance, paying it
+            down accrues cashback, and Redeem banks that cashback as cash. Surface
+            the accrued rewards pool in the header meta now that it can actually
+            accrue. */}
         <SectionHeader
           theme={theme}
           title="Credit Cards"
-          meta={banking.creditCards.length > 0 ? `${banking.creditCards.length} active` : undefined}
+          meta={
+            banking.creditCards.length > 0
+              ? `${banking.creditCards.length} active${totalPendingRewards > 0 ? ` · ${formatMoney(totalPendingRewards)} rewards` : ''}`
+              : undefined
+          }
           addLabel="Apply"
           onAdd={() => setShowApplyCard(true)}
         />
@@ -673,9 +699,55 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             No cards yet. Apply for one to build credit history (eligibility depends on your score).
           </EmptyCard>
         ) : (
-          banking.creditCards.map((c) => (
-            <CreditCardRow key={c.id} card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
-          ))
+          banking.creditCards.map((c) => {
+            const availableCredit = Math.max(0, (c.creditLimit ?? 0) - (c.balance ?? 0));
+            const pending = Math.max(0, c.pendingRewards ?? 0);
+            const hasBalance = (c.balance ?? 0) > 0;
+            return (
+              <View key={c.id} style={{ gap: responsiveSpacing.xs }}>
+                <CreditCardRow card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
+                <View style={styles.detailSecondaryRow}>
+                  <TouchableOpacity
+                    onPress={() => setChargeCardId(c.id)}
+                    disabled={availableCredit <= 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Charge a purchase to ${c.name}`}
+                    accessibilityState={{ disabled: availableCredit <= 0 }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, availableCredit <= 0 && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: theme.text }]}>Charge</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setPayCardId(c.id)}
+                    disabled={!hasBalance}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pay down ${c.name}`}
+                    accessibilityState={{ disabled: !hasBalance }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, !hasBalance && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: theme.text }]}>Pay</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (pending <= 0) return;
+                      // redeemCardRewards caps a single redemption at $10,000.
+                      const redeemed = Math.min(pending, 10_000);
+                      redeemRewards(setGameState, c.id);
+                      queueSave();
+                      Alert.alert('Rewards redeemed', `${formatMoney(redeemed)} in cashback added to your cash.`);
+                    }}
+                    disabled={pending <= 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={pending > 0 ? `Redeem ${formatMoney(pending)} in rewards from ${c.name}` : 'No rewards to redeem'}
+                    accessibilityState={{ disabled: pending <= 0 }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, pending <= 0 && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: pending > 0 ? accent.success : theme.text }]}>Redeem</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
         )}
       </View>
     );
@@ -1080,6 +1152,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const detailAccount =
     subView?.kind === 'account' ? banking.accounts.find((a) => a.id === subView.id) ?? null : null;
 
+  // Charge-to-card modal derived values (used by the Charge AmountInputModal in
+  // the frame below). Available credit caps the charge so it can't exceed the limit.
+  const chargeCard = chargeCardId ? banking.creditCards.find((c) => c.id === chargeCardId) ?? null : null;
+  const chargeAvailableCredit = chargeCard ? Math.max(0, (chargeCard.creditLimit ?? 0) - (chargeCard.balance ?? 0)) : 0;
+
   // --- Frame ---------------------------------------------------------------
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
@@ -1308,6 +1385,31 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
           }
           setPayCardId(null);
+        }}
+      />
+
+      {/* Charge a purchase to the card — grows the (interest-bearing) balance now
+          with no cash movement; cashback then accrues when you pay the balance
+          down (see chargeCreditCard / payCreditCard anti-exploit note). */}
+      <AmountInputModal
+        visible={!!chargeCardId}
+        title="Charge to card"
+        subtitle={
+          chargeCard
+            ? `Available credit: ${formatMoney(chargeAvailableCredit)}. Adds to your balance now — pay it down later to earn ${(chargeCard.rewardsRate * 100).toFixed(1)}% cashback.`
+            : `Cash on hand: ${formatMoney(cash)}`
+        }
+        confirmLabel="Charge"
+        maxAmount={chargeAvailableCredit}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setChargeCardId(null)}
+        onConfirm={(amt) => {
+          if (chargeCardId) {
+            spendOnCard(setGameState, chargeCardId, amt, 'Purchase');
+            queueSave();
+          }
+          setChargeCardId(null);
         }}
       />
     </View>

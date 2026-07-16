@@ -37,6 +37,7 @@ import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -65,9 +66,15 @@ function HomeScreen() {
  * adding visual noise to the rest of the screen.
  */
 function HeroStrip({ month, week, age }: { month: string; week: number; age: number }) {
+  const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
+    if (reduced) {
+      // Reduced motion: hold the "live" dot at full opacity — no breathing loop.
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -86,7 +93,7 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, reduced]);
 
   return (
     <View style={styles.heroRow}>
@@ -263,9 +270,12 @@ function HomeScreenContent() {
         },
       }, LEGACY_PASS_XP.dailyChallenge));
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
-      // Persist immediately so a kill before the next autosave can't let the
-      // player re-earn the daily gems/XP on relaunch (lastLoginRewardDate guard).
-      void saveGame?.(false);
+      // The persist happens in the committed-marker effect below — NOT here.
+      // saveGame reads gameStateRef.current, which is synced to state in a
+      // POST-COMMIT effect (in GameActionsProvider), so calling saveGame() in
+      // this same tick would persist the PRE-grant state and let a force-kill
+      // within ~2 min re-claim the reward. Keying the save on the committed
+      // lastLoginRewardDate guarantees the post-grant state is what hits disk.
     }, 800);
 
     return () => clearTimeout(timer);
@@ -277,8 +287,31 @@ function HomeScreenContent() {
     gameState.showDailyRewardPopup,
     hasCompletedTutorial,
     setGameState,
-    saveGame,
   ]);
+
+  // Persist AFTER the daily-reward grant commits. This effect fires only when
+  // `lastLoginRewardDate` actually transitions to a new value (the grant above
+  // stamps today's date), never on initial mount — the ref is seeded with the
+  // value from first render, so mount sees `ref === current` and no-ops.
+  //
+  // The save is deferred to a macrotask: gameStateRef is synced in a
+  // post-commit effect that lives in the *parent* GameActionsProvider, and
+  // React fires passive effects child-before-parent — so at the instant this
+  // (child) effect runs, the parent's ref sync for this commit has NOT run yet.
+  // setTimeout(0) lets the whole passive-effect flush (including that ref sync)
+  // complete first, so saveGame reads the committed post-grant state.
+  //
+  // No save loop: saveGame never mutates lastLoginRewardDate, so persisting
+  // can't re-trigger this effect.
+  const persistedRewardDateRef = useRef(gameState.lastLoginRewardDate);
+  useEffect(() => {
+    if (persistedRewardDateRef.current === gameState.lastLoginRewardDate) return undefined;
+    persistedRewardDateRef.current = gameState.lastLoginRewardDate;
+    const id = setTimeout(() => {
+      void saveGame?.(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [gameState.lastLoginRewardDate, saveGame]);
 
   // Show welcome back popup for returning players
   useEffect(() => {

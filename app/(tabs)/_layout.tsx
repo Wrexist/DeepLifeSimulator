@@ -1,5 +1,5 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import { Platform, View, Text, TouchableOpacity } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatChanges } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
@@ -27,6 +28,84 @@ const WeeklyResultSheet = lazy(() => import('@/components/WeeklyResultSheet'));
 // rendering the game home at launch (the long-standing launch crash). Anchoring
 // the group on `home` keeps "/" unambiguously the loader.
 export const unstable_settings = { initialRouteName: 'home' };
+
+interface EventInboxPillProps {
+  count: number;
+  bottom: number;
+  onPress: () => void;
+}
+
+// The inbox pill conditional-mounts after weeks with queued events, so it would
+// otherwise pop into place with no bridge. On mount it runs a small entrance:
+// opacity 0→1 and translateY 8→0 in parallel (200ms, Easing.out(Easing.cubic),
+// native driver). Reduce Motion keeps the opacity feedback but drops the
+// movement — it renders settled. No exit animation (the conditional unmount is
+// acceptable). Tap behavior and copy are unchanged from the inline pill.
+function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
+  const reducedMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+  const translateY = useRef(new Animated.Value(reducedMotion ? 0 : 8)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      // Settled: preserve opacity feedback, skip the movement.
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+    const entrance = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    entrance.start();
+    return () => entrance.stop();
+  }, [reducedMotion, opacity, translateY]);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        bottom,
+        alignSelf: 'center',
+        opacity,
+        transform: [{ translateY }],
+      }}
+    >
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${count} decision${count === 1 ? '' : 's'} waiting`}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: scale(8),
+          paddingVertical: scale(9),
+          paddingHorizontal: scale(16),
+          borderRadius: scale(999),
+          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          borderWidth: 1,
+          borderColor: 'rgba(96, 165, 250, 0.5)',
+        }}
+      >
+        <Bell size={scale(15)} color="#60A5FA" />
+        <Text style={{ color: '#F8FAFC', fontWeight: '700', fontSize: scale(13) }}>
+          {count} decision{count === 1 ? '' : 's'} waiting
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 export default function TabLayout() {
   const { gameState } = useGame();
@@ -280,31 +359,11 @@ export default function TabLayout() {
     ) : null}
     {/* Non-blocking event inbox pill — tap to review decisions on your own time. */}
     {showEventPill ? (
-      <TouchableOpacity
-        activeOpacity={0.85}
+      <EventInboxPill
+        count={pendingEventCount}
+        bottom={scale(88) + insets.bottom}
         onPress={() => setEventInboxOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`${pendingEventCount} decision${pendingEventCount === 1 ? '' : 's'} waiting`}
-        style={{
-          position: 'absolute',
-          bottom: scale(88) + insets.bottom,
-          alignSelf: 'center',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: scale(8),
-          paddingVertical: scale(9),
-          paddingHorizontal: scale(16),
-          borderRadius: scale(999),
-          backgroundColor: 'rgba(15, 23, 42, 0.92)',
-          borderWidth: 1,
-          borderColor: 'rgba(96, 165, 250, 0.5)',
-        }}
-      >
-        <Bell size={scale(15)} color="#60A5FA" />
-        <Text style={{ color: '#F8FAFC', fontWeight: '700', fontSize: scale(13) }}>
-          {pendingEventCount} decision{pendingEventCount === 1 ? '' : 's'} waiting
-        </Text>
-      </TouchableOpacity>
+      />
     ) : null}
     {/* ENGAGEMENT: Floating stat change indicators on week advance */}
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />

@@ -183,6 +183,35 @@ describe('ambitions — one-time payoff idempotency', () => {
     expect(next.ambitionCompletedMilestones).toContain('tl_friend');
   });
 
+  it('stamps the ambitionId into the cross-life prestige.claimedAmbitions set on payout', () => {
+    const s0 = completeTrueLoveState();
+    const s1 = grantAmbitionPayout(s0);
+    expect(s1.prestige!.claimedAmbitions).toContain('true_love');
+  });
+
+  it('treats an ambition already claimed in a PREVIOUS life as claimed (no re-grant)', () => {
+    // Fresh life: per-life flags reset, but the cross-life stamp survived prestige.
+    const s0 = makeState({
+      ambitionId: 'true_love',
+      ambitionCompletedMilestones: [],
+      ambitionRewardClaimed: false, // per-life gate was reset by prestige
+      relationships: [{ type: 'romantic' }] as any,
+      family: { spouse: { name: 'Sam' }, children: [] } as any,
+      stats: { money: 1000, gems: 5, happiness: 95, reputation: 0 } as any,
+      prestige: { prestigePoints: 100, claimedAmbitions: ['true_love'] } as any,
+    });
+
+    const c = getAmbitionCompletion(s0)!;
+    expect(c.allComplete).toBe(true);
+    expect(c.alreadyClaimed).toBe(true); // reflected in the UI, not silently no-oped
+    expect(c.readyToClaim).toBe(false);
+
+    const s1 = grantAmbitionPayout(s0);
+    expect(s1.stats.gems).toBe(5); // no re-mint
+    expect(s1.stats.money).toBe(1000);
+    expect(s1.prestige!.prestigePoints).toBe(100); // no re-grant of prestige points
+  });
+
   it('is safe when the state has no prestige record (grants money + gems, skips PP)', () => {
     const s0 = makeState({
       ambitionId: 'true_love',

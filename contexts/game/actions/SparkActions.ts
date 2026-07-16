@@ -42,7 +42,7 @@ import {
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
-import { getNpcReplyPool } from '@/lib/dating/npcReplyPool';
+import { getNpcReplyPool, pickNpcReply } from '@/lib/dating/npcReplyPool';
 
 const log = logger.scope('SparkActions');
 
@@ -51,6 +51,9 @@ const MESSAGE_HISTORY_CAP = 100;
 const JEALOUSY_HISTORY_CAP = 50;
 const BOOST_GEM_COST = 50;
 const BOOST_DURATION_WEEKS = 1;
+// Fresh "liked you" entries granted immediately on Boost purchase — a tangible,
+// on-screen payoff so the 50-gem spend visibly does something right away.
+const BOOST_LIKED_YOU_BONUS = 3;
 const REWIND_GEM_COST = 20;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -393,12 +396,18 @@ export const generateNpcReply = (
   const profile = findProfile(match.profileId);
   if (!profile) return;
 
-  // Deterministic reply pool based on profile personality. Pools are content —
-  // they live in lib/dating/npcReplyPool.ts and cover every catalog personality
-  // (see PREREQ BUG FIX there), so replies actually vary by who you match with
-  // instead of collapsing to the generic `friendly` pool.
+  // Reply pool based on profile personality. Pools are content — they live in
+  // lib/dating/npcReplyPool.ts and cover every catalog personality (see PREREQ
+  // BUG FIX there), so replies vary by who you match with instead of collapsing
+  // to the generic `friendly` pool. `pickNpcReply` additionally skips the line
+  // the NPC last sent in THIS chat so consecutive replies never duplicate.
   const pool = getNpcReplyPool(profile.personality);
-  const reply = pool[Math.floor(Math.random() * pool.length)];
+  const thread = sp.messages[matchId] ?? [];
+  let lastNpcText: string | undefined;
+  for (let i = thread.length - 1; i >= 0; i--) {
+    if (thread[i].from === 'npc') { lastNpcText = thread[i].text; break; }
+  }
+  const reply = pickNpcReply(pool, lastNpcText, Math.random());
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
@@ -724,12 +733,25 @@ export const boostProfile = (
       return prev;
     }
     const s = ensureSpark(prev);
+    // Immediate visibility payoff: seed a few fresh "liked you" entries so the
+    // 50-gem Boost has a tangible effect the moment it's bought (the match-rate
+    // lift in calculateMatchProbability is otherwise invisible until swiping).
+    // Free-tier players can't SEE who liked them, but the entries still convert
+    // into matches on swipe and drive the Likes-tab count / Plus upsell teaser.
+    const likedYou = [...s.likedYou];
+    for (const p of DATING_PROFILES) {
+      if (likedYou.length >= s.likedYou.length + BOOST_LIKED_YOU_BONUS) break;
+      if (!likedYou.some((l) => l.profileId === p.id)) {
+        likedYou.push({ profileId: p.id, likedAtWeek: weeksLived, superLiked: false });
+      }
+    }
     return {
       ...prev,
       stats: { ...prev.stats, gems: (prev.stats.gems ?? 0) - BOOST_GEM_COST },
       sparkApp: {
         ...s,
         boost: { active: true, expiresWeek: weeksLived + BOOST_DURATION_WEEKS },
+        likedYou,
       },
     };
   });

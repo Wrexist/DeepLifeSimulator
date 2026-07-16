@@ -102,7 +102,9 @@ function WorkScreenContent() {
         if (r.approved) showSuccess(r.message);
         else if (r.success) showWarning(r.message);
         else showInfo(r.message);
-        saveGame();
+        // Defer past the commit + parent ref-sync so the raise result is what
+        // persists (a synchronous saveGame reads the stale pre-action ref).
+        setTimeout(() => { void saveGame(); }, 0);
         setManageJobId(null);
     }, [requestRaise, showSuccess, showWarning, showInfo, saveGame]);
 
@@ -180,7 +182,19 @@ function WorkScreenContent() {
                 // CR: apply the returned state — updateSystemUsage is pure, so discarding it dropped
                 // the discovery timesUsed / masteryLevel increments.
                 setGameState(prev => updateSystemUsage('streetJobs', prev));
-                saveGame();
+                // Persist AFTER the commit, not in this tick. performStreetJob +
+                // updateSystemUsage above go through setGameState, but saveGame
+                // reads gameStateRef.current, which is synced to state in a
+                // POST-COMMIT effect (in the parent GameActionsProvider). A
+                // synchronous saveGame() here persisted the PRE-action state, so
+                // a force-kill within ~2 min dropped the job's money / energy /
+                // weekly-progress on relaunch. Deferring to a macrotask lets the
+                // commit AND that parent ref-sync effect run first (React fires
+                // passive effects child-before-parent), so the committed
+                // post-action state is what gets saved. The mutated slice spans
+                // many fields (stats, weeklyStreetJobs, crimeSkills, discovery),
+                // so a setTimeout(0) deferral is used rather than a per-slice effect.
+                setTimeout(() => { void saveGame(); }, 0);
             } catch (error) {
                 logger.warn('Failed to update system usage:', error as any);
             }
@@ -723,7 +737,9 @@ function WorkScreenContent() {
                     if (careers.some(c => c.id === career.id)) return prev;
                     return { ...prev, careers: [...careers, { ...career, applied: true }] };
                 });
-                saveGame();
+                // Defer past the commit + parent ref-sync so the new application
+                // is what persists (a synchronous saveGame reads the stale ref).
+                setTimeout(() => { void saveGame(); }, 0);
                 showSuccess(`Applied for ${displayName} — your application is under review.`);
             };
         }

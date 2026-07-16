@@ -81,15 +81,18 @@ export const medicalEmergency: EventTemplate = {
   generate: (state: GameState) => {
     // BUGFIX: `||` masks health=0 as 100, breaking the severity check below.
     const health = state.stats?.health ?? 100;
-    const money = state.stats?.money ?? 0;
-    const hasInsurance = false; // Health insurance not yet implemented
-    
+    // TODO(flawless-audit): there is no health-insurance system in state yet —
+    // the only insurance the game models is per-vehicle (`Vehicle.insurance`).
+    // The old `const hasInsurance = false` hardcode made the "covered cost"
+    // branches dead code (every emergency was full price) while the treatment
+    // copy still dangled a "with insurance" discount that could never apply.
+    // Both are removed so the event is honest; wire a real health-insurance flag
+    // in here when that feature ships.
+
     // Determine severity based on health
     const isSevere = health < 40;
-    const cost = hasInsurance 
-      ? (isSevere ? 500 : 200) // Insurance covers most
-      : (isSevere ? 5000 : 2000); // No insurance = expensive
-    
+    const cost = isSevere ? 5000 : 2000; // Full price — no health-insurance coverage exists yet
+
     // Generate potential disease from event
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { generateEventDisease } = require('@/lib/diseases/diseaseGenerator');
@@ -104,9 +107,7 @@ export const medicalEmergency: EventTemplate = {
       choices: [
         {
           id: 'treat',
-          text: hasInsurance 
-            ? `Seek treatment ($${cost.toLocaleString()} with insurance)`
-            : `Seek treatment ($${cost.toLocaleString()})`,
+          text: `Seek treatment ($${cost.toLocaleString()})`,
           effects: {
             money: -cost,
             stats: {

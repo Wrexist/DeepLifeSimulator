@@ -39,6 +39,7 @@ import {
   createCheckpoint,
   addCheckpoint,
 } from '@/lib/timeMachine/checkpointSystem';
+import { decayCommitmentLevels } from '@/lib/commitments/commitmentSystem';
 
 export interface AutoCheckpointInput {
   prevState: GameState;
@@ -49,10 +50,40 @@ export interface AutoCheckpointInput {
 }
 
 export interface AutoCheckpointResult {
-  partial: { checkpoints?: GameState['checkpoints'] };
+  partial: {
+    checkpoints?: GameState['checkpoints'];
+    /**
+     * Weekly-decayed activity commitment levels (see below). Present only when the
+     * player has an `activityCommitments` slice — otherwise omitted so the final
+     * `...prevState` passthrough is preserved untouched.
+     */
+    activityCommitments?: GameState['activityCommitments'];
+  };
 }
 
 export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointResult {
+  // ---------------------------------------------------------------------------
+  // Weekly activity-commitment decay (Fix 5a).
+  // ---------------------------------------------------------------------------
+  // `decayCommitmentLevels` (lib/commitments) had ZERO callers, so committed
+  // levels never dropped and the ActivityCommitmentModal's bars never moved. The
+  // natural once-per-tick composition point is inside GameActionsContext.nextWeek,
+  // which is owned by another agent this wave. This reducer is a clean host: it
+  // already runs exactly once per tick and its `.partial` is spread into the final
+  // nextState AFTER `...prevState`, so returning a decayed `activityCommitments`
+  // here overrides the passthrough and PERSISTS the decay — without editing the
+  // forbidden composition point. It is immutable (never mutates prevState) and
+  // idempotent under a double-invoked updater (recomputed from prevState each
+  // time), and pure arithmetic so the weekly tick stays deterministic. Only areas
+  // that are NOT the primary/secondary commitment decay, by 1/wk, floored at 0.
+  const activityCommitments = input.prevState.activityCommitments
+    ? {
+        ...input.prevState.activityCommitments,
+        commitmentLevels: decayCommitmentLevels(input.prevState.activityCommitments),
+      }
+    : undefined;
+  const decayPartial = activityCommitments ? { activityCommitments } : {};
+
   try {
     // The legacy code ALWAYS returns `{ checkpoints: currentCheckpoints }`
     // (including when neither gate fires) — `prevState.checkpoints ?? []`
@@ -75,9 +106,10 @@ export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointR
       currentCheckpoints = addCheckpoint(currentCheckpoints, deathCp);
     }
 
-    return { partial: { checkpoints: currentCheckpoints } };
+    return { partial: { ...decayPartial, checkpoints: currentCheckpoints } };
   } catch (cpErr) {
     logger.error('[TIME_MACHINE] Checkpoint error:', cpErr);
-    return { partial: {} };
+    // Even on a checkpoint failure, still persist the commitment decay.
+    return { partial: { ...decayPartial } };
   }
 }

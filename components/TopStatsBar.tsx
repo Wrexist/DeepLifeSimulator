@@ -17,6 +17,7 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
@@ -902,6 +903,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  const blockedRef = useRef(blockingModalActive);
  blockedRef.current = blockingModalActive;
  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const reduced = useReducedMotion();
 
  // All hooks must be called before any early returns (Rules of Hooks)
  const { addCleanup } = useMemoryCleanup();
@@ -918,14 +920,18 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
 
  useEffect(() => {
  if (!date) return;
+ // Reduced motion: skip the bounce entirely — the pip's color/state change is
+ // the cue. This is the game's highest-frequency action, so the motion is kept
+ // gentle (1→1.08→1) even when enabled.
+ if (reduced) return;
  const idx = Math.min(3, Math.max(0, (date.week ?? 1) - 1));
  Animated.sequence([
- Animated.timing(weekAnimations[idx], { toValue: 1.35, duration: 180, useNativeDriver: true }),
- Animated.timing(weekAnimations[idx], { toValue: 1, duration: 180, useNativeDriver: true }),
+ Animated.timing(weekAnimations[idx], { toValue: 1.08, duration: 140, useNativeDriver: true }),
+ Animated.timing(weekAnimations[idx], { toValue: 1, duration: 140, useNativeDriver: true }),
  ]).start();
  // P1-5: drop `date` (object identity changes every save); `weekAnimations`
  // is a stable useRef.current array — only need `date?.week` for the effect.
- }, [date?.week]);
+ }, [date?.week, reduced]);
 
  // Spinner animation for loading state.
  // R2-I: capture the loop handle and stop it on cleanup. The previous version

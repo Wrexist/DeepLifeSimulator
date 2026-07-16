@@ -355,6 +355,20 @@ export function calculateRepairCost(vehicle: Vehicle): number {
   return Math.floor(baseCost * damagePercent * 10);
 }
 
+/**
+ * Out-of-pocket repair cost after applying any active insurance coverage.
+ * Mirrors the discount `repairVehicle` (VehicleActions) actually charges, so
+ * the UI quotes the price the player will really pay (0 when fully covered).
+ */
+export function calculateRepairCostAfterInsurance(vehicle: Vehicle): number {
+  const gross = calculateRepairCost(vehicle);
+  if (vehicle.insurance?.active) {
+    const coverage = vehicle.insurance.coveragePercent / 100;
+    return Math.floor(gross * (1 - coverage));
+  }
+  return gross;
+}
+
 export function calculateFuelCost(vehicle: Vehicle): number {
   // Cost to fill from current level to 100%
   const emptyPercent = (100 - vehicle.fuelLevel) / 100;

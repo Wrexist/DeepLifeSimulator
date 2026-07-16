@@ -52,4 +52,46 @@ describe('qualityMultiplier', () => {
     expect(qualityMultiplier(60)).toBe(1.6);
     expect(qualityMultiplier(90)).toBe(2.5);
   });
+
+  it('hits every anchor point exactly (backwards-compatible)', () => {
+    // The historical per-tier values must be reproduced bit-for-bit at the
+    // anchor scores so pinned earnings math is unchanged.
+    expect(qualityMultiplier(10)).toBeCloseTo(0.5, 10);
+    expect(qualityMultiplier(40)).toBeCloseTo(1.0, 10);
+    expect(qualityMultiplier(60)).toBeCloseTo(1.6, 10);
+    expect(qualityMultiplier(90)).toBeCloseTo(2.5, 10);
+  });
+
+  it('is monotonically non-decreasing across the whole 0..100 range', () => {
+    let prev = -Infinity;
+    for (let t = 0; t <= 100; t++) {
+      const m = qualityMultiplier(t);
+      expect(m).toBeGreaterThanOrEqual(prev);
+      prev = m;
+    }
+  });
+
+  it('has no dead zone: gear WITHIN a band strictly increases the multiplier', () => {
+    // The whole point of the fix — buying gear inside a tier used to change
+    // earnings by exactly 0. Now every point between anchors helps.
+    expect(qualityMultiplier(25)).toBeGreaterThan(qualityMultiplier(15));
+    expect(qualityMultiplier(50)).toBeGreaterThan(qualityMultiplier(45));
+    expect(qualityMultiplier(80)).toBeGreaterThan(qualityMultiplier(70));
+  });
+
+  it('interpolates linearly between anchors (midpoint of 40..60 is 1.3)', () => {
+    expect(qualityMultiplier(50)).toBeCloseTo(1.3, 10); // halfway between 1.0 and 1.6
+  });
+
+  it('is flat below the first anchor and above the last, and clamps out-of-range', () => {
+    expect(qualityMultiplier(0)).toBe(0.5);
+    expect(qualityMultiplier(5)).toBe(0.5);
+    expect(qualityMultiplier(100)).toBe(2.5);
+    expect(qualityMultiplier(999)).toBe(2.5); // clamped
+    expect(qualityMultiplier(-10)).toBe(0.5); // clamped
+  });
+
+  it('reads .total from a QualityBreakdown object', () => {
+    expect(qualityMultiplier({ total: 50, accessories: 0, pc: 50, tier: 'pro' })).toBeCloseTo(1.3, 10);
+  });
 });

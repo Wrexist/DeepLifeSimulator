@@ -553,8 +553,8 @@ export default function GamingApp({ onBack }: Props) {
 
   // ── Record tab (upload composer) ───────────────────────────────────────────
   const renderRecord = () => {
-    const publishDisabled = !title.trim() || energy < 15;
     const capped = uploadsThisWeek >= WEEKLY_VIDEO_CAP;
+    const publishDisabled = !title.trim() || energy < 15 || capped;
     // Live preview stand-in so the composer is thumbnail-led like the real feed.
     // Cover keys off the topic (stable) but a game name typed in the title still
     // wins via VideoThumb's keyword match.
@@ -642,7 +642,7 @@ export default function GamingApp({ onBack }: Props) {
                 style={styles.publishBtnInner}
               >
                 <Sparkles size={scale(16)} color={publishDisabled ? theme.textMuted : 'white'} />
-                <Text style={[styles.publishBtnText, { color: publishDisabled ? theme.textMuted : 'white' }]}>Record &amp; upload</Text>
+                <Text style={[styles.publishBtnText, { color: publishDisabled ? theme.textMuted : 'white' }]}>{capped ? 'Weekly cap reached' : 'Record & upload'}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
 import { DesignSystem } from '@/utils/designSystem';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 const LinearGradient = LinearGradientFallback;
 
@@ -42,10 +43,11 @@ export default function ToastNotification({
   stackIndex = 0,
 }: ToastNotificationProps) {
   const { buttonPress } = useFeedback(hapticEnabled);
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
   const getTypeStyles = () => {
     switch (type) {
@@ -87,6 +89,17 @@ export default function ToastNotification({
   const IconComponent = typeStyles.icon;
 
   const dismiss = useCallback(() => {
+    // Reduced motion: fade out in place — no slide/scale movement.
+    if (reducedMotion) {
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        onDismiss(id);
+      });
+      return;
+    }
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: position === 'top' ? -100 : 100,
@@ -100,36 +113,51 @@ export default function ToastNotification({
         useNativeDriver: true,
       }),
       Animated.timing(scaleAnim, {
-        toValue: 0.8,
+        // Mirror the entry scale so exit contracts to the same start point.
+        toValue: 0.92,
         duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
       onDismiss(id);
     });
-  }, [slideAnim, opacityAnim, scaleAnim, position, onDismiss, id]);
+  }, [slideAnim, opacityAnim, scaleAnim, position, onDismiss, id, reducedMotion]);
 
   useEffect(() => {
     // Animate in
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.ease),
-      }),
+    if (reducedMotion) {
+      // Reduced motion: opacity only — snap slide/scale to their settled values
+      // so the toast appears in place without sliding or scaling.
+      slideAnim.setValue(0);
+      scaleAnim.setValue(1);
       Animated.timing(opacityAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 200,
         useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-        easing: Easing.elastic(1),
-      }),
-    ]).start();
+      }).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+          // Ease-out settle instead of elastic overshoot — a utility surface
+          // shouldn't bounce.
+          easing: Easing.out(Easing.cubic),
+        }),
+      ]).start();
+    }
 
     // Auto dismiss (unless persistent)
     if (!persistent) {
@@ -140,7 +168,7 @@ export default function ToastNotification({
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss, persistent]);
+  }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss, persistent, reducedMotion]);
 
   const handleDismiss = () => {
     buttonPress();

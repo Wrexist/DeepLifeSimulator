@@ -9,46 +9,13 @@ export interface AchievementProgress {
   unlockedAt?: number; 
 }
 
-export const ACHIEVEMENTS: AchievementProgress[] = [
-  {
-    id: 'first_million',
-    name: 'First Million',
-    desc: 'Reach a net worth of $1,000,000.',
-  },
-  {
-    id: 'debt_free',
-    name: 'Debt Free',
-    desc: 'Have no outstanding debts.',
-  },
-  {
-    id: 'healthy_lifestyle',
-    name: 'Healthy Lifestyle',
-    desc: 'Maintain 90+ health for 10 consecutive weeks.',
-  },
-  {
-    id: 'social_star',
-    name: 'Social Star',
-    desc: 'Maintain 10 relationships with affection over 70.',
-  },
-  {
-    id: 'politician_legend',
-    name: 'Political Legend',
-    desc: 'Reach the highest level in the politician career.',
-  },
-  {
-    id: 'celebrity_icon',
-    name: 'Celebrity Icon',
-    desc: 'Reach the highest level in the celebrity career.',
-  },
-  {
-    id: 'athletic_champion',
-    name: 'Athletic Champion',
-    desc: 'Reach the highest level in the athlete career.',
-  },
-];
-
-const hasAchievement = (progress: AchievementProgress[], id: string): boolean =>
-  progress.some(a => a.id === id);
+/**
+ * @deprecated Legacy 7-entry achievement catalog, superseded by the unified
+ * system in `src/features/onboarding/achievementsData.ts`. Reduced to an empty
+ * stub — its only remaining consumer was the no-op `checkAchievements` path.
+ * TODO(flawless-audit): remove with checkAchievements.
+ */
+export const ACHIEVEMENTS: AchievementProgress[] = [];
 
 // Memoization cache for net worth
 interface NetWorthCacheKey {
@@ -250,48 +217,12 @@ export const netWorth = (state: GameState): number => {
 };
 
 /**
- * @deprecated Use the comprehensive achievement system from src/features/onboarding/achievementsData.ts
- * This function is kept for backward compatibility but now uses the unified system
+ * @deprecated Superseded by the unified achievement system in
+ * `src/features/onboarding/achievementsData.ts`. Reduced to a no-op stub: its
+ * only caller is the no-op `checkAchievements` in GameActionsContext (not
+ * editable this wave), so it must stay exported but does nothing.
+ * TODO(flawless-audit): remove with checkAchievements.
  */
-export const evaluateAchievements = (state: GameState): AchievementProgress[] => {
-  // Import the comprehensive achievement system
-  const { achievements } = require('@/src/features/onboarding/achievementsData');
-  const claimed = new Set(state.claimedProgressAchievements || []);
-  const legacyProgress = state.progress?.achievements ?? [];
-  
-  const unlocked: AchievementProgress[] = [];
-  
-  // Legacy achievement IDs that need to be checked
-  const legacyIds = ['first_million', 'debt_free', 'healthy_lifestyle', 'social_star', 'politician_legend', 'celebrity_icon', 'athletic_champion'];
-  
-  legacyIds.forEach(id => {
-    // Check if already claimed in new system
-    if (claimed.has(id)) return;
-    
-    // Check if already in legacy progress
-    if (hasAchievement(legacyProgress, id)) return;
-    
-    // Find achievement in comprehensive system
-    const achievement = achievements.find((a: any) => a.id === id);
-    if (!achievement) return;
-    
-    // Evaluate achievement
-    let isUnlocked = false;
-    if (achievement.progressSpec.kind === 'boolean') {
-      isUnlocked = achievement.progressSpec.met(state);
-    } else if (achievement.progressSpec.kind === 'counter') {
-      const current = achievement.progressSpec.current(state);
-      isUnlocked = current >= achievement.progressSpec.goal;
-    }
-    
-    if (isUnlocked) {
-      unlocked.push({
-        id: achievement.id,
-        name: achievement.title,
-        desc: achievement.description,
-      });
-    }
-  });
-  
-  return unlocked;
+export const evaluateAchievements = (_state: GameState): AchievementProgress[] => {
+  return [];
 };

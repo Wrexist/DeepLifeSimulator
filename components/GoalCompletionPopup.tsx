@@ -43,9 +43,10 @@ export default function GoalCompletionPopup({
   onClose, 
   darkMode = false 
 }: GoalCompletionPopupProps) {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.94)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
@@ -56,6 +57,13 @@ export default function GoalCompletionPopup({
           useNativeDriver: true,
           tension: 100,
           friction: 8,
+        }),
+        // Fade the card in alongside the gentle 0.94→1 scale so it reads as a
+        // reveal rather than a scale-from-nothing pop.
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: 0,
@@ -77,9 +85,10 @@ export default function GoalCompletionPopup({
       return () => clearTimeout(timer);
     } else {
       // Reset animations
-      scaleAnim.setValue(0);
+      scaleAnim.setValue(0.94);
       slideAnim.setValue(50);
       fadeAnim.setValue(0);
+      contentOpacity.setValue(0);
     }
     return;
   }, [visible]);
@@ -127,6 +136,7 @@ export default function GoalCompletionPopup({
           style={[
             styles.container,
             {
+              opacity: contentOpacity,
               transform: [
                 { scale: scaleAnim },
                 { translateY: slideAnim }

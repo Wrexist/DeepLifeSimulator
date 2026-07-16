@@ -6,11 +6,20 @@ import { logger } from '@/utils/logger';
 /**
  * Auto-save action types
  */
-export type AutoSaveActionType = 
+export type AutoSaveActionType =
   | 'threshold' // Save excess cash above threshold
   | 'percentage' // Save percentage of income
   | 'fixed' // Save fixed amount per week
   | 'excess'; // Save when cash exceeds X
+
+/**
+ * Coerce a rule's numeric input to a finite number. `AutomationAction.value`
+ * can be undefined/NaN on hand-authored or migrated rules; without this guard
+ * the executors below propagate NaN into money / bankSavings downstream.
+ * Mirrors autoInvest's `safeNum`.
+ */
+const safeNum = (n: number | undefined, fb = 0): number =>
+  typeof n === 'number' && isFinite(n) ? n : fb;
 
 /**
  * Execute auto-save rule
@@ -94,11 +103,11 @@ function executeThresholdSave(
   action: AutomationAction,
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  const threshold = action.value;
+  const threshold = safeNum(action.value);
   if (availableCash <= threshold) {
     return { success: false, amount: 0, message: `Cash ($${availableCash.toLocaleString()}) below threshold ($${threshold.toLocaleString()})` };
   }
-  
+
   const saveAmount = availableCash - threshold;
   return {
     success: true,
@@ -114,7 +123,7 @@ function executePercentageSave(
   action: AutomationAction,
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  const percentage = Math.min(action.value, 100);
+  const percentage = Math.min(safeNum(action.value), 100);
   const saveAmount = Math.floor(availableCash * (percentage / 100));
   
   if (saveAmount <= 0) {
@@ -135,8 +144,8 @@ function executeFixedSave(
   action: AutomationAction,
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  const saveAmount = Math.min(action.value, availableCash);
-  
+  const saveAmount = Math.min(safeNum(action.value), availableCash);
+
   if (saveAmount <= 0) {
     return { success: false, amount: 0, message: 'Insufficient cash for fixed save' };
   }
@@ -155,7 +164,7 @@ function executeExcessSave(
   action: AutomationAction,
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  const threshold = action.value;
+  const threshold = safeNum(action.value);
   if (availableCash <= threshold) {
     return { success: false, amount: 0, message: `Cash ($${availableCash.toLocaleString()}) does not exceed threshold ($${threshold.toLocaleString()})` };
   }

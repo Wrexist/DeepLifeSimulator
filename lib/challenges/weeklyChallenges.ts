@@ -9,7 +9,6 @@
  * see the same challenge at the same time.
  */
 import type { GameState } from '@/contexts/game/types';
-import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 export interface WeeklyChallengeObjective {
  id: string;
@@ -466,16 +465,6 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  },
 ];
 
-/**
- * Get the active weekly challenge based on UTC week number.
- * All players see the same challenge at the same time.
- */
-export function getActiveWeeklyChallengeId(timestamp: number = Date.now()): string {
- const weekNumber = Math.floor(timestamp / MS_PER_WEEK);
- const index = weekNumber % WEEKLY_CHALLENGES.length;
- return WEEKLY_CHALLENGES[index].id;
-}
-
 export function getWeeklyChallengeDefinition(
  challengeId: string
 ): WeeklyChallengeDefinition | undefined {
@@ -528,7 +517,13 @@ const ROTATION_GAME_WEEKS = 4;
  */
 export function getWeeklyChallengeIdForWeek(weeksLived: number): string {
  const w = typeof weeksLived === 'number' && isFinite(weeksLived) && weeksLived >= 0 ? Math.floor(weeksLived) : 0;
- const index = w % WEEKLY_CHALLENGES.length;
+ // REACHABILITY FIX: index by ROTATION COUNT, not raw week. Rotation only
+ // advances every ROTATION_GAME_WEEKS (4) weeks (see needsRotation), so a raw
+ // `w % 12` index only ever landed on the residues hit at rotation boundaries —
+ // gcd(4,12)=4 means just 3 of the 12 challenges ({1,5,9} from week 1) were ever
+ // selectable. Dividing by the rotation length first makes each rotation advance
+ // the index by exactly 1, cycling through all 12 challenges over 48 game weeks.
+ const index = Math.floor(w / ROTATION_GAME_WEEKS) % WEEKLY_CHALLENGES.length;
  return WEEKLY_CHALLENGES[index].id;
 }
 

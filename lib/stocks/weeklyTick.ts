@@ -19,6 +19,26 @@ import { StockOrder } from './orderBook';
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
+/**
+ * 2% broker commission — identical to the market-order fee charged in
+ * StockActions.ts (buyStockMarket / sellStockMarket). EXPLOIT FIX: limit/stop
+ * orders filled by this weekly tick previously paid NO fee, so a player could
+ * route every trade through resting orders to dodge the commission that market
+ * orders pay. Charging it here restores parity (buys cost notional×1.02, sells
+ * net notional×0.98). Realized gains stay gross (pre-fee), matching the market
+ * path where the fee only reduces cash, not the recorded gain.
+ */
+const STOCK_FEE = 0.02;
+
+/**
+ * Capital-gains tax rate on realized stock gains AND dividends — identical to the
+ * 25% the crypto tick charges on realized gains (lib/crypto/weeklyTick.ts). Stock
+ * gains + dividends were previously untaxed, so crypto trades were strictly worse
+ * tax-wise than equity trades for no design reason. See the tax block in
+ * runStocksWeeklyTick for the (documented) realization-timing choice.
+ */
+const STOCK_CAPITAL_GAINS_TAX_RATE = 0.25;
+
 export interface StockHolding {
   symbol: string;
   shares: number;
@@ -89,6 +109,12 @@ export interface StocksTickResult {
   dividendsUSD: number;
   /** Total realized gains from sell fills this tick. */
   realizedGains: number;
+  /**
+   * Capital-gains + dividend tax actually withheld this tick (already netted out
+   * of `cashDelta`). Exposed for stats / telemetry / tests. Mirrors the crypto
+   * tick's 25% capital-gains charge.
+   */
+  capitalGainsTaxUSD: number;
   /**
    * Per-symbol multiplicative factor (tiltedPrice / baseModulePrice) that the
    * caller applies via adjustStockPrice() BEFORE snapshotting module prices, so
@@ -179,7 +205,8 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   for (const fill of orderResult.fills) {
     const sym = fill.order.symbol.toUpperCase();
     if (fill.order.side === 'buy') {
-      cashDelta -= fill.notionalUSD;
+      // Parity with market buys: pay the 2% commission on top of the notional.
+      cashDelta -= fill.notionalUSD * (1 + STOCK_FEE);
       // Add to holdings.
       const idx = holdings.findIndex((h) => h.symbol.toUpperCase() === sym);
       if (idx === -1) {
@@ -208,7 +235,8 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
         const sellable = Math.min(fill.shares, existing.shares);
         if (sellable > 0) {
           const pricePerShare = fill.shares > 0 ? fill.notionalUSD / fill.shares : safe(fill.order.filledPrice);
-          cashDelta += pricePerShare * sellable;
+          // Parity with market sells: the 2% commission is netted out of proceeds.
+          cashDelta += pricePerShare * sellable * (1 - STOCK_FEE);
           const gainPerShare = fill.order.filledPrice! - existing.averagePrice;
           realizedGains += gainPerShare * sellable;
           const remaining = existing.shares - sellable;
@@ -228,6 +256,37 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     });
   }
 
+  // 5) Capital-gains + dividend tax — parity with the crypto tick, which taxes
+  //    realized gains 25% at the year boundary from its persisted
+  //    `market.realizedGainsThisYear` accumulator (lib/crypto/weeklyTick.ts §4).
+  //
+  //    DOCUMENTED CHOICE: the stocks tick is a PURE per-call function whose caller
+  //    (GameActionsContext, owned by another agent this wave) does NOT thread a
+  //    yearly realized-gains accumulator the way the crypto MARKET STATE does. A
+  //    literal year-boundary block here could therefore only ever see the boundary
+  //    week's realizations, letting ~51/52 of gains escape untaxed — defeating the
+  //    fix (stock gains + dividends were the reported "never taxed" bug). So we
+  //    withhold the tax at REALIZATION each tick instead. Everything else mirrors
+  //    the crypto block: same 25% rate, debited from the canonical cash path
+  //    (cashDelta → stats.money — never the banking.accounts mirrors), clamped to
+  //    what the player can afford THIS tick, losses never generate a refund, and a
+  //    notification is emitted. Deterministic (no RNG in this block).
+  let capitalGainsTaxUSD = 0;
+  const taxableThisTick = Math.max(0, realizedGains) + Math.max(0, dividendsUSD);
+  if (taxableThisTick > 0) {
+    const tax = taxableThisTick * STOCK_CAPITAL_GAINS_TAX_RATE;
+    const availableCash = safe(input.cashIn, 0) + cashDelta;
+    capitalGainsTaxUSD = Math.max(0, Math.min(tax, availableCash));
+    if (capitalGainsTaxUSD > 0) {
+      cashDelta -= capitalGainsTaxUSD;
+      notifications.push({
+        id: `stk-tax-${input.currentWeek}`,
+        title: '🧾 Investment Tax',
+        message: `Withheld $${Math.round(capitalGainsTaxUSD).toLocaleString()} (25% of $${Math.round(taxableThisTick).toLocaleString()} realized stock gains + dividends).`,
+      });
+    }
+  }
+
   return {
     holdings,
     openOrders: orderResult.orders,
@@ -236,6 +295,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     cashDelta,
     dividendsUSD,
     realizedGains,
+    capitalGainsTaxUSD,
     priceFactors,
     notifications,
   };
