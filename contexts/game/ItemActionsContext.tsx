@@ -278,11 +278,15 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       // timer is already current for this week.
       const MEDICAL_ACTIVITY_IDS = ['doctor', 'hospital', 'experimental', 'flu_shot', 'pneumonia_vaccine'];
       if (!MEDICAL_ACTIVITY_IDS.includes(activityId)) {
-        const hap = prevState.stats.happiness;
+        // Normalize NaN/undefined stats to 0 before computing deltas: `NaN <= 0`
+        // is false, so a corrupted stat would otherwise make the guard's answer
+        // meaningless (and a 0 baseline yields positive deltas → the activity is
+        // allowed to run and write back clamped, healed values).
+        const hap = Number.isFinite(prevState.stats.happiness) ? prevState.stats.happiness : 0;
         const happinessDelta = clampStatByKey('happiness', hap + (activity.happinessGain || 0)) - hap;
         let healthDelta = 0;
         if (activity.healthGain) {
-          const hp = prevState.stats.health;
+          const hp = Number.isFinite(prevState.stats.health) ? prevState.stats.health : 0;
           healthDelta = clampStatByKey('health', hp + activity.healthGain) - hp;
         }
         const gymTimerStale = (prevState.lastGymVisitWeek || 0) !== (prevState.weeksLived || 0);

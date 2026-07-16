@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -59,8 +59,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   }, [hasActiveCooldown, activityCooldowns]);
 
   // Wealth-scaled bail (shared helper) so display here always matches the charge
-  // in JobActionsContext.payBail.
-  const bailCost = computeBailCost(jailWeeks, calculateNetWorth(gameState));
+  // in JobActionsContext.payBail. Memoized — calculateNetWorth walks every asset
+  // collection and this screen re-renders on a 250ms cooldown interval.
+  const bailCost = useMemo(
+    () => computeBailCost(jailWeeks, calculateNetWorth(gameState)),
+    [jailWeeks, gameState]
+  );
 
   const handlePayBail = () => {
     if (stats.money >= bailCost) {

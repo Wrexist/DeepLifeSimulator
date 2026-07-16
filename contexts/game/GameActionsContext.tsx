@@ -1060,13 +1060,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // (seed-free ids, preRolls.timestamp) and idempotent (one grant per year, via the
  // lifeMilestones guard inside the helper). Happiness folds in here; the milestone
  // and post fold into the final return below.
- const anniversaryResult: AnniversaryResult = applyAnniversaries({
-   prevState,
-   relationships: processedRelationships,
-   nextWeeksLived,
-   nextYear,
-   timestamp: preRolls.timestamp,
- });
+ // Defense-in-depth like the sibling subsystem ticks (pulse/spark/hustle):
+ // a throw on malformed state (e.g. a null lifeMilestones entry in a
+ // hand-edited save) skips this week's grant instead of aborting the tick.
+ let anniversaryResult: AnniversaryResult = {
+   isAnniversary: false, yearsMarried: 0, happinessBonus: 0, milestone: null, post: null,
+ };
+ try {
+   anniversaryResult = applyAnniversaries({
+     prevState,
+     relationships: processedRelationships,
+     nextWeeksLived,
+     nextYear,
+     timestamp: preRolls.timestamp,
+   });
+ } catch (anniversaryErr) {
+   logger.error('[ANNIVERSARY TICK] Failed:', anniversaryErr);
+ }
  if (anniversaryResult.happinessBonus > 0) {
    newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + anniversaryResult.happinessBonus));
  }
@@ -2118,7 +2128,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  details: { childId: child.id, childName: child.name, gender: child.gender },
  })),
  ]: (prevState.lifeMilestones || []);
- return anniversaryResult.milestone ? [...base, anniversaryResult.milestone] : base;
+ const withAnniversary = anniversaryResult.milestone ? [...base, anniversaryResult.milestone] : base;
+ // Cap like the sibling per-life collections (eventLog 500, memories 200):
+ // milestones accumulate for a whole life and the array is copied every tick.
+ return withAnniversary.length > 200 ? withAnniversary.slice(-200) : withAnniversary;
  })(),
  // Hobbies removed - no longer validating hobby skills
  hobbies: prevState.hobbies || [],

@@ -81,6 +81,7 @@ export function applyAnniversaries(params: {
   // already celebrated via the old ContactsApp path, and StrictMode re-invokes.
   const alreadyCelebrated = (prevState.lifeMilestones || []).some(
     (m) =>
+      !!m &&
       m.type === 'anniversary' &&
       m.partnerId === spouse.id &&
       (m.details as { yearsMarried?: number } | undefined)?.yearsMarried === yearsMarried,

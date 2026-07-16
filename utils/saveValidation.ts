@@ -915,6 +915,13 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing socialMedia.notifications');
     repaired = true;
   }
+  // Checkpoint snapshots strip recentPosts (see slimCheckpointSnapshot); the
+  // rewind path relies on this default to restore a valid empty feed cache.
+  if (!Array.isArray(sm.recentPosts)) {
+    sm.recentPosts = [];
+    repairs.push('Created missing socialMedia.recentPosts');
+    repaired = true;
+  }
   if (sm.liveSession === undefined) {
     sm.liveSession = null;
   }

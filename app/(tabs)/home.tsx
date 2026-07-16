@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { track } from '@/lib/analytics';
@@ -366,11 +366,17 @@ function HomeScreenContent() {
     };
   }, [hasCompletedTutorial, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
 
-  const handleJoinCommunity = async () => {
+  // Wealth-scaled Discord reward, memoized once per state change so the popup
+  // display and the grant below use the identical figure (shown == granted)
+  // without re-walking every asset collection on each render.
+  const communityRewardAmount = useMemo(
+    () => discordJoinRewardMoney(calculateNetWorth(gameState)),
+    [gameState]
+  );
+
+  const handleJoinCommunity = useCallback(async () => {
     // Grant the cash reward (updateMoney clamps to the money ceiling + logs it).
-    // Wealth-scaled via the shared helper so the granted amount equals what the
-    // popup below shows (same gameState → same net worth → same figure).
-    updateMoney(setGameState, discordJoinRewardMoney(calculateNetWorth(gameState)), 'Discord community reward');
+    updateMoney(setGameState, communityRewardAmount, 'Discord community reward');
     setShowCommunityReward(false);
     // Persist the one-time flags. `discord_reward_claimed` is shared with the
     // Settings entry point so the reward can't be taken twice.
@@ -387,7 +393,8 @@ function HomeScreenContent() {
     } catch {
       // Ignore — the reward has already been granted regardless of the link.
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setGameState, communityRewardAmount]);
 
   const handleDismissCommunity = async () => {
     setShowCommunityReward(false);
@@ -640,7 +647,7 @@ function HomeScreenContent() {
       <Suspense fallback={null}>
         <CommunityRewardPopup
           visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
-          rewardAmount={discordJoinRewardMoney(calculateNetWorth(gameState))}
+          rewardAmount={communityRewardAmount}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
         />

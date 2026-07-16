@@ -183,9 +183,15 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // would charge money + energy for nothing. Compute the clamped deltas and treat
   // "all zero" as "already in top shape".
   const gymGainsAllZero = useMemo(() => {
-    const fitnessGain = clampStat(gameState.stats.fitness + 5) - gameState.stats.fitness;
-    const healthGain = clampStat(gameState.stats.health + 3) - gameState.stats.health;
-    const happinessGain = clampStat(gameState.stats.happiness + 2) - gameState.stats.happiness;
+    // Normalize first: a NaN/undefined stat on a corrupted save makes every
+    // delta NaN, and `NaN <= 0` is false — the guard's answer would flip on
+    // garbage input instead of being computed from a real baseline.
+    const fitness = Number.isFinite(gameState.stats.fitness) ? gameState.stats.fitness : 0;
+    const health = Number.isFinite(gameState.stats.health) ? gameState.stats.health : 0;
+    const happiness = Number.isFinite(gameState.stats.happiness) ? gameState.stats.happiness : 0;
+    const fitnessGain = clampStat(fitness + 5) - fitness;
+    const healthGain = clampStat(health + 3) - health;
+    const happinessGain = clampStat(happiness + 2) - happiness;
     return fitnessGain <= 0 && healthGain <= 0 && happinessGain <= 0;
   }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
 

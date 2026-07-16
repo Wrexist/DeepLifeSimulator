@@ -145,10 +145,15 @@ describe('checkpointSystem — create → rewind round-trip', () => {
     // Stripped collections safely re-defaulted by the repair pass on rewind.
     expect(Array.isArray(r.eventLog)).toBe(true);
     expect(r.eventLog).toHaveLength(0);
+    // Assert the repaired shapes strictly — a `?? []` fallback would pass even
+    // if the repair pass never re-defaulted the field (undefined ≠ restored).
     const rsm = r.socialMedia as unknown as Record<string, unknown>;
-    expect((rsm.notifications as unknown[]) ?? []).toHaveLength(0);
-    expect(Object.keys((rsm.commentThreads as Record<string, unknown>) ?? {})).toHaveLength(0);
-    expect(((rsm.recentPosts as unknown[]) ?? [])).toHaveLength(0);
+    expect(Array.isArray(rsm.notifications)).toBe(true);
+    expect(rsm.notifications as unknown[]).toHaveLength(0);
+    expect(typeof rsm.commentThreads).toBe('object');
+    expect(Object.keys(rsm.commentThreads as Record<string, unknown>)).toHaveLength(0);
+    expect(Array.isArray(rsm.recentPosts)).toBe(true);
+    expect(rsm.recentPosts as unknown[]).toHaveLength(0);
   });
 
   it('rejects a rewind when the player cannot afford the cost', () => {
