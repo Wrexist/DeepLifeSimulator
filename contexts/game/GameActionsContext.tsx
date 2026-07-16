@@ -1362,12 +1362,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // identical) when no in-game subscription is active: totalCharged 0, both
  // *Changed flags false, no notifications, and the app objects pass through by
  // reference.
- const subscriptionBilling = applySubscriptionsForWeek({
+ // Wrapped like every other subsystem tick: the helper self-guards its inputs,
+ // but an unguarded throw here (or in a future edit) would abort the whole
+ // `nextWeek` updater and soft-lock "Next Week". On error, bill nothing and pass
+ // both subscriptions through unchanged (carry-over — perks/money untouched).
+ let subscriptionBilling: ReturnType<typeof applySubscriptionsForWeek> = {
    verifiedPro: pulseSocialMedia?.verifiedPro,
    sparkPremium: sparkAppNext?.premium,
-   moneyAvailable: newStats.money,
-   nextWeeksLived,
- });
+   verifiedProChanged: false,
+   sparkPremiumChanged: false,
+   totalCharged: 0,
+   notifications: [],
+ };
+ try {
+   subscriptionBilling = applySubscriptionsForWeek({
+     verifiedPro: pulseSocialMedia?.verifiedPro,
+     sparkPremium: sparkAppNext?.premium,
+     moneyAvailable: newStats.money,
+     nextWeeksLived,
+   });
+ } catch (subErr) {
+   logger.error('[SUBSCRIPTIONS TICK] failed:', subErr);
+ }
  if (subscriptionBilling.totalCharged > 0) {
    newStats.money = Math.max(0, newStats.money - subscriptionBilling.totalCharged);
    // Fold the weekly subscription fee into the recap's expense/net totals so the
@@ -1549,6 +1565,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //     badge by recomputing level/perkTier from accumulated experience.
  let nextGamingStreaming = prevState.gamingStreaming;
  if (nextGamingStreaming) {
+ // Wrapped like every other subsystem tick: a throw here (e.g. a partial
+ // gamingStreaming slice) must not abort the whole `nextWeek` updater. On
+ // error, carry the prior streaming slice forward with no membership revenue.
+ try {
  const membershipsResult = applyContentMemberships({
  gamingStreaming: nextGamingStreaming,
  currentWeek: nextWeeksLived,
@@ -1563,6 +1583,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const lvl = creatorLevelFromExperience(nextGamingStreaming.experience ?? 0);
  nextGamingStreaming = { ...nextGamingStreaming, level: lvl, perkTier: creatorPerkTier(lvl) };
  }
+ } catch (memErr) {
+ logger.error('[MEMBERSHIPS TICK] failed:', memErr);
+ nextGamingStreaming = prevState.gamingStreaming;
+ }
  }
 
  // (2) Savings goals: sweep each goal's autoContribute FROM a real source
@@ -1571,6 +1595,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //     slice; the reward is the only new money and is tiny (≤min(1% target,$500)).
  let nextBankingSlice = bankingTick.banking;
  if (nextBankingSlice && Array.isArray(nextBankingSlice.savingsGoals) && nextBankingSlice.savingsGoals.length > 0) {
+ // Wrapped like every other subsystem tick: a throw here must not abort the
+ // whole `nextWeek` updater. On error, carry the banking slice + cash forward.
+ try {
  const goalsResult = applySavingsGoals({
  banking: nextBankingSlice,
  cash: newStats.money,
@@ -1587,14 +1614,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (goalsResult.rewardCash > 0) {
  logger.info(`[SAVINGS GOALS] Completion reward +$${goalsResult.rewardCash}`);
  }
+ } catch (goalsErr) {
+ logger.error('[SAVINGS GOALS TICK] failed:', goalsErr);
+ }
  }
 
  // (3) Favor ledger expiry — wires the previously-unwired contacts favor tick
  //     (tickFavors' pure core `expireFavors`) into the weekly orchestrator so
  //     lapsed IOUs/favors are marked expired. Pure; no-op when no ledger.
- const nextFavorLedger = prevState.favorLedger
+ //     Wrapped like every other subsystem tick: a present-but-partial ledger
+ //     (CloudSync merge / hand-edit) with a missing `favors` array would throw
+ //     inside `.map`, and an unguarded throw here aborts the whole `nextWeek`
+ //     updater → "Next Week" soft-locks. Carry the prior ledger forward on error.
+ let nextFavorLedger = prevState.favorLedger;
+ try {
+ nextFavorLedger = prevState.favorLedger
  ? expireFavors(prevState.favorLedger, nextWeeksLived)
  : prevState.favorLedger;
+ } catch (favorErr) {
+ logger.error('[FAVORS TICK] failed:', favorErr);
+ }
 
  // Dark Web tick (STATE_VERSION 18, OnionApp remake).
  // Decays heat, refreshes marketplace listings, settles laundering, expires

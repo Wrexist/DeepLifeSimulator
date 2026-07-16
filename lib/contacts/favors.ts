@@ -71,6 +71,11 @@ export function redeemFavor(ledger: FavorLedger, favorId: string): FavorLedger {
  * Apply expiry — any open favor whose expiresWeek has passed becomes expired.
  */
 export function expireFavors(ledger: FavorLedger, currentWeek: number): FavorLedger {
+  // A present-but-partial ledger (CloudSync merge / hand-edit / interrupted
+  // migration) can arrive with `favors` missing or non-array — `.map` on that
+  // throws, and this runs unwrapped in the weekly tick, so a throw would abort
+  // the whole `nextWeek` updater and soft-lock "Next Week". Normalise first.
+  if (!ledger || !Array.isArray(ledger.favors)) return ledger;
   let changed = false;
   const next = ledger.favors.map((f) => {
     if (f.status !== 'open') return f;
