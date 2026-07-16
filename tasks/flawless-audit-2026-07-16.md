@@ -22,41 +22,37 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [x] Bank statement net worth cash double-count (mirror excluded via computeStatementNetWorth). (e492c84)
 - [x] Spark Boost no-op (BOOST_MATCH_FLOOR 1.5x + immediate likedYou); swipe deck seekingGender filter; Pulse composer energy gate + surfaced errors; ComposeModal per-type energy cost; rewarded-ad boost reachable from populated notifications; Spark Premium annual toggle; match celebration partner photo. (ce49570)
 - [x] Vehicle deficiency loans unsecured (vehicleId cleared, no collision with future purchase) + money finite-guard (Codex P2 + CodeRabbit). (ac07bc9)
+- [x] Event chains: choiceId persisted on eventLog; invest/doctor branches reachable; 7 regression tests. (0907252)
+- [x] Seeded-tick determinism: 7 sites (pulse earnings/trends/notifs, sparkTick likedYou, hustle notif timestamps, scandal comments, npc memory ids, exam/campus rolls) now seeded; determinism tests added. (2cdcfaa)
+- [x] Daily-reward + work-action stale-save: saves persist the committed state (post-commit deferral; regression test). (e01e133)
+- [x] Prestige re-grant farms: claimedAmbitions + claimedAchievementIds persist across prestige; payouts once-ever. (aa53e52)
+- [x] Desktop lying/dead UI (7): repair price after insurance, travel preview honesty, record CTA cap, mining Buy at cap + marginal yield, stale For-sale page, IPO feedback, hire-refresh nonce. (1da86f0)
 
 ## 🔴 CRITICAL — remaining
-- [ ] Multi-week event chains always take the failure branch: eventLog stores `choice.text` but chains read `e.choiceId` (never written) → invested business chain always loses the stake, etc. (engine.ts:2797; write site GameActionsContext.tsx:2563; type types.ts:2297)
-- [ ] Ambition payoff (gems+prestige pts) re-grantable every prestige. (prestigeExecution.ts:330 + ambitions)
-- [ ] Progress-achievement gems re-mintable every prestige (guard only at display layer). (GameActionsContext claimProgressAchievement:2752, useAchievements.ts:24)
 
 ## 🟠 HIGH — remaining
 - [ ] Auto-repair free durability: whole fleet restored to 100% funded by a dust amount of coin. (applyMiningWarehouse.ts:99) [seeded tick]
 - [ ] Free education financing: student-loan balance drops weekly but cash never charged. (applyEducationProgression.ts:110 + GameActionsContext:791)
-- [ ] Daily-reward re-claimable after kill: saveGame persists stale pre-grant state. (home.tsx:268; same class work.tsx:184)
 - [ ] Patents never expire → perpetual weekly income. (patents.ts:75 updatePatents uncalled; passiveIncome.ts:365) [seeded tick]
 - [ ] Spark profile bio/photos uneditable (updateMyProfile no UI). (SparkApp.tsx:327)
 - [ ] Weekly-challenge rotation only ever shows 3 of 12. (weeklyChallenges.ts:529)
-- [ ] Determinism in seeded tick (save-scummable + Hermes/V8 drift): engine.ts:3352 & applyIncome.ts:105 (Math.sin), GameActionsContext:735 (rent Math.random), socialMedia.ts:787, educationSystem.ts:321, pulseTick.ts:228, sparkTick.ts:134, hustleTick.ts:47, randomProfiles.ts:269, npcDepth.ts:164. [needs seeded rolls + deliberate snapshot regen]
 - [ ] Real estate rent lever ignored (custom rent never realized). (operations.ts:287)
 - [ ] Enhanced mining / Lobbyists+Alliances / Family Business / Credit-card charging — fully built, no UI entry point (wire or remove). (MiningActions:311, PoliticalApp:636, FamilyBusinessActions:59, AdvancedBankApp:677)
+
+- [ ] Non-BTC mining yield ~$0 (BTC-or-nothing picker) — DEFERRED: feeds the seeded tick, needs a snapshot-owning pass. (MiningActions.ts:213)
+- [ ] Remaining determinism sites (not in the fixed cluster): engine.ts:3352 + applyIncome.ts:105 (Math.sin — Hermes/V8 drift), GameActionsContext:735 (rent tick Math.random). [seeded tick + snapshot regen]
 
 ## 🟡 MEDIUM — remaining (broken-UI "spend does nothing" / correctness)
 - [ ] BrandDeals no saveGame → lost on reload. (BrandDealsScreen.tsx:30)
 - [ ] CreateCompany affordability uses uninflated cost. (CreateCompanyScreen.tsx:116) + no prestige/edu gate pre-confirm (:70)
 - [ ] Policy effects applied once but framed "weekly" (UBI/tax_cut). (PoliticalActions.ts:526)
-- [ ] Vehicle repair chip shows gross cost, insurance discounts to $0. (VehicleApp.tsx:474)
-- [ ] Travel stat preview shows phantom int/stress chips. (TravelApp.tsx:203)
 - [ ] Gear quality is 4-step but UI shows smooth bar → in-band upgrades change earnings by 0. (quality.ts:85)
-- [ ] Record CTA lit at 5/5 weekly cap. (GamingApp.tsx:552)
-- [ ] Bitcoin mining Buy stays enabled past $100k/wk cap. (BitcoinMiningApp.tsx:666); non-BTC coins ~$0/wk (MiningActions:213)
 - [ ] Limit/stop stock orders skip the 2% fee market orders pay. (stocks/weeklyTick.ts:182)
 - [ ] 6 asset buy/sell paths still write stats.money directly (no applyMoneyDelta) — partially addressed by sale fixes; remaining buys. (Stock/Crypto/RealEstate/Vehicle Actions)
 - [ ] Lifestyle-cost sink shown in UI, never deducted. (lifestyle.ts:46)
 - [ ] autoSave NaN → money/bankSavings NaN. (autoSave.ts:97); autoRenew/autoPay report success but charge nothing (autoRenew.ts:131, autoPay.ts:110)
 - [ ] FamilyBusiness manageFamilyBusiness non-atomic charge/benefit. (FamilyBusinessActions.ts:100)
 - [ ] ComposeModal sponsor deferred-updater double-increment. (ComposeModal.tsx:111)
-- [ ] Hire refresh returns same 3 candidates in a week. (HireEmployeeModal.tsx:68)
-- [ ] IPO success shows no raise feedback. (IPOModal.tsx:51)
-- [ ] RealEstate detail page stays "For sale" after buy. (RealEstateApp.tsx:360)
 - [ ] Hustle board/suppliers dead UI (never seeded). (CompanyDetailScreen.tsx:491)
 - [ ] DM clues advertise rewards never granted + nonexistent mechanics. (DMSystem.tsx:123)
 - [ ] Commitment system inert (levels never change; penalties not applied). (commitmentSystem.ts:102/169)
