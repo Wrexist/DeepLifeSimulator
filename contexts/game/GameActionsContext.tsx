@@ -186,7 +186,7 @@ interface GameActionsProviderProps {
 }
 
 export function GameActionsProvider({ children }: GameActionsProviderProps) {
- const { gameState, setGameState, currentSlot } = useGameState();
+ const { gameState, setGameState, currentSlot, setCurrentSlot } = useGameState();
  const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
  // NOTE: gameplay notifications use `showInfoBanner` (friendly, auto-dismissing) — not
@@ -3473,6 +3473,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setHapticsEnabled(safeState.settings.hapticFeedback);
  }
 
+ // DATA-LOSS FIX: sync the in-memory active slot to the slot we just loaded.
+ // Without this, `currentSlot` stayed stuck at its initial value (1) and every
+ // subsequent saveGame/autosave/background-save wrote into slot 1, silently
+ // overwriting it while the player thought they were on slot 2 or 3.
+ // setCurrentSlot (setCurrentSlotSafe) also persists both `currentSlot` and
+ // `lastSlot`; the direct writes below are kept for legacy readers that expect
+ // the markers set synchronously on load.
+ setCurrentSlot(slot);
+
  // Keep both slot markers in sync for legacy and new slot authority readers.
  await AsyncStorage.setItem('currentSlot', String(slot));
  await AsyncStorage.setItem('lastSlot', String(slot));
@@ -3508,7 +3517,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setIsLoading(false);
  saveLoadMutex.release();
  }
- }, [setIsLoading, setLoadingMessage, showError, setGameState]);
+ }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
  // Relationship functions for Contacts app
  const updateRelationship = useCallback((relationshipId: string, change: number) => {

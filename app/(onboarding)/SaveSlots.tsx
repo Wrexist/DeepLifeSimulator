@@ -25,6 +25,7 @@ import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnaly
 import { logger } from '@/utils/logger';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { clearProtectedState, deleteAllBackupsForSlot, listBackups } from '@/utils/saveBackup';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
 import {
@@ -247,6 +248,55 @@ export default function SaveSlots() {
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
         setState((prev) => ({ ...prev, slot: 0 }));
+      }
+
+      // DATA-LOSS FIX (same root cause as the currentSlot desync): if the
+      // persisted slot markers point at the slot we just deleted, MainMenu's
+      // Continue would try to load a now-empty slot. Repoint them to another
+      // slot that still has playable data, or clear them if none remains.
+      try {
+        const [lastSlotRaw, currentSlotRaw] = await Promise.all([
+          AsyncStorage.getItem('lastSlot'),
+          AsyncStorage.getItem('currentSlot'),
+        ]);
+        const pointsAtDeleted = (raw: string | null) =>
+          raw !== null && parseInt(raw, 10) === slotId;
+
+        if (pointsAtDeleted(lastSlotRaw) || pointsAtDeleted(currentSlotRaw)) {
+          const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } =
+            await import('@/utils/saveValidation');
+          const allowLegacy = shouldAllowUnsignedLegacySaves();
+
+          let repointTo: number | null = null;
+          for (let i = 1; i <= 3; i++) {
+            if (i === slotId) continue;
+            try {
+              const data = await readSaveSlot(i, undefined, { allowLegacy });
+              if (!data) continue;
+              const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
+              if (!decoded.valid || typeof decoded.data !== 'string') continue;
+              const parsed = JSON.parse(decoded.data);
+              if (hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed)) {
+                repointTo = i;
+                break;
+              }
+            } catch {
+              // Unreadable slot while scanning for a repoint target — skip it.
+            }
+          }
+
+          if (repointTo !== null) {
+            if (pointsAtDeleted(lastSlotRaw)) await AsyncStorage.setItem('lastSlot', String(repointTo));
+            if (pointsAtDeleted(currentSlotRaw)) await AsyncStorage.setItem('currentSlot', String(repointTo));
+          } else {
+            const keysToClear: string[] = [];
+            if (pointsAtDeleted(lastSlotRaw)) keysToClear.push('lastSlot');
+            if (pointsAtDeleted(currentSlotRaw)) keysToClear.push('currentSlot');
+            if (keysToClear.length > 0) await AsyncStorage.multiRemove(keysToClear);
+          }
+        }
+      } catch (markerError) {
+        log.warn('Failed to repoint slot markers after delete (non-critical)', { error: markerError });
       }
 
       await loadSlots();
