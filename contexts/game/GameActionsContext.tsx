@@ -115,7 +115,7 @@ import { applyCareerSalaryAndPenalty } from './actions/weekly/applyCareerSalaryA
 import { applyCareerApplications } from './actions/weekly/applyCareerApplications';
 import { applyCareerProgress } from './actions/weekly/applyCareerProgress';
 import { applyEducationStress } from './actions/weekly/applyEducationStress';
-import { applyEducationProgression } from './actions/weekly/applyEducationProgression';
+import { applyEducationProgression, needsEducationProgressionTick } from './actions/weekly/applyEducationProgression';
 import { applyCrimeTick } from './actions/weekly/applyCrimeTick';
 import { applyMiningCryptos } from './actions/weekly/applyMiningCryptos';
 import { applyMiningWarehouse } from './actions/weekly/applyMiningWarehouse';
@@ -627,7 +627,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    logger.info(educationStressResult.logMessage);
  }
 
- if (educationStressResult.numActiveEducations > 0) {
+ // GATE FIX: run the progression/graduation helper whenever ANY enrolled program
+ // still needs a tick — INCLUDING one already at weeksRemaining <= 0. The Study
+ // button (applyStudySession) leaves a finished program at 0 for the tick to
+ // finalize; this gate PREVIOUSLY reused the education-STRESS active count
+ // (`numActiveEducations`, weeksRemaining > 0), which excludes a 0-week program,
+ // so a Study-finished education was never handed to the reducer and stranded at
+ // 100% / 0w / "IN PROGRESS" forever — permanently locking company founding
+ // (which reads `educations.find(...).completed`). Stress itself still correctly
+ // uses the weeksRemaining > 0 count and is applied above regardless.
+ if (updatedEducations.some(needsEducationProgressionTick)) {
  // R7 Phase 2 step 2.5c-ii: per-education weekly progression extracted
  // into ./actions/weekly/applyEducationProgression.ts. The helper owns
  // decrement + study-group bonus + student loan + exam + campus event +

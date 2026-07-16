@@ -64,6 +64,38 @@ export interface EducationProgressionResult {
   pendingCampusEvent: string | undefined;
 }
 
+/**
+ * Does this education need a weekly progression tick?
+ *
+ * True for any ENROLLED-but-unfinished program: not `completed`, not `paused`,
+ * with a finite numeric `weeksRemaining`. Crucially this INCLUDES
+ * `weeksRemaining <= 0` — a program the Study button (`applyStudySession`) drove
+ * to 0 without finalizing, or an exhausted/corrupt save — because such a program
+ * still needs THIS tick to graduate it (flip `completed`, apply enrolled-class
+ * stat bonuses, push the "🎓 Completed!" toast). `NaN`/`undefined` weeksRemaining
+ * are treated as not-tickable (skipped), matching the prior `>= 0` guard.
+ *
+ * SINGLE SOURCE OF TRUTH shared by (a) the per-education `.map` guard below and
+ * (b) the weekly-tick gate in `GameActionsContext`. That gate PREVIOUSLY reused
+ * the education-STRESS active count (`weeksRemaining > 0`), which excludes a
+ * 0-week program — so a Study-button-finished education was never handed to this
+ * reducer and stranded at progress 100 / 0w / "IN PROGRESS" forever, permanently
+ * locking company founding (`educations.find(e => e.id === 'entrepreneurship')
+ * ?.completed` stayed false). Returning a type predicate also narrows
+ * `weeksRemaining` to `number` inside the guarded block.
+ */
+export function needsEducationProgressionTick(
+  edu: Education | undefined | null,
+): edu is Education & { weeksRemaining: number } {
+  return (
+    !!edu &&
+    !edu.completed &&
+    !edu.paused &&
+    typeof edu.weeksRemaining === 'number' &&
+    Number.isFinite(edu.weeksRemaining)
+  );
+}
+
 export function applyEducationProgression(
   input: EducationProgressionInput,
   ctx: WeekContext,
@@ -85,11 +117,13 @@ export function applyEducationProgression(
   // Defensive `|| []` like every sibling weekly helper — a stale save could
   // omit `educations`, and an unguarded .map() throws inside the weekly tick.
   const updatedEducations = (input.prevEducations || []).map((edu) => {
-    // `>= 0` (not `> 0`) so an education the Study button already drove to
-    // weeksRemaining 0 still enters here and gets finalized — completion flag,
-    // enrolled-class stat bonuses, and the "🎓 Completed!" toast. Study leaves
-    // `completed` false precisely so the tick does this once, in one place.
-    if (edu && !edu.completed && !edu.paused && typeof edu.weeksRemaining === 'number' && edu.weeksRemaining >= 0) {
+    // Shared gate (see `needsEducationProgressionTick`): includes
+    // `weeksRemaining <= 0`, so a program the Study button already drove to 0 —
+    // or an exhausted/corrupt save — is finalized here (completion flag,
+    // enrolled-class stat bonuses, and the "🎓 Completed!" toast) instead of
+    // stranding at 100% / 0w / "IN PROGRESS". Study leaves `completed` false
+    // precisely so the tick does this once, in one place.
+    if (needsEducationProgressionTick(edu)) {
       const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
       const isCompleted = newWeeksRemaining === 0;
 
