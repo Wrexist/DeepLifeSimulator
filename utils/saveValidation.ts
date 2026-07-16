@@ -548,7 +548,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   if (s.banking && typeof s.banking === 'object' && 'creditScore' in s.banking) {
     const creditScore = (s.banking as { creditScore?: unknown }).creditScore;
     if (creditScore && typeof creditScore === 'object') {
-      const csObj = creditScore as { score?: unknown };
+      const csObj = creditScore as { score?: unknown; band?: unknown };
       const rawScore = 'score' in csObj ? csObj.score : undefined;
       const nextScore =
         typeof rawScore === 'number' && Number.isFinite(rawScore)
@@ -557,6 +557,20 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       if (rawScore !== nextScore) {
         csObj.score = nextScore;
         repairs.push(`Clamped credit score ${String(rawScore)} → ${nextScore} (valid range 300–850)`);
+        repaired = true;
+      }
+      // Backfill the credit band on saves created before the band feature: the
+      // creditScore object exists but has no (or an invalid) `band`, so the
+      // credit gauge renders it as undefined. Derive it from the normalized
+      // score. Source of truth for the score→band thresholds is scoreToBand in
+      // lib/banking/creditScore.ts — imported here, never duplicated.
+      const validBands = ['poor', 'fair', 'good', 'veryGood', 'excellent'];
+      if (typeof csObj.band !== 'string' || !validBands.includes(csObj.band)) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { scoreToBand } = require('@/lib/banking/creditScore');
+        const scoreForBand = typeof csObj.score === 'number' ? csObj.score : nextScore;
+        csObj.band = scoreToBand(scoreForBand);
+        repairs.push(`Backfilled missing credit band → ${String(csObj.band)}`);
         repaired = true;
       }
     }
@@ -740,6 +754,56 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     s.checkpoints = [];
     repairs.push('Created missing checkpoints array');
     repaired = true;
+  }
+  // eventLog is a required top-level field and is one of the collections dropped
+  // from checkpoint snapshots, so it must be re-defaulted here (this runs on
+  // every load AND on the checkpoint-rewind repair pass). Missing → empty log.
+  if (!Array.isArray(s.eventLog)) {
+    s.eventLog = [];
+    repairs.push('Created missing eventLog array');
+    repaired = true;
+  }
+
+  // Re-slim any stored checkpoint snapshots that predate checkpoint slimming.
+  // Old checkpoints are full deep clones of the game state and can dominate a
+  // long-game save (the event log + Pulse feed history repeated across up to
+  // MAX_CHECKPOINTS snapshots). Strip the same re-derivable collections here so
+  // an existing bloated save shrinks on its next load. Fully crash-safe: it
+  // never throws on a malformed checkpoint and drops snapshots that can't parse.
+  if (Array.isArray(s.checkpoints) && s.checkpoints.length > 0) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { slimCheckpointSnapshot } = require('@/lib/timeMachine/checkpointSystem');
+      if (typeof slimCheckpointSnapshot === 'function') {
+        const before = JSON.stringify(s.checkpoints).length;
+        const kept: any[] = [];
+        for (const cp of s.checkpoints as any[]) {
+          if (!cp || typeof cp !== 'object') continue; // drop malformed checkpoint entries
+          try {
+            let snap: unknown = cp.snapshot;
+            if (typeof snap === 'string') {
+              // Legacy JSON-string snapshot — parse, then persist the slimmed
+              // object form (this also removes the double-encoding overhead).
+              snap = JSON.parse(snap);
+            }
+            if (snap && typeof snap === 'object') {
+              cp.snapshot = slimCheckpointSnapshot(snap as Record<string, any>);
+            }
+            kept.push(cp);
+          } catch {
+            // Unparseable snapshot — drop this one checkpoint, keep the rest.
+          }
+        }
+        s.checkpoints = kept;
+        const after = JSON.stringify(s.checkpoints).length;
+        if (after < before) {
+          repairs.push(`Slimmed stored checkpoint snapshots (−${before - after} bytes)`);
+          repaired = true;
+        }
+      }
+    } catch {
+      // checkpointSystem unavailable / unexpected shape — skip re-slim, never crash repair.
+    }
   }
   if (typeof s.timeMachineUsesThisLife !== 'number') {
     s.timeMachineUsesThisLife = 0;

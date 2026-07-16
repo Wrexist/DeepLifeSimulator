@@ -38,9 +38,50 @@ export interface Checkpoint {
 }
 
 /**
+ * Heavy, re-derivable collections dropped from checkpoint snapshots.
+ *
+ * A checkpoint is a full clone of the game state, and in a long game the bulk of
+ * a snapshot is cosmetic history — the event log and the Pulse social feed with
+ * its notification + comment caches. None of it is gameplay-critical (money,
+ * stats, assets, relationships, career, education, inventory and progression
+ * flags are all kept). On restore, `rewindToCheckpoint` runs the save-repair
+ * pipeline, which re-defaults these fields, so dropping them from the frozen
+ * snapshot is lossless for gameplay while removing most of its serialized size.
+ */
+const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog'] as const;
+const CHECKPOINT_STRIPPED_SOCIAL_KEYS = ['recentPosts', 'notifications', 'commentThreads'] as const;
+
+/**
+ * Strip the heavy re-derivable collections from a checkpoint snapshot, in place.
+ *
+ * Crash-safe: never throws on a malformed snapshot — it returns whatever it was
+ * given. Used both when creating a checkpoint and, at load time, to re-slim
+ * checkpoints saved before slimming existed (see repairGameState).
+ */
+export function slimCheckpointSnapshot<T extends Record<string, any>>(snapshot: T): T {
+  if (!snapshot || typeof snapshot !== 'object') return snapshot;
+  try {
+    for (const key of CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS) {
+      if (key in snapshot) delete snapshot[key];
+    }
+    const social = snapshot.socialMedia;
+    if (social && typeof social === 'object') {
+      for (const key of CHECKPOINT_STRIPPED_SOCIAL_KEYS) {
+        if (key in social) delete social[key];
+      }
+    }
+  } catch {
+    // Malformed snapshot — leave it untouched rather than break checkpoint creation/load.
+  }
+  return snapshot;
+}
+
+/**
  * Create a checkpoint from the current game state.
  * Strips the checkpoints field from the snapshot to prevent recursion,
  * and other transient fields (popup flags, weekResult) that aren't needed for restore.
+ * Heavy, re-derivable history/feed collections are then dropped via
+ * slimCheckpointSnapshot to keep the snapshot small.
  */
 export function createCheckpoint(
   state: GameState,
@@ -56,6 +97,11 @@ export function createCheckpoint(
   // We use JSON round-trip rather than structuredClone so the output is
   // guaranteed to match what save serialization will see.
   const frozen = JSON.parse(JSON.stringify(snapshotData)) as Partial<GameState>;
+
+  // Drop heavy re-derivable history/feed collections from the (already detached)
+  // clone. The rewind path re-defaults them via repairGameState, so the snapshot
+  // stays gameplay-complete at a fraction of the size.
+  slimCheckpointSnapshot(frozen as Record<string, any>);
 
   return {
     id: `cp_${state.weeksLived ?? 0}_${Date.now()}`,
