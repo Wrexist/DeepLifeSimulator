@@ -347,6 +347,39 @@ describe('Achievement / Progress audit', () => {
     expect((captured!.state.lifetimeStatistics?.totalAchievementsUnlocked ?? 0)).toBe(before + 1);
   });
 
+  // ── CROSS-LIFE GEM-MINT GUARD (anti-farm regression) ────────────────────
+  // Prestige clears the per-life claimedProgressAchievements but PRESERVES
+  // stats.gems and prestige.claimedAchievementIds. The gem mint must be
+  // one-time-EVER, keyed off the preserved cross-life set — otherwise every
+  // prestige cycle re-mints the same achievement's gems.
+  it('claimProgressAchievement: first-ever claim stamps prestige.claimedAchievementIds', async () => {
+    mounted = mountGame();
+    expect(captured!.state.prestige?.claimedAchievementIds || []).not.toContain('beginner_first_gig');
+    await act(async () => { await captured!.game.claimProgressAchievement('beginner_first_gig', 10); });
+    expect(captured!.state.prestige?.claimedAchievementIds || []).toContain('beginner_first_gig');
+  });
+
+  it('claimProgressAchievement: re-claim after prestige clears per-life claims does NOT re-mint gems', async () => {
+    mounted = mountGame();
+    // First claim in this life mints gems and stamps the cross-life set.
+    await act(async () => { await captured!.game.claimProgressAchievement('beginner_first_gig', 10); });
+    const gemsAfterFirst = captured!.state.stats.gems || 0;
+    expect(captured!.state.prestige?.claimedAchievementIds || []).toContain('beginner_first_gig');
+
+    // Simulate what prestige does: per-life claimedProgressAchievements is wiped,
+    // but the preserved cross-life stamp (prestige.claimedAchievementIds) remains.
+    act(() => {
+      captured!.setGameState(prev => ({ ...prev, claimedProgressAchievements: [] }));
+    });
+    expect(captured!.state.claimedProgressAchievements).toEqual([]);
+
+    // Re-claiming the SAME achievement records it per-life again (UI unchanged)
+    // but must NOT mint gems a second time.
+    await act(async () => { await captured!.game.claimProgressAchievement('beginner_first_gig', 10); });
+    expect(captured!.state.stats.gems).toBe(gemsAfterFirst); // no re-mint
+    expect(captured!.state.claimedProgressAchievements).toContain('beginner_first_gig');
+  });
+
   // ── ACCESSORS PRODUCE EXPECTED VALUES ──────────────────────────────────
   it('Counter accessor: beginner_triple_digits goal = 100 fires when money >= 100', () => {
     const a = achievements.find(x => x.id === 'beginner_triple_digits')!;

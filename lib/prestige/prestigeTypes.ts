@@ -55,6 +55,25 @@ export interface PrestigeData {
    * claimed yet), so the first evaluation pass retroactively catches veterans up.
    */
   claimedPrestigeAchievements?: string[];
+  /**
+   * IDs of Life Ambitions (see lib/ambitions/catalog.ts) whose one-time payoff
+   * has already been granted. The gems + prestigePoints portion of an ambition
+   * payoff credits accumulators that PERSIST across prestige, while the per-life
+   * gate (`ambitionRewardClaimed`) resets — so without a cross-life stamp the
+   * same ambitionId could be re-fulfilled for gems/PP every prestige cycle.
+   * Preserved across `createResetGameState`. Optional/additive for backward-compat
+   * with old saves — absent is treated as [] (nothing claimed yet).
+   */
+  claimedAmbitions?: string[];
+  /**
+   * IDs of progress achievements (src/features/onboarding/achievementsData) whose
+   * gem reward has already been minted. `claimedProgressAchievements` is per-life
+   * and resets on prestige, so this cross-life set is the authoritative guard that
+   * makes the gem grant one-time-ever. Preserved across `createResetGameState`.
+   * Optional/additive for old saves — absent is treated as [] (nothing minted yet),
+   * so a fresh save mints normally on first claim.
+   */
+  claimedAchievementIds?: string[];
 }
 
 /**
@@ -79,6 +98,8 @@ export const defaultPrestigeData: PrestigeData = {
   prestigeHistory: [],
   achievementsCreditedForPoints: 0,
   claimedPrestigeAchievements: [],
+  claimedAmbitions: [],
+  claimedAchievementIds: [],
 };
 
 /**

@@ -2781,12 +2781,32 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  applied = true;
  const newClaimed = [...(prevState.claimedProgressAchievements || []), achievementId];
- const newGems = (prevState.stats.gems || 0) + goldReward;
+
+ // Cross-life, account-permanent guard on the GEM MINT.
+ // claimedProgressAchievements is per-life and is wiped by prestige
+ // (createResetGameState), so on its own it lets every achievement re-mint its
+ // gems each prestige cycle. prestige.claimedAchievementIds is preserved across
+ // prestige, so it is the authoritative "already minted ever" set: gems are
+ // granted ONLY the first time an id is claimed across all lives. The per-life
+ // set is still recorded (above) so existing per-life UI behavior is unchanged.
+ const priorMinted = prevState.prestige?.claimedAchievementIds || [];
+ const alreadyMintedEver = priorMinted.includes(achievementId);
+ const gemsToMint = alreadyMintedEver ? 0 : goldReward;
+ const newGems = (prevState.stats.gems || 0) + gemsToMint;
+ const newPrestige = prevState.prestige
+ ? {
+...prevState.prestige,
+ claimedAchievementIds: alreadyMintedEver
+ ? priorMinted
+: [...priorMinted, achievementId],
+ }
+: prevState.prestige;
 
  // Achievements are a Legacy Pass XP source (LEGACY_PASS_XP.achievement).
  return awardLegacyPassXp({
 ...prevState,
  claimedProgressAchievements: newClaimed,
+...(newPrestige ? { prestige: newPrestige } : {}),
  achievementUnlocks: {
 ...(prevState.achievementUnlocks || {}),
  [achievementId]: {

@@ -79,7 +79,12 @@ export function getAmbitionCompletion(state: GameState): AmbitionCompletion | nu
   const reachedCount = milestones.filter((m) => m.complete).length;
   const totalCount = ambition.milestones.length;
   const allComplete = totalCount > 0 && reachedCount >= totalCount;
-  const alreadyClaimed = !!state.ambitionRewardClaimed;
+  // Claimed if EITHER the per-life flag is set OR this ambitionId was already
+  // paid out in a PREVIOUS life (cross-life stamp preserved through prestige).
+  // The per-life flag resets on prestige, so the cross-life set is what stops
+  // the same ambition being re-fulfilled for gems/prestige points every cycle.
+  const claimedCrossLife = (state.prestige?.claimedAmbitions ?? []).includes(ambition.id);
+  const alreadyClaimed = !!state.ambitionRewardClaimed || claimedCrossLife;
 
   return {
     ambition,
@@ -141,12 +146,23 @@ export function grantAmbitionPayout(state: GameState): GameState {
 
   // Prestige points only when a prestige record exists (fresh lives always have
   // one; ultra-legacy/partial states without it simply skip the PP portion).
+  // Also stamp the ambitionId into the cross-life `claimedAmbitions` set so this
+  // payoff (gems + prestige points, both preserved through prestige) can never be
+  // granted again in a future life. `getAmbitionCompletion` reads this set, so a
+  // stamped ambition reports `alreadyClaimed` and never returns to `readyToClaim`.
   let nextPrestige = state.prestige;
   const pp = payoff.prestigePoints ?? 0;
-  if (nextPrestige && pp > 0) {
+  if (nextPrestige) {
+    const priorClaimed = nextPrestige.claimedAmbitions ?? [];
     nextPrestige = {
       ...nextPrestige,
-      prestigePoints: Math.min(CEILING, (nextPrestige.prestigePoints ?? 0) + pp),
+      prestigePoints:
+        pp > 0
+          ? Math.min(CEILING, (nextPrestige.prestigePoints ?? 0) + pp)
+          : nextPrestige.prestigePoints ?? 0,
+      claimedAmbitions: priorClaimed.includes(completion.ambition.id)
+        ? priorClaimed
+        : [...priorClaimed, completion.ambition.id],
     };
   }
 
