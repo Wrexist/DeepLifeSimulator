@@ -112,11 +112,14 @@ export default function AdRewardOrb() {
   const gsRef = useRef(gameState);
   useEffect(() => { gsRef.current = gameState; });
 
-  // Don't intrude during blocking moments.
+  // Don't intrude during blocking moments — death/wedding/jail popups, or an
+  // auto-mounted LifeMomentModal (a real RN Modal raised whenever the weekly tick
+  // sets lifeMoments.pendingMoment). The orb must not slide in over any of them.
   const blocked = !!(
     gameState?.showDeathPopup ||
     gameState?.showWeddingPopup ||
-    (gameState?.jailWeeks ?? 0) > 0
+    (gameState?.jailWeeks ?? 0) > 0 ||
+    gameState?.lifeMoments?.pendingMoment
   );
 
   const clearTimers = () => {

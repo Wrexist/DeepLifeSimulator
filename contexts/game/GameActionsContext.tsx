@@ -126,6 +126,7 @@ import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
+import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
@@ -1015,6 +1016,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
 
+ // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
+ // (fired only if Contacts was open on the exact anniversary week), so the
+ // happiness bonus + milestone + Pulse post were silently missed otherwise. Now
+ // it runs every tick for the married player regardless of screen — deterministic
+ // (seed-free ids, preRolls.timestamp) and idempotent (one grant per year, via the
+ // lifeMilestones guard inside the helper). Happiness folds in here; the milestone
+ // and post fold into the final return below.
+ const anniversaryResult: AnniversaryResult = applyAnniversaries({
+   prevState,
+   relationships: processedRelationships,
+   nextWeeksLived,
+   nextYear,
+   timestamp: preRolls.timestamp,
+ });
+ if (anniversaryResult.happinessBonus > 0) {
+   newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + anniversaryResult.happinessBonus));
+ }
+
  tickProfiler.mark('income_engagement_finance_family');
 
       // R7 Phase 2 step 2.6-i: wanted-level decay + police-encounter roll
@@ -1304,7 +1323,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R3-A: `getOrRotateWeeklyChallenge`/`evaluateChallengeProgress` are ES imports.
  // Build a temporary state snapshot for evaluation
  const evalState = {...prevState, stats: newStats, weeksLived: nextWeeksLived };
+
+ // ── WEEKLY CHALLENGE: Rotation-week completion salvage ──
+ // getOrRotateWeeklyChallenge replaces the challenge once ROTATION_GAME_WEEKS
+ // have elapsed. If the player first satisfied EVERY objective of the OUTGOING
+ // challenge on that exact rotation tick, the fresh challenge would overwrite it
+ // before the completion/reward block ran and its 150-300 gem reward would be
+ // lost. Evaluate + grant the outgoing challenge's reward here, BEFORE rotating.
+ // Rotation is detected as a challengeId change (the incoming id always differs:
+ // the rotation index advances by exactly one). Non-rotation ticks and the
+ // legacy startedWeek-adopt case keep the same id → this block is a pure no-op,
+ // so it can never double-grant with the block below.
+ const outgoingChallenge = prevState.weeklyChallenge;
  updatedWeeklyChallenge = getOrRotateWeeklyChallenge(evalState);
+ const rotatedAway =
+ !!outgoingChallenge &&
+!outgoingChallenge.rewardClaimed &&
+ (!updatedWeeklyChallenge || updatedWeeklyChallenge.challengeId !== outgoingChallenge.challengeId);
+ if (rotatedAway && outgoingChallenge) {
+ const outProgress = evaluateChallengeProgress(outgoingChallenge.challengeId, evalState);
+ const outCompleted = outProgress.length > 0 && outProgress.every((p: any) => p.completed ?? p.met);
+ if (outCompleted) {
+ const outDef = getWeeklyChallengeDefinition(outgoingChallenge.challengeId);
+ const outGemReward = typeof outDef?.reward === 'number' && outDef.reward > 0 ? Math.floor(outDef.reward): 0;
+ if (outGemReward > 0) {
+ newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0) + outGemReward;
+ }
+ weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
+ logger.info(`[WEEKLY_CHALLENGE] Outgoing reward granted on rotation week: +${outGemReward} gems, +${LEGACY_PASS_XP.weeklyChallenge} Legacy Pass XP (${outgoingChallenge.challengeId})`);
+ }
+ }
+
  if (updatedWeeklyChallenge &&!updatedWeeklyChallenge.completed &&!updatedWeeklyChallenge.rewardClaimed) {
  const progress = evaluateChallengeProgress(updatedWeeklyChallenge.challengeId, evalState);
  updatedWeeklyChallenge = {
@@ -1333,7 +1382,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (gemReward > 0) {
  newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0) + gemReward;
  }
- weeklyChallengeXpToAward = LEGACY_PASS_XP.weeklyChallenge;
+ weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  updatedWeeklyChallenge = {...updatedWeeklyChallenge, rewardClaimed: true };
  logger.info(`[WEEKLY_CHALLENGE] Reward granted: +${gemReward} gems, +${weeklyChallengeXpToAward} Legacy Pass XP (${updatedWeeklyChallenge.challengeId})`);
  }
@@ -1372,6 +1421,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Pulse tick effects fold into the final return: replace socialMedia,
  // apply reputationDelta (negative when scandals were active this tick).
  let pulseSocialMedia = pulseTickResult?.socialMedia ?? prevState.socialMedia;
+ // Fold the deterministic anniversary auto-post into the post-pulse-tick feed
+ // (immutable — clones socialMedia so prevState is never mutated).
+ if (anniversaryResult.post && pulseSocialMedia) {
+   pulseSocialMedia = {
+     ...pulseSocialMedia,
+     totalPosts: (pulseSocialMedia.totalPosts ?? 0) + 1,
+     recentPosts: [anniversaryResult.post, ...(pulseSocialMedia.recentPosts ?? [])].slice(0, 50),
+   };
+ }
  const pulseRepAdjusted = pulseTickResult
  ? Math.max(0, (newStats.reputation ?? 50) + pulseTickResult.reputationDelta)
 : newStats.reputation;
@@ -1993,11 +2051,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  children,
  };
  })(),
- // Add birth milestone.
+ // Add birth milestone (+ any anniversary milestone raised this tick).
  // P0-12: store the absolute week so the LifeStoryModal timeline orders
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
  // appear to all be born in the same handful of weeks.
- lifeMilestones: newBornChildren.length > 0 ? [
+ lifeMilestones: (() => {
+ const base = newBornChildren.length > 0 ? [
 ...(prevState.lifeMilestones || []),
 ...newBornChildren.map(child => ({
  id: `child_birth_${nextWeeksLived}_${child.id}`,
@@ -2006,7 +2065,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  year: nextYear,
  details: { childId: child.id, childName: child.name, gender: child.gender },
  })),
- ]: (prevState.lifeMilestones || []),
+ ]: (prevState.lifeMilestones || []);
+ return anniversaryResult.milestone ? [...base, anniversaryResult.milestone] : base;
+ })(),
  // Hobbies removed - no longer validating hobby skills
  hobbies: prevState.hobbies || [],
  // Add crypto from warehouse mining + post-trading-tick price evolution / order fills

@@ -894,11 +894,20 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // For the interstitial breakpoint: current in-game week + whether ads are removed.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  const adsRemoved = useGameSelector((s) => s?.settings?.adsRemoved === true);
- // A blocking result modal (death/wedding/jail) must never get an interstitial
- // on top of it. The tick itself can RAISE one of these, so we read it via a ref
- // that the external-store selector keeps current, then check it AFTER the tick.
+ // A blocking result modal (death/wedding/jail) — or an auto-mounted
+ // LifeMomentModal (app/(tabs)/_layout.tsx renders one whenever the tick sets
+ // lifeMoments.pendingMoment) — must never get an interstitial on top of it (an
+ // ad over an open RN Modal is the documented iOS freeze). The tick itself can
+ // RAISE any of these in the SAME tick, so we read them via a ref the
+ // external-store selector keeps current, then check it AFTER the tick: nextWeek()
+ // awaits a macrotask past its own setGameState commit, so this component has
+ // re-rendered and blockedRef.current reflects the just-ticked state by the call.
  const blockingModalActive = useGameSelector(
-   (s) => s?.showDeathPopup === true || s?.showWeddingPopup === true || (s?.jailWeeks ?? 0) > 0,
+   (s) =>
+     s?.showDeathPopup === true ||
+     s?.showWeddingPopup === true ||
+     (s?.jailWeeks ?? 0) > 0 ||
+     !!s?.lifeMoments?.pendingMoment,
  );
  const blockedRef = useRef(blockingModalActive);
  blockedRef.current = blockingModalActive;
