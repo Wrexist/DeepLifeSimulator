@@ -189,6 +189,33 @@ describe('applyEducationProgression — semesterNumber', () => {
     expect(ctx.notifications.some((n) => n.title?.startsWith('📝'))).toBe(false);
   });
 
+  it('finalize-only recovery for a corrupt NEGATIVE-week program — no exam, no campus event', () => {
+    // Codex P2: -3 is truthy, so a plain falsy guard in isExamWeek /
+    // shouldTriggerCampusEvent would let a corrupt save fire a stray exam or
+    // campus event during recovery. Both now guard with `!(weeksRemaining > 0)`.
+    const ctx = makeCtx();
+    const corrupt = ed({
+      weeksRemaining: -3,
+      completed: false,
+      lastExamWeek: 0,
+      lastCampusEventWeek: 0,
+      gpa: 3.1,
+      examsPassed: 5,
+      examsFailed: 2,
+    });
+    const res = applyEducationProgression(
+      { prevEducations: [corrupt], nextWeeksLived: 500, goldFastLearner: false, perkFastLearner: false },
+      ctx,
+    );
+    const out = res.updatedEducations[0];
+    expect(out.completed).toBe(true);
+    expect(out.weeksRemaining).toBe(0); // clamped up to 0, not left negative
+    expect(out.gpa).toBe(3.1); // untouched — no exam ran
+    expect(out.lastExamWeek).toBe(0); // no exam recorded during recovery
+    expect(ctx.notifications.some((n) => n.title?.startsWith('📝'))).toBe(false);
+    expect(res.pendingCampusEvent).toBeUndefined();
+  });
+
   // (b) The normal decrement completion path is unchanged by the fix.
   it('completes normally when the weekly decrement reaches 0 (weeksRemaining 1 → 0)', () => {
     const res = applyEducationProgression(

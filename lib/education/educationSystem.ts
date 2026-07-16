@@ -648,7 +648,10 @@ export const CAMPUS_EVENT_MAX_INTERVAL = 8;
  * Check if it's time for an exam.
  */
 export function isExamWeek(education: Education, currentWeeksLived: number): boolean {
-  if (!education.weeksRemaining || education.completed || education.paused) return false;
+  // `<= 0` (not a falsy check) so NEGATIVE weeksRemaining — a corrupt/exhausted
+  // save being finalize-only recovered by the weekly tick — can't fire a stray
+  // exam: -3 is truthy, so a plain falsy check lets it through.
+  if ((education.weeksRemaining ?? 0) <= 0 || education.completed || education.paused) return false;
   const lastExam = education.lastExamWeek || 0;
   return (currentWeeksLived - lastExam) >= EXAM_INTERVAL_WEEKS;
 }
@@ -666,7 +669,9 @@ export function shouldTriggerCampusEvent(
    */
   roll?: number,
 ): boolean {
-  if (!education.weeksRemaining || education.completed || education.paused) return false;
+  // Same `<= 0` guard as isExamWeek: negative weeksRemaining (corrupt save in
+  // finalize-only recovery) must not spawn campus events.
+  if ((education.weeksRemaining ?? 0) <= 0 || education.completed || education.paused) return false;
   const lastEvent = education.lastCampusEventWeek || 0;
   const weeksSinceEvent = currentWeeksLived - lastEvent;
   if (weeksSinceEvent < CAMPUS_EVENT_MIN_INTERVAL) return false;

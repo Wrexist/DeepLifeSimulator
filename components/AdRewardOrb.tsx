@@ -258,8 +258,12 @@ export default function AdRewardOrb() {
         resolve();
       };
       sheetDismissResolver.current = finish;
-      setTimeout(finish, 600); // covers the slide-down animation with margin
+      // Tracked (not raw) timer: clearTimers on unmount cancels it, so a
+      // dismissal fallback can never continue into runRewardedAd after the
+      // component is gone. 600ms covers the slide-down animation with margin.
+      addTimer(finish, 600);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleWatch = useCallback(async () => {
@@ -284,8 +288,9 @@ export default function AdRewardOrb() {
       if (isGranted(outcome)) {
         // Reopen the sheet in its "Reward added!" state — a fresh present is
         // safe now that the ad's view controller is gone; the short beat lets
-        // its window teardown settle before we animate back in.
-        await new Promise<void>((resolve) => setTimeout(resolve, 350));
+        // its window teardown settle before we animate back in. Tracked timer:
+        // unmount clears it, so no post-unmount UI work can be scheduled.
+        await new Promise<void>((resolve) => { addTimer(resolve, 350); });
         setPhase('ad');
         finishAfterClaim();
       } else {
