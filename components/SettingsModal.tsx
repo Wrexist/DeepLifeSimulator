@@ -9,8 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code, DollarSign } from 'lucide-react-native';
-import BackupRecoveryModal from './BackupRecoveryModal';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -97,7 +96,7 @@ function SettingsActionButton({
 }
 
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, setGameState, currentSlot } = useGameState();
+  const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   // Wealth-scaled Discord join reward, computed once so every display below AND
@@ -118,7 +117,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
-  const [showBackupManager, setShowBackupManager] = useState(false);
   // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
   // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
   const [showDevTools, setShowDevTools] = useState(false);
@@ -522,14 +520,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   }}
                 />
 
-                {/* Backup & Recovery Section */}
-                <SettingsActionButton
-                  icon={HardDrive}
-                  label="Backups & Recovery"
-                  accent="#38BDF8"
-                  onPress={() => setShowBackupManager(true)}
-                />
-
                 <SettingsActionButton
                   icon={HelpCircle}
                   label={t('settings.showTutorial')}
@@ -649,11 +639,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       {DEV_TOOLS_ENABLED && DevToolsModal ? (
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
-      <BackupRecoveryModal
-        visible={showBackupManager}
-        slot={currentSlot || 1}
-        onClose={() => setShowBackupManager(false)}
-      />
 
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (

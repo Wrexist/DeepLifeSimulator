@@ -1,27 +1,35 @@
 import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { Alert, Animated, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { Play, Plus, Save, Settings } from 'lucide-react-native';
-import GlassActionButton from '@/components/onboarding/GlassActionButton';
+import { ChevronRight, Play, Plus, Save, Settings } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
 // this screen's module init — a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
-import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 
@@ -39,22 +47,180 @@ const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 // before they ever reach the menu. Use the same fallback.
 const LinearGradient = LinearGradientFallback;
 
-// A clean, premium deep-slate backdrop rendered in code (no baked-in wordmark,
-// scattered icons, or silhouette) — those lived in the old Main_Menu.png art and
-// read as noisy + clipped the title on some screens. The title is now crisp text
-// that auto-fits, so it never clips.
-const BG_GRADIENT = ['#0A0F1C', '#0E1526', '#080B14'] as const;
-const BEAM_GRADIENT = ['rgba(96,165,250,0.20)', 'rgba(96,165,250,0.04)', 'transparent'] as const;
+// Near-black base matched to the in-game home screen (#020617) so the menu reads
+// as one aesthetic with the game — not a lighter, generic pre-game panel. A soft
+// blue glow at the top gives depth without a solid panel block.
+const PAGE_BG = '#020617';
+const TOP_GLOW = ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0)'] as const;
+const BOTTOM_SHADE = ['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.6)'] as const;
+// The game's primary-CTA gradient (shared with the onboarding floating button and
+// the in-game "next week" button). Reused here so the primary action feels native.
+const PRIMARY_GRADIENT = ['#60A5FA', '#3B82F6', '#2563EB'] as const;
+
+interface SaveSummary {
+  name: string;
+  age: number;
+  money: number;
+}
+
+/**
+ * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
+ * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
+ */
+function RevealItem({
+  index,
+  reduced,
+  children,
+}: {
+  index: number;
+  reduced: boolean;
+  children: React.ReactNode;
+}) {
+  const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      progress.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: 1,
+      duration: 240,
+      delay: index * 55,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [index, reduced, progress]);
+
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+  return <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>;
+}
+
+/**
+ * Primary action card — the one high-emphasis choice (Continue when a save
+ * exists, otherwise New Game). Blue gradient fill in the game's CTA style.
+ */
+function PrimaryActionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  onPress,
+  loading = false,
+  badge,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  loading?: boolean;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={subtitle}
+      activeOpacity={0.9}
+      disabled={loading}
+      onPress={onPress}
+      style={styles.primaryTouchable}
+    >
+      <LinearGradient colors={PRIMARY_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primaryCard}>
+        <View style={styles.primaryIconChip}>
+          {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon size={scale(24)} color="#FFFFFF" />}
+        </View>
+        <View style={styles.primaryTextWrap}>
+          {badge}
+          <Text style={styles.primaryTitle} numberOfLines={1}>
+            {loading ? 'Loading…' : title}
+          </Text>
+          <Text style={styles.primarySubtitle} numberOfLines={1}>
+            {loading ? 'Please wait' : subtitle}
+          </Text>
+        </View>
+        {loading ? null : <ChevronRight size={scale(22)} color="rgba(255, 255, 255, 0.9)" />}
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
+/** Secondary action card — dark surface + tinted icon chip. Clearly below the
+ *  primary in emphasis, clearly above the quiet tertiary tiles. */
+function SecondaryActionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={subtitle}
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={styles.secondaryCard}
+    >
+      <View style={styles.secondaryIconChip}>
+        <Icon size={scale(22)} color="#60A5FA" />
+      </View>
+      <View style={styles.secondaryTextWrap}>
+        <Text style={styles.secondaryTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={styles.secondarySubtitle} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      <ChevronRight size={scale(20)} color="#64748B" />
+    </TouchableOpacity>
+  );
+}
+
+/** Quiet tertiary tile — the low-frequency utilities (Save Slots / Settings)
+ *  sit side by side so they never compete with the two real choices above. */
+function TertiaryTile({
+  icon: Icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={styles.tertiaryTile}
+    >
+      <Icon size={scale(18)} color="#94A3B8" />
+      <Text style={styles.tertiaryLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { opacity, translateY } = useOnboardingScreenAnimation();
+  const reduced = useReducedMotion();
   const { loadGame } = useGameActions();
   const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
+  const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
@@ -63,20 +229,19 @@ export default function MainMenu() {
     logOnboardingStepView('MainMenu');
   }, []);
 
-  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
-  const onboardingTheme = getOnboardingTheme(isDarkMode);
-
   const refreshHasSaveState = useCallback(async () => {
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
         setHasSave(false);
+        setSaveSummary(null);
         return;
       }
 
       const slotNumber = parseInt(lastSlot, 10);
       if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
         setHasSave(false);
+        setSaveSummary(null);
         return;
       }
 
@@ -87,25 +252,42 @@ export default function MainMenu() {
       const saveData = await readSaveSlot(slotNumber, undefined, { allowLegacy });
       if (!saveData) {
         setHasSave(false);
+        setSaveSummary(null);
         return;
       }
 
       const decoded = decodePersistedSaveEnvelope(saveData, { allowLegacy });
       if (!decoded.valid || typeof decoded.data !== 'string') {
         setHasSave(false);
+        setSaveSummary(null);
         return;
       }
 
       const parsedGameState = JSON.parse(decoded.data);
       if (!hasSaveStateShape(parsedGameState)) {
         setHasSave(false);
+        setSaveSummary(null);
         return;
       }
 
-      setHasSave(hasMeaningfulSaveData(parsedGameState));
+      const meaningful = hasMeaningfulSaveData(parsedGameState);
+      setHasSave(meaningful);
+      if (meaningful) {
+        // Surface a compact summary of the last life inside the Continue card so
+        // it carries real context instead of a generic "Saved progress" pill.
+        const name = `${parsedGameState.userProfile?.firstName || ''} ${parsedGameState.userProfile?.lastName || ''}`.trim();
+        setSaveSummary({
+          name,
+          age: Math.floor(parsedGameState.date?.age || 0),
+          money: parsedGameState.stats?.money || 0,
+        });
+      } else {
+        setSaveSummary(null);
+      }
     } catch (error) {
       log.error('Error checking save state', error);
       setHasSave(false);
+      setSaveSummary(null);
     }
   }, [log]);
 
@@ -268,93 +450,102 @@ export default function MainMenu() {
     }
   };
 
+  // Compact one-line context for the Continue card (folds in the old floating
+  // "Saved progress detected" pill).
+  const continueSubtitle =
+    saveSummary != null
+      ? [saveSummary.name || 'Unnamed Character', `Age ${saveSummary.age}`, formatMoney(saveSummary.money)].join('  ·  ')
+      : t('mainMenu.continueSubtitle');
+
   return (
     <>
       <View style={styles.root}>
-        <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
-        {/* Soft top spotlight for depth — replaces the old baked light beam. */}
-        <LinearGradient
-          pointerEvents="none"
-          colors={BEAM_GRADIENT}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.beam}
-        />
+        <LinearGradient pointerEvents="none" colors={TOP_GLOW} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.topGlow} />
+        <LinearGradient pointerEvents="none" colors={BOTTOM_SHADE} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.bottomShade} />
 
-        <Animated.View
+        <View
           style={[
             styles.content,
             {
-              opacity,
-              transform: [{ translateY }],
               paddingTop: insets.top + verticalScale(24),
-              paddingBottom: insets.bottom + verticalScale(16),
+              paddingBottom: insets.bottom + verticalScale(20),
             },
           ]}
         >
-          {/* Hero wordmark — crisp text so it can never clip like the baked art did. */}
-          <View style={styles.hero}>
-            <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
-            <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-              DEEP LIFE
-            </Text>
-            <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-              SIMULATOR
-            </Text>
-          </View>
+          {/* Brand block — crisp text on the dark base, no lighter panel. */}
+          <RevealItem index={0} reduced={reduced}>
+            <View style={styles.hero}>
+              <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+              <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
+                DEEP LIFE
+              </Text>
+              <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
+                SIMULATOR
+              </Text>
+            </View>
+          </RevealItem>
 
           <View style={styles.spacer} />
 
           <View style={styles.menuSection}>
             {hasSave ? (
-              <GlassActionButton
-                highlighted
-                icon={<Play color={onboardingTheme.title} size={scale(24)} />}
-                title={t('mainMenu.continue')}
-                subtitle={t('mainMenu.continueSubtitle')}
-                onPress={continueGame}
-                loading={continuing}
-              />
+              <RevealItem index={1} reduced={reduced}>
+                <PrimaryActionCard
+                  icon={Play}
+                  title={t('mainMenu.continue')}
+                  subtitle={continueSubtitle}
+                  onPress={continueGame}
+                  loading={continuing}
+                  badge={
+                    <View style={styles.savedBadge}>
+                      <View style={styles.savedDot} />
+                      <Text style={styles.savedBadgeText}>SAVED PROGRESS</Text>
+                    </View>
+                  }
+                />
+              </RevealItem>
             ) : null}
 
-            <GlassActionButton
-              highlighted={!hasSave}
-              icon={<Plus color={onboardingTheme.title} size={scale(24)} />}
-              title={t('mainMenu.newGame')}
-              subtitle={t('mainMenu.newGameSubtitle')}
-              onPress={startNew}
-            />
+            <RevealItem index={hasSave ? 2 : 1} reduced={reduced}>
+              {hasSave ? (
+                <SecondaryActionCard
+                  icon={Plus}
+                  title={t('mainMenu.newGame')}
+                  subtitle={t('mainMenu.newGameSubtitle')}
+                  onPress={startNew}
+                />
+              ) : (
+                <PrimaryActionCard
+                  icon={Plus}
+                  title={t('mainMenu.newGame')}
+                  subtitle={t('mainMenu.newGameSubtitle')}
+                  onPress={startNew}
+                />
+              )}
+            </RevealItem>
 
-            <GlassActionButton
-              icon={<Save color={onboardingTheme.title} size={scale(24)} />}
-              title={t('mainMenu.saveSlots')}
-              subtitle={t('mainMenu.saveSlotsSubtitle')}
-              onPress={() => {
-                haptic.light();
-                router.push('/(onboarding)/SaveSlots');
-              }}
-            />
-
-            <GlassActionButton
-              icon={<Settings color={onboardingTheme.title} size={scale(24)} />}
-              title={t('mainMenu.settings')}
-              subtitle={t('mainMenu.settingsSubtitle')}
-              onPress={() => {
-                haptic.light();
-                setShowSettings(true);
-              }}
-            />
+            <RevealItem index={hasSave ? 3 : 2} reduced={reduced}>
+              <View style={styles.tertiaryRow}>
+                <TertiaryTile
+                  icon={Save}
+                  label={t('mainMenu.saveSlots')}
+                  onPress={() => {
+                    haptic.light();
+                    router.push('/(onboarding)/SaveSlots');
+                  }}
+                />
+                <TertiaryTile
+                  icon={Settings}
+                  label={t('mainMenu.settings')}
+                  onPress={() => {
+                    haptic.light();
+                    setShowSettings(true);
+                  }}
+                />
+              </View>
+            </RevealItem>
           </View>
-
-          <View style={styles.footer}>
-            <View style={styles.footerPill}>
-              <View style={[styles.footerDot, { backgroundColor: hasSave ? '#34D399' : '#60A5FA' }]} />
-              <Text style={styles.footerText}>
-                {hasSave ? 'Saved progress detected' : 'Create your first life story'}
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
+        </View>
       </View>
 
       {showSettings && (
@@ -369,14 +560,21 @@ export default function MainMenu() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#080B14',
+    backgroundColor: PAGE_BG,
   },
-  beam: {
+  topGlow: {
     position: 'absolute',
     top: 0,
-    left: '10%',
-    right: '10%',
-    height: verticalScale(360),
+    left: 0,
+    right: 0,
+    height: verticalScale(340),
+  },
+  bottomShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: verticalScale(240),
   },
   content: {
     flex: 1,
@@ -385,7 +583,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginTop: verticalScale(36),
+    marginTop: verticalScale(40),
   },
   eyebrow: {
     color: '#60A5FA',
@@ -416,29 +614,130 @@ const styles = StyleSheet.create({
   menuSection: {
     width: '100%',
   },
-  footer: {
-    marginTop: verticalScale(14),
-    alignItems: 'center',
+
+  // Primary action ------------------------------------------------------------
+  primaryTouchable: {
+    width: '100%',
+    marginBottom: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
+    ...getPlatformShadows(10, 0.35, 6, 18),
   },
-  footerPill: {
+  primaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.25)',
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(7),
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: verticalScale(18),
+    paddingHorizontal: responsiveSpacing.lg,
   },
-  footerDot: {
-    width: scale(7),
-    height: scale(7),
-    borderRadius: scale(4),
+  primaryIconChip: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  footerText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
+  primaryTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  savedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    marginBottom: verticalScale(4),
+  },
+  savedDot: {
+    width: scale(6),
+    height: scale(6),
+    borderRadius: scale(3),
+    backgroundColor: '#6EE7B7',
+  },
+  savedBadgeText: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    letterSpacing: scale(1),
+  },
+  primaryTitle: {
+    color: '#FFFFFF',
+    fontSize: fontScale(20),
+    fontWeight: '800',
+    marginBottom: verticalScale(2),
+  },
+  primarySubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: fontScale(12.5),
+    fontWeight: '500',
+  },
+
+  // Secondary action ----------------------------------------------------------
+  secondaryCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
+    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: verticalScale(15),
+    paddingHorizontal: responsiveSpacing.lg,
+    ...getPlatformShadows(6, 0.25, 4, 14),
+  },
+  secondaryIconChip: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+  },
+  secondaryTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  secondaryTitle: {
+    color: '#F8FAFC',
+    fontSize: fontScale(17),
+    fontWeight: '700',
+    marginBottom: verticalScale(2),
+  },
+  secondarySubtitle: {
     color: '#94A3B8',
+    fontSize: fontScale(12),
+    fontWeight: '500',
+  },
+
+  // Tertiary utilities --------------------------------------------------------
+  tertiaryRow: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.md,
+  },
+  tertiaryTile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(8),
+    borderRadius: responsiveBorderRadius.lg,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: verticalScale(14),
+    paddingHorizontal: responsiveSpacing.md,
+  },
+  tertiaryLabel: {
+    color: '#CBD5E1',
+    fontSize: fontScale(13),
+    fontWeight: '600',
   },
 });
