@@ -57,12 +57,12 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     applied: false,
     accepted: false,
     requirements: {
-      education: ['masters', 'mba'],
+      education: ['masters_degree', 'mba'],
       reputation: 50,
     },
     progress: 0,
     unlockRequirements: {
-      education: ['masters', 'mba'],
+      education: ['masters_degree', 'mba'],
       experience: 260, // 5 years
       reputation: 50,
       netWorth: 500000,
@@ -168,12 +168,12 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     applied: false,
     accepted: false,
     requirements: {
-      education: ['bachelors'],
+      education: ['business_degree'],
       reputation: 35,
     },
     progress: 0,
     unlockRequirements: {
-      education: ['bachelors'],
+      education: ['business_degree'],
       experience: 156, // 3 years
       reputation: 35,
       achievements: ['social_celebrity'],
@@ -224,12 +224,12 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     applied: false,
     accepted: false,
     requirements: {
-      education: ['masters', 'mba'],
+      education: ['masters_degree', 'mba'],
       reputation: 45,
     },
     progress: 0,
     unlockRequirements: {
-      education: ['masters', 'mba'],
+      education: ['masters_degree', 'mba'],
       reputation: 45,
       netWorth: 1000000,
     },
