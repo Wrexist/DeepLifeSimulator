@@ -457,6 +457,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  money: currentMoney, // Ensure money starts with valid value
  };
 
+ // No earned income while incarcerated: an active career (salary — zeroed in
+ // applyCareerSalaryAndPenalty), an active-run company (profit), and Pulse
+ // (social-media) weekly earnings are all withheld while jailed. Passive income —
+ // rental income, bank interest, dividends, spouse income — continues untouched.
+ const isJailed = (prevState.jailWeeks ?? 0) > 0;
+
  // R7 Phase 2 step 2.5b-i: `weeklyCtx` is hoisted ALL THE WAY UP here so
  // every subsequent reducer (career, diet, rent, disease, pet, vehicle)
  // shares the same instance. `newStats`, `pendingNotifications`, and
@@ -707,7 +713,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // property.rent stream here too double-paid rent and let an unbounded
  // player-set rent print money — so it's excluded from the cash total.
  const passiveIncomeResult = calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true });
- const passiveIncome = passiveIncomeResult.total || 0;
+ let passiveIncome = passiveIncomeResult.total || 0;
+ // No earned income while incarcerated: a jailed owner earns no company profit
+ // this week. Companies carry no managed/passive-mode flag, so ALL company profit
+ // is treated as active and skipped. Truly passive streams — dividends, bank
+ // interest, spouse income (rental income is a separate cash path) — continue.
+ // Remove the company stream's share of the (possibly soft-capped) total: when no
+ // cap/multiplier is active the ratio is 1 and this subtracts the exact company
+ // figure; when the total was scaled, it removes only the company's proportional
+ // slice so dividends and the rest keep theirs.
+ if (isJailed) {
+   const pb = passiveIncomeResult.breakdown;
+   // Streams that actually feed the weekly cash total (realEstate is excluded
+   // above — it is paid separately by the tenancy tick), i.e. the pre-cap raw sum.
+   const activePassiveSum = pb.stocks + pb.socialMedia + pb.patents + pb.businessOpportunities
+     + pb.political + pb.cryptoMining + pb.companies + pb.gamingStreaming;
+   const companyShare = activePassiveSum > 0
+     ? Math.round(pb.companies * (passiveIncome / activePassiveSum))
+     : 0;
+   passiveIncome = Math.max(0, passiveIncome - companyShare);
+ }
 
  // R7 Phase 2 step 2.4a: income totals aggregation extracted into
  // ./actions/weekly/applyIncome.ts. The helper composes partner income +
@@ -722,7 +747,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevState,
    careerSalary,
    passiveIncome,
-   pulseEarnings: pulseTickResult?.pulseEarnings ?? 0,
+   // No earned income while incarcerated: withhold Pulse (social-media) weekly
+   // earnings. The Pulse tick itself still runs (brand-deal expiry, follower
+   // decay, Pro renewal) — only the earnings are gated out of income.
+   pulseEarnings: isJailed ? 0 : (pulseTickResult?.pulseEarnings ?? 0),
    weeksLivedNow,
    unlockedBonuses,
    // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
@@ -953,6 +981,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  birthMessage = pregResult.birthMessage || '';
  }
  return pregResult.rel;
+ }
+
+ // A wedding scheduled to land while the player is incarcerated is deferred one
+ // week (it re-triggers the first week after release). The engagement state
+ // (weddingPlanned) is preserved intact — no charge, no spouse promotion, no
+ // expiry — so there is zero softlock risk: pushing scheduledWeek to next week
+ // keeps it clear of both the 1-year expiry and the stale-cleanup window.
+ if (isJailed && rel.weddingPlanned && rel.weddingPlanned.scheduledWeek === nextWeeksLived) {
+ return { ...rel, weddingPlanned: { ...rel.weddingPlanned, scheduledWeek: nextWeeksLived + 1 } };
  }
 
  // R7 Phase 2 step 2.6-iii-C: scheduled wedding extracted to
@@ -1221,7 +1258,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
+ const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
+ // The helper floors the deduction at $0, so on a broke week it charges LESS than
+ // the sticker upkeep. Report what actually left the wallet in the recap, not the
+ // nominal (= nominal whenever the player could afford it).
+ const luxuryCharged = Math.min(luxuryUpkeep, moneyBeforeLuxury);
  // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
  // screen but never completed in normal play). Luxury ownership only changes via
  // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
@@ -1232,12 +1274,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? (prevState.achievements || []).map((a) =>
  a.id === 'luxury_life' ? { ...a, completed: true } : a)
  : prevState.achievements;
+ const moneyBeforePetFood = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  applyPetLivingSideEffects(updatedPets, weeklyCtx);
- // Downstream week-result block at line ~2075 reports `petFoodCost` as part
- // of `totalExpenses`. The helper applies the cost atomically (clamped to
- // money floor) but doesn't return the magnitude — recompute here to match
- // the legacy contract. Cheap: `O(updatedPets.length)`.
+ // Downstream week-result block reports `petFoodCost` as part of `totalExpenses`.
+ // The helper applies the cost atomically (clamped to the money floor) but doesn't
+ // return the magnitude — recompute the nominal here to match the legacy contract.
+ // Cheap: `O(updatedPets.length)`.
  const petFoodCost = updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST;
+ // Actual amount charged after the money floor — the recap must report what left
+ // the wallet, not the nominal (= nominal whenever the player could afford it).
+ const petFoodCharged = Math.min(petFoodCost, moneyBeforePetFood);
 
  // Housing happiness bonus from current residence
  if (housingHappinessBonus > 0) {
@@ -1390,8 +1436,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);
  }
 
- // Build week result for the result sheet
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep + luxuryUpkeep;
+ // Build week result for the result sheet. Pet food + luxury upkeep use the
+ // ACTUAL charged amounts (the helpers floor their deduction at $0, so on a broke
+ // week the nominal overstates what was really paid); every other component is
+ // already the real figure (loan autopay tracks its actual payment). Equals the
+ // old nominal sum on any week the player could afford these upkeeps.
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
@@ -1603,9 +1653,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'food', amount: dietWeeklyCost },
  { category: 'taxes', amount: incomeTax },
  { category: 'debt', amount: totalLoanAutoPaid },
- { category: 'lifestyle', amount: petFoodCost },
- // Luxury upkeep: same owned-item sum applyLuxuryItemsForWeek deducted above.
- { category: 'lifestyle', amount: luxuryUpkeep },
+ // Actual charged amounts (floored at $0 by the helpers), so the Budget tab
+ // reflects real spending on a broke week — not the nominal sticker upkeep.
+ { category: 'lifestyle', amount: petFoodCharged },
+ // Luxury upkeep: actual amount applyLuxuryItemsForWeek deducted above (floored).
+ { category: 'lifestyle', amount: luxuryCharged },
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },

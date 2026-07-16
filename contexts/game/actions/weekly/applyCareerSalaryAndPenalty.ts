@@ -44,6 +44,12 @@ export function applyCareerSalaryAndPenalty(
   let careerHappinessPenalty = 0;
   let careerHealthPenalty = 0;
 
+  // A jailed player draws no paycheck this week. The role is still held (so the
+  // stat toll below still applies), but there is no earned income while
+  // incarcerated. Passive income (rent, dividends, bank interest, spouse income)
+  // is unaffected and continues in the weekly tick.
+  const isJailed = (prevState.jailWeeks ?? 0) > 0;
+
   if (prevState.currentJob) {
     // CRITICAL: Validate careers array exists before using find.
     const careers = Array.isArray(prevState.careers) ? prevState.careers : [];
@@ -85,7 +91,14 @@ export function applyCareerSalaryAndPenalty(
           careerSalary = Math.round(careerSalary * payMultiplier);
         }
 
-        logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
+        // No earned income while incarcerated — withhold the paycheck this week.
+        // The career stat toll below still applies (the role is held, not worked).
+        if (isJailed) {
+          careerSalary = 0;
+          logger.info('[WEEK PROGRESSION] Career salary withheld this week — incarcerated');
+        } else {
+          logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
+        }
       } else {
         logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} level ${safeLevel} has invalid salary: ${levelData?.salary}`);
       }

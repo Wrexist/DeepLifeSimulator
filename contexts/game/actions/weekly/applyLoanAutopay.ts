@@ -117,20 +117,27 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
       };
     }
 
-    // Missed payment — apply compounding penalty, but BOUND it. Without a cap,
-    // a player stuck just above the bankruptcy floor (so payments are skipped to
-    // protect the floor) sees the balance compound every week forever and never
-    // triggers bankruptcy — an unresolvable runaway-debt soft-lock (and eventual
-    // float blow-up). Cap the compounded total at 3× the original principal (or
-    // the current balance, if already higher) so it can't run away.
+    // Missed payment — apply compounding penalty, but BOUND it. Without a hard
+    // ceiling, a player stuck just above the bankruptcy floor (so payments are
+    // skipped to protect the floor) sees the balance compound every week forever
+    // and never triggers bankruptcy — an unresolvable runaway-debt soft-lock (and
+    // eventual float blow-up). The total owed is clamped AT 3× the original
+    // principal: once weekly interest has pushed the balance to that ceiling the
+    // penalty stops compounding, and a balance ALREADY beyond the ceiling heals
+    // back down to it this tick (the earlier `Math.max(remaining, principal*3)`
+    // ceiling never bound, because it rose in lockstep with the growing balance).
+    // Falls back to the current balance when principal is missing/invalid — there
+    // is no ceiling to clamp against, so no penalty is compounded (unchanged).
     const penaltyCap = typeof loan.principal === 'number' && isFinite(loan.principal) && loan.principal > 0
-      ? Math.max(remainingWithInterest, loan.principal * 3)
+      ? loan.principal * 3
       : remainingWithInterest;
     const penalizedRemaining = Math.min(
       penaltyCap,
       Math.max(0, remainingWithInterest * (1 + LOAN_MISSED_PAYMENT_PENALTY)),
     );
-    totalLoanPenalty += (penalizedRemaining - remainingWithInterest);
+    // Only genuinely-added interest counts as penalty; clamping an over-ceiling
+    // balance back down heals it and must not register as a negative penalty.
+    totalLoanPenalty += Math.max(0, penalizedRemaining - remainingWithInterest);
     return {
       ...loan,
       remaining: penalizedRemaining,

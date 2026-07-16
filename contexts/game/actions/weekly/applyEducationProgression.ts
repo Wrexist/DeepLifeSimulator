@@ -67,13 +67,17 @@ export interface EducationProgressionResult {
 /**
  * Does this education need a weekly progression tick?
  *
- * True for any ENROLLED-but-unfinished program: not `completed`, not `paused`,
- * with a finite numeric `weeksRemaining`. Crucially this INCLUDES
- * `weeksRemaining <= 0` — a program the Study button (`applyStudySession`) drove
- * to 0 without finalizing, or an exhausted/corrupt save — because such a program
- * still needs THIS tick to graduate it (flip `completed`, apply enrolled-class
- * stat bonuses, push the "🎓 Completed!" toast). `NaN`/`undefined` weeksRemaining
- * are treated as not-tickable (skipped), matching the prior `>= 0` guard.
+ * True for any ENROLLED-but-unfinished program: not `completed`, with a finite
+ * numeric `weeksRemaining`, and either not `paused` OR already at
+ * `weeksRemaining <= 0`. Crucially this INCLUDES `weeksRemaining <= 0` — a
+ * program the Study button (`applyStudySession`) drove to 0 without finalizing,
+ * or an exhausted/corrupt save — because such a program still needs THIS tick to
+ * graduate it (flip `completed`, apply enrolled-class stat bonuses, push the
+ * "🎓 Completed!" toast). A PAUSED 0-week program qualifies too: a 0-week program
+ * has nothing left to pause, so pausing it must not strand it un-finalized — but a
+ * paused program with weeks still remaining stays frozen. `NaN`/`undefined`
+ * weeksRemaining are treated as not-tickable (skipped), matching the prior `>= 0`
+ * guard.
  *
  * SINGLE SOURCE OF TRUTH shared by (a) the per-education `.map` guard below and
  * (b) the weekly-tick gate in `GameActionsContext`. That gate PREVIOUSLY reused
@@ -90,9 +94,17 @@ export function needsEducationProgressionTick(
   return (
     !!edu &&
     !edu.completed &&
-    !edu.paused &&
     typeof edu.weeksRemaining === 'number' &&
-    Number.isFinite(edu.weeksRemaining)
+    Number.isFinite(edu.weeksRemaining) &&
+    // Paused programs freeze — EXCEPT one already drained to 0 (or below): a
+    // 0-week program has nothing left to pause, so it must still be finalized
+    // (flip `completed`, apply enrolled-class bonuses, push the "🎓 Completed!"
+    // toast). Without this, a program studied to 0 via the Study button and THEN
+    // paused strands at 100% / 0w / "IN PROGRESS" forever — withholding completion
+    // bonuses and locking company founding (which reads `entrepreneurship.completed`).
+    // A paused program with weeks still remaining stays frozen, as before. The
+    // typeof/finite checks above already narrowed `weeksRemaining` to a number.
+    (!edu.paused || edu.weeksRemaining <= 0)
   );
 }
 
