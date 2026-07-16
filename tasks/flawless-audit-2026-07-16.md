@@ -34,26 +34,20 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [x] WAVE 4d — Cleanup: gameBalance/tutorialData/appStoreOptimization/HobbyActions/relations/calculateActionImpact deleted (~1,100 lines), legacy achievements stubbed; prestige achievement fixes; autoSave NaN guards; cash_percentage implemented; autoPay/autoRenew honest copy; stateValidator + housing alert fixes. (40d9361)
 - [x] origin/main (PR #63) merged in; full gate green over merged state (tsc 0, jest 3521, snapshots 308). (e2be38f)
 
+- [x] WAVE 5a — Orphaned subsystems wired: mining Upgrades tab (upgrades/pools/staking/energy/automation), lobbyist hiring + alliances, credit-card charge/pay/redeem loop, family business entry + manage (atomicity fixed). (f099c69)
+- [x] WAVE 5b — Tick economy/life-stage: asked rent realized (fill/churn lever, no-dominance sim), $150k rent cap, RentAndHousing NaN guard, stock capital-gains+dividend tax parity, commitment levels decay+rise, life-stage 3.5x event weighting, childhood pack re-banded 13-17. Zero snapshot entries changed. (9ba9e25)
+- [x] WAVE 5c — Content depth + money polish: continuous quality curve, stock/crypto/realEstate/vehicle buys via applyMoneyDelta, NPC replies 9-12/pool + de-dupe, jealousy variants, pets 19 breeds/8 comps/treatmentCost billing, elder activities for FIRE retirees, 10 Legacy-Pass cosmetics, claimable milestone gems. (311ffc5)
+
 ## 🔴 CRITICAL — remaining
 
 ## 🟠 HIGH — remaining
-- [ ] Real estate rent lever ignored (custom rent never realized). (operations.ts:287)
-- [ ] Enhanced mining / Lobbyists+Alliances / Family Business / Credit-card charging — fully built, no UI entry point (wire or remove). (MiningActions:311, PoliticalApp:636, FamilyBusinessActions:59, AdvancedBankApp:677)
 
 
 ## 🟡 MEDIUM — remaining (broken-UI "spend does nothing" / correctness)
-- [ ] Gear quality is 4-step but UI shows smooth bar → in-band upgrades change earnings by 0. (quality.ts:85)
-- [ ] 6 asset buy/sell paths still write stats.money directly (no applyMoneyDelta) — partially addressed by sale fixes; remaining buys. (Stock/Crypto/RealEstate/Vehicle Actions)
 - [ ] Lifestyle-cost sink shown in UI, never deducted. (lifestyle.ts:46)
-- [ ] FamilyBusiness manageFamilyBusiness non-atomic charge/benefit. (FamilyBusinessActions.ts:100)
-- [ ] Commitment system inert (levels never change; penalties not applied). (commitmentSystem.ts:102/169)
 - [ ] Chronic diseases (6) have no management loop despite "ongoing management" copy. (diseaseDefinitions.ts:179)
-- [ ] Childhood events unreachable (no age 5-12 path). (childhoodEvents.ts:38)
-- [ ] Life-stage event packs thin (teen 4 / senior 7) drowned in generic pool. (engine.ts:2562)
 
 ## 🟢 LOW / dead-code cleanup
-- [ ] realEstate rent cap bypass (weeklyTick.ts:89); applyRentAndHousing NaN (:81); stock gains/dividends untaxed vs crypto.
-- [ ] Content: NPC reply variety (3 lines), jealousy variety (4), pet content, elder activities (gate FIRE retiree), ambition variety (8, 3 overlap), statistics milestone rewards, karma career gating, cosmetics variety, bookmark dead tab, swipe-quota dead buttons, rewind datingMatches cleanup.
 
 ## Notes
 - PR #62 (playtest fixes + first crash/streaming fixes) is MERGED to main. Follow-up audit fixes are on
