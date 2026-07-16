@@ -270,12 +270,23 @@ export const sellOwnedProperty = (
       : 0;
     const result = sellProperty(prev.realEstate ?? [], propertyId, mortgageRemaining);
     const cash = prev.stats?.money ?? 0;
-    const newLoans = result.releasedMortgageId
-      ? (prev.loans ?? []).filter((l) => l.id !== result.releasedMortgageId)
-      : prev.loans;
+    // Underwater ("short") sale: the proceeds didn't cover the mortgage. Keep the
+    // loan as a deficiency balance (reduced to the uncovered remainder) rather
+    // than discharging negative equity for $0 — deleting the loan outright let a
+    // player erase a compounded mortgage for free.
+    const newLoans = !result.releasedMortgageId
+      ? prev.loans
+      : result.residualDebt > 0
+        ? (prev.loans ?? []).map((l) =>
+            l.id === result.releasedMortgageId ? { ...l, remaining: result.residualDebt } : l
+          )
+        : (prev.loans ?? []).filter((l) => l.id !== result.releasedMortgageId);
 
     log.info(
-      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString()}, mortgage paid off $${result.mortgagePayoff.toLocaleString()}, capital gain $${result.capitalGain.toLocaleString()}`
+      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString()}, mortgage paid off $${result.mortgagePayoff.toLocaleString()}, capital gain $${result.capitalGain.toLocaleString()}` +
+        (result.residualDebt > 0
+          ? `, deficiency balance remaining $${result.residualDebt.toLocaleString()}`
+          : '')
     );
 
     return {

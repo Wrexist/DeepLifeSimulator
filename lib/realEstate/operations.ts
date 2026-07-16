@@ -98,12 +98,21 @@ export interface SaleResult {
   capitalGain: number;
   /** True if any mortgage was attached and needs to be removed from gameState.loans. */
   releasedMortgageId?: string;
+  /**
+   * Uncovered mortgage balance left over when an underwater ("short") sale can't
+   * cover the debt. > 0 only when net sale proceeds < remaining mortgage. The
+   * caller MUST keep the loan for this remainder (a deficiency balance) instead
+   * of discharging the mortgage — deleting an underwater loan forgives negative
+   * equity for $0. 0 for a normal above-water sale.
+   */
+  residualDebt: number;
 }
 
 /**
  * Sell a property. Pays off any outstanding mortgage from the proceeds, returns
- * the rest as cash. Capital gain = (sale price − purchase price). Caller deletes
- * the loan and adds the proceeds to stats.money.
+ * the rest as cash. Capital gain = (sale price − purchase price). Caller adds the
+ * proceeds to stats.money and either deletes the loan (above-water) or keeps it
+ * for `residualDebt` (underwater — see below).
  */
 export function sellProperty(
   properties: RealEstate[],
@@ -112,7 +121,7 @@ export function sellProperty(
 ): SaleResult {
   const idx = properties.findIndex((p) => p.id === propertyId);
   if (idx === -1) {
-    return { properties, saleProceeds: 0, mortgagePayoff: 0, capitalGain: 0 };
+    return { properties, saleProceeds: 0, mortgagePayoff: 0, capitalGain: 0, residualDebt: 0 };
   }
   const p = properties[idx];
   const value = safe(p.currentValue ?? p.price);
@@ -123,7 +132,14 @@ export function sellProperty(
   // a buy-then-immediate-sell round trip was nearly free.
   const closingCost = value * 0.06; // 6% realtor + closing
   const capitalGainsTax = gain > 0 ? gain * 0.15 : 0; // 15% on realized gain
-  const proceeds = Math.max(0, value - debt - closingCost - capitalGainsTax);
+  // Net the sale (after costs) BEFORE paying off the mortgage. When it covers the
+  // debt the player pockets the surplus; when it does NOT (underwater / short
+  // sale) the uncovered remainder stays owed via `residualDebt` — the caller
+  // keeps a residual loan rather than discharging the mortgage for $0.
+  const netSaleValue = value - closingCost - capitalGainsTax;
+  const proceeds = Math.max(0, netSaleValue - debt);
+  const residualDebt = Math.max(0, debt - netSaleValue);
+  const mortgagePayoff = debt - residualDebt; // portion of the debt the sale actually retired
   const next = [...properties];
   next[idx] = {
     ...p,
@@ -138,9 +154,10 @@ export function sellProperty(
   return {
     properties: next,
     saleProceeds: proceeds,
-    mortgagePayoff: debt,
+    mortgagePayoff,
     capitalGain: gain,
     releasedMortgageId: p.mortgageId,
+    residualDebt,
   };
 }
 

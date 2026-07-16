@@ -94,6 +94,8 @@ describe('sellProperty', () => {
     expect(r.mortgagePayoff).toBe(100_000);
     expect(r.releasedMortgageId).toBe('m1');
     expect(r.properties[0].owned).toBe(false);
+    // Fully covered — no deficiency left, so the caller deletes the loan.
+    expect(r.residualDebt).toBe(0);
   });
 
   it('records capital gain over purchase price', () => {
@@ -102,10 +104,15 @@ describe('sellProperty', () => {
     expect(r.capitalGain).toBe(100_000);
   });
 
-  it('floors at zero when underwater', () => {
+  it('floors at zero when underwater and keeps the uncovered debt as a deficiency balance', () => {
+    // value 100k − closing (6% = 6k), no gain → netSaleValue 94k vs debt 200k.
     const props = [owned({ currentValue: 100_000, mortgageId: 'm1' })];
     const r = sellProperty(props, 'p1', 200_000);
     expect(r.saleProceeds).toBe(0);
+    // The sale retires only what it covers; the rest stays owed (no free debt erasure).
+    expect(r.mortgagePayoff).toBe(94_000);
+    expect(r.residualDebt).toBe(106_000);
+    expect(r.releasedMortgageId).toBe('m1');
   });
 });
 
