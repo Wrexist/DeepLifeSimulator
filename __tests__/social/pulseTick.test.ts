@@ -335,6 +335,26 @@ describe('processPulseWeeklyTick — Wave A additions', () => {
     expect(maxConcurrent).toBeLessThanOrEqual(1);
   });
 
+  it('trend injection + impression earnings are deterministic across re-runs (seeded)', () => {
+    // Determinism guard: same state + week must yield byte-identical trending
+    // hashtags (postCount/velocity were Math.random) and earnings (±20% was
+    // Math.random). Two independent runs on equal state must deep-equal.
+    const build = () => {
+      const s = freshState({ weeksLived: 20 });
+      s.socialMedia!.followers = 250_000;
+      s.socialMedia!.totalPosts = 40;
+      s.socialMedia!.viralPosts = 2;
+      s.socialMedia!.lastPostWeek = 21;
+      s.socialMedia!.trendingHashtags = [];
+      return s;
+    };
+    const r1 = processPulseWeeklyTick(build(), 21);
+    const r2 = processPulseWeeklyTick(build(), 21);
+    expect(r1.socialMedia.trendingHashtags).toEqual(r2.socialMedia.trendingHashtags);
+    expect(r1.socialMedia.notifications).toEqual(r2.socialMedia.notifications);
+    expect(r1.pulseEarnings).toBe(r2.pulseEarnings);
+  });
+
   it('scandal spawn is deterministic (pure) for identical inputs', () => {
     const build = () => {
       const s = freshState({ weeksLived: 41 });

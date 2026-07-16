@@ -764,11 +764,18 @@ export function calculateWeeklyImpressionEarnings(
   followers: number,
   influenceLevel: InfluenceLevel,
   totalPosts: number,
-  recentViralPosts: number
+  recentViralPosts: number,
+  /**
+   * Optional seeded [0,1) roll for the ±20% variation. Threaded from the
+   * deterministic weekly tick (`pulseTick`) so the same state + week yields
+   * byte-identical earnings across engines/reloads (no save-scum reroll).
+   * Falls back to `Math.random()` for live/non-tick callers.
+   */
+  variationRoll?: number
 ): number {
   // Minimum requirements for monetization
   if (followers < 500 || totalPosts < 5) return 0;
-  
+
   // Base weekly revenue from impressions
   const baseWeeklyRevenue: Record<InfluenceLevel, number> = {
     novice: 0,
@@ -777,16 +784,17 @@ export function calculateWeeklyImpressionEarnings(
     influencer: 100, // $100/week
     celebrity: 500,  // $500/week
   };
-  
+
   let revenue = baseWeeklyRevenue[influenceLevel];
-  
+
   // Bonus for viral posts this week
   revenue += recentViralPosts * 50;
-  
-  // Random variation (±20%)
-  const variation = 0.8 + (Math.random() * 0.4);
+
+  // Random variation (±20%). Seeded when a roll is threaded from the tick.
+  const roll = typeof variationRoll === 'number' ? variationRoll : Math.random();
+  const variation = 0.8 + (roll * 0.4);
   revenue *= variation;
-  
+
   return Math.max(0, Math.floor(revenue));
 }
 

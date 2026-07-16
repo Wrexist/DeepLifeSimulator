@@ -44,7 +44,10 @@ function pushNotif(o: HustleCompanyOverlay, text: string, type: any, weeksLived:
         id: `tick-${o.companyId}-${weeksLived}-${o.notifications.length}`,
         type,
         text,
-        timestamp: Date.now(),
+        // Seeded from the game week (deterministic) rather than wall-clock
+        // Date.now() — this is an otherwise fully-seeded tick, and Date.now()
+        // made notifications save-scummable + StrictMode-inconsistent.
+        timestamp: weeksLived,
         gameWeek: weeksLived,
         read: false,
         refCompanyId: o.companyId,

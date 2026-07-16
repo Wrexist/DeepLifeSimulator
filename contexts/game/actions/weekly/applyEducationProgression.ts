@@ -23,8 +23,10 @@
  * External dependencies (used 1:1 from the legacy inline code):
  *   - `isExamWeek`, `runExam`, `updateGPA`, `shouldTriggerCampusEvent`
  *     from `@/lib/education/educationSystem`. `runExam` and
- *     `shouldTriggerCampusEvent` internally call `Math.random()` —
- *     non-deterministic by design. Tests mock the module.
+ *     `shouldTriggerCampusEvent` accept an optional seeded roll; this tick
+ *     threads a per-week `makeWeeklyRoll(weeksLived)` stream keyed by
+ *     education id, so exam/campus outcomes are deterministic (resume-safe,
+ *     StrictMode-consistent) rather than raw `Math.random()`.
  *
  * Returns:
  *   - `updatedEducations` — new array with all per-education mutations.
@@ -44,6 +46,7 @@ import {
   shouldTriggerCampusEvent,
   computeSemesterNumber,
 } from '@/lib/education/educationSystem';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { WeekContext } from './weekContext';
 
 export interface EducationProgressionInput {
@@ -72,6 +75,12 @@ export function applyEducationProgression(
   const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
 
   let pendingCampusEvent: string | undefined;
+
+  // Seeded per-week roll stream (keyed on weeksLived + educationId) so exam
+  // outcomes and campus-event triggers are deterministic across engines/reloads
+  // and consistent under StrictMode double-invoke — instead of raw Math.random()
+  // inside runExam / shouldTriggerCampusEvent.
+  const weeklyRoll = makeWeeklyRoll(input.nextWeeksLived);
 
   // Defensive `|| []` like every sibling weekly helper — a stale save could
   // omit `educations`, and an unguarded .map() throws inside the weekly tick.
@@ -119,7 +128,13 @@ export function applyEducationProgression(
         // Life Skills: Critical Thinking / Memory Palace / Polymath raise the
         // exam pass chance (bounded). Neutral 0 when nothing unlocked / old save.
         const examBonus = ctx.lifeSkillMods?.examPassBonus ?? 0;
-        const examResult = runExam(edu, ctx.newStats.energy, !!edu.studyGroupActive, examBonus);
+        const examResult = runExam(
+          edu,
+          ctx.newStats.energy,
+          !!edu.studyGroupActive,
+          examBonus,
+          (label) => weeklyRoll(`exam:${edu.id}:${label}`),
+        );
         updatedEdu.lastExamWeek = input.nextWeeksLived;
         updatedEdu.examsPassed = (edu.examsPassed || 0) + (examResult.passed ? 1 : 0);
         updatedEdu.examsFailed = (edu.examsFailed || 0) + (examResult.passed ? 0 : 1);
@@ -145,7 +160,7 @@ export function applyEducationProgression(
       }
 
       // Campus event check (random, every 4-8 weeks).
-      if (shouldTriggerCampusEvent(edu, input.nextWeeksLived)) {
+      if (shouldTriggerCampusEvent(edu, input.nextWeeksLived, weeklyRoll(`campus:${edu.id}`))) {
         updatedEdu.lastCampusEventWeek = input.nextWeeksLived;
         // Campus events are handled via pending events in the UI.
         // Store a flag for the UI to pick up.

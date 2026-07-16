@@ -227,8 +227,6 @@ const GENERIC_HATER_TEMPLATES = [
   'careful, the masks are slipping',
 ];
 
-let pileOnCounter = 0;
-
 /**
  * Generate hostile pile-on comments during an active scandal.
  *
@@ -248,8 +246,10 @@ export function generateScandalPileOnComments(
   const out: PulseComment[] = [];
 
   for (let i = 0; i < count; i++) {
-    pileOnCounter++;
-    // Deterministic per-scandal pick so re-renders produce the same comments.
+    // Deterministic per-scandal pick so re-renders / reloads produce the same
+    // comments. IDs are derived from (scandal, post, week, index) rather than a
+    // mutable module counter, and the timestamp is the game week rather than
+    // wall-clock Date.now(), so the seeded pulse tick stays byte-identical.
     const seed = `${scandal.id}|${postId}|${i}|${weeksLived}`;
     let h = 0;
     for (let j = 0; j < seed.length; j++) {
@@ -260,13 +260,13 @@ export function generateScandalPileOnComments(
     const handleIdx = Math.abs(h >> 16) % RANDOM_HANDLES.length;
 
     out.push({
-      id: `pulse-hater-${scandal.id}-${postId}-${weeksLived}-${i}-${pileOnCounter}`,
+      id: `pulse-hater-${scandal.id}-${postId}-${weeksLived}-${i}`,
       postId,
-      authorId: `hater-${RANDOM_HANDLES[handleIdx]}-${pileOnCounter}`,
+      authorId: `hater-${RANDOM_HANDLES[handleIdx]}-${weeksLived}-${i}`,
       authorHandle: `@${RANDOM_HANDLES[handleIdx]}`,
       content: templates[idx],
       likes: Math.max(0, Math.floor(scandal.severity / 10) + (Math.abs(h >> 24) % 20)),
-      timestamp: Date.now(),
+      timestamp: weeksLived,
       gameWeek: weeksLived,
       isPlayerComment: false,
       sentiment: 'hostile',
