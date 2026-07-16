@@ -1531,6 +1531,20 @@ export interface Disease {
   contractedWeek?: number; // Track when disease was contracted
   description?: string; // Disease description and symptoms
   preventionTips?: string[]; // Tips to prevent this disease
+  /**
+   * Original (pre-complication) effect magnitudes. Written the first time an
+   * untreated disease worsens so compounding stays capped at 3x base, and so
+   * managed care can reset symptoms back to true baseline.
+   */
+  baseEffects?: Partial<GameStats>;
+  /**
+   * Chronic-care window: weekly ticks up to and including this week apply only
+   * half of this disease's stat penalties and skip complication worsening.
+   * Set by doctor visits / hospital stays on non-curable, treatment-requiring
+   * diseases. Optional/additive — absent (old saves / never treated) means
+   * unmanaged, which is exactly the previous behavior.
+   */
+  managedUntilWeek?: number;
 }
 
 export interface RealEstate {

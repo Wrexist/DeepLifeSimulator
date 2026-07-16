@@ -9,6 +9,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { HackResult } from './types';
 import { clampStatByKey } from '@/utils/statUtils';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
+import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
 import { haptic } from '@/utils/haptics';
 
 interface ItemActionsContextType {
@@ -379,14 +380,32 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           }
         });
         
+        // Chronic care: non-curable conditions can't be removed, but a doctor
+        // visit puts them under management — the weekly tick halves their
+        // symptoms and blocks worsening for the care window, and any
+        // complication-compounded effects reset back to baseline.
+        const doctorCare = applyChronicCare(
+          updatedDiseases,
+          prevState.weeksLived || 0,
+          DOCTOR_MANAGEMENT_WEEKS,
+        );
+        updatedDiseases = doctorCare.diseases;
+        const doctorManagedSuffix = doctorCare.managedNames.length > 0
+          ? ` Under management for the next ${DOCTOR_MANAGEMENT_WEEKS} weeks (symptoms halved, no worsening): ${doctorCare.managedNames.join(', ')}.`
+          : '';
+
         if (curedDiseases.length > 0) {
           showCureSuccessModal = true;
-          result = { 
-            message: `Doctor visit successful! Cured: ${curedDiseases.join(', ')}` 
+          result = {
+            message: `Doctor visit successful! Cured: ${curedDiseases.join(', ')}.${doctorManagedSuffix}`
+          };
+        } else if (doctorCare.managedNames.length > 0) {
+          result = {
+            message: `Doctor visit complete.${doctorManagedSuffix}`
           };
         } else {
-          result = { 
-            message: `Doctor visit completed, but no diseases were cured this time. The treatment wasn't effective.` 
+          result = {
+            message: `Doctor visit completed, but no diseases were cured this time. The treatment wasn't effective.`
           };
         }
       } else if (activityId === 'hospital') {
@@ -427,15 +446,32 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         
         // Remove all cured diseases by ID (more reliable than filtering by property)
         updatedDiseases = updatedDiseases.filter(d => !curedDiseaseIds.has(d.id));
-        
+
+        // Chronic care: a hospital stay grants a longer management window than
+        // a doctor visit (same mechanics — halved symptoms, no worsening,
+        // compounded effects reset to baseline).
+        const hospitalCare = applyChronicCare(
+          updatedDiseases,
+          prevState.weeksLived || 0,
+          HOSPITAL_MANAGEMENT_WEEKS,
+        );
+        updatedDiseases = hospitalCare.diseases;
+        const hospitalManagedSuffix = hospitalCare.managedNames.length > 0
+          ? ` Under management for the next ${HOSPITAL_MANAGEMENT_WEEKS} weeks (symptoms halved, no worsening): ${hospitalCare.managedNames.join(', ')}.`
+          : '';
+
         if (curedDiseases.length > 0) {
           showCureSuccessModal = true;
-          result = { 
-            message: `Hospital stay successful! Cured: ${curedDiseases.join(', ')}` 
+          result = {
+            message: `Hospital stay successful! Cured: ${curedDiseases.join(', ')}.${hospitalManagedSuffix}`
+          };
+        } else if (hospitalCare.managedNames.length > 0) {
+          result = {
+            message: `Hospital stay complete.${hospitalManagedSuffix}`
           };
         } else {
-          result = { 
-            message: `Hospital stay completed. No curable diseases to treat.` 
+          result = {
+            message: `Hospital stay completed. No curable diseases to treat.`
           };
         }
       } else if (activityId === 'experimental') {
