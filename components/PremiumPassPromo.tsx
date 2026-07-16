@@ -67,7 +67,9 @@ export default function PremiumPassPromo() {
   useEffect(() => {
     if (!visible) return;
     if (reducedMotion) { pop.setValue(1); return; }
-    pop.setValue(0);
+    // Start at 0.9 (not 0) so the card scales in gently rather than popping from
+    // nothing; the spring settles it to 1.
+    pop.setValue(0.9);
     Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 6, tension: 80 }).start();
     const sh = Animated.loop(Animated.timing(shimmer, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }));
     sh.start();

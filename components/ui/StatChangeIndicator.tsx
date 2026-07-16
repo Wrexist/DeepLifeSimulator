@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Animated, Text, StyleSheet, View } from 'react-native';
 import { scale, fontScale } from '@/utils/scaling';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export interface StatChange {
@@ -47,9 +48,10 @@ interface FloatingTextProps {
 }
 
 function FloatingText({ change, index, onComplete }: FloatingTextProps) {
+    const reduced = useReducedMotion();
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.5)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
     useEffect(() => {
         // Stagger animations based on index
@@ -67,30 +69,35 @@ function FloatingText({ change, index, onComplete }: FloatingTextProps) {
                 // Pop in effect
                 Animated.spring(scaleAnim, {
                     toValue: 1,
-                    friction: 4,
+                    friction: 7,
                     tension: 100,
                     useNativeDriver: true,
                 }),
             ]),
             // Hold for a moment
             Animated.delay(800),
-            // Float up and fade out
+            // Fade out — and, unless reduced motion is on, float up as it goes.
+            // Reduced motion keeps the fade but drops the upward drift.
             Animated.parallel([
                 Animated.timing(opacity, {
                     toValue: 0,
                     duration: 400,
                     useNativeDriver: true,
                 }),
-                Animated.timing(translateY, {
-                    toValue: -30,
-                    duration: 400,
-                    useNativeDriver: true,
-                }),
+                ...(reduced
+                    ? []
+                    : [
+                          Animated.timing(translateY, {
+                              toValue: -30,
+                              duration: 400,
+                              useNativeDriver: true,
+                          }),
+                      ]),
             ]),
         ]).start(() => {
             onComplete(change.id);
         });
-    }, [change.id, index, onComplete, opacity, scaleAnim, translateY]);
+    }, [change.id, index, onComplete, opacity, scaleAnim, translateY, reduced]);
 
     const isPositive = change.amount > 0;
     const colors = STAT_COLORS[change.stat] || STAT_COLORS.health;

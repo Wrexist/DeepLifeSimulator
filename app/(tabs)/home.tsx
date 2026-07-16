@@ -37,6 +37,7 @@ import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -65,9 +66,15 @@ function HomeScreen() {
  * adding visual noise to the rest of the screen.
  */
 function HeroStrip({ month, week, age }: { month: string; week: number; age: number }) {
+  const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
+    if (reduced) {
+      // Reduced motion: hold the "live" dot at full opacity — no breathing loop.
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -86,7 +93,7 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, reduced]);
 
   return (
     <View style={styles.heroRow}>

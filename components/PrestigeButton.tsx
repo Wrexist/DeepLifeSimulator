@@ -3,6 +3,7 @@ import { Platform, View, Text, StyleSheet, TouchableOpacity, Animated } from 're
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, Sparkles } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 const LinearGradient = LinearGradientFallback;
@@ -14,6 +15,7 @@ interface PrestigeButtonProps {
 export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
   const currentNetWorth = useGameSelector((s) => netWorth(s));
   const prestigeLevel = useGameSelector((s) => s.prestige?.prestigeLevel || 0);
+  const reduced = useReducedMotion();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
@@ -25,6 +27,14 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
 
   useEffect(() => {
     if (isAvailable) {
+      // Reduced motion: skip the looping pulse/glow/sparkle (movement + loops).
+      // Keep the button reading as "glowing" by parking glowAnim at a static
+      // mid value so its opacity feedback stays.
+      if (reduced) {
+        glowAnim.setValue(0.5);
+        return;
+      }
+
       // Pulse animation
       const pulse = Animated.loop(
         Animated.sequence([
@@ -42,18 +52,18 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
       );
       pulse.start();
 
-      // Glow animation
+      // Glow animation — drives opacity only, so the native driver is safe.
       const glow = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
             duration: 2000,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(glowAnim, {
             toValue: 0,
             duration: 2000,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ])
       );
@@ -76,7 +86,7 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
       };
     }
     return;
-  }, [isAvailable, pulseAnim, glowAnim, sparkleAnim]);
+  }, [isAvailable, reduced, pulseAnim, glowAnim, sparkleAnim]);
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],

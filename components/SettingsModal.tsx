@@ -259,7 +259,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const showRewardAnimation = (message: string) => {
     setRewardPopupMessage(message);
     setShowRewardPopup(true);
-    rewardScaleAnim.setValue(0);
+    // Start the pop at 0.9 (not 0) so the reward scales in gently instead of
+    // popping from nothing; the spring below settles it to 1.
+    rewardScaleAnim.setValue(0.9);
     rewardOpacityAnim.setValue(0);
     rewardGemAnim.setValue(0);
 
