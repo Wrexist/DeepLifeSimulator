@@ -35,6 +35,7 @@ import {
   Skull,
 } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
+import usePressableScale from '@/hooks/usePressableScale';
 import {
   responsiveFontSize,
   responsiveSpacing,
@@ -127,6 +128,43 @@ function getRarityFromAchievement(goldReward: number, stackIndex: number, stackS
   if (goldReward >= 200 || stackIndex >= 3) return 'epic';
   if (goldReward >= 100 || stackIndex >= 2) return 'rare';
   return 'common';
+}
+
+interface ClaimRewardButtonProps {
+  onPress: () => void;
+  disabled?: boolean;
+}
+
+// Extracted so the shared press hook can live here: this button renders inside
+// the achievements .map() below, where calling usePressableScale() inline would
+// break the Rules of Hooks. Mirrors the repo's canonical press recipe (see
+// TopStatsBar's RightSide) — wrap the TouchableOpacity in the hook's
+// AnimatedView + animatedStyle and forward onPressIn/onPressOut. The gradient/
+// blur content is unchanged, so the idle button stays pixel-identical.
+function ClaimRewardButton({ onPress, disabled }: ClaimRewardButtonProps) {
+  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale({ scale: 0.96 });
+  return (
+    <AnimatedView style={animatedStyle}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={disabled}
+      >
+        <BlurView intensity={20} style={styles.claimButtonBlur}>
+          <LinearGradient
+            colors={['#6366F1', '#4F46E5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.claimButton}
+          >
+            <Sparkles size={16} color="#FFFFFF" style={styles.claimIcon} />
+            <Text style={styles.claimText}>Claim Reward</Text>
+          </LinearGradient>
+        </BlurView>
+      </TouchableOpacity>
+    </AnimatedView>
+  );
 }
 
 export default function AchievementsProgress() {
@@ -491,7 +529,7 @@ export default function AchievementsProgress() {
                   )}
                 </View>
               ) : canClaim ? (
-                <TouchableOpacity 
+                <ClaimRewardButton
                   onPress={() => {
                     try {
                       if (claimProgressAchievement) {
@@ -501,19 +539,7 @@ export default function AchievementsProgress() {
                       // Achievement claim failed silently
                     }
                   }}
-                >
-                  <BlurView intensity={20} style={styles.claimButtonBlur}>
-                    <LinearGradient
-                      colors={['#6366F1', '#4F46E5']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.claimButton}
-                    >
-                      <Sparkles size={16} color="#FFFFFF" style={styles.claimIcon} />
-                      <Text style={styles.claimText}>Claim Reward</Text>
-                    </LinearGradient>
-                  </BlurView>
-                </TouchableOpacity>
+                />
               ) : (
                 <View style={styles.progressContainer}>
                   <View style={styles.progressBar}>
