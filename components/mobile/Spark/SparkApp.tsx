@@ -15,7 +15,7 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Crown, Flame, Heart, MessageCircle, User } from 'lucide-react-native';
+import { ArrowLeft, Crown, Flame, Heart, MessageCircle, Pencil, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -31,8 +31,10 @@ import PartnerProfileScreen from './screens/PartnerProfileScreen';
 import BoostModal from './modals/BoostModal';
 import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
+import SparkProfileEditModal from './modals/SparkProfileEditModal';
 import MatchBanner from './components/MatchBanner';
 import { type DatingProfile, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
 import { getAvatarPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
@@ -52,6 +54,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   const [showBoost, setShowBoost] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [jealousyDismissed, setJealousyDismissed] = useState(false);
   const [matchBanner, setMatchBanner] = useState<{ matchId: string; profile: DatingProfile } | null>(null);
 
@@ -167,7 +170,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
             onOpenPremium={() => setShowPremium(true)}
           />
         )}
-        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'profile' && <ProfileTab onEditProfile={() => setShowProfileEdit(true)} />}
       </View>
 
       {/* Bottom tab bar — padded so it clears the floating phone tab bar. */}
@@ -211,6 +214,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
       {/* Modals */}
       <BoostModal visible={showBoost} onDismiss={() => setShowBoost(false)} />
       <SparkPremiumUpsellModal visible={showPremium} onDismiss={() => setShowPremium(false)} />
+      <SparkProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
       <JealousyModal
         visible={!!activeJealousy && !jealousyDismissed}
         onDismiss={() => setJealousyDismissed(true)}
@@ -266,13 +270,14 @@ function TabBtn({
   );
 }
 
-function ProfileTab() {
+function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
   const { gameState } = useGame();
   const { theme, isDark } = useTheme();
   const sp = gameState.sparkApp;
   const stats = sp?.lifetimeStats;
   const profile = gameState.userProfile ?? {};
   const sparkProfile = sp?.profile;
+  const profileScore = scorePlayerProfile(gameState);
   // R6-A: track image load failure separately from missing-uri.
   const [sparkProfileAvatarErrored, setSparkProfileAvatarErrored] = useState(false);
 
@@ -321,13 +326,39 @@ function ProfileTab() {
             {profile.displayName || profile.name || 'You'}
             {gameState.date?.age ? `, ${Math.floor(gameState.date.age)}` : ''}
           </Text>
-          {sparkProfile?.bio ? (
-            <Text style={[styles.profileBio, { color: theme.textSecondary }]}>{sparkProfile.bio}</Text>
-          ) : (
-            <Text style={[styles.profileBio, { color: theme.textMuted, fontStyle: 'italic' }]}>
-              Add a bio to attract more matches
-            </Text>
-          )}
+          <Pressable
+            onPress={onEditProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Edit your Spark profile"
+            style={styles.bioPressable}
+          >
+            {sparkProfile?.bio ? (
+              <Text style={[styles.profileBio, { color: theme.textSecondary }]}>{sparkProfile.bio}</Text>
+            ) : (
+              <Text style={[styles.profileBio, { color: theme.textMuted, fontStyle: 'italic' }]}>
+                Add a bio to attract more matches
+              </Text>
+            )}
+            {sparkProfile?.interests && sparkProfile.interests.length > 0 ? (
+              <View style={styles.interestRow}>
+                {sparkProfile.interests.slice(0, 6).map((interest) => (
+                  <View key={interest} style={[styles.interestPill, { backgroundColor: theme.surfaceElevated }]}>
+                    <Text style={[styles.interestPillText, { color: theme.textSecondary }]}>{interest}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </Pressable>
+
+          <Pressable
+            onPress={onEditProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+            style={[styles.editProfileBtn, { borderColor: theme.border }]}
+          >
+            <Pencil size={fontScale(13)} color={theme.text} />
+            <Text style={[styles.editProfileText, { color: theme.text }]}>Edit profile</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -338,6 +369,7 @@ function ProfileTab() {
           { backgroundColor: theme.surface, borderColor: theme.border },
         ]}
       >
+        <StatRow label="Profile strength" value={`${profileScore}/100`} theme={theme} />
         <StatRow label="Total swipes" value={String(stats?.totalSwipes ?? 0)} theme={theme} />
         <StatRow label="Matches" value={String(stats?.totalMatches ?? 0)} theme={theme} />
         <StatRow label="Super-likes used" value={String(stats?.totalSuperLikes ?? 0)} theme={theme} />
@@ -498,6 +530,40 @@ const styles = StyleSheet.create({
     fontSize: fontScale(13),
     textAlign: 'center',
     marginTop: 4,
+  },
+  bioPressable: {
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  interestRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: scale(6),
+    marginTop: responsiveSpacing.sm,
+  },
+  interestPill: {
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: 999,
+  },
+  interestPillText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+  },
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: responsiveSpacing.md,
+  },
+  editProfileText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
   },
   statsCard: {
     borderRadius: responsiveBorderRadius.xl,
