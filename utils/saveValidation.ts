@@ -457,6 +457,20 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
+  // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
+  // consumers that fall back only on nullish (`favorLedger ?? emptyLedger()`,
+  // ContactsApp's `?? { favors: [] }`) skip the fallback and then crash on
+  // `ledger.favors.filter/.some/.map`. Normalise the shape once here at the load
+  // boundary so no consumer (weekly tick, ContactsApp render, ContactsActions,
+  // cross-system stats) ever sees a bad `favors`. Missing entirely is fine — the
+  // nullish fallbacks already cover that; only repair a present, broken shape.
+  if (s.favorLedger != null && !Array.isArray(s.favorLedger.favors)) {
+    s.favorLedger = { favors: [] };
+    repairs.push('Normalized malformed favorLedger (missing/invalid favors array)');
+    repaired = true;
+  }
+
   // Reconcile each saved career's `levels` ladder with the current catalog.
   // Several ladders were extended to 6 levels (task #46), but saves persist the
   // FULL career object — including its `levels` snapshot — so a player who

@@ -45,15 +45,18 @@ describe('favors ledger', () => {
   // A present-but-partial ledger (CloudSync merge / hand-edit / interrupted
   // migration) with a missing/non-array `favors` used to throw inside `.map`,
   // and — being called unwrapped in the nextWeek updater — that soft-locked
-  // "Next Week" permanently. It must now normalise and return the ledger as-is.
-  it('expireFavors does not throw on a partial ledger with no favors array', () => {
+  // "Next Week" permanently. It must now normalise to a VALID empty ledger (not
+  // return the malformed input), so the tick heals the shape and downstream
+  // consumers (ContactsApp `.filter`/`.some`) don't crash. (Codex review, PR #63.)
+  it('expireFavors heals a partial ledger with no favors array into a valid ledger', () => {
     const partial = {} as any; // e.g. `{ }` merged from a stale cloud save
     expect(() => expireFavors(partial, 10)).not.toThrow();
-    expect(expireFavors(partial, 10)).toBe(partial);
+    expect(expireFavors(partial, 10)).toEqual({ favors: [] });
+    expect(Array.isArray(expireFavors(partial, 10).favors)).toBe(true);
 
     const nullFavors = { favors: null } as any;
     expect(() => expireFavors(nullFavors, 10)).not.toThrow();
-    expect(expireFavors(nullFavors, 10)).toBe(nullFavors);
+    expect(expireFavors(nullFavors, 10)).toEqual({ favors: [] });
   });
 
   it('expireFavors flags past expiresWeek entries', () => {

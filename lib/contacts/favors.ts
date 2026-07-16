@@ -74,8 +74,12 @@ export function expireFavors(ledger: FavorLedger, currentWeek: number): FavorLed
   // A present-but-partial ledger (CloudSync merge / hand-edit / interrupted
   // migration) can arrive with `favors` missing or non-array — `.map` on that
   // throws, and this runs unwrapped in the weekly tick, so a throw would abort
-  // the whole `nextWeek` updater and soft-lock "Next Week". Normalise first.
-  if (!ledger || !Array.isArray(ledger.favors)) return ledger;
+  // the whole `nextWeek` updater and soft-lock "Next Week". Return a *valid*
+  // empty ledger (not the malformed input): the tick writes this back to state,
+  // so it heals the shape — every downstream consumer (ContactsApp render,
+  // ContactsActions, stats) then reads a well-formed `favors` array instead of
+  // crashing on `.filter`/`.some`/`.map`. (Codex review, PR #63.)
+  if (!ledger || !Array.isArray(ledger.favors)) return emptyLedger();
   let changed = false;
   const next = ledger.favors.map((f) => {
     if (f.status !== 'open') return f;
