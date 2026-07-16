@@ -225,14 +225,27 @@ export const sellVehicle = (
     const newLoans = !vehicleLoan
       ? prev.loans
       : residualDebt > 0
-        ? (prev.loans || []).map(l => (l.id === vehicleLoan.id ? { ...l, remaining: residualDebt } : l))
+        ? (prev.loans || []).map(l =>
+            l.id === vehicleLoan.id
+              ? // The collateral is gone: drop the vehicleId link so the deficiency
+                // is an unsecured personal debt. Keeping it would collide with a
+                // future purchase of the same vehicle (loan lookups match by
+                // vehicleId), letting the new car pay down the stale deficiency
+                // while its real loan goes untracked.
+                { ...l, remaining: residualDebt, vehicleId: undefined }
+              : l
+          )
         : (prev.loans || []).filter(l => l.id !== vehicleLoan.id);
 
     return {
       ...prev,
       stats: {
         ...prev.stats,
-        money: Math.max(0, prev.stats.money + cashDelta),
+        money: Math.max(
+          0,
+          (typeof prev.stats.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0) +
+            cashDelta
+        ),
         reputation: Math.max(0, (prev.stats.reputation || 0) + repLoss),
       },
       vehicles,

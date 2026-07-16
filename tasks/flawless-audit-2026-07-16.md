@@ -4,8 +4,10 @@
 systems, progression/meta, cross-cutting code health) + subagents. ~100 findings, each with
 file:line + fix + repro. Fixing in verified batches (tsc 0 / eslint 0 / jest + 308 snapshots).
 
-Invariants: `stats.money` canonical; `banking.accounts` are mirrors; all money via `applyMoneyDelta`;
-seeded weekly tick deterministic (no Math.random/Date.now); new state additive/optional.
+Invariants (required targets — some still violated, see the tracked items): `stats.money` canonical;
+`banking.accounts` are mirrors; all money SHOULD route via `applyMoneyDelta` (six direct `stats.money`
+writers remain tracked below); seeded weekly tick deterministic (no Math.random/Date.now — the
+determinism cluster below tracks the remaining violations); new state additive/optional.
 
 ## ✅ DONE (landed)
 - [x] Streaming/content hardening (5 CodeRabbit items) — NaN guards, ref-in-render, live-stream save checkpoint. (merged in #62, commit ee809e5)
@@ -30,7 +32,6 @@ seeded weekly tick deterministic (no Math.random/Date.now); new state additive/o
 - [ ] Patents never expire → perpetual weekly income. (patents.ts:75 updatePatents uncalled; passiveIncome.ts:365) [seeded tick]
 - [ ] Bank net-worth double-counts cash (totalBank includes checking-default mirror). (AdvancedBankApp.tsx:194)
 - [ ] FIRE + retirement math ~52× off (weekly salary treated as annual /52). (fireTracker.ts:29, retirementCalculator.ts:42)
-- [ ] Spark score screen crash guard already fixed; scorePlayerProfile done. (done above)
 - [ ] Spark Boost 50-gem no-op for free players (boostMultiplier 1.0, boost unread). (sparkLogic.ts:52, sparkTick)
 - [ ] Spark swipe deck ignores seekingGender. (SwipeScreen.tsx:90)
 - [ ] Spark profile bio/photos uneditable (updateMyProfile no UI). (SparkApp.tsx:327)
