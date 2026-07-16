@@ -26,7 +26,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
-import { companyIncomeMultiplier } from '../company';
+import { companyIncomeMultiplier, MAX_COMPANY_EMPLOYEES } from '../company';
 import {
   generateCandidates,
   evaluateOffer,
@@ -116,15 +116,18 @@ function ensureOverlay(
 /**
  * Named hires ARE employees: apply a headcount delta to the canonical
  * Company record (gameState.companies) and recompute weeklyIncome with the
- * same diminishing-returns multiplier addWorker/removeWorker use. Floors at
- * 0 employees. No-op when the company is missing (defensive for stale ids).
+ * same diminishing-returns multiplier addWorker/removeWorker use. Clamped to
+ * [0, MAX_COMPANY_EMPLOYEES] — the same hard cap addWorker enforces and the
+ * CompanyDetailScreen STAFF_CAP copy advertises, so named hires can't grow
+ * headcount (and its income multiplier) past the limit. No-op when the company
+ * is missing (defensive for stale ids) or already at the cap.
  */
 function withEmployeeDelta(state: GameState, companyId: string, delta: number): GameState {
   const companies = state.companies || [];
   const idx = companies.findIndex((c) => c && c.id === companyId);
   if (idx === -1) return state;
   const company = companies[idx];
-  const employees = Math.max(0, (company.employees ?? 0) + delta);
+  const employees = Math.max(0, Math.min(MAX_COMPANY_EMPLOYEES, (company.employees ?? 0) + delta));
   if (employees === company.employees) return state;
   const updated = {
     ...company,
@@ -202,7 +205,14 @@ export const refreshCandidates = (
       ...o,
       hiringPipeline: {
         ...o.hiringPipeline,
-        candidates: generateCandidates(companyId, weeksLived, 3),
+        // Exclude already-hired candidateIds so Refresh can't keep re-emitting a
+        // person you already hired (the hire → Refresh → hire-same-person printer).
+        candidates: generateCandidates(
+          companyId,
+          weeksLived,
+          3,
+          o.hiringPipeline.namedHires.map((h) => h.candidateId),
+        ),
       },
     }));
   });
@@ -231,6 +241,17 @@ export const hireCandidate = (
   const candidate = overlay?.hiringPipeline.candidates.find((c) => c.id === candidateId);
   if (!overlay || !candidate) return { success: false, message: 'Candidate not found', accepted: false };
 
+  // Already on the roster → nothing to do (idempotent per candidate id).
+  if (overlay.hiringPipeline.namedHires.some((h) => h.candidateId === candidateId)) {
+    return { success: false, message: 'Already hired', accepted: false };
+  }
+
+  // Headcount cap — mirrors addWorker's MAX_COMPANY_EMPLOYEES limit.
+  const hiringCompany = gameState.companies?.find((c) => c.id === companyId);
+  if ((hiringCompany?.employees ?? 0) >= MAX_COMPANY_EMPLOYEES) {
+    return { success: false, message: `At the ${MAX_COMPANY_EMPLOYEES}-employee limit`, accepted: false };
+  }
+
   if (offeredBonus > 0 && (gameState.stats?.money ?? 0) < offeredBonus) {
     return { success: false, message: `Insufficient cash for $${offeredBonus} sign-on bonus`, accepted: false };
   }
@@ -254,9 +275,22 @@ export const hireCandidate = (
   setGameState((prev) => {
     // Double-tap guard: if the candidate is already gone from the FRESH
     // pipeline, the offer was already processed — don't hire (or charge) twice.
-    const freshCandidate = prev.hustleApp?.companies?.[companyId]?.hiringPipeline.candidates
-      .some((c) => c.id === candidateId);
+    const freshPipeline = prev.hustleApp?.companies?.[companyId]?.hiringPipeline;
+    const freshCandidate = freshPipeline?.candidates.some((c) => c.id === candidateId);
     if (!freshCandidate) return prev;
+    // Idempotent per candidate id: if this candidate is already on the roster,
+    // never hire (or charge / bump headcount for) them a second time. Closes the
+    // hire → Refresh → hire-same-person duplicate-hire vector at the write side.
+    if (accepted && freshPipeline?.namedHires.some((h) => h.candidateId === candidateId)) {
+      return prev;
+    }
+    // Headcount cap: a company can't hire past MAX_COMPANY_EMPLOYEES. Bail before
+    // recording a hire that couldn't take a seat (it would cost salary each tick
+    // for zero income lift, since withEmployeeDelta is a no-op at the cap).
+    if (accepted) {
+      const company = prev.companies?.find((c) => c.id === companyId);
+      if ((company?.employees ?? 0) >= MAX_COMPANY_EMPLOYEES) return prev;
+    }
 
     let next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!accepted) {

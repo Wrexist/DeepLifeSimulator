@@ -15,6 +15,8 @@ import {
   scandalReputationLoss,
   namedHirePerformanceFactor,
   createDefaultCompanyOverlay,
+  generateCandidates,
+  realizedCampaignROI,
   scandalRevenueDrag,
   SCANDAL_MIN_WEEKLY_INCOME,
   SCANDAL_COOLDOWN_WEEKS,
@@ -22,6 +24,8 @@ import {
   SCANDAL_MAX_CHANCE,
   SCANDAL_BASE_SEVERITY,
   SCANDAL_HEADLINES,
+  CAMPAIGN_ROI_VARIANCE_MIN,
+  CAMPAIGN_ROI_VARIANCE_MAX,
 } from '../hustleLogic';
 
 function company(id: string, weeklyIncome: number, type: Company['type'] = 'factory'): Company {
@@ -225,6 +229,61 @@ describe('namedHirePerformanceFactor', () => {
     // one valid (100), one malformed → treated as neutral 50 → avg 75
     const f = namedHirePerformanceFactor([hire(100), { ...hire(0), performance: NaN }]);
     expect(f).toBeCloseTo((75 - 50) / 625, 6);
+  });
+});
+
+describe('realizedCampaignROI', () => {
+  it('is deterministic per campaign id + week', () => {
+    expect(realizedCampaignROI('camp-1', 3.2, 5)).toBe(realizedCampaignROI('camp-1', 3.2, 5));
+  });
+
+  it('stays within [MIN, MAX] × projected ROI', () => {
+    for (let w = 0; w < 40; w++) {
+      const roi = realizedCampaignROI('camp-1', 3.2, w);
+      expect(roi).toBeGreaterThanOrEqual(3.2 * CAMPAIGN_ROI_VARIANCE_MIN - 1e-9);
+      expect(roi).toBeLessThanOrEqual(3.2 * CAMPAIGN_ROI_VARIANCE_MAX + 1e-9);
+    }
+  });
+
+  it('varies week to week (not a fixed per-id multiplier) and can dip below break-even', () => {
+    const rois = Array.from({ length: 40 }, (_, w) => realizedCampaignROI('camp-1', 3.2, w + 1));
+    // distinct values across weeks — real per-week variance, not clustered
+    expect(new Set(rois).size).toBeGreaterThan(20);
+    // at least one week realizes below the break-even ROI of 2 → a losing week
+    expect(rois.some((r) => r < 2)).toBe(true);
+    // at least one week realizes above break-even → a winning week (upside kept)
+    expect(rois.some((r) => r > 2)).toBe(true);
+  });
+
+  it('makes even the highest-ROI kind non-guaranteed: expected net ≤ 0 over many weeks', () => {
+    // net per week (spend 1) = realizedROI − 2. Averaged over a wide seed range,
+    // guerrilla (projected 3.2) nets ≈ 0-or-negative — no risk-free printer.
+    let netSum = 0;
+    const N = 200;
+    for (let w = 1; w <= N; w++) netSum += realizedCampaignROI('camp-1', 3.2, w) - 2;
+    expect(netSum / N).toBeLessThanOrEqual(0);
+  });
+
+  it('guards non-finite / non-positive projected ROI', () => {
+    expect(realizedCampaignROI('camp-1', NaN, 1)).toBe(0);
+    expect(realizedCampaignROI('camp-1', 0, 1)).toBe(0);
+  });
+});
+
+describe('generateCandidates — excludes already-hired ids', () => {
+  it('never re-emits a candidate id passed in excludeIds', () => {
+    const first = generateCandidates('co-1', 0, 3);
+    const hiredId = first[0].id;
+    const refreshed = generateCandidates('co-1', 0, 3, [hiredId]);
+    // still returns the requested count, and the hired id is gone
+    expect(refreshed).toHaveLength(3);
+    expect(refreshed.some((c) => c.id === hiredId)).toBe(false);
+    // ids remain distinct (deterministic slot advance, no collisions)
+    expect(new Set(refreshed.map((c) => c.id)).size).toBe(3);
+  });
+
+  it('is a stable no-op when nothing is excluded', () => {
+    expect(generateCandidates('co-1', 0, 3)).toEqual(generateCandidates('co-1', 0, 3, []));
   });
 });
 

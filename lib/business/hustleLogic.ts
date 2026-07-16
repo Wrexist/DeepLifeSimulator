@@ -52,16 +52,28 @@ function seededRand(seed: string): number {
 /**
  * Generate a deterministic batch of candidates for a company, seeded by
  * `(companyId, weeksLived)` so re-renders / StrictMode reuse the same list.
+ *
+ * `excludeIds` drops any candidate whose deterministic id is already in use —
+ * pass the company's already-hired candidateIds so Refresh can't keep re-emitting
+ * a person you already hired (which let hire → Refresh → hire-same-person repeat
+ * unboundedly). Skipped indices advance to the next unused slot, keeping every
+ * emitted candidate's id + attributes stable/deterministic.
  */
 export function generateCandidates(
   companyId: string,
   weeksLived: number,
   count: number = 3,
+  excludeIds: readonly string[] = [],
 ): HustleCandidate[] {
   const out: HustleCandidate[] = [];
+  const exclude = new Set(excludeIds);
   const roles: HustleCandidateRole[] = ['engineer', 'sales', 'manager', 'designer', 'analyst', 'operations'];
 
-  for (let i = 0; i < count; i++) {
+  // Advance the index past any excluded (already-hired) slots. The cap is a
+  // safety bound so a pathological excludeIds set can never spin forever.
+  for (let i = 0; out.length < count && i < count + exclude.size + 8; i++) {
+    const id = `cand-${companyId}-${weeksLived}-${i}`;
+    if (exclude.has(id)) continue;
     const seed = `hustle-candidate|${companyId}|${weeksLived}|${i}`;
     const r1 = seededRand(seed);
     const r2 = seededRand(seed + 'a');
@@ -76,7 +88,7 @@ export function generateCandidates(
     const signOnBonus = skill > 70 ? Math.floor(salaryAsk * 4) : undefined;
 
     out.push({
-      id: `cand-${companyId}-${weeksLived}-${i}`,
+      id,
       name: `${FIRST_NAMES[Math.floor(r2 * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(r3 * LAST_NAMES.length)]}`,
       role,
       skill,
@@ -134,6 +146,59 @@ export function projectCampaignROI(
 
 export function brandLiftForCampaign(kind: HustleCampaignKind): number {
   return CAMPAIGN_EFFICIENCY[kind].brandLift;
+}
+
+// Weekly realized-ROI variance band, as a multiplier on a campaign's PROJECTED
+// ROI. The projected number is an optimistic ceiling-ish flavor figure; the
+// actual weekly return is a seeded gamble around it so marketing is never a
+// guaranteed printer. Mean multiplier = 0.6, which pulls the EXPECTED realized
+// ROI below the break-even point of 2.0 even for the highest-ROI kind:
+//   guerrilla  projected 3.2 → mean realized ~1.92 → expected weekly net ≈ −0.08×spend
+//   influencer projected 2.6 → mean realized ~1.56 → expected weekly net ≈ −0.44×spend
+//   social     projected 2.2 → mean realized ~1.32 → expected weekly net ≈ −0.68×spend
+// (net per week = spend × (realizedROI − 2), since spend is paid then lift =
+// spend × (realizedROI − 1) is credited). Good weeks still pay out handsomely
+// (guerrilla can realize up to ~3.36 → +1.36×spend), so campaigns stay a fun,
+// brand-building gamble with real downside instead of free money.
+export const CAMPAIGN_ROI_VARIANCE_MIN = 0.15;
+export const CAMPAIGN_ROI_VARIANCE_MAX = 1.05;
+
+/**
+ * Well-mixed string → [0, 1) hash (xmur3 avalanche + a finalizing mix). Unlike
+ * the lightweight `seededRand` above, this spreads *sequentially incrementing*
+ * seeds (`...|week=1`, `...|week=2`, …) uniformly across the unit interval, so a
+ * campaign's realized ROI genuinely varies week to week instead of clustering
+ * near one value per id. Used only for the campaign gamble; `seededRand` is left
+ * untouched so scandal / candidate / earnings determinism is unchanged.
+ */
+function mixedRoll01(seed: string): number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * The ROI a campaign actually realizes for a given week. Deterministic — seeded
+ * by campaign id + week (no Math.random / wall clock) so the weekly tick stays
+ * reproducible. Applies a uniform variance multiplier in
+ * [CAMPAIGN_ROI_VARIANCE_MIN, CAMPAIGN_ROI_VARIANCE_MAX] to the projected ROI.
+ * Can dip well below break-even (losing week) or spike above it (windfall).
+ */
+export function realizedCampaignROI(
+  campaignId: string,
+  projectedROI: number,
+  weeksLived: number,
+): number {
+  const safeProjected = isFinite(projectedROI) && projectedROI > 0 ? projectedROI : 0;
+  const roll = mixedRoll01(`hustle-campaign-roi|${campaignId}|${weeksLived}`);
+  const mult = CAMPAIGN_ROI_VARIANCE_MIN + roll * (CAMPAIGN_ROI_VARIANCE_MAX - CAMPAIGN_ROI_VARIANCE_MIN);
+  return Math.max(0, safeProjected * mult);
 }
 
 export function campaignCostFloor(kind: HustleCampaignKind): number {

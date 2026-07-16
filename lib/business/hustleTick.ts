@@ -26,6 +26,7 @@ import {
   computeQuarterlyEarningsMovement,
   generateAcquisitionOffer,
   namedHireMoraleDelta,
+  realizedCampaignROI,
   scandalRevenueDrag,
   rollScandalForWeek,
   estimateScandalRevenueLoss,
@@ -123,8 +124,16 @@ export function processHustleWeeklyTick(
       cashDelta -= camp.spendPerWeek;
       availableCash -= camp.spendPerWeek;
       cashReasons.push(`${camp.kind} campaign weekly spend`);
-      // Add ROI-driven revenue lift
-      const lift = Math.floor(camp.spendPerWeek * (camp.projectedROI - 1));
+      // Add ROI-driven revenue lift. MONEY-SAFETY FIX: the realized ROI is a
+      // SEEDED weekly gamble around the projected number (deterministic — seeded
+      // by campaign id + week), not the projected number itself. Previously the
+      // full projected lift was credited risk-free, so any kind with projected
+      // ROI > 2 (guerrilla/influencer/social) was a guaranteed, stackable printer
+      // (net = spend × (ROI − 2) every week). Now bad weeks realize below break-
+      // even (lift < spend, or 0 lift → the whole spend is a loss) while good
+      // weeks still pay out — expected net is ≈0-or-negative for the high-ROI kinds.
+      const realizedROI = realizedCampaignROI(camp.id, camp.projectedROI, nextWeeksLived);
+      const lift = Math.floor(camp.spendPerWeek * (realizedROI - 1));
       if (lift > 0) {
         cashDelta += lift;
         availableCash += lift;
@@ -242,6 +251,21 @@ export function processHustleWeeklyTick(
         const performance = Math.max(0, Math.min(100, h.performance + (morale > 70 ? 1 : morale < 30 ? -2 : 0)));
         return { ...h, morale, performance };
       });
+      // MONEY-SAFETY FIX: charge each named hire's weekly salary. Previously
+      // `salary` was only read for morale fairness — accepted hires raised
+      // `weeklyIncome` (via the headcount multiplier) but their payroll was never
+      // deducted, so every hire was free money. Deduct it through the same
+      // cash-delta path other company costs use (mirrors scandal drag / campaign
+      // spend) so hires are an INVESTMENT (income multiplier vs salary cost).
+      const totalSalary = updatedHires.reduce(
+        (sum, h) => sum + (isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
+        0,
+      );
+      if (totalSalary > 0) {
+        cashDelta -= totalSalary;
+        availableCash -= totalSalary;
+        cashReasons.push(`${company.name} named-hire payroll`);
+      }
       o = {
         ...o,
         hiringPipeline: { ...o.hiringPipeline, namedHires: updatedHires, weeksSinceLastHire: o.hiringPipeline.weeksSinceLastHire + 1 },

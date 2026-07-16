@@ -118,6 +118,85 @@ describe('processHustleWeeklyTick — scandal ledger real values', () => {
   });
 });
 
+describe('processHustleWeeklyTick — named-hire payroll', () => {
+  it('deducts each named hire\'s weekly salary from cashDelta', () => {
+    const overlay: HustleCompanyOverlay = {
+      // income 2_000 is below the scandal size-gate, so cashDelta is payroll-only.
+      ...createDefaultCompanyOverlay('payco', 0),
+      hiringPipeline: {
+        candidates: [],
+        namedHires: [
+          { candidateId: 'h1', hiredWeek: 0, role: 'engineer', salary: 3000, morale: 60, performance: 60 },
+          { candidateId: 'h2', hiredWeek: 0, role: 'sales', salary: 1400, morale: 60, performance: 60 },
+        ],
+        weeksSinceLastHire: 0,
+        totalSeverance: 0,
+      },
+    };
+    const state = stateWith([company('payco', 2_000)], { payco: overlay });
+    const res = processHustleWeeklyTick(state, 1);
+    // Two hires: 3000 + 1400 = 4400 charged; no other cash movement this week.
+    expect(res.cashDelta).toBe(-4400);
+    expect(res.cashReasons.some((r) => r.includes('payroll'))).toBe(true);
+  });
+
+  it('charges no payroll when the roster is empty', () => {
+    const state = stateWith([company('payco', 2_000)], { payco: createDefaultCompanyOverlay('payco', 0) });
+    const res = processHustleWeeklyTick(state, 1);
+    expect(res.cashDelta).toBe(0);
+  });
+});
+
+describe('processHustleWeeklyTick — marketing campaign is a real gamble', () => {
+  function withGuerrillaCampaign(): GameState {
+    const overlay: HustleCompanyOverlay = {
+      // income below the scandal gate → cashDelta reflects campaign net ONLY.
+      ...createDefaultCompanyOverlay('adco', 0),
+      activeCampaigns: [
+        {
+          id: 'camp-guerrilla-1',
+          kind: 'guerrilla',
+          spendPerWeek: 1000,
+          startedWeek: 0,
+          durationWeeks: 500, // never expires within the tested range
+          projectedROI: 3.2, // the exploitable high-ROI kind
+          active: true,
+        },
+      ],
+    };
+    return stateWith([company('adco', 2_000)], { adco: overlay });
+  }
+
+  it('is NOT guaranteed profitable across a seeded range of weeks', () => {
+    const state = withGuerrillaCampaign();
+    let losing = 0;
+    let winning = 0;
+    let total = 0;
+    const N = 40;
+    for (let w = 1; w <= N; w++) {
+      const res = processHustleWeeklyTick(state, w);
+      total += res.cashDelta;
+      if (res.cashDelta < 0) losing += 1;
+      if (res.cashDelta > 0) winning += 1;
+    }
+    // A risk-free printer would have losing === 0. The seeded per-week variance
+    // guarantees plenty of losing weeks (net < 0) for a projected-ROI 3.2 campaign.
+    expect(losing).toBeGreaterThan(0);
+    expect(losing).toBeGreaterThanOrEqual(5);
+    // …and real upside on good weeks (kept fun), so it's a genuine gamble.
+    expect(winning).toBeGreaterThanOrEqual(5);
+    // Expected net over the range is ≈0-or-negative — not a guaranteed gain.
+    expect(total).toBeLessThanOrEqual(0);
+  });
+
+  it('is deterministic per week (same week → same cashDelta)', () => {
+    const state = withGuerrillaCampaign();
+    expect(processHustleWeeklyTick(state, 7).cashDelta).toBe(
+      processHustleWeeklyTick(state, 7).cashDelta,
+    );
+  });
+});
+
 describe('processHustleWeeklyTick — preserved behaviour', () => {
   it('skips companies with no overlay without throwing', () => {
     const state = stateWith([company('no-overlay', 10_000)], {});

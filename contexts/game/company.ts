@@ -194,6 +194,14 @@ export function buyCompanyUpgrade(
 }
 
 /**
+ * Hard headcount cap per company. Matches the diminishing-returns table
+ * (21+ uses the 1.01x floor multiplier) and the Hustle "STAFF_CAP" UI copy
+ * (CompanyDetailScreen). Shared by addWorker and the Hustle named-hire
+ * pipeline so neither path can grow a company's payroll unboundedly.
+ */
+export const MAX_COMPANY_EMPLOYEES = 30;
+
+/**
  * Diminishing-returns income multiplier from headcount.
  * workerMultiplier (1.1x) each for employees 1-5, then 1.05x for 6-10,
  * 1.02x for 11-20, and 1.01x for 21+. Shared by addWorker/removeWorker and
@@ -225,8 +233,8 @@ export function addWorker(
     const { workerSalary, employees, baseWeeklyIncome, workerMultiplier } =
       company;
     // ECONOMY FIX: Removed hard cap at 10 employees - diminishing returns already prevent exponential scaling
-    // Allow up to 30 employees to match diminishing returns logic (21+ uses 1.01x multiplier)
-    if (employees >= 30 || prev.stats.money < workerSalary) return prev;
+    // Allow up to MAX_COMPANY_EMPLOYEES to match diminishing returns logic (21+ uses 1.01x multiplier)
+    if (employees >= MAX_COMPANY_EMPLOYEES || prev.stats.money < workerSalary) return prev;
 
     // ECONOMY FIX: Add diminishing returns to prevent exponential scaling
     // Diminishing returns: 1.1x for first 5 employees, 1.05x for 6-10, 1.02x for 11-20, 1.01x for 21+
