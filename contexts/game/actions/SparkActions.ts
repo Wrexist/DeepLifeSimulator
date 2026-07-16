@@ -270,7 +270,10 @@ export const rewindLastSwipe = (
   if (!sp) return { success: false, message: 'Spark not initialized' };
   if (sp.swipes.length === 0) return { success: false, message: 'No swipes to undo' };
 
-  const isPremium = sp.premium.perks.rewindLastSwipe;
+  // Optional-chain: a legacy/partial `sparkApp` present but lacking `premium`
+  // (the exact shape dc3e337 fixed for scorePlayerProfile) would otherwise throw
+  // "Cannot read properties of undefined (reading 'perks')" on tapping Rewind.
+  const isPremium = sp.premium?.perks?.rewindLastSwipe ?? false;
   if (!isPremium && (gameState.stats?.gems ?? 0) < REWIND_GEM_COST) {
     return { success: false, message: `Need ${REWIND_GEM_COST} gems to rewind` };
   }
@@ -465,7 +468,9 @@ export const likeBackFromLikedYou = (
 ): { success: boolean; message: string; matchId?: string } => {
   const sp = gameState.sparkApp;
   if (!sp) return { success: false, message: 'Spark not initialized' };
-  if (!sp.premium.perks.seeWhoLikedYou) {
+  // Optional-chain: a legacy/partial `sparkApp` lacking `premium` would throw
+  // on `.perks` (same class as dc3e337) when tapping a Liked-You entry.
+  if (!sp.premium?.perks?.seeWhoLikedYou) {
     return { success: false, message: 'Upgrade to Ultra to see who liked you' };
   }
   const entry = sp.likedYou.find((l) => l.profileId === profileId);

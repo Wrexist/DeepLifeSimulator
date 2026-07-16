@@ -52,17 +52,29 @@ function build({ runTests = false } = {}) {
   const callRe = /\b(?:apply|run|process|tick|compute)[A-Z]\w*\s*\(/g;
   let totalCalls = 0;
   let guardedCalls = 0;
+  const unguarded = []; // names of subsystem calls NOT inside a try/catch
   let cm;
   while ((cm = callRe.exec(cleanCtx))) {
     totalCalls++;
-    if (L.inAnyRange(ranges, cm.index)) guardedCalls++;
+    if (L.inAnyRange(ranges, cm.index)) {
+      guardedCalls++;
+    } else {
+      // Strip the trailing "(" to report the bare callee name. De-dupe so a
+      // helper referenced twice isn't listed twice.
+      const name = cm[0].replace(/\s*\($/, '');
+      if (!unguarded.includes(name)) unguarded.push(name);
+    }
   }
   const guardRatio = totalCalls ? guardedCalls / totalCalls : 1;
   // Not every subsystem call must be guarded (pure calculators are safe), but the bulk
   // of the tick's subsystem dispatch should be. Flag a low-coverage tick as a smell.
+  // NAME the unwrapped subsystem(s): a bare "N/M" count hid *which* tick was bare and
+  // let the same "unwrapped weekly-tick subsystem" class recur (tasks/lessons.md,
+  // 2026-07-10 / 07-13). The named list makes the gap actionable, not buried.
+  const namedTail = unguarded.length ? ` — unwrapped: ${unguarded.join(', ')}` : '';
   a.assert(totalCalls === 0 || guardRatio >= 0.6, 'low',
-    `Weekly tick subsystems mostly guarded (${guardedCalls}/${totalCalls} inside try/catch, ${ranges.length} blocks)`,
-    `Most weekly subsystem calls are unguarded (${guardedCalls}/${totalCalls} inside try/catch)`,
+    `Weekly tick subsystems mostly guarded (${guardedCalls}/${totalCalls} inside try/catch, ${ranges.length} blocks)${namedTail}`,
+    `Most weekly subsystem calls are unguarded (${guardedCalls}/${totalCalls} inside try/catch)${namedTail}`,
     'A throwing subsystem can abort the whole week. Wrap dispatch in try/catch.', tickEntry);
 
   // --- P3: nested-loop density --------------------------------------------

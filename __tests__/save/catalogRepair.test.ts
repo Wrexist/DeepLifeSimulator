@@ -63,6 +63,32 @@ describe('repairGameState backfills app subsystems (H1)', () => {
     expect((state.darkWeb as Record<string, unknown>)?.heat).toBeDefined();
     expect((state.cryptoMarket as Record<string, unknown>)?.coinMarkets).toBeDefined();
   });
+
+  // Regression (Codex review, PR #63): a present-but-malformed favorLedger — `{}`
+  // or `{ favors: null }` from a CloudSync merge / hand-edit — is truthy, so the
+  // `?? emptyLedger()` / `?? { favors: [] }` fallbacks in ContactsApp/ContactsActions
+  // skip it and then crash on `ledger.favors.filter/.some`. Repair must normalize
+  // the shape at the load boundary so no consumer sees a bad `favors`.
+  it.each([
+    ['empty object', {}],
+    ['null favors', { favors: null }],
+    ['string favors', { favors: 'nope' }],
+  ])('normalizes a malformed favorLedger (%s) to a valid empty ledger', (_label, bad) => {
+    const state = createTestGameState() as unknown as Record<string, unknown>;
+    state.favorLedger = bad;
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(Array.isArray((state.favorLedger as { favors: unknown }).favors)).toBe(true);
+    expect((state.favorLedger as { favors: unknown[] }).favors).toEqual([]);
+  });
+
+  it('leaves a well-formed favorLedger untouched', () => {
+    const state = createTestGameState() as unknown as Record<string, unknown>;
+    const good = { favors: [{ id: 'f1', contactId: 'c1', direction: 'owed-to-player', kind: 'money', value: 100, createdWeek: 1, status: 'open' }] };
+    state.favorLedger = good;
+    repairGameState(state);
+    expect((state.favorLedger as { favors: unknown[] }).favors).toHaveLength(1);
+  });
 });
 
 describe('repairGameState clamps a tampered credit score to [300, 850] (P1-12)', () => {

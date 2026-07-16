@@ -41,6 +41,24 @@ describe('favors ledger', () => {
     expect(redeemFavor(l, 'nope').favors[0].status).toBe('open');
   });
 
+  // Regression (weekly-audit 2026-07-16): expireFavors runs in the weekly tick.
+  // A present-but-partial ledger (CloudSync merge / hand-edit / interrupted
+  // migration) with a missing/non-array `favors` used to throw inside `.map`,
+  // and — being called unwrapped in the nextWeek updater — that soft-locked
+  // "Next Week" permanently. It must now normalise to a VALID empty ledger (not
+  // return the malformed input), so the tick heals the shape and downstream
+  // consumers (ContactsApp `.filter`/`.some`) don't crash. (Codex review, PR #63.)
+  it('expireFavors heals a partial ledger with no favors array into a valid ledger', () => {
+    const partial = {} as any; // e.g. `{ }` merged from a stale cloud save
+    expect(() => expireFavors(partial, 10)).not.toThrow();
+    expect(expireFavors(partial, 10)).toEqual({ favors: [] });
+    expect(Array.isArray(expireFavors(partial, 10).favors)).toBe(true);
+
+    const nullFavors = { favors: null } as any;
+    expect(() => expireFavors(nullFavors, 10)).not.toThrow();
+    expect(expireFavors(nullFavors, 10)).toEqual({ favors: [] });
+  });
+
   it('expireFavors flags past expiresWeek entries', () => {
     let l = addFavor(emptyLedger(), {
       id: 'f1', contactId: 'c1', direction: 'owed-to-player', kind: 'discount', value: 20, createdWeek: 1, expiresWeek: 5,
