@@ -34,8 +34,10 @@ export function formatMoney(amount: number, showDollarSign: boolean = true): str
     formatted = Math.floor(absAmount).toLocaleString();
   }
   
-  // Remove trailing zeros and decimal point if not needed
-  formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
+  // Remove trailing zeros and the decimal point when not needed. The lookahead
+  // matters: suffixed values end in K/M/B/T/Q, so an end-of-string anchor alone
+  // never fires and "$250.00K" ships to the UI.
+  formatted = formatted.replace(/\.00(?=[KMBTQ]?$)/, '').replace(/(\.\d)0(?=[KMBTQ]?$)/, '$1');
 
   // Sign goes OUTSIDE the dollar sign so negatives read "-$5M", not "$-5M".
   return showDollarSign ? `${sign}$${formatted}` : `${sign}${formatted}`;
@@ -80,8 +82,9 @@ export function formatCurrency(amount: number, currency: string = ''): string {
     formatted = Math.floor(absAmount).toLocaleString();
   }
   
-  // Remove trailing zeros and decimal point if not needed
-  formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
-  
+  // Remove trailing zeros and the decimal point when not needed (lookahead:
+  // suffixed values end in K/M/B/T/Q — same fix as formatMoney above).
+  formatted = formatted.replace(/\.00(?=[KMBTQ]?$)/, '').replace(/(\.\d)0(?=[KMBTQ]?$)/, '$1');
+
   return `${sign}${formatted}${currency ? ` ${currency}` : ''}`;
 }
