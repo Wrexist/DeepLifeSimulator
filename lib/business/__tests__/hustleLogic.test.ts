@@ -287,6 +287,33 @@ describe('generateCandidates — excludes already-hired ids', () => {
   });
 });
 
+describe('generateCandidates — reroll nonce', () => {
+  it('nonce 0 is the original set (backward compatible ids + values)', () => {
+    const withArg = generateCandidates('co-1', 4, 3, [], 0);
+    const withoutArg = generateCandidates('co-1', 4, 3);
+    expect(withArg).toEqual(withoutArg);
+    expect(withArg[0].id).toBe('cand-co-1-4-0');
+  });
+
+  it('different nonces yield genuinely different candidates within the same week', () => {
+    const week = 7;
+    const a = generateCandidates('co-1', week, 3, [], 0);
+    const b = generateCandidates('co-1', week, 3, [], 1);
+    const c = generateCandidates('co-1', week, 3, [], 2);
+    // Ids are distinct across rerolls (so a hire from one reroll can't be
+    // falsely excluded from another), and the people themselves differ.
+    expect(a.map((x) => x.id)).not.toEqual(b.map((x) => x.id));
+    expect(b.map((x) => x.id)).not.toEqual(c.map((x) => x.id));
+    const sig = (set: typeof a) => set.map((x) => `${x.name}|${x.role}|${x.salaryAsk}`).join(',');
+    expect(sig(a)).not.toBe(sig(b));
+    expect(sig(b)).not.toBe(sig(c));
+  });
+
+  it('is deterministic for a given (company, week, nonce)', () => {
+    expect(generateCandidates('co-2', 3, 3, [], 5)).toEqual(generateCandidates('co-2', 3, 3, [], 5));
+  });
+});
+
 describe('createDefaultCompanyOverlay', () => {
   it('returns a fully-formed neutral overlay', () => {
     const o = createDefaultCompanyOverlay('factory', 7);

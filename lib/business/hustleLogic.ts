@@ -64,17 +64,24 @@ export function generateCandidates(
   weeksLived: number,
   count: number = 3,
   excludeIds: readonly string[] = [],
+  nonce: number = 0,
 ): HustleCandidate[] {
   const out: HustleCandidate[] = [];
   const exclude = new Set(excludeIds);
   const roles: HustleCandidateRole[] = ['engineer', 'sales', 'manager', 'designer', 'analyst', 'operations'];
 
+  // A per-open reroll `nonce` mixes into both the id and the seed so tapping
+  // Refresh within the same game week yields a genuinely different set (not the
+  // same 3 people), while staying deterministic for a given (company, week,
+  // nonce). nonce 0 preserves the original ids/values exactly (backward compat).
+  const rerollTag = nonce ? `-r${nonce}` : '';
+
   // Advance the index past any excluded (already-hired) slots. The cap is a
   // safety bound so a pathological excludeIds set can never spin forever.
   for (let i = 0; out.length < count && i < count + exclude.size + 8; i++) {
-    const id = `cand-${companyId}-${weeksLived}-${i}`;
+    const id = `cand-${companyId}-${weeksLived}${rerollTag}-${i}`;
     if (exclude.has(id)) continue;
-    const seed = `hustle-candidate|${companyId}|${weeksLived}|${i}`;
+    const seed = `hustle-candidate|${companyId}|${weeksLived}${rerollTag}|${i}`;
     const r1 = seededRand(seed);
     const r2 = seededRand(seed + 'a');
     const r3 = seededRand(seed + 'b');

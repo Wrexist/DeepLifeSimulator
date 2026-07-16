@@ -41,7 +41,6 @@ import {
   Heart,
   Zap,
   Battery,
-  Brain,
   Globe,
   Clock,
   Calendar,
@@ -71,7 +70,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
-import { quoteTrip } from '@/lib/travel/operations';
+import { quoteTrip, deriveExperienceStats } from '@/lib/travel/operations';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
 import {
@@ -190,29 +189,25 @@ const classForCost = (c: number) => (c >= 5000 ? 'FIRST' : c >= 2500 ? 'BUSINESS
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-// Non-zero benefit descriptors — surfaces stress-relief + reputation the old UI
-// dropped. `core` limits to the four headline stats for compact grid tiles.
+// Non-zero benefit descriptors — shows exactly what `returnFromTrip` applies.
+// GameStats has no `stress`/`intelligence` field: those advertised benefits are
+// folded into happiness/energy by deriveExperienceStats on return, so the
+// preview folds them the same way rather than showing phantom stat chips.
+// `core` limits to the four headline stats for compact grid tiles.
 function benefitDescriptors(
   b: TravelDestination['benefits'],
   core = false
 ): { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[] {
   const out = [] as { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[];
-  if (b.happiness) out.push({ Icon: Heart, color: accent.danger, value: `${b.happiness > 0 ? '+' : ''}${b.happiness}`, key: 'hap' });
+  // Fold stress-relief + intelligence enrichment into the concrete happiness/
+  // energy deltas the game actually models (matches deriveExperienceStats).
+  const experience = deriveExperienceStats(b);
+  const happiness = (b?.happiness ?? 0) + experience.happiness;
+  const energy = (b?.energy ?? 0) + experience.energy;
+  if (happiness) out.push({ Icon: Heart, color: accent.danger, value: `${happiness > 0 ? '+' : ''}${happiness}`, key: 'hap' });
   if (b.health) out.push({ Icon: Battery, color: accent.success, value: `${b.health > 0 ? '+' : ''}${b.health}`, key: 'hp' });
-  if (b.energy) out.push({ Icon: Zap, color: accent.warning, value: `${b.energy > 0 ? '+' : ''}${b.energy}`, key: 'en' });
-  if (b.intelligence) out.push({ Icon: Brain, color: accent.purple, value: `+${b.intelligence}`, key: 'iq' });
+  if (energy) out.push({ Icon: Zap, color: accent.warning, value: `${energy > 0 ? '+' : ''}${energy}`, key: 'en' });
   if (core) return out;
-  if (b.stress) {
-    // Negative stress = relief (a benefit); positive stress = an increase (a
-    // penalty, e.g. New York +5) — style it clearly so it can't read as relief.
-    const stressUp = b.stress > 0;
-    out.push({
-      Icon: stressUp ? AlertTriangle : Sparkles,
-      color: stressUp ? accent.danger : IDENTITY,
-      value: `${stressUp ? '+' : ''}${b.stress} stress`,
-      key: 'str',
-    });
-  }
   if (b.reputation) out.push({ Icon: Star, color: accent.gold, value: `+${b.reputation} rep`, key: 'rep' });
   return out;
 }

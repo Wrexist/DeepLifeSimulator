@@ -198,6 +198,10 @@ function withOverlay(
 export const refreshCandidates = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
+  // Per-open reroll counter mixed into the candidate seed. Refresh within the
+  // same game week used to re-emit the identical 3 people (seed = company+week);
+  // threading a nonce makes each tap deterministically produce a different set.
+  nonce: number = 0,
 ): void => {
   setGameState((prev) => {
     const weeksLived = prev.weeksLived ?? 0;
@@ -212,6 +216,7 @@ export const refreshCandidates = (
           weeksLived,
           3,
           o.hiringPipeline.namedHires.map((h) => h.candidateId),
+          nonce,
         ),
       },
     }));

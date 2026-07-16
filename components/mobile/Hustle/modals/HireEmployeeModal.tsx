@@ -32,6 +32,9 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
   const [salaryOffer, setSalaryOffer] = useState('');
   const [bonusOffer, setBonusOffer] = useState('');
   const [resultMsg, setResultMsg] = useState<string | null>(null);
+  // Per-open reroll nonce — bumped on every Refresh tap so the candidate seed
+  // changes and Refresh yields a genuinely different set within the same week.
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const candidates = overlay?.hiringPipeline?.candidates ?? [];
@@ -67,11 +70,13 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
 
   const handleRefresh = useCallback(() => {
     hustleHaptics.tap();
-    refreshCandidates(setGameState, companyId);
+    const nextNonce = refreshNonce + 1;
+    setRefreshNonce(nextNonce);
+    refreshCandidates(setGameState, companyId, nextNonce);
     setSelectedCandidateId(null);
     setSalaryOffer('');
     setBonusOffer('');
-  }, [setGameState, companyId]);
+  }, [setGameState, companyId, refreshNonce]);
 
   const handleOffer = useCallback(() => {
     if (!selected) return;

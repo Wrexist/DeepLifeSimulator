@@ -59,6 +59,7 @@ import {
   getVehicleTemplate,
   calculateVehicleSellPrice,
   calculateRepairCost,
+  calculateRepairCostAfterInsurance,
   calculateFuelCost,
 } from '@/lib/vehicles/vehicles';
 import { AutoDownTier, AutoTerm } from '@/lib/vehicles/auto';
@@ -399,7 +400,14 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     const loan = loanFor(v);
     const image = getVehicleTemplate(v.id)?.image;
     const fuelCost = calculateFuelCost(v);
-    const repairCost = calculateRepairCost(v);
+    const grossRepair = calculateRepairCost(v);
+    const repairCost = calculateRepairCostAfterInsurance(v);
+    const repairLabel =
+      grossRepair <= 0
+        ? 'Repair'
+        : repairCost <= 0
+          ? 'Repair · covered'
+          : `Repair ${formatMoney(repairCost)}`;
     const sellPrice = calculateVehicleSellPrice(v);
     return (
       <View
@@ -471,7 +479,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} />
         </View>
         <View style={styles.actionRow}>
-          <ActionChip icon={Wrench} label={repairCost > 0 ? `Repair ${formatMoney(repairCost)}` : 'Repair'} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
+          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
       </View>
@@ -532,7 +540,14 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     const loan = loanFor(v);
     const ins = v.insurance;
     const fuelCost = calculateFuelCost(v);
-    const repairCost = calculateRepairCost(v);
+    const grossRepair = calculateRepairCost(v);
+    const repairCost = calculateRepairCostAfterInsurance(v);
+    const repairLabel =
+      grossRepair <= 0
+        ? 'Repair'
+        : repairCost <= 0
+          ? 'Repair · covered'
+          : `Repair ${formatMoney(repairCost)}`;
     const sellPrice = calculateVehicleSellPrice(v);
     const insWeeksLeft = ins?.active ? Math.max(0, (ins.expiresWeek ?? 0) - currentWeek) : 0;
     const weeksSinceService = v.lastServiceWeek != null ? Math.max(0, currentWeek - v.lastServiceWeek) : null;
@@ -633,7 +648,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         {/* Actions */}
         <View style={styles.actionRow}>
           <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} />
-          <ActionChip icon={Wrench} label={repairCost > 0 ? `Repair ${formatMoney(repairCost)}` : 'Repair'} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
+          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
 

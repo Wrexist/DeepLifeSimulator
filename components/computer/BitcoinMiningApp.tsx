@@ -49,7 +49,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
-import { estimateWeeklyMining } from '@/lib/crypto/estimateWeeklyMining';
+import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
 import { repairRig, setAutoRepair } from '@/contexts/game/actions/MiningActions';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -271,6 +271,27 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       return estimateWeeklyMining(synthetic, cryptos, mineTargetId, halvingCount).usdPerWeek;
     },
     [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
+  );
+  // Fleet gross output hard-caps at $100K/wk. Past the cap another rig adds cash
+  // drain (price + electricity) but ZERO extra yield, so Buy must be disabled and
+  // the marginal yield shown honestly (≈$0), not the uncapped per-unit figure.
+  const fleetAtCap = mineEstimate.grossUsd >= MINING_USD_CAP;
+  // Honest marginal USD/wk of adding ONE more of a tier to the CURRENT fleet —
+  // below the cap this equals the linear per-unit yield; at the cap it collapses
+  // to ~0 because the whole-fleet gross is already clamped.
+  const marginalYield = useCallback(
+    (tierId: string): number => {
+      const base = warehouseForEstimate ?? { level: 1, miners: {} };
+      const current = (base.miners as Record<string, number> | undefined)?.[tierId] ?? 0;
+      const synthetic = {
+        ...base,
+        miners: { ...(base.miners ?? {}), [tierId]: current + 1 },
+        selectedCrypto: mineTargetId,
+      };
+      const after = estimateWeeklyMining(synthetic, cryptos, mineTargetId, halvingCount).usdPerWeek;
+      return Math.max(0, after - mineEstimate.usdPerWeek);
+    },
+    [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount, mineEstimate.usdPerWeek]
   );
 
   // --- Handlers ------------------------------------------------------------
@@ -620,7 +641,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         {MINER_TIERS.map((tier) => {
           const owned = ownedMiners[tier.id] ?? 0;
           const price = MINER_PRICES[tier.id];
-          const canAfford = cash >= price;
+          const buyDisabled = cash < price || fleetAtCap;
+          // Honest marginal yield for this tier — collapses to ~$0 at the cap.
+          const tierMarginal = marginalYield(tier.id);
           const dur = owned > 0 ? (minerDurability[tier.id] ?? 100) : 0;
           const band = healthBand(dur);
           const ledColor = owned > 0 ? band.color : theme.textMuted;
@@ -656,27 +679,32 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
               <View style={styles.specRow}>
                 <StatPill icon={Zap} label="Hashrate" value={formatHashrate(tier.hashrate)} theme={theme} />
-                {/* Per-unit yield for the SELECTED mining coin (honest — reflects
-                    the coin's difficulty multiplier, halving, and price). */}
-                <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(perUnitYield(tier.id))}/wk`} theme={theme} />
+                {/* Marginal yield for the SELECTED mining coin (honest — reflects
+                    the coin's difficulty multiplier, halving, price, and the
+                    $100K/wk fleet cap, so it reads ~$0 once the fleet is capped). */}
+                <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(tierMarginal)}/wk`} theme={theme} />
               </View>
 
               {owned > 0 && <DurabilityBar value={dur} theme={theme} />}
 
               <TouchableOpacity
-                disabled={!canAfford}
+                disabled={buyDisabled}
                 onPress={() => handleBuyMiner(tier.id)}
                 style={[
                   styles.buyBtn,
-                  { backgroundColor: canAfford ? amber.chip : theme.surfaceElevated },
+                  { backgroundColor: buyDisabled ? theme.surfaceElevated : amber.chip },
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={`Buy ${tier.label} miner for ${formatMoney(price)}`}
-                accessibilityState={{ disabled: !canAfford }}
+                accessibilityLabel={
+                  fleetAtCap
+                    ? 'Fleet at $100K per week cap — buying adds no yield'
+                    : `Buy ${tier.label} miner for ${formatMoney(price)}`
+                }
+                accessibilityState={{ disabled: buyDisabled }}
               >
-                <Plus size={scale(13)} color={canAfford ? amber.solid : theme.textMuted} />
-                <Text style={[styles.buyBtnText, { color: canAfford ? amber.solid : theme.textMuted }]}>
-                  Buy · {formatMoney(price)}
+                <Plus size={scale(13)} color={buyDisabled ? theme.textMuted : amber.solid} />
+                <Text style={[styles.buyBtnText, { color: buyDisabled ? theme.textMuted : amber.solid }]}>
+                  {fleetAtCap ? 'Fleet at $100K/wk cap' : `Buy · ${formatMoney(price)}`}
                 </Text>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -974,9 +1002,19 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
         <PrimaryCTA
           theme={theme}
-          disabled={!canAfford}
-          label={canAfford ? `Buy ${tier.label} · ${formatMoney(price)}` : `Need ${formatMoney(price)}`}
-          accessibilityLabel={`Buy ${tier.label} miner for ${formatMoney(price)}`}
+          disabled={!canAfford || fleetAtCap}
+          label={
+            fleetAtCap
+              ? 'Fleet at $100K/wk cap'
+              : canAfford
+                ? `Buy ${tier.label} · ${formatMoney(price)}`
+                : `Need ${formatMoney(price)}`
+          }
+          accessibilityLabel={
+            fleetAtCap
+              ? 'Fleet at $100K per week cap — buying adds no yield'
+              : `Buy ${tier.label} miner for ${formatMoney(price)}`
+          }
           onPress={() => handleBuyMiner(tier.id)}
         />
       </View>
