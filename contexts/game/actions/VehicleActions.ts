@@ -216,15 +216,23 @@ export const sellVehicle = (
     const vehicleLoan = (prev.loans || []).find(l => l.vehicleId === vehicleId);
     const rem = vehicleLoan?.remaining;
     const loanPayoff = typeof rem === 'number' && isFinite(rem) && rem > 0 ? rem : 0;
-    const newLoans = vehicleLoan
-      ? (prev.loans || []).filter(l => l.id !== vehicleLoan.id)
-      : prev.loans;
+    // Underwater sale: proceeds can't cover the auto loan. Keep the loan as a
+    // deficiency balance (reduced to the uncovered remainder) instead of erasing
+    // negative equity for $0 — deleting the loan while clamping cash at 0 let a
+    // player shed a compounded auto loan for free.
+    const residualDebt = Math.max(0, loanPayoff - sellPrice);
+    const cashDelta = sellPrice - Math.min(sellPrice, loanPayoff); // surplus after the loan (>= 0)
+    const newLoans = !vehicleLoan
+      ? prev.loans
+      : residualDebt > 0
+        ? (prev.loans || []).map(l => (l.id === vehicleLoan.id ? { ...l, remaining: residualDebt } : l))
+        : (prev.loans || []).filter(l => l.id !== vehicleLoan.id);
 
     return {
       ...prev,
       stats: {
         ...prev.stats,
-        money: Math.max(0, prev.stats.money + sellPrice - loanPayoff),
+        money: Math.max(0, prev.stats.money + cashDelta),
         reputation: Math.max(0, (prev.stats.reputation || 0) + repLoss),
       },
       vehicles,
