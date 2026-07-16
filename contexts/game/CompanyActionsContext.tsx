@@ -8,7 +8,7 @@ import { useGameState } from './GameStateContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
-import { createFamilyBusiness as createFamilyBusinessModule } from './actions/FamilyBusinessActions';
+import { createFamilyBusiness as createFamilyBusinessModule, manageFamilyBusiness as manageFamilyBusinessModule } from './actions/FamilyBusinessActions';
 import { enterCompetition as enterCompetitionModule, processCompetitionResults, advanceResearch } from './actions/RDActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import type { GameState } from './types';
@@ -34,6 +34,10 @@ interface CompanyActionsContextType {
 
   // Family Business & R&D Competition
   createFamilyBusiness: (companyId: string) => void;
+  manageFamilyBusiness: (
+    companyId: string,
+    action: 'marketing' | 'branding' | 'reputation'
+  ) => { success: boolean; message: string };
   enterCompetition: (companyId: string, competitionId: string) => { success: boolean; message: string };
 }
 
@@ -238,6 +242,23 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     createFamilyBusinessModule(latestState, setGameState, companyId, { updateMoney: updateMoneyModule });
   }, [setGameState]);
 
+  const manageFamilyBusiness = useCallback((
+    companyId: string,
+    action: 'marketing' | 'branding' | 'reputation'
+  ) => {
+    const latestState = stateRef.current;
+    if (!latestState) {
+      return { success: false, message: 'Game state not available' };
+    }
+    const result = manageFamilyBusinessModule(latestState, setGameState, companyId, action, { updateMoney: updateMoneyModule });
+    // The atomic action always returns a { success, message } shape now.
+    const normalized = result ?? { success: false, message: 'Family business not found' };
+    if (!normalized.success) {
+      showError('Family Business', normalized.message);
+    }
+    return normalized;
+  }, [setGameState, showError]);
+
   const enterCompetition = useCallback((companyId: string, competitionId: string) => {
     const latestState = stateRef.current;
     if (!latestState) {
@@ -264,8 +285,9 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     upgradeEnergySystem,
     upgradeAutomation,
     createFamilyBusiness,
+    manageFamilyBusiness,
     enterCompetition,
-  }), [buyWarehouse, upgradeWarehouse, buyMiner, sellMiner, selectMiningCrypto, buyMinerUpgrade, joinMiningPool, leaveMiningPool, stakeCrypto, claimStakingRewards, upgradeEnergySystem, upgradeAutomation, createFamilyBusiness, enterCompetition]);
+  }), [buyWarehouse, upgradeWarehouse, buyMiner, sellMiner, selectMiningCrypto, buyMinerUpgrade, joinMiningPool, leaveMiningPool, stakeCrypto, claimStakingRewards, upgradeEnergySystem, upgradeAutomation, createFamilyBusiness, manageFamilyBusiness, enterCompetition]);
 
   return (
     <CompanyActionsContext.Provider value={value}>

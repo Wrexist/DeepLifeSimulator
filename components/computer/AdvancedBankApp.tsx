@@ -85,6 +85,8 @@ import {
   openNewAccount,
   applyForCard,
   payDownCard,
+  spendOnCard,
+  redeemRewards,
   addBill,
   removeBill,
   createSavingsGoal,
@@ -169,6 +171,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
+  const [chargeCardId, setChargeCardId] = useState<string | null>(null);
   // v22 Wave A: computer-only budget cap picker + account transfer.
   const [budgetTargetCategory, setBudgetTargetCategory] = useState<BudgetCategory | null>(null);
   const [transferFromId, setTransferFromId] = useState<string | null>(null);
@@ -657,6 +660,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const totalLimit = banking.creditCards.reduce((s, c) => s + c.creditLimit, 0);
     const cardUtil = totalLimit > 0 ? totalCardDebt / totalLimit : 0;
     const weeklyLoanPmt = loans.reduce((s, l) => s + l.weeklyPayment, 0);
+    const totalPendingRewards = banking.creditCards.reduce((s, c) => s + Math.max(0, c.pendingRewards ?? 0), 0);
     return (
       <View style={{ gap: responsiveSpacing.md }}>
         {/* Debt summary strip. */}
@@ -675,13 +679,18 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           ))
         )}
 
-        {/* v22 Wave A honesty: pendingRewards can't accrue until the Wave B
-            living-card loop wires charging, so we no longer surface a "$0 rewards"
-            readout that promises an unreachable perk. Card count only. */}
+        {/* The living-card loop is wired: charge posts to the balance, paying it
+            down accrues cashback, and Redeem banks that cashback as cash. Surface
+            the accrued rewards pool in the header meta now that it can actually
+            accrue. */}
         <SectionHeader
           theme={theme}
           title="Credit Cards"
-          meta={banking.creditCards.length > 0 ? `${banking.creditCards.length} active` : undefined}
+          meta={
+            banking.creditCards.length > 0
+              ? `${banking.creditCards.length} active${totalPendingRewards > 0 ? ` · ${formatMoney(totalPendingRewards)} rewards` : ''}`
+              : undefined
+          }
           addLabel="Apply"
           onAdd={() => setShowApplyCard(true)}
         />
@@ -690,9 +699,55 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             No cards yet. Apply for one to build credit history (eligibility depends on your score).
           </EmptyCard>
         ) : (
-          banking.creditCards.map((c) => (
-            <CreditCardRow key={c.id} card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
-          ))
+          banking.creditCards.map((c) => {
+            const availableCredit = Math.max(0, (c.creditLimit ?? 0) - (c.balance ?? 0));
+            const pending = Math.max(0, c.pendingRewards ?? 0);
+            const hasBalance = (c.balance ?? 0) > 0;
+            return (
+              <View key={c.id} style={{ gap: responsiveSpacing.xs }}>
+                <CreditCardRow card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
+                <View style={styles.detailSecondaryRow}>
+                  <TouchableOpacity
+                    onPress={() => setChargeCardId(c.id)}
+                    disabled={availableCredit <= 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Charge a purchase to ${c.name}`}
+                    accessibilityState={{ disabled: availableCredit <= 0 }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, availableCredit <= 0 && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: theme.text }]}>Charge</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setPayCardId(c.id)}
+                    disabled={!hasBalance}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pay down ${c.name}`}
+                    accessibilityState={{ disabled: !hasBalance }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, !hasBalance && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: theme.text }]}>Pay</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (pending <= 0) return;
+                      // redeemCardRewards caps a single redemption at $10,000.
+                      const redeemed = Math.min(pending, 10_000);
+                      redeemRewards(setGameState, c.id);
+                      queueSave();
+                      Alert.alert('Rewards redeemed', `${formatMoney(redeemed)} in cashback added to your cash.`);
+                    }}
+                    disabled={pending <= 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={pending > 0 ? `Redeem ${formatMoney(pending)} in rewards from ${c.name}` : 'No rewards to redeem'}
+                    accessibilityState={{ disabled: pending <= 0 }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, pending <= 0 && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: pending > 0 ? accent.success : theme.text }]}>Redeem</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
         )}
       </View>
     );
@@ -1097,6 +1152,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const detailAccount =
     subView?.kind === 'account' ? banking.accounts.find((a) => a.id === subView.id) ?? null : null;
 
+  // Charge-to-card modal derived values (used by the Charge AmountInputModal in
+  // the frame below). Available credit caps the charge so it can't exceed the limit.
+  const chargeCard = chargeCardId ? banking.creditCards.find((c) => c.id === chargeCardId) ?? null : null;
+  const chargeAvailableCredit = chargeCard ? Math.max(0, (chargeCard.creditLimit ?? 0) - (chargeCard.balance ?? 0)) : 0;
+
   // --- Frame ---------------------------------------------------------------
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
@@ -1325,6 +1385,31 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
           }
           setPayCardId(null);
+        }}
+      />
+
+      {/* Charge a purchase to the card — grows the (interest-bearing) balance now
+          with no cash movement; cashback then accrues when you pay the balance
+          down (see chargeCreditCard / payCreditCard anti-exploit note). */}
+      <AmountInputModal
+        visible={!!chargeCardId}
+        title="Charge to card"
+        subtitle={
+          chargeCard
+            ? `Available credit: ${formatMoney(chargeAvailableCredit)}. Adds to your balance now — pay it down later to earn ${(chargeCard.rewardsRate * 100).toFixed(1)}% cashback.`
+            : `Cash on hand: ${formatMoney(cash)}`
+        }
+        confirmLabel="Charge"
+        maxAmount={chargeAvailableCredit}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setChargeCardId(null)}
+        onConfirm={(amt) => {
+          if (chargeCardId) {
+            spendOnCard(setGameState, chargeCardId, amt, 'Purchase');
+            queueSave();
+          }
+          setChargeCardId(null);
         }}
       />
     </View>

@@ -36,6 +36,9 @@ import {
   Wrench,
   ChevronRight,
   Wallet,
+  Rocket,
+  Coins,
+  Gauge,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,7 +53,21 @@ import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
 import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
-import { repairRig, setAutoRepair } from '@/contexts/game/actions/MiningActions';
+import {
+  repairRig,
+  setAutoRepair,
+  buyMinerUpgrade,
+  joinMiningPool,
+  leaveMiningPool,
+  stakeCrypto,
+  claimStakingRewards,
+  upgradeEnergySystem,
+  upgradeAutomation,
+  MINER_UPGRADE_DEFINITIONS,
+  MINING_POOLS,
+  ENERGY_TYPES,
+} from '@/contexts/game/actions/MiningActions';
+import { getInflatedPrice } from '@/lib/economy/inflation';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CoinRow from '@/components/crypto/CoinRow';
@@ -90,7 +107,7 @@ interface BitcoinMiningAppProps {
   onBack: () => void;
 }
 
-type Tab = 'trade' | 'mine' | 'portfolio';
+type Tab = 'trade' | 'mine' | 'upgrades' | 'portfolio';
 // Presentational sub-views (list -> detail) over EXISTING data. No new mechanics.
 type SubView =
   | { kind: 'rig'; tierId: string }
@@ -100,8 +117,13 @@ type SubView =
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'trade', label: 'Trade', icon: TrendingUp },
   { id: 'mine', label: 'Mine', icon: Hammer },
+  { id: 'upgrades', label: 'Upgrades', icon: Rocket },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
 ];
+
+// Weekly staking reward rates by lock period — mirror stakeCrypto in MiningActions
+// so the APY readout matches what the action actually stamps on a position.
+const STAKING_RATES: Record<number, number> = { 1: 0.001, 2: 0.0015, 3: 0.002, 4: 0.0025 };
 
 // Values mirror warehouseMinerEarnings in lib/economy/passiveIncome.ts so the
 // "estimated weekly yield" is accurate — and all 8 economy tiers are buyable
@@ -168,11 +190,21 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const [selectedCoinId, setSelectedCoinId] = useState<string>('btc');
   const [orderCoin, setOrderCoin] = useState<Crypto | null>(null);
   const [showDCA, setShowDCA] = useState(false);
+  // Upgrades tab local selection state (which rig tier to upgrade; staking picker).
+  const [upgradeTierId, setUpgradeTierId] = useState<string>('basic');
+  const [stakeCoinId, setStakeCoinId] = useState<string>('btc');
+  const [stakeLockWeeks, setStakeLockWeeks] = useState<number>(1);
 
   const cash = gameState.stats?.money ?? 0;
   // Old/migrated saves can lack the cryptos array — guard every read.
   const cryptos = gameState.cryptos ?? [];
   const selectedCoinMarket = market.coinMarkets[selectedCoinId];
+  // Inflation index — the enhanced-mining actions charge getInflatedPrice(cost),
+  // so the Upgrades tab reads the same index to show/gate against the real price.
+  const priceIndex =
+    typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
+      ? gameState.economy.priceIndex
+      : 1;
 
   const queueSave = useCallback(() => {
     saveGame().catch(() => {});
@@ -399,6 +431,68 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const res = setAutoRepair(gameState, setGameState, { enabled: true, cryptoId: coinId });
     if (!res.success) {
       if (res.message) Alert.alert('Auto-repair', res.message);
+      return;
+    }
+    queueSave();
+  };
+
+  // --- Upgrades tab handlers (enhanced mining progression) -----------------
+  // Each round-trips a real MiningActions call (atomic, double-tap-safe) then
+  // defers a save (queueSave). Honest disabled states are enforced in the render.
+  const handleBuyMinerUpgrade = (upgradeId: string, minerId: string) => {
+    const res = buyMinerUpgrade(gameState, setGameState, upgradeId, minerId);
+    if (!res.success) {
+      if (res.message) Alert.alert('Miner upgrade', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleJoinPool = (poolId: string) => {
+    const res = joinMiningPool(gameState, setGameState, poolId);
+    if (!res.success) {
+      if (res.message) Alert.alert('Mining pool', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleLeavePool = () => {
+    const res = leaveMiningPool(gameState, setGameState);
+    if (!res.success) {
+      if (res.message) Alert.alert('Mining pool', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleStake = (fraction: number) => {
+    const coin = cryptos.find((c) => c.id === stakeCoinId);
+    const owned = coin?.owned ?? 0;
+    // Round to avoid a float overshoot ever exceeding `owned` (stakeCrypto rejects
+    // amount > owned). 100% stakes the full balance; lower fractions a slice of it.
+    const amount = fraction >= 1 ? owned : Math.min(owned, owned * fraction);
+    const res = stakeCrypto(gameState, setGameState, stakeCoinId, amount, stakeLockWeeks);
+    if (!res.success) {
+      if (res.message) Alert.alert('Staking', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleClaimStaking = () => {
+    const res = claimStakingRewards(gameState, setGameState);
+    if (res.message) Alert.alert('Staking', res.message);
+    if (res.success) queueSave();
+  };
+  const handleUpgradeEnergy = (energyType: 'solar' | 'wind' | 'hybrid') => {
+    const res = upgradeEnergySystem(gameState, setGameState, energyType);
+    if (!res.success) {
+      if (res.message) Alert.alert('Energy system', res.message);
+      return;
+    }
+    queueSave();
+  };
+  const handleUpgradeAutomation = () => {
+    const res = upgradeAutomation(gameState, setGameState);
+    if (!res.success) {
+      if (res.message) Alert.alert('Automation', res.message);
       return;
     }
     queueSave();
@@ -713,6 +807,345 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       </View>
     </View>
   );
+
+  // --- Render: UPGRADES (enhanced mining progression) ----------------------
+  // Surfaces the four previously-orphaned MiningActions tracks: per-tier miner
+  // upgrades, mining pools, staking, energy, and automation. Every button
+  // round-trips a real action + queueSave with honest disabled states.
+  const renderUpgrades = () => {
+    const warehouse = gameState.warehouse;
+    const ownedTiers = MINER_TIERS.filter((t) => (ownedMiners[t.id] ?? 0) > 0);
+    const hasRigs = ownedTiers.length > 0;
+    // Effective upgrade target tier — fall back to the first owned rig so the
+    // picker never points at a tier the player doesn't own.
+    const effectiveTierId = ownedTiers.some((t) => t.id === upgradeTierId)
+      ? upgradeTierId
+      : ownedTiers[0]?.id ?? 'basic';
+    const upgradeDefs = Object.values(MINER_UPGRADE_DEFINITIONS).flat();
+    const existingUpgrades = warehouse?.upgrades ?? [];
+    const upgradeLevelFor = (upgradeId: string) =>
+      existingUpgrades.find((u) => u.id === upgradeId && u.minerId === effectiveTierId)?.level ?? 0;
+    // Mirrors buyMinerUpgrade's diminishing-cost curve + inflation, so the price
+    // shown is exactly what will be charged.
+    const upgradeNextCost = (baseCost: number, level: number) =>
+      getInflatedPrice(level === 0 ? baseCost : Math.round(baseCost * Math.pow(1.5, level)), priceIndex);
+
+    const activePoolId = warehouse?.activePool;
+
+    const stakingPositions = warehouse?.stakingPositions ?? [];
+    const stakeableCoins = cryptos.filter((c) => (c.owned ?? 0) > 0);
+    const effectiveStakeCoinId = stakeableCoins.some((c) => c.id === stakeCoinId)
+      ? stakeCoinId
+      : stakeableCoins[0]?.id ?? 'btc';
+    const stakeCoin = cryptos.find((c) => c.id === effectiveStakeCoinId);
+    const stakeOwned = stakeCoin?.owned ?? 0;
+
+    const currentEnergy = warehouse?.energyType ?? 'standard';
+
+    const automationLevel = warehouse?.automationLevel ?? 0;
+    const automationMaxed = automationLevel >= 5;
+    const automationCost = getInflatedPrice(Math.round(25000 * Math.pow(1.8, automationLevel)), priceIndex);
+    const automationDisabled = automationMaxed || cash < automationCost;
+
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        {/* Miner upgrades — per owned tier (efficiency / power / durability / cooling). */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Miner Upgrades</Text>
+            <Text style={[styles.subText, { color: theme.textMuted }]}>+yield · −power</Text>
+          </View>
+          {!hasRigs ? (
+            <EmptyText theme={theme} darkMode={darkMode}>
+              Deploy a rig in the Mine tab first — upgrades boost the rigs you own.
+            </EmptyText>
+          ) : (
+            <>
+              <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Upgrading fleet</Text>
+              <View style={styles.chipRow}>
+                {ownedTiers.map((t) => {
+                  const selected = effectiveTierId === t.id;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => setUpgradeTierId(t.id)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`Upgrade ${t.label}`}
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.chip,
+                        selected
+                          ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                          : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: selected ? amber.solid : theme.textSecondary }]}>{t.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {upgradeDefs.map((def) => {
+                const level = upgradeLevelFor(def.id);
+                const maxed = level >= def.maxLevel;
+                const cost = upgradeNextCost(def.baseCost, level);
+                const disabled = maxed || cash < cost;
+                return (
+                  <View key={def.id} style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <View style={styles.rigHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.minerName, { color: theme.text }]}>{def.name}</Text>
+                        <Text style={[styles.rigStatus, { color: theme.textMuted }]}>{def.description}</Text>
+                      </View>
+                      <View style={[styles.ownedPill, level > 0 ? { backgroundColor: amber.chip } : { backgroundColor: theme.surfaceElevated }]}>
+                        <Text style={[styles.ownedPillText, { color: level > 0 ? amber.solid : theme.textMuted }]}>Lv {level}/{def.maxLevel}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      disabled={disabled}
+                      onPress={() => handleBuyMinerUpgrade(def.id, effectiveTierId)}
+                      style={[styles.buyBtn, { backgroundColor: disabled ? theme.surfaceElevated : amber.chip }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={maxed ? `${def.name} at maximum level` : `Buy ${def.name} for ${formatMoney(cost)}`}
+                      accessibilityState={{ disabled }}
+                    >
+                      <Plus size={scale(13)} color={disabled ? theme.textMuted : amber.solid} />
+                      <Text style={[styles.buyBtnText, { color: disabled ? theme.textMuted : amber.solid }]}>
+                        {maxed ? 'Maxed out' : cash < cost ? `Need ${formatMoney(cost)}` : `Upgrade · ${formatMoney(cost)}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </>
+          )}
+        </View>
+
+        {/* Mining pools — join/leave, with bonus/fee/net shown honestly. */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Mining Pools</Text>
+            {activePoolId && (
+              <TouchableOpacity onPress={handleLeavePool} style={styles.addChip} accessibilityRole="button" accessibilityLabel="Leave the active mining pool">
+                <Text style={styles.addChipText}>Leave pool</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
+            Pools boost the coin you mine ({mineTargetId.toUpperCase()}). Net = bonus × (1 − fee); above 1.00× beats solo.
+          </Text>
+          {MINING_POOLS.map((pool) => {
+            const net = pool.bonusMultiplier * (1 - pool.fee);
+            const isActive = pool.id === activePoolId;
+            const matches = pool.cryptoId === mineTargetId;
+            const disabled = isActive || !matches;
+            return (
+              <View key={pool.id} style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.rigHeader}>
+                  <LedDot color={isActive ? accent.success : theme.textMuted} on={isActive} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.minerName, { color: theme.text }]}>{pool.name}</Text>
+                    <Text style={[styles.rigStatus, { color: theme.textMuted }]}>for {pool.cryptoId.toUpperCase()}</Text>
+                  </View>
+                  <View style={[styles.ownedPill, { backgroundColor: theme.surfaceElevated }]}>
+                    <Text style={[styles.ownedPillText, { color: net >= 1 ? accent.success : accent.danger }]}>net {net.toFixed(2)}×</Text>
+                  </View>
+                </View>
+                <View style={styles.specRow}>
+                  <StatPill label="Bonus" value={`+${Math.round((pool.bonusMultiplier - 1) * 100)}%`} theme={theme} />
+                  <StatPill label="Fee" value={`${Math.round(pool.fee * 100)}%`} theme={theme} />
+                </View>
+                <TouchableOpacity
+                  disabled={disabled}
+                  onPress={() => handleJoinPool(pool.id)}
+                  style={[styles.buyBtn, { backgroundColor: disabled ? theme.surfaceElevated : amber.chip }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={isActive ? `${pool.name} is your active pool` : `Join ${pool.name}`}
+                  accessibilityState={{ disabled }}
+                >
+                  <Text style={[styles.buyBtnText, { color: disabled ? theme.textMuted : amber.solid }]}>
+                    {isActive ? 'Active pool' : matches ? 'Join pool' : `Mine ${pool.cryptoId.toUpperCase()} to join`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Staking — lock crypto for weekly rewards; claim on maturity. */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Staking</Text>
+            <TouchableOpacity
+              disabled={stakingPositions.length === 0}
+              onPress={handleClaimStaking}
+              style={[styles.addChip, stakingPositions.length === 0 && { opacity: 0.5 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Claim matured staking rewards"
+              accessibilityState={{ disabled: stakingPositions.length === 0 }}
+            >
+              <Coins size={scale(12)} color={amber.solid} />
+              <Text style={styles.addChipText}>Claim rewards</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
+            Lock crypto to earn weekly rewards. Longer locks pay more; principal returns at maturity.
+          </Text>
+
+          {stakingPositions.map((pos, i) => {
+            const sym = cryptos.find((c) => c.id === pos.cryptoId)?.symbol ?? pos.cryptoId.toUpperCase();
+            return (
+              <View key={`${pos.cryptoId}-${i}`} style={[styles.statPill, { backgroundColor: theme.surfaceElevated, alignSelf: 'flex-start' }]}>
+                <Text style={[styles.statPillValue, { color: theme.text }]}>{formatCoin(pos.amount)} {sym}</Text>
+                <Text style={[styles.statPillLabel, { color: theme.textMuted }]}>· {pos.lockWeeks}w · {(pos.rewardRate * 100).toFixed(2)}%/wk</Text>
+              </View>
+            );
+          })}
+
+          {stakeableCoins.length === 0 ? (
+            <EmptyText theme={theme} darkMode={darkMode}>Buy some crypto in the Trade tab to stake it here.</EmptyText>
+          ) : (
+            <View style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Coin</Text>
+              <View style={styles.chipRow}>
+                {stakeableCoins.map((c) => {
+                  const selected = effectiveStakeCoinId === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      onPress={() => setStakeCoinId(c.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Stake ${c.symbol}`}
+                      style={[
+                        styles.chip,
+                        selected
+                          ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                          : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: selected ? amber.solid : theme.textSecondary }]}>{c.symbol}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Lock period</Text>
+              <View style={styles.chipRow}>
+                {[1, 2, 3, 4].map((wk) => {
+                  const selected = stakeLockWeeks === wk;
+                  return (
+                    <TouchableOpacity
+                      key={wk}
+                      onPress={() => setStakeLockWeeks(wk)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`${wk} week lock at ${(STAKING_RATES[wk] * 100).toFixed(2)} percent weekly`}
+                      style={[
+                        styles.chip,
+                        selected
+                          ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                          : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: selected ? amber.solid : theme.textSecondary }]}>{wk}w · {(STAKING_RATES[wk] * 100).toFixed(2)}%</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
+                Holding {formatCoin(stakeOwned)} {stakeCoin?.symbol ?? ''}
+              </Text>
+              <View style={styles.specRow}>
+                {([0.25, 0.5, 1] as const).map((f) => (
+                  <TouchableOpacity
+                    key={f}
+                    disabled={stakeOwned <= 0}
+                    onPress={() => handleStake(f)}
+                    style={[styles.buyBtn, { flex: 1, backgroundColor: stakeOwned <= 0 ? theme.surfaceElevated : amber.chip }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Stake ${f === 1 ? 'the maximum' : `${f * 100} percent`} of ${stakeCoin?.symbol ?? 'holdings'}`}
+                    accessibilityState={{ disabled: stakeOwned <= 0 }}
+                  >
+                    <Text style={[styles.buyBtnText, { color: stakeOwned <= 0 ? theme.textMuted : amber.solid }]}>{f === 1 ? 'Max' : `${f * 100}%`}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Energy system — one-time install cuts weekly power cost. */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Energy System</Text>
+          <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Cleaner energy cuts weekly power costs. One-time install.</Text>
+          {(['solar', 'wind', 'hybrid'] as const).map((et) => {
+            const energy = ENERGY_TYPES[et];
+            const installed = currentEnergy === et;
+            const cost = getInflatedPrice(energy.cost, priceIndex);
+            const disabled = installed || cash < cost;
+            return (
+              <View key={et} style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.rigHeader}>
+                  <Zap size={scale(15)} color={installed ? accent.success : amber.solid} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.minerName, { color: theme.text }]}>{energy.name}</Text>
+                    <Text style={[styles.rigStatus, { color: theme.textMuted }]}>−{Math.round(energy.efficiency * 100)}% power cost</Text>
+                  </View>
+                  {installed && (
+                    <View style={[styles.ownedPill, { backgroundColor: amber.chip }]}>
+                      <Text style={[styles.ownedPillText, { color: amber.solid }]}>Installed</Text>
+                    </View>
+                  )}
+                </View>
+                <TouchableOpacity
+                  disabled={disabled}
+                  onPress={() => handleUpgradeEnergy(et)}
+                  style={[styles.buyBtn, { backgroundColor: disabled ? theme.surfaceElevated : amber.chip }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={installed ? `${energy.name} already installed` : `Install ${energy.name} for ${formatMoney(cost)}`}
+                  accessibilityState={{ disabled }}
+                >
+                  <Text style={[styles.buyBtnText, { color: disabled ? theme.textMuted : amber.solid }]}>
+                    {installed ? 'Installed' : cash < cost ? `Need ${formatMoney(cost)}` : `Install · ${formatMoney(cost)}`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Automation — +2% fleet yield per level, up to 5. */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Automation</Text>
+          <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Each level adds +2% mining yield across the whole fleet.</Text>
+          <View style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.rigHeader}>
+              <Gauge size={scale(15)} color={amber.solid} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.minerName, { color: theme.text }]}>Automation</Text>
+                <Text style={[styles.rigStatus, { color: theme.textMuted }]}>+{automationLevel * 2}% fleet yield</Text>
+              </View>
+              <View style={[styles.ownedPill, { backgroundColor: amber.chip }]}>
+                <Text style={[styles.ownedPillText, { color: amber.solid }]}>{automationLevel}/5</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              disabled={automationDisabled}
+              onPress={handleUpgradeAutomation}
+              style={[styles.buyBtn, { backgroundColor: automationDisabled ? theme.surfaceElevated : amber.chip }]}
+              accessibilityRole="button"
+              accessibilityLabel={automationMaxed ? 'Automation at maximum level' : `Upgrade automation for ${formatMoney(automationCost)}`}
+              accessibilityState={{ disabled: automationDisabled }}
+            >
+              <Plus size={scale(13)} color={automationDisabled ? theme.textMuted : amber.solid} />
+              <Text style={[styles.buyBtnText, { color: automationDisabled ? theme.textMuted : amber.solid }]}>
+                {automationMaxed ? 'Maxed out' : cash < automationCost ? `Need ${formatMoney(automationCost)}` : `Upgrade · ${formatMoney(automationCost)}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   // --- Render: PORTFOLIO ---------------------------------------------------
   const renderPortfolio = () => {
@@ -1146,7 +1579,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 accessibilityState={{ selected: active }}
               >
                 <Icon size={scale(16)} color={active ? amber.solid : theme.textMuted} />
-                <Text style={[styles.tabText, { color: active ? amber.solid : theme.textMuted }]}>{t.label}</Text>
+                <Text style={[styles.tabText, { color: active ? amber.solid : theme.textMuted }]} numberOfLines={1}>{t.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -1165,7 +1598,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               ? renderTrade()
               : activeTab === 'mine'
                 ? renderMine()
-                : renderPortfolio()}
+                : activeTab === 'upgrades'
+                  ? renderUpgrades()
+                  : renderPortfolio()}
       </ScrollView>
 
       <PlaceOrderModal
