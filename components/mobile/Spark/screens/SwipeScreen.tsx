@@ -78,18 +78,26 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const showCatfishWarning = (p: DatingProfile): boolean =>
     isCatfish(p, catfishSeed) && !dismissedCatfish.has(p.id);
 
-  // Filter out already-swiped, reported, or promoted profiles.
+  // The gender the player is seeking. Saves from before this field existed (or
+  // an explicit 'any') should NOT empty the deck — only filter when we have a
+  // concrete male/female preference to honor.
+  const seeking = gameState.userProfile?.seekingGender;
+  const genderFilter = seeking === 'male' || seeking === 'female' ? seeking : null;
+
+  // Filter out already-swiped, reported, or promoted profiles, and profiles
+  // whose gender doesn't match the player's orientation.
   const queue: DatingProfile[] = useMemo(() => {
     const sp = gameState.sparkApp;
-    if (!sp) return DATING_PROFILES;
+    const byGender = (p: DatingProfile) => genderFilter == null || p.gender === genderFilter;
+    if (!sp) return DATING_PROFILES.filter(byGender);
     // Legacy saves can have sparkApp without these arrays — guard each one.
     const swipedIds = new Set((sp.swipes ?? []).map((s: any) => s.profileId));
     const matchedIds = new Set((sp.matches ?? []).map((m: any) => m.profileId));
     const reportedIds = new Set(sp.reportedIds ?? []);
     return DATING_PROFILES.filter(
-      (p) => !swipedIds.has(p.id) && !matchedIds.has(p.id) && !reportedIds.has(p.id),
+      (p) => byGender(p) && !swipedIds.has(p.id) && !matchedIds.has(p.id) && !reportedIds.has(p.id),
     );
-  }, [gameState.sparkApp]);
+  }, [gameState.sparkApp, genderFilter]);
 
   const [cursor, setCursor] = useState(0);
   const top = queue[cursor];

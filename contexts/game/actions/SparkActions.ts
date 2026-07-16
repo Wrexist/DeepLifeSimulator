@@ -51,6 +51,9 @@ const MESSAGE_HISTORY_CAP = 100;
 const JEALOUSY_HISTORY_CAP = 50;
 const BOOST_GEM_COST = 50;
 const BOOST_DURATION_WEEKS = 1;
+// Fresh "liked you" entries granted immediately on Boost purchase — a tangible,
+// on-screen payoff so the 50-gem spend visibly does something right away.
+const BOOST_LIKED_YOU_BONUS = 3;
 const REWIND_GEM_COST = 20;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -719,12 +722,25 @@ export const boostProfile = (
       return prev;
     }
     const s = ensureSpark(prev);
+    // Immediate visibility payoff: seed a few fresh "liked you" entries so the
+    // 50-gem Boost has a tangible effect the moment it's bought (the match-rate
+    // lift in calculateMatchProbability is otherwise invisible until swiping).
+    // Free-tier players can't SEE who liked them, but the entries still convert
+    // into matches on swipe and drive the Likes-tab count / Plus upsell teaser.
+    const likedYou = [...s.likedYou];
+    for (const p of DATING_PROFILES) {
+      if (likedYou.length >= s.likedYou.length + BOOST_LIKED_YOU_BONUS) break;
+      if (!likedYou.some((l) => l.profileId === p.id)) {
+        likedYou.push({ profileId: p.id, likedAtWeek: weeksLived, superLiked: false });
+      }
+    }
     return {
       ...prev,
       stats: { ...prev.stats, gems: (prev.stats.gems ?? 0) - BOOST_GEM_COST },
       sparkApp: {
         ...s,
         boost: { active: true, expiresWeek: weeksLived + BOOST_DURATION_WEEKS },
+        likedYou,
       },
     };
   });

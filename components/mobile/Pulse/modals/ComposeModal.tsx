@@ -24,6 +24,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { composePost, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
+import { getEnergyCost } from '@/lib/social/socialMedia';
 import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseContentType, PulseActiveBrandDeal } from '@/contexts/game/types';
@@ -69,11 +70,13 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
   const remaining = maxLength - content.length;
   const overLimit = remaining < 0;
 
-  // Energy preview — composePost charges 5 energy; show ⚡N → N-5 so the
-  // player isn't surprised by a "Need at least 5 energy" error post-tap.
+  // Energy preview — composePost charges getEnergyCost(contentType) (text 15 /
+  // photo 20 / video 40 / story 12), NOT a flat 5. Show ⚡N · −cost for the
+  // selected type so the player isn't surprised by a "not enough energy" error
+  // post-tap, and disable Post when they can't afford the real cost.
   const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
-  const POST_ENERGY_COST = 5;
-  const lowEnergy = currentEnergy < POST_ENERGY_COST;
+  const postEnergyCost = getEnergyCost(contentType);
+  const lowEnergy = currentEnergy < postEnergyCost;
 
   const hashtags = useMemo(
     () => hashtagsRaw
@@ -162,9 +165,9 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
                     borderColor: lowEnergy ? PULSE_COLORS.danger : theme.border,
                   },
                 ]}
-                accessibilityLabel={`Energy ${currentEnergy}, costs ${POST_ENERGY_COST} to post`}
+                accessibilityLabel={`Energy ${currentEnergy}, costs ${postEnergyCost} to post a ${contentType}`}
               >
-                ⚡ {currentEnergy} · −{POST_ENERGY_COST}
+                ⚡ {currentEnergy} · −{postEnergyCost}
               </Text>
             </View>
             <Pressable

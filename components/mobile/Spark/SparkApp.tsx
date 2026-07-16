@@ -32,7 +32,7 @@ import BoostModal from './modals/BoostModal';
 import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
 import MatchBanner from './components/MatchBanner';
-import { type DatingProfile } from '@/lib/dating/datingProfiles';
+import { type DatingProfile, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { getAvatarPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
@@ -221,7 +221,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
         <MatchBanner
           visible
           partnerName={matchBanner.profile.name}
-          partnerPhoto={undefined}
+          partnerPhotoSource={getDatingProfileImage(matchBanner.profile)}
           playerPhoto={gameState.userProfile?.profilePhoto}
           onMessage={() => openChat(matchBanner.matchId)}
           onDismiss={() => setMatchBanner(null)}

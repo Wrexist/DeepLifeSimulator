@@ -179,6 +179,21 @@ export default function NotificationsScreen({
         onActionPress={handleMarkAll}
       />
 
+      {/* Rewarded-ad follower boost — also surfaced here (not just the empty
+          state) so the feature stays reachable once notifications exist. */}
+      {onWatchAd ? (
+        <Pressable
+          onPress={onWatchAd}
+          accessibilityRole="button"
+          accessibilityLabel="Watch ad for follower boost"
+          style={[styles.adCtaHeader, { borderColor: PULSE_COLORS.accent }]}
+        >
+          <Text style={[styles.adCtaText, { color: PULSE_COLORS.accent }]}>
+            ▶ Watch ad for +50 followers
+          </Text>
+        </Pressable>
+      ) : null}
+
       {grouped.map((g) => (
         <View key={g.key} style={styles.group}>
           <Text style={[styles.groupTitle, { color: theme.textSecondary }]}>{g.label}</Text>
@@ -287,6 +302,16 @@ const styles = StyleSheet.create({
   },
   adCta: {
     marginTop: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.lg,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: scale(999),
+    borderWidth: 1.5,
+  },
+  adCtaHeader: {
+    alignSelf: 'center',
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.lg,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: scale(999),

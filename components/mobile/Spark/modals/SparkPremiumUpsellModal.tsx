@@ -8,7 +8,7 @@
  * the player can't afford a renewal. When already subscribed the modal shows the
  * active tier and a Cancel control.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X, Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -51,9 +51,14 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   const activeTier = premium?.active === true ? premium.tier : null;
   const money = gameState.stats?.money ?? 0;
 
+  // Billing cadence — annual is a prepaid 52-week block (~17% cheaper) that
+  // subscribeSparkPremium fully supports; without this toggle it was
+  // unreachable (the modal always passed 'weekly').
+  const [plan, setPlan] = useState<'weekly' | 'annual'>('weekly');
+
   const handleSubscribe = useCallback(
     (tier: 'plus' | 'ultra') => {
-      const result = subscribeSparkPremium(setGameState, gameState, tier, 'weekly');
+      const result = subscribeSparkPremium(setGameState, gameState, tier, plan);
       if (result.success) {
         sparkHaptics.boost();
         saveGame();
@@ -62,7 +67,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         Alert.alert('Spark Premium', result.message);
       }
     },
-    [setGameState, gameState, saveGame, onDismiss],
+    [setGameState, gameState, saveGame, onDismiss, plan],
   );
 
   const handleCancel = useCallback(() => {
@@ -105,31 +110,67 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               : 'Unlock unlimited swipes and see who likes you.'}
           </Text>
 
+          {/* Billing cadence toggle — hidden while a plan is active (you can't
+              switch cadence without cancelling first). */}
+          {!activeTier ? (
+            <View style={[styles.planToggle, { borderColor: theme.border }]}>
+              {(['weekly', 'annual'] as const).map((p) => {
+                const selected = plan === p;
+                return (
+                  <Pressable
+                    key={p}
+                    onPress={() => setPlan(p)}
+                    accessibilityRole="button"
+                    accessibilityLabel={p === 'annual' ? 'Bill annually, prepaid 52 weeks — save 17%' : 'Bill weekly'}
+                    accessibilityState={{ selected }}
+                    style={[
+                      styles.planToggleBtn,
+                      selected && { backgroundColor: SPARK_COLORS.accent },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.planToggleText,
+                        { color: selected ? '#FFFFFF' : theme.textSecondary },
+                      ]}
+                    >
+                      {p === 'annual' ? 'Annual · Save 17%' : 'Weekly'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(440) }}>
             <TierCard
               icon={Zap}
               gradient={SPARK_GRADIENT as unknown as readonly [string, string]}
               name="Plus"
-              price={`$${SPARK_TIER_PRICING.plus.weekly}/wk`}
+              price={plan === 'annual'
+                ? `$${SPARK_TIER_PRICING.plus.annual.toLocaleString()}/yr`
+                : `$${SPARK_TIER_PRICING.plus.weekly}/wk`}
               perks={PLUS_PERKS}
               onPress={() => handleSubscribe('plus')}
               theme={theme}
               active={activeTier === 'plus'}
               anyTierActive={activeTier !== null}
-              affordable={money >= SPARK_TIER_PRICING.plus.weekly}
+              affordable={money >= SPARK_TIER_PRICING.plus[plan]}
             />
             <TierCard
               icon={Crown}
               gradient={SPARK_GRADIENT_GOLD as unknown as readonly [string, string]}
               name="Ultra"
-              price={`$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
+              price={plan === 'annual'
+                ? `$${SPARK_TIER_PRICING.ultra.annual.toLocaleString()}/yr`
+                : `$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
               perks={ULTRA_PERKS}
               onPress={() => handleSubscribe('ultra')}
               theme={theme}
               recommended
               active={activeTier === 'ultra'}
               anyTierActive={activeTier !== null}
-              affordable={money >= SPARK_TIER_PRICING.ultra.weekly}
+              affordable={money >= SPARK_TIER_PRICING.ultra[plan]}
             />
           </ScrollView>
 
@@ -146,8 +187,12 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
 
           <Text style={[styles.legal, { color: theme.textMuted }]}>
             {activeTier
-              ? 'Auto-renews weekly until cancelled; lapses if you run out of money.'
-              : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
+              ? premium?.plan === 'annual'
+                ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
+                : 'Auto-renews weekly until cancelled; lapses if you run out of money.'
+              : plan === 'annual'
+                ? `Prepaid 52 weeks from your in-game cash ($${money.toLocaleString()} available), then renews weekly. Save ~17% vs weekly.`
+                : `Paid from your in-game cash ($${money.toLocaleString()} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
       </View>
@@ -250,6 +295,24 @@ const styles = StyleSheet.create({
     fontSize: fontScale(13),
     marginTop: 4,
     marginBottom: responsiveSpacing.md,
+  },
+  planToggle: {
+    flexDirection: 'row',
+    borderRadius: scale(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: scale(3),
+    marginBottom: responsiveSpacing.md,
+    gap: scale(3),
+  },
+  planToggleBtn: {
+    flex: 1,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: scale(9),
+    alignItems: 'center',
+  },
+  planToggleText: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
   },
   tierCard: {
     borderRadius: scale(16),
