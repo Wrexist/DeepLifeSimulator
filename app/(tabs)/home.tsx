@@ -42,7 +42,8 @@ import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_MONEY, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 
 // Lazy load heavy modals and popups
@@ -367,7 +368,9 @@ function HomeScreenContent() {
 
   const handleJoinCommunity = async () => {
     // Grant the cash reward (updateMoney clamps to the money ceiling + logs it).
-    updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
+    // Wealth-scaled via the shared helper so the granted amount equals what the
+    // popup below shows (same gameState → same net worth → same figure).
+    updateMoney(setGameState, discordJoinRewardMoney(calculateNetWorth(gameState)), 'Discord community reward');
     setShowCommunityReward(false);
     // Persist the one-time flags. `discord_reward_claimed` is shared with the
     // Settings entry point so the reward can't be taken twice.
@@ -637,7 +640,7 @@ function HomeScreenContent() {
       <Suspense fallback={null}>
         <CommunityRewardPopup
           visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
-          rewardAmount={DISCORD_JOIN_REWARD_MONEY}
+          rewardAmount={discordJoinRewardMoney(calculateNetWorth(gameState))}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
         />

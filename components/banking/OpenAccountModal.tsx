@@ -4,6 +4,7 @@ import { X, PiggyBank, Lock, TrendingUp, Briefcase } from 'lucide-react-native';
 import { BankAccountType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 interface AccountProduct {
   type: BankAccountType;
@@ -175,7 +176,7 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                 />
               </View>
               <Text style={[styles.meta, { color: theme.textMuted }]}>
-                Available cash: ${availableCash.toLocaleString()}
+                Available cash: {formatMoney(availableCash)}
               </Text>
             </View>
           )}

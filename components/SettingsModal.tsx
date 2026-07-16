@@ -26,7 +26,8 @@ import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
+import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 const LinearGradient = LinearGradientFallback;
 
@@ -98,6 +99,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState, currentSlot } = useGameState();
   const { saveGame } = useGameActions();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  // Wealth-scaled Discord join reward, computed once so every display below AND
+  // the grant in handleJoinDiscord use the identical figure (shown == granted).
+  const discordReward = discordJoinRewardMoney(calculateNetWorth(gameState));
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -323,7 +327,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       // ceiling and is logged like any other transaction. Shares the
       // `discord_reward_claimed` flag with the in-game CommunityRewardPopup so
       // the reward can be claimed exactly once across both entry points.
-      updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
+      updateMoney(setGameState, discordReward, 'Discord community reward');
 
       // Mark as claimed
       const saved = await safeSetItem('discord_reward_claimed', 'true');
@@ -344,8 +348,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       // Show liquid glass reward popup
       showRewardAnimation(
         canOpen
-          ? `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()} for joining our Discord!\nWelcome to the community!`
-          : `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}!\nVisit ${DISCORD_URL} to join our Discord.`
+          ? `You received $${discordReward.toLocaleString()} for joining our Discord!\nWelcome to the community!`
+          : `You received $${discordReward.toLocaleString()}!\nVisit ${DISCORD_URL} to join our Discord.`
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
@@ -585,7 +589,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
                         </Text>
                         {!discordRewardClaimed && (
-                          <Text style={styles.discordButtonRewardText}>{`Reward: $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}`}</Text>
+                          <Text style={styles.discordButtonRewardText}>{`Reward: $${discordReward.toLocaleString()}`}</Text>
                         )}
                       </View>
                       {!discordRewardClaimed && (
@@ -693,7 +697,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
                 {/* Cash amount */}
                 <View style={styles.rewardAmountRow}>
-                  <Text style={styles.rewardAmountText}>+${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}</Text>
+                  <Text style={styles.rewardAmountText}>+${discordReward.toLocaleString()}</Text>
                   <DollarSign size={scale(16)} color="#6EE7B7" />
                   <Text style={styles.rewardAmountLabel}>Cash</Text>
                 </View>

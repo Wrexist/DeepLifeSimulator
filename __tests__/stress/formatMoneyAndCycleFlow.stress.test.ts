@@ -51,9 +51,15 @@ describe('formatMoney NaN/Infinity safety — BUGFIX #36', () => {
     expect(formatMoney(1_500_000_000)).toMatch(/^\$1\.50?B$/);
   });
 
-  it('negative numbers still work', () => {
-    expect(formatMoney(-500)).toBe('$-500');
-    expect(formatMoney(-1_500_000)).toMatch(/^\$-1\.50?M$/);
+  it('negative numbers still work — sign OUTSIDE the $ (BUGFIX)', () => {
+    // Sign placement: "-$500", never "$-500".
+    expect(formatMoney(-500)).toBe('-$500');
+    expect(formatMoney(-1_500_000)).toMatch(/^-\$1\.50?M$/);
+    // The minus is outside the dollar sign now ("-$5M"/"-$5.00M"), never "$-...".
+    expect(formatMoney(-5_000_000)).toMatch(/^-\$5(\.00)?M$/);
+    expect(formatMoney(-5_000_000)).not.toContain('$-');
+    // No-dollar-sign variant keeps the leading minus too.
+    expect(formatMoneyNoSign(-5_000_000)).toMatch(/^-5(\.00)?M$/);
   });
 
   it('formatMoneyNoSign: NaN renders as 0', () => {

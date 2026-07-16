@@ -10,6 +10,7 @@ import { updateMoney as rawUpdateMoney } from './actions/MoneyActions';
 import { updateStats as rawUpdateStats } from './actions/StatsActions';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { useGameState } from './GameStateContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 
@@ -250,10 +251,10 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     }
 
     if (state.stats.money < 5000) {
-      logger.warn(`Not enough money for child: have $${state.stats.money.toLocaleString()}, need $5,000`);
+      logger.warn(`Not enough money for child: have ${formatMoney(state.stats.money)}, need $5,000`);
       Alert.alert(
         'Not Enough Money',
-        `You need at least $5,000 to start a family. You currently have $${state.stats.money.toLocaleString()}.`
+        `You need at least $5,000 to start a family. You currently have ${formatMoney(state.stats.money)}.`
       );
       return;
     }

@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { computeBailCost } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { 
   Zap, 
   DollarSign, 
@@ -56,7 +58,9 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     return () => clearInterval(interval);
   }, [hasActiveCooldown, activityCooldowns]);
 
-  const bailCost = jailWeeks * 500;
+  // Wealth-scaled bail (shared helper) so display here always matches the charge
+  // in JobActionsContext.payBail.
+  const bailCost = computeBailCost(jailWeeks, calculateNetWorth(gameState));
 
   const handlePayBail = () => {
     if (stats.money >= bailCost) {

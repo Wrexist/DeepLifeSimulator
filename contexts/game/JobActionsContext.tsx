@@ -4,6 +4,8 @@ import { updateStats } from './actions/StatsActions';
 import { updateMoney as updateMoneyModule, applyMoneyDelta } from './actions/MoneyActions';
 import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { logger } from '@/utils/logger';
+import { computeBailCost } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { CrimeSkillId, GameState, GameStats } from './types';
@@ -434,7 +436,7 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     const state = stateRef.current;
     if (!state) return;
 
-    const estimatedBailCost = state.jailWeeks * 500;
+    const estimatedBailCost = computeBailCost(state.jailWeeks, calculateNetWorth(state));
     if (state.stats.money < estimatedBailCost) {
       logger.warn('Cannot pay bail: insufficient funds', { money: state.stats.money, bailCost: estimatedBailCost });
       return;
@@ -442,8 +444,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
 
     const now = Date.now();
     setGameState(prevState => {
-      // Compute bail from prevState to avoid stale closure
-      const bailCost = prevState.jailWeeks * 500;
+      // Compute bail from prevState to avoid stale closure — same shared helper
+      // JailScreen uses for display, so the charge matches what the player saw.
+      const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
       if ((prevState.stats.money || 0) < bailCost) {
         return prevState; // Insufficient funds at actual state — no-op
       }

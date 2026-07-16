@@ -10,6 +10,7 @@ import { WeddingPlan } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { logger } from '@/utils/logger';
+import { formatMoney } from '@/utils/moneyFormatting';
 const LinearGradient = LinearGradientFallback;
 
 interface WeddingPlanningModalProps {
@@ -129,7 +130,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
             <View style={styles.statItem}>
               <DollarSign size={scale(16)} color="#10B981" />
               <Text style={[styles.moneyText, isDarkMode && styles.textMuted]}>
-                ${gameState.stats.money.toLocaleString()}
+                {formatMoney(gameState.stats.money)}
               </Text>
             </View>
             <View style={styles.statItem}>
@@ -141,7 +142,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
             {!canAfford && deposit > 0 && (
               <View style={[styles.warningBadge, isDarkMode && styles.warningBadgeDark]}>
                 <Text style={styles.warningText}>
-                  Need ${(deposit - gameState.stats.money).toLocaleString()} more
+                  Need {formatMoney(deposit - gameState.stats.money)} more
                 </Text>
               </View>
             )}

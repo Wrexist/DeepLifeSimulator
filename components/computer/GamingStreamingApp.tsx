@@ -1448,7 +1448,9 @@ const styles = StyleSheet.create({
   // ── Media (hero / monitor / detail) ──
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden' },
   monitorInner: { borderRadius: br['2xl'], overflow: 'hidden' },
-  heroMedia: { width: '100%', aspectRatio: 16 / 9, position: 'relative', justifyContent: 'space-between' },
+  // Fixed clamped height (not aspectRatio) so the hero can't balloon on wide
+  // frames; scale() caps at 1.8x, preserving the ~16:9 look on phones.
+  heroMedia: { width: '100%', height: scale(210), position: 'relative', justifyContent: 'space-between' },
   mediaFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   mediaScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.42)' },
   heroGlow: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: 'rgba(217, 70, 239, 0.10)' },

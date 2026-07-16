@@ -1356,7 +1356,7 @@ const styles = StyleSheet.create({
 
   // Featured cover.
   featuredCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
-  featuredThumb: { width: '100%', aspectRatio: 16 / 9 },
+  featuredThumb: { width: '100%', height: scale(200) },
   featuredBody: { padding: sp.md },
   featuredEmpty: { borderRadius: br.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.xs },
 
@@ -1389,7 +1389,7 @@ const styles = StyleSheet.create({
 
   // Video cards (Videos tab).
   vCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
-  cardThumb: { width: '100%', aspectRatio: 16 / 9 },
+  cardThumb: { width: '100%', height: scale(170) },
   vCardBody: { padding: sp.md, gap: sp.xs },
   bigVideoTitle: { fontSize: fs.md, fontWeight: '800' },
   videoStatRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.xs, flexWrap: 'wrap' },
@@ -1425,7 +1425,7 @@ const styles = StyleSheet.create({
 
   // Record composer.
   composerHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
-  previewThumb: { width: '100%', aspectRatio: 16 / 9, borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
+  previewThumb: { width: '100%', height: scale(160), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
   input: { borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
@@ -1455,7 +1455,7 @@ const styles = StyleSheet.create({
 
   // Video detail.
   detailHeroCard: { borderRadius: br['2xl'], borderWidth: 1, overflow: 'hidden' },
-  detailThumb: { width: '100%', aspectRatio: 16 / 9 },
+  detailThumb: { width: '100%', height: scale(200) },
   detailTitle: { fontSize: fs.xl, fontWeight: '800' },
   detailMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   miniChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: scale(5), borderRadius: br.full, borderWidth: 1 },
@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
   studioBreakdown: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs, marginTop: sp.xs },
   gearGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   gearTile: { flexBasis: '47%', flexGrow: 1, minWidth: scale(150), borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
-  gearMediaClip: { width: '100%', aspectRatio: 16 / 10, backgroundColor: '#0B1220' },
+  gearMediaClip: { width: '100%', height: scale(130), backgroundColor: '#0B1220' },
   gearMediaImg: { width: '100%', height: '100%' },
   gearIconPanel: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   gearIconBadge: { position: 'absolute', top: sp.sm, left: sp.sm, alignItems: 'center', justifyContent: 'center' },

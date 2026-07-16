@@ -36,8 +36,9 @@ export function formatMoney(amount: number, showDollarSign: boolean = true): str
   
   // Remove trailing zeros and decimal point if not needed
   formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
-  
-  return showDollarSign ? `$${sign}${formatted}` : `${sign}${formatted}`;
+
+  // Sign goes OUTSIDE the dollar sign so negatives read "-$5M", not "$-5M".
+  return showDollarSign ? `${sign}$${formatted}` : `${sign}${formatted}`;
 }
 
 export function formatMoneyNoSign(amount: number): string {

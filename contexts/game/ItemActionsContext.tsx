@@ -260,6 +260,26 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         return prevState;
       }
 
+      // Zero-gain guard: for pure wellness activities (no disease-cure / vaccine
+      // payoff), if every stat gain would clamp to zero the player gains nothing —
+      // so don't debit money or energy. Medical activities (doctor/hospital/
+      // experimental/vaccines) keep their value at max stats and are exempt.
+      const MEDICAL_ACTIVITY_IDS = ['doctor', 'hospital', 'experimental', 'flu_shot', 'pneumonia_vaccine'];
+      if (!MEDICAL_ACTIVITY_IDS.includes(activityId)) {
+        const hap = prevState.stats.happiness;
+        const happinessDelta = clampStatByKey('happiness', hap + (activity.happinessGain || 0)) - hap;
+        let healthDelta = 0;
+        if (activity.healthGain) {
+          const hp = prevState.stats.health;
+          healthDelta = clampStatByKey('health', hp + activity.healthGain) - hp;
+        }
+        if (happinessDelta <= 0 && healthDelta <= 0) {
+          processingActivities.current.delete(activityId);
+          result = { message: `You're already at peak wellness — ${activity.name} wouldn't change anything right now.` };
+          return prevState;
+        }
+      }
+
       // Check costs with latest state
       if (prevState.stats.money < activity.price) {
         processingActivities.current.delete(activityId);

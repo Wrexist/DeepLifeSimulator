@@ -1138,7 +1138,7 @@ export const fileDivorce = (
     message += `Your lawyer failed to reduce the settlement.\n`;
     message += `Settlement: $${settlementObligation.toLocaleString()}\n\n`;
   } else {
-    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your $${netWorth.toLocaleString()} net worth)\n\n`;
+    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your ${formatMoney(netWorth)} net worth)\n\n`;
   }
 
   message += `Base lawyer fees: $${lawyerFees.toLocaleString()}\n`;
@@ -1201,7 +1201,14 @@ export const cancelEngagement = (
 };
 
 /**
- * Check if it's the anniversary week
+ * Check if it's the anniversary week (imperative helper).
+ *
+ * NOTE: the LIVE anniversary grant now runs in the weekly tick via
+ * `contexts/game/actions/weekly/applyAnniversaries.ts` — that is the single
+ * runtime code path, and it fires for every married player regardless of which
+ * screen is open. This function is retained only for its existing unit/stress
+ * tests (anniversaryIdempotence, marriageFlow.stress) which pin its signature and
+ * per-year idempotence; it is no longer wired into any component.
  */
 export const checkAnniversary = (
   gameState: GameState,

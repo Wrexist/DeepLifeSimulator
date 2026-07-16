@@ -13,6 +13,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
+import { clampStat } from '@/utils/statUtils';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -177,9 +178,20 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     return gameState.items.find(item => item.id === 'gym_membership')?.owned || false;
   }, [gameState.items]);
 
+  // Zero-gain guard: the $50 session grants +5 fitness / +3 health / +2 happiness.
+  // When all three already sit at the cap every gain clamps to zero, so the visit
+  // would charge money + energy for nothing. Compute the clamped deltas and treat
+  // "all zero" as "already in top shape".
+  const gymGainsAllZero = useMemo(() => {
+    const fitnessGain = clampStat(gameState.stats.fitness + 5) - gameState.stats.fitness;
+    const healthGain = clampStat(gameState.stats.health + 3) - gameState.stats.health;
+    const happinessGain = clampStat(gameState.stats.happiness + 2) - gameState.stats.happiness;
+    return fitnessGain <= 0 && healthGain <= 0 && happinessGain <= 0;
+  }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
+
   const canUseGym = useMemo(() => {
-    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20;
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy]);
+    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20 && !gymGainsAllZero;
+  }, [hasMembership, gameState.stats.money, gameState.stats.energy, gymGainsAllZero]);
 
   // Auto-switch to items tab if tutorial is highlighting an item
   React.useEffect(() => {
@@ -356,6 +368,9 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
     if (!hasMembership) return;
 
+    // Zero-gain guard: never debit money/energy when every stat gain clamps to 0.
+    if (gymGainsAllZero) return;
+
     if (gameState.stats.money < cost) return;
     if (gameState.stats.energy < energyCost) return;
 
@@ -369,7 +384,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     // Effort → reward feedback, matching the food/buy paths on this screen.
     // This was the one silent action on an otherwise-reactive tab.
     showSuccess('💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy, updateStats, showSuccess]);
+  }, [hasMembership, gymGainsAllZero, gameState.stats.money, gameState.stats.energy, updateStats, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead
@@ -567,9 +582,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                     style={[styles.gymButton, !canUseGym && styles.gymButtonDisabled]}
                   >
                     <Text style={[styles.gymButtonText, !canUseGym && styles.gymButtonTextDisabled]}>
-                      {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
-                        gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
-                          t('market.startWorkout')}
+                      {gymGainsAllZero ? "You're in top shape" :
+                        gameState.stats.money < 50 ? t('market.notEnoughMoney') :
+                          gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
+                            t('market.startWorkout')}
                     </Text>
                   </TouchableOpacity>
 
