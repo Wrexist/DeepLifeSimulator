@@ -3045,7 +3045,7 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
 /**
  * Get the next event in an active chain.
  */
-function getNextChainEvent(state: GameState): WeeklyEvent | null {
+export function getNextChainEvent(state: GameState): WeeklyEvent | null {
   const active = state.activeEventChain;
   if (!active) return null;
 

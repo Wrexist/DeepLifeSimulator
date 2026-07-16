@@ -2564,6 +2564,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  id: eventId,
  description: event.description,
  choice: choice.text,
+ // Persist the stable choice id so multi-week event chains
+ // (health_scare / business_opportunity / family_crisis) can branch on
+ // `e.choiceId` rather than always falling through to the "ignored" path.
+ choiceId: choice.id,
  week: prevState.weeksLived || 0,
  year: prevState.date?.year || 2025,
  weeksLived: prevState.weeksLived || 0,

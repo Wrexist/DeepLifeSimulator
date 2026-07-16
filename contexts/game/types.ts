@@ -2298,6 +2298,9 @@ export interface GameState {
     id: string;
     description: string;
     choice: string;
+    /** Stable choice identifier used by multi-week event chains to branch
+     * narrative + payouts. Optional so pre-fix saves load unchanged. */
+    choiceId?: string;
     week: number;
     year: number;
     weeksLived?: number; // Track weeksLived for better history
