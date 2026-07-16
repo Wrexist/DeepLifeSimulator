@@ -28,7 +28,6 @@ import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
-import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import ElderCard from '@/components/ElderCard';
@@ -522,11 +521,6 @@ function HomeScreenContent() {
             Renders only when eligible to retire, elderly, or retired. */}
         <FadeInUp delay={57}>
           <ElderCard />
-        </FadeInUp>
-
-        {/* Active Goals Section */}
-        <FadeInUp delay={60}>
-          <ActiveGoalsCard compact={false} />
         </FadeInUp>
 
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
