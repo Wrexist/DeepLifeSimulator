@@ -61,7 +61,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
@@ -191,10 +191,27 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     for (const p of (gameState.realEstate ?? [])) {
       if (p.owned) re += p.currentValue ?? p.price ?? 0;
     }
-    const assets = cash + totalBank + stocks + crypto + re;
-    const liabilities = totalCardDebt + totalLoanDebt;
-    return { stocks, crypto, re, assets, liabilities, net: assets - liabilities };
-  }, [cash, totalBank, totalCardDebt, totalLoanDebt, gameState.stocks, gameState.cryptos, gameState.realEstate]);
+    // Mirror accounts (`checking-default`, `savings-default`) are 1:1 reflections
+    // of the authoritative legacy fields — `stats.money` (=cash) and
+    // `bankSavings`. Summing ALL accounts alongside `cash` double-counts the
+    // checking mirror (and would rely on the savings mirror for bankSavings).
+    // Count each authoritative pool once: cash + bankSavings + self-opened
+    // (non-mirror) deposits.
+    // Count each authoritative money pool once. Summing the raw account list
+    // alongside `cash` double-counts the checking mirror (see
+    // computeStatementNetWorth / MIRRORED_ACCOUNT_IDS).
+    const nw = computeStatementNetWorth({
+      cash,
+      bankSavings: gameState.bankSavings ?? 0,
+      accounts: banking.accounts,
+      stocks,
+      crypto,
+      realEstate: re,
+      cardDebt: totalCardDebt,
+      loanDebt: totalLoanDebt,
+    });
+    return { stocks, crypto, re, bankDeposits: nw.bankDeposits, assets: nw.assets, liabilities: nw.liabilities, net: nw.net };
+  }, [cash, banking.accounts, gameState.bankSavings, totalCardDebt, totalLoanDebt, gameState.stocks, gameState.cryptos, gameState.realEstate]);
 
   // Weekly income approximation for the loan quote DTI gate + statement activity.
   const weeklyIncome = useMemo(() => {
@@ -348,7 +365,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const renderStatement = () => {
     const compositionRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; tintRGB: string; label: string; value: number; sign: 1 | -1 }[] = [
       { icon: Coins, tintHex: accent.info, tintRGB: '59, 130, 246', label: 'Cash on hand', value: cash, sign: 1 },
-      { icon: PiggyBank, tintHex: accent.success, tintRGB: '16, 185, 129', label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: totalBank, sign: 1 },
+      { icon: PiggyBank, tintHex: accent.success, tintRGB: '16, 185, 129', label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: parts.bankDeposits, sign: 1 },
     ];
     if (parts.stocks > 0) compositionRows.push({ icon: LineChart, tintHex: '#a855f7', tintRGB: '168, 85, 247', label: 'Stock holdings', value: parts.stocks, sign: 1 });
     if (parts.crypto > 0) compositionRows.push({ icon: Coins, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Crypto holdings', value: parts.crypto, sign: 1 });

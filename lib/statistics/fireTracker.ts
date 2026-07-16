@@ -26,8 +26,12 @@ export interface FIRETrackerResult {
 export function calculateFIRETracker(state: GameState): FIRETrackerResult {
   // Calculate annual expenses
   const career = state.careers?.find(c => c.id === state.currentJob);
-  const annualSalary = career?.levels?.[career.level]?.salary || 0;
-  const weeklyIncome = annualSalary / WEEKS_PER_YEAR;
+  // `careers[].levels[].salary` is canonically WEEKLY (paid per week by
+  // applyCareerSalaryAndPenalty). Earlier this was divided by WEEKS_PER_YEAR as
+  // if annual, making weeklyIncome ~52× too small — expenses collapsed to the
+  // MIN floor, fireNumber pinned near $390k for everyone, and savingsRate
+  // rendered absurdly (500-1000%+). Treat the salary as the weekly figure.
+  const weeklyIncome = career?.levels?.[career.level]?.salary || 0;
   // Even with no salary the player still has living expenses, so floor the
   // estimate. Without this an unemployed/retired/student player had
   // estimatedAnnualExpenses = 0 → fireNumber = 0 → progressToFIRE =
@@ -52,7 +56,7 @@ export function calculateFIRETracker(state: GameState): FIRETrackerResult {
   // Calculate savings rate
   const weeklySavings = (state.bankSavings || 0) / Math.max(1, state.weeksLived || 1);
   const savingsRate = weeklyIncome > 0
-    ? (weeklySavings / weeklyIncome) * 100
+    ? Math.max(0, Math.min(100, (weeklySavings / weeklyIncome) * 100))
     : 0;
 
   // Estimate years to FIRE (simplified calculation)

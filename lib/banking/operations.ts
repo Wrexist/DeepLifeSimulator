@@ -70,6 +70,51 @@ export function totalCreditCardDebt(banking: BankingState): number {
   return banking.creditCards.reduce((sum, c) => sum + safe(c.balance), 0);
 }
 
+/**
+ * Sum of deposits that are NOT mirror accounts. The mirror accounts
+ * (`checking-default`, `savings-default`) are 1:1 reflections of the legacy
+ * `stats.money` / `bankSavings` fields; anything that also counts those legacy
+ * fields must exclude the mirrors here to avoid double-counting cash/savings.
+ */
+export function nonMirrorDeposits(accounts: readonly BankAccount[]): number {
+  return accounts.reduce(
+    (sum, a) => (MIRRORED_ACCOUNT_IDS.has(a.id) ? sum : sum + safe(a.balance)),
+    0
+  );
+}
+
+export interface StatementNetWorthInput {
+  cash: number; // stats.money (mirrored by checking-default)
+  bankSavings: number; // legacy bankSavings (mirrored by savings-default)
+  accounts: readonly BankAccount[];
+  stocks: number;
+  crypto: number;
+  realEstate: number;
+  cardDebt: number;
+  loanDebt: number;
+}
+
+export interface StatementNetWorth {
+  bankDeposits: number; // savings + self-opened accounts (excludes the cash mirror)
+  assets: number;
+  liabilities: number;
+  net: number;
+}
+
+/**
+ * Net-worth composition for the desktop bank statement. Counts each
+ * authoritative money pool exactly once: `cash` + `bankSavings` +
+ * self-opened (non-mirror) account balances + investments. Summing the raw
+ * account list alongside `cash` would double-count the checking mirror.
+ */
+export function computeStatementNetWorth(input: StatementNetWorthInput): StatementNetWorth {
+  const bankDeposits = safe(input.bankSavings) + nonMirrorDeposits(input.accounts);
+  const assets =
+    safe(input.cash) + bankDeposits + safe(input.stocks) + safe(input.crypto) + safe(input.realEstate);
+  const liabilities = safe(input.cardDebt) + safe(input.loanDebt);
+  return { bankDeposits, assets, liabilities, net: assets - liabilities };
+}
+
 export function totalCreditLimit(banking: BankingState): number {
   return banking.creditCards.reduce((sum, c) => sum + safe(c.creditLimit), 0);
 }

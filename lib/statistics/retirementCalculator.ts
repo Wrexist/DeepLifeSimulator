@@ -38,8 +38,11 @@ export function calculateRetirementPlanning(
   
   // Estimate annual expenses (simplified: use current weekly expenses * WEEKS_PER_YEAR)
   const career = state.careers?.find(c => c.id === state.currentJob);
-  const annualSalary = career?.levels?.[career.level]?.salary || 0;
-  const weeklyIncome = annualSalary / WEEKS_PER_YEAR;
+  // `careers[].levels[].salary` is canonically WEEKLY (paid per week by
+  // applyCareerSalaryAndPenalty). Dividing by WEEKS_PER_YEAR here treated it as
+  // annual, shrinking weeklyIncome ~52× so requiredNetWorth collapsed and nearly
+  // everyone read "On track". Use the salary directly as the weekly figure.
+  const weeklyIncome = career?.levels?.[career.level]?.salary || 0;
   const estimatedAnnualExpenses = weeklyIncome * 0.7 * WEEKS_PER_YEAR; // Assume 70% of income is expenses
 
   // BUGFIX: caller-supplied withdrawalRate of 0 produces Infinity → propagates
