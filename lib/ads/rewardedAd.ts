@@ -49,6 +49,23 @@ export interface RunRewardedAdOptions {
 }
 
 /**
+ * True when THIS build/entitlement can present a real fullscreen rewarded ad
+ * (AdMob enabled, native platform, player has not paid to remove ads).
+ *
+ * CONTRACT FOR MODAL HOSTS: when this returns true, any react-native `Modal`
+ * that hosts the "Watch ad" button MUST be dismissed — and its native
+ * dismissal allowed to finish — BEFORE calling {@link runRewardedAd}.
+ * Presenting a fullscreen ad over an open RN Modal is unsupported by the ad
+ * SDK: on iOS the ad's view controller fights the Modal's, and when the ad
+ * closes the sheet vanishes natively while an invisible modal window keeps
+ * intercepting every touch (the app reads as completely frozen) and the
+ * earned-reward/closed handshake is lost, so the reward is never granted.
+ */
+export function adsAvailable(adsRemoved?: boolean): boolean {
+  return !adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
+}
+
+/**
  * Show a rewarded ad (when appropriate for this build/entitlement) and grant the
  * reward. `grant` is invoked exactly once on success — either by the ad SDK's
  * reward callback, or directly when there is no ad to show. It is NEVER called
@@ -58,7 +75,7 @@ export async function runRewardedAd(
   grant: () => void,
   opts: RunRewardedAdOptions = {}
 ): Promise<RewardedAdOutcome> {
-  const adsOn = !opts.adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
+  const adsOn = adsAvailable(opts.adsRemoved);
   if (!adsOn) {
     // No ad inventory in this configuration (paid ad-free, or no ad SDK). Not
     // deceptive: there is simply no ad to show, so grant the reward directly.

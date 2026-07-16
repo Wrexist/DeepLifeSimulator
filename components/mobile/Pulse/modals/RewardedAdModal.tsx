@@ -4,13 +4,13 @@
  * 1-per-week cap enforced by `watchAdForFollowerBoost` via weeksLived.
  * Verified Pro triples the reward (50 → 150 followers).
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { watchAdForFollowerBoost } from '@/contexts/game/actions/PulseActions';
@@ -31,24 +31,43 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const expectedFollowers = proActive ? 150 : 50;
 
+  // Re-entrancy guard for rapid double-taps on the CTA.
+  const busyRef = useRef(false);
+
   const handleWatch = useCallback(async () => {
-    // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
-    // reports the reward earned (or when there's no ad to show — dev / ad-free).
-    // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
-    // and lost revenue. All that logic lives in the shared `runRewardedAd`.
-    let result = { success: false };
-    const outcome = await runRewardedAd(
-      () => {
-        result = watchAdForFollowerBoost(setGameState, gameState);
-      },
-      { adsRemoved: areAdsRemoved(gameState) },
-    );
-    // Reward earned AND the weekly cooldown allowed the grant.
-    if (isGranted(outcome) && result.success) {
-      pulseHaptics.success();
-      onDismiss();
-    } else {
-      pulseHaptics.error();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
+      // reports the reward earned (or when there's no ad to show — dev / ad-free).
+      // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
+      // and lost revenue. All that logic lives in the shared `runRewardedAd`.
+      const adsRemoved = areAdsRemoved(gameState);
+      if (adsAvailable(adsRemoved)) {
+        // A real fullscreen ad is about to present. Showing it over this open
+        // RN Modal is unsupported by the ad SDK (iOS: the sheet vanishes but an
+        // invisible modal window keeps eating touches — total freeze — and the
+        // reward callback is lost). Dismiss the sheet FIRST and give the native
+        // teardown a beat before the ad presents.
+        onDismiss();
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+      }
+      let result = { success: false };
+      const outcome = await runRewardedAd(
+        () => {
+          result = watchAdForFollowerBoost(setGameState, gameState);
+        },
+        { adsRemoved },
+      );
+      // Reward earned AND the weekly cooldown allowed the grant.
+      if (isGranted(outcome) && result.success) {
+        pulseHaptics.success();
+        onDismiss(); // no-op when the ads path already dismissed the sheet
+      } else {
+        pulseHaptics.error();
+      }
+    } finally {
+      busyRef.current = false;
     }
   }, [setGameState, gameState, onDismiss]);
 

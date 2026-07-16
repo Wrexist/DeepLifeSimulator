@@ -23,7 +23,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -86,7 +86,10 @@ export default function AdRewardOrb() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad'>('hidden');
+  // 'watching' = the sheet has been dismissed and a fullscreen ad is (about to
+  // be) on screen. The component stays mounted so the Modal can animate out and
+  // report its native dismissal, but nothing of ours is visible or tappable.
+  const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
@@ -234,25 +237,66 @@ export default function AdRewardOrb() {
     haptic.success();
   }, [kind, reward, setGameState]);
 
+  // Resolves once the sheet Modal has finished its NATIVE dismissal (iOS fires
+  // Modal.onDismiss; Android has no such callback), with a timer fallback so a
+  // missed callback can never strand the flow mid-watch.
+  const sheetDismissResolver = useRef<(() => void) | null>(null);
+  const handleSheetDismissed = useCallback(() => {
+    sheetDismissResolver.current?.();
+    sheetDismissResolver.current = null;
+  }, []);
+  const waitForSheetDismissal = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        sheetDismissResolver.current = null;
+        resolve();
+      };
+      sheetDismissResolver.current = finish;
+      setTimeout(finish, 600); // covers the slide-down animation with margin
+    });
+  }, []);
+
   const handleWatch = useCallback(async () => {
     if (busyRef.current) return; // ignore rapid re-taps while a grant is in flight
     busyRef.current = true;
     try {
+      if (adsAvailable(adsRemoved)) {
+        // A real fullscreen ad is about to present. Presenting it over our open
+        // RN Modal is unsupported by the ad SDK: on iOS the ad's view controller
+        // fights the Modal's — when the ad closes, the sheet vanishes natively
+        // while an invisible modal window keeps eating every touch (app reads as
+        // frozen) and the reward callback is lost. Dismiss the sheet FIRST and
+        // let the native dismissal finish before showing the ad.
+        setPhase('watching');
+        await waitForSheetDismissal();
+      }
       // grantOnNoFill: the orb is rate-limited (appears at most every few
       // minutes), so if there's no ad inventory to serve we still honour the
       // promised reward instead of leaving the player with nothing after tapping
       // "Watch ad". Real ads still play + earn when they fill.
       const outcome = await runRewardedAd(grant, { adsRemoved, grantOnNoFill: true });
       if (isGranted(outcome)) {
+        // Reopen the sheet in its "Reward added!" state — a fresh present is
+        // safe now that the ad's view controller is gone; the short beat lets
+        // its window teardown settle before we animate back in.
+        await new Promise<void>((resolve) => setTimeout(resolve, 350));
+        setPhase('ad');
         finishAfterClaim();
       } else {
-        // no-fill / error — reward NOT granted.
+        // no-fill / error — reward NOT granted. The sheet is already gone;
+        // retract fully and let the orb reschedule.
         haptic.error();
+        setPhase('hidden');
+        slideX.setValue(-160);
+        scheduleNext(rand(REPEAT_DELAY));
       }
     } finally {
       busyRef.current = false;
     }
-  }, [grant, finishAfterClaim, adsRemoved]);
+  }, [grant, finishAfterClaim, adsRemoved, waitForSheetDismissal, scheduleNext, slideX]);
 
   const dismissAd = useCallback(() => {
     setPhase('hidden');
@@ -311,7 +355,13 @@ export default function AdRewardOrb() {
       ) : null}
 
       {/* ── The rewarded-ad sheet (cash / vitality variants) ── */}
-      <Modal visible={phase === 'ad'} transparent animationType="slide" onRequestClose={dismissAd}>
+      <Modal
+        visible={phase === 'ad'}
+        transparent
+        animationType="slide"
+        onRequestClose={dismissAd}
+        onDismiss={handleSheetDismissed}
+      >
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: responsiveSpacing.xl + insets.bottom }]}>
             <View style={styles.sheetHeader}>
