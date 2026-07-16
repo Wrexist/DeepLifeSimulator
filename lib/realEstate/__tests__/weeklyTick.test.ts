@@ -5,7 +5,7 @@
  * actually earned rent, and never for a vacant/owner-occupied one.
  */
 import { RealEstate } from '@/contexts/game/types';
-import { runRealEstateWeeklyTick } from '../weeklyTick';
+import { runRealEstateWeeklyTick, REAL_ESTATE_WEEKLY_RENT_CAP } from '../weeklyTick';
 import { UPGRADE_TIERS } from '../housing';
 
 function owned(over: Partial<RealEstate> = {}): RealEstate {
@@ -95,5 +95,43 @@ describe('runRealEstateWeeklyTick — upgrade rent bonus', () => {
       rollFor: () => 0.5,
     });
     expect(res.rentalIncome).toBe(0);
+  });
+});
+
+describe('runRealEstateWeeklyTick — $150k/wk per-source rent cap (Fix 2)', () => {
+  it('clamps aggregate realized rent to the design cap before it feeds cash', () => {
+    // A giant $200M unit whose asked rent ($500k/wk, under the 0.4% ceiling of
+    // $800k) realizes far above the $150k cap even after carrying costs.
+    const whale = owned({
+      currentValue: 200_000_000,
+      price: 200_000_000,
+      rentMode: 'longTerm',
+      status: 'rented',
+      rent: 500_000,
+      tenant: { id: 't1', name: 'Sam', satisfaction: 95, movedInWeek: 0, weeklyRent: 500_000 },
+    });
+    const res = runRealEstateWeeklyTick({
+      legacyProcessedProperties: [whale],
+      legacyRentalIncome: 0,
+      currentWeek: 5,
+      rollFor: () => 0.99, // suppress move-out so the whale actually pays this week
+    });
+    expect(res.rentalIncome).toBe(REAL_ESTATE_WEEKLY_RENT_CAP); // exactly $150k, not ~$415k
+    expect(REAL_ESTATE_WEEKLY_RENT_CAP).toBe(150000);
+  });
+
+  it('leaves sub-cap income untouched', () => {
+    const modest = owned({
+      rentMode: 'longTerm', status: 'rented', rent: 500,
+      tenant: { id: 't1', name: 'Sam', satisfaction: 95, movedInWeek: 0, weeklyRent: 500 },
+    });
+    const res = runRealEstateWeeklyTick({
+      legacyProcessedProperties: [modest],
+      legacyRentalIncome: 0,
+      currentWeek: 5,
+      rollFor: () => 0.99,
+    });
+    expect(res.rentalIncome).toBeGreaterThan(0);
+    expect(res.rentalIncome).toBeLessThan(REAL_ESTATE_WEEKLY_RENT_CAP);
   });
 });

@@ -107,6 +107,73 @@ export function findTenantProbability(condition: number, neighborhoodDemand: num
   return Math.max(0, Math.min(0.9, 0.3 * cond * demand));
 }
 
+// ---------------------------------------------------------------------------
+// Player-set ("asked") rent — realized income + tenant behavior shift.
+// ---------------------------------------------------------------------------
+//
+// `property.rent` is the weekly rent the player asks for (set via
+// setPropertyRentMode). Historically it only moved UI projections: tenants paid
+// the computed marketRent instead. These helpers make the ask real:
+//   - occupied income uses the asked rent (clamped to the value ceiling), and
+//   - the seeded fill/churn rolls shift with the ask relative to market.
+// Tuned so no single ask strictly dominates: a modest premium is best, while the
+// max ask's fill/churn penalty (below) drops steady-state occupancy far enough
+// that its higher per-week rent nets LESS than renting at/near market.
+
+/**
+ * Player-set ("asked") rent ceiling as a fraction of property value per week.
+ * Mirrors the cap enforced at set-time in setPropertyRentMode (RealEstateActions.ts,
+ * `price * 0.004`) so tickProperty realizes at most what the UI let the player ask.
+ */
+export const ASK_RENT_CEILING_RATE = 0.004;
+
+/**
+ * Resolve the effective weekly rent a tenant actually pays: the player's asked
+ * rent clamped to [0, value × ASK_RENT_CEILING_RATE]. Falls back to `marketRent`
+ * when no ask is set (undefined / non-positive) so legacy rentals — and any unit
+ * whose `rent` was never configured — behave exactly as before.
+ */
+export function effectiveAskRent(
+  askRent: number | undefined,
+  propertyValue: number,
+  marketRent: number
+): number {
+  const market = Math.max(0, safe(marketRent));
+  const ask = safe(askRent, 0);
+  if (ask <= 0) return market;
+  const ceiling = Math.max(0, safe(propertyValue)) * ASK_RENT_CEILING_RATE;
+  return ceiling > 0 ? Math.min(ask, ceiling) : ask;
+}
+
+/** Ask/market ratio, clamped to a sane band (market floored at 1 to avoid /0). */
+function askRatio(askRent: number, marketRent: number): number {
+  const market = Math.max(1, safe(marketRent, 1));
+  return Math.max(0, safe(askRent, market)) / market;
+}
+
+/**
+ * Multiplier on the vacancy→tenant FILL probability driven by the ask. Below
+ * market fills faster (>1); above market fills slower (<1). Bounded so it can
+ * neither zero-out nor explode. e.g. ratio 0.5→1.25, 1→1, 2→~0.45, 2.67→~0.33.
+ */
+export function askFillMultiplier(askRent: number, marketRent: number): number {
+  const r = askRatio(askRent, marketRent);
+  const mult = r <= 1 ? 1 + (1 - r) * 0.5 : 1 / (1 + (r - 1) * 1.2);
+  return Math.max(0.15, Math.min(1.5, mult));
+}
+
+/**
+ * Multiplier on the tenant CHURN (move-out) probability driven by the ask. Above
+ * market churns more (>1); at/below market adds nothing (1). Bounded. Combined
+ * with the satisfaction hit overcharging already causes, this is what keeps the
+ * max ask from dominating. e.g. ratio 1→1, 1.5→1.3, 2.67→2.0.
+ */
+export function askChurnMultiplier(askRent: number, marketRent: number): number {
+  const r = askRatio(askRent, marketRent);
+  const mult = r <= 1 ? 1 : 1 + (r - 1) * 0.6;
+  return Math.max(1, Math.min(3, mult));
+}
+
 /**
  * Compute the realized weekly rent for a property given mode + seeded variance roll.
  *
@@ -141,11 +208,17 @@ export function generateTenant(
 ): TenantSnapshot {
   const FIRST = ['Alex', 'Sam', 'Jordan', 'Casey', 'Morgan', 'Taylor', 'Rowan', 'Avery', 'Quinn', 'Dakota'];
   const LAST = ['Smith', 'Lee', 'Patel', 'Garcia', 'Chen', 'Walker', 'Reyes', 'Rivera', 'Singh', 'Brooks'];
-  const r = Math.max(0, Math.min(0.9999, safe(rollName, Math.random())));
+  const r = Math.max(0, Math.min(0.9999, safe(rollName, 0.5)));
   const first = FIRST[Math.floor(r * FIRST.length)];
   const last = LAST[Math.floor((r * 100) % LAST.length)];
+  // DETERMINISM: derive the id suffix from the seeded `rollName` instead of
+  // Math.random — tickProperty is weekly-tick code and must be reproducible
+  // (Math.random here made the tenant id, and thus the `re.move.*`/`re.rent.*`
+  // roll keys, diverge across save/reload). `currentWeek` keeps ids unique
+  // week-over-week even when the property's name roll is stable.
+  const idSuffix = Math.floor(r * 1e6).toString(36);
   return {
-    id: `tenant-${currentWeek}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+    id: `tenant-${currentWeek}-${idSuffix}`,
     name: `${first} ${last}`,
     satisfaction: 85, // tenants start optimistic
     movedInWeek: currentWeek,

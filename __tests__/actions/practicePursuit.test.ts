@@ -93,4 +93,38 @@ describe('practicePursuit (hobby mastery)', () => {
     expect(ref.state.stats.energy).toBeGreaterThanOrEqual(0);
     expect(ref.state.weeklyPursuitPractice?.chess).toBe(1); // second tap blocked by energy
   });
+
+  it('practicing a hobby raises the "hobbies" activity-commitment level (Fix 5b)', () => {
+    const base = createTestGameState();
+    const state = createTestGameState({
+      stats: { ...base.stats, energy: 100 },
+      activityCommitments: {
+        primary: undefined, secondary: undefined,
+        commitmentLevels: { career: 0, hobbies: 0, relationships: 0, health: 0 },
+      },
+    });
+    const { ref, setGameState } = harness(state);
+    practicePursuit(ref.state, setGameState, 'running');
+    // Uncommitted hobbies grow +1 per practice (updateCommitmentLevel), so the
+    // ActivityCommitmentModal bar finally moves.
+    expect(ref.state.activityCommitments?.commitmentLevels?.hobbies).toBe(1);
+    // A hobby practice does not touch the other three axes.
+    expect(ref.state.activityCommitments?.commitmentLevels?.career).toBe(0);
+    expect(ref.state.activityCommitments?.commitmentLevels?.relationships).toBe(0);
+    expect(ref.state.activityCommitments?.commitmentLevels?.health).toBe(0);
+  });
+
+  it('a committed hobby grows faster (+2) than an uncommitted one', () => {
+    const base = createTestGameState();
+    const state = createTestGameState({
+      stats: { ...base.stats, energy: 100 },
+      activityCommitments: {
+        primary: 'hobbies', secondary: undefined,
+        commitmentLevels: { career: 0, hobbies: 10, relationships: 0, health: 0 },
+      },
+    });
+    const { ref, setGameState } = harness(state);
+    practicePursuit(ref.state, setGameState, 'running');
+    expect(ref.state.activityCommitments?.commitmentLevels?.hobbies).toBe(12); // +2 committed
+  });
 });

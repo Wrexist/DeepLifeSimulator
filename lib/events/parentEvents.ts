@@ -219,4 +219,6 @@ export const parentEventTemplates: EventTemplate[] = [
   teenCurfew,
   proudMilestone,
   grownChildVisit,
-];
+  // Fix 6: tag so the weighted picker lifts these out of the generic pool while
+  // the player actually has a child in the relevant age band.
+].map(t => ({ ...t, lifeStageTag: 'parent' as const }));

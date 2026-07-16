@@ -2734,6 +2734,24 @@ describe('pre-tick equivalence — applyRentAndHousing', () => {
     const result = applyRentAndHousing(properties, 100, deterministicRoll(9), ctx);
     expect({ result, notifications: ctx.notifications }).toMatchSnapshot();
   });
+
+  it('a non-numeric price does not poison money with NaN (Fix 3 safe() guard)', () => {
+    const properties = [
+      {
+        id: 'bad', name: 'Corrupt Rental',
+        price: undefined as unknown as number, // corrupt/missing price
+        weeklyHappiness: 0, weeklyEnergy: 0,
+        owned: false, interior: [], upgradeLevel: 0,
+        status: 'rented' as const,
+      },
+    ] as RealEstate[];
+    const ctx = makeCtx();
+    const result = applyRentAndHousing(properties, 100, deterministicRoll(9), ctx);
+    // Without the guard, Math.round(undefined * rate) === NaN would flow into
+    // weeklyRent → cashAfterIncomeAndRent → stats.money.
+    expect(Number.isNaN(result.weeklyRent)).toBe(false);
+    expect(result.weeklyRent).toBe(0);
+  });
 });
 
 describe('pre-tick equivalence — applyAutoReinvest', () => {
@@ -4973,6 +4991,38 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       newShowDeathPopup: false,
     });
     expect(cpMod.shouldAutoCheckpoint).toHaveBeenCalledWith(0);
+  });
+
+  it('decays neglected activity commitments into the partial (Fix 5a wiring)', () => {
+    cpMod.shouldAutoCheckpoint.mockReturnValue(false);
+    const result = applyAutoCheckpoint({
+      prevState: {
+        checkpoints: [], showDeathPopup: false,
+        activityCommitments: {
+          primary: 'career', secondary: undefined,
+          commitmentLevels: { career: 50, hobbies: 40, relationships: 30, health: 20 },
+        },
+      } as any,
+      newStats: cpStubStats(),
+      nextWeeksLived: 100,
+      newShowDeathPopup: false,
+    });
+    // Focus area (career) intact; the three neglected axes decay by 1 — this is
+    // what makes the ActivityCommitmentModal bars move once per tick.
+    expect(result.partial.activityCommitments?.commitmentLevels).toEqual({
+      career: 50, hobbies: 39, relationships: 29, health: 19,
+    });
+  });
+
+  it('omits activityCommitments from the partial when prevState has none (passthrough preserved)', () => {
+    cpMod.shouldAutoCheckpoint.mockReturnValue(false);
+    const result = applyAutoCheckpoint({
+      prevState: { checkpoints: [], showDeathPopup: false } as any,
+      newStats: cpStubStats(),
+      nextWeeksLived: 100,
+      newShowDeathPopup: false,
+    });
+    expect('activityCommitments' in result.partial).toBe(false);
   });
 });
 

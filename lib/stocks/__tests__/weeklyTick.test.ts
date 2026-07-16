@@ -183,9 +183,72 @@ describe('runStocksWeeklyTick — limit/stop fills pay the 2% commission (parity
     const holdings: StockHolding[] = [{ symbol: 'AAPL', shares: 10, averagePrice: 50, currentPrice: 100 }];
     const r = runStocksWeeklyTick(fillInput(order, holdings));
     // Sell fillPrice = 100 × (1 − 4bps) = 99.96 → proceeds 999.6, netted 0.98.
+    // The tick ALSO withholds the 25% capital-gains tax on the realized gain
+    // (avg 50 → ~99.96), so net cash = proceeds×0.98 − 0.25×realizedGains.
     const grossProceeds = 99.96 * 10;
-    expect(r.cashDelta).toBeCloseTo(grossProceeds * (1 - STOCK_FEE), 4);
+    const expectedTax = 0.25 * r.realizedGains;
+    expect(r.capitalGainsTaxUSD).toBeCloseTo(expectedTax, 4);
+    expect(r.cashDelta).toBeCloseTo(grossProceeds * (1 - STOCK_FEE) - expectedTax, 3);
     expect(r.cashDelta).toBeGreaterThan(0);
-    expect(r.cashDelta).toBeLessThan(grossProceeds); // fee shaved off the proceeds
+    expect(r.cashDelta).toBeLessThan(grossProceeds * (1 - STOCK_FEE)); // fee AND tax shaved off
+  });
+});
+
+describe('runStocksWeeklyTick — capital-gains + dividend tax (parity with crypto)', () => {
+  const stableRoll = (_: string) => 0.5;
+
+  function taxInput(over: Partial<Parameters<typeof runStocksWeeklyTick>[0]> = {}) {
+    return {
+      holdings: [] as StockHolding[],
+      openOrders: [] as StockOrder[],
+      orderHistory: [] as StockOrder[],
+      yields: {} as Record<string, number>,
+      prices: { AAPL: 100 },
+      currentWeek: 1,
+      cashIn: 1_000_000,
+      rollFor: stableRoll,
+      ...over,
+    };
+  }
+
+  it('withholds 25% of a realized gain via cashDelta (never a mirror account)', () => {
+    const order: StockOrder = {
+      id: 'o-sell', symbol: 'AAPL', side: 'sell', type: 'limit',
+      amount: 10, limitPrice: 90, placedWeek: 1, status: 'open',
+    };
+    const holdings: StockHolding[] = [{ symbol: 'AAPL', shares: 10, averagePrice: 40, currentPrice: 100 }];
+    const r = runStocksWeeklyTick(taxInput({ openOrders: [order], holdings }));
+    expect(r.realizedGains).toBeGreaterThan(0);
+    expect(r.capitalGainsTaxUSD).toBeCloseTo(0.25 * r.realizedGains, 6);
+    // Tax reaches the player through cashDelta (→ stats.money), and a tax
+    // notification is emitted.
+    expect(r.notifications.find((n) => n.id.startsWith('stk-tax'))).toBeDefined();
+  });
+
+  it('taxes dividends too (dividend week)', () => {
+    // Week 13 is a dividend week; AAPL has a yield so a dividend is paid.
+    const holdings: StockHolding[] = [{ symbol: 'AAPL', shares: 100, averagePrice: 100, currentPrice: 100 }];
+    const r = runStocksWeeklyTick(taxInput({
+      holdings,
+      yields: { AAPL: 0.05 },
+      currentWeek: 13,
+    }));
+    expect(r.dividendsUSD).toBeGreaterThan(0);
+    // 25% of dividends withheld; net dividend cash is dividends × 0.75.
+    expect(r.capitalGainsTaxUSD).toBeCloseTo(0.25 * r.dividendsUSD, 4);
+    expect(r.cashDelta).toBeCloseTo(r.dividendsUSD * 0.75, 4);
+  });
+
+  it('a realized LOSS is never taxed (no refund) and produces no tax notification', () => {
+    const order: StockOrder = {
+      id: 'o-sell', symbol: 'AAPL', side: 'sell', type: 'limit',
+      amount: 10, limitPrice: 90, placedWeek: 1, status: 'open',
+    };
+    // Bought high (150), selling at ~100 → realized loss.
+    const holdings: StockHolding[] = [{ symbol: 'AAPL', shares: 10, averagePrice: 150, currentPrice: 100 }];
+    const r = runStocksWeeklyTick(taxInput({ openOrders: [order], holdings }));
+    expect(r.realizedGains).toBeLessThan(0);
+    expect(r.capitalGainsTaxUSD).toBe(0);
+    expect(r.notifications.find((n) => n.id.startsWith('stk-tax'))).toBeUndefined();
   });
 });

@@ -1,13 +1,18 @@
 /**
- * Childhood & Teen event pack — age-gated "growing up" moments.
+ * Teen event pack — age-gated "growing up" moments (age 13-17).
  *
- * Most lives start at 18 (adult) or older, and the player ages UP over a life,
- * so these can ONLY fire for a life that actually begins young (e.g. the age-16
- * scenario, or any young-start path). The gate lives entirely in each template's
- * `condition`, keyed strictly on `state.date.age`:
- *   - child : age 5-12
- *   - teen  : age 13-17
- * A 40-year-old will never see any of these.
+ * Most lives start at 18 (adult) or older and the player only ages UP, so these
+ * can ONLY fire for a life that begins young — e.g. an age-16 start, which reaches
+ * the top of this 13-17 band. The gate lives entirely in each template's
+ * `condition`, keyed strictly on `state.date.age` (13-17). A 40-year-old never
+ * sees any of these.
+ *
+ * HISTORY: the first five templates below were originally banded 5-12 (childhood).
+ * Because no start scenario begins below 16, that band was UNREACHABLE, so they
+ * were re-banded to 13-17 (teen) with age-appropriate copy — a class presentation
+ * instead of show-and-tell, the cafeteria instead of the playground, etc. A true
+ * childhood-start scenario (begin the sim at ~5 and grow up through these years)
+ * is left as FUTURE WORK — deliberately not built here.
  *
  * Contract: these reuse the standard EventTemplate shape (id/category/weight/
  * condition/generate) and are spread into `eventTemplates` in engine.ts, so they
@@ -16,6 +21,10 @@
  * EventChoiceEffects (money/stats), applied by the resolver when the player picks
  * a choice. `generate()` is pure: it returns a fresh event object and never
  * mutates module-level or game state.
+ *
+ * Every template is tagged `lifeStageTag: 'teen'` (via the export map) so the
+ * engine's weighted picker lifts them out of the ~150-template generic pool while
+ * the player is actually in this chapter.
  *
  * Balance: effects are deliberately tiny and age-fitting (allowance-scale money,
  * small happiness/energy swings). With one event/week + cooldown + the fact that
@@ -33,20 +42,20 @@ const inAgeBand = (state: GameState, min: number, max: number): boolean => {
   return age >= min && age <= max;
 };
 
-// ── Childhood (age 5-12) ──────────────────────────────────────────────────
+// ── Early teen (re-banded from the old 5-12 childhood set to 13-17) ─────────
 
 const childShowAndTell: EventTemplate = {
   id: 'child_show_and_tell',
   category: 'general',
   weight: 0.22,
-  condition: state => inAgeBand(state, 5, 12),
+  condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_show_and_tell',
-    description: "It's show-and-tell day at school. What do you bring in?",
+    description: "It's your turn to give a class presentation. How do you play it?",
     choices: [
-      { id: 'treasure', text: 'Your most treasured toy', effects: { stats: { happiness: 8, reputation: 2 } } },
-      { id: 'rock', text: 'A cool rock you found', effects: { stats: { happiness: 5 } } },
-      { id: 'nothing', text: 'Stay quiet at the back', effects: { stats: { happiness: 2 } } },
+      { id: 'treasure', text: 'Present a passion project you care about', effects: { stats: { happiness: 8, reputation: 2 } } },
+      { id: 'rock', text: 'Wing it with a cool fact you know', effects: { stats: { happiness: 5 } } },
+      { id: 'nothing', text: 'Mumble through it from the back', effects: { stats: { happiness: 2 } } },
     ],
   }),
 };
@@ -55,13 +64,13 @@ const childPlaygroundFriend: EventTemplate = {
   id: 'child_playground_friend',
   category: 'general',
   weight: 0.22,
-  condition: state => inAgeBand(state, 5, 12),
+  condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_playground_friend',
-    description: 'A new kid at the playground looks a little lonely by the swings.',
+    description: 'A new kid is sitting alone in the cafeteria, looking a little lost.',
     choices: [
-      { id: 'befriend', text: 'Go say hi and share the swings', effects: { stats: { happiness: 10, energy: -3 }, karma: { dimension: 'generosity', amount: 2, reason: 'Welcomed a lonely kid' } } },
-      { id: 'shy', text: 'Play by yourself', effects: { stats: { happiness: 3 } } },
+      { id: 'befriend', text: 'Wave them over to your table', effects: { stats: { happiness: 10, energy: -3 }, karma: { dimension: 'generosity', amount: 2, reason: 'Welcomed the new kid' } } },
+      { id: 'shy', text: 'Keep to yourself', effects: { stats: { happiness: 3 } } },
     ],
   }),
 };
@@ -70,12 +79,12 @@ const childDiscoverTalent: EventTemplate = {
   id: 'child_discover_talent',
   category: 'general',
   weight: 0.2,
-  condition: state => inAgeBand(state, 8, 12),
+  condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_discover_talent',
-    description: 'A teacher notices you have a real knack for something — art, music, or numbers.',
+    description: 'A teacher pulls you aside — you have a real knack for something: art, music, or numbers.',
     choices: [
-      { id: 'lean_in', text: 'Practice it every chance you get', effects: { stats: { happiness: 8, reputation: 3 } } },
+      { id: 'lean_in', text: 'Throw yourself into it after school', effects: { stats: { happiness: 8, reputation: 3 } } },
       { id: 'shrug', text: 'Eh, maybe later', effects: { stats: { happiness: 3 } } },
     ],
   }),
@@ -85,13 +94,13 @@ const childFirstAllowance: EventTemplate = {
   id: 'child_first_allowance',
   category: 'economy',
   weight: 0.2,
-  condition: state => inAgeBand(state, 8, 12),
+  condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_first_allowance',
-    description: 'You earned your very first allowance for helping with chores. What do you do with it?',
+    description: 'Your parents bump up your allowance now that you\'re older — real pocket money at last. What do you do with it?',
     choices: [
-      { id: 'save', text: 'Put it in your piggy bank', effects: { money: 15, stats: { happiness: 3 } } },
-      { id: 'sweets', text: 'Blow it all on candy', effects: { money: 5, stats: { happiness: 8 } } },
+      { id: 'save', text: 'Stash it in your savings', effects: { money: 15, stats: { happiness: 3 } } },
+      { id: 'sweets', text: 'Blow it on snacks and games', effects: { money: 5, stats: { happiness: 8 } } },
     ],
   }),
 };
@@ -100,13 +109,13 @@ const childFamilyTrip: EventTemplate = {
   id: 'child_family_trip',
   category: 'general',
   weight: 0.2,
-  condition: state => inAgeBand(state, 5, 15),
+  condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_family_trip',
     description: 'The whole family piles into the car for a weekend road trip.',
     choices: [
-      { id: 'enjoy', text: 'Sing along the whole way', effects: { stats: { happiness: 10 } } },
-      { id: 'sulk', text: 'Sulk in the back seat', effects: { stats: { happiness: 2, energy: 3 } } },
+      { id: 'enjoy', text: 'Take over as the road-trip DJ', effects: { stats: { happiness: 10 } } },
+      { id: 'sulk', text: 'Sulk in the back with your headphones on', effects: { stats: { happiness: 2, energy: 3 } } },
     ],
   }),
 };
@@ -177,7 +186,7 @@ const teenExamWeek: EventTemplate = {
 };
 
 export const childhoodEventTemplates: EventTemplate[] = [
-  // Childhood (5-12)
+  // Early teen (re-banded from the old 5-12 childhood set)
   childShowAndTell,
   childPlaygroundFriend,
   childDiscoverTalent,
@@ -188,4 +197,6 @@ export const childhoodEventTemplates: EventTemplate[] = [
   teenRebellion,
   teenFirstJob,
   teenExamWeek,
-];
+  // Fix 6: tag the whole pack so the engine's weighted picker lifts these teen
+  // beats out of the generic pool while the player is in the 13-17 band.
+].map(t => ({ ...t, lifeStageTag: 'teen' as const }));

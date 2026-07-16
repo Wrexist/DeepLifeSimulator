@@ -25,6 +25,16 @@ import { getUpgradeTier } from './housing';
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
+/**
+ * Per-source weekly cap on realized rental income, matching the design's
+ * `PER_SOURCE_CAPS.realEstate` ($150K/wk) in lib/economy/passiveIncome.ts.
+ * The aggregate tenant rent computed here feeds the weekly cash path directly
+ * (applyRentAndHousing overwrites the legacy figure with it), so without this
+ * clamp a large, high-rent portfolio could blow past the anti-exploit ceiling
+ * that the passive-income aggregator enforces on every OTHER source.
+ */
+export const REAL_ESTATE_WEEKLY_RENT_CAP = 150000;
+
 export interface RealEstateWeeklyTickInput {
   /** Properties as returned by the legacy `processWeeklyHousing` (already appreciated/decayed). */
   legacyProcessedProperties: RealEstate[];
@@ -90,5 +100,12 @@ export function runRealEstateWeeklyTick(input: RealEstateWeeklyTickInput): RealE
     notifications.push(...tick.notifications);
   }
 
-  return { properties, rentalIncome, notifications };
+  // Clamp the aggregate realized rent to the design's $150K/wk real-estate
+  // per-source cap BEFORE it feeds cash (applyRentAndHousing routes this straight
+  // into the weekly cash flow). Upper-bound only — a net-negative carrying-cost
+  // week stays as-is (a real expense), matching the passive-income aggregator
+  // which only caps the positive side.
+  const cappedRentalIncome = Math.min(REAL_ESTATE_WEEKLY_RENT_CAP, rentalIncome);
+
+  return { properties, rentalIncome: cappedRentalIncome, notifications };
 }

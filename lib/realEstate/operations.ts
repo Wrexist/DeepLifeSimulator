@@ -8,6 +8,9 @@
 
 import { RealEstate } from '@/contexts/game/types';
 import {
+  askChurnMultiplier,
+  askFillMultiplier,
+  effectiveAskRent,
   findTenantProbability,
   generateTenant,
   moveOutProbability,
@@ -263,21 +266,28 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
   let rentReceived = 0;
   const baseValue = safe(updated.currentValue ?? updated.price);
   const marketRent = baseValue * RENT_MODE_PARAMS[updated.rentMode ?? 'longTerm'].weeklyYieldMean * cycleParams.rentMultiplier;
+  // The rent the player ACTUALLY realizes: their asked `rent` clamped to the
+  // value ceiling, or marketRent when no ask is configured. This is what tenants
+  // pay AND what their satisfaction / fill / churn react to, so the rent slider
+  // is no longer cosmetic.
+  const askRent = effectiveAskRent(updated.rent, baseValue, marketRent);
 
   if (updated.status === 'rented' && updated.rentMode) {
     const mode = updated.rentMode;
     // Has a tenant?
     if (updated.tenant) {
-      // Update satisfaction.
+      // Satisfaction reacts to the ASK vs market (overcharging erodes it).
       const newSat = satisfactionStep(
         updated.tenant.satisfaction,
         safe(updated.condition, 70),
-        updated.tenant.weeklyRent,
+        askRent,
         marketRent,
         mode
       );
-      // Roll for move-out.
-      const movesOut = input.rollFor(`re.move.${updated.tenant.id}`) < moveOutProbability(newSat, mode);
+      // Roll for move-out — churn scales UP with an above-market ask (on top of
+      // the satisfaction hit), so a greedy ask is paid for in higher turnover.
+      const churnProb = Math.min(1, moveOutProbability(newSat, mode) * askChurnMultiplier(askRent, marketRent));
+      const movesOut = input.rollFor(`re.move.${updated.tenant.id}`) < churnProb;
       if (movesOut) {
         notifications.push({
           id: `re-tenant-leave-${p.id}-${input.currentWeek}`,
@@ -286,22 +296,29 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
         });
         updated = { ...updated, tenant: undefined, weeksVacant: 0 };
       } else {
-        rentReceived = realizedWeeklyRent(updated.tenant.weeklyRent, mode, {
+        // Realized income is the asked rent (± mode variance), NOT marketRent.
+        rentReceived = realizedWeeklyRent(askRent, mode, {
           u1: input.rollFor(`re.rent.${updated.tenant.id}.u1`),
           u2: input.rollFor(`re.rent.${updated.tenant.id}.u2`),
         });
         updated = {
           ...updated,
-          tenant: { ...updated.tenant, satisfaction: newSat },
+          tenant: { ...updated.tenant, satisfaction: newSat, weeklyRent: askRent },
         };
       }
     } else {
-      // No tenant — try to find one.
+      // No tenant — try to find one. Fill odds shift with the ask: below market
+      // fills faster, above market fills slower.
       const weeksVacant = safe(updated.weeksVacant, 0) + 1;
-      const findProb = findTenantProbability(safe(updated.condition, 70), cycleParams.demandFactor);
+      const findProb = Math.min(
+        0.95,
+        findTenantProbability(safe(updated.condition, 70), cycleParams.demandFactor) *
+          askFillMultiplier(askRent, marketRent)
+      );
       const foundOne = input.rollFor(`re.find.${p.id}`) < findProb;
       if (foundOne) {
-        const newTenant: TenantSnapshot = generateTenant(marketRent, input.currentWeek, input.rollFor(`re.name.${p.id}`));
+        // The new tenant signs at the asked rent (clamped), not marketRent.
+        const newTenant: TenantSnapshot = generateTenant(askRent, input.currentWeek, input.rollFor(`re.name.${p.id}`));
         notifications.push({
           id: `re-tenant-arrive-${p.id}-${input.currentWeek}`,
           title: '🔑 New Tenant',

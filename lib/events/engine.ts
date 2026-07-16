@@ -81,12 +81,27 @@ export interface WeeklyEvent {
   generatedAtWeeksLived?: number; // Absolute week generated; used for persistence hygiene
 }
 
+/**
+ * Life-stage pack an event belongs to. Purely a SELECTION-WEIGHT tag: when a
+ * tagged event is eligible (its `condition` — the strict age/status gate — has
+ * already passed), the weekly picker boosts it so age-gated packs actually
+ * surface out of the ~150-template generic pool instead of drowning in it.
+ * NOT the player's stage (that's GameState.lifeStage) and NOT a gate itself.
+ */
+export type LifeStagePack = 'teen' | 'parent' | 'midlife' | 'senior';
+
 export interface EventTemplate {
   id: string;
   category: 'economy' | 'health' | 'relationship' | 'general';
   weight: number | ((state: GameState) => number);
   condition?: (state: GameState) => boolean;
   generate: (state: GameState) => WeeklyEvent;
+  /**
+   * Age-gated life-stage pack tag (see LifeStagePack). Set on the childhood/teen,
+   * parent, midlife and senior packs so the selector can lift their weight when
+   * they match the player's current chapter.
+   */
+  lifeStageTag?: LifeStagePack;
   // v13+ Pulse: when present, the event should also surface inside the in-game
   // social platform (notification + trending hashtag injection). Decoupled
   // from `category` so non-economy fame events can still surface to Pulse.
@@ -3154,6 +3169,14 @@ const starterEventTemplates: EventTemplate[] = [
 const MAX_EVENTS_PER_WEEK = 1; // Only one event per week maximum
 
 /**
+ * Selection-weight multiplier applied to an age-gated life-stage pack event when
+ * it is eligible (its gate matches the player's current chapter). 3.5× lands in
+ * the requested 3-4× band: enough to pull teen/parent/midlife/senior beats out of
+ * the ~150-template generic pool without letting them monopolize the week.
+ */
+const LIFE_STAGE_WEIGHT_BOOST = 3.5;
+
+/**
  * Weighted-random pick from (template, weight) pairs using a deterministic
  * roll in [0, 1). Returns null when every weight is zero.
  *
@@ -3412,7 +3435,16 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
       .map(template => {
         const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
         const weightModifier = consequenceState.eventWeightModifiers[template.id] || 0;
-        const adjustedWeight = Math.max(0, weight + weightModifier);
+        let adjustedWeight = Math.max(0, weight + weightModifier);
+        // LIFE-STAGE BOOST: an age-gated pack event only reaches this map once its
+        // strict `condition` (age band / child status / retirement) has passed —
+        // i.e. its gate already matches the player's current chapter. On its own
+        // its ~0.2 weight is buried under the ~150-template generic pool and almost
+        // never fires. Multiply it so a matching chapter's beats actually surface.
+        // Deterministic: this only rescales weights fed to the SAME seeded pick.
+        if (template.lifeStageTag) {
+          adjustedWeight *= LIFE_STAGE_WEIGHT_BOOST;
+        }
         return { item: template, weight: adjustedWeight * riskByCategory[template.category] };
       });
 
