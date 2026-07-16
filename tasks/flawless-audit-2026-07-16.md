@@ -16,12 +16,15 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [x] Vehicles: underwater sale no longer erases auto loan for free (keeps deficiency balance). (e66ba7b)
 - [x] Careers: CEO / investment banker / creative director unlockable (bad education IDs masters/bachelors → masters_degree/business_degree). (d551eb9)
 - [x] Pulse Insights: engagement rate showed ~2000% (double ×100). (efa7659)
+- [x] Save-slot data loss: currentSlot synced in loadGame (+ new-game via loadGame); deleteSlot repoints stale lastSlot/currentSlot markers; provider-level regression test. (2143dce)
+- [x] Hustle money printers: seeded ROI variance kills the guaranteed marketing profit; candidate dedup + idempotent hire + 30-cap; named-hire payroll charged weekly. (295cee4)
+- [x] FIRE + retirement 52x weekly-as-annual salary bug; savingsRate clamped 0-100. (e492c84)
+- [x] Bank statement net worth cash double-count (mirror excluded via computeStatementNetWorth). (e492c84)
+- [x] Spark Boost no-op (BOOST_MATCH_FLOOR 1.5x + immediate likedYou); swipe deck seekingGender filter; Pulse composer energy gate + surfaced errors; ComposeModal per-type energy cost; rewarded-ad boost reachable from populated notifications; Spark Premium annual toggle; match celebration partner photo. (ce49570)
+- [x] Vehicle deficiency loans unsecured (vehicleId cleared, no collision with future purchase) + money finite-guard (Codex P2 + CodeRabbit). (ac07bc9)
 
 ## 🔴 CRITICAL — remaining
-- [ ] Save-slot data loss: `currentSlot` never updated (setCurrentSlot has 0 callers) → all saves write slot 1, overwriting it when playing slot 2/3. (GameStateContext.tsx:41, GameActionsContext loadGame/new-game)
 - [ ] Multi-week event chains always take the failure branch: eventLog stores `choice.text` but chains read `e.choiceId` (never written) → invested business chain always loses the stake, etc. (engine.ts:2797; write site GameActionsContext.tsx:2563; type types.ts:2297)
-- [ ] Marketing-campaign money printer: `lift = spend*(ROI-1)` risk-free; ROI>2 kinds net guaranteed profit, stackable. (lib/business/hustleTick.ts:127) [seeded tick → snapshot regen]
-- [ ] Hustle employee-hire printer + named-hire salary never deducted. (HustleActions.ts:127/300, hustleLogic.ts:79) [salary path seeded]
 - [ ] Ambition payoff (gems+prestige pts) re-grantable every prestige. (prestigeExecution.ts:330 + ambitions)
 - [ ] Progress-achievement gems re-mintable every prestige (guard only at display layer). (GameActionsContext claimProgressAchievement:2752, useAchievements.ts:24)
 
@@ -30,20 +33,13 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [ ] Free education financing: student-loan balance drops weekly but cash never charged. (applyEducationProgression.ts:110 + GameActionsContext:791)
 - [ ] Daily-reward re-claimable after kill: saveGame persists stale pre-grant state. (home.tsx:268; same class work.tsx:184)
 - [ ] Patents never expire → perpetual weekly income. (patents.ts:75 updatePatents uncalled; passiveIncome.ts:365) [seeded tick]
-- [ ] Bank net-worth double-counts cash (totalBank includes checking-default mirror). (AdvancedBankApp.tsx:194)
-- [ ] FIRE + retirement math ~52× off (weekly salary treated as annual /52). (fireTracker.ts:29, retirementCalculator.ts:42)
-- [ ] Spark Boost 50-gem no-op for free players (boostMultiplier 1.0, boost unread). (sparkLogic.ts:52, sparkTick)
-- [ ] Spark swipe deck ignores seekingGender. (SwipeScreen.tsx:90)
 - [ ] Spark profile bio/photos uneditable (updateMyProfile no UI). (SparkApp.tsx:327)
-- [ ] Pulse composer energy gate 5 vs real cost 15 → silent no-op. (FeedScreen.tsx:113)
-- [ ] Pulse rewarded-ad boost unreachable after 1 notification. (NotificationsScreen.tsx:157)
 - [ ] Weekly-challenge rotation only ever shows 3 of 12. (weeklyChallenges.ts:529)
 - [ ] Determinism in seeded tick (save-scummable + Hermes/V8 drift): engine.ts:3352 & applyIncome.ts:105 (Math.sin), GameActionsContext:735 (rent Math.random), socialMedia.ts:787, educationSystem.ts:321, pulseTick.ts:228, sparkTick.ts:134, hustleTick.ts:47, randomProfiles.ts:269, npcDepth.ts:164. [needs seeded rolls + deliberate snapshot regen]
 - [ ] Real estate rent lever ignored (custom rent never realized). (operations.ts:287)
 - [ ] Enhanced mining / Lobbyists+Alliances / Family Business / Credit-card charging — fully built, no UI entry point (wire or remove). (MiningActions:311, PoliticalApp:636, FamilyBusinessActions:59, AdvancedBankApp:677)
 
 ## 🟡 MEDIUM — remaining (broken-UI "spend does nothing" / correctness)
-- [ ] ComposeModal hardcoded energy cost 5 for all types. (ComposeModal.tsx:75)
 - [ ] BrandDeals no saveGame → lost on reload. (BrandDealsScreen.tsx:30)
 - [ ] CreateCompany affordability uses uninflated cost. (CreateCompanyScreen.tsx:116) + no prestige/edu gate pre-confirm (:70)
 - [ ] Policy effects applied once but framed "weekly" (UBI/tax_cut). (PoliticalActions.ts:526)
@@ -58,8 +54,6 @@ determinism cluster below tracks the remaining violations); new state additive/o
 - [ ] autoSave NaN → money/bankSavings NaN. (autoSave.ts:97); autoRenew/autoPay report success but charge nothing (autoRenew.ts:131, autoPay.ts:110)
 - [ ] FamilyBusiness manageFamilyBusiness non-atomic charge/benefit. (FamilyBusinessActions.ts:100)
 - [ ] ComposeModal sponsor deferred-updater double-increment. (ComposeModal.tsx:111)
-- [ ] Spark premium annual plan unreachable (hardcoded weekly). (SparkPremiumUpsellModal.tsx:56)
-- [ ] Spark match celebration no partner photo. (SparkApp.tsx:224)
 - [ ] Hire refresh returns same 3 candidates in a week. (HireEmployeeModal.tsx:68)
 - [ ] IPO success shows no raise feedback. (IPOModal.tsx:51)
 - [ ] RealEstate detail page stays "For sale" after buy. (RealEstateApp.tsx:360)
