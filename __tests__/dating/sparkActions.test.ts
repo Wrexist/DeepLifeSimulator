@@ -119,6 +119,34 @@ describe('rewindLastSwipe', () => {
   });
 });
 
+// Regression (weekly-audit 2026-07-16): a legacy/partial `sparkApp` present but
+// lacking `premium` (the exact save shape dc3e337 fixed for scorePlayerProfile)
+// used to crash `rewindLastSwipe` / `likeBackFromLikedYou` with
+// "Cannot read properties of undefined (reading 'perks')". These sites read the
+// raw sparkApp (no ensureSpark backfill), so they must optional-chain `premium`.
+describe('premium-less (legacy) sparkApp — no crash on premium.perks reads', () => {
+  it('rewindLastSwipe treats a missing premium as free-tier (no throw)', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.gems = 0; // free tier + no gems → graceful "need gems" failure
+    delete (state.sparkApp as any).premium;
+    const { setGameState, getState } = makeHarness(state);
+    swipeOnProfile(setGameState, getState(), SAMPLE_ID, 'left');
+    let r: { success: boolean; message: string };
+    expect(() => { r = rewindLastSwipe(setGameState, getState()); }).not.toThrow();
+    expect(r!.success).toBe(false); // no premium perk, no gems → rejected, not crashed
+  });
+
+  it('likeBackFromLikedYou gates on missing premium as non-Ultra (no throw)', () => {
+    const state = freshState({ weeksLived: 1 });
+    delete (state.sparkApp as any).premium;
+    state.sparkApp!.likedYou = [{ profileId: SAMPLE_ID, likedWeek: 1, superLike: false } as any];
+    const { setGameState, getState } = makeHarness(state);
+    let r: { success: boolean; message: string };
+    expect(() => { r = likeBackFromLikedYou(setGameState, getState(), SAMPLE_ID); }).not.toThrow();
+    expect(r!.success).toBe(false); // no seeWhoLikedYou perk → "Upgrade to Ultra", not a crash
+  });
+});
+
 describe('unmatch / sendSparkMessage', () => {
   it('unmatch removes the match and its message thread', () => {
     const state = freshState({ weeksLived: 1 });
