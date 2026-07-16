@@ -63,7 +63,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
-  const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
+  const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
@@ -189,9 +189,18 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     return fitnessGain <= 0 && healthGain <= 0 && happinessGain <= 0;
   }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
 
+  // A gym session also refreshes the gym-visit timer the weekly tick reads to
+  // scale fitness decay. When that timer is stale (behind the current week) a
+  // workout is still worth doing even at capped stats, so the card must stay
+  // tappable — otherwise a peak-shape player silently suffers accelerated decay.
+  const gymTimerStale = useMemo(
+    () => (gameState.lastGymVisitWeek || 0) !== (gameState.weeksLived || 0),
+    [gameState.lastGymVisitWeek, gameState.weeksLived]
+  );
+
   const canUseGym = useMemo(() => {
-    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20 && !gymGainsAllZero;
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy, gymGainsAllZero]);
+    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20 && (!gymGainsAllZero || gymTimerStale);
+  }, [hasMembership, gameState.stats.money, gameState.stats.energy, gymGainsAllZero, gymTimerStale]);
 
   // Auto-switch to items tab if tutorial is highlighting an item
   React.useEffect(() => {
@@ -368,8 +377,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
     if (!hasMembership) return;
 
-    // Zero-gain guard: never debit money/energy when every stat gain clamps to 0.
-    if (gymGainsAllZero) return;
+    // Refuse only when nothing would change: every stat gain clamps to zero AND
+    // the gym-visit timer is already current. When the timer is stale the workout
+    // still refreshes it (staving off accelerated fitness decay), so allow it.
+    if (gymGainsAllZero && !gymTimerStale) return;
 
     if (gameState.stats.money < cost) return;
     if (gameState.stats.energy < energyCost) return;
@@ -381,10 +392,15 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       health: 3,
       happiness: 2,
     });
-    // Effort → reward feedback, matching the food/buy paths on this screen.
-    // This was the one silent action on an otherwise-reactive tab.
-    showSuccess('💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gymGainsAllZero, gameState.stats.money, gameState.stats.energy, updateStats, showSuccess]);
+    // Refresh the gym-visit timer so consistent sessions stave off the
+    // accelerated fitness decay the weekly tick applies the longer you skip it.
+    setGameState(prev => ({ ...prev, lastGymVisitWeek: prev.weeksLived || 0 }));
+    // Effort → reward feedback, matching the food/buy paths on this screen. When
+    // stats are already capped the session still counts — it keeps the routine up.
+    showSuccess(gymGainsAllZero
+      ? '💪 Workout done! Fitness routine maintained.'
+      : '💪 Workout done! +5 Fitness, +3 Health');
+  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, updateStats, setGameState, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead
@@ -582,7 +598,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                     style={[styles.gymButton, !canUseGym && styles.gymButtonDisabled]}
                   >
                     <Text style={[styles.gymButtonText, !canUseGym && styles.gymButtonTextDisabled]}>
-                      {gymGainsAllZero ? "You're in top shape" :
+                      {gymGainsAllZero && !gymTimerStale ? "You're in top shape" :
                         gameState.stats.money < 50 ? t('market.notEnoughMoney') :
                           gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
                             t('market.startWorkout')}

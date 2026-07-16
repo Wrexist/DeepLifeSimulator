@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import * as JobActions from './actions/JobActions';
+import { rejectIfBlocked, isPlayerJailed } from './actions/_guards';
 import { updateStats } from './actions/StatsActions';
 import { updateMoney as updateMoneyModule, applyMoneyDelta } from './actions/MoneyActions';
 import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
@@ -165,6 +166,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const promoteCareer = useCallback((careerId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    if (isPlayerJailed(state)) {
+      return { success: false, message: "You can't chase a promotion from a jail cell." };
+    }
 
     const result = JobActions.promoteCareer(state, setGameState, careerId);
     if (result?.success) {
@@ -179,6 +183,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const requestRaise = useCallback((careerId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    if (isPlayerJailed(state)) {
+      return { success: false, message: "You can't ask for a raise while you're in jail." };
+    }
 
     const result = JobActions.requestRaise(state, setGameState, careerId);
     if (result?.approved) {
@@ -245,6 +252,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const performJailActivity = useCallback((activityId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    // A deceased player can't act, even from jail (matches sibling job actions).
+    const blocked = rejectIfBlocked(state);
+    if (blocked) return blocked;
 
     const activity = state.jailActivities.find(a => a.id === activityId);
     if (!activity) {
@@ -435,6 +445,8 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const payBail = useCallback(() => {
     const state = stateRef.current;
     if (!state) return;
+    // A deceased player's estate can't post bail (death popup is showing).
+    if (rejectIfBlocked(state)) return;
 
     const estimatedBailCost = computeBailCost(state.jailWeeks, calculateNetWorth(state));
     if (state.stats.money < estimatedBailCost) {

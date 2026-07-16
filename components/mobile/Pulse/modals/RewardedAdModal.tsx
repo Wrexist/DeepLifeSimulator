@@ -102,7 +102,13 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
         pulseHaptics.success();
         // Persist the committed grant — deferred one macrotask so the save
         // captures the post-setGameState state (repo post-commit convention).
-        addTimer(() => { void saveGame?.(); }, 0);
+        // Intentionally an UNTRACKED plain setTimeout (not addTimer): the unmount
+        // cleanup clears tracked timers, and if PulseApp unmounts within this
+        // macrotask a tracked save would be silently dropped — the grant would
+        // then live only in memory until the next autosave. This save MUST
+        // survive unmount; saveGame reads current state via a context ref, so
+        // executing it after unmount is safe. All OTHER timers stay tracked.
+        setTimeout(() => { void saveGame?.(); }, 0);
         onDismiss(); // no-op when the ads path already dismissed the sheet
       } else {
         pulseHaptics.error();

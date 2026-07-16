@@ -23,7 +23,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -61,6 +61,15 @@ function rand([lo, hi]: [number, number]) {
 function pickKind(): RewardKind {
   return Math.random() < 0.5 ? 'cash' : 'vitality';
 }
+
+// Session-scoped courtesy limit for no-fill grants. When ads are ON for this
+// build but there is no inventory to serve (common on TestFlight and brand-new
+// ad units), the orb still honours ONE reward per app session via grantOnNoFill.
+// Without this cap a whale could farm the capped reward on every respawn with NO
+// ad ever shown (~$10M/hr). Module-level so it survives remounts and resets only
+// on app restart; a later real-ad grant clears it (inventory has returned).
+// Ads-removed players are unaffected — their direct grant is a paid perk.
+let noFillGrantedThisSession = false;
 
 // The three stats a vitality reward refills, with their icon + accent.
 const VITALITY_ROWS = [
@@ -107,6 +116,12 @@ export default function AdRewardOrb() {
   // Re-entrancy guard: blocks a rapid second tap from granting twice before the
   // sheet flips to the "granted" state (the direct-grant path is synchronous).
   const busyRef = useRef(false);
+  // Resolves once the sheet Modal has finished its NATIVE dismissal (iOS fires
+  // Modal.onDismiss; Android has no such callback), with a timer fallback so a
+  // missed callback can never strand the flow mid-watch. Declared here (above the
+  // adsRemoved effect) so that effect can resolve a pending waiter if Remove-Ads
+  // lands mid-watch.
+  const sheetDismissResolver = useRef<(() => void) | null>(null);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
   const gsRef = useRef(gameState);
@@ -143,6 +158,14 @@ export default function AdRewardOrb() {
   const scheduleNext = useCallback((delay: number) => {
     clearTimers();
     addTimer(() => {
+      // Courtesy no-fill limit: once an ads-on player has taken their one no-ad
+      // courtesy grant this session, stop spawning orbs until a real ad fills
+      // again (which clears the flag) — otherwise the capped reward could be
+      // farmed with no ad ever shown. Ads-removed players are exempt: their
+      // direct grant is a paid perk, not a no-fill fallback.
+      if (noFillGrantedThisSession && adsAvailable(areAdsRemoved(gsRef.current))) {
+        return;
+      }
       const nextKind = pickKind();
       setKind(nextKind);
       setReward(nextKind === 'cash' ? computeReward(gsRef.current) : 0);
@@ -162,6 +185,14 @@ export default function AdRewardOrb() {
   useEffect(() => {
     if (!adsRemoved) return;
     clearTimers();
+    // Remove-Ads may have landed DURING an in-flight watch (while awaiting
+    // waitForSheetDismissal). clearTimers just cancelled that dismissal fallback,
+    // so resolve any pending waiter here or the flow strands with busyRef stuck.
+    // Once resolved it continues into runRewardedAd, which re-reads the fresh
+    // entitlement and direct-grants (no ad). Only in THIS effect — never in the
+    // unmount cleanup, where resolving could fire continuations on a dead
+    // component (and a true-unmount orphan is harmless).
+    sheetDismissResolver.current?.();
     pulseLoop.current?.stop();
     if (phase !== 'hidden') {
       setPhase('hidden');
@@ -243,10 +274,8 @@ export default function AdRewardOrb() {
     haptic.success();
   }, [kind, reward, setGameState]);
 
-  // Resolves once the sheet Modal has finished its NATIVE dismissal (iOS fires
-  // Modal.onDismiss; Android has no such callback), with a timer fallback so a
-  // missed callback can never strand the flow mid-watch.
-  const sheetDismissResolver = useRef<(() => void) | null>(null);
+  // (sheetDismissResolver is declared above, near the other refs, so the
+  // adsRemoved effect can resolve a pending waiter.)
   const handleSheetDismissed = useCallback(() => {
     sheetDismissResolver.current?.();
     sheetDismissResolver.current = null;
@@ -283,11 +312,23 @@ export default function AdRewardOrb() {
         setPhase('watching');
         await waitForSheetDismissal();
       }
+      // Re-read the entitlement: Remove-Ads may have completed during the
+      // dismissal wait. Using the fresh value guarantees a player who just paid
+      // to remove ads gets a direct grant here, never a surprise ad.
+      const adsRemovedNow = areAdsRemoved(gsRef.current);
       // grantOnNoFill: the orb is rate-limited (appears at most every few
       // minutes), so if there's no ad inventory to serve we still honour the
       // promised reward instead of leaving the player with nothing after tapping
       // "Watch ad". Real ads still play + earn when they fill.
-      const outcome = await runRewardedAd(grant, { adsRemoved, grantOnNoFill: true });
+      const outcome = await runRewardedAd(grant, { adsRemoved: adsRemovedNow, grantOnNoFill: true });
+      // Courtesy no-fill limit: remember a no-ad courtesy grant so the spawn
+      // scheduler stops offering more this session; a real-ad grant means
+      // inventory returned, so lift the limit again.
+      if (isNoFillGrant(outcome)) {
+        noFillGrantedThisSession = true;
+      } else if (outcome === 'granted-ad') {
+        noFillGrantedThisSession = false;
+      }
       if (isGranted(outcome)) {
         // Reopen the sheet in its "Reward added!" state — a fresh present is
         // safe now that the ad's view controller is gone; the short beat lets

@@ -13,7 +13,7 @@ import { GameState, Relationship, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
-import { rejectIfBlocked } from './_guards';
+import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -155,6 +155,11 @@ export const goOnDate = (
   // P1-3: dead players can't date.
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
+
+  // Can't go on a date from a jail cell.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't go on a date while you're in jail." };
+  }
 
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {
@@ -384,6 +389,11 @@ export const proposeMarriage = (
   ringId: string,
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string; accepted: boolean } => {
+  // Can't propose from a jail cell.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't propose while you're in jail.", accepted: false };
+  }
+
   const partner = gameState.relationships?.find(r => r.id === partnerId && r.type === 'partner');
   if (!partner) {
     return { success: false, message: 'Partner not found.', accepted: false };

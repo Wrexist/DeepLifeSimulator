@@ -25,6 +25,19 @@ export function isPlayerBlocked(state: GameState): boolean {
 }
 
 /**
+ * Returns true when the player is currently incarcerated.
+ *
+ * Actions that make no sense from a cell (career advancement / raise requests,
+ * founding a company, active dating such as going on dates or proposing) use
+ * this for a clear refusal. Passive actions and jail-native actions (serving
+ * time, jail activities, paying bail) must NOT be gated by it. `jailWeeks` is
+ * the canonical incarceration field.
+ */
+export function isPlayerJailed(state: GameState): boolean {
+  return (state?.jailWeeks ?? 0) > 0;
+}
+
+/**
  * Convenience wrapper for actions that return a `{ success, message }`
  * shape — returns the canonical "you have died" rejection or null when the
  * player can proceed.

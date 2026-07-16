@@ -10,6 +10,7 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
+import { isPlayerJailed } from './_guards';
 
 const log = logger.scope('CompanyActions');
 
@@ -23,6 +24,11 @@ export const createCompany = (
   if (typeof companyType !== 'string') {
     log.error('createCompany: companyType must be a string', { companyType });
     return { success: false, message: 'Invalid company type' };
+  }
+
+  // Can't found a company from a jail cell.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't start a company from a jail cell." };
   }
 
   const companyCosts = {

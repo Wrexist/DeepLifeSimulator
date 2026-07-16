@@ -24,12 +24,23 @@ import type { GameState } from '@/contexts/game/types';
 export type RewardedAdOutcome =
   | 'granted-ad' // real rewarded video watched to completion, reward earned
   | 'granted-direct' // no ad shown (ads removed / no ad SDK) — reward granted
+  | 'granted-no-fill' // ads ON but no inventory; `grantOnNoFill` honored the reward with NO ad shown
   | 'no-fill' // ad system on but no ad was available — NOT granted
   | 'error'; // ad failed to load / show — NOT granted
 
 /** True when the reward was actually applied (with or without an ad). */
 export function isGranted(outcome: RewardedAdOutcome): boolean {
-  return outcome === 'granted-ad' || outcome === 'granted-direct';
+  return outcome === 'granted-ad' || outcome === 'granted-direct' || outcome === 'granted-no-fill';
+}
+
+/**
+ * True when the reward was granted via the no-fill courtesy path — ads are ON
+ * for this build but there was no inventory, so `grantOnNoFill` honored the
+ * reward WITHOUT showing an ad. Callers use this to rate-limit the courtesy
+ * grant (an unlimited faucet of no-ad rewards would be exploitable).
+ */
+export function isNoFillGrant(outcome: RewardedAdOutcome): boolean {
+  return outcome === 'granted-no-fill';
 }
 
 /**
@@ -91,9 +102,12 @@ export async function runRewardedAd(
     // orb) grant the reward anyway rather than cheating a player who tapped
     // "Watch ad" when there was simply no inventory. Real ads still play and earn
     // revenue whenever inventory IS available — this is only the empty fallback.
+    // Reported as 'granted-no-fill' (distinct from 'granted-direct') so callers
+    // can rate-limit the no-ad courtesy grant without conflating it with the
+    // ads-removed paid-perk path.
     if (opts.grantOnNoFill) {
       grant();
-      return 'granted-direct';
+      return 'granted-no-fill';
     }
     return 'no-fill';
   } catch (err) {
@@ -102,7 +116,7 @@ export async function runRewardedAd(
     });
     if (opts.grantOnNoFill) {
       grant();
-      return 'granted-direct';
+      return 'granted-no-fill';
     }
     return 'error';
   }
