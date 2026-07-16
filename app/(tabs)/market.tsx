@@ -14,6 +14,7 @@ import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
 import { clampStat } from '@/utils/statUtils';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -649,7 +650,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         <ConfirmDialog
           visible={true}
           title={`Purchase ${showPurchaseConfirm.itemName}?`}
-          message={`This will cost $${showPurchaseConfirm.price}. You'll have $${Math.floor(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
+          message={`This will cost ${formatMoney(showPurchaseConfirm.price)}. You'll have ${formatMoney(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
             ? '\n\nThis will unlock computer apps including Crypto Mining, Real Estate, and Gaming!'
             : showPurchaseConfirm.itemId === 'smartphone'
               ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'

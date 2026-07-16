@@ -1,8 +1,35 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+/**
+ * ConfirmDialog — the game's shared confirm/deny popup (purchases, selling,
+ * quitting a job, deleting a save). Redesigned to match the in-game sheet
+ * language: dark elevated surface, hairline border, a gradient icon badge and
+ * a filled gradient primary CTA next to a quiet ghost cancel.
+ *
+ * The public prop API is backward-compatible with every existing call site —
+ * `showIcon` now defaults to showing the badge, and `icon` is an optional
+ * override. The confirm accent is derived from `type` (destructive/danger force
+ * red) so cautionary and destructive flows keep their visual distinction.
+ */
+import React, { useEffect, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { AlertTriangle, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react-native';
+import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
+
 const LinearGradient = LinearGradientFallback;
+
+// Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
+// a gentle 0.94→1 scale reveal on an ease-out curve, kept under the 300ms UI
+// budget. Easing is resolved defensively so environments without the native
+// Easing module (e.g. the render-test RN mock) can't crash at load.
+const ENTER_SCALE = 0.94;
+const DURATION_BASE = 220;
+const DURATION_FAST = 160;
+const EASE_OUT = Easing?.bezier ? Easing.bezier(0.23, 1, 0.32, 1) : undefined;
+
+type DialogType = 'default' | 'warning' | 'danger' | 'success';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -12,10 +39,29 @@ interface ConfirmDialogProps {
   onCancel: () => void;
   confirmText?: string;
   cancelText?: string;
-  type?: 'default' | 'warning' | 'danger' | 'success';
+  type?: DialogType;
+  /** Show the gradient icon badge (default true). */
   showIcon?: boolean;
   destructive?: boolean;
+  /** Override the badge glyph; falls back to a sensible icon per `type`. */
+  icon?: React.ReactNode;
 }
+
+// LinearGradientFallback paints the FIRST color as a solid fill, so the
+// saturated shade leads each pair. Values mirror the semantic palette.
+const TYPE_ACCENT: Record<DialogType, readonly [string, string]> = {
+  default: ['#3B82F6', '#60A5FA'],
+  warning: ['#F59E0B', '#FBBF24'],
+  danger: ['#EF4444', '#F87171'],
+  success: ['#10B981', '#34D399'],
+};
+
+const TYPE_ICON = {
+  default: HelpCircle,
+  warning: AlertTriangle,
+  danger: AlertCircle,
+  success: CheckCircle,
+} as const;
 
 export default function ConfirmDialog({
   visible,
@@ -26,77 +72,84 @@ export default function ConfirmDialog({
   confirmText = 'OK',
   cancelText = 'Cancel',
   type = 'default',
-  showIcon = false,
+  showIcon = true,
   destructive = false,
+  icon,
 }: ConfirmDialogProps) {
-  const getTypeColors = () => {
-    switch (type) {
-      case 'warning':
-        return ['#F59E0B', '#FBBF24'];
-      case 'danger':
-        return ['#DC2626', '#EF4444'];
-      case 'success':
-        return ['#10B981', '#34D399'];
-      default:
-        return ['#3B82F6', '#60A5FA'];
-    }
-  };
+  const { theme } = useTheme();
+  const reducedMotion = useReducedMotion();
 
-  const getIcon = () => {
-    if (!showIcon) return null;
-    
-    switch (type) {
-      case 'warning':
-        return <AlertTriangle size={24} color="#F59E0B" />;
-      case 'danger':
-        return <XCircle size={24} color="#DC2626" />;
-      case 'success':
-        return <CheckCircle size={24} color="#10B981" />;
-      default:
-        return <AlertTriangle size={24} color="#3B82F6" />;
-    }
-  };
+  // Native `animationType="fade"` handles the backdrop + graceful exit both
+  // ways; this drives only the card's 0.94→1 scale reveal on entrance.
+  const scaleAnim = useRef(new Animated.Value(ENTER_SCALE)).current;
+  useEffect(() => {
+    if (!visible) return;
+    scaleAnim.setValue(reducedMotion ? 1 : ENTER_SCALE);
+    const anim = Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: reducedMotion ? DURATION_FAST : DURATION_BASE,
+      easing: EASE_OUT,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [visible, reducedMotion, scaleAnim]);
 
-  const colors = getTypeColors();
-  const icon = getIcon();
+  const resolvedType: DialogType = destructive ? 'danger' : type;
+  const accent = TYPE_ACCENT[resolvedType];
+  const BadgeIcon = TYPE_ICON[resolvedType];
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {icon && <View style={styles.iconContainer}>{icon}</View>}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+      <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
+        <Animated.View
+          style={[
+            styles.card,
+            { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: scaleAnim }] },
+          ]}
+        >
+          {showIcon && (
+            <LinearGradient
+              colors={accent}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badge}
+            >
+              {icon ?? <BadgeIcon size={scale(28)} color="#FFFFFF" strokeWidth={2.2} />}
+            </LinearGradient>
+          )}
+
+          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+          <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
+
           <View style={styles.actions}>
-            <TouchableOpacity onPress={onCancel} style={styles.button}>
-              <LinearGradient
-                colors={['#D1D5DB', '#94A3B8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buttonInner}
-              >
-                <Text style={styles.cancel}>{cancelText}</Text>
-              </LinearGradient>
+            <TouchableOpacity
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel={cancelText}
+              activeOpacity={0.8}
+              style={[styles.cancelBtn, { borderColor: theme.borderStrong }]}
+            >
+              <Text style={[styles.cancelText, { color: theme.text }]}>{cancelText}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onConfirm} style={styles.button}>
+            <TouchableOpacity
+              onPress={onConfirm}
+              accessibilityRole="button"
+              accessibilityLabel={confirmText}
+              activeOpacity={0.85}
+              style={styles.confirmBtn}
+            >
               <LinearGradient
-                colors={destructive ? ['#DC2626', '#EF4444'] : colors as [string, string]}
+                colors={accent}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.buttonInner}
+                style={styles.confirmFill}
               >
-                <Text style={[styles.confirm, destructive && styles.destructiveText]}>
-                  {confirmText}
-                </Text>
+                <Text style={styles.confirmText}>{confirmText}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -107,71 +160,76 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: responsiveSpacing.lg,
+    zIndex: Z_INDEX.MODAL,
   },
-  container: {
+  card: {
     width: '85%',
-    maxWidth: 400,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    maxWidth: scale(400),
+    borderRadius: scale(20),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.lg,
+    boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.35)',
     shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 20,
+    elevation: 12,
   },
-  iconContainer: {
+  badge: {
+    alignSelf: 'center',
+    width: scale(60),
+    height: scale(60),
+    borderRadius: scale(30),
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginBottom: responsiveSpacing.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    fontSize: fontScale(20),
+    fontWeight: '800',
     textAlign: 'center',
-    color: '#F3F4F6',
+    marginBottom: responsiveSpacing.sm,
   },
   message: {
-    fontSize: 16,
-    marginBottom: 24,
+    fontSize: fontScale(14),
+    lineHeight: fontScale(20),
     textAlign: 'center',
-    lineHeight: 22,
-    color: '#94A3B8',
+    marginBottom: responsiveSpacing.lg,
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
-  button: {
+  cancelBtn: {
     flex: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.2)',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  buttonInner: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: touchTargets.minimum,
+    borderRadius: scale(14),
+    borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.md,
   },
-  cancel: {
-    color: '#E5E7EB',
+  cancelText: {
+    fontSize: fontScale(15),
     fontWeight: '600',
   },
-  confirm: {
-    color: '#fff',
-    fontWeight: 'bold',
+  confirmBtn: {
+    flex: 1,
+    minHeight: touchTargets.minimum,
+    borderRadius: scale(14),
+    overflow: 'hidden',
   },
-  destructiveText: {
-    color: '#fff',
+  confirmFill: {
+    flex: 1,
+    minHeight: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.md,
+  },
+  confirmText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(15),
+    fontWeight: '700',
   },
 });
-
