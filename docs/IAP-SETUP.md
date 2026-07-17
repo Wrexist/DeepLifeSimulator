@@ -16,6 +16,15 @@ verification fails closed by design.
 2. Know your **bundle id** and the app's numeric **Apple ID** (App Store
    Connect → App → App Information) — needed for the verify server.
 
+> **Live status (verified against App Store Connect screenshots, 2026-07-17):**
+> 24 of the 25 one-time products below exist and are Approved, with ids
+> matching the code exactly. Outstanding: (1) **`deeplife_mindset_perk`**
+> (Mindset, Non-Consumable, $1.99) was never created — the store correctly
+> shows it Unavailable until it exists; (2) **no subscriptions exist** —
+> `deeplife_premium_monthly` / `deeplife_premium_yearly` (Part 2) are
+> missing, so the DeepLife+ paywall cannot complete a purchase; (3) the
+> optional `deeplife_gems_50000` ladder-completing tier (Part 3).
+
 ## Part 1 — Create the one-time products
 
 App Store Connect → your app → **Monetization → In-App Purchases → (+)**.
