@@ -16,17 +16,25 @@ import ShopItemCard, { ShopBadge } from '@/components/shop/ShopItemCard';
 interface GemShopModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Tab to land on when the store opens (deep-linked entry points pass this). */
+  initialTab?: 'upgrades' | 'store' | 'perks' | 'gems';
 }
 
 
-function GemShopModal({ visible, onClose }: GemShopModalProps) {
+function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const { buyGoldUpgrade } = useMoneyActions();
   const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const goldUpgrades = useGameSelector((s) => s.goldUpgrades);
   const perks = useGameSelector((s) => s.perks);
   const gems = useGameSelector((s) => s.stats?.gems ?? 0);
-  const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>('upgrades');
+  const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>(initialTab ?? 'upgrades');
+
+  // Deep-linked entry points (death popup, out-of-gems bridges) retarget the
+  // tab each time the store opens; manual tab taps while open are untouched.
+  useEffect(() => {
+    if (visible && initialTab) setTab(initialTab);
+  }, [visible, initialTab]);
   const [iapLoading, setIapLoading] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const isDarkMode = settings.darkMode ?? false;
