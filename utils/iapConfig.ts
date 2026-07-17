@@ -27,7 +27,12 @@ export const IAP_PRODUCTS = {
     ios: 'deeplife_gems_15000',
     android: 'deeplife_gems_15000',
   }) || 'deeplife_gems_15000',
-  
+
+  GEMS_50000: Platform.select({
+    ios: 'deeplife_gems_50000',
+    android: 'deeplife_gems_50000',
+  }) || 'deeplife_gems_50000',
+
   GEMS_STARTER: Platform.select({
     ios: 'deeplife_gems_starter',
     android: 'deeplife_gems_starter',
@@ -179,9 +184,9 @@ export const PRODUCT_CONFIGS = {
     gems: 5000,
     price: '$19.99',
     popular: false,
-    bestValue: true,
+    bestValue: false,
   },
-  
+
   [IAP_PRODUCTS.GEMS_15000]: {
     name: '15,000 Gems',
     description: 'Massive gem pack for power players',
@@ -189,6 +194,17 @@ export const PRODUCT_CONFIGS = {
     price: '$49.99',
     popular: false,
     bestValue: false,
+  },
+
+  // 6th ladder tier — the store's Best Value badge is COMPUTED from real
+  // gems-per-price ratios (this flag is informational only, kept truthful).
+  [IAP_PRODUCTS.GEMS_50000]: {
+    name: '50,000 Gems',
+    description: 'Colossal gem pack — the best gems per dollar',
+    gems: 50000,
+    price: '$99.99',
+    popular: false,
+    bestValue: true,
   },
   
   // Gem Shop Store Items
@@ -503,6 +519,7 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.GEMS_1000,
   IAP_PRODUCTS.GEMS_5000,
   IAP_PRODUCTS.GEMS_15000,
+  IAP_PRODUCTS.GEMS_50000,
   IAP_PRODUCTS.GEMS_STARTER,
   IAP_PRODUCTS.GEMS_PREMIUM,
   IAP_PRODUCTS.GEMS_ULTIMATE,
