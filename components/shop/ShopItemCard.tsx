@@ -3,14 +3,18 @@ import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } 
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Check, Gem } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 export type ShopAccent = 'upgrades' | 'gems' | 'packs' | 'perks';
 
+/** Row card (grid item) or banner-size hero card for a featured offer. */
+export type ShopCardVariant = 'row' | 'hero';
+
 export interface ShopBadge {
-  /** Short uppercase label, e.g., "POPULAR", "BEST VALUE", "SAVE 30%" */
+  /** Short uppercase label, e.g., "BEST VALUE", "MOST POPULAR" */
   label: string;
   /** Accent color for the dot + text */
   color: string;
@@ -28,16 +32,23 @@ interface ShopItemCardProps {
   priceLabel: string;
   /** When 'gems', a gem icon prefixes the price. When 'money', no icon. */
   priceKind: 'gems' | 'money';
-  /** Optional strikethrough price for "save X" deals. */
-  originalPriceLabel?: string;
-  /** Up to two small badges; first one floats top-right, second top-left. */
+  /**
+   * Truthful value line rendered beneath the price — e.g. a computed
+   * "≈ 300 gems / $1" for gem packs. NOT a fabricated strike-through price.
+   */
+  valueLine?: string;
+  /** Up to two small badges; rendered top-right. */
   badges?: ShopBadge[];
   buttonText: string;
   onPress?: () => void;
   accent: ShopAccent;
   owned?: boolean;
-  /** Disabled — typically insufficient funds or loading. */
+  /** Disabled — typically insufficient funds, loading, or store unavailable. */
   locked?: boolean;
+  /** 'row' (default) or 'hero' (banner-size featured card). */
+  variant?: ShopCardVariant;
+  /** Richer spoken label for the CTA; defaults to buttonText. */
+  accessibilityLabel?: string;
 }
 
 const ACCENT_BUTTON: Record<ShopAccent, [string, string, string]> = {
@@ -57,105 +68,160 @@ export default function ShopItemCard({
   icon: Icon,
   priceLabel,
   priceKind,
-  originalPriceLabel,
+  valueLine,
   badges,
   buttonText,
   onPress,
   accent,
   owned = false,
   locked = false,
+  variant = 'row',
+  accessibilityLabel,
 }: ShopItemCardProps) {
   const buttonPalette = ACCENT_BUTTON[accent];
   const buttonDisabled = owned || locked || !onPress;
   const buttonGradient: [string, string, ...string[]] = buttonDisabled
     ? [DISABLED_GRADIENT[0], DISABLED_GRADIENT[1]]
     : [buttonPalette[0], buttonPalette[1], buttonPalette[2]];
+  const hero = variant === 'hero';
+
+  const badgeRow =
+    badges && badges.length > 0 ? (
+      <View style={styles.badgeRow}>
+        {badges.map((b, i) => (
+          <View key={i} style={styles.badge}>
+            <View style={[styles.badgeDot, { backgroundColor: b.color }]} />
+            <Text style={[styles.badgeLabel, { color: b.color }]}>{b.label}</Text>
+          </View>
+        ))}
+      </View>
+    ) : null;
+
+  const media = image ? (
+    <Image source={image} style={styles.iconImage} resizeMode="contain" />
+  ) : Icon ? (
+    <Icon size={scale(hero ? 30 : 22)} color={buttonPalette[1]} />
+  ) : (
+    <Gem size={scale(hero ? 30 : 22)} color={buttonPalette[1]} />
+  );
+
+  const featureList =
+    features && features.length > 0 ? (
+      <View style={styles.featureList}>
+        {features.map((f, i) => (
+          <View key={i} style={styles.featureRow}>
+            <View style={[styles.featureDot, { backgroundColor: buttonPalette[1] }]} />
+            <Text style={styles.featureText} numberOfLines={2}>
+              {f}
+            </Text>
+          </View>
+        ))}
+      </View>
+    ) : null;
+
+  const priceBlock = (
+    <View style={styles.priceColumn}>
+      <View style={styles.priceRow}>
+        {priceKind === 'gems' ? (
+          <Gem size={scale(13)} color={owned ? 'rgba(226, 232, 240, 0.45)' : '#A5B4FC'} />
+        ) : null}
+        <Text
+          style={[
+            hero ? styles.heroPrice : styles.price,
+            { color: owned ? 'rgba(226, 232, 240, 0.45)' : '#F8FAFC' },
+          ]}
+        >
+          {priceLabel}
+        </Text>
+      </View>
+      {valueLine ? <Text style={styles.valueLine}>{valueLine}</Text> : null}
+    </View>
+  );
+
+  const cta = (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? buttonText}
+      accessibilityState={{ disabled: buttonDisabled }}
+      activeOpacity={0.85}
+      disabled={buttonDisabled}
+      onPress={onPress}
+      style={hero ? styles.heroButtonWrap : styles.buttonWrap}
+    >
+      <LinearGradient
+        colors={buttonGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={hero ? styles.heroButton : styles.button}
+      >
+        {owned ? <Check size={scale(14)} color="#FFFFFF" style={{ marginRight: scale(6) }} /> : null}
+        <Text style={[styles.buttonText, buttonDisabled && styles.buttonTextDisabled]}>{buttonText}</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+
+  if (hero) {
+    return (
+      <View style={[styles.card, styles.heroCard, { borderColor: buttonPalette[1] + '4D' }]}>
+        <LinearGradient
+          colors={[buttonPalette[0] + '2E', buttonPalette[2] + '10']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <BlurViewFallback intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
+        {badgeRow}
+        <View style={styles.heroBody}>
+          <View style={styles.heroTopRow}>
+            <View style={[styles.heroIconWrap, { borderColor: buttonPalette[1] + '66' }]}>{media}</View>
+            <View style={styles.heroTitleColumn}>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {title}
+              </Text>
+              {description ? (
+                <Text style={styles.heroDescription} numberOfLines={2}>
+                  {description}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+          {featureList}
+          <View style={styles.heroFooter}>
+            {priceBlock}
+            {cta}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.card}>
       <BlurViewFallback intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
 
-      {badges && badges.length > 0 ? (
-        <View style={styles.badgeRow}>
-          {badges.map((b, i) => (
-            <View key={i} style={styles.badge}>
-              <View style={[styles.badgeDot, { backgroundColor: b.color }]} />
-              <Text style={[styles.badgeLabel, { color: b.color }]}>{b.label}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      {badgeRow}
 
       <View style={styles.body}>
         <View style={styles.topRow}>
-          <View style={[styles.iconWrap, { borderColor: buttonPalette[1] + '55' }]}>
-            {image ? (
-              <Image source={image} style={styles.iconImage} resizeMode="contain" />
-            ) : Icon ? (
-              <Icon size={scale(22)} color={buttonPalette[1]} />
-            ) : (
-              <Gem size={scale(22)} color={buttonPalette[1]} />
-            )}
-          </View>
+          <View style={[styles.iconWrap, { borderColor: buttonPalette[1] + '55' }]}>{media}</View>
 
           <View style={styles.titleColumn}>
-            <Text style={styles.title} numberOfLines={2}>{title}</Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
             {description ? (
-              <Text style={styles.description} numberOfLines={2}>{description}</Text>
+              <Text style={styles.description} numberOfLines={2}>
+                {description}
+              </Text>
             ) : null}
           </View>
         </View>
 
-        {features && features.length > 0 ? (
-          <View style={styles.featureList}>
-            {features.map((f, i) => (
-              <View key={i} style={styles.featureRow}>
-                <View style={[styles.featureDot, { backgroundColor: buttonPalette[1] }]} />
-                <Text style={styles.featureText} numberOfLines={2}>{f}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+        {featureList}
 
         <View style={styles.footer}>
-          <View style={styles.priceColumn}>
-            {originalPriceLabel ? (
-              <Text style={styles.originalPrice}>{originalPriceLabel}</Text>
-            ) : null}
-            <View style={styles.priceRow}>
-              {priceKind === 'gems' ? (
-                <Gem size={scale(13)} color={owned ? 'rgba(226, 232, 240, 0.45)' : '#A5B4FC'} />
-              ) : null}
-              <Text
-                style={[
-                  styles.price,
-                  { color: owned ? 'rgba(226, 232, 240, 0.45)' : '#F8FAFC' },
-                ]}
-              >
-                {priceLabel}
-              </Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={buttonText}
-            accessibilityState={{ disabled: buttonDisabled }}
-            activeOpacity={0.85}
-            disabled={buttonDisabled}
-            onPress={onPress}
-            style={styles.buttonWrap}
-          >
-            <LinearGradient
-              colors={buttonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.button}
-            >
-              {owned ? <Check size={scale(14)} color="#FFFFFF" style={{ marginRight: scale(6) }} /> : null}
-              <Text style={[styles.buttonText, buttonDisabled && styles.buttonTextDisabled]}>{buttonText}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          {priceBlock}
+          {cta}
         </View>
       </View>
     </View>
@@ -170,6 +236,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroCard: {
+    marginBottom: verticalScale(12),
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    backgroundColor: 'rgba(10, 14, 26, 0.7)',
   },
   badgeRow: {
     position: 'absolute',
@@ -241,6 +313,52 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: fontScale(17),
   },
+  // ─── Hero (banner) variant ───
+  heroBody: {
+    padding: responsiveSpacing.md,
+    gap: verticalScale(12),
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    gap: scale(14),
+    paddingRight: scale(90), // breathing room for the badges
+  },
+  heroIconWrap: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(16),
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroTitleColumn: {
+    flex: 1,
+    paddingTop: scale(2),
+  },
+  heroTitle: {
+    fontSize: fontScale(18),
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
+  },
+  heroDescription: {
+    fontSize: fontScale(12.5),
+    color: 'rgba(226, 232, 240, 0.72)',
+    marginTop: 3,
+    lineHeight: fontScale(18),
+  },
+  heroFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: scale(12),
+    paddingTop: verticalScale(4),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: verticalScale(2),
+  },
   featureList: {
     gap: verticalScale(4),
     paddingTop: verticalScale(2),
@@ -264,7 +382,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingTop: verticalScale(2),
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -275,12 +393,7 @@ const styles = StyleSheet.create({
   priceColumn: {
     flexShrink: 1,
     paddingTop: verticalScale(8),
-  },
-  originalPrice: {
-    fontSize: fontScale(11),
-    color: 'rgba(226, 232, 240, 0.4)',
-    textDecorationLine: 'line-through',
-    fontVariant: ['tabular-nums'],
+    gap: verticalScale(2),
   },
   priceRow: {
     flexDirection: 'row',
@@ -293,6 +406,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
   },
+  heroPrice: {
+    fontSize: fontScale(20),
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    fontVariant: ['tabular-nums'],
+  },
+  valueLine: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#A5B4FC',
+    letterSpacing: 0.2,
+  },
   buttonWrap: {
     borderRadius: responsiveBorderRadius.sm,
     overflow: 'hidden',
@@ -304,7 +429,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: scale(18),
     paddingVertical: verticalScale(10),
-    minWidth: scale(110),
+    minWidth: scale(120),
+  },
+  heroButtonWrap: {
+    borderRadius: responsiveBorderRadius.md,
+    overflow: 'hidden',
+  },
+  heroButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: scale(22),
+    paddingVertical: verticalScale(13),
+    minWidth: scale(140),
   },
   buttonText: {
     fontSize: fontScale(12),
@@ -312,6 +449,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   buttonTextDisabled: {
     color: 'rgba(226, 232, 240, 0.55)',
