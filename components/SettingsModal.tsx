@@ -9,7 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign } from 'lucide-react-native';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -22,6 +22,8 @@ import { setSoundEnabled } from '@/utils/soundManager';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import { areAdsRemoved } from '@/lib/ads/rewardedAd';
+import { useGemStore } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
@@ -98,7 +100,12 @@ function SettingsActionButton({
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
+  const { openStore } = useGemStore();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  // Both the Remove Ads IAP and DeepLife+ set settings.adsRemoved, so this flag
+  // is authoritative (lib/ads/rewardedAd.ts). Used to hide the Remove Ads row
+  // once the player already owns an ad-free entitlement.
+  const adsRemoved = areAdsRemoved(gameState);
   // Wealth-scaled Discord join reward, computed once so every display below AND
   // the grant in handleJoinDiscord use the identical figure (shown == granted).
   // Memoized: calculateNetWorth walks every asset collection — too heavy to
@@ -596,6 +603,28 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </View>
                   </LinearGradient>
                 </TouchableOpacity>
+
+                {/* Gem Shop & Offers — a first-class entry into the IAP store. */}
+                <SettingsActionButton
+                  icon={Gem}
+                  label="Gem Shop & Offers"
+                  accent="#818CF8"
+                  onPress={() => openStore('store')}
+                  accessibilityLabel="Open the Gem Shop and offers"
+                />
+
+                {/* Remove Ads — the genre is majority ad-monetized, so this
+                    deserves a first-class path. Hidden once the player already
+                    owns an ad-free entitlement. */}
+                {!adsRemoved && (
+                  <SettingsActionButton
+                    icon={Sparkles}
+                    label="Remove Ads"
+                    accent="#F59E0B"
+                    onPress={() => openStore('store')}
+                    accessibilityLabel="Remove ads"
+                  />
+                )}
 
                 {/* Restore Purchases */}
                 <SettingsActionButton

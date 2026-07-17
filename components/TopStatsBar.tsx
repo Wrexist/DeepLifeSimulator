@@ -17,6 +17,7 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -30,7 +31,8 @@ import {
  Wallet,
  PiggyBank,
  Gem,
- ShoppingCart,
+ Store,
+ Plus,
  HelpCircle,
  Settings,
  ArrowRightCircle,
@@ -46,7 +48,9 @@ import {
 // longer sit permanently mounted with visible={false} (which kept their trees
 // built on every TopStatsBar render).
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
-const GemShopModal = React.lazy(() => import('./GemShopModal'));
+// GemShopModal is no longer mounted here — the app-level GemStoreProvider
+// (contexts/AppProviders.tsx) owns the single mount. This bar deep-links into
+// it via useGemStore().openStore(...) so there is no double-mount.
 const HelpModal = React.lazy(() => import('./HelpModal'));
 const PrestigeModal = React.lazy(() => import('./PrestigeModal'));
 const EnergyBreakdownModal = React.lazy(() => import('./EnergyBreakdownModal'));
@@ -93,9 +97,11 @@ function TopStatsBarComponent() {
 
  const { success, info, buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
  const { logRender } = usePerformanceMonitor();
+ // App-level IAP store launcher (single mount lives in GemStoreProvider).
+ const { openStore } = useGemStore();
 
  // Single modal state — only one modal open at a time, reduces re-renders
- type ModalName = 'settings'|'gemShop'|'help'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'bankBreakdown'|'gemsBreakdown'| null;
+ type ModalName = 'settings'|'help'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'bankBreakdown'|'gemsBreakdown'| null;
  const [openModal, setOpenModal] = useState<ModalName>(null);
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
  const closeModal = useCallback(() => setOpenModal(null), []);
@@ -597,15 +603,16 @@ function TopStatsBarComponent() {
  </View>
  <View style={styles.leftIconRow}>
  <TouchableOpacity
- onPress={() => { buttonPress(); setOpenModal('gemShop'); }}
- style={[styles.iconButton, darkMode && styles.iconButtonDark]}
+ onPress={() => { buttonPress(); openStore('store'); }}
+ style={styles.shopPill}
  activeOpacity={0.85}
- accessibilityLabel="Open Gem Shop"
+ accessibilityLabel="Open Shop"
  accessibilityRole="button"
- accessibilityHint="Tap to open the gem shop where you can purchase items with gems"
+ accessibilityHint="Tap to open the shop for gems, upgrades, perks, and Remove Ads"
  >
- <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
- <ShoppingCart size={22} color={iconColor} />
+ <LinearGradient colors={['#3B82F6', '#2563EB'] as const} style={styles.shopPillGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <Store size={18} color="#FFFFFF" />
+ <Text style={styles.shopPillLabel}>Shop</Text>
  </LinearGradient>
  </TouchableOpacity>
  <TouchableOpacity
@@ -823,12 +830,16 @@ function TopStatsBarComponent() {
  <TouchableOpacity
  onPress={() => {
  buttonPress();
+ openStore('gems');
+ }}
+ onLongPress={() => {
+ buttonPress();
  setOpenModal('gemsBreakdown');
  }}
  activeOpacity={0.7}
- accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
+ accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}. Tap to buy more gems.`}
  accessibilityRole="button"
- accessibilityHint="Tap to see detailed gem count"
+ accessibilityHint="Tap to open the gem store. Long press to see your gem breakdown."
  >
  <LinearGradient
  colors={['#6366F1','#4F46E5']}
@@ -853,6 +864,11 @@ function TopStatsBarComponent() {
  {formatGems(stats?.gems ?? 0)}
  </Text>
  </View>
+ {/* Static "+" affordance so the tap-to-buy intent is visible (no badge count,
+     no animation — the repo's animation bar gates high-frequency HUD). */}
+ <View style={styles.gemChipPlus}>
+ <Plus size={12} color="#FFFFFF" />
+ </View>
  </LinearGradient>
  </TouchableOpacity>
  </View>
@@ -866,7 +882,6 @@ function TopStatsBarComponent() {
  {openModal && (
  <Suspense fallback={null}>
  {openModal === 'settings' && <SettingsModal visible onClose={closeModal} />}
- {openModal === 'gemShop' && <GemShopModal visible onClose={closeModal} />}
  {openModal === 'help' && <HelpModal visible onClose={closeModal} />}
  {openModal === 'energyBreakdown' && <EnergyBreakdownModal visible onClose={closeModal} />}
  {openModal === 'happinessBreakdown' && <HappinessBreakdownModal visible onClose={closeModal} />}

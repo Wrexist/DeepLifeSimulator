@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { adMobService } from '@/services/AdMobService';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
+import { useGemStore } from '@/contexts/GemStoreContext';
+import { scale } from '@/utils/scaling';
 
 interface BannerAdProps {
   style?: any;
@@ -21,6 +23,8 @@ interface BannerAdProps {
 export default function BannerAd({ style }: BannerAdProps) {
   const [adError, setAdError] = useState(false);
   const [isReady, setIsReady] = useState(adMobService.isAvailable());
+  // App-level IAP store launcher (no-op outside the provider — safe here).
+  const { openStore } = useGemStore();
 
   useEffect(() => {
     const unsub = adMobService.addListener((state) => {
@@ -58,6 +62,18 @@ export default function BannerAd({ style }: BannerAdProps) {
         requestOptions={adMobService.adRequestOptions()}
         onAdFailedToLoad={() => setAdError(true)}
       />
+      {/* Quiet opt-out: a small muted text link (not a button) sitting BELOW the
+          banner — never overlapping it, and only ever rendered while ads are
+          active (the component returns null when ads are removed). hitSlop lifts
+          the tap target to ≥ touchTargets.minimum without changing layout. */}
+      <TouchableOpacity
+        onPress={() => openStore('store')}
+        hitSlop={{ top: scale(16), bottom: scale(16), left: scale(16), right: scale(16) }}
+        accessibilityRole="button"
+        accessibilityLabel="Remove ads"
+      >
+        <Text style={styles.removeAdsText}>Remove ads</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -65,5 +81,12 @@ export default function BannerAd({ style }: BannerAdProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+  },
+  removeAdsText: {
+    marginTop: scale(4),
+    fontSize: scale(11),
+    color: '#94A3B8',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

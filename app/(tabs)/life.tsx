@@ -52,7 +52,7 @@ function LifeScreen() {
             }}
             segments={[
               { key: 'health', label: 'Health', icon: Heart },
-              { key: 'shop', label: 'Shop', icon: ShoppingCart },
+              { key: 'shop', label: 'Market', icon: ShoppingCart },
               { key: 'stats', label: 'Stats', icon: Trophy },
               { key: 'family', label: 'Family', icon: Users },
             ]}
