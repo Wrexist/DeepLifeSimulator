@@ -5,6 +5,7 @@ import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { logger } from '@/utils/logger';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -374,18 +375,35 @@ function HomeScreenContent() {
   );
 
   const handleJoinCommunity = useCallback(async () => {
-    // Grant the cash reward (updateMoney clamps to the money ceiling + logs it).
+    // Persist the one-time claim marker BEFORE granting anything. If we granted
+    // first and this write failed, a force-kill/restart would leave the scaled
+    // cash reward re-claimable. So persist first; only grant on success. The
+    // `discord_reward_claimed` key is shared with the Settings entry point so
+    // the reward can't be taken twice across both surfaces.
+    let claimSaved = false;
+    try {
+      claimSaved = await safeSetItem('discord_reward_claimed', 'true');
+    } catch {
+      claimSaved = false;
+    }
+    if (!claimSaved) {
+      // Couldn't persist — grant nothing and leave it claimable next session
+      // (the popup re-appears while `discord_reward_claimed` stays unset).
+      logger.warn('Could not persist Discord reward claim; granting nothing');
+      setShowCommunityReward(false);
+      return;
+    }
+
+    // Claim persisted — grant the cash reward (updateMoney clamps + logs it).
     updateMoney(setGameState, communityRewardAmount, 'Discord community reward');
     setShowCommunityReward(false);
-    // Persist the one-time flags. `discord_reward_claimed` is shared with the
-    // Settings entry point so the reward can't be taken twice.
+    // Best-effort: remember the popup was seen so it doesn't resurface.
     try {
-      await safeSetItem('discord_reward_claimed', 'true');
       await safeSetItem('discord_popup_seen', 'true');
     } catch {
-      // Non-critical: money is already granted; the flag can retry next session.
+      // Non-critical: may re-show next session if this write fails.
     }
-    // Open the Discord invite.
+    // Open the Discord invite (last).
     try {
       const canOpen = await Linking.canOpenURL(DISCORD_URL);
       if (canOpen) await Linking.openURL(DISCORD_URL);

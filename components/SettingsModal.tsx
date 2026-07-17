@@ -23,7 +23,7 @@ import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
-import { useGemStore } from '@/contexts/GemStoreContext';
+import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
@@ -324,6 +324,37 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     ]).start(() => setShowRewardPopup(false));
   };
 
+  // ── Store bridge (stacked-modal safety) ────────────────────────────────────
+  // The gem store is an app-root RN Modal. Presenting it while THIS Settings
+  // Modal is still on screen is the iOS stacked-modal hazard fixed elsewhere in
+  // this PR (rewarded ad, LuxuryApp sheet). So a store row stashes the target
+  // tab, dismisses Settings via onClose(), and opens the store only AFTER the
+  // dismiss settles — never while Settings is still presented.
+  //
+  // Unlike RewardedAdModal (which stays mounted with visible=false), Settings is
+  // UNMOUNTED on close by its parents (TopStatsBar / MainMenu gate it on a show
+  // flag), so Modal.onDismiss can't be relied on and the deferred open MUST
+  // outlive this component's unmount. openStore targets the always-mounted
+  // app-level GemStoreProvider, so firing it post-unmount is safe — hence a
+  // plain, deliberately un-cleared timer (clearing it on unmount would cancel
+  // the open). onDismiss is kept as an iOS fast path for any mount that DOES
+  // keep Settings alive; flushPendingStore is idempotent so they can't
+  // double-open.
+  const pendingStoreTabRef = useRef<GemStoreTab | null>(null);
+
+  const flushPendingStore = () => {
+    const tab = pendingStoreTabRef.current;
+    if (!tab) return;
+    pendingStoreTabRef.current = null;
+    openStore(tab);
+  };
+
+  const openStoreAfterClose = (tab: GemStoreTab) => {
+    pendingStoreTabRef.current = tab;
+    onClose();
+    setTimeout(flushPendingStore, 550);
+  };
+
   const handleJoinDiscord = async () => {
     try {
       const discordUrl = DISCORD_URL;
@@ -339,23 +370,28 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         return;
       }
 
-      // Give reward — cash, granted via updateMoney so it respects the money
-      // ceiling and is logged like any other transaction. Shares the
-      // `discord_reward_claimed` flag with the in-game CommunityRewardPopup so
-      // the reward can be claimed exactly once across both entry points.
-      updateMoney(setGameState, discordReward, 'Discord community reward');
-
-      // Mark as claimed
+      // Persist the one-time claim marker BEFORE granting anything. If we granted
+      // first and this write failed, a force-kill/restart would leave the scaled
+      // cash reward re-claimable across restarts. So persist first; only on
+      // success grant + save. Shares `discord_reward_claimed` with the in-game
+      // CommunityRewardPopup so the reward is claimed exactly once across both
+      // entry points.
       const saved = await safeSetItem('discord_reward_claimed', 'true');
       if (!saved) {
-        logger.warn('Could not save discord reward claim status');
+        // Persistence failed — grant NOTHING and leave the reward unclaimed so
+        // it can be retried; never mint cash that isn't durably recorded.
+        logger.warn('Could not persist Discord reward claim; granting nothing');
+        Alert.alert("Couldn't save your claim", 'Please try again in a moment.');
+        return;
       }
-      setDiscordRewardClaimed(true);
 
-      // Save game to persist the gems
+      // Claim persisted — now grant the cash (updateMoney respects the money
+      // ceiling and logs it), mark claimed, and save.
+      setDiscordRewardClaimed(true);
+      updateMoney(setGameState, discordReward, 'Discord community reward');
       await saveGame();
 
-      // Open Discord link
+      // Open Discord link (last)
       const canOpen = await Linking.canOpenURL(discordUrl);
       if (canOpen) {
         await Linking.openURL(discordUrl);
@@ -386,6 +422,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={flushPendingStore}
     >
       <View style={[styles.overlay, styles.overlayDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={[styles.blurOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
@@ -612,12 +649,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Gem Shop & Offers — a first-class entry into the IAP store. */}
+                {/* Gem Shop & Offers — a first-class entry into the IAP store.
+                    Dismiss Settings first, then open the store from onDismiss
+                    (stacked-modal safety). */}
                 <SettingsActionButton
                   icon={Gem}
                   label="Gem Shop & Offers"
                   accent="#818CF8"
-                  onPress={() => openStore('store')}
+                  onPress={() => openStoreAfterClose('store')}
                   accessibilityLabel="Open the Gem Shop and offers"
                 />
 
@@ -629,7 +668,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     icon={Sparkles}
                     label="Remove Ads"
                     accent="#F59E0B"
-                    onPress={() => openStore('store')}
+                    onPress={() => openStoreAfterClose('store')}
                     accessibilityLabel="Remove ads"
                   />
                 )}

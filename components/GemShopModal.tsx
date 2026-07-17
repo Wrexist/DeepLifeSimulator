@@ -39,12 +39,51 @@ interface GemShopModalProps {
   initialTab?: StoreTab;
 }
 
-// Parse a USD price string ("$4.99") into a number for value math. The gems-per-
-// dollar anchor is deliberately computed from the config's USD price (a stable
-// reference), never the localized price, which may be a different currency.
+// Parse a USD price string ("$4.99") into a number. This is the CONFIG-USD
+// anchor: a stable reference used for (a) the Best-Value ranking fallback and
+// (b) the value line ONLY when no live store price is available (dev / store
+// not configured), in which case the price shown on the card is also the config
+// USD price, so a "$" ratio is consistent. The live, currency-honest ratio comes
+// from storePriceInfo() below when the SDK exposes a real numeric price.
 function usdToNumber(price?: string): number {
   const n = parseFloat(String(price ?? '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+// Compact symbols for the storefront currencies we can render inline; any other
+// ISO 4217 code is shown verbatim (e.g. "per 1 SEK").
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CAD: '$', AUD: '$',
+  NZD: '$', CNY: '¥', INR: '₹', KRW: '₩', BRL: 'R$', RUB: '₽',
+};
+
+// Extract a NUMERIC price + ISO currency from a loaded store product, if the
+// SDK actually exposed them. The legacy adapter (services/expoIapAdapter.ts)
+// stringifies `price` for display, so a clean numeric is NOT guaranteed — return
+// null unless we can read a finite, positive amount AND a currency code. When
+// this returns a value the UI can label the ratio in the REAL storefront
+// currency instead of a fabricated "$"; when it returns null the UI omits the
+// per-currency ratio for a store-loaded product (a localized price may not be USD).
+function storePriceInfo(product: any): { amount: number; currency: string } | null {
+  if (!product) return null;
+  const rawAmount =
+    typeof product.priceAmount === 'number' ? product.priceAmount
+    : typeof product.price === 'number' ? product.price
+    : NaN;
+  const currency =
+    typeof product.currency === 'string' ? product.currency
+    : typeof product.currencyCode === 'string' ? product.currencyCode
+    : typeof product.priceCurrencyCode === 'string' ? product.priceCurrencyCode
+    : '';
+  if (!Number.isFinite(rawAmount) || rawAmount <= 0 || !currency) return null;
+  return { amount: rawAmount, currency };
+}
+
+// "≈ 300 gems per €1" (known symbol) or "≈ 300 gems per 1 SEK" (ISO fallback).
+function storeRatioLine(gems: number, amount: number, currency: string): string {
+  const perUnit = Math.round(gems / amount).toLocaleString();
+  const symbol = CURRENCY_SYMBOLS[currency];
+  return symbol ? `≈ ${perUnit} gems per ${symbol}1` : `≈ ${perUnit} gems per 1 ${currency}`;
 }
 
 function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
@@ -112,6 +151,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     return map;
   }, [iapState.products]);
 
+  // Per-SKU availability: an IAP is buyable only if THIS product id actually
+  // loaded from the store. `storeReady` (any product loaded) still drives the
+  // global banner, but a mixed catalog — most SKUs loaded, one missing — must
+  // not present a buyable button for the missing one on a config-price fallback.
+  // Gem-SPEND upgrades (handleBuyUpgrade) are not IAPs and are never gated here.
+  const isProductAvailable = (id: string): boolean => productsById.has(id);
+
   // Prefer the store SDK's localized price; fall back to the config USD price.
   const resolveDisplayPrice = (id: string): string => {
     const p = productsById.get(id);
@@ -120,17 +166,33 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     return getProductConfig(id)?.price ?? '';
   };
 
+  // Currency-honest value line for a gem pack:
+  //  • live store price (numeric + currency) → ratio in the REAL storefront currency
+  //  • no store product loaded → the price shown is the config USD price, so a USD
+  //    ratio is consistent with the card (dev / store-not-configured fallback)
+  //  • store product present but no numeric price (localized-only) → OMIT, since a
+  //    "$" ratio next to a possibly-non-USD localized price would mislead.
+  const gemValueLine = (id: string, gems: number, perDollarConfig: number): string | undefined => {
+    const product = productsById.get(id);
+    const info = storePriceInfo(product);
+    if (info) return storeRatioLine(gems, info.amount, info.currency);
+    if (!product) {
+      return perDollarConfig > 0 ? `≈ ${Math.round(perDollarConfig).toLocaleString()} gems / $1` : undefined;
+    }
+    return undefined;
+  };
+
   // Real-money CTA label — the real price is unmistakable on every buy button.
-  const buyLabel = (owned: boolean, displayPrice: string): string => {
+  const buyLabel = (owned: boolean, displayPrice: string, available: boolean): string => {
     if (owned) return 'Owned';
-    if (!storeReady) return 'Store unavailable';
+    if (!available) return 'Unavailable';
     if (iapLoading) return 'Processing…';
     return displayPrice ? `Buy · ${displayPrice}` : 'Buy';
   };
 
-  const ctaA11y = (name: string, displayPrice: string, owned: boolean): string => {
+  const ctaA11y = (name: string, displayPrice: string, owned: boolean, available: boolean): string => {
     if (owned) return `${name}, already owned`;
-    if (!storeReady) return `${name}, store unavailable`;
+    if (!available) return `${name}, unavailable`;
     return `Buy ${name}${displayPrice ? ` for ${displayPrice}` : ''}`;
   };
 
@@ -151,10 +213,22 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     });
   }, []);
 
-  const bestGemId = useMemo(
-    () => gemPacks.reduce((best, p) => (p.perDollar > best.perDollar ? p : best), gemPacks[0]).id,
-    [gemPacks],
-  );
+  // Best gems-per-money pack earns the badge. Relative ranking is CURRENCY-
+  // INVARIANT: every SKU is sold in the same storefront currency, so whichever
+  // pack gives the most gems per unit wins regardless of which currency that unit
+  // is. We rank by the config USD ratio by default; when the store exposes a
+  // numeric price for EVERY pack we rank by those live prices instead (still a
+  // like-for-like comparison, same storefront currency).
+  const bestGemId = useMemo(() => {
+    const priced = gemPacks.map((p) => {
+      const info = storePriceInfo(productsById.get(p.id));
+      return { id: p.id, storeRatio: info ? p.gems / info.amount : null, configRatio: p.perDollar };
+    });
+    const allPriced = priced.length > 0 && priced.every((p) => p.storeRatio !== null);
+    const ratioOf = (p: (typeof priced)[number]) =>
+      allPriced && p.storeRatio !== null ? p.storeRatio : p.configRatio;
+    return priced.reduce((best, p) => (ratioOf(p) > ratioOf(best) ? p : best), priced[0]).id;
+  }, [gemPacks, productsById]);
   const bestGem = useMemo(
     () => gemPacks.find((p) => p.id === bestGemId) ?? gemPacks[gemPacks.length - 1],
     [gemPacks, bestGemId],
@@ -166,10 +240,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       Alert.alert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
       return;
     }
-    if (!storeReady) {
+    // Refuse before touching iapService when THIS SKU didn't load — its price on
+    // the card is a config fallback, not a real store price, so it isn't buyable.
+    if (!isProductAvailable(id)) {
       Alert.alert(
-        'Store Unavailable',
-        'The store isn’t available right now. Please check your connection and try again in a moment.',
+        'Item Unavailable',
+        'This item isn’t available right now. Please check your connection and try again in a moment.',
       );
       return;
     }
@@ -216,7 +292,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     );
   };
 
-  // Gem-spend upgrades (in-game currency, NOT an IAP) — unchanged behavior.
+  // Gem-spend upgrades (in-game currency, NOT an IAP).
   const handleBuyUpgrade = async (id: string, price: number) => {
     if (gems < price) {
       Alert.alert('Insufficient Gems', 'You need more gems to purchase this upgrade.');
@@ -227,9 +303,21 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       Alert.alert('Already Owned', 'You already own this upgrade.');
       return;
     }
+    // The upgrade commits to game state synchronously here. Persisting can still
+    // reject (disk/quota) — swallow it into a clear message rather than letting
+    // it bubble as an unhandled rejection. Do NOT claim the purchase failed: the
+    // state change stands, and the periodic autosave will retry the write.
     buyGoldUpgrade(id);
-    await saveGame();
-    Alert.alert('Purchase Successful', 'Your upgrade has been activated!');
+    try {
+      await saveGame();
+      Alert.alert('Purchase Successful', 'Your upgrade has been activated!');
+    } catch (error) {
+      logger.error('Failed to save after gem upgrade purchase:', error);
+      Alert.alert(
+        'Purchase Successful',
+        'Your upgrade has been activated. We couldn’t save just now, but it will be saved automatically in a moment.',
+      );
+    }
   };
 
   const handleRestorePurchases = async () => {
@@ -268,11 +356,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const renderGemPackCard = (p: (typeof gemPacks)[number]) => {
     const config = getProductConfig(p.id);
     const displayPrice = resolveDisplayPrice(p.id);
+    const available = isProductAvailable(p.id);
     const name = config?.name ?? `${p.gems.toLocaleString()} Gems`;
     const badges: ShopBadge[] = [];
     if (p.id === bestGemId) badges.push({ label: 'Best Value', color: BADGE_BEST });
     if (config?.popular === true) badges.push({ label: 'Most Popular', color: BADGE_POPULAR });
-    const valueLine = p.perDollar > 0 ? `≈ ${Math.round(p.perDollar).toLocaleString()} gems / $1` : undefined;
+    const valueLine = gemValueLine(p.id, p.gems, p.perDollar);
     return (
       <ShopItemCard
         key={p.id}
@@ -284,10 +373,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         valueLine={valueLine}
         badges={badges}
-        buttonText={buyLabel(false, displayPrice)}
-        accessibilityLabel={ctaA11y(name, displayPrice, false)}
+        buttonText={buyLabel(false, displayPrice, available)}
+        accessibilityLabel={ctaA11y(name, displayPrice, false, available)}
         onPress={() => handlePurchase(p.id, name, displayPrice)}
-        locked={!storeReady || iapLoading}
+        locked={!available || iapLoading}
       />
     );
   };
@@ -304,6 +393,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     owned: boolean;
   }) => {
     const displayPrice = resolveDisplayPrice(item.id);
+    const available = isProductAvailable(item.id);
     return (
       <ShopItemCard
         key={`hero-${item.id}`}
@@ -318,10 +408,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         badges={item.badges}
         owned={item.owned}
-        buttonText={buyLabel(item.owned, displayPrice)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, item.owned)}
+        buttonText={buyLabel(item.owned, displayPrice, available)}
+        accessibilityLabel={ctaA11y(item.title, displayPrice, item.owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!storeReady || (iapLoading && !item.owned)}
+        locked={!available || (iapLoading && !item.owned)}
       />
     );
   };
@@ -337,6 +427,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     const config = getProductConfig(item.id);
     const displayPrice = resolveDisplayPrice(item.id);
     const owned = item.owned === true;
+    const available = isProductAvailable(item.id);
     return (
       <ShopItemCard
         key={item.id}
@@ -349,10 +440,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         badges={item.badges}
         owned={owned}
-        buttonText={buyLabel(owned, displayPrice)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, owned)}
+        buttonText={buyLabel(owned, displayPrice, available)}
+        accessibilityLabel={ctaA11y(item.title, displayPrice, owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!storeReady || (iapLoading && !owned)}
+        locked={!available || (iapLoading && !owned)}
       />
     );
   };
@@ -393,6 +484,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // ─── Data ───
 
+  // Honest value line for the featured best-value gem hero (real currency when
+  // the store exposes a numeric price; config-$ fallback only when unloaded).
+  const bestGemValueLine = gemValueLine(bestGem.id, bestGem.gems, bestGem.perDollar);
+
   const featured = [
     {
       id: bestGem.id,
@@ -400,8 +495,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       image: bestGem.image,
       title: getProductConfig(bestGem.id)?.name ?? `${bestGem.gems.toLocaleString()} Gems`,
       description: `${bestGem.gems.toLocaleString()} gems — the best gem value in the store.`,
-      valueLine:
-        bestGem.perDollar > 0 ? `Best value · ≈ ${Math.round(bestGem.perDollar).toLocaleString()} gems / $1` : undefined,
+      valueLine: bestGemValueLine ? `Best value · ${bestGemValueLine}` : undefined,
       badges: [{ label: 'Best Value', color: BADGE_BEST }] as ShopBadge[],
       owned: false,
     },

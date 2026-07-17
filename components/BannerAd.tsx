@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { adMobService } from '@/services/AdMobService';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
 import { useGemStore } from '@/contexts/GemStoreContext';
+import { getThemeColors } from '@/lib/config/theme';
 import { scale } from '@/utils/scaling';
 
 interface BannerAdProps {
@@ -33,6 +34,10 @@ export default function BannerAd({ style }: BannerAdProps) {
     return unsub;
   }, []);
 
+  // Stable handler for the quiet opt-out link (avoids re-creating the arrow on
+  // every render of this always-mounted leaf).
+  const handleRemoveAdsPress = useCallback(() => openStore('store'), [openStore]);
+
   // Hide ads if the user purchased Remove Ads or Lifetime Premium. The
   // in-memory service check is empty on a cold start until restorePurchases()
   // completes, so also honor the persisted entitlement saved into game settings
@@ -53,6 +58,11 @@ export default function BannerAd({ style }: BannerAdProps) {
 
   if (!NativeBanner || !BannerSize || !unitId) return null;
 
+  // Muted link color pulled from the theme's textMuted (dark theme resolves to
+  // the same slate this used to hardcode) — no new game-state subscription, the
+  // settings hook is already read above for the ad-removed entitlement.
+  const removeAdsColor = getThemeColors(settings?.darkMode ?? true).textMuted;
+
   return (
     <View style={[styles.container, style]}>
       <NativeBanner
@@ -67,12 +77,12 @@ export default function BannerAd({ style }: BannerAdProps) {
           active (the component returns null when ads are removed). hitSlop lifts
           the tap target to ≥ touchTargets.minimum without changing layout. */}
       <TouchableOpacity
-        onPress={() => openStore('store')}
+        onPress={handleRemoveAdsPress}
         hitSlop={{ top: scale(16), bottom: scale(16), left: scale(16), right: scale(16) }}
         accessibilityRole="button"
         accessibilityLabel="Remove ads"
       >
-        <Text style={styles.removeAdsText}>Remove ads</Text>
+        <Text style={[styles.removeAdsText, { color: removeAdsColor }]}>Remove ads</Text>
       </TouchableOpacity>
     </View>
   );
@@ -85,7 +95,7 @@ const styles = StyleSheet.create({
   removeAdsText: {
     marginTop: scale(4),
     fontSize: scale(11),
-    color: '#94A3B8',
+    // color is theme-driven (applied inline) — see removeAdsColor.
     fontWeight: '500',
     textDecorationLine: 'underline',
   },

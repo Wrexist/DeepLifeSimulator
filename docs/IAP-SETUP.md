@@ -110,6 +110,10 @@ cd server/iap-verify
 npm install
 # set env vars in Vercel: IAP_SHARED_SECRET, APPLE_BUNDLE_ID,
 # APPLE_APP_APPLE_ID, GOOGLE_PACKAGE_NAME, GOOGLE_SERVICE_ACCOUNT_JSON
+#   IAP_SHARED_SECRET — the value the server expects as the caller's bearer
+#   token. It MUST equal the app's EXPO_PUBLIC_IAP_VERIFY_TOKEN below (that pair
+#   is how the endpoint recognises calls from the app). Despite the name it is
+#   NOT a secret (see the security note below) — use a dedicated random string.
 # drop Apple's two root CA .cer files into server/iap-verify/certs/
 vercel --prod
 ```
@@ -118,8 +122,22 @@ Then point the app at it and rebuild:
 
 ```bash
 eas secret:create --name EXPO_PUBLIC_IAP_VERIFY_URL   --value "https://<project>.vercel.app/verify"
-eas secret:create --name EXPO_PUBLIC_IAP_VERIFY_TOKEN --value "<the same IAP_SHARED_SECRET>"
+# Must equal IAP_SHARED_SECRET on the server. A dedicated random value used for
+# NOTHING else — never a password, your App Store shared secret, or an API key.
+eas secret:create --name EXPO_PUBLIC_IAP_VERIFY_TOKEN --value "<your dedicated verify token>"
 ```
+
+> **Security note — this token is NOT a secret.** Every `EXPO_PUBLIC_*` value is
+> compiled into the JavaScript bundle and ships inside the app binary, so
+> `EXPO_PUBLIC_IAP_VERIFY_TOKEN` — and therefore the `IAP_SHARED_SECRET` it must
+> match — is readable by anyone who inspects the app. Treat it as a low-value
+> bearer token that only deters casual/scripted abuse of the endpoint; it proves
+> nothing about a purchase. The REAL security is the server-side Apple/Google
+> receipt verification in `server/iap-verify`, which validates every receipt with
+> Apple/Google before the app is allowed to grant anything. Because it ships in
+> the binary: generate a **dedicated random value** for this token pair, reuse it
+> for nothing else, rotate it freely if needed, and never put a real password,
+> your App Store Connect shared secret, or any API key here.
 
 ## Part 5 — Testing before release
 
