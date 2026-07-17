@@ -17,7 +17,6 @@ import DangerZone from './settings/DangerZone';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
-import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { setSoundEnabled } from '@/utils/soundManager';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
@@ -30,7 +29,12 @@ import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import {
+  readDiscordClaim,
+  beginDiscordClaim,
+  finalizeDiscordClaim,
+  applyDiscordRewardGrant,
+} from '@/utils/discordRewardClaim';
 const LinearGradient = LinearGradientFallback;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -140,11 +144,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const rewardOpacityAnim = useRef(new Animated.Value(0)).current;
   const rewardGemAnim = useRef(new Animated.Value(0)).current;
   
-  // Check if Discord reward has been claimed
+  // Check if Discord reward has been claimed. Treat BOTH a finalized marker AND
+  // a pending (in-flight) claim as claimed — a claim already begun must never
+  // re-offer the reward (the home reconciler will complete a pending one).
   useEffect(() => {
     const checkDiscordReward = async () => {
-      const claimed = await safeGetItem('discord_reward_claimed');
-        setDiscordRewardClaimed(claimed === 'true');
+      const claim = await readDiscordClaim();
+      setDiscordRewardClaimed(claim !== 'unclaimed');
     };
     checkDiscordReward();
   }, []);
@@ -370,26 +376,36 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         return;
       }
 
-      // Persist the one-time claim marker BEFORE granting anything. If we granted
-      // first and this write failed, a force-kill/restart would leave the scaled
-      // cash reward re-claimable across restarts. So persist first; only on
-      // success grant + save. Shares `discord_reward_claimed` with the in-game
-      // CommunityRewardPopup so the reward is claimed exactly once across both
-      // entry points.
-      const saved = await safeSetItem('discord_reward_claimed', 'true');
-      if (!saved) {
-        // Persistence failed — grant NOTHING and leave the reward unclaimed so
-        // it can be retried; never mint cash that isn't durably recorded.
+      // Freeze the amount at claim time so the pending marker, the grant and the
+      // reward popup can never drift (shown == granted).
+      const amount = discordReward;
+      // EXACTLY-ONCE: durably record the pending marker BEFORE minting any cash.
+      // Shares `discord_reward_claimed` with the in-game CommunityRewardPopup so
+      // the reward is claimed exactly once across both entry points. On failure,
+      // grant NOTHING and leave it claimable — never mint uncommitted cash.
+      const begun = await beginDiscordClaim(amount);
+      if (!begun) {
         logger.warn('Could not persist Discord reward claim; granting nothing');
         Alert.alert("Couldn't save your claim", 'Please try again in a moment.');
         return;
       }
-
-      // Claim persisted — now grant the cash (updateMoney respects the money
-      // ceiling and logs it), mark claimed, and save.
       setDiscordRewardClaimed(true);
-      updateMoney(setGameState, discordReward, 'Discord community reward');
-      await saveGame();
+      // Grant money + flag in ONE atomic, idempotent state update (canonical
+      // applyMoneyDelta folded in, so the money and the flag persist together).
+      setGameState(prev => applyDiscordRewardGrant(prev, amount));
+      // Let the commit + GameActions ref-sync flush before saving (saveGame reads
+      // gameStateRef.current, which lags the commit by one passive-effect cycle),
+      // otherwise the PRE-grant state would hit disk.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      try {
+        await saveGame();
+        await finalizeDiscordClaim();
+      } catch (err) {
+        // saveGame rejected — DO NOT finalize. The pending marker + the home
+        // reconciler (single owner; Settings is transient) complete the grant on
+        // next launch (the designed recovery).
+        logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
+      }
 
       // Open Discord link (last)
       const canOpen = await Linking.canOpenURL(discordUrl);
@@ -397,14 +413,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         await Linking.openURL(discordUrl);
       }
 
-      // Show liquid glass reward popup with the amount that was ACTUALLY
-      // granted — the live discordReward memo recomputes upward once the grant
-      // raises net worth.
+      // Show liquid glass reward popup with the amount that was ACTUALLY granted
+      // (frozen above — the live discordReward memo recomputes upward once the
+      // grant raises net worth).
       showRewardAnimation(
         canOpen
-          ? `You received ${formatMoney(discordReward)} for joining our Discord!\nWelcome to the community!`
-          : `You received ${formatMoney(discordReward)}!\nVisit ${DISCORD_URL} to join our Discord.`,
-        discordReward
+          ? `You received ${formatMoney(amount)} for joining our Discord!\nWelcome to the community!`
+          : `You received ${formatMoney(amount)}!\nVisit ${DISCORD_URL} to join our Discord.`,
+        amount
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
