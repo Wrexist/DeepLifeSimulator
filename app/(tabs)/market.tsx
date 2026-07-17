@@ -64,7 +64,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
-  const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats } = useGame();
+  const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
@@ -401,13 +401,18 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     });
     // Refresh the gym-visit timer so consistent sessions stave off the
     // accelerated fitness decay the weekly tick applies the longer you skip it.
+    // (React batches this with the updateStats commit above — one render.)
     setGameState(prev => ({ ...prev, lastGymVisitWeek: prev.weeksLived || 0 }));
+    // Persist the session — deferred one macrotask so the save captures the
+    // post-commit state (repo convention). Untracked on purpose: the save must
+    // survive even if the screen unmounts right after the tap.
+    setTimeout(() => { void saveGame?.(); }, 0);
     // Effort → reward feedback, matching the food/buy paths on this screen. When
     // stats are already capped the session still counts — it keeps the routine up.
     showSuccess(gymGainsAllZero
       ? '💪 Workout done! Fitness routine maintained.'
       : '💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, updateStats, setGameState, showSuccess]);
+  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, updateStats, setGameState, saveGame, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead

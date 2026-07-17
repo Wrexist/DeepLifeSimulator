@@ -65,6 +65,7 @@ import {
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { logger } from '@/utils/logger';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import {
   LUXURY_CATALOG,
@@ -110,20 +111,6 @@ const EASE_OUT = Easing?.bezier ? Easing.bezier(0.23, 1, 0.32, 1) : undefined;
 type IconType = React.ComponentType<{ size?: number; color?: string }>;
 type ThemeColors = ReturnType<typeof getThemeColors>;
 type Tab = 'browse' | 'collection';
-
-/**
- * Premium money display. The shared formatMoney is the single source of scale
- * (K/M/B/T/Q) + the app-wide abbreviation rule, but its zero-strip regex is
- * anchored to end-of-string, so the unit suffix defeats it and it emits e.g.
- * "$250.00K" — the exact ugly string in the owner's TestFlight complaint. Fixing
- * that shared util is out of scope for this redesign, so we delegate to it and
- * trim the cosmetic trailing zeros here → "$250K" / "$1.2M" / "$500M".
- */
-function money(n: number): string {
-  return formatMoney(n)
-    .replace(/(\.\d*?)0+([KMBTQ])$/, '$1$2')
-    .replace(/\.([KMBTQ])$/, '$1');
-}
 
 const clampUnit = (n: number): number => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 
@@ -216,7 +203,7 @@ function ItemStatChips({ item, theme }: { item: LuxuryItem; theme: ThemeColors }
         Icon={Wallet}
         color={theme.textSecondary}
         bg={theme.surfaceElevated}
-        label={`${money(item.weeklyUpkeep)}/wk`}
+        label={`${formatMoney(item.weeklyUpkeep)}/wk`}
       />
       <StatChip Icon={Heart} color={EMERALD} bg="rgba(16, 185, 129, 0.12)" label={`+${item.happiness}`} />
       <StatChip Icon={Award} color={IDENTITY_LIGHT} bg={`rgba(${IDENTITY_RGB}, 0.12)`} label={`+${item.prestige}`} />
@@ -275,7 +262,7 @@ function LuxuryCard({
               onPressIn={press.onPressIn}
               onPressOut={press.onPressOut}
               accessibilityRole="button"
-              accessibilityLabel={`${item.name}, ${money(item.price)}${isOwned ? ', owned' : ''}. View details`}
+              accessibilityLabel={`${item.name}, ${formatMoney(item.price)}${isOwned ? ', owned' : ''}. View details`}
             >
               <View style={[styles.bannerBox, { height: scale(132) }]}>
                 <ArtworkBanner item={item} emojiSize={scale(54)} />
@@ -289,7 +276,7 @@ function LuxuryCard({
                   </View>
                 ) : (
                   <View style={styles.pricePill}>
-                    <Text style={styles.pricePillText}>{money(item.price)}</Text>
+                    <Text style={styles.pricePillText}>{formatMoney(item.price)}</Text>
                   </View>
                 )}
               </View>
@@ -302,7 +289,7 @@ function LuxuryCard({
                   <ChevronRight size={scale(16)} color={theme.textMuted} />
                 </View>
                 {isOwned && (
-                  <Text style={[styles.cardResale, { color: theme.textMuted }]}>Resale {money(resale)}</Text>
+                  <Text style={[styles.cardResale, { color: theme.textMuted }]}>Resale {formatMoney(resale)}</Text>
                 )}
                 <ItemStatChips item={item} theme={theme} />
               </View>
@@ -324,10 +311,10 @@ function LuxuryCard({
                   onPress={() => onSell(item)}
                   style={styles.sellBtn}
                   accessibilityRole="button"
-                  accessibilityLabel={`Sell ${item.name} for ${money(resale)}`}
+                  accessibilityLabel={`Sell ${item.name} for ${formatMoney(resale)}`}
                 >
                   <Tag size={scale(14)} color={AMBER} />
-                  <Text style={styles.sellBtnText}>Sell {money(resale)}</Text>
+                  <Text style={styles.sellBtnText}>Sell {formatMoney(resale)}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
@@ -340,13 +327,13 @@ function LuxuryCard({
                   accessibilityRole="button"
                   accessibilityLabel={
                     affordable
-                      ? `Buy ${item.name} for ${money(item.price)}`
-                      : `${item.name} costs ${money(item.price)}, more than your cash`
+                      ? `Buy ${item.name} for ${formatMoney(item.price)}`
+                      : `${item.name} costs ${formatMoney(item.price)}, more than your cash`
                   }
                 >
                   <ShoppingBag size={scale(14)} color={affordable ? '#FFFFFF' : theme.textMuted} />
                   <Text style={[styles.buyBtnText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
-                    {affordable ? 'Buy' : money(item.price)}
+                    {affordable ? 'Buy' : formatMoney(item.price)}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -376,7 +363,11 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const [pendingSell, setPendingSell] = useState<LuxuryItem | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const cash = gameState.stats?.money ?? 0;
+  // Normalize like the action layer: NaN money would render "Need $0 more" and
+  // Infinity would pass every affordability check, so clamp to a finite,
+  // non-negative figure before any comparison consumes it.
+  const rawCash = gameState.stats?.money;
+  const cash = typeof rawCash === 'number' && Number.isFinite(rawCash) ? Math.max(0, rawCash) : 0;
   const ownedIds = gameState.luxuryItems;
 
   const owned = useMemo(() => getOwnedLuxuryItems(ownedIds), [ownedIds]);
@@ -406,7 +397,11 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const sheetTranslate = sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [0, scale(48)] });
 
   const queueSave = useCallback(() => {
-    saveGame().catch(() => {});
+    // A failed post-transaction save must not be invisible — surface it in
+    // diagnostics even though the UI flow continues either way.
+    saveGame().catch((error) => {
+      logger.error('[LUXURY] Failed to save after transaction:', error);
+    });
   }, [saveGame]);
 
   const showToast = useCallback(
@@ -419,11 +414,40 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
 
   // ── Buy / sell flow (routed through ConfirmDialog + LuxuryActions) ──────────
 
+  // The item sheet is an RN Modal, and ConfirmDialog is another Modal. Opening
+  // the confirm while the sheet is still mounted can leave the sheet's backdrop
+  // intercepting touches on iOS (the same stacked-modal hazard the rewarded-ad
+  // flow works around). Sheet CTAs therefore stash the intent, dismiss the
+  // sheet, and promote the intent to a ConfirmDialog once the native teardown
+  // settles — Modal.onDismiss on iOS, a short tracked fallback elsewhere.
+  // `settleSheetConfirm` is idempotent, so whichever fires first wins.
+  const afterSheetConfirm = useRef<{ kind: 'buy' | 'sell'; item: LuxuryItem } | null>(null);
+  const settleSheetConfirm = useCallback(() => {
+    const next = afterSheetConfirm.current;
+    afterSheetConfirm.current = null;
+    if (!next) return;
+    if (next.kind === 'buy') setPendingBuy(next.item);
+    else setPendingSell(next.item);
+  }, []);
+  const requestFromSheet = useCallback(
+    (kind: 'buy' | 'sell', item: LuxuryItem) => {
+      if (kind === 'buy' && cash < item.price) {
+        // Calm info toast (repo convention), never a red error.
+        showToast(`You need ${formatMoney(item.price - cash)} more to acquire the ${item.name}.`);
+        return;
+      }
+      afterSheetConfirm.current = { kind, item };
+      setSheetItem(null);
+      timers.setTimeout(settleSheetConfirm, 450);
+    },
+    [cash, showToast, timers, settleSheetConfirm],
+  );
+
   const requestBuy = useCallback(
     (item: LuxuryItem) => {
       if (cash < item.price) {
         // Calm info toast (repo convention), never a red error.
-        showToast(`You need ${money(item.price - cash)} more to acquire the ${item.name}.`);
+        showToast(`You need ${formatMoney(item.price - cash)} more to acquire the ${item.name}.`);
         return;
       }
       setPendingBuy(item);
@@ -453,7 +477,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     if (result.success) {
       queueSave();
       setSheetItem(null);
-      showToast(`Sold the ${item.name} for ${money(getLuxuryResaleValue(item))}.`);
+      showToast(`Sold the ${item.name} for ${formatMoney(getLuxuryResaleValue(item))}.`);
     } else {
       showToast(result.message);
     }
@@ -516,7 +540,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
               <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>
                 {lifeComplete
                   ? 'A collection worth showing off.'
-                  : `or ${money(stickerValue)} / ${money(LUXURY_LIFE_VALUE_THRESHOLD)} in trophies`}
+                  : `or ${formatMoney(stickerValue)} / ${formatMoney(LUXURY_LIFE_VALUE_THRESHOLD)} in trophies`}
               </Text>
             </View>
           </View>
@@ -561,7 +585,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
           <View style={styles.heroText}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>COLLECTION VALUE</Text>
             <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1}>
-              {money(collectionValue)}
+              {formatMoney(collectionValue)}
             </Text>
             <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>
               {owned.length} {owned.length === 1 ? 'trophy' : 'trophies'} · resale value
@@ -572,7 +596,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         <View style={styles.miniStatRow}>
           <View style={styles.miniStat}>
             <Wallet size={scale(14)} color={theme.textMuted} />
-            <Text style={[styles.miniStatValue, { color: theme.text }]}>{money(weeklyUpkeep)}</Text>
+            <Text style={[styles.miniStatValue, { color: theme.text }]}>{formatMoney(weeklyUpkeep)}</Text>
             <Text style={[styles.miniStatLabel, { color: theme.textMuted }]}>upkeep/wk</Text>
           </View>
           <View style={[styles.miniStatDivider, { backgroundColor: theme.border }]} />
@@ -603,7 +627,13 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     const tv = luxuryTierVisual(item.tier);
 
     return (
-      <Modal transparent visible animationType="fade" onRequestClose={() => setSheetItem(null)}>
+      <Modal
+        transparent
+        visible
+        animationType="fade"
+        onRequestClose={() => setSheetItem(null)}
+        onDismiss={settleSheetConfirm}
+      >
         <View style={[styles.sheetOverlay, { backgroundColor: theme.overlay }]}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
@@ -646,7 +676,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   </View>
                 ) : (
                   <View style={styles.detailPricePill}>
-                    <Text style={styles.detailPriceText}>{money(item.price)}</Text>
+                    <Text style={styles.detailPriceText}>{formatMoney(item.price)}</Text>
                   </View>
                 )}
               </View>
@@ -660,20 +690,20 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
               <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                 <View style={styles.ownershipRow}>
                   <Text style={[styles.ownershipLabel, { color: theme.textMuted }]}>Purchase price</Text>
-                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{money(item.price)}</Text>
+                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{formatMoney(item.price)}</Text>
                 </View>
                 <View style={styles.ownershipRow}>
                   <Text style={[styles.ownershipLabel, { color: theme.textMuted }]}>Weekly upkeep</Text>
-                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{money(item.weeklyUpkeep)}/wk</Text>
+                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{formatMoney(item.weeklyUpkeep)}/wk</Text>
                 </View>
                 <View style={styles.ownershipRow}>
                   <Text style={[styles.ownershipLabel, { color: theme.textMuted }]}>Resale value</Text>
-                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{money(resale)}</Text>
+                  <Text style={[styles.ownershipValue, { color: theme.text }]}>{formatMoney(resale)}</Text>
                 </View>
                 <View style={[styles.ownershipRow, styles.ownershipTotalRow, { borderTopColor: theme.border }]}>
                   <Text style={[styles.ownershipLabel, { color: theme.textSecondary }]}>First-year cost</Text>
                   <Text style={[styles.ownershipValue, { color: theme.text }]}>
-                    {money(item.price + item.weeklyUpkeep * 52)}
+                    {formatMoney(item.price + item.weeklyUpkeep * 52)}
                   </Text>
                 </View>
               </View>
@@ -681,22 +711,22 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
               {isOwned ? (
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => setPendingSell(item)}
+                  onPress={() => requestFromSheet('sell', item)}
                   style={[styles.sheetCta, { backgroundColor: AMBER_SOFT, borderColor: AMBER_BORDER }]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Sell ${item.name} for ${money(resale)}`}
+                  accessibilityLabel={`Sell ${item.name} for ${formatMoney(resale)}`}
                 >
                   <Tag size={scale(16)} color={AMBER} />
-                  <Text style={[styles.sheetCtaText, { color: AMBER }]}>Sell for {money(resale)}</Text>
+                  <Text style={[styles.sheetCtaText, { color: AMBER }]}>Sell for {formatMoney(resale)}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => requestBuy(item)}
+                  onPress={() => requestFromSheet('buy', item)}
                   style={styles.sheetCtaWrap}
                   accessibilityRole="button"
                   accessibilityLabel={
-                    affordable ? `Acquire ${item.name} for ${money(item.price)}` : `Not enough cash for ${item.name}`
+                    affordable ? `Acquire ${item.name} for ${formatMoney(item.price)}` : `Not enough cash for ${item.name}`
                   }
                 >
                   <LinearGradient
@@ -707,7 +737,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   >
                     <ShoppingBag size={scale(16)} color={affordable ? '#FFFFFF' : theme.textMuted} />
                     <Text style={[styles.sheetCtaText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
-                      {affordable ? `Acquire · ${money(item.price)}` : `Need ${money(item.price - cash)} more`}
+                      {affordable ? `Acquire · ${formatMoney(item.price)}` : `Need ${formatMoney(item.price - cash)} more`}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -743,7 +773,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
             { backgroundColor: `rgba(${IDENTITY_RGB}, 0.14)`, borderColor: `rgba(${IDENTITY_RGB}, 0.3)` },
           ]}
         >
-          <Text style={[styles.cashChipText, { color: IDENTITY_LIGHT }]}>{money(cash)}</Text>
+          <Text style={[styles.cashChipText, { color: IDENTITY_LIGHT }]}>{formatMoney(cash)}</Text>
         </View>
       </View>
 
@@ -877,7 +907,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         title={pendingBuy ? `Acquire the ${pendingBuy.name}?` : ''}
         message={
           pendingBuy
-            ? `${money(pendingBuy.price)} upfront, then ${money(pendingBuy.weeklyUpkeep)}/wk upkeep. You'll have ${money(Math.max(0, cash - pendingBuy.price))} left.`
+            ? `${formatMoney(pendingBuy.price)} upfront, then ${formatMoney(pendingBuy.weeklyUpkeep)}/wk upkeep. You'll have ${formatMoney(Math.max(0, cash - pendingBuy.price))} left.`
             : ''
         }
         confirmText="Acquire"
@@ -895,7 +925,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         title={pendingSell ? `Sell the ${pendingSell.name}?` : ''}
         message={
           pendingSell
-            ? `You'll get ${money(getLuxuryResaleValue(pendingSell))} back — ${Math.round((getLuxuryResaleValue(pendingSell) / pendingSell.price) * 100)}% of the ${money(pendingSell.price)} you paid.`
+            ? `You'll get ${formatMoney(getLuxuryResaleValue(pendingSell))} back — ${Math.round((getLuxuryResaleValue(pendingSell) / pendingSell.price) * 100)}% of the ${formatMoney(pendingSell.price)} you paid.`
             : ''
         }
         confirmText="Sell"

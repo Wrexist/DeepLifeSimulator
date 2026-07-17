@@ -48,6 +48,11 @@ const PAGE_BG = '#020617';
 const TOP_GLOW = ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0)'] as const;
 const BOTTOM_SHADE = ['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.6)'] as const;
 
+// Slot stats come from raw persisted JSON (no repair pass has run), so a
+// corrupt snapshot can carry NaN/Infinity/negative numbers — clamp for display.
+const safeStatNumber = (n: unknown): number =>
+  typeof n === 'number' && Number.isFinite(n) ? Math.max(0, n) : 0;
+
 /**
  * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
@@ -399,15 +404,21 @@ export default function SaveSlots() {
         >
           {slots.map((slot, index) => {
             const isSelected = selectedSlot === slot.id;
-            const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
+            // An error slot has unreadable data (hasData=false) — it must never
+            // present as empty: that path enables "Start New Game", silently
+            // overwriting whatever the unreadable payload was.
+            const needsRecovery = !!slot.error;
+            const statusText = needsRecovery ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
+            const statusColor = needsRecovery ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
               <RevealItem key={slot.id} index={index} reduced={reduced}>
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={`Save slot ${slot.id}, ${slot.hasData ? fullName || 'Unnamed Character' : 'empty'}`}
+                  accessibilityLabel={`Save slot ${slot.id}, ${
+                    slot.hasData ? fullName || 'Unnamed Character' : needsRecovery ? 'needs recovery' : 'empty'
+                  }`}
                   activeOpacity={0.9}
                   onPress={() => selectSlot(slot.id)}
                   style={[styles.card, isSelected && styles.cardSelected]}
@@ -425,27 +436,31 @@ export default function SaveSlots() {
                   </View>
 
                   <Text style={[styles.slotName, !slot.hasData && styles.slotNameEmpty]} numberOfLines={1}>
-                    {slot.hasData ? fullName || 'Unnamed Character' : 'Start a new life here'}
+                    {slot.hasData
+                      ? fullName || 'Unnamed Character'
+                      : needsRecovery
+                        ? 'Unreadable save — delete to reuse this slot'
+                        : 'Start a new life here'}
                   </Text>
 
                   {slot.hasData ? (
                     <View style={styles.statsRow}>
                       <View style={styles.statBlock}>
                         <Text style={styles.statLabel}>Money</Text>
-                        <Text style={styles.statValue}>{formatMoney(slot.stats?.money || 0)}</Text>
+                        <Text style={styles.statValue}>{formatMoney(safeStatNumber(slot.stats?.money))}</Text>
                       </View>
                       <View style={styles.statBlock}>
                         <Text style={styles.statLabel}>Age</Text>
-                        <Text style={styles.statValue}>{Math.floor(slot.date?.age || 0)}</Text>
+                        <Text style={styles.statValue}>{Math.floor(safeStatNumber(slot.date?.age))}</Text>
                       </View>
                       <View style={styles.statBlock}>
                         <Text style={styles.statLabel}>Weeks</Text>
-                        <Text style={styles.statValue}>{slot.weeksLived || 0}</Text>
+                        <Text style={styles.statValue}>{Math.floor(safeStatNumber(slot.weeksLived))}</Text>
                       </View>
                     </View>
                   ) : null}
 
-                  {slot.hasData ? (
+                  {slot.hasData || needsRecovery ? (
                     <View style={styles.slotFooter}>
                       <TouchableOpacity
                         accessibilityRole="button"
@@ -470,11 +485,17 @@ export default function SaveSlots() {
 
       <View style={[styles.floatingWrap, { bottom: verticalScale(20) + insets.bottom }]}>
         <OnboardingFloatingButton
-          title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
+          title={
+            selectedCard?.error && !selectedCard?.hasData
+              ? 'Delete Slot to Continue'
+              : selectedCard?.hasData
+                ? 'Continue Game'
+                : 'Start New Game'
+          }
           onPress={() => {
             void primaryAction();
           }}
-          disabled={!selectedSlot || isBusy || !slotsLoaded}
+          disabled={!selectedSlot || isBusy || !slotsLoaded || (!!selectedCard?.error && !selectedCard?.hasData)}
           loading={isBusy}
           icon={<Play size={24} color="#FFFFFF" />}
         />

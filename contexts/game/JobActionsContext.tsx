@@ -449,6 +449,13 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     if (rejectIfBlocked(state)) return;
 
     const estimatedBailCost = computeBailCost(state.jailWeeks, calculateNetWorth(state));
+    // A corrupt save can make calculateNetWorth (and thus the clamp inside
+    // computeBailCost) return NaN, which would poison stats.money below —
+    // NaN comparisons are false, so the affordability gates wouldn't catch it.
+    if (!Number.isFinite(estimatedBailCost)) {
+      logger.warn('Cannot pay bail: bail cost is not a finite number', { bailCost: estimatedBailCost });
+      return;
+    }
     if (state.stats.money < estimatedBailCost) {
       logger.warn('Cannot pay bail: insufficient funds', { money: state.stats.money, bailCost: estimatedBailCost });
       return;
@@ -459,8 +466,8 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       // Compute bail from prevState to avoid stale closure — same shared helper
       // JailScreen uses for display, so the charge matches what the player saw.
       const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
-      if ((prevState.stats.money || 0) < bailCost) {
-        return prevState; // Insufficient funds at actual state — no-op
+      if (!Number.isFinite(bailCost) || (prevState.stats.money || 0) < bailCost) {
+        return prevState; // Invalid cost or insufficient funds at actual state — no-op
       }
       return {
         ...prevState,

@@ -276,10 +276,15 @@ export default function MainMenu() {
         // Surface a compact summary of the last life inside the Continue card so
         // it carries real context instead of a generic "Saved progress" pill.
         const name = `${parsedGameState.userProfile?.firstName || ''} ${parsedGameState.userProfile?.lastName || ''}`.trim();
+        // Raw persisted JSON — the save-repair pipeline hasn't run here, so a
+        // corrupt snapshot can carry NaN/Infinity/negative numbers. Clamp the
+        // summary figures rather than rendering garbage on the Continue card.
+        const rawAge = parsedGameState.date?.age;
+        const rawMoney = parsedGameState.stats?.money;
         setSaveSummary({
           name,
-          age: Math.floor(parsedGameState.date?.age || 0),
-          money: parsedGameState.stats?.money || 0,
+          age: typeof rawAge === 'number' && Number.isFinite(rawAge) ? Math.max(0, Math.floor(rawAge)) : 0,
+          money: typeof rawMoney === 'number' && Number.isFinite(rawMoney) ? Math.max(0, rawMoney) : 0,
         });
       } else {
         setSaveSummary(null);
