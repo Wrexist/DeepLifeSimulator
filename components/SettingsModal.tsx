@@ -129,6 +129,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showDevTools, setShowDevTools] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
   const [rewardPopupMessage, setRewardPopupMessage] = useState('');
+  // Frozen at claim time: after updateMoney lands, net worth (and thus the live
+  // discordReward memo) grows, so rendering the memo in the popup would show a
+  // larger figure than was actually granted. Shown must equal granted.
+  const [rewardPopupAmount, setRewardPopupAmount] = useState(0);
 
   // Animation for Discord button
   const discordGlowAnim = useRef(new Animated.Value(0)).current;
@@ -271,7 +275,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     }
   };
 
-  const showRewardAnimation = (message: string) => {
+  const showRewardAnimation = (message: string, amount: number) => {
+    setRewardPopupAmount(amount);
     setRewardPopupMessage(message);
     setShowRewardPopup(true);
     // Start the pop at 0.9 (not 0) so the reward scales in gently instead of
@@ -356,11 +361,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         await Linking.openURL(discordUrl);
       }
 
-      // Show liquid glass reward popup
+      // Show liquid glass reward popup with the amount that was ACTUALLY
+      // granted — the live discordReward memo recomputes upward once the grant
+      // raises net worth.
       showRewardAnimation(
         canOpen
           ? `You received ${formatMoney(discordReward)} for joining our Discord!\nWelcome to the community!`
-          : `You received ${formatMoney(discordReward)}!\nVisit ${DISCORD_URL} to join our Discord.`
+          : `You received ${formatMoney(discordReward)}!\nVisit ${DISCORD_URL} to join our Discord.`,
+        discordReward
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
@@ -717,7 +725,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
                 {/* Cash amount */}
                 <View style={styles.rewardAmountRow}>
-                  <Text style={styles.rewardAmountText}>+{formatMoney(discordReward)}</Text>
+                  <Text style={styles.rewardAmountText}>+{formatMoney(rewardPopupAmount)}</Text>
                   <DollarSign size={scale(16)} color="#6EE7B7" />
                   <Text style={styles.rewardAmountLabel}>Cash</Text>
                 </View>
