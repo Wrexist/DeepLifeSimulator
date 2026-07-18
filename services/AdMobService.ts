@@ -381,6 +381,7 @@ class AdMobServiceImpl {
     let rewarded = false;
     let unsubReward: (() => void) | undefined;
     let unsubClosed: (() => void) | undefined;
+    let closeFallback: ReturnType<typeof setTimeout> | undefined;
 
     try {
       const rewardEvent = NativeRewardedAdEventType?.EARNED_REWARD;
@@ -401,7 +402,7 @@ class AdMobServiceImpl {
         if (closedEvent) {
           unsubClosed = ad.addAdEventListener(closedEvent, () => resolve());
         }
-        setTimeout(resolve, 60000);
+        closeFallback = setTimeout(resolve, 60000);
       });
 
       await ad.show();
@@ -424,6 +425,7 @@ class AdMobServiceImpl {
       this.setState({ isRewardedLoaded: false });
       return false;
     } finally {
+      if (closeFallback) clearTimeout(closeFallback);
       unsubReward?.();
       unsubClosed?.();
     }

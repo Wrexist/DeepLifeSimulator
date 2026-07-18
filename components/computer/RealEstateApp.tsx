@@ -1423,7 +1423,7 @@ const styles = StyleSheet.create({
   rangeText: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   listingCard: { borderWidth: 1, borderRadius: responsiveBorderRadius.xl },
   listingInner: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-  photoWrap: { width: '100%', aspectRatio: 16 / 10, backgroundColor: 'rgba(0,0,0,0.06)' },
+  photoWrap: { width: '100%', height: scale(200), backgroundColor: 'rgba(0,0,0,0.06)' },
   photo: { width: '100%', height: '100%' },
   photoPill: {
     position: 'absolute',
@@ -1474,7 +1474,7 @@ const styles = StyleSheet.create({
   // Detail sub-page.
   detailHeroCard: { borderWidth: 1, borderRadius: responsiveBorderRadius['2xl'] },
   detailHeroInner: { borderRadius: responsiveBorderRadius['2xl'], overflow: 'hidden' },
-  detailPhoto: { width: '100%', aspectRatio: 16 / 10 },
+  detailPhoto: { width: '100%', height: scale(220) },
   detailPricePill: {
     position: 'absolute',
     left: scale(12),

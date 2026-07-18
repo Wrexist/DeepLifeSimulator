@@ -131,6 +131,30 @@ export const styles = StyleSheet.create({
  iconButtonDark: {},
  iconButtonGradient: { flex: 1, alignItems: 'center', justifyContent: 'center'},
 
+ // Labeled store entry — a blue-accent pill that reads as THE shop, visually
+ // set apart from the mono Help/Settings icon buttons. Same height as the icon
+ // buttons so the row stays aligned; ≥ touchTargets.minimum tap target.
+ shopPill: {
+ height: isIPad() ? touchTargets.large: touchTargets.minimum,
+ minWidth: touchTargets.minimum,
+ marginRight: responsiveSpacing.xs,
+ borderRadius: (isIPad() ? touchTargets.large: touchTargets.minimum) / 2,
+ overflow: 'hidden',
+ },
+ shopPillGradient: {
+ flex: 1,
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'center',
+ gap: scale(5),
+ paddingHorizontal: responsiveSpacing.sm,
+ },
+ shopPillLabel: {
+ color: '#FFFFFF',
+ fontWeight: '700',
+ fontSize: responsiveFontSize.sm,
+ },
+
  statRow: {
  flexDirection:'row',
  alignItems: 'center',
@@ -270,6 +294,17 @@ export const styles = StyleSheet.create({
  fontSize: responsiveFontSize.sm,
  lineHeight: 18,
  flexShrink: 1, // Allow text to shrink if needed
+ },
+ // Small "+" badge on the gem chip — a static hint that the chip buys gems.
+ gemChipPlus: {
+ marginLeft: scale(4),
+ width: scale(16),
+ height: scale(16),
+ borderRadius: scale(8),
+ alignItems: 'center',
+ justifyContent: 'center',
+ backgroundColor: 'rgba(255,255,255,0.25)',
+ flexShrink: 0,
  },
 
  // Right side

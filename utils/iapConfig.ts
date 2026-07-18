@@ -27,7 +27,12 @@ export const IAP_PRODUCTS = {
     ios: 'deeplife_gems_15000',
     android: 'deeplife_gems_15000',
   }) || 'deeplife_gems_15000',
-  
+
+  GEMS_50000: Platform.select({
+    ios: 'deeplife_gems_50000',
+    android: 'deeplife_gems_50000',
+  }) || 'deeplife_gems_50000',
+
   GEMS_STARTER: Platform.select({
     ios: 'deeplife_gems_starter',
     android: 'deeplife_gems_starter',
@@ -179,9 +184,9 @@ export const PRODUCT_CONFIGS = {
     gems: 5000,
     price: '$19.99',
     popular: false,
-    bestValue: true,
+    bestValue: false,
   },
-  
+
   [IAP_PRODUCTS.GEMS_15000]: {
     name: '15,000 Gems',
     description: 'Massive gem pack for power players',
@@ -189,6 +194,17 @@ export const PRODUCT_CONFIGS = {
     price: '$49.99',
     popular: false,
     bestValue: false,
+  },
+
+  // 6th ladder tier — the store's Best Value badge is COMPUTED from real
+  // gems-per-price ratios (this flag is informational only, kept truthful).
+  [IAP_PRODUCTS.GEMS_50000]: {
+    name: '50,000 Gems',
+    description: 'Colossal gem pack — the best gems per dollar',
+    gems: 50000,
+    price: '$99.99',
+    popular: false,
+    bestValue: true,
   },
   
   // Gem Shop Store Items
@@ -200,8 +216,6 @@ export const PRODUCT_CONFIGS = {
     price: '$9.99',
     popular: false,
     bestValue: false,
-    originalPrice: '$14.98',
-    savings: '33%',
   },
   
   [IAP_PRODUCTS.GEMS_PREMIUM]: {
@@ -213,8 +227,6 @@ export const PRODUCT_CONFIGS = {
     price: '$24.99',
     popular: true,
     bestValue: false,
-    originalPrice: '$44.97',
-    savings: '44%',
   },
   
   [IAP_PRODUCTS.GEMS_ULTIMATE]: {
@@ -226,8 +238,6 @@ export const PRODUCT_CONFIGS = {
     price: '$49.99',
     popular: false,
     bestValue: true,
-    originalPrice: '$199.90',
-    savings: '75%',
   },
   
   [IAP_PRODUCTS.GEMS_MEGA]: {
@@ -239,8 +249,6 @@ export const PRODUCT_CONFIGS = {
     price: '$99.99',
     popular: false,
     bestValue: false,
-    originalPrice: '$499.85',
-    savings: '80%',
   },
   
   // Individual Items
@@ -260,8 +268,6 @@ export const PRODUCT_CONFIGS = {
     price: '$19.99',
     popular: false,
     bestValue: false,
-    originalPrice: '$24.95',
-    savings: '20%',
   },
   
   [IAP_PRODUCTS.MONEY_BOOST]: {
@@ -342,8 +348,6 @@ export const PRODUCT_CONFIGS = {
     price: '$6.99',
     popular: true,
     bestValue: true,
-    originalPrice: '$7.96',
-    savings: '12%',
   },
   
   [IAP_PRODUCTS.REMOVE_ADS]: {
@@ -515,6 +519,7 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.GEMS_1000,
   IAP_PRODUCTS.GEMS_5000,
   IAP_PRODUCTS.GEMS_15000,
+  IAP_PRODUCTS.GEMS_50000,
   IAP_PRODUCTS.GEMS_STARTER,
   IAP_PRODUCTS.GEMS_PREMIUM,
   IAP_PRODUCTS.GEMS_ULTIMATE,
@@ -553,3 +558,52 @@ export const isConsumableProduct = (productId: string): boolean => {
 export const isNonConsumableProduct = (productId: string): boolean => {
   return NON_CONSUMABLE_PRODUCTS.includes(productId);
 };
+
+/**
+ * Truthful, itemized display metadata for the store UI (GemShopModal).
+ *
+ * Kept SEPARATE from PRODUCT_CONFIGS (which drives entitlement grants) so the
+ * heterogeneous grant config isn't widened for presentation, and so "what is
+ * shown" is a plain, auditable list. Every bullet mirrors what
+ * applyProductBenefitsToState actually grants for that SKU — what's shown is
+ * what's granted.
+ *
+ * By design there is NO `originalPrice` / `savings` here: Apple 2.3.1 forbids
+ * promoting a reference / strike-through price the SKU never actually sold at.
+ * Value is instead communicated with real contents lists and (for pure gem
+ * packs) a gems-per-dollar line the UI computes from real gemAmount / price.
+ */
+export interface ProductDisplayMeta {
+  /** Itemized contents — one bullet per thing the purchase grants. */
+  contents?: string[];
+}
+
+export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
+  // Multi-item bundles — contents match the grants in applyProductBenefitsToState.
+  [IAP_PRODUCTS.GEMS_STARTER]: { contents: ['1,000 Gems', '1 Youth Pill'] },
+  [IAP_PRODUCTS.GEMS_PREMIUM]: {
+    contents: ['3,500 Gems', '3 Youth Pills', 'Money Multiplier (+50% earnings)'],
+  },
+  [IAP_PRODUCTS.GEMS_ULTIMATE]: {
+    contents: ['12,000 Gems', '10 Youth Pills', 'All 7 permanent upgrades'],
+  },
+  [IAP_PRODUCTS.GEMS_MEGA]: {
+    contents: ['40,000 Gems', 'Unlimited Youth Pills', 'Everything unlocked'],
+  },
+  [IAP_PRODUCTS.YOUTH_PILL_PACK]: { contents: ['5 Youth Pills'] },
+  // Feature unlocks featured in the store's hero area.
+  [IAP_PRODUCTS.REMOVE_ADS]: {
+    contents: ['Removes banner + interstitial ads', 'Permanent, one-time purchase'],
+  },
+  [IAP_PRODUCTS.LIFETIME_PREMIUM]: {
+    contents: ['No ads, forever', 'All future updates', 'Exclusive content'],
+  },
+  // Perk bundle — the four perks it unlocks (cheaper than buying each at $1.99).
+  [IAP_PRODUCTS.UNLOCK_ALL_PERKS]: {
+    contents: ['Work Pay Boost', 'Fast Learner', 'Good Credit Score', 'Mindset'],
+  },
+};
+
+// Helper: truthful display metadata for a product (empty object when none).
+export const getProductDisplayMeta = (productId: string): ProductDisplayMeta =>
+  PRODUCT_DISPLAY_META[productId] ?? {};

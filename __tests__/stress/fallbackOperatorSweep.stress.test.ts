@@ -84,34 +84,46 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
 
   // ── BUG 1: Vehicle condition `|| 100` ──────────────────────────────────
   it('Vehicle condition=0 stays at 0 (does not silently regenerate to 99)', async () => {
-    mounted = mountGame();
-    const totaled: Vehicle = {
-      id: 'wreck',
-      type: 'sedan_basic' as never,
-      name: 'Wreck',
-      condition: 0,
-      mileage: 200_000,
-      fuelLevel: 100,
-      maxFuel: 100,
-      owned: true,
-      speedBonus: 0,
-      purchasedWeek: 50,
-      weeklyMaintenanceCost: 0,
-      weeklyFuelCost: 0,
-    } as Vehicle;
-    act(() => captured!.setGameState(prev => ({
-      ...prev,
-      weeksLived: 100,
-      stats: { ...prev.stats, money: 100_000 },
-      vehicles: [totaled],
-      activeVehicleId: 'wreck',
-    })));
+    // The weekly accident pre-rolls are unseeded (raw Math.random). A
+    // condition-0, 200k-mile car has ~1.8% accidentChance per tick, and at
+    // condition 0 an accident is 'total' ~40% of the time — which REMOVES
+    // the vehicle and makes this assertion a rare flake (v === undefined).
+    // Pin the RNG above every trigger threshold: this test pins the `??`
+    // decay arithmetic, not the accident model (applyVehicles.test covers
+    // accidents with explicit rolls).
+    const rng = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    try {
+      mounted = mountGame();
+      const totaled: Vehicle = {
+        id: 'wreck',
+        type: 'sedan_basic' as never,
+        name: 'Wreck',
+        condition: 0,
+        mileage: 200_000,
+        fuelLevel: 100,
+        maxFuel: 100,
+        owned: true,
+        speedBonus: 0,
+        purchasedWeek: 50,
+        weeklyMaintenanceCost: 0,
+        weeklyFuelCost: 0,
+      } as Vehicle;
+      act(() => captured!.setGameState(prev => ({
+        ...prev,
+        weeksLived: 100,
+        stats: { ...prev.stats, money: 100_000 },
+        vehicles: [totaled],
+        activeVehicleId: 'wreck',
+      })));
 
-    await tick();
+      await tick();
 
-    const v = captured!.state.vehicles?.find(x => x.id === 'wreck');
-    // Before the fix: 0 || 100 = 100, minus decay → ~99. After fix: 0 stays 0.
-    expect(v?.condition).toBe(0);
+      const v = captured!.state.vehicles?.find(x => x.id === 'wreck');
+      // Before the fix: 0 || 100 = 100, minus decay → ~99. After fix: 0 stays 0.
+      expect(v?.condition).toBe(0);
+    } finally {
+      rng.mockRestore();
+    }
   });
 
   // ── BUG 2: resolveEvent pet stat `|| 50` ────────────────────────────────

@@ -20,6 +20,7 @@ import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext'
 import { TutorialHighlightProvider } from './TutorialHighlightContext';
 import { SettingsProvider } from './SettingsContext';
 import { StatChangeProvider } from './StatChangeContext';
+import { GemStoreProvider } from './GemStoreContext';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -42,7 +43,12 @@ export function AppProviders({ children }: AppProvidersProps) {
             <ToastProvider>
               <OnboardingProvider>
                 <TutorialHighlightProvider>
-                  {children}
+                  {/* Inside GameProvider (the store reads game state/actions) and
+                      mounted app-wide so the IAP store stays reachable inside
+                      full-screen phone apps where TopStatsBar unmounts. */}
+                  <GemStoreProvider>
+                    {children}
+                  </GemStoreProvider>
                 </TutorialHighlightProvider>
               </OnboardingProvider>
             </ToastProvider>

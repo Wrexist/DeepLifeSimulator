@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import * as JobActions from './actions/JobActions';
+import { rejectIfBlocked, isPlayerJailed } from './actions/_guards';
 import { updateStats } from './actions/StatsActions';
 import { updateMoney as updateMoneyModule, applyMoneyDelta } from './actions/MoneyActions';
 import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { logger } from '@/utils/logger';
+import { computeBailCost } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { CrimeSkillId, GameState, GameStats } from './types';
@@ -163,6 +166,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const promoteCareer = useCallback((careerId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    if (isPlayerJailed(state)) {
+      return { success: false, message: "You can't chase a promotion from a jail cell." };
+    }
 
     const result = JobActions.promoteCareer(state, setGameState, careerId);
     if (result?.success) {
@@ -177,6 +183,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const requestRaise = useCallback((careerId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    if (isPlayerJailed(state)) {
+      return { success: false, message: "You can't ask for a raise while you're in jail." };
+    }
 
     const result = JobActions.requestRaise(state, setGameState, careerId);
     if (result?.approved) {
@@ -243,6 +252,9 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const performJailActivity = useCallback((activityId: string) => {
     const state = stateRef.current;
     if (!state) return { success: false, message: 'Game state not available' };
+    // A deceased player can't act, even from jail (matches sibling job actions).
+    const blocked = rejectIfBlocked(state);
+    if (blocked) return blocked;
 
     const activity = state.jailActivities.find(a => a.id === activityId);
     if (!activity) {
@@ -433,8 +445,17 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   const payBail = useCallback(() => {
     const state = stateRef.current;
     if (!state) return;
+    // A deceased player's estate can't post bail (death popup is showing).
+    if (rejectIfBlocked(state)) return;
 
-    const estimatedBailCost = state.jailWeeks * 500;
+    const estimatedBailCost = computeBailCost(state.jailWeeks, calculateNetWorth(state));
+    // A corrupt save can make calculateNetWorth (and thus the clamp inside
+    // computeBailCost) return NaN, which would poison stats.money below —
+    // NaN comparisons are false, so the affordability gates wouldn't catch it.
+    if (!Number.isFinite(estimatedBailCost)) {
+      logger.warn('Cannot pay bail: bail cost is not a finite number', { bailCost: estimatedBailCost });
+      return;
+    }
     if (state.stats.money < estimatedBailCost) {
       logger.warn('Cannot pay bail: insufficient funds', { money: state.stats.money, bailCost: estimatedBailCost });
       return;
@@ -442,10 +463,11 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
 
     const now = Date.now();
     setGameState(prevState => {
-      // Compute bail from prevState to avoid stale closure
-      const bailCost = prevState.jailWeeks * 500;
-      if ((prevState.stats.money || 0) < bailCost) {
-        return prevState; // Insufficient funds at actual state — no-op
+      // Compute bail from prevState to avoid stale closure — same shared helper
+      // JailScreen uses for display, so the charge matches what the player saw.
+      const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
+      if (!Number.isFinite(bailCost) || (prevState.stats.money || 0) < bailCost) {
+        return prevState; // Invalid cost or insufficient funds at actual state — no-op
       }
       return {
         ...prevState,

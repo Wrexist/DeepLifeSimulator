@@ -455,3 +455,77 @@ describe('Education flow audit', () => {
     expect(examsAfter).toBe(examsBefore); // No new exams for completed edu.
   });
 });
+
+// ── Weekly-tick completion WIRING (the TestFlight zombie regression) ─────────
+// These drive the REAL `nextWeek()` tick end-to-end, so they exercise the gate
+// in GameActionsContext — NOT just the pure reducer. This is the layer the bug
+// lived at: the progression/graduation helper was gated behind the education-
+// STRESS active count (weeksRemaining > 0), which excludes a program the Study
+// button drove to exactly 0, so it was never finalized and `completed` stayed
+// false forever — permanently locking the company-founding feature.
+describe('Education completion wiring — weekly-tick gate', () => {
+  let localMounted: { root: any } | null = null;
+
+  afterEach(() => {
+    if (localMounted) {
+      act(() => localMounted!.root.unmount());
+      localMounted = null;
+    }
+    captured = null;
+  });
+
+  it('E2E: self-heals a Study-stranded program (100% / 0w / failed exam / in-progress class) on the next tick', async () => {
+    localMounted = mountGame();
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      weeksLived: 300,
+      date: { ...prev.date, age: 30, year: 2035 },
+      stats: { ...prev.stats, money: 100_000, gems: 100, health: 100, happiness: 100, energy: 100, fitness: 80, reputation: 50 },
+      educations: [fakeEdu({
+        id: 'entrepreneurship',
+        name: 'Entrepreneurship',
+        description: 'Start and run companies.',
+        cost: 30_000,
+        duration: 72,
+        weeksRemaining: 0,   // Study button drove it to 0 without finalizing
+        completed: false,
+        semesterNumber: 3,
+        examsPassed: 2,
+        examsFailed: 1,
+        gpa: 2.7,
+        lastExamWeek: 300,
+        lastCampusEventWeek: 300,
+        enrolledClasses: [
+          { id: 'leadership', name: 'Leadership Seminar', category: 'seminar', difficulty: 2,
+            completed: false, statBonuses: { reputation: 4, happiness: 2 } } as never,
+        ],
+      })],
+    })));
+
+    // Precondition: the exact gate the company-founding feature reads is CLOSED.
+    expect(captured!.state.educations!.find(e => e.id === 'entrepreneurship')?.completed).toBe(false);
+
+    // One weekly tick.
+    await act(async () => { await captured!.game.nextWeek(); });
+
+    // Gate now OPEN — the company-founding feature can unlock.
+    expect(captured!.state.educations!.find(e => e.id === 'entrepreneurship')?.completed).toBe(true);
+  });
+
+  it('E2E: a program still completes normally when the decrement reaches 0 (weeksRemaining 1 → 0)', async () => {
+    localMounted = mountGame();
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      weeksLived: 300,
+      stats: { ...prev.stats, money: 100_000, gems: 100, health: 100, happiness: 100, energy: 100, fitness: 80, reputation: 50 },
+      educations: [fakeEdu({
+        id: 'entrepreneurship', name: 'Entrepreneurship', duration: 72,
+        weeksRemaining: 1, completed: false, lastExamWeek: 300, lastCampusEventWeek: 300,
+      })],
+    })));
+
+    await act(async () => { await captured!.game.nextWeek(); });
+
+    expect(captured!.state.educations!.find(e => e.id === 'entrepreneurship')?.completed).toBe(true);
+  });
+});

@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { logger } from '@/utils/logger';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +29,6 @@ import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
-import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import ElderCard from '@/components/ElderCard';
@@ -40,9 +40,15 @@ import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import {
+  readDiscordClaim,
+  beginDiscordClaim,
+  finalizeDiscordClaim,
+  applyDiscordRewardGrant,
+} from '@/utils/discordRewardClaim';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_MONEY, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 
 // Lazy load heavy modals and popups
@@ -346,11 +352,13 @@ function HomeScreenContent() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
-        const [claimed, seen] = await Promise.all([
-          safeGetItem('discord_reward_claimed'),
+        const [claim, seen] = await Promise.all([
+          readDiscordClaim(),
           safeGetItem('discord_popup_seen'),
         ]);
-        if (cancelled || claimed === 'true' || seen === 'true') return;
+        // Treat BOTH 'finalized' AND a pending (in-flight) claim as claimed — a
+        // claim already begun must never re-surface the invite.
+        if (cancelled || claim !== 'unclaimed' || seen === 'true') return;
         // Brief delay so it eases in after the screen settles, not on load.
         timer = setTimeout(() => {
           if (!cancelled) setShowCommunityReward(true);
@@ -365,26 +373,120 @@ function HomeScreenContent() {
     };
   }, [hasCompletedTutorial, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
 
-  const handleJoinCommunity = async () => {
-    // Grant the cash reward (updateMoney clamps to the money ceiling + logs it).
-    updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
+  // FINDING 1: derive the reward from the FULL state's net worth, not home's
+  // PROJECTED selector slice (which omits properties, companies, stocks, vehicles
+  // & crypto, so it understates net worth for wealthy players — home would grant
+  // LESS than Settings for the identical reward). Select the scalar so the screen
+  // re-renders only when the amount actually changes.
+  const communityNetWorth = useGameSelector((s) => calculateNetWorth(s as GameState));
+  const communityRewardAmount = useMemo(
+    () => discordJoinRewardMoney(communityNetWorth),
+    [communityNetWorth]
+  );
+
+  // Loaded-state grant flag (from FULL state), read by the reconciler to tell a
+  // "grant not yet saved" crash from a "saved, just needs finalizing" one. Kept
+  // in a ref so the once-on-mount reconciler always sees the latest committed value.
+  const communityRewardGranted = useGameSelector((s) => s.discordRewardGranted === true);
+  const communityRewardGrantedRef = useRef(communityRewardGranted);
+  communityRewardGrantedRef.current = communityRewardGranted;
+
+  // Discord reward reconciler — SINGLE OWNER (home is the always-mounted tab;
+  // Settings is transient and can unmount mid-claim, so it cannot own recovery).
+  // Completes, exactly once, any claim a force-kill interrupted. Ungated by
+  // tutorial / weeksLived: a Settings claim can begin at any point, so recovery
+  // must run regardless. Kill-point walkthrough (all exactly-once):
+  //   - kill BEFORE begin              -> no marker; readDiscordClaim='unclaimed' -> no-op.
+  //   - kill AFTER begin, before grant -> marker pending, flag FALSE -> grant the
+  //                                       frozen amount, save, finalize.
+  //   - kill AFTER grant+save, before finalize -> marker pending, flag TRUE (money
+  //                                       already on disk) -> finalize only (no dupe).
+  //   - kill AFTER finalize            -> marker 'true'; readDiscordClaim='finalized' -> no-op.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const claim = await readDiscordClaim();
+        // 'unclaimed' | 'finalized' -> nothing was left in flight.
+        if (cancelled || typeof claim !== 'object') return;
+        const pendingAmount = claim.pendingAmount;
+        if (communityRewardGrantedRef.current) {
+          // Grant already landed AND saved before the crash — just finalize;
+          // re-granting would duplicate the money.
+          await finalizeDiscordClaim();
+          return;
+        }
+        // Grant the FROZEN pending amount (never recomputed) + flag, atomically.
+        setGameState(prev => applyDiscordRewardGrant(prev, pendingAmount));
+        // Let the commit + GameActions ref-sync flush before saving: saveGame
+        // reads gameStateRef.current, which lags the setGameState commit by one
+        // passive-effect cycle (the same lag the daily-reward persist defers
+        // around) — without this yield saveGame would persist the PRE-grant state.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        if (cancelled) return;
+        try {
+          await saveGame();
+        } catch (err) {
+          // Save failed — leave the pending marker; the next launch's reconciler
+          // completes it. DO NOT finalize (the designed recovery).
+          logger.warn('Discord reward reconcile save failed; will retry next launch', { error: err });
+          return;
+        }
+        await finalizeDiscordClaim();
+      } catch (err) {
+        logger.warn('Discord reward reconcile failed', { error: err });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Runs once on mount — a launch-time recovery. setGameState/saveGame are
+    // stable and the grant flag is read via a ref, so no reactive deps apply.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleJoinCommunity = useCallback(async () => {
+    // Freeze the amount at claim time so the pending marker, the grant and the
+    // popup display can never drift (shown == granted).
+    const amount = communityRewardAmount;
+    // EXACTLY-ONCE: durably record the pending marker BEFORE minting any cash.
+    // On failure, grant nothing and stay claimable — never mint uncommitted cash.
+    const begun = await beginDiscordClaim(amount);
+    if (!begun) {
+      logger.warn('Could not persist Discord reward claim; granting nothing');
+      setShowCommunityReward(false);
+      return;
+    }
+    // Grant money + flag in ONE atomic, idempotent state update (canonical
+    // applyMoneyDelta folded in, so the money and the flag persist together).
+    setGameState(prev => applyDiscordRewardGrant(prev, amount));
     setShowCommunityReward(false);
-    // Persist the one-time flags. `discord_reward_claimed` is shared with the
-    // Settings entry point so the reward can't be taken twice.
+    // Let the commit + GameActions ref-sync flush before saving (saveGame reads
+    // gameStateRef.current, which lags the commit by one passive-effect cycle),
+    // otherwise the PRE-grant state would hit disk.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
     try {
-      await safeSetItem('discord_reward_claimed', 'true');
+      await saveGame();
+      await finalizeDiscordClaim();
+    } catch (err) {
+      // saveGame rejected — DO NOT finalize. The pending marker + the home
+      // reconciler complete the grant on next launch (the designed recovery).
+      logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
+    }
+    // Best-effort: remember the popup was seen so it doesn't resurface.
+    try {
       await safeSetItem('discord_popup_seen', 'true');
     } catch {
-      // Non-critical: money is already granted; the flag can retry next session.
+      // Non-critical: may re-show next session if this write fails.
     }
-    // Open the Discord invite.
+    // Open the Discord invite (last).
     try {
       const canOpen = await Linking.canOpenURL(DISCORD_URL);
       if (canOpen) await Linking.openURL(DISCORD_URL);
     } catch {
-      // Ignore — the reward has already been granted regardless of the link.
+      // Ignore — the reward has already been handled regardless of the link.
     }
-  };
+  }, [setGameState, saveGame, communityRewardAmount]);
 
   const handleDismissCommunity = async () => {
     setShowCommunityReward(false);
@@ -514,11 +616,6 @@ function HomeScreenContent() {
           <ElderCard />
         </FadeInUp>
 
-        {/* Active Goals Section */}
-        <FadeInUp delay={60}>
-          <ActiveGoalsCard compact={false} />
-        </FadeInUp>
-
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
             skill tree, lifetime stats) was hidden from the tab bar with no
             other entry point — this card is its front door. Always visible. */}
@@ -637,7 +734,7 @@ function HomeScreenContent() {
       <Suspense fallback={null}>
         <CommunityRewardPopup
           visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
-          rewardAmount={DISCORD_JOIN_REWARD_MONEY}
+          rewardAmount={communityRewardAmount}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
         />

@@ -13,6 +13,8 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
+import { clampStat } from '@/utils/statUtils';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -62,7 +64,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
-  const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
+  const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
@@ -177,9 +179,35 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     return gameState.items.find(item => item.id === 'gym_membership')?.owned || false;
   }, [gameState.items]);
 
+  // Zero-gain guard: the $50 session grants +5 fitness / +3 health / +2 happiness.
+  // When all three already sit at the cap every gain clamps to zero, so the visit
+  // would charge money + energy for nothing. Compute the clamped deltas and treat
+  // "all zero" as "already in top shape".
+  const gymGainsAllZero = useMemo(() => {
+    // Normalize first: a NaN/undefined stat on a corrupted save makes every
+    // delta NaN, and `NaN <= 0` is false — the guard's answer would flip on
+    // garbage input instead of being computed from a real baseline.
+    const fitness = Number.isFinite(gameState.stats.fitness) ? gameState.stats.fitness : 0;
+    const health = Number.isFinite(gameState.stats.health) ? gameState.stats.health : 0;
+    const happiness = Number.isFinite(gameState.stats.happiness) ? gameState.stats.happiness : 0;
+    const fitnessGain = clampStat(fitness + 5) - fitness;
+    const healthGain = clampStat(health + 3) - health;
+    const happinessGain = clampStat(happiness + 2) - happiness;
+    return fitnessGain <= 0 && healthGain <= 0 && happinessGain <= 0;
+  }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
+
+  // A gym session also refreshes the gym-visit timer the weekly tick reads to
+  // scale fitness decay. When that timer is stale (behind the current week) a
+  // workout is still worth doing even at capped stats, so the card must stay
+  // tappable — otherwise a peak-shape player silently suffers accelerated decay.
+  const gymTimerStale = useMemo(
+    () => (gameState.lastGymVisitWeek || 0) !== (gameState.weeksLived || 0),
+    [gameState.lastGymVisitWeek, gameState.weeksLived]
+  );
+
   const canUseGym = useMemo(() => {
-    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20;
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy]);
+    return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20 && (!gymGainsAllZero || gymTimerStale);
+  }, [hasMembership, gameState.stats.money, gameState.stats.energy, gymGainsAllZero, gymTimerStale]);
 
   // Auto-switch to items tab if tutorial is highlighting an item
   React.useEffect(() => {
@@ -356,6 +384,11 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
     if (!hasMembership) return;
 
+    // Refuse only when nothing would change: every stat gain clamps to zero AND
+    // the gym-visit timer is already current. When the timer is stale the workout
+    // still refreshes it (staving off accelerated fitness decay), so allow it.
+    if (gymGainsAllZero && !gymTimerStale) return;
+
     if (gameState.stats.money < cost) return;
     if (gameState.stats.energy < energyCost) return;
 
@@ -366,10 +399,20 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       health: 3,
       happiness: 2,
     });
-    // Effort → reward feedback, matching the food/buy paths on this screen.
-    // This was the one silent action on an otherwise-reactive tab.
-    showSuccess('💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy, updateStats, showSuccess]);
+    // Refresh the gym-visit timer so consistent sessions stave off the
+    // accelerated fitness decay the weekly tick applies the longer you skip it.
+    // (React batches this with the updateStats commit above — one render.)
+    setGameState(prev => ({ ...prev, lastGymVisitWeek: prev.weeksLived || 0 }));
+    // Persist the session — deferred one macrotask so the save captures the
+    // post-commit state (repo convention). Untracked on purpose: the save must
+    // survive even if the screen unmounts right after the tap.
+    setTimeout(() => { void saveGame?.(); }, 0);
+    // Effort → reward feedback, matching the food/buy paths on this screen. When
+    // stats are already capped the session still counts — it keeps the routine up.
+    showSuccess(gymGainsAllZero
+      ? '💪 Workout done! Fitness routine maintained.'
+      : '💪 Workout done! +5 Fitness, +3 Health');
+  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, updateStats, setGameState, saveGame, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead
@@ -567,9 +610,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                     style={[styles.gymButton, !canUseGym && styles.gymButtonDisabled]}
                   >
                     <Text style={[styles.gymButtonText, !canUseGym && styles.gymButtonTextDisabled]}>
-                      {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
-                        gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
-                          t('market.startWorkout')}
+                      {gymGainsAllZero && !gymTimerStale ? "You're in top shape" :
+                        gameState.stats.money < 50 ? t('market.notEnoughMoney') :
+                          gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
+                            t('market.startWorkout')}
                     </Text>
                   </TouchableOpacity>
 
@@ -611,7 +655,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         <ConfirmDialog
           visible={true}
           title={`Purchase ${showPurchaseConfirm.itemName}?`}
-          message={`This will cost $${showPurchaseConfirm.price}. You'll have $${Math.floor(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
+          message={`This will cost ${formatMoney(showPurchaseConfirm.price)}. You'll have ${formatMoney(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
             ? '\n\nThis will unlock computer apps including Crypto Mining, Real Estate, and Gaming!'
             : showPurchaseConfirm.itemId === 'smartphone'
               ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'

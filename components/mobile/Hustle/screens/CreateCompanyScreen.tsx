@@ -19,6 +19,7 @@ import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -115,7 +116,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
         <View style={styles.introRow}>
           <View style={[styles.cashChip, { backgroundColor: HUSTLE_COLORS.accent + '24', borderColor: HUSTLE_COLORS.accent + '4D' }]}>
             <DollarSign size={fontScale(13)} color={HUSTLE_COLORS.accent} strokeWidth={2.6} />
-            <Text style={[styles.cashChipText, { color: theme.text }]}>${playerMoney.toLocaleString()}</Text>
+            <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(playerMoney)}</Text>
           </View>
           <Text style={[styles.affordText, { color: theme.textSecondary }]}>
             {affordableCount} of {INDUSTRIES.length} within budget
@@ -152,7 +153,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               }}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected, disabled: !selectable }}
-              accessibilityLabel={`${ind.name}: $${inflatedCost.toLocaleString()}${locked ? `, locked — ${lockReason}` : ''}`}
+              accessibilityLabel={`${ind.name}: ${formatMoney(inflatedCost)}${locked ? `, locked — ${lockReason}` : ''}`}
               style={[
                 getGlassCard(isDark, 6),
                 styles.industryCard,
@@ -177,7 +178,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                 <View style={styles.industryRight}>
                   <Text style={[styles.industryCostLabel, { color: theme.textMuted }]}>Startup</Text>
                   <Text style={[styles.industryCost, { color: canAfford ? theme.text : theme.textMuted }]}>
-                    ${inflatedCost.toLocaleString()}
+                    {formatMoney(inflatedCost)}
                   </Text>
                   {isSelected ? (
                     <View style={[styles.selectedTick, { backgroundColor: color }]}>
@@ -202,7 +203,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                   </View>
                 ) : (
                   <View style={[styles.statusChip, { backgroundColor: theme.surfaceElevated }]}>
-                    <Text style={[styles.statusChipText, { color: theme.textMuted }]}>Need ${shortfall.toLocaleString()} more</Text>
+                    <Text style={[styles.statusChipText, { color: theme.textMuted }]}>Need {formatMoney(shortfall)} more</Text>
                   </View>
                 )}
               </View>

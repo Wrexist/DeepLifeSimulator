@@ -128,10 +128,40 @@ export const LOGIN_STREAK_GRACE_HOURS = 48; // Forgiving: miss 1 day, keep strea
 // ── Prestige & Gems ───────────────────────────────────────
 export const REVIVE_GEM_COST = 15_000;
 export const DISCORD_JOIN_REWARD_GEMS = 500;
-// One-time cash reward for joining the Discord community. Granted from either the
-// in-game CommunityRewardPopup or the Settings "Join Our Discord" button — both
-// share the `discord_reward_claimed` flag so it can be claimed exactly once.
+// One-time cash reward FLOOR for joining the Discord community. Granted from
+// either the in-game CommunityRewardPopup or the Settings "Join Our Discord"
+// button — both share the `discord_reward_claimed` flag so it can be claimed
+// exactly once. The actual reward scales with wealth via discordJoinRewardMoney
+// below; this constant is the minimum so early players still get $5k.
 export const DISCORD_JOIN_REWARD_MONEY = 5000;
+
+/**
+ * Net-worth-scaled Discord join reward so a flat $5k isn't meaningless to a
+ * wealthy player. = clamp( netWorth * 1%, $5k floor, $250k ceiling ), rounded.
+ * EVERY display site and the grant site must call this with the same net worth
+ * so the shown amount always equals the granted amount. The one-time claim guard
+ * (`discord_reward_claimed`) is unchanged.
+ */
+export function discordJoinRewardMoney(netWorth: number): number {
+  const worth = Number.isFinite(netWorth) ? netWorth : 0;
+  const base = worth * 0.01;
+  return Math.round(Math.min(Math.max(base, DISCORD_JOIN_REWARD_MONEY), 250_000));
+}
+
+// ── Crime & Jail ──────────────────────────────────────────
+/**
+ * Bail scales with BOTH time served and wealth so it keeps punishing the rich
+ * instead of being a rounding error. = clamp( max(jailWeeks * $500, netWorth *
+ * 0.5%), $500 floor, $250k ceiling ), rounded. Shared by JailScreen (display)
+ * and JobActionsContext.payBail (charge) so the shown price and the amount
+ * actually deducted can never drift apart.
+ */
+export function computeBailCost(jailWeeks: number, netWorth: number): number {
+  const weeks = Number.isFinite(jailWeeks) ? Math.max(0, jailWeeks) : 0;
+  const worth = Number.isFinite(netWorth) ? netWorth : 0;
+  const base = Math.max(weeks * 500, worth * 0.005);
+  return Math.round(Math.min(Math.max(base, 500), 250_000));
+}
 
 // ── Legacy ────────────────────────────────────────────────
 export const ADULTHOOD_AGE = 18;

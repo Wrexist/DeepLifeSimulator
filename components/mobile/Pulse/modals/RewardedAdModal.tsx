@@ -4,13 +4,13 @@
  * 1-per-week cap enforced by `watchAdForFollowerBoost` via weeksLived.
  * Verified Pro triples the reward (50 → 150 followers).
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { watchAdForFollowerBoost } from '@/contexts/game/actions/PulseActions';
@@ -25,37 +25,113 @@ interface RewardedAdModalProps {
 }
 
 export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const expectedFollowers = proActive ? 150 : 50;
 
-  const handleWatch = useCallback(async () => {
-    // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
-    // reports the reward earned (or when there's no ad to show — dev / ad-free).
-    // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
-    // and lost revenue. All that logic lives in the shared `runRewardedAd`.
-    let result = { success: false };
-    const outcome = await runRewardedAd(
-      () => {
-        result = watchAdForFollowerBoost(setGameState, gameState);
-      },
-      { adsRemoved: areAdsRemoved(gameState) },
-    );
-    // Reward earned AND the weekly cooldown allowed the grant.
-    if (isGranted(outcome) && result.success) {
-      pulseHaptics.success();
-      onDismiss();
-    } else {
-      pulseHaptics.error();
-    }
-  }, [setGameState, gameState, onDismiss]);
+  // Re-entrancy guard for rapid double-taps on the CTA.
+  const busyRef = useRef(false);
 
-  if (!visible) return null;
+  // Timers are tracked so unmount cancels them — a dismissal fallback must
+  // never continue into runRewardedAd after the component is gone.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const addTimer = (fn: () => void, ms: number) => {
+    timersRef.current.push(setTimeout(fn, ms));
+  };
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+      dismissResolver.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Resolves when the sheet's NATIVE dismissal finishes (iOS Modal.onDismiss),
+  // with a tracked-timer fallback (Android has no onDismiss) so a missed
+  // callback can never strand the flow. Same pattern as AdRewardOrb.
+  const dismissResolver = useRef<(() => void) | null>(null);
+  const handleModalDismissed = useCallback(() => {
+    dismissResolver.current?.();
+    dismissResolver.current = null;
+  }, []);
+  const waitForDismissal = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        dismissResolver.current = null;
+        resolve();
+      };
+      dismissResolver.current = finish;
+      addTimer(finish, 600); // covers the slide-down animation with margin
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleWatch = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
+      // reports the reward earned (or when there's no ad to show — dev / ad-free).
+      // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
+      // and lost revenue. All that logic lives in the shared `runRewardedAd`.
+      const adsRemoved = areAdsRemoved(gameState);
+      if (adsAvailable(adsRemoved)) {
+        // A real fullscreen ad is about to present. Showing it over this open
+        // RN Modal is unsupported by the ad SDK (iOS: the sheet vanishes but an
+        // invisible modal window keeps eating touches — total freeze — and the
+        // reward callback is lost). Dismiss the sheet FIRST and wait for the
+        // native teardown to finish before the ad presents.
+        onDismiss();
+        await waitForDismissal();
+      }
+      let result = { success: false };
+      const outcome = await runRewardedAd(
+        () => {
+          result = watchAdForFollowerBoost(setGameState, gameState);
+        },
+        { adsRemoved },
+      );
+      // Reward earned AND the weekly cooldown allowed the grant.
+      if (isGranted(outcome) && result.success) {
+        pulseHaptics.success();
+        // Persist the committed grant — deferred one macrotask so the save
+        // captures the post-setGameState state (repo post-commit convention).
+        // Intentionally an UNTRACKED plain setTimeout (not addTimer): the unmount
+        // cleanup clears tracked timers, and if PulseApp unmounts within this
+        // macrotask a tracked save would be silently dropped — the grant would
+        // then live only in memory until the next autosave. This save MUST
+        // survive unmount; saveGame reads current state via a context ref, so
+        // executing it after unmount is safe. All OTHER timers stay tracked.
+        setTimeout(() => { void saveGame?.(); }, 0);
+        onDismiss(); // no-op when the ads path already dismissed the sheet
+      } else {
+        pulseHaptics.error();
+      }
+    } finally {
+      busyRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setGameState, gameState, onDismiss, saveGame, waitForDismissal]);
+
+  // NOTE: no `if (!visible) return null` — the parent renders this component
+  // unconditionally, and the Modal must STAY MOUNTED with visible=false during
+  // the watch flow so its native onDismiss can fire (unmounting tears the
+  // native modal down without the callback).
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onDismiss}
+      onDismiss={handleModalDismissed}
+    >
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
           <View style={styles.header}>

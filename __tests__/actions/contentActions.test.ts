@@ -12,6 +12,9 @@ import {
   startLiveStream,
   tickLiveStream,
   finalizeLiveStream,
+  upgradePCComponent,
+  PC_BASE_PRICES,
+  MAX_PC_TIER,
   LIVE_ENERGY_DRAIN_PER_SEC,
 } from '@/contexts/game/actions/ContentActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -216,5 +219,32 @@ describe('live streaming — start / tick / finalize', () => {
     const r = startLiveStream(store.get(), store.setState, { game: 'Just Chatting' }, 5);
     expect(r.success).toBe(false);
     expect(store.get().gamingStreaming!.currentStream).toBeNull();
+  });
+});
+
+describe('upgradePCComponent — tier cap (anti-exploit)', () => {
+  it('bumps the component tier by one and charges basePrice·2^tier', () => {
+    const store = makeStore(baseState(channel()));
+    const before = store.get().stats.money;
+    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu, deps);
+    expect(r.success).toBe(true);
+    expect(r.newTier).toBe(1);
+    expect(store.get().gamingStreaming!.pcUpgradeLevels.cpu).toBe(1);
+    // tier-0 cost = basePrice * 2^0 = basePrice.
+    expect(store.get().stats.money).toBe(before - PC_BASE_PRICES.cpu);
+  });
+
+  it(`refuses to upgrade past tier ${MAX_PC_TIER} — no charge, tier unchanged`, () => {
+    // Huge balance so ONLY the cap (not affordability) can block the upgrade.
+    const ch = channel({
+      pcUpgradeLevels: { cpu: MAX_PC_TIER, gpu: 0, ram: 0, ssd: 0, motherboard: 0, cooling: 0, psu: 0, case: 0, network: 0 },
+    });
+    const store = makeStore({ stats: { money: 1_000_000_000, energy: 100_000 }, weeksLived: 5, gamingStreaming: ch } as unknown as GameState);
+    const before = store.get().stats.money;
+    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu, deps);
+    expect(r.success).toBe(false);
+    expect(r.message).toMatch(/maxed/i);
+    expect(store.get().gamingStreaming!.pcUpgradeLevels.cpu).toBe(MAX_PC_TIER);
+    expect(store.get().stats.money).toBe(before); // never charged on the refuse path
   });
 });

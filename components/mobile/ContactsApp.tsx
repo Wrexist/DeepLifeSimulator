@@ -18,7 +18,7 @@
  * and readout the old file had is still reachable.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -55,7 +55,7 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
-import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, checkAnniversary, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
+import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
@@ -260,25 +260,12 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const updateStatsDep = useCallback((_set: any, stats: any) => updateStats(stats), [updateStats]);
 
-  // ANNIVERSARY (live path): checkAnniversary was exported with no caller, so a
-  // matching anniversary week never fired its happiness bump / milestone / Pulse
-  // post. A cheap check whenever Contacts opens (and whenever weeksLived
-  // advances) wires it live. checkAnniversary is idempotent per year; the ref
-  // stops StrictMode's double-invoke from evaluating the same week twice.
-  const anniversaryCheckedWeek = useRef<number | null>(null);
-  useEffect(() => {
-    const ws = gameState.weeksLived ?? 0;
-    if (anniversaryCheckedWeek.current === ws) return;
-    anniversaryCheckedWeek.current = ws;
-    const spouse = gameState.relationships?.find((r) => r.type === 'spouse');
-    if (!spouse) return;
-    const res = checkAnniversary(gameState, setGameState, { updateStats: updateStatsDep });
-    if (res.isAnniversary) {
-      saveGame();
-      flash(`Happy ${res.yearsMarried}-year anniversary with ${spouse.name}! 🥂`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.weeksLived]);
+  // ANNIVERSARY: the grant (happiness + milestone + Pulse post) now runs in the
+  // weekly tick (contexts/game/actions/weekly/applyAnniversaries.ts) for every
+  // married player regardless of which screen is open — the old ContactsApp
+  // useEffect only fired when Contacts happened to be mounted on the exact
+  // anniversary week, silently missing the reward otherwise. Removed to keep a
+  // single, deterministic code path.
 
   const handleDate = useCallback(
     (contactId: string, dateType: DateType) => {

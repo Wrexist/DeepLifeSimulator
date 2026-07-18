@@ -5,6 +5,7 @@ import { X, AlertTriangle, DollarSign, Heart, Gem, Scale, TrendingDown, Shield, 
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { DIVORCE_LAWYERS, getLawyerExpectedValue } from '@/lib/dating/divorceLawyers';
+import { formatMoney } from '@/utils/moneyFormatting';
 const LinearGradient = LinearGradientFallback;
 
 interface DivorceConfirmModalProps {
@@ -117,11 +118,11 @@ export default function DivorceConfirmModal({
                     Estimated Settlement:
                   </Text>
                   <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                    ${estimatedSettlement.toLocaleString()}
+                    {formatMoney(estimatedSettlement)}
                   </Text>
                 </View>
                 <Text style={[styles.infoSubtext, isDarkMode && styles.infoSubtextDark]}>
-                  ({settlementPercent}% of your ${netWorth.toLocaleString()} net worth)
+                  ({settlementPercent}% of your {formatMoney(netWorth)} net worth)
                 </Text>
                 
                 <View style={styles.divider} />
@@ -143,7 +144,7 @@ export default function DivorceConfirmModal({
                     Base Total Cost:
                   </Text>
                   <Text style={[styles.totalValue, isDarkMode && styles.totalValueDark]}>
-                    ${baseTotalCost.toLocaleString()}
+                    {formatMoney(baseTotalCost)}
                   </Text>
                 </View>
               </View>
@@ -390,7 +391,7 @@ export default function DivorceConfirmModal({
                     Money After Divorce:
                   </Text>
                   <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                    ${finalMoneyAfter.toLocaleString()}
+                    {formatMoney(finalMoneyAfter)}
                   </Text>
                 </View>
                 <Text style={[styles.infoSubtext, isDarkMode && styles.infoSubtextDark]}>

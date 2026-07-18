@@ -30,6 +30,14 @@ type IconComponent = React.ComponentType<{
   fill?: string;
 }>;
 
+/**
+ * PLACEMENT CONSTRAINT: never render this button inside a react-native
+ * `Modal`. It presents a fullscreen ad directly on tap, and showing an ad over
+ * an open RN Modal is unsupported by the ad SDK (iOS freezes with an invisible
+ * touch-blocking modal window and the reward is lost — see `adsAvailable` in
+ * lib/ads/rewardedAd.ts). Modal hosts must dismiss their sheet first and run
+ * the ad themselves, like AdRewardOrb / Pulse RewardedAdModal do.
+ */
 interface WatchAdRewardButtonProps {
   /** Primary CTA text, e.g. "Watch ad → cash bonus". */
   label: string;

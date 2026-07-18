@@ -6,6 +6,7 @@ import {
   parseSaveData,
   repairGameState,
 } from '@/utils/saveValidation';
+import { scoreToBand } from '@/lib/banking/creditScore';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('saveValidation', () => {
@@ -86,6 +87,112 @@ describe('saveValidation', () => {
       repairGameState(state);
       expect(state.sparkApp.premium.active).toBe(true);
       expect(state.sparkApp.premium.tier).toBe('plus');
+    });
+  });
+
+  describe('repairGameState — credit band backfill', () => {
+    it('backfills a missing band from the score (source of truth: scoreToBand)', () => {
+      const state = createTestGameState() as any;
+      state.banking = {
+        ...state.banking,
+        creditScore: { ...state.banking.creditScore, score: 810 },
+      };
+      delete state.banking.creditScore.band;
+
+      const { repaired } = repairGameState(state);
+      expect(repaired).toBe(true);
+      expect(state.banking.creditScore.band).toBe(scoreToBand(810)); // 'excellent'
+    });
+
+    it('replaces an invalid band value with the score-derived band', () => {
+      const state = createTestGameState() as any;
+      state.banking = {
+        ...state.banking,
+        creditScore: { ...state.banking.creditScore, score: 650, band: 'garbage' },
+      };
+
+      repairGameState(state);
+      expect(state.banking.creditScore.band).toBe(scoreToBand(650)); // 'fair'
+    });
+
+    it('leaves an existing valid band untouched (never clobbers)', () => {
+      const state = createTestGameState() as any;
+      // Score would map to 'excellent', but a present valid band is preserved.
+      state.banking = {
+        ...state.banking,
+        creditScore: { ...state.banking.creditScore, score: 810, band: 'good' },
+      };
+
+      repairGameState(state);
+      expect(state.banking.creditScore.band).toBe('good');
+    });
+  });
+
+  describe('repairGameState — checkpoint re-slim on load', () => {
+    it('strips heavy collections from stored (fat) checkpoints, keeps gameplay data', () => {
+      const state = createTestGameState() as any;
+      state.checkpoints = [
+        {
+          id: 'cp_fat',
+          label: 'Year 1',
+          weeksLived: 52,
+          age: 19,
+          timestamp: 1,
+          snapshot: {
+            stats: { money: 100 },
+            eventLog: Array.from({ length: 200 }, (_, i) => ({
+              id: `e${i}`,
+              description: 'x'.repeat(60),
+            })),
+            socialMedia: {
+              followers: 3,
+              recentPosts: [{ id: 'p1' }],
+              notifications: [{ id: 'n1' }],
+              commentThreads: { p1: [] },
+            },
+          },
+        },
+      ];
+
+      const { repaired } = repairGameState(state);
+      expect(repaired).toBe(true);
+
+      const cp = state.checkpoints.find((c: any) => c.id === 'cp_fat');
+      expect(cp).toBeTruthy();
+      expect(cp.snapshot.eventLog).toBeUndefined();
+      expect(cp.snapshot.socialMedia.recentPosts).toBeUndefined();
+      expect(cp.snapshot.socialMedia.notifications).toBeUndefined();
+      expect(cp.snapshot.socialMedia.commentThreads).toBeUndefined();
+      // Gameplay-critical data survives the re-slim.
+      expect(cp.snapshot.stats.money).toBe(100);
+      expect(cp.snapshot.socialMedia.followers).toBe(3);
+    });
+
+    it('drops an unparseable checkpoint snapshot without throwing', () => {
+      const state = createTestGameState() as any;
+      state.checkpoints = [
+        {
+          id: 'cp_ok',
+          label: 'ok',
+          weeksLived: 10,
+          age: 18,
+          timestamp: 1,
+          snapshot: { stats: { money: 5 }, eventLog: [{ id: 'e' }] },
+        },
+        {
+          id: 'cp_bad',
+          label: 'bad',
+          weeksLived: 5,
+          age: 18,
+          timestamp: 2,
+          snapshot: '{ not valid json',
+        },
+      ];
+
+      expect(() => repairGameState(state)).not.toThrow();
+      expect(state.checkpoints.find((c: any) => c.id === 'cp_ok')).toBeTruthy();
+      // Malformed snapshot dropped rather than crashing the load.
+      expect(state.checkpoints.find((c: any) => c.id === 'cp_bad')).toBeUndefined();
     });
   });
 

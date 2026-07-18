@@ -4,6 +4,7 @@ import { X } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { formatMoney } from '@/utils/moneyFormatting';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
 const LinearGradient = LinearGradientFallback;
@@ -105,7 +106,7 @@ export default function AmountInputModal({
           )}
 
           {maxAmount != null && amount > maxAmount && (
-            <Text style={styles.error}>Exceeds available ${maxAmount.toLocaleString()}</Text>
+            <Text style={styles.error}>Exceeds available {formatMoney(maxAmount)}</Text>
           )}
 
           <TouchableOpacity

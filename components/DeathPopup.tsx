@@ -4,8 +4,9 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
+import { useGemStore } from '@/contexts/GemStoreContext';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
-import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2 } from 'lucide-react-native';
+import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem } from 'lucide-react-native';
 import PrestigeModal from './PrestigeModal';
 import { getCharacterImage } from '@/utils/characterImages';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
@@ -23,6 +24,11 @@ const LinearGradient = LinearGradientFallback;
 function DeathPopup() {
   const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, currentSlot, saveGame } = useGame();
   const router = useRouter();
+  // App-level IAP store launcher — used to bridge out of "not enough gems"
+  // dead-ends (revive / rewind) without auto-opening or blocking the death flow.
+  // `isStoreOpen` lets the death Modal SUPPRESS itself while the store's own RN
+  // Modal is presented (stacked-modal safety), then re-present when it closes.
+  const { openStore, isStoreOpen } = useGemStore();
   // R2-A: death is the worst place to crash — onRequestClose is gated, so a
   // settings/stats/date NPE soft-locks the player. Pull through safe accessors.
   const settings = safeSettings(gameState);
@@ -195,13 +201,73 @@ function DeathPopup() {
     }
   }, [gameState, reviveCharacter]);
 
+  // ── Store bridge (stacked-modal safety) ────────────────────────────────────
+  // The gem store is an app-root RN Modal. Opening it while THIS death Modal is
+  // still presented is the exact iOS stacked-modal hazard this PR fixed for the
+  // rewarded ad + LuxuryApp sheet. So we SUPPRESS the death Modal first
+  // (visible → false via a local flag), let its native teardown settle, then
+  // open the store from the Modal's onDismiss — with a tracked-timer fallback
+  // for Android (no onDismiss). When the store closes, `isStoreOpen` flips false
+  // and the death Modal re-presents automatically; its state lives in game state
+  // (showDeathPopup), so re-showing is clean and loses nothing.
+  const [storeBridging, setStoreBridging] = useState(false);
+  const pendingStoreRef = useRef(false);
+  const storeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPendingStore = useCallback(() => {
+    if (!pendingStoreRef.current) return;
+    pendingStoreRef.current = false;
+    if (storeTimerRef.current) {
+      clearTimeout(storeTimerRef.current);
+      storeTimerRef.current = null;
+    }
+    openStore('gems');
+  }, [openStore]);
+
+  // Quiet bridge for the out-of-gems dead-ends: flip suppression + arm the
+  // fallback so the death Modal dismisses, THEN the store opens. Never
+  // auto-invoked — only fired by an explicit tap.
+  const bridgeToStore = useCallback(() => {
+    pendingStoreRef.current = true;
+    setStoreBridging(true);
+    if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
+    storeTimerRef.current = setTimeout(flushPendingStore, 600);
+  }, [flushPendingStore]);
+
+  const handleGetMoreGems = useCallback(() => bridgeToStore(), [bridgeToStore]);
+
+  // Re-present the death Modal once the store closes. The bridge flag is cleared
+  // only when the store is DOWN, so `visible` never flickers true mid-bridge.
+  useEffect(() => {
+    if (!isStoreOpen) setStoreBridging(false);
+  }, [isStoreOpen]);
+
+  // Cancel any pending fallback on unmount.
+  useEffect(
+    () => () => {
+      if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
+      pendingStoreRef.current = false;
+    },
+    [],
+  );
+
   const handleRewind = useCallback((checkpointId: string) => {
     try {
       const { rewindToCheckpoint, getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
       const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
       const gems = gameState.stats?.gems ?? 0;
       if (gems < cost) {
-        Alert.alert('Not Enough Gems', `You need ${cost.toLocaleString()} gems to rewind.`);
+        Alert.alert(
+          'Not Enough Gems',
+          `You need ${cost.toLocaleString()} gems to rewind.`,
+          [
+            { text: 'Not now', style: 'cancel' },
+            // Same pending+dismiss bridge as the revive path — the native Alert
+            // dismisses on button press, then the death Modal suppresses and the
+            // store opens once teardown settles.
+            { text: 'Get Gems', onPress: () => bridgeToStore() },
+          ]
+        );
         return;
       }
       Alert.alert(
@@ -226,7 +292,7 @@ function DeathPopup() {
     } catch (err) {
       logger.error('[TIME_MACHINE] Rewind failed:', err);
     }
-  }, [gameState, setGameState, saveGame]);
+  }, [gameState, setGameState, saveGame, bridgeToStore]);
 
   const handleStartNewGame = useCallback(async () => {
     try {
@@ -391,12 +457,13 @@ function DeathPopup() {
   return (
     <>
     <Modal
-      visible={true}
+      visible={!isStoreOpen && !storeBridging}
       transparent
       animationType="fade"
       statusBarTranslucent={true}
       presentationStyle="overFullScreen"
       hardwareAccelerated={true}
+      onDismiss={flushPendingStore}
     >
       <View style={styles.container}>
         <View style={styles.overlay} />
@@ -732,6 +799,24 @@ function DeathPopup() {
                     </LinearGradient>
                   </TouchableOpacity>
 
+                  {/* Quiet bridge when revive is unaffordable — the disabled button
+                      stays honest; this only offers a path to buy gems. No urgency
+                      copy, and the store is never opened automatically. */}
+                  {!canAffordRevive && (
+                    <View style={styles.secondaryRow}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={handleGetMoreGems}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Get more gems in the shop"
+                      >
+                        <Gem size={16} color={c.text} />
+                        <Text style={styles.secondaryButtonText}>Get more gems</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
                   {/* Time Machine — Rewind to checkpoint (cheaper than revive) */}
                   {checkpoints.length > 0 && (
                     <View style={styles.rewindSection}>
@@ -739,12 +824,17 @@ function DeathPopup() {
                         Rewind Time ({rewindCost.toLocaleString()} Gems)
                       </Text>
                       {checkpoints.slice().reverse().map((cp: any) => (
+                        // Kept PRESSABLE even when unaffordable (still visually
+                        // dimmed): a tap routes into handleRewind's existing
+                        // "Not Enough Gems → Get Gems" branch, which bridges to
+                        // the store. A `disabled` button would swallow that tap.
                         <TouchableOpacity
                           key={cp.id}
                           style={[styles.rewindChip, !canAffordRewind && styles.disabledButton]}
                           onPress={() => handleRewind(cp.id)}
-                          disabled={!canAffordRewind}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
                         >
                           <RotateCcw size={14} color={canAffordRewind ? accent.warning : c.textSecondary} />
                           <Text style={[styles.rewindChipText, !canAffordRewind && { color: c.textSecondary }]}>

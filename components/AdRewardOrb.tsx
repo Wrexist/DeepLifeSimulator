@@ -23,7 +23,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -42,10 +42,13 @@ const VITALITY_BOOST = 100; // +100 Health / Happiness / Energy (caps them at 10
 
 // ── Tuning ──────────────────────────────────────────────────────────────────
 // Cash reward = a small % of net worth, floored/capped so it's meaningful early
-// and never game-breaking late.
+// and never game-breaking late. The cap must stay proportional to late-game
+// wealth: at $15k a $19M player was offered ~0.08% of their worth per ad and
+// (correctly) never tapped it. $500k keeps the full 1.5% meaningful through
+// ~$33M net worth and still caps ad income for whales.
 const REWARD_PCT = 0.015;
 const REWARD_MIN = 50;
-const REWARD_MAX = 15000;
+const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
 const FIRST_DELAY: [number, number] = [22000, 48000];
 const REPEAT_DELAY: [number, number] = [110000, 210000];
@@ -58,6 +61,15 @@ function rand([lo, hi]: [number, number]) {
 function pickKind(): RewardKind {
   return Math.random() < 0.5 ? 'cash' : 'vitality';
 }
+
+// Session-scoped courtesy limit for no-fill grants. When ads are ON for this
+// build but there is no inventory to serve (common on TestFlight and brand-new
+// ad units), the orb still honours ONE reward per app session via grantOnNoFill.
+// Without this cap a whale could farm the capped reward on every respawn with NO
+// ad ever shown (~$10M/hr). Module-level so it survives remounts and resets only
+// on app restart; a later real-ad grant clears it (inventory has returned).
+// Ads-removed players are unaffected — their direct grant is a paid perk.
+let noFillGrantedThisSession = false;
 
 // The three stats a vitality reward refills, with their icon + accent.
 const VITALITY_ROWS = [
@@ -86,7 +98,10 @@ export default function AdRewardOrb() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad'>('hidden');
+  // 'watching' = the sheet has been dismissed and a fullscreen ad is (about to
+  // be) on screen. The component stays mounted so the Modal can animate out and
+  // report its native dismissal, but nothing of ours is visible or tappable.
+  const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
@@ -101,16 +116,25 @@ export default function AdRewardOrb() {
   // Re-entrancy guard: blocks a rapid second tap from granting twice before the
   // sheet flips to the "granted" state (the direct-grant path is synchronous).
   const busyRef = useRef(false);
+  // Resolves once the sheet Modal has finished its NATIVE dismissal (iOS fires
+  // Modal.onDismiss; Android has no such callback), with a timer fallback so a
+  // missed callback can never strand the flow mid-watch. Declared here (above the
+  // adsRemoved effect) so that effect can resolve a pending waiter if Remove-Ads
+  // lands mid-watch.
+  const sheetDismissResolver = useRef<(() => void) | null>(null);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
   const gsRef = useRef(gameState);
   useEffect(() => { gsRef.current = gameState; });
 
-  // Don't intrude during blocking moments.
+  // Don't intrude during blocking moments — death/wedding/jail popups, or an
+  // auto-mounted LifeMomentModal (a real RN Modal raised whenever the weekly tick
+  // sets lifeMoments.pendingMoment). The orb must not slide in over any of them.
   const blocked = !!(
     gameState?.showDeathPopup ||
     gameState?.showWeddingPopup ||
-    (gameState?.jailWeeks ?? 0) > 0
+    (gameState?.jailWeeks ?? 0) > 0 ||
+    gameState?.lifeMoments?.pendingMoment
   );
 
   const clearTimers = () => {
@@ -134,6 +158,14 @@ export default function AdRewardOrb() {
   const scheduleNext = useCallback((delay: number) => {
     clearTimers();
     addTimer(() => {
+      // Courtesy no-fill limit: once an ads-on player has taken their one no-ad
+      // courtesy grant this session, stop spawning orbs until a real ad fills
+      // again (which clears the flag) — otherwise the capped reward could be
+      // farmed with no ad ever shown. Ads-removed players are exempt: their
+      // direct grant is a paid perk, not a no-fill fallback.
+      if (noFillGrantedThisSession && adsAvailable(areAdsRemoved(gsRef.current))) {
+        return;
+      }
       const nextKind = pickKind();
       setKind(nextKind);
       setReward(nextKind === 'cash' ? computeReward(gsRef.current) : 0);
@@ -153,6 +185,14 @@ export default function AdRewardOrb() {
   useEffect(() => {
     if (!adsRemoved) return;
     clearTimers();
+    // Remove-Ads may have landed DURING an in-flight watch (while awaiting
+    // waitForSheetDismissal). clearTimers just cancelled that dismissal fallback,
+    // so resolve any pending waiter here or the flow strands with busyRef stuck.
+    // Once resolved it continues into runRewardedAd, which re-reads the fresh
+    // entitlement and direct-grants (no ad). Only in THIS effect — never in the
+    // unmount cleanup, where resolving could fire continuations on a dead
+    // component (and a true-unmount orphan is harmless).
+    sheetDismissResolver.current?.();
     pulseLoop.current?.stop();
     if (phase !== 'hidden') {
       setPhase('hidden');
@@ -234,25 +274,81 @@ export default function AdRewardOrb() {
     haptic.success();
   }, [kind, reward, setGameState]);
 
+  // (sheetDismissResolver is declared above, near the other refs, so the
+  // adsRemoved effect can resolve a pending waiter.)
+  const handleSheetDismissed = useCallback(() => {
+    sheetDismissResolver.current?.();
+    sheetDismissResolver.current = null;
+  }, []);
+  const waitForSheetDismissal = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        sheetDismissResolver.current = null;
+        resolve();
+      };
+      sheetDismissResolver.current = finish;
+      // Tracked (not raw) timer: clearTimers on unmount cancels it, so a
+      // dismissal fallback can never continue into runRewardedAd after the
+      // component is gone. 600ms covers the slide-down animation with margin.
+      addTimer(finish, 600);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleWatch = useCallback(async () => {
     if (busyRef.current) return; // ignore rapid re-taps while a grant is in flight
     busyRef.current = true;
     try {
+      if (adsAvailable(adsRemoved)) {
+        // A real fullscreen ad is about to present. Presenting it over our open
+        // RN Modal is unsupported by the ad SDK: on iOS the ad's view controller
+        // fights the Modal's — when the ad closes, the sheet vanishes natively
+        // while an invisible modal window keeps eating every touch (app reads as
+        // frozen) and the reward callback is lost. Dismiss the sheet FIRST and
+        // let the native dismissal finish before showing the ad.
+        setPhase('watching');
+        await waitForSheetDismissal();
+      }
+      // Re-read the entitlement: Remove-Ads may have completed during the
+      // dismissal wait. Using the fresh value guarantees a player who just paid
+      // to remove ads gets a direct grant here, never a surprise ad.
+      const adsRemovedNow = areAdsRemoved(gsRef.current);
       // grantOnNoFill: the orb is rate-limited (appears at most every few
       // minutes), so if there's no ad inventory to serve we still honour the
       // promised reward instead of leaving the player with nothing after tapping
       // "Watch ad". Real ads still play + earn when they fill.
-      const outcome = await runRewardedAd(grant, { adsRemoved, grantOnNoFill: true });
+      const outcome = await runRewardedAd(grant, { adsRemoved: adsRemovedNow, grantOnNoFill: true });
+      // Courtesy no-fill limit: remember a no-ad courtesy grant so the spawn
+      // scheduler stops offering more this session; a real-ad grant means
+      // inventory returned, so lift the limit again.
+      if (isNoFillGrant(outcome)) {
+        noFillGrantedThisSession = true;
+      } else if (outcome === 'granted-ad') {
+        noFillGrantedThisSession = false;
+      }
       if (isGranted(outcome)) {
+        // Reopen the sheet in its "Reward added!" state — a fresh present is
+        // safe now that the ad's view controller is gone; the short beat lets
+        // its window teardown settle before we animate back in. Tracked timer:
+        // unmount clears it, so no post-unmount UI work can be scheduled.
+        await new Promise<void>((resolve) => { addTimer(resolve, 350); });
+        setPhase('ad');
         finishAfterClaim();
       } else {
-        // no-fill / error — reward NOT granted.
+        // no-fill / error — reward NOT granted. The sheet is already gone;
+        // retract fully and let the orb reschedule.
         haptic.error();
+        setPhase('hidden');
+        slideX.setValue(-160);
+        scheduleNext(rand(REPEAT_DELAY));
       }
     } finally {
       busyRef.current = false;
     }
-  }, [grant, finishAfterClaim, adsRemoved]);
+  }, [grant, finishAfterClaim, adsRemoved, waitForSheetDismissal, scheduleNext, slideX]);
 
   const dismissAd = useCallback(() => {
     setPhase('hidden');
@@ -311,7 +407,13 @@ export default function AdRewardOrb() {
       ) : null}
 
       {/* ── The rewarded-ad sheet (cash / vitality variants) ── */}
-      <Modal visible={phase === 'ad'} transparent animationType="slide" onRequestClose={dismissAd}>
+      <Modal
+        visible={phase === 'ad'}
+        transparent
+        animationType="slide"
+        onRequestClose={dismissAd}
+        onDismiss={handleSheetDismissed}
+      >
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: responsiveSpacing.xl + insets.bottom }]}>
             <View style={styles.sheetHeader}>

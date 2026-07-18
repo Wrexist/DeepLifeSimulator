@@ -260,6 +260,44 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         return prevState;
       }
 
+      // Activities that count as a gym visit and refresh the gym-visit timer
+      // (lastGymVisitWeek). The weekly tick reads that timer to scale fitness
+      // decay, so performing one is worthwhile purely to reset the timer even
+      // when its stat gains are fully clamped. Kept in sync with the reset below.
+      const FITNESS_INCREASING_ACTIVITIES = ['walk', 'yoga', 'massage'];
+      const resetsGymTimer = FITNESS_INCREASING_ACTIVITIES.includes(activityId) || !!activity.healthGain;
+
+      // Zero-gain guard: for pure wellness activities (no disease-cure / vaccine
+      // payoff), if every stat gain would clamp to zero the player gains nothing —
+      // so don't debit money or energy. Medical activities (doctor/hospital/
+      // experimental/vaccines) keep their value at max stats and are exempt.
+      // Exception: a timer-resetting activity is still worth doing when the
+      // gym-visit timer is stale (lastGymVisitWeek is behind the current week),
+      // because it staves off accelerated fitness decay — so allow it then. Only
+      // refuse when nothing at all would change: both gains clamp to zero AND the
+      // timer is already current for this week.
+      const MEDICAL_ACTIVITY_IDS = ['doctor', 'hospital', 'experimental', 'flu_shot', 'pneumonia_vaccine'];
+      if (!MEDICAL_ACTIVITY_IDS.includes(activityId)) {
+        // Normalize NaN/undefined stats to 0 before computing deltas: `NaN <= 0`
+        // is false, so a corrupted stat would otherwise make the guard's answer
+        // meaningless (and a 0 baseline yields positive deltas → the activity is
+        // allowed to run and write back clamped, healed values).
+        const hap = Number.isFinite(prevState.stats.happiness) ? prevState.stats.happiness : 0;
+        const happinessDelta = clampStatByKey('happiness', hap + (activity.happinessGain || 0)) - hap;
+        let healthDelta = 0;
+        if (activity.healthGain) {
+          const hp = Number.isFinite(prevState.stats.health) ? prevState.stats.health : 0;
+          healthDelta = clampStatByKey('health', hp + activity.healthGain) - hp;
+        }
+        const gymTimerStale = (prevState.lastGymVisitWeek || 0) !== (prevState.weeksLived || 0);
+        const wouldRefreshStaleTimer = resetsGymTimer && gymTimerStale;
+        if (happinessDelta <= 0 && healthDelta <= 0 && !wouldRefreshStaleTimer) {
+          processingActivities.current.delete(activityId);
+          result = { message: `You're already at peak wellness — ${activity.name} wouldn't change anything right now.` };
+          return prevState;
+        }
+      }
+
       // Check costs with latest state
       if (prevState.stats.money < activity.price) {
         processingActivities.current.delete(activityId);
@@ -306,13 +344,12 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         actualChanges.health = newHealth - currentHealth;
       }
 
-      // Track gym visits: activities that increase fitness count as gym visits
-      // This includes activities like walk, yoga, and any activity that increases fitness
-      const fitnessIncreasingActivities = ['walk', 'yoga', 'massage'];
+      // Track gym visits: activities that improve fitness/health count as gym
+      // visits and refresh the gym-visit timer the weekly tick reads for fitness
+      // decay. `resetsGymTimer` is computed once above and reused here so the
+      // guard's timer-staleness exception and this reset never drift apart.
       let updatedLastGymVisitWeek = prevState.lastGymVisitWeek;
-      if (fitnessIncreasingActivities.includes(activityId) || activity.healthGain) {
-        // Consider activities that improve health as gym-like activities
-        // Also track when fitness actually increases (if we add fitnessGain to activities later)
+      if (resetsGymTimer) {
         updatedLastGymVisitWeek = prevState.weeksLived || 0;
       }
 

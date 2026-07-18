@@ -24,12 +24,23 @@ import type { GameState } from '@/contexts/game/types';
 export type RewardedAdOutcome =
   | 'granted-ad' // real rewarded video watched to completion, reward earned
   | 'granted-direct' // no ad shown (ads removed / no ad SDK) — reward granted
+  | 'granted-no-fill' // ads ON but no inventory; `grantOnNoFill` honored the reward with NO ad shown
   | 'no-fill' // ad system on but no ad was available — NOT granted
   | 'error'; // ad failed to load / show — NOT granted
 
 /** True when the reward was actually applied (with or without an ad). */
 export function isGranted(outcome: RewardedAdOutcome): boolean {
-  return outcome === 'granted-ad' || outcome === 'granted-direct';
+  return outcome === 'granted-ad' || outcome === 'granted-direct' || outcome === 'granted-no-fill';
+}
+
+/**
+ * True when the reward was granted via the no-fill courtesy path — ads are ON
+ * for this build but there was no inventory, so `grantOnNoFill` honored the
+ * reward WITHOUT showing an ad. Callers use this to rate-limit the courtesy
+ * grant (an unlimited faucet of no-ad rewards would be exploitable).
+ */
+export function isNoFillGrant(outcome: RewardedAdOutcome): boolean {
+  return outcome === 'granted-no-fill';
 }
 
 /**
@@ -49,6 +60,23 @@ export interface RunRewardedAdOptions {
 }
 
 /**
+ * True when THIS build/entitlement can present a real fullscreen rewarded ad
+ * (AdMob enabled, native platform, player has not paid to remove ads).
+ *
+ * CONTRACT FOR MODAL HOSTS: when this returns true, any react-native `Modal`
+ * that hosts the "Watch ad" button MUST be dismissed — and its native
+ * dismissal allowed to finish — BEFORE calling {@link runRewardedAd}.
+ * Presenting a fullscreen ad over an open RN Modal is unsupported by the ad
+ * SDK: on iOS the ad's view controller fights the Modal's, and when the ad
+ * closes the sheet vanishes natively while an invisible modal window keeps
+ * intercepting every touch (the app reads as completely frozen) and the
+ * earned-reward/closed handshake is lost, so the reward is never granted.
+ */
+export function adsAvailable(adsRemoved?: boolean): boolean {
+  return !adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
+}
+
+/**
  * Show a rewarded ad (when appropriate for this build/entitlement) and grant the
  * reward. `grant` is invoked exactly once on success — either by the ad SDK's
  * reward callback, or directly when there is no ad to show. It is NEVER called
@@ -58,7 +86,7 @@ export async function runRewardedAd(
   grant: () => void,
   opts: RunRewardedAdOptions = {}
 ): Promise<RewardedAdOutcome> {
-  const adsOn = !opts.adsRemoved && isFeatureEnabled('adMob') && Platform.OS !== 'web';
+  const adsOn = adsAvailable(opts.adsRemoved);
   if (!adsOn) {
     // No ad inventory in this configuration (paid ad-free, or no ad SDK). Not
     // deceptive: there is simply no ad to show, so grant the reward directly.
@@ -74,9 +102,12 @@ export async function runRewardedAd(
     // orb) grant the reward anyway rather than cheating a player who tapped
     // "Watch ad" when there was simply no inventory. Real ads still play and earn
     // revenue whenever inventory IS available — this is only the empty fallback.
+    // Reported as 'granted-no-fill' (distinct from 'granted-direct') so callers
+    // can rate-limit the no-ad courtesy grant without conflating it with the
+    // ads-removed paid-perk path.
     if (opts.grantOnNoFill) {
       grant();
-      return 'granted-direct';
+      return 'granted-no-fill';
     }
     return 'no-fill';
   } catch (err) {
@@ -85,7 +116,7 @@ export async function runRewardedAd(
     });
     if (opts.grantOnNoFill) {
       grant();
-      return 'granted-direct';
+      return 'granted-no-fill';
     }
     return 'error';
   }

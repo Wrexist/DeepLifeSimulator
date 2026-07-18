@@ -2310,6 +2310,16 @@ export interface GameState {
   loginStreak?: number;
   lastLoginDate?: string;
   lastLoginRewardDate?: string;
+  /**
+   * One-time Discord community reward: set true in the SAME state update that
+   * adds the cash, so the money + this flag are always persisted together. It is
+   * the in-state half of the exactly-once claim protocol (the durable other half
+   * is the `discord_reward_claimed` AsyncStorage marker) — the launch reconciler
+   * reads it to tell "grant not yet saved" from "saved, just needs finalizing".
+   * Additive/optional: absent on every existing save; no migration needed. See
+   * utils/discordRewardClaim.ts.
+   */
+  discordRewardGranted?: boolean;
   gamingStreaming?: GamingStreamingState;
   goldUpgrades?: Record<string, boolean>;
   pendingEvents: WeeklyEvent[];

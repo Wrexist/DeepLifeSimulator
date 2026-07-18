@@ -13,7 +13,7 @@ import { GameState, Relationship, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
-import { rejectIfBlocked } from './_guards';
+import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -155,6 +155,11 @@ export const goOnDate = (
   // P1-3: dead players can't date.
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
+
+  // Can't go on a date from a jail cell.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't go on a date while you're in jail." };
+  }
 
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {
@@ -384,6 +389,11 @@ export const proposeMarriage = (
   ringId: string,
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string; accepted: boolean } => {
+  // Can't propose from a jail cell.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't propose while you're in jail.", accepted: false };
+  }
+
   const partner = gameState.relationships?.find(r => r.id === partnerId && r.type === 'partner');
   if (!partner) {
     return { success: false, message: 'Partner not found.', accepted: false };
@@ -1138,7 +1148,7 @@ export const fileDivorce = (
     message += `Your lawyer failed to reduce the settlement.\n`;
     message += `Settlement: $${settlementObligation.toLocaleString()}\n\n`;
   } else {
-    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your $${netWorth.toLocaleString()} net worth)\n\n`;
+    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your ${formatMoney(netWorth)} net worth)\n\n`;
   }
 
   message += `Base lawyer fees: $${lawyerFees.toLocaleString()}\n`;
@@ -1201,7 +1211,14 @@ export const cancelEngagement = (
 };
 
 /**
- * Check if it's the anniversary week
+ * Check if it's the anniversary week (imperative helper).
+ *
+ * NOTE: the LIVE anniversary grant now runs in the weekly tick via
+ * `contexts/game/actions/weekly/applyAnniversaries.ts` — that is the single
+ * runtime code path, and it fires for every married player regardless of which
+ * screen is open. This function is retained only for its existing unit/stress
+ * tests (anniversaryIdempotence, marriageFlow.stress) which pin its signature and
+ * per-year idempotence; it is no longer wired into any component.
  */
 export const checkAnniversary = (
   gameState: GameState,

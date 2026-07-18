@@ -63,11 +63,13 @@ import {
   upgradePCComponent,
   ACCESSORY_PRICES,
   PC_BASE_PRICES,
+  MAX_PC_TIER,
   LIVE_ENERGY_DRAIN_PER_SEC,
   LIVE_MIN_ENERGY,
   LIVE_TICK_MS,
 } from '@/contexts/game/actions/ContentActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   getGlassCard,
@@ -459,8 +461,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <View style={styles.metricsRow}>
           <Metric icon={Heart} text={`+${s.subscribers}`} color={theme.textSecondary} />
           <Metric icon={TrendingUp} text={`+${s.followers}`} color={theme.textSecondary} />
-          <Metric icon={Gift} text={`$${fmt(s.donations)}`} color={theme.textSecondary} />
-          <Metric icon={DollarSign} text={fmt(s.earnings)} color={accent.success} />
+          <Metric icon={Gift} text={formatMoney(s.donations ?? 0)} color={theme.textSecondary} />
+          <Metric icon={DollarSign} text={formatMoney(s.earnings ?? 0)} color={accent.success} />
         </View>
       </View>
     </TouchableOpacity>
@@ -591,12 +593,12 @@ export default function GamingStreamingApp({ onBack }: Props) {
           <View style={styles.statsRow}>
             <MoneyStat label="$/viewer" value={`$${monetization.viewerPay.toFixed(3)}`} color={theme.text} theme={theme} />
             <MoneyStat label="RPM" value={`$${monetization.rpm.toFixed(2)}`} color={theme.text} theme={theme} />
-            <MoneyStat label="Members/wk" value={`$${fmt(monetization.membershipWeekly)}`} color={theme.text} theme={theme} />
+            <MoneyStat label="Members/wk" value={formatMoney(monetization.membershipWeekly ?? 0)} color={theme.text} theme={theme} />
             <MoneyStat label="Members" value={fmt(channel?.paidMembers)} color={theme.text} theme={theme} />
             <MoneyStat label="Total views" value={fmt(channel?.totalViews)} color={theme.text} theme={theme} />
-            <MoneyStat label="Donations" value={`$${fmt(channel?.totalDonations)}`} color={accent.success} theme={theme} />
-            <MoneyStat label="Sub earnings" value={`$${fmt(channel?.totalSubEarnings)}`} color={accent.success} theme={theme} />
-            <MoneyStat label="Total $" value={`$${fmt(channel?.totalEarnings)}`} color={accent.success} theme={theme} />
+            <MoneyStat label="Donations" value={formatMoney(channel?.totalDonations ?? 0)} color={accent.success} theme={theme} />
+            <MoneyStat label="Sub earnings" value={formatMoney(channel?.totalSubEarnings ?? 0)} color={accent.success} theme={theme} />
+            <MoneyStat label="Total $" value={formatMoney(channel?.totalEarnings ?? 0)} color={accent.success} theme={theme} />
           </View>
         </View>
 
@@ -649,7 +651,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.flex1}>
                 <Text style={[styles.bestTitle, { color: theme.text }]} numberOfLines={1}>{channel.bestStream.game}</Text>
                 <Text style={[styles.bestSub, { color: theme.textSecondary }]}>
-                  {fmt(channel.bestStream.viewers)} peak · {channel.bestStream.duration}m · ${fmt(channel.bestStream.earnings)}
+                  {fmt(channel.bestStream.viewers)} peak · {channel.bestStream.duration}m · {formatMoney(channel.bestStream.earnings ?? 0)}
                 </Text>
               </View>
             </View>
@@ -1017,7 +1019,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.flex1}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{ACCESSORY_LABELS[k]}</Text>
                 <Text style={[styles.gearMeta, { color: theme.textMuted }]}>
-                  {owned ? 'Owned' : `$${(ACCESSORY_PRICES[k] ?? 0).toLocaleString()} · +${ACCESSORY_QUALITY[k]} quality`}
+                  {owned ? 'Owned' : `${formatMoney(ACCESSORY_PRICES[k] ?? 0)} · +${ACCESSORY_QUALITY[k]} quality`}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1040,6 +1042,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <SectionHead icon={Cpu} title="PC components" />
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
+          const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
           return (
             <View key={k} style={styles.gearRow}>
@@ -1056,15 +1059,23 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 </View>
               </View>
               <View style={styles.gearRight}>
-                <Text style={[styles.gearPrice, { color: theme.textMuted }]}>${cost.toLocaleString()}</Text>
+                <Text style={[styles.gearPrice, { color: theme.textMuted }]}>
+                  {maxed ? 'Max tier' : formatMoney(cost)}
+                </Text>
                 <TouchableOpacity
                   onPress={() => handlePCUpgrade(k)}
                   activeOpacity={0.85}
+                  disabled={maxed}
                   accessibilityRole="button"
-                  accessibilityLabel={`Upgrade ${PC_LABELS[k]} to tier ${tier + 1}`}
-                  style={[styles.gearBtn, { backgroundColor: FUCHSIA_TINT }]}
+                  accessibilityState={{ disabled: maxed }}
+                  accessibilityLabel={maxed
+                    ? `${PC_LABELS[k]} is at max tier`
+                    : `Upgrade ${PC_LABELS[k]} to tier ${tier + 1} for ${formatMoney(cost)}`}
+                  style={[styles.gearBtn, { backgroundColor: maxed ? 'rgba(148, 163, 184, 0.18)' : FUCHSIA_TINT }]}
                 >
-                  <Text style={[styles.gearBtnText, { color: FUCHSIA }]}>Upgrade</Text>
+                  <Text style={[styles.gearBtnText, { color: maxed ? theme.textMuted : FUCHSIA }]}>
+                    {maxed ? 'Maxed' : 'Upgrade'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1130,8 +1141,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <StatCell icon={Heart} label="Subs" value={fmt(st.subs)} theme={theme} />
             <StatCell icon={TrendingUp} label="Followers" value={fmt(st.followers)} theme={theme} />
             <StatCell icon={MessageCircle} label="Chat" value={fmt(st.chat)} theme={theme} />
-            <StatCell icon={Gift} label="Donations" value={`$${fmt(st.donations)}`} theme={theme} />
-            <StatCell icon={DollarSign} label="Earned" value={`$${fmt(st.earnings)}`} color={accent.success} theme={theme} />
+            <StatCell icon={Gift} label="Donations" value={formatMoney(st.donations ?? 0)} theme={theme} />
+            <StatCell icon={DollarSign} label="Earned" value={formatMoney(st.earnings ?? 0)} color={accent.success} theme={theme} />
           </View>
         </View>
 
@@ -1218,8 +1229,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <StatCell icon={Heart} label="Subs gained" value={`+${fmt(s.subscribers)}`} theme={theme} />
             <StatCell icon={TrendingUp} label="Followers" value={`+${fmt(s.followers)}`} theme={theme} />
             <StatCell icon={MessageCircle} label="Chat msgs" value={fmt(s.chatMessages)} theme={theme} />
-            <StatCell icon={Gift} label="Donations" value={`$${fmt(s.donations)}`} theme={theme} />
-            <StatCell icon={DollarSign} label="Earnings" value={`$${fmt(s.earnings)}`} color={accent.success} theme={theme} />
+            <StatCell icon={Gift} label="Donations" value={formatMoney(s.donations ?? 0)} theme={theme} />
+            <StatCell icon={DollarSign} label="Earnings" value={formatMoney(s.earnings ?? 0)} color={accent.success} theme={theme} />
             <StatCell icon={Award} label="Category" value={splitDur(s.game)[0] || s.game} theme={theme} />
           </View>
         </View>
@@ -1259,7 +1270,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
         <View style={[styles.cashChip, { backgroundColor: FUCHSIA_TINT, borderColor: FUCHSIA_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 
@@ -1437,7 +1448,9 @@ const styles = StyleSheet.create({
   // ── Media (hero / monitor / detail) ──
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden' },
   monitorInner: { borderRadius: br['2xl'], overflow: 'hidden' },
-  heroMedia: { width: '100%', aspectRatio: 16 / 9, position: 'relative', justifyContent: 'space-between' },
+  // Fixed clamped height (not aspectRatio) so the hero can't balloon on wide
+  // frames; scale() caps at 1.8x, preserving the ~16:9 look on phones.
+  heroMedia: { width: '100%', height: scale(210), position: 'relative', justifyContent: 'space-between' },
   mediaFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   mediaScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.42)' },
   heroGlow: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: 'rgba(217, 70, 239, 0.10)' },

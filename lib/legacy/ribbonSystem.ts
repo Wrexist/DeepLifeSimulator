@@ -398,7 +398,28 @@ export function classifyLife(state: GameState): RibbonDefinition {
 }
 
 /**
+ * Maximum retained entries in the earned-ribbon log. The log records one entry
+ * per life and persists across every prestige, so without a bound it grows for
+ * the entire lifetime of a save. When the cap is exceeded the oldest entries are
+ * dropped (the most recent lives are the ones surfaced to the player).
+ */
+export const MAX_EARNED_RIBBONS = 200;
+
+/**
  * Add a newly earned ribbon to the collection.
+ *
+ * `earned` is an append-only log — one entry per life — so repeats of the same
+ * ribbon across different lives are meaningful and are preserved (each entry
+ * carries its own generation / age / name / timestamp). Two guards keep the log
+ * from growing without bound or double-counting a single death:
+ *   1. Exact-duplicate suppression: a reducer/tick re-invocation for the SAME
+ *      death produces an entry identical to the most recent one — that entry is
+ *      skipped. Genuinely distinct lives always differ (timestamp/age/name), so
+ *      real cross-life repeats are never collapsed.
+ *   2. Hard cap (MAX_EARNED_RIBBONS, drop-oldest) bounds the persisted size.
+ *
+ * `discoveredIds` is a set keyed by ribbon id (naturally bounded by the ribbon
+ * catalog) and stays deduped.
  */
 export function addRibbonToCollection(
   collection: GameState['ribbonCollection'],
@@ -406,21 +427,36 @@ export function addRibbonToCollection(
   state: GameState
 ): NonNullable<GameState['ribbonCollection']> {
   const existing = collection ?? { earned: [], discoveredIds: [] };
+  const existingEarned = Array.isArray(existing.earned) ? existing.earned : [];
+  const existingDiscovered = Array.isArray(existing.discoveredIds) ? existing.discoveredIds : [];
 
-  const earned = [
-    ...existing.earned,
-    {
-      ribbonId: ribbon.id,
-      generation: state.generationNumber ?? 1,
-      earnedTimestamp: Date.now(),
-      lifeAge: getAge(state),
-      lifeName: state.userProfile?.name ?? 'Unknown',
-    },
-  ];
+  const entry = {
+    ribbonId: ribbon.id,
+    generation: state.generationNumber ?? 1,
+    earnedTimestamp: Date.now(),
+    lifeAge: getAge(state),
+    lifeName: state.userProfile?.name ?? 'Unknown',
+  };
 
-  const discoveredIds = existing.discoveredIds.includes(ribbon.id)
-    ? existing.discoveredIds
-    : [...existing.discoveredIds, ribbon.id];
+  const last = existingEarned[existingEarned.length - 1];
+  const isExactDuplicate =
+    !!last &&
+    last.ribbonId === entry.ribbonId &&
+    last.generation === entry.generation &&
+    last.earnedTimestamp === entry.earnedTimestamp &&
+    last.lifeAge === entry.lifeAge &&
+    last.lifeName === entry.lifeName;
+
+  let earned = isExactDuplicate ? existingEarned : [...existingEarned, entry];
+
+  // Hard cap: keep only the most recent MAX_EARNED_RIBBONS entries.
+  if (earned.length > MAX_EARNED_RIBBONS) {
+    earned = earned.slice(earned.length - MAX_EARNED_RIBBONS);
+  }
+
+  const discoveredIds = existingDiscovered.includes(ribbon.id)
+    ? existingDiscovered
+    : [...existingDiscovered, ribbon.id];
 
   return { earned, discoveredIds };
 }

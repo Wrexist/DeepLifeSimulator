@@ -88,6 +88,7 @@ import {
   scale,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   getGlassCard,
   getGlassIconContainer,
@@ -689,7 +690,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                   <View style={[getGlassIconContainer(darkMode, 44), styles.goldBubbleSoft]}>
                     <Text style={styles.shopEmoji}>{f.emoji}</Text>
                   </View>
-                  <Text style={[styles.tilePrice, { color: theme.text }]}>${f.price.toLocaleString()}</Text>
+                  <Text style={[styles.tilePrice, { color: theme.text }]}>{formatMoney(f.price)}</Text>
                 </View>
                 <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{f.name}</Text>
                 <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>
@@ -738,7 +739,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                     <View style={[getGlassIconContainer(darkMode, 44), styles.goldBubbleSoft]}>
                       <Text style={styles.shopEmoji}>{toy.emoji}</Text>
                     </View>
-                    <Text style={[styles.tilePrice, { color: theme.text }]}>${toy.price.toLocaleString()}</Text>
+                    <Text style={[styles.tilePrice, { color: theme.text }]}>{formatMoney(toy.price)}</Text>
                   </View>
                   <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{toy.name}</Text>
                   <Text style={[styles.cardSub, { color: theme.textSecondary }]}>+{toy.fun} fun on play</Text>
@@ -775,7 +776,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                 <View style={[getGlassIconContainer(darkMode, 44), styles.goldBubbleSoft]}>
                   <Text style={styles.shopEmoji}>{b.emoji}</Text>
                 </View>
-                <Text style={[styles.tilePrice, { color: theme.text }]}>${b.price.toLocaleString()}</Text>
+                <Text style={[styles.tilePrice, { color: theme.text }]}>{formatMoney(b.price)}</Text>
               </View>
               <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{b.name}</Text>
               <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{b.lifespan}y lifespan</Text>
@@ -891,9 +892,9 @@ export default function PetApp({ onBack }: PetAppProps) {
                     style={[styles.tileBtn, styles.svcBtn, styles.goldChip]}
                     onPress={() => handleVet(p.id, s.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Book ${s.name} for $${price}`}
+                    accessibilityLabel={`Book ${s.name} for ${formatMoney(price)}`}
                   >
-                    <Text style={[styles.chipText, { color: theme.text }]}>Book ${price.toLocaleString()}</Text>
+                    <Text style={[styles.chipText, { color: theme.text }]}>Book {formatMoney(price)}</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.chipWrap}>
@@ -999,7 +1000,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                   <View style={styles.headerText}>
                     <Text style={[styles.cardName, { color: theme.text }]}>{c.emoji} {c.name}</Text>
                     <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-                      Prize ${c.prize.toLocaleString()} · Entry ${c.entryFee.toLocaleString()}
+                      Prize {formatMoney(c.prize)} · Entry {formatMoney(c.entryFee)}
                     </Text>
                     <Text style={[styles.cardMeta, { color: eligible ? accent.success : accent.warning }]}>
                       {eligible
@@ -1040,7 +1041,7 @@ export default function PetApp({ onBack }: PetAppProps) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Pets</Text>
         <View style={[styles.cashChip, { backgroundColor: GOLD_CHIP, borderColor: GOLD_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 

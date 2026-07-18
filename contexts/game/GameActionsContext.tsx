@@ -115,7 +115,7 @@ import { applyCareerSalaryAndPenalty } from './actions/weekly/applyCareerSalaryA
 import { applyCareerApplications } from './actions/weekly/applyCareerApplications';
 import { applyCareerProgress } from './actions/weekly/applyCareerProgress';
 import { applyEducationStress } from './actions/weekly/applyEducationStress';
-import { applyEducationProgression } from './actions/weekly/applyEducationProgression';
+import { applyEducationProgression, needsEducationProgressionTick } from './actions/weekly/applyEducationProgression';
 import { applyCrimeTick } from './actions/weekly/applyCrimeTick';
 import { applyMiningCryptos } from './actions/weekly/applyMiningCryptos';
 import { applyMiningWarehouse } from './actions/weekly/applyMiningWarehouse';
@@ -126,6 +126,7 @@ import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
+import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
@@ -456,6 +457,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  money: currentMoney, // Ensure money starts with valid value
  };
 
+ // No earned income while incarcerated: an active career (salary — zeroed in
+ // applyCareerSalaryAndPenalty), an active-run company (profit), and Pulse
+ // (social-media) weekly earnings are all withheld while jailed. Passive income —
+ // rental income, bank interest, dividends, spouse income — continues untouched.
+ const isJailed = (prevState.jailWeeks ?? 0) > 0;
+
  // R7 Phase 2 step 2.5b-i: `weeklyCtx` is hoisted ALL THE WAY UP here so
  // every subsequent reducer (career, diet, rent, disease, pet, vehicle)
  // shares the same instance. `newStats`, `pendingNotifications`, and
@@ -627,7 +634,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    logger.info(educationStressResult.logMessage);
  }
 
- if (educationStressResult.numActiveEducations > 0) {
+ // GATE FIX: run the progression/graduation helper whenever ANY enrolled program
+ // still needs a tick — INCLUDING one already at weeksRemaining <= 0. The Study
+ // button (applyStudySession) leaves a finished program at 0 for the tick to
+ // finalize; this gate PREVIOUSLY reused the education-STRESS active count
+ // (`numActiveEducations`, weeksRemaining > 0), which excludes a 0-week program,
+ // so a Study-finished education was never handed to the reducer and stranded at
+ // 100% / 0w / "IN PROGRESS" forever — permanently locking company founding
+ // (which reads `educations.find(...).completed`). Stress itself still correctly
+ // uses the weeksRemaining > 0 count and is applied above regardless.
+ if (updatedEducations.some(needsEducationProgressionTick)) {
  // R7 Phase 2 step 2.5c-ii: per-education weekly progression extracted
  // into ./actions/weekly/applyEducationProgression.ts. The helper owns
  // decrement + study-group bonus + student loan + exam + campus event +
@@ -697,7 +713,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // property.rent stream here too double-paid rent and let an unbounded
  // player-set rent print money — so it's excluded from the cash total.
  const passiveIncomeResult = calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true });
- const passiveIncome = passiveIncomeResult.total || 0;
+ let passiveIncome = passiveIncomeResult.total || 0;
+ // No earned income while incarcerated: a jailed owner earns no company profit
+ // this week. Companies carry no managed/passive-mode flag, so ALL company profit
+ // is treated as active and skipped. Truly passive streams — dividends, bank
+ // interest, spouse income (rental income is a separate cash path) — continue.
+ // Remove the company stream's share of the (possibly soft-capped) total: when no
+ // cap/multiplier is active the ratio is 1 and this subtracts the exact company
+ // figure; when the total was scaled, it removes only the company's proportional
+ // slice so dividends and the rest keep theirs.
+ if (isJailed) {
+   const pb = passiveIncomeResult.breakdown;
+   // Streams that actually feed the weekly cash total (realEstate is excluded
+   // above — it is paid separately by the tenancy tick), i.e. the pre-cap raw sum.
+   const activePassiveSum = pb.stocks + pb.socialMedia + pb.patents + pb.businessOpportunities
+     + pb.political + pb.cryptoMining + pb.companies + pb.gamingStreaming;
+   const companyShare = activePassiveSum > 0
+     ? Math.round(pb.companies * (passiveIncome / activePassiveSum))
+     : 0;
+   passiveIncome = Math.max(0, passiveIncome - companyShare);
+ }
 
  // R7 Phase 2 step 2.4a: income totals aggregation extracted into
  // ./actions/weekly/applyIncome.ts. The helper composes partner income +
@@ -712,7 +747,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevState,
    careerSalary,
    passiveIncome,
-   pulseEarnings: pulseTickResult?.pulseEarnings ?? 0,
+   // No earned income while incarcerated: withhold Pulse (social-media) weekly
+   // earnings. The Pulse tick itself still runs (brand-deal expiry, follower
+   // decay, Pro renewal) — only the earnings are gated out of income.
+   pulseEarnings: isJailed ? 0 : (pulseTickResult?.pulseEarnings ?? 0),
    weeksLivedNow,
    unlockedBonuses,
    // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
@@ -945,6 +983,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return pregResult.rel;
  }
 
+ // A wedding scheduled to land while the player is incarcerated is deferred one
+ // week (it re-triggers the first week after release). The engagement state
+ // (weddingPlanned) is preserved intact — no charge, no spouse promotion, no
+ // expiry — so there is zero softlock risk: pushing scheduledWeek to next week
+ // keeps it clear of both the 1-year expiry and the stale-cleanup window.
+ if (isJailed && rel.weddingPlanned && rel.weddingPlanned.scheduledWeek === nextWeeksLived) {
+ return { ...rel, weddingPlanned: { ...rel.weddingPlanned, scheduledWeek: nextWeeksLived + 1 } };
+ }
+
  // R7 Phase 2 step 2.6-iii-C: scheduled wedding extracted to
  // applyScheduledWedding. Same execute/postpone/expire/stale gates,
  // same anti-exploit math, same logger messages.
@@ -1005,6 +1052,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // depend on (they read `processedRelationships`, not a renamed variable).
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
+
+ // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
+ // (fired only if Contacts was open on the exact anniversary week), so the
+ // happiness bonus + milestone + Pulse post were silently missed otherwise. Now
+ // it runs every tick for the married player regardless of screen — deterministic
+ // (seed-free ids, preRolls.timestamp) and idempotent (one grant per year, via the
+ // lifeMilestones guard inside the helper). Happiness folds in here; the milestone
+ // and post fold into the final return below.
+ // Defense-in-depth like the sibling subsystem ticks (pulse/spark/hustle):
+ // a throw on malformed state (e.g. a null lifeMilestones entry in a
+ // hand-edited save) skips this week's grant instead of aborting the tick.
+ let anniversaryResult: AnniversaryResult = {
+   isAnniversary: false, yearsMarried: 0, happinessBonus: 0, milestone: null, post: null,
+ };
+ try {
+   anniversaryResult = applyAnniversaries({
+     prevState,
+     relationships: processedRelationships,
+     nextWeeksLived,
+     nextYear,
+     timestamp: preRolls.timestamp,
+   });
+ } catch (anniversaryErr) {
+   logger.error('[ANNIVERSARY TICK] Failed:', anniversaryErr);
+ }
+ if (anniversaryResult.happinessBonus > 0) {
+   newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + anniversaryResult.happinessBonus));
+ }
 
  tickProfiler.mark('income_engagement_finance_family');
 
@@ -1193,7 +1268,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
+ const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
+ // The helper floors the deduction at $0, so on a broke week it charges LESS than
+ // the sticker upkeep. Report what actually left the wallet in the recap, not the
+ // nominal (= nominal whenever the player could afford it).
+ const luxuryCharged = Math.min(luxuryUpkeep, moneyBeforeLuxury);
  // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
  // screen but never completed in normal play). Luxury ownership only changes via
  // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
@@ -1204,12 +1284,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? (prevState.achievements || []).map((a) =>
  a.id === 'luxury_life' ? { ...a, completed: true } : a)
  : prevState.achievements;
+ const moneyBeforePetFood = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  applyPetLivingSideEffects(updatedPets, weeklyCtx);
- // Downstream week-result block at line ~2075 reports `petFoodCost` as part
- // of `totalExpenses`. The helper applies the cost atomically (clamped to
- // money floor) but doesn't return the magnitude — recompute here to match
- // the legacy contract. Cheap: `O(updatedPets.length)`.
+ // Downstream week-result block reports `petFoodCost` as part of `totalExpenses`.
+ // The helper applies the cost atomically (clamped to the money floor) but doesn't
+ // return the magnitude — recompute the nominal here to match the legacy contract.
+ // Cheap: `O(updatedPets.length)`.
  const petFoodCost = updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST;
+ // Actual amount charged after the money floor — the recap must report what left
+ // the wallet, not the nominal (= nominal whenever the player could afford it).
+ const petFoodCharged = Math.min(petFoodCost, moneyBeforePetFood);
 
  // Housing happiness bonus from current residence
  if (housingHappinessBonus > 0) {
@@ -1295,7 +1379,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R3-A: `getOrRotateWeeklyChallenge`/`evaluateChallengeProgress` are ES imports.
  // Build a temporary state snapshot for evaluation
  const evalState = {...prevState, stats: newStats, weeksLived: nextWeeksLived };
+
+ // ── WEEKLY CHALLENGE: Rotation-week completion salvage ──
+ // getOrRotateWeeklyChallenge replaces the challenge once ROTATION_GAME_WEEKS
+ // have elapsed. If the player first satisfied EVERY objective of the OUTGOING
+ // challenge on that exact rotation tick, the fresh challenge would overwrite it
+ // before the completion/reward block ran and its 150-300 gem reward would be
+ // lost. Evaluate + grant the outgoing challenge's reward here, BEFORE rotating.
+ // Rotation is detected as a challengeId change (the incoming id always differs:
+ // the rotation index advances by exactly one). Non-rotation ticks and the
+ // legacy startedWeek-adopt case keep the same id → this block is a pure no-op,
+ // so it can never double-grant with the block below.
+ const outgoingChallenge = prevState.weeklyChallenge;
  updatedWeeklyChallenge = getOrRotateWeeklyChallenge(evalState);
+ const rotatedAway =
+ !!outgoingChallenge &&
+!outgoingChallenge.rewardClaimed &&
+ (!updatedWeeklyChallenge || updatedWeeklyChallenge.challengeId !== outgoingChallenge.challengeId);
+ if (rotatedAway && outgoingChallenge) {
+ const outProgress = evaluateChallengeProgress(outgoingChallenge.challengeId, evalState);
+ const outCompleted = outProgress.length > 0 && outProgress.every((p: any) => p.completed ?? p.met);
+ if (outCompleted) {
+ const outDef = getWeeklyChallengeDefinition(outgoingChallenge.challengeId);
+ const outGemReward = typeof outDef?.reward === 'number' && outDef.reward > 0 ? Math.floor(outDef.reward): 0;
+ if (outGemReward > 0) {
+ newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0) + outGemReward;
+ }
+ weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
+ logger.info(`[WEEKLY_CHALLENGE] Outgoing reward granted on rotation week: +${outGemReward} gems, +${LEGACY_PASS_XP.weeklyChallenge} Legacy Pass XP (${outgoingChallenge.challengeId})`);
+ }
+ }
+
  if (updatedWeeklyChallenge &&!updatedWeeklyChallenge.completed &&!updatedWeeklyChallenge.rewardClaimed) {
  const progress = evaluateChallengeProgress(updatedWeeklyChallenge.challengeId, evalState);
  updatedWeeklyChallenge = {
@@ -1324,7 +1438,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (gemReward > 0) {
  newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0) + gemReward;
  }
- weeklyChallengeXpToAward = LEGACY_PASS_XP.weeklyChallenge;
+ weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  updatedWeeklyChallenge = {...updatedWeeklyChallenge, rewardClaimed: true };
  logger.info(`[WEEKLY_CHALLENGE] Reward granted: +${gemReward} gems, +${weeklyChallengeXpToAward} Legacy Pass XP (${updatedWeeklyChallenge.challengeId})`);
  }
@@ -1332,8 +1446,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);
  }
 
- // Build week result for the result sheet
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCost + housingUpkeep + luxuryUpkeep;
+ // Build week result for the result sheet. Pet food + luxury upkeep use the
+ // ACTUAL charged amounts (the helpers floor their deduction at $0, so on a broke
+ // week the nominal overstates what was really paid); every other component is
+ // already the real figure (loan autopay tracks its actual payment). Equals the
+ // old nominal sum on any week the player could afford these upkeeps.
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
@@ -1363,6 +1481,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Pulse tick effects fold into the final return: replace socialMedia,
  // apply reputationDelta (negative when scandals were active this tick).
  let pulseSocialMedia = pulseTickResult?.socialMedia ?? prevState.socialMedia;
+ // Fold the deterministic anniversary auto-post into the post-pulse-tick feed
+ // (immutable — clones socialMedia so prevState is never mutated).
+ if (anniversaryResult.post && pulseSocialMedia) {
+   pulseSocialMedia = {
+     ...pulseSocialMedia,
+     totalPosts: (pulseSocialMedia.totalPosts ?? 0) + 1,
+     recentPosts: [anniversaryResult.post, ...(pulseSocialMedia.recentPosts ?? [])].slice(0, 50),
+   };
+ }
  const pulseRepAdjusted = pulseTickResult
  ? Math.max(0, (newStats.reputation ?? 50) + pulseTickResult.reputationDelta)
 : newStats.reputation;
@@ -1536,9 +1663,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'food', amount: dietWeeklyCost },
  { category: 'taxes', amount: incomeTax },
  { category: 'debt', amount: totalLoanAutoPaid },
- { category: 'lifestyle', amount: petFoodCost },
- // Luxury upkeep: same owned-item sum applyLuxuryItemsForWeek deducted above.
- { category: 'lifestyle', amount: luxuryUpkeep },
+ // Actual charged amounts (floored at $0 by the helpers), so the Budget tab
+ // reflects real spending on a broke week — not the nominal sticker upkeep.
+ { category: 'lifestyle', amount: petFoodCharged },
+ // Luxury upkeep: actual amount applyLuxuryItemsForWeek deducted above (floored).
+ { category: 'lifestyle', amount: luxuryCharged },
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
@@ -1984,11 +2113,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  children,
  };
  })(),
- // Add birth milestone.
+ // Add birth milestone (+ any anniversary milestone raised this tick).
  // P0-12: store the absolute week so the LifeStoryModal timeline orders
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
  // appear to all be born in the same handful of weeks.
- lifeMilestones: newBornChildren.length > 0 ? [
+ lifeMilestones: (() => {
+ const base = newBornChildren.length > 0 ? [
 ...(prevState.lifeMilestones || []),
 ...newBornChildren.map(child => ({
  id: `child_birth_${nextWeeksLived}_${child.id}`,
@@ -1997,7 +2127,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  year: nextYear,
  details: { childId: child.id, childName: child.name, gender: child.gender },
  })),
- ]: (prevState.lifeMilestones || []),
+ ]: (prevState.lifeMilestones || []);
+ const withAnniversary = anniversaryResult.milestone ? [...base, anniversaryResult.milestone] : base;
+ // Cap like the sibling per-life collections (eventLog 500, memories 200):
+ // milestones accumulate for a whole life and the array is copied every tick.
+ return withAnniversary.length > 200 ? withAnniversary.slice(-200) : withAnniversary;
+ })(),
  // Hobbies removed - no longer validating hobby skills
  hobbies: prevState.hobbies || [],
  // Add crypto from warehouse mining + post-trading-tick price evolution / order fills

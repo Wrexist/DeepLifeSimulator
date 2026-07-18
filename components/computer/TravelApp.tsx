@@ -101,6 +101,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   getGlassCard,
   getGlassIconContainer,
@@ -258,9 +259,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       }
       Alert.alert(
         `Travel to ${dest.name}?`,
-        `Cost $${quote.adjustedCost.toLocaleString()} • ${quote.adjustedDuration} week${quote.adjustedDuration > 1 ? 's' : ''}` +
+        `Cost ${formatMoney(quote.adjustedCost)} • ${quote.adjustedDuration} week${quote.adjustedDuration > 1 ? 's' : ''}` +
           (quote.adjustedCost !== quote.baseCost
-            ? `\n(base $${quote.baseCost.toLocaleString()} — policy savings)`
+            ? `\n(base ${formatMoney(quote.baseCost)} — policy savings)`
             : ''),
         [
           { text: 'Cancel', style: 'cancel' },
@@ -314,7 +315,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       if (!opp) return;
       Alert.alert(
         `Invest in ${opp.name}?`,
-        `$${opp.cost.toLocaleString()} for $${opp.weeklyIncome.toLocaleString()}/week passive.`,
+        `${formatMoney(opp.cost)} for ${formatMoney(opp.weeklyIncome)}/week passive.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -340,7 +341,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         Alert.alert('Cannot do this yet', q.message);
         return;
       }
-      const costLine = activity.cost > 0 ? `$${activity.cost.toLocaleString()}` : 'Free';
+      const costLine = activity.cost > 0 ? formatMoney(activity.cost) : 'Free';
       const energyLine = activity.energyCost > 0 ? ` • −${activity.energyCost} energy` : '';
       Alert.alert(
         activity.name,
@@ -412,7 +413,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 <Text style={[styles.actDesc, { color: theme.textSecondary }]} numberOfLines={2}>{a.description}</Text>
                 <View style={styles.actChips}>
                   {a.cost > 0 && (
-                    <BenefitChip Icon={DollarSign} color={theme.textSecondary} value={`$${a.cost.toLocaleString()}`} />
+                    <BenefitChip Icon={DollarSign} color={theme.textSecondary} value={formatMoney(a.cost)} />
                   )}
                   {a.energyCost > 0 && <BenefitChip Icon={Zap} color={accent.warning} value={`−${a.energyCost}`} />}
                   {!!a.effects.happiness && <BenefitChip Icon={Heart} color={accent.danger} value={`+${a.effects.happiness}`} />}
@@ -636,7 +637,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               <View style={styles.tileFooter}>
                 <View>
                   <Text style={[styles.tilePrice, { color: hasDiscount ? accent.success : theme.text }]}>
-                    ${adjusted.toLocaleString()}
+                    {formatMoney(adjusted)}
                   </Text>
                   <View style={styles.tileRow}>
                     <Clock size={scale(9)} color={theme.textMuted} />
@@ -676,7 +677,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const passportRequired = dest.requirements?.items?.includes('passport');
 
     // Book CTA state mirrors quoteTrip so no feature is lost.
-    let ctaLabel = `Book this trip · $${adjustedCost.toLocaleString()}`;
+    let ctaLabel = `Book this trip · ${formatMoney(adjustedCost)}`;
     if (!quote.ok) {
       ctaLabel =
         quote.reason === 'already-traveling'
@@ -748,18 +749,18 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           <View style={styles.fareRow}>
             <Text style={[styles.fareLabel, { color: theme.textSecondary }]}>Base fare</Text>
             <Text style={[styles.fareValue, { color: savings > 0 ? theme.textMuted : theme.text }, savings > 0 && styles.strike]}>
-              ${baseCost.toLocaleString()}
+              {formatMoney(baseCost)}
             </Text>
           </View>
           {savings > 0 && (
             <View style={styles.fareRow}>
               <Text style={[styles.fareLabel, { color: accent.success }]}>Policy savings</Text>
-              <Text style={[styles.fareValue, { color: accent.success }]}>−${savings.toLocaleString()}</Text>
+              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(savings)}</Text>
             </View>
           )}
           <View style={styles.fareRow}>
             <Text style={[styles.fareLabel, { color: theme.text, fontWeight: '800' }]}>You pay</Text>
-            <Text style={[styles.fareValue, { color: IDENTITY, fontWeight: '800' }]}>${adjustedCost.toLocaleString()}</Text>
+            <Text style={[styles.fareValue, { color: IDENTITY, fontWeight: '800' }]}>{formatMoney(adjustedCost)}</Text>
           </View>
           <View style={[styles.fareDivider, { backgroundColor: theme.border }]} />
           <View style={styles.fareRow}>
@@ -966,7 +967,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             <View style={styles.passGrid}>
               <PassCell Icon={Calendar} label="DEPART" value={`Wk ${startWeek}`} theme={theme} />
               <PassCell Icon={Calendar} label="RETURN" value={`Wk ${effectiveReturn}`} theme={theme} />
-              <PassCell Icon={DollarSign} label="FARE" value={`$${fare.toLocaleString()}`} theme={theme} />
+              <PassCell Icon={DollarSign} label="FARE" value={formatMoney(fare)} theme={theme} />
             </View>
 
             {/* Progress ring + status */}
@@ -1099,7 +1100,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.bizSummaryLabel, { color: theme.textMuted }]}>WEEKLY PASSIVE INCOME</Text>
-            <Text style={[styles.bizSummaryValue, { color: accent.success }]}>+${weeklyPassive.toLocaleString()}/wk</Text>
+            <Text style={[styles.bizSummaryValue, { color: accent.success }]}>+{formatMoney(weeklyPassive)}/wk</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[styles.bizSummaryValue, { color: theme.text }]}>{investedOpps.length}/{opps.length}</Text>
@@ -1277,7 +1278,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
         <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.3) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
         </View>
       </View>
 
@@ -1382,11 +1383,11 @@ function StorefrontBody({
       <View style={styles.storeMetrics}>
         <View style={[styles.storeMetric, { backgroundColor: softFill(accent.success), borderColor: softRim(accent.success) }]}>
           <TrendingUp size={scale(11)} color={accent.success} />
-          <Text style={[styles.storeMetricText, { color: accent.success }]}>+${weeklyIncome.toLocaleString()}/wk</Text>
+          <Text style={[styles.storeMetricText, { color: accent.success }]}>+{formatMoney(weeklyIncome)}/wk</Text>
         </View>
         <View style={[styles.storeMetric, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
           <DollarSign size={scale(11)} color={theme.textSecondary} />
-          <Text style={[styles.storeMetricText, { color: theme.textSecondary }]}>Cost ${cost.toLocaleString()}</Text>
+          <Text style={[styles.storeMetricText, { color: theme.textSecondary }]}>Cost {formatMoney(cost)}</Text>
         </View>
       </View>
       <TouchableOpacity
@@ -1394,7 +1395,7 @@ function StorefrontBody({
         disabled={invested}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={invested ? 'Already invested' : `Invest $${cost.toLocaleString()}`}
+        accessibilityLabel={invested ? 'Already invested' : `Invest ${formatMoney(cost)}`}
         accessibilityState={{ disabled: invested }}
         style={[styles.investBtn, { backgroundColor: invested ? softFill(accent.success) : tint(0.16), borderColor: invested ? softRim(accent.success) : tint(0.3) }]}
       >
@@ -1506,7 +1507,7 @@ function TripReturnModal({
                       <View style={styles.eventDeltas}>
                         {e.moneyDelta ? (
                           <Text style={{ color: e.moneyDelta < 0 ? accent.danger : accent.success, fontSize: fs.xs, fontWeight: '700' }}>
-                            {e.moneyDelta < 0 ? '−' : '+'}${Math.abs(e.moneyDelta).toLocaleString()}
+                            {e.moneyDelta < 0 ? '−' : '+'}{formatMoney(Math.abs(e.moneyDelta))}
                           </Text>
                         ) : null}
                         {e.happinessDelta ? <Text style={{ color: accent.danger, fontSize: fs.xs }}>♥ {e.happinessDelta > 0 ? '+' : ''}{e.happinessDelta}</Text> : null}

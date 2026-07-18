@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Alert, Linking, Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
@@ -9,8 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code, DollarSign } from 'lucide-react-native';
-import BackupRecoveryModal from './BackupRecoveryModal';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -18,16 +17,24 @@ import DangerZone from './settings/DangerZone';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
-import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { setSoundEnabled } from '@/utils/soundManager';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import { areAdsRemoved } from '@/lib/ads/rewardedAd';
+import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
+import { formatMoney } from '@/utils/moneyFormatting';
+import {
+  readDiscordClaim,
+  beginDiscordClaim,
+  finalizeDiscordClaim,
+  applyDiscordRewardGrant,
+} from '@/utils/discordRewardClaim';
 const LinearGradient = LinearGradientFallback;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -95,9 +102,22 @@ function SettingsActionButton({
 }
 
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, setGameState, currentSlot } = useGameState();
+  const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
+  const { openStore } = useGemStore();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  // Both the Remove Ads IAP and DeepLife+ set settings.adsRemoved, so this flag
+  // is authoritative (lib/ads/rewardedAd.ts). Used to hide the Remove Ads row
+  // once the player already owns an ad-free entitlement.
+  const adsRemoved = areAdsRemoved(gameState);
+  // Wealth-scaled Discord join reward, computed once so every display below AND
+  // the grant in handleJoinDiscord use the identical figure (shown == granted).
+  // Memoized: calculateNetWorth walks every asset collection — too heavy to
+  // re-run on each render of a modal that re-renders with global state.
+  const discordReward = useMemo(
+    () => discordJoinRewardMoney(calculateNetWorth(gameState)),
+    [gameState]
+  );
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -108,12 +128,15 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
-  const [showBackupManager, setShowBackupManager] = useState(false);
   // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
   // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
   const [showDevTools, setShowDevTools] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
   const [rewardPopupMessage, setRewardPopupMessage] = useState('');
+  // Frozen at claim time: after updateMoney lands, net worth (and thus the live
+  // discordReward memo) grows, so rendering the memo in the popup would show a
+  // larger figure than was actually granted. Shown must equal granted.
+  const [rewardPopupAmount, setRewardPopupAmount] = useState(0);
 
   // Animation for Discord button
   const discordGlowAnim = useRef(new Animated.Value(0)).current;
@@ -121,11 +144,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const rewardOpacityAnim = useRef(new Animated.Value(0)).current;
   const rewardGemAnim = useRef(new Animated.Value(0)).current;
   
-  // Check if Discord reward has been claimed
+  // Check if Discord reward has been claimed. Treat BOTH a finalized marker AND
+  // a pending (in-flight) claim as claimed — a claim already begun must never
+  // re-offer the reward (the home reconciler will complete a pending one).
   useEffect(() => {
     const checkDiscordReward = async () => {
-      const claimed = await safeGetItem('discord_reward_claimed');
-        setDiscordRewardClaimed(claimed === 'true');
+      const claim = await readDiscordClaim();
+      setDiscordRewardClaimed(claim !== 'unclaimed');
     };
     checkDiscordReward();
   }, []);
@@ -256,7 +281,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     }
   };
 
-  const showRewardAnimation = (message: string) => {
+  const showRewardAnimation = (message: string, amount: number) => {
+    setRewardPopupAmount(amount);
     setRewardPopupMessage(message);
     setShowRewardPopup(true);
     // Start the pop at 0.9 (not 0) so the reward scales in gently instead of
@@ -304,6 +330,37 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     ]).start(() => setShowRewardPopup(false));
   };
 
+  // ── Store bridge (stacked-modal safety) ────────────────────────────────────
+  // The gem store is an app-root RN Modal. Presenting it while THIS Settings
+  // Modal is still on screen is the iOS stacked-modal hazard fixed elsewhere in
+  // this PR (rewarded ad, LuxuryApp sheet). So a store row stashes the target
+  // tab, dismisses Settings via onClose(), and opens the store only AFTER the
+  // dismiss settles — never while Settings is still presented.
+  //
+  // Unlike RewardedAdModal (which stays mounted with visible=false), Settings is
+  // UNMOUNTED on close by its parents (TopStatsBar / MainMenu gate it on a show
+  // flag), so Modal.onDismiss can't be relied on and the deferred open MUST
+  // outlive this component's unmount. openStore targets the always-mounted
+  // app-level GemStoreProvider, so firing it post-unmount is safe — hence a
+  // plain, deliberately un-cleared timer (clearing it on unmount would cancel
+  // the open). onDismiss is kept as an iOS fast path for any mount that DOES
+  // keep Settings alive; flushPendingStore is idempotent so they can't
+  // double-open.
+  const pendingStoreTabRef = useRef<GemStoreTab | null>(null);
+
+  const flushPendingStore = () => {
+    const tab = pendingStoreTabRef.current;
+    if (!tab) return;
+    pendingStoreTabRef.current = null;
+    openStore(tab);
+  };
+
+  const openStoreAfterClose = (tab: GemStoreTab) => {
+    pendingStoreTabRef.current = tab;
+    onClose();
+    setTimeout(flushPendingStore, 550);
+  };
+
   const handleJoinDiscord = async () => {
     try {
       const discordUrl = DISCORD_URL;
@@ -319,33 +376,51 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         return;
       }
 
-      // Give reward — cash, granted via updateMoney so it respects the money
-      // ceiling and is logged like any other transaction. Shares the
-      // `discord_reward_claimed` flag with the in-game CommunityRewardPopup so
-      // the reward can be claimed exactly once across both entry points.
-      updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
-
-      // Mark as claimed
-      const saved = await safeSetItem('discord_reward_claimed', 'true');
-      if (!saved) {
-        logger.warn('Could not save discord reward claim status');
+      // Freeze the amount at claim time so the pending marker, the grant and the
+      // reward popup can never drift (shown == granted).
+      const amount = discordReward;
+      // EXACTLY-ONCE: durably record the pending marker BEFORE minting any cash.
+      // Shares `discord_reward_claimed` with the in-game CommunityRewardPopup so
+      // the reward is claimed exactly once across both entry points. On failure,
+      // grant NOTHING and leave it claimable — never mint uncommitted cash.
+      const begun = await beginDiscordClaim(amount);
+      if (!begun) {
+        logger.warn('Could not persist Discord reward claim; granting nothing');
+        Alert.alert("Couldn't save your claim", 'Please try again in a moment.');
+        return;
       }
       setDiscordRewardClaimed(true);
+      // Grant money + flag in ONE atomic, idempotent state update (canonical
+      // applyMoneyDelta folded in, so the money and the flag persist together).
+      setGameState(prev => applyDiscordRewardGrant(prev, amount));
+      // Let the commit + GameActions ref-sync flush before saving (saveGame reads
+      // gameStateRef.current, which lags the commit by one passive-effect cycle),
+      // otherwise the PRE-grant state would hit disk.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      try {
+        await saveGame();
+        await finalizeDiscordClaim();
+      } catch (err) {
+        // saveGame rejected — DO NOT finalize. The pending marker + the home
+        // reconciler (single owner; Settings is transient) complete the grant on
+        // next launch (the designed recovery).
+        logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
+      }
 
-      // Save game to persist the gems
-      await saveGame();
-
-      // Open Discord link
+      // Open Discord link (last)
       const canOpen = await Linking.canOpenURL(discordUrl);
       if (canOpen) {
         await Linking.openURL(discordUrl);
       }
 
-      // Show liquid glass reward popup
+      // Show liquid glass reward popup with the amount that was ACTUALLY granted
+      // (frozen above — the live discordReward memo recomputes upward once the
+      // grant raises net worth).
       showRewardAnimation(
         canOpen
-          ? `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()} for joining our Discord!\nWelcome to the community!`
-          : `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}!\nVisit ${DISCORD_URL} to join our Discord.`
+          ? `You received ${formatMoney(amount)} for joining our Discord!\nWelcome to the community!`
+          : `You received ${formatMoney(amount)}!\nVisit ${DISCORD_URL} to join our Discord.`,
+        amount
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
@@ -363,6 +438,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={flushPendingStore}
     >
       <View style={[styles.overlay, styles.overlayDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={[styles.blurOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
@@ -512,14 +588,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   }}
                 />
 
-                {/* Backup & Recovery Section */}
-                <SettingsActionButton
-                  icon={HardDrive}
-                  label="Backups & Recovery"
-                  accent="#38BDF8"
-                  onPress={() => setShowBackupManager(true)}
-                />
-
                 <SettingsActionButton
                   icon={HelpCircle}
                   label={t('settings.showTutorial')}
@@ -585,7 +653,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
                         </Text>
                         {!discordRewardClaimed && (
-                          <Text style={styles.discordButtonRewardText}>{`Reward: $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}`}</Text>
+                          <Text style={styles.discordButtonRewardText}>{`Reward: ${formatMoney(discordReward)}`}</Text>
                         )}
                       </View>
                       {!discordRewardClaimed && (
@@ -596,6 +664,30 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </View>
                   </LinearGradient>
                 </TouchableOpacity>
+
+                {/* Gem Shop & Offers — a first-class entry into the IAP store.
+                    Dismiss Settings first, then open the store from onDismiss
+                    (stacked-modal safety). */}
+                <SettingsActionButton
+                  icon={Gem}
+                  label="Gem Shop & Offers"
+                  accent="#818CF8"
+                  onPress={() => openStoreAfterClose('store')}
+                  accessibilityLabel="Open the Gem Shop and offers"
+                />
+
+                {/* Remove Ads — the genre is majority ad-monetized, so this
+                    deserves a first-class path. Hidden once the player already
+                    owns an ad-free entitlement. */}
+                {!adsRemoved && (
+                  <SettingsActionButton
+                    icon={Sparkles}
+                    label="Remove Ads"
+                    accent="#F59E0B"
+                    onPress={() => openStoreAfterClose('store')}
+                    accessibilityLabel="Remove ads"
+                  />
+                )}
 
                 {/* Restore Purchases */}
                 <SettingsActionButton
@@ -639,11 +731,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       {DEV_TOOLS_ENABLED && DevToolsModal ? (
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
-      <BackupRecoveryModal
-        visible={showBackupManager}
-        slot={currentSlot || 1}
-        onClose={() => setShowBackupManager(false)}
-      />
 
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (
@@ -693,7 +780,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
                 {/* Cash amount */}
                 <View style={styles.rewardAmountRow}>
-                  <Text style={styles.rewardAmountText}>+${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}</Text>
+                  <Text style={styles.rewardAmountText}>+{formatMoney(rewardPopupAmount)}</Text>
                   <DollarSign size={scale(16)} color="#6EE7B7" />
                   <Text style={styles.rewardAmountLabel}>Cash</Text>
                 </View>
