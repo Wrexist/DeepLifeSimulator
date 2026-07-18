@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Easing,
+  InteractionManager,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { ChevronRight, Play, Plus, Save, Settings } from 'lucide-react-native';
@@ -23,7 +24,8 @@ import { ChevronRight, Play, Plus, Save, Settings } from 'lucide-react-native';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTranslation } from '@/hooks/useTranslation';
-import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
+import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
+import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
@@ -41,21 +43,18 @@ import { haptic } from '@/utils/haptics';
 // when the user actually opens Settings.
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 
-// expo-linear-gradient is a TurboModule that has crashed on iOS 26. The rest of
-// the app aliases this safe View-based fallback (home.tsx, TopStatsBar, …); the
-// main menu is the FIRST screen, so a direct native import here could crash users
-// before they ever reach the menu. Use the same fallback.
-const LinearGradient = LinearGradientFallback;
-
-// Near-black base matched to the in-game home screen (#020617) so the menu reads
-// as one aesthetic with the game — not a lighter, generic pre-game panel. A soft
-// blue glow at the top gives depth without a solid panel block.
+// One flat, near-black base matched to the in-game home screen (#020617) so the
+// menu reads as one aesthetic with the game. NO gradients: the app-wide
+// LinearGradient fallback renders only the first color as a solid block (the
+// native gradient TurboModule crashes on iOS 26), which turned the old "glow"
+// into a hard seam and the CTA into a washed-out flat panel. Flat by design so
+// it can never regress under that fallback.
 const PAGE_BG = '#020617';
-const TOP_GLOW = ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0)'] as const;
-const BOTTOM_SHADE = ['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.6)'] as const;
-// The game's primary-CTA gradient (shared with the onboarding floating button and
-// the in-game "next week" button). Reused here so the primary action feels native.
-const PRIMARY_GRADIENT = ['#60A5FA', '#3B82F6', '#2563EB'] as const;
+
+// Real installed app version, read the way the rest of the app does
+// (utils/versionCheck.ts). Baked into expoConfig at build time — no fragile
+// native call on this first screen. Falls back to the brand wordmark if absent.
+const APP_VERSION = Constants.expoConfig?.version ?? null;
 
 interface SaveSummary {
   name: string;
@@ -85,8 +84,8 @@ function RevealItem({
     }
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 240,
-      delay: index * 55,
+      duration: 200,
+      delay: index * 45,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
@@ -100,7 +99,7 @@ function RevealItem({
 
 /**
  * Primary action card — the one high-emphasis choice (Continue when a save
- * exists, otherwise New Game). Blue gradient fill in the game's CTA style.
+ * exists, otherwise New Game). Solid blue fill (no gradient — see PAGE_BG).
  */
 function PrimaryActionCard({
   icon: Icon,
@@ -127,7 +126,7 @@ function PrimaryActionCard({
       onPress={onPress}
       style={styles.primaryTouchable}
     >
-      <LinearGradient colors={PRIMARY_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primaryCard}>
+      <View style={styles.primaryCard}>
         <View style={styles.primaryIconChip}>
           {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon size={scale(24)} color="#FFFFFF" />}
         </View>
@@ -141,7 +140,7 @@ function PrimaryActionCard({
           </Text>
         </View>
         {loading ? null : <ChevronRight size={scale(22)} color="rgba(255, 255, 255, 0.9)" />}
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -224,85 +223,90 @@ export default function MainMenu() {
   const [showSettings, setShowSettings] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
+  // Guards setState after unmount for the deferred backfill below.
+  const isMountedRef = useRef(true);
+  // Handle for a scheduled one-time meta backfill so we can cancel it on blur.
+  const backfillTaskRef = useRef<{ cancel: () => void } | null>(null);
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      backfillTaskRef.current?.cancel();
+    };
+  }, []);
+
+  const applyMeta = useCallback((meta: SaveSlotMeta) => {
+    if (!isMountedRef.current) return;
+    setHasSave(true);
+    // Name may be an empty string on a valid save — fall back at render time.
+    setSaveSummary({ name: meta.name, age: meta.age, money: meta.money });
+  }, []);
+
+  const clearSave = useCallback(() => {
+    if (!isMountedRef.current) return;
+    setHasSave(false);
+    setSaveSummary(null);
   }, []);
 
   const refreshHasSaveState = useCallback(async () => {
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
-        setHasSave(false);
-        setSaveSummary(null);
+        clearSave();
         return;
       }
 
       const slotNumber = parseInt(lastSlot, 10);
       if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
-        setHasSave(false);
-        setSaveSummary(null);
+        clearSave();
         return;
       }
 
-      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
-        '@/utils/saveValidation'
-      );
-      const allowLegacy = shouldAllowUnsignedLegacySaves();
-      const saveData = await readSaveSlot(slotNumber, undefined, { allowLegacy });
-      if (!saveData) {
-        setHasSave(false);
-        setSaveSummary(null);
+      // Fast path: the per-slot summary cache is tiny — reading it never touches
+      // the multi-MB blob, so the Continue card paints instantly.
+      const meta = await readSaveSlotMeta(slotNumber);
+      if (meta) {
+        applyMeta(meta);
         return;
       }
 
-      const decoded = decodePersistedSaveEnvelope(saveData, { allowLegacy });
-      if (!decoded.valid || typeof decoded.data !== 'string') {
-        setHasSave(false);
-        setSaveSummary(null);
-        return;
-      }
-
-      const parsedGameState = JSON.parse(decoded.data);
-      if (!hasSaveStateShape(parsedGameState)) {
-        setHasSave(false);
-        setSaveSummary(null);
-        return;
-      }
-
-      const meaningful = hasMeaningfulSaveData(parsedGameState);
-      setHasSave(meaningful);
-      if (meaningful) {
-        // Surface a compact summary of the last life inside the Continue card so
-        // it carries real context instead of a generic "Saved progress" pill.
-        const name = `${parsedGameState.userProfile?.firstName || ''} ${parsedGameState.userProfile?.lastName || ''}`.trim();
-        // Raw persisted JSON — the save-repair pipeline hasn't run here, so a
-        // corrupt snapshot can carry NaN/Infinity/negative numbers. Clamp the
-        // summary figures rather than rendering garbage on the Continue card.
-        const rawAge = parsedGameState.date?.age;
-        const rawMoney = parsedGameState.stats?.money;
-        setSaveSummary({
-          name,
-          age: typeof rawAge === 'number' && Number.isFinite(rawAge) ? Math.max(0, Math.floor(rawAge)) : 0,
-          money: typeof rawMoney === 'number' && Number.isFinite(rawMoney) ? Math.max(0, rawMoney) : 0,
-        });
-      } else {
-        setSaveSummary(null);
-      }
+      // Cold path (save written before this cache existed): defer the one-time
+      // decode+parse backfill until AFTER interactions so it NEVER blocks first
+      // paint or the entrance animations. Leave the current state untouched
+      // meanwhile (initial state is already "no save", so nothing flashes).
+      backfillTaskRef.current?.cancel();
+      backfillTaskRef.current = InteractionManager.runAfterInteractions(() => {
+        void (async () => {
+          try {
+            const backfilled = await ensureSaveSlotMeta(slotNumber);
+            if (!isMountedRef.current) return;
+            if (backfilled) applyMeta(backfilled);
+            else clearSave();
+          } catch (error) {
+            log.error('Deferred save-meta backfill failed', error);
+          }
+        })();
+      });
     } catch (error) {
       log.error('Error checking save state', error);
-      setHasSave(false);
-      setSaveSummary(null);
+      clearSave();
     }
-  }, [log]);
+  }, [applyMeta, clearSave, log]);
 
-  useEffect(() => {
-    void refreshHasSaveState();
-  }, [refreshHasSaveState]);
-
+  // useFocusEffect fires on the initial focus too, so it covers first mount —
+  // no separate mount effect needed (a duplicate one used to run the heavy save
+  // read TWICE on launch). Cancel any pending backfill when the screen blurs.
   useFocusEffect(
     useCallback(() => {
       void refreshHasSaveState();
+      return () => {
+        backfillTaskRef.current?.cancel();
+      };
     }, [refreshHasSaveState])
   );
 
@@ -456,18 +460,15 @@ export default function MainMenu() {
   };
 
   // Compact one-line context for the Continue card (folds in the old floating
-  // "Saved progress detected" pill).
+  // "Saved progress detected" pill). Tight separators so it fits one line.
   const continueSubtitle =
     saveSummary != null
-      ? [saveSummary.name || 'Unnamed Character', `Age ${saveSummary.age}`, formatMoney(saveSummary.money)].join('  ·  ')
+      ? `${saveSummary.name || 'Unnamed'} · ${saveSummary.age} yrs · ${formatMoney(saveSummary.money)}`
       : t('mainMenu.continueSubtitle');
 
   return (
     <>
       <View style={styles.root}>
-        <LinearGradient pointerEvents="none" colors={TOP_GLOW} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.topGlow} />
-        <LinearGradient pointerEvents="none" colors={BOTTOM_SHADE} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.bottomShade} />
-
         <View
           style={[
             styles.content,
@@ -477,7 +478,10 @@ export default function MainMenu() {
             },
           ]}
         >
-          {/* Brand block — crisp text on the dark base, no lighter panel. */}
+          {/* Slight upward bias: 0.9 above / 1.1 below reads centered-but-lifted. */}
+          <View style={styles.spacerTop} />
+
+          {/* Brand block — crisp text on the flat dark base, no lighter panel. */}
           <RevealItem index={0} reduced={reduced}>
             <View style={styles.hero}>
               <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
@@ -490,7 +494,7 @@ export default function MainMenu() {
             </View>
           </RevealItem>
 
-          <View style={styles.spacer} />
+          <View style={styles.heroGap} />
 
           <View style={styles.menuSection}>
             {hasSave ? (
@@ -550,6 +554,15 @@ export default function MainMenu() {
               </View>
             </RevealItem>
           </View>
+
+          <View style={styles.spacerBottom} />
+
+          {/* Grounds the bottom edge so the lower margin reads intentional. */}
+          <RevealItem index={hasSave ? 4 : 3} reduced={reduced}>
+            <Text style={styles.footerCaption}>
+              {APP_VERSION ? `v${APP_VERSION}` : 'DEEP LIFE SIMULATOR'}
+            </Text>
+          </RevealItem>
         </View>
       </View>
 
@@ -567,28 +580,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PAGE_BG,
   },
-  topGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: verticalScale(340),
-  },
-  bottomShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: verticalScale(240),
-  },
   content: {
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.lg,
   },
+  // Two flex spacers with a slight upward bias frame the composition centrally
+  // instead of pinning the title to the top and the actions to the bottom.
+  spacerTop: {
+    flex: 0.9,
+    width: '100%',
+  },
+  spacerBottom: {
+    flex: 1.1,
+    width: '100%',
+  },
   hero: {
     alignItems: 'center',
-    marginTop: verticalScale(40),
   },
   eyebrow: {
     color: '#60A5FA',
@@ -612,12 +620,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: verticalScale(2),
   },
-  spacer: {
-    flex: 1,
-    minHeight: verticalScale(24),
+  heroGap: {
+    height: verticalScale(44),
   },
   menuSection: {
     width: '100%',
+    maxWidth: scale(440),
+    alignSelf: 'center',
   },
 
   // Primary action ------------------------------------------------------------
@@ -633,7 +642,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: '#3B82F6',
     paddingVertical: verticalScale(18),
     paddingHorizontal: responsiveSpacing.lg,
   },
@@ -744,5 +754,14 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontSize: fontScale(13),
     fontWeight: '600',
+  },
+
+  // Footer --------------------------------------------------------------------
+  footerCaption: {
+    color: 'rgba(148, 163, 184, 0.45)',
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    letterSpacing: scale(2),
+    textAlign: 'center',
   },
 });

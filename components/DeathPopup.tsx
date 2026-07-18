@@ -306,6 +306,10 @@ function DeathPopup() {
         // CRASH FIX (A-1): Delete all double-buffer keys for this slot
         const { deleteSaveSlot } = await import('@/utils/saveValidation');
         await deleteSaveSlot(currentSlot);
+        // Clear the cached slot summary too so SaveSlots can't show the dead
+        // character as a playable slot (fire-and-forget; ensureSaveSlotMeta
+        // regenerates for any still-live slot on the next visit).
+        void import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(currentSlot)).catch(() => {});
         await AsyncStorage.removeItem('lastSlot');
       }
 

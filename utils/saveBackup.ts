@@ -701,7 +701,13 @@ export async function restoreFromBackup(
       logger.error(`Atomic restore failed for slot ${slot}: ${restoreResult.error}`);
       return { success: false, error: restoreResult.error || 'Failed to restore backup atomically' };
     }
-    
+
+    // The slot blob was just OVERWRITTEN with the backup, so the cached per-slot
+    // summary is now stale — invalidate it so the pre-game menus can't show the
+    // pre-restore name/age. ensureSaveSlotMeta regenerates it from the restored
+    // blob on the next menu visit. Fire-and-forget (must not fail the restore).
+    void import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(slot)).catch(() => {});
+
     // Update protected state with restored state
     await updateProtectedState(slot, backupState);
     
