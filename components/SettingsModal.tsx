@@ -9,11 +9,12 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem } from 'lucide-react-native';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
+import RedeemCodeModal from './RedeemCodeModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
@@ -126,6 +127,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showBugReport, setShowBugReport] = useState(false);
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
+  const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
@@ -676,6 +678,17 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Open the Gem Shop and offers"
                 />
 
+                {/* Redeem Code — enter an owner-issued promo code for a reward.
+                    Opens a sheet NESTED inside this Settings Modal (see below),
+                    the same iOS-safe nesting DevToolsModal uses. */}
+                <SettingsActionButton
+                  icon={Gift}
+                  label="Redeem Code"
+                  accent="#60A5FA"
+                  onPress={() => setShowRedeemCode(true)}
+                  accessibilityLabel="Redeem a promo code"
+                />
+
                 {/* Remove Ads — the genre is majority ad-monetized, so this
                     deserves a first-class path. Hidden once the player already
                     owns an ad-free entitlement. */}
@@ -731,6 +744,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       {DEV_TOOLS_ENABLED && DevToolsModal ? (
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
+
+      {/* Redeem Code sheet — NESTED inside this presented Modal (mirrors the
+          DevToolsModal nesting) so it never stacks a sibling root Modal on iOS. */}
+      <RedeemCodeModal visible={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
 
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (
