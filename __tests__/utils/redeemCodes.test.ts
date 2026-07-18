@@ -15,9 +15,11 @@ import {
   canAttemptRedeem,
   recordRedeemAttempt,
   reconcileRedeemClaim,
+  persistRedeemedPerkEntitlements,
   type RedeemReward,
 } from '@/utils/redeemCodes';
-import { IAP_PRODUCTS, PRODUCT_CONFIGS } from '@/utils/iapConfig';
+import { IAP_PRODUCTS, PRODUCT_CONFIGS, getProductConfig } from '@/utils/iapConfig';
+import { iapService } from '@/services/IAPService';
 import { createTestGameState } from '../helpers/createTestGameState';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -304,25 +306,45 @@ describe('attempt throttle', () => {
 });
 
 describe('reconcileRedeemClaim', () => {
-  it('pending + hash NOT yet in state -> grant, save, finalize (exactly once)', async () => {
-    await beginRedeemClaim('recon1', { m: 500 });
+  // Any real table hash works here — the hashes are public (they ship in the
+  // bundle); only the plaintext codes are secret. The stored marker's reward is
+  // deliberately DIFFERENT from the table's so these tests prove the table wins.
+  const REAL_HASH = Object.keys(REDEEM_HASHES)[0];
+  const REAL_REWARD = REDEEM_HASHES[REAL_HASH];
+
+  it('pending + hash NOT yet in state -> grants the TABLE reward, saves, finalizes', async () => {
+    await beginRedeemClaim(REAL_HASH, { m: 500 }); // stored copy is tampered/stale
     const grant = jest.fn();
-    const save = jest.fn().mockResolvedValue(undefined);
+    const save = jest.fn().mockResolvedValue(true);
 
     await reconcileRedeemClaim({ hasHash: () => false, grant, save });
 
     expect(grant).toHaveBeenCalledTimes(1);
-    expect(grant).toHaveBeenCalledWith('recon1', { m: 500 });
+    expect(grant).toHaveBeenCalledWith(REAL_HASH, REAL_REWARD); // table, not the stored copy
     expect(save).toHaveBeenCalledTimes(1);
     const ledger = await readRedeemLedger();
     expect(ledger.pending).toBeNull();
-    expect(ledger.finalized).toContain('recon1');
+    expect(ledger.finalized).toContain(REAL_HASH);
+  });
+
+  it('a pending hash that is NOT in the table is discarded without granting', async () => {
+    await beginRedeemClaim('not-a-real-table-hash', { m: 10_000_000 });
+    const grant = jest.fn();
+    const save = jest.fn().mockResolvedValue(true);
+
+    await reconcileRedeemClaim({ hasHash: () => false, grant, save });
+
+    expect(grant).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    const ledger = await readRedeemLedger();
+    expect(ledger.pending).toBeNull();
+    expect(ledger.finalized).toContain('not-a-real-table-hash'); // consumed, never granted
   });
 
   it('pending + hash already in state -> finalize only (no duplicate grant)', async () => {
     await beginRedeemClaim('recon2', { m: 500 });
     const grant = jest.fn();
-    const save = jest.fn().mockResolvedValue(undefined);
+    const save = jest.fn().mockResolvedValue(true);
 
     await reconcileRedeemClaim({ hasHash: (h) => h === 'recon2', grant, save });
 
@@ -341,8 +363,8 @@ describe('reconcileRedeemClaim', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('save failure leaves the pending marker for the next launch (not finalized)', async () => {
-    await beginRedeemClaim('recon3', { m: 500 });
+  it('save rejection leaves the pending marker for the next launch (not finalized)', async () => {
+    await beginRedeemClaim(REAL_HASH, { m: 500 });
     const grant = jest.fn();
     const save = jest.fn().mockRejectedValue(new Error('save failed'));
 
@@ -350,7 +372,40 @@ describe('reconcileRedeemClaim', () => {
 
     expect(grant).toHaveBeenCalledTimes(1);
     const ledger = await readRedeemLedger();
-    expect(ledger.pending).toEqual({ hash: 'recon3', reward: { m: 500 } });
-    expect(ledger.finalized).not.toContain('recon3');
+    expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } });
+    expect(ledger.finalized).not.toContain(REAL_HASH);
+  });
+
+  it('save resolving FALSE (not durably written) also leaves the pending marker', async () => {
+    await beginRedeemClaim(REAL_HASH, { m: 500 });
+    const grant = jest.fn();
+    const save = jest.fn().mockResolvedValue(false);
+
+    await reconcileRedeemClaim({ hasHash: () => false, grant, save });
+
+    expect(grant).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledTimes(1);
+    const ledger = await readRedeemLedger();
+    expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } });
+    expect(ledger.finalized).not.toContain(REAL_HASH);
+  });
+});
+
+describe('persistRedeemedPerkEntitlements', () => {
+  it('runs the same cross-slot persistence a real purchase runs for {p} rewards', async () => {
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockResolvedValue(undefined);
+    await persistRedeemedPerkEntitlements({ p: 'deeplife_unlock_all_perks' });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(getProductConfig('deeplife_unlock_all_perks'));
+    spy.mockRestore();
+  });
+
+  it('no-ops for {m} rewards and never throws when persistence fails', async () => {
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockRejectedValue(new Error('disk'));
+    await expect(persistRedeemedPerkEntitlements({ m: 500 })).resolves.toBeUndefined();
+    expect(spy).not.toHaveBeenCalled();
+    await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_mindset_perk' })).resolves.toBeUndefined();
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

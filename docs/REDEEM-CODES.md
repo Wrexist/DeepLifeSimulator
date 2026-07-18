@@ -55,6 +55,10 @@ rotate the whole batch (see below).
 - `{ p: 'deeplife_gems_1000' }` — grants that IAP product's full benefits via the
   shared `applyProductBenefitsToState` helper, so a code grants **exactly** what
   buying the product grants (gems, youth pills, perks, Remove Ads, bundles, …).
+  Permanent perks additionally run `iapService.persistPermanentPerks` — the same
+  cross-slot persistence a real purchase performs — so a redeemed work boost /
+  mindset / fast learner / good credit / unlock-all survives new lives and other
+  save slots exactly like a bought one.
 - `{ m: 100000 }` — grants that much cash via the canonical money mutator
   (`applyMoneyDelta`), so ledgers/daily-summary stay consistent.
 
@@ -80,21 +84,34 @@ Claim flow on the success path (order matters):
 
 1. `beginRedeemClaim(hash, reward)` — write the pending marker **before** granting.
 2. one `setGameState(prev => applyRedeemReward(prev, hash, reward))` — grant + flag.
-3. a macrotask yield (`await new Promise(r => setTimeout(r, 0))`) — `saveGame`
+3. `persistRedeemedPerkEntitlements(reward)` — the same cross-slot permanent-perk
+   persistence a real purchase runs (see "Reward shapes" above); idempotent.
+4. a macrotask yield (`await new Promise(r => setTimeout(r, 0))`) — `saveGame`
    reads a post-commit ref synced in a passive effect, so it lags the commit by
    one cycle.
-4. `await saveGame()` — persist.
-5. `finalizeRedeemClaim(hash)` — move the hash to `finalized`, clear `pending`.
+5. `const saved = await saveGame(true)` — **force-save** (the same durable path
+   real IAP purchases use). A plain `saveGame()` only queues the write and
+   swallows failures, so it cannot prove the post-grant state reached disk;
+   `saveGame` returns `true` only when the write completed and verified.
+6. `finalizeRedeemClaim(hash)` — **only when `saved === true`**. On `false` (or a
+   throw) the pending marker is left in place, the player keeps the in-memory
+   reward, and the reconciler completes the claim next launch.
 
-If `saveGame` rejects, the pending marker is left in place and **not** finalized.
 The always-mounted **home reconciler** (`reconcileRedeemClaim`, invoked from the
 same launch effect as the Discord reconciler in `app/(tabs)/home.tsx`) completes
-it on the next launch:
+any interrupted claim on the next launch:
 
 - pending + hash already in `redeemedCodeHashes` → the reward is already on disk →
-  **finalize only** (no duplicate grant).
-- pending + hash not yet in state → **grant, save, finalize**.
+  **finalize only** (no duplicate grant; entitlement persistence re-run, it's
+  idempotent).
+- pending + hash not yet in state → **grant, save (durable, gated on `true`),
+  finalize**.
 - no pending / malformed pending → no-op.
+- **The stored marker's `reward` copy is never trusted**: the reward is re-derived
+  from `REDEEM_HASHES[pending.hash]`, so hand-editing the AsyncStorage ledger
+  cannot mint arbitrary grants. A pending hash that isn't in the shipped table
+  (tampered storage, or a table rotated by an update mid-claim) is discarded
+  without granting.
 
 ### Attempt throttle
 
