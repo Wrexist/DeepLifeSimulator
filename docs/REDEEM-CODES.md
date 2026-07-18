@@ -85,7 +85,9 @@ Claim flow on the success path (order matters):
 1. `beginRedeemClaim(hash, reward)` — write the pending marker **before** granting.
 2. one `setGameState(prev => applyRedeemReward(prev, hash, reward))` — grant + flag.
 3. `persistRedeemedPerkEntitlements(reward)` — the same cross-slot permanent-perk
-   persistence a real purchase runs (see "Reward shapes" above); idempotent.
+   persistence a real purchase runs (see "Reward shapes" above); idempotent, and
+   **part of the durability gate**: it returns `false` when the cross-slot write
+   fails, which blocks finalization below so the step is retried next launch.
 4. a macrotask yield (`await new Promise(r => setTimeout(r, 0))`) — `saveGame`
    reads a post-commit ref synced in a passive effect, so it lags the commit by
    one cycle.
@@ -93,19 +95,22 @@ Claim flow on the success path (order matters):
    real IAP purchases use). A plain `saveGame()` only queues the write and
    swallows failures, so it cannot prove the post-grant state reached disk;
    `saveGame` returns `true` only when the write completed and verified.
-6. `finalizeRedeemClaim(hash)` — **only when `saved === true`**. On `false` (or a
-   throw) the pending marker is left in place, the player keeps the in-memory
-   reward, and the reconciler completes the claim next launch.
+6. `finalizeRedeemClaim(hash)` — **only when BOTH `saved === true` and step 3
+   succeeded**. If either fails (or throws) the pending marker is left in place,
+   the player keeps the in-memory reward, and the reconciler completes the claim
+   next launch — so the documented "perks survive new lives" guarantee holds
+   even across a transient entitlement-persistence failure.
 
 The always-mounted **home reconciler** (`reconcileRedeemClaim`, invoked from the
 same launch effect as the Discord reconciler in `app/(tabs)/home.tsx`) completes
 any interrupted claim on the next launch:
 
 - pending + hash already in `redeemedCodeHashes` → the reward is already on disk →
-  **finalize only** (no duplicate grant; entitlement persistence re-run, it's
-  idempotent).
-- pending + hash not yet in state → **grant, save (durable, gated on `true`),
-  finalize**.
+  **finalize only** (no duplicate grant). The idempotent entitlement persistence
+  is re-run first and must succeed, or the claim stays pending for the next
+  launch.
+- pending + hash not yet in state → **grant, persist entitlements, save
+  (durable, gated on `true`), finalize only when both succeeded**.
 - no pending / malformed pending → no-op.
 - **The stored marker's `reward` copy is never trusted**: the reward is re-derived
   from `REDEEM_HASHES[pending.hash]`, so hand-editing the AsyncStorage ledger

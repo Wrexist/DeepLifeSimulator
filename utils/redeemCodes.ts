@@ -530,17 +530,26 @@ export function rewardLabel(reward: RedeemReward): string {
  * persistence step a real purchase runs after applying benefits
  * (`iapService.persistPermanentPerks`), so a redeemed permanent perk (work
  * boost, mindset, fast learner, good credit, unlock-all) survives new lives and
- * other save slots the same way a bought one does. Idempotent; failures are
- * non-critical (the perk is already in the current save) and never throw.
+ * other save slots the same way a bought one does. Idempotent and never throws.
+ *
+ * Returns true when everything needed was persisted (or nothing needed
+ * persisting — cash rewards, and unresolvable configs which are consumed by
+ * design and must never block finalization). Returns false only when the
+ * cross-slot write threw, so callers keep the claim PENDING and the launch
+ * reconciler retries this step before finalizing.
  */
-export async function persistRedeemedPerkEntitlements(reward: RedeemReward): Promise<void> {
-  if (!('p' in reward)) return;
+export async function persistRedeemedPerkEntitlements(reward: RedeemReward): Promise<boolean> {
+  if (!('p' in reward)) return true;
   const config = getProductConfig(resolveRedeemProductId(reward.p));
-  if (!config) return;
+  if (!config) return true; // nothing persistable — never block finalization
   try {
     await iapService.persistPermanentPerks(config);
+    return true;
   } catch (err) {
-    logger.warn('Redeem code: permanent-perk persistence failed (non-critical)', { error: err });
+    logger.warn('Redeem code: permanent-perk persistence failed; claim stays pending for retry', {
+      error: err,
+    });
+    return false;
   }
 }
 
@@ -616,9 +625,13 @@ export async function reconcileRedeemClaim(deps: RedeemReconcileDeps): Promise<v
   if (deps.hasHash(pending.hash)) {
     // Grant already committed + saved before the crash → finalize only. Re-run
     // the (idempotent) cross-slot entitlement persistence in case the crash
-    // landed between saveGame and that step.
+    // landed between saveGame and that step — and keep the claim pending until
+    // it succeeds, so a transient persistence failure is retried next launch.
     const tableReward = REDEEM_HASHES[pending.hash];
-    if (tableReward) await persistRedeemedPerkEntitlements(tableReward);
+    if (tableReward && !(await persistRedeemedPerkEntitlements(tableReward))) {
+      logger.warn('Redeem code reconcile: entitlement persistence failed; will retry next launch');
+      return;
+    }
     await finalizeRedeemClaim(pending.hash);
     return;
   }
@@ -632,7 +645,7 @@ export async function reconcileRedeemClaim(deps: RedeemReconcileDeps): Promise<v
   }
 
   deps.grant(pending.hash, tableReward);
-  await persistRedeemedPerkEntitlements(tableReward);
+  const entitlementsOk = await persistRedeemedPerkEntitlements(tableReward);
   // Macrotask yield: saveGame reads a post-commit ref synced in a passive effect,
   // so it lags the setGameState commit by one cycle — without this it would
   // persist the PRE-grant state.
@@ -647,6 +660,12 @@ export async function reconcileRedeemClaim(deps: RedeemReconcileDeps): Promise<v
   if (!saved) {
     // Not durably persisted — leave the pending marker; next launch retries.
     logger.warn('Redeem code reconcile save not confirmed; will retry next launch');
+    return;
+  }
+  if (!entitlementsOk) {
+    // Reward is saved, but the cross-slot entitlement write failed — keep the
+    // claim pending so next launch's finalize-only path retries persistence.
+    logger.warn('Redeem code reconcile: entitlement persistence failed; will retry next launch');
     return;
   }
   await finalizeRedeemClaim(pending.hash);

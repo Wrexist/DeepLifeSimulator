@@ -307,9 +307,10 @@ function DeathPopup() {
         const { deleteSaveSlot } = await import('@/utils/saveValidation');
         await deleteSaveSlot(currentSlot);
         // Clear the cached slot summary too so SaveSlots can't show the dead
-        // character as a playable slot (fire-and-forget; ensureSaveSlotMeta
-        // regenerates for any still-live slot on the next visit).
-        void import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(currentSlot)).catch(() => {});
+        // character as a playable slot. AWAITED before the navigation below —
+        // the next screen reads this cache, so the invalidation must land
+        // first. Errors swallowed (must not block starting the new life).
+        await import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(currentSlot)).catch(() => {});
         await AsyncStorage.removeItem('lastSlot');
       }
 

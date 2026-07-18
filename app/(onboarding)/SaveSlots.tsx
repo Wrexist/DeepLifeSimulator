@@ -19,7 +19,7 @@ import {
   readSaveSlotMeta,
   ensureSaveSlotMeta,
   deleteSaveSlotMeta,
-  saveSlotBlobExists,
+  probeSaveSlotBlob,
 } from '@/utils/saveSlotMeta';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
@@ -170,8 +170,12 @@ export default function SaveSlots() {
           // raw blob-existence probe (no decode/parse). An existing-but-
           // unsummarizable blob is treated as "needs recovery" so Start New Game
           // can never silently overwrite a possibly-recoverable save.
-          const exists = await saveSlotBlobExists(i);
-          return exists ? { id: i, hasData: false, error: true } : { id: i, hasData: false };
+          const probe = await probeSaveSlotBlob(i);
+          // 'exists' (blob present but unsummarizable) AND 'unknown' (storage
+          // read failed) both surface as recovery-needed — only a confirmed
+          // 'empty' may offer Start New Game, so a transient read failure can
+          // never invite overwriting recoverable data.
+          return probe === 'empty' ? { id: i, hasData: false } : { id: i, hasData: false, error: true };
         } catch (slotError) {
           log.error(`Failed resolving slot ${i}`, slotError);
           return { id: i, hasData: false, error: true };

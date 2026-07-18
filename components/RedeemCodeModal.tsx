@@ -132,8 +132,10 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
     // (b) ONE state update grants the reward AND flags the hash atomically.
     setGameState((prev) => applyRedeemReward(prev, hash, reward));
     // (b2) the same cross-slot entitlement persistence a real purchase performs
-    //      (permanent perks survive new lives / other slots). Idempotent.
-    await persistRedeemedPerkEntitlements(reward);
+    //      (permanent perks survive new lives / other slots). Idempotent —
+    //      finalization below is gated on this succeeding too, so a transient
+    //      failure keeps the claim pending and the launch reconciler retries.
+    const entitlementsOk = await persistRedeemedPerkEntitlements(reward);
     // (c) macrotask yield — saveGame reads a post-commit ref synced in a passive
     //     effect, so it lags the commit by one cycle.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -147,14 +149,18 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
     } catch (err) {
       logger.warn('Redeem claim save threw; leaving pending for reconcile', { error: err });
     }
-    if (saved) {
-      // (e) finalize only on confirmed durable success.
+    if (saved && entitlementsOk) {
+      // (e) finalize only when BOTH durability steps are confirmed: the
+      //     force-save AND the cross-slot entitlement persistence.
       await finalizeRedeemClaim(hash);
     } else {
       // NOT finalized — the pending marker + the home reconciler complete the
-      // grant on next launch (the designed recovery). The reward is already in
+      // claim on next launch (the designed recovery). The reward is already in
       // memory, so the player keeps playing with it either way.
-      logger.warn('Redeem claim save not confirmed; will reconcile next launch');
+      logger.warn('Redeem claim not fully durable; will reconcile next launch', {
+        saved,
+        entitlementsOk,
+      });
     }
     setSuccessLabel(rewardLabel(reward));
     setStatus('success');

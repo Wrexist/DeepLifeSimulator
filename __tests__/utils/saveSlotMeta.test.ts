@@ -49,7 +49,7 @@ import {
   readSaveSlotMeta,
   deleteSaveSlotMeta,
   ensureSaveSlotMeta,
-  saveSlotBlobExists,
+  probeSaveSlotBlob,
   type SaveSlotMeta,
 } from '@/utils/saveSlotMeta';
 import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
@@ -166,11 +166,22 @@ describe('write / read / delete round-trip', () => {
   });
 });
 
-describe('saveSlotBlobExists', () => {
-  it('is true only when a persisted blob exists', async () => {
-    expect(await saveSlotBlobExists(2)).toBe(false);
+describe('probeSaveSlotBlob', () => {
+  it("reports 'empty' for a confirmed-absent blob and 'exists' when present", async () => {
+    expect(await probeSaveSlotBlob(2)).toBe('empty');
     await seedSlot(2, meaningfulState);
-    expect(await saveSlotBlobExists(2)).toBe(true);
+    expect(await probeSaveSlotBlob(2)).toBe('exists');
+  });
+
+  it("reports 'unknown' — never 'empty' — when the storage read throws", async () => {
+    const original = AsyncStorageMock.getItem.getMockImplementation();
+    AsyncStorageMock.getItem.mockImplementation(() => Promise.reject(new Error('storage down')));
+    try {
+      // A transient read failure must not look like an overwritable empty slot.
+      expect(await probeSaveSlotBlob(2)).toBe('unknown');
+    } finally {
+      AsyncStorageMock.getItem.mockImplementation(original!);
+    }
   });
 });
 
@@ -202,5 +213,51 @@ describe('ensureSaveSlotMeta (one-time backfill)', () => {
     await writeSaveSlotMeta(1, cached);
     // No blob seeded for slot 1 — a cache hit must still return the cached value.
     expect(await ensureSaveSlotMeta(1)).toEqual(cached);
+  });
+
+  it('concurrent cold-path callers share ONE backfill (single-flight)', async () => {
+    await seedSlot(3, meaningfulState);
+    const [a, b] = await Promise.all([ensureSaveSlotMeta(3), ensureSaveSlotMeta(3)]);
+    // One shared in-flight task resolves both callers with the SAME object;
+    // two independent backfills would each build their own meta instance.
+    expect(a).not.toBeNull();
+    expect(b).toBe(a);
+  });
+
+  it('a deletion DURING the backfill wins — no resurrected metadata', async () => {
+    await seedSlot(1, meaningfulState);
+
+    // Gate the blob reads so the backfill parks between "read blob" and
+    // "write meta" while we delete the slot's metadata. `reachedGate` tells us
+    // the backfill has passed its generation capture and is inside the blob
+    // read — deleting any earlier would (correctly) let it re-cache from the
+    // still-existing blob.
+    const original = AsyncStorageMock.getItem.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let signalReached!: () => void;
+    const reachedGate = new Promise<void>((resolve) => {
+      signalReached = resolve;
+    });
+    AsyncStorageMock.getItem.mockImplementation(async (key: string) => {
+      if (key.startsWith('save_slot_1') && key !== saveSlotMetaKey(1)) {
+        signalReached();
+        await gate;
+      }
+      return original(key);
+    });
+
+    try {
+      const backfill = ensureSaveSlotMeta(1);
+      await reachedGate; // backfill is now mid-blob-read, generation captured
+      await deleteSaveSlotMeta(1); // bumps the slot's deletion generation
+      release();
+      expect(await backfill).toBeNull(); // late result discarded...
+      expect(await readSaveSlotMeta(1)).toBeNull(); // ...and nothing was written
+    } finally {
+      AsyncStorageMock.getItem.mockImplementation(original);
+    }
   });
 });

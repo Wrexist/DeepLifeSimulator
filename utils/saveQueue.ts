@@ -124,10 +124,17 @@ class SaveQueue {
 
   // Refresh the per-slot summary cache from the IN-MEMORY state object so the
   // pre-game menus (MainMenu "Continue", SaveSlots) render instantly without
-  // ever re-parsing the multi-MB save blob. Fire-and-forget: writeSaveSlotMeta
-  // never throws, and this must never affect save success/failure semantics.
-  private refreshSlotMeta(slot: number, data: unknown): void {
-    void writeSaveSlotMeta(slot, extractSaveSlotMeta(data)).catch(() => {});
+  // ever re-parsing the multi-MB save blob. AWAITED by callers (the write is a
+  // few hundred bytes) so an earlier save's still-pending cache write can never
+  // land after — and overwrite — a later save's summary. Errors stay swallowed:
+  // the cache is non-critical and must never affect save success/failure
+  // semantics (writeSaveSlotMeta never throws anyway).
+  private async refreshSlotMeta(slot: number, data: unknown): Promise<void> {
+    try {
+      await writeSaveSlotMeta(slot, extractSaveSlotMeta(data));
+    } catch {
+      // non-critical
+    }
   }
 
   private async performSave(operation: SaveOperation): Promise<void> {
@@ -236,7 +243,7 @@ class SaveQueue {
       // Save timestamp for auto-save indicator (non-critical, can use regular save)
       await safeSetItem('lastSaveTime', Date.now().toString());
 
-      this.refreshSlotMeta(operation.slot, operation.data);
+      await this.refreshSlotMeta(operation.slot, operation.data);
 
       // D-4: Log save duration and size for telemetry
       const saveDurationMs = Date.now() - saveStartTime;
@@ -270,7 +277,7 @@ class SaveQueue {
               const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await safeSetItem('lastSaveTime', Date.now().toString());
-              this.refreshSlotMeta(operation.slot, operation.data);
+              await this.refreshSlotMeta(operation.slot, operation.data);
               this.log.info('Save succeeded after cleanup');
               return; // Success after cleanup
             } else {
@@ -401,7 +408,7 @@ class SaveQueue {
       // Save timestamp for auto-save indicator (non-critical, can use regular save)
       await safeSetItem('lastSaveTime', Date.now().toString());
 
-      this.refreshSlotMeta(slot, data);
+      await this.refreshSlotMeta(slot, data);
 
       this.log.debug(`Force save successful for slot ${slotToSave}`);
 
@@ -426,7 +433,7 @@ class SaveQueue {
               const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await safeSetItem('lastSaveTime', Date.now().toString());
-              this.refreshSlotMeta(slot, data);
+              await this.refreshSlotMeta(slot, data);
               this.log.info('Force save succeeded after cleanup');
               return; // Success after cleanup
             } else {

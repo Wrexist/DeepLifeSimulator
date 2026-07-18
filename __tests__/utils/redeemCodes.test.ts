@@ -389,22 +389,59 @@ describe('reconcileRedeemClaim', () => {
     expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } });
     expect(ledger.finalized).not.toContain(REAL_HASH);
   });
+
+  it('entitlement-persistence failure leaves the claim pending (retried next launch)', async () => {
+    // REAL_HASH's table reward is a {p} product, so the reconciler runs the
+    // cross-slot persistence — force it to fail and the claim must NOT finalize
+    // even though the save itself succeeded.
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockRejectedValue(new Error('disk'));
+    await beginRedeemClaim(REAL_HASH, { m: 500 });
+    const grant = jest.fn();
+    const save = jest.fn().mockResolvedValue(true);
+
+    await reconcileRedeemClaim({ hasHash: () => false, grant, save });
+
+    expect(grant).toHaveBeenCalledTimes(1); // reward granted + saved...
+    const ledger = await readRedeemLedger();
+    expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } }); // ...but NOT finalized
+    expect(ledger.finalized).not.toContain(REAL_HASH);
+    spy.mockRestore();
+  });
+
+  it('finalize-only path also requires entitlement persistence to succeed', async () => {
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockRejectedValue(new Error('disk'));
+    await beginRedeemClaim(REAL_HASH, { m: 500 });
+    const grant = jest.fn();
+    const save = jest.fn().mockResolvedValue(true);
+
+    // Hash already committed in state → finalize-only branch → persistence
+    // fails → stays pending; nothing granted, nothing saved.
+    await reconcileRedeemClaim({ hasHash: (h) => h === REAL_HASH, grant, save });
+
+    expect(grant).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    const ledger = await readRedeemLedger();
+    expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } });
+    expect(ledger.finalized).not.toContain(REAL_HASH);
+    spy.mockRestore();
+  });
 });
 
 describe('persistRedeemedPerkEntitlements', () => {
-  it('runs the same cross-slot persistence a real purchase runs for {p} rewards', async () => {
+  it('runs the same cross-slot persistence a real purchase runs for {p} rewards → true', async () => {
     const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockResolvedValue(undefined);
-    await persistRedeemedPerkEntitlements({ p: 'deeplife_unlock_all_perks' });
+    await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_unlock_all_perks' })).resolves.toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith(getProductConfig('deeplife_unlock_all_perks'));
     spy.mockRestore();
   });
 
-  it('no-ops for {m} rewards and never throws when persistence fails', async () => {
+  it('no-ops (true) for {m} rewards; returns false — never throws — when persistence fails', async () => {
     const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockRejectedValue(new Error('disk'));
-    await expect(persistRedeemedPerkEntitlements({ m: 500 })).resolves.toBeUndefined();
+    await expect(persistRedeemedPerkEntitlements({ m: 500 })).resolves.toBe(true);
     expect(spy).not.toHaveBeenCalled();
-    await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_mindset_perk' })).resolves.toBeUndefined();
+    // Persistence threw → false, so callers keep the claim pending and retry.
+    await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_mindset_perk' })).resolves.toBe(false);
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });

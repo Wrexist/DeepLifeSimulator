@@ -227,6 +227,12 @@ export default function MainMenu() {
   const isMountedRef = useRef(true);
   // Handle for a scheduled one-time meta backfill so we can cancel it on blur.
   const backfillTaskRef = useRef<{ cancel: () => void } | null>(null);
+  // Refresh generation: cancel() can't stop a backfill whose callback already
+  // started, and this component stays mounted while blurred — so every refresh
+  // (focus cycle) bumps this and async continuations from an older cycle check
+  // it before touching state, ensuring a stale slot's result can never
+  // overwrite the current Continue card.
+  const refreshGenRef = useRef(0);
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
@@ -254,8 +260,11 @@ export default function MainMenu() {
   }, []);
 
   const refreshHasSaveState = useCallback(async () => {
+    const gen = ++refreshGenRef.current;
+    const isCurrent = () => refreshGenRef.current === gen;
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
+      if (!isCurrent()) return;
       if (!lastSlot) {
         clearSave();
         return;
@@ -270,6 +279,7 @@ export default function MainMenu() {
       // Fast path: the per-slot summary cache is tiny — reading it never touches
       // the multi-MB blob, so the Continue card paints instantly.
       const meta = await readSaveSlotMeta(slotNumber);
+      if (!isCurrent()) return;
       if (meta) {
         applyMeta(meta);
         return;
@@ -284,7 +294,9 @@ export default function MainMenu() {
         void (async () => {
           try {
             const backfilled = await ensureSaveSlotMeta(slotNumber);
-            if (!isMountedRef.current) return;
+            // Drop the result if the screen unmounted OR a newer focus cycle
+            // started meanwhile (e.g. lastSlot changed via SaveSlots).
+            if (!isMountedRef.current || !isCurrent()) return;
             if (backfilled) applyMeta(backfilled);
             else clearSave();
           } catch (error) {
@@ -294,7 +306,7 @@ export default function MainMenu() {
       });
     } catch (error) {
       log.error('Error checking save state', error);
-      clearSave();
+      if (isCurrent()) clearSave();
     }
   }, [applyMeta, clearSave, log]);
 

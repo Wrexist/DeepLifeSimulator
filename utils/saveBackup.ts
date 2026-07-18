@@ -703,10 +703,11 @@ export async function restoreFromBackup(
     }
 
     // The slot blob was just OVERWRITTEN with the backup, so the cached per-slot
-    // summary is now stale — invalidate it so the pre-game menus can't show the
-    // pre-restore name/age. ensureSaveSlotMeta regenerates it from the restored
-    // blob on the next menu visit. Fire-and-forget (must not fail the restore).
-    void import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(slot)).catch(() => {});
+    // summary is now stale — invalidate it BEFORE reporting success so no caller
+    // can navigate to a menu that still reads the pre-restore name/age.
+    // ensureSaveSlotMeta regenerates it from the restored blob on the next menu
+    // visit. Errors swallowed (invalidation must not fail the restore).
+    await import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(slot)).catch(() => {});
 
     // Update protected state with restored state
     await updateProtectedState(slot, backupState);

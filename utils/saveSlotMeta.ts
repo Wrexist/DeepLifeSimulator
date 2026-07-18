@@ -18,6 +18,10 @@
  */
 
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/utils/safeStorage';
+// Raw (non-swallowing) storage access for the existence probe below — unlike
+// safeStorage/readSaveSlot, lazyAsyncStorage propagates thrown storage errors,
+// which the probe must observe to report 'unknown' instead of 'empty'.
+import { lazyAsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 // saveSlotHelpers has NO static imports (it only lazily imports saveValidation
 // inside its async functions), so reusing its shape guards here can't create a
@@ -118,8 +122,21 @@ export async function readSaveSlotMeta(slot: number): Promise<SaveSlotMeta | nul
   }
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Per-slot backfill guards. `backfillInFlight` dedupes concurrent cold-path
+// decodes (both pre-game screens can miss the cache for the same slot at once);
+// `slotDeletionGen` makes deletion win over an in-flight backfill — a delete
+// that lands between the blob read and the meta write bumps the generation, so
+// the late write is skipped instead of resurrecting metadata for a deleted or
+// just-overwritten blob.
+// ───────────────────────────────────────────────────────────────────────────
+const backfillInFlight = new Map<number, Promise<SaveSlotMeta | null>>();
+const slotDeletionGen = new Map<number, number>();
+
 /** Remove a slot's cached summary. Never throws. */
 export async function deleteSaveSlotMeta(slot: number): Promise<void> {
+  // Bump FIRST so any in-flight backfill for this slot discards its result.
+  slotDeletionGen.set(slot, (slotDeletionGen.get(slot) ?? 0) + 1);
   try {
     await safeRemoveItem(saveSlotMetaKey(slot));
   } catch (error) {
@@ -130,16 +147,28 @@ export async function deleteSaveSlotMeta(slot: number): Promise<void> {
   }
 }
 
-/** Raw existence probe: does a persisted blob exist for this slot at all? Does
- *  NOT decode or JSON.parse (cheap), so it can distinguish an EMPTY slot from an
- *  UNREADABLE one without re-parsing the multi-MB payload. Never throws. */
-export async function saveSlotBlobExists(slot: number): Promise<boolean> {
+/** Result of probing a slot's raw blob without decoding it. */
+export type SlotBlobProbe = 'exists' | 'empty' | 'unknown';
+
+/** Raw existence probe: does a persisted blob exist for this slot at all? Reads
+ *  the three raw slot keys (double-buffer A/B + legacy) directly — no envelope
+ *  decode, no HMAC verification, no JSON.parse — so it is genuinely cheap even
+ *  for multi-MB saves. A thrown storage read reports 'unknown' rather than
+ *  'empty' (readSaveSlot can't be used here: it swallows storage errors into
+ *  null, which would make a transient failure indistinguishable from a truly
+ *  empty slot). Callers must never treat 'unknown' as safely overwritable.
+ *  Never throws. */
+export async function probeSaveSlotBlob(slot: number): Promise<SlotBlobProbe> {
   try {
-    const { readSaveSlot, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
-    const raw = await readSaveSlot(slot, undefined, { allowLegacy: shouldAllowUnsignedLegacySaves() });
-    return raw != null;
+    const key = `save_slot_${slot}`;
+    const [bufferA, bufferB, legacy] = await Promise.all([
+      lazyAsyncStorage.getItem(`${key}_A`),
+      lazyAsyncStorage.getItem(`${key}_B`),
+      lazyAsyncStorage.getItem(key),
+    ]);
+    return bufferA != null || bufferB != null || legacy != null ? 'exists' : 'empty';
   } catch {
-    return false;
+    return 'unknown';
   }
 }
 
@@ -147,44 +176,66 @@ export async function saveSlotBlobExists(slot: number): Promise<boolean> {
  * Return a slot's cached summary, backfilling it ONCE from the legacy full save
  * blob if the cache is empty (saves written before this cache existed). The
  * heavy decode + `JSON.parse` only happens on this cold path; once written, all
- * future reads go through `readSaveSlotMeta`. Returns null for an absent or
+ * future reads go through `readSaveSlotMeta`. Concurrent callers for the same
+ * slot share one in-flight backfill, and a slot deletion during the backfill
+ * wins (the late meta write is skipped). Returns null for an absent or
  * unreadable / non-meaningful blob. Never throws.
  */
 export async function ensureSaveSlotMeta(slot: number): Promise<SaveSlotMeta | null> {
-  try {
-    const existing = await readSaveSlotMeta(slot);
-    if (existing) return existing;
+  const inFlight = backfillInFlight.get(slot);
+  if (inFlight) return inFlight;
 
-    // One-time backfill: decode + parse the legacy blob exactly the way the
-    // onboarding screens used to, then cache the derived summary.
-    const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
-      '@/utils/saveValidation'
-    );
-    const allowLegacy = shouldAllowUnsignedLegacySaves();
-
-    const raw = await readSaveSlot(slot, undefined, { allowLegacy });
-    if (!raw) return null;
-
-    const decoded = decodePersistedSaveEnvelope(raw, { allowLegacy });
-    if (!decoded.valid || typeof decoded.data !== 'string') return null;
-
-    let parsed: unknown;
+  const task = (async (): Promise<SaveSlotMeta | null> => {
     try {
-      parsed = JSON.parse(decoded.data);
-    } catch {
+      const existing = await readSaveSlotMeta(slot);
+      if (existing) return existing;
+
+      // Capture the deletion generation BEFORE touching the blob; compare again
+      // before writing so a delete that raced the decode can't be resurrected.
+      const gen = slotDeletionGen.get(slot) ?? 0;
+
+      // One-time backfill: decode + parse the legacy blob exactly the way the
+      // onboarding screens used to, then cache the derived summary.
+      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
+        '@/utils/saveValidation'
+      );
+      const allowLegacy = shouldAllowUnsignedLegacySaves();
+
+      const raw = await readSaveSlot(slot, undefined, { allowLegacy });
+      if (!raw) return null;
+
+      const decoded = decodePersistedSaveEnvelope(raw, { allowLegacy });
+      if (!decoded.valid || typeof decoded.data !== 'string') return null;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(decoded.data);
+      } catch {
+        return null;
+      }
+
+      const meta = extractSaveSlotMeta(parsed);
+      if (!meta) return null;
+
+      if ((slotDeletionGen.get(slot) ?? 0) !== gen) {
+        // The slot was deleted/overwritten while we were decoding — discard.
+        return null;
+      }
+      await writeSaveSlotMeta(slot, meta);
+      return meta;
+    } catch (error) {
+      log.warn('Failed to ensure save slot meta (non-critical)', {
+        slot,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
+  })();
 
-    const meta = extractSaveSlotMeta(parsed);
-    if (!meta) return null;
-
-    await writeSaveSlotMeta(slot, meta);
-    return meta;
-  } catch (error) {
-    log.warn('Failed to ensure save slot meta (non-critical)', {
-      slot,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
+  backfillInFlight.set(slot, task);
+  try {
+    return await task;
+  } finally {
+    backfillInFlight.delete(slot);
   }
 }
