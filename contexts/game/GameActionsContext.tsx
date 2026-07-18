@@ -1246,7 +1246,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       } catch (diseaseErr) {
         logger.error('[DISEASE TICK] Failed:', diseaseErr);
         diseaseResult = {
-          diseases: prevState.diseases ?? [],
+          // Self-heal a truthy non-array (the exact throw case) rather than
+          // carrying it forward — `?? []` would keep the malformed value and
+          // re-throw every week until reload.
+          diseases: Array.isArray(prevState.diseases) ? prevState.diseases : [],
           diseaseHistory: prevState.diseaseHistory ?? {
             diseases: [], totalDiseases: 0, totalCured: 0, deathsFromDisease: 0,
           },
@@ -1282,29 +1285,41 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // mutate newStats.money — moving the food-cost block before vehicles
  // would change the intermediate-money observed during the tick.
  // Note: `weeklyCtx` was hoisted to the disease block above (R7 step 2.3).
- // Wrapped in try/catch like every sibling subsystem tick: these calls mutate
- // weeklyCtx.newStats.money in a deliberate order (vehicles run BETWEEN the two
- // pet side-effect groups), and a throw in any of them would hit the outer
- // updater catch → return prevState → permanent "Next Week" soft-lock. On
- // failure, carry prior pets/vehicles forward and charge no upkeep/food this
- // week so progression still completes. Order inside the try is unchanged, so
- // the success path is byte-identical.
- let updatedPets: ReturnType<typeof tickPetsForWeek>;
- let updatedVehicles: ReturnType<typeof applyVehiclesForWeek>;
- let luxuryCharged: number;
- let updatedAchievements: typeof prevState.achievements;
- let petFoodCharged: number;
+ // Per-subsystem try/catch — one block each, matching the project invariant
+ // ("their own try/catch"). A throw in any of these would otherwise reach the
+ // outer updater catch → return prevState → permanent "Next Week" soft-lock.
+ // Splitting them (rather than one shared try) is deliberate: pets, vehicles,
+ // and luxury each mutate weeklyCtx.newStats.money in sequence, so a shared
+ // catch that reverts a LATER subsystem's output while an EARLIER subsystem's
+ // money/happiness mutation already landed would desync state vs. cash and
+ // re-charge the player next week. Each block falls back only for itself.
+ // Fallback defaults use Array.isArray so a truthy non-array (partial-save
+ // corruption) self-heals this tick instead of re-throwing every week until
+ // reload. Order and the success path are unchanged (byte-identical).
+ let updatedPets: ReturnType<typeof tickPetsForWeek> = Array.isArray(prevState.pets) ? prevState.pets : [];
  try {
  updatedPets = tickPetsForWeek(prevState.pets, {
    petSickness: preRolls.petSickness,
    petSicknessType: preRolls.petSicknessType,
  });
  applyPetDeathSideEffects(prevState.pets, updatedPets, weeklyCtx);
+ } catch (petErr) {
+ logger.error('[PET TICK] Failed:', petErr);
+ }
+
+ let updatedVehicles: ReturnType<typeof applyVehiclesForWeek> = Array.isArray(prevState.vehicles) ? prevState.vehicles : [];
+ try {
  updatedVehicles = applyVehiclesForWeek(prevState.vehicles, weeklyCtx);
+ } catch (vehErr) {
+ logger.error('[VEHICLE TICK] Failed:', vehErr);
+ }
  // Luxury & Collectibles weekly tick — upkeep (mirror-safe cash deduction from
  // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
+ let luxuryCharged = 0;
+ let updatedAchievements: typeof prevState.achievements = prevState.achievements;
+ try {
  const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
  // The helper floors the deduction at $0, so on a broke week it charges LESS than
@@ -1321,6 +1336,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? (prevState.achievements || []).map((a) =>
  a.id === 'luxury_life' ? { ...a, completed: true } : a)
  : prevState.achievements;
+ } catch (luxErr) {
+ logger.error('[LUXURY TICK] Failed:', luxErr);
+ }
+
+ let petFoodCharged = 0;
+ try {
  const moneyBeforePetFood = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  applyPetLivingSideEffects(updatedPets, weeklyCtx);
  // Downstream week-result block reports `petFoodCost` as part of `totalExpenses`.
@@ -1331,13 +1352,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Actual amount charged after the money floor — the recap must report what left
  // the wallet, not the nominal (= nominal whenever the player could afford it).
  petFoodCharged = Math.min(petFoodCost, moneyBeforePetFood);
- } catch (petVehicleErr) {
- logger.error('[PET/VEHICLE/LUXURY TICK] Failed:', petVehicleErr);
- updatedPets = prevState.pets || [];
- updatedVehicles = prevState.vehicles || [];
- luxuryCharged = 0;
- updatedAchievements = prevState.achievements;
- petFoodCharged = 0;
+ } catch (foodErr) {
+ logger.error('[PET FOOD TICK] Failed:', foodErr);
  }
 
  // Housing happiness bonus from current residence
