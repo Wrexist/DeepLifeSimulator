@@ -1,4 +1,8 @@
-# 3D Avatar Style Options — pick one
+# 3D Avatar Style Options — DECIDED: Option 1 · Modern Pixar
+
+> **Chosen.** The full ~80-face prompt library in this style lives at
+> **`docs/avatar-portraits-prompts-modern-pixar.md`** — generate from there.
+> Options 2 and 3 are kept below only for the record.
 
 Three candidate 3D art directions to replace the current warm-amber Pixar
 faces. Each folder holds a `STYLE.md` with the full style DNA, negative
