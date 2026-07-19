@@ -28,6 +28,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTranslation } from '@/hooks/useTranslation';
 import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
+import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
@@ -327,6 +328,27 @@ export default function MainMenu() {
       const meta = await readSaveSlotMeta(slotNumber);
       if (!isCurrent()) return;
       if (meta) {
+        if (saveSlotMetaLooksPhantom(meta)) {
+          // Looks like the pristine-boot phantom old builds could write on a
+          // clean install ("Unnamed" · 0 weeks). Verify against the full blob
+          // off the first-paint path and purge it; only show Continue if the
+          // blob turns out to be a real save after all.
+          backfillTaskRef.current?.cancel();
+          backfillTaskRef.current = InteractionManager.runAfterInteractions(() => {
+            void (async () => {
+              try {
+                const { purgeSlotIfPhantom } = await import('@/utils/phantomSaveCleanup');
+                const purged = await purgeSlotIfPhantom(slotNumber);
+                if (!isMountedRef.current || !isCurrent()) return;
+                if (purged) clearSave();
+                else applyMeta(meta);
+              } catch (error) {
+                log.error('Phantom save check failed', error);
+              }
+            })();
+          });
+          return;
+        }
         applyMeta(meta);
         return;
       }

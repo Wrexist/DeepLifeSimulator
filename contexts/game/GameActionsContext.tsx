@@ -21,7 +21,7 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
 import { buyStockMarket } from '@/contexts/game/actions/StockActions';
-import { repairGameState, validateGameState } from '@/utils/saveValidation';
+import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
@@ -212,6 +212,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const currentState = gameStateRef.current;
  if (!currentState) {
  logger.warn('Cannot save: game state is null');
+ return false;
+ }
+ // Never persist the pristine boot state (no scenario, no name). The
+ // background/periodic autosave fires even while the user is still on the
+ // main menu of a clean install; writing the untouched default created a
+ // phantom "Unnamed Character" save in slot 1. Applies to forced saves too.
+ if (isPristineUnstartedState(currentState)) {
+ logger.debug('Skipping save: no life started yet (pristine initial state)');
  return false;
  }
  await saveLoadMutex.acquire('save');
