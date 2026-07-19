@@ -131,30 +131,6 @@ export const styles = StyleSheet.create({
  iconButtonDark: {},
  iconButtonGradient: { flex: 1, alignItems: 'center', justifyContent: 'center'},
 
- // Labeled store entry — a blue-accent pill that reads as THE shop, visually
- // set apart from the mono Help/Settings icon buttons. Same height as the icon
- // buttons so the row stays aligned; ≥ touchTargets.minimum tap target.
- shopPill: {
- height: isIPad() ? touchTargets.large: touchTargets.minimum,
- minWidth: touchTargets.minimum,
- marginRight: responsiveSpacing.xs,
- borderRadius: (isIPad() ? touchTargets.large: touchTargets.minimum) / 2,
- overflow: 'hidden',
- },
- shopPillGradient: {
- flex: 1,
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- gap: scale(5),
- paddingHorizontal: responsiveSpacing.sm,
- },
- shopPillLabel: {
- color: '#FFFFFF',
- fontWeight: '700',
- fontSize: responsiveFontSize.sm,
- },
-
  statRow: {
  flexDirection:'row',
  alignItems: 'center',
