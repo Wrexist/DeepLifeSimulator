@@ -5,6 +5,7 @@ import {
   Animated,
   Easing,
   InteractionManager,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -617,20 +618,32 @@ const styles = StyleSheet.create({
     letterSpacing: scale(3),
     marginBottom: verticalScale(12),
   },
+  // Poster-grade brand type WITHOUT bundling font files: Futura Condensed
+  // ExtraBold and Avenir Next ship built into iOS — the same geometric
+  // condensed language as the DeepLife key art (assets/images/Main_Menu*.png).
+  // Named PostScript families must not be paired with a fontWeight, or iOS
+  // synthesizes a faux bold on top; Android falls back to the previous
+  // system-font weights.
   brandTop: {
     color: '#F8FAFC',
-    fontSize: fontScale(46),
-    fontWeight: '900',
-    letterSpacing: scale(1),
+    fontSize: fontScale(54),
+    letterSpacing: scale(1.5),
     textAlign: 'center',
+    ...Platform.select({
+      ios: { fontFamily: 'Futura-CondensedExtraBold' },
+      default: { fontWeight: '900' as const },
+    }),
   },
   brandBottom: {
     color: '#94A3B8',
-    fontSize: fontScale(22),
-    fontWeight: '600',
+    fontSize: fontScale(21),
     letterSpacing: scale(8),
     textAlign: 'center',
-    marginTop: verticalScale(2),
+    marginTop: verticalScale(4),
+    ...Platform.select({
+      ios: { fontFamily: 'AvenirNext-DemiBold' },
+      default: { fontWeight: '600' as const },
+    }),
   },
   heroGap: {
     height: verticalScale(44),
