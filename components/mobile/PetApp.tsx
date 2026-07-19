@@ -95,11 +95,8 @@ import {
   getGlassCategoryTabsContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { Pet } from '@/contexts/game/types';
-
-const LinearGradient = LinearGradientFallback;
 
 const WEEKS_PER_YEAR = 52; // display constant only — mirrors lib/pets/lifecycle
 
@@ -108,8 +105,6 @@ const WEEKS_PER_YEAR = 52; // display constant only — mirrors lib/pets/lifecyc
 const GOLD = '#EAB308';
 // Dark ink for text on solid gold (white on gold fails contrast).
 const GOLD_INK = '#0F172A';
-const GOLD_WASH = 'rgba(234, 179, 8, 0.14)';
-const GOLD_WASH_TRAIL = 'rgba(234, 179, 8, 0.03)';
 const GOLD_GLOW = 'rgba(234, 179, 8, 0.10)';
 const GOLD_FILL = 'rgba(234, 179, 8, 0.15)';
 const GOLD_FILL_SOFT = 'rgba(234, 179, 8, 0.12)';
@@ -335,13 +330,6 @@ export default function PetApp({ onBack }: PetAppProps) {
         ]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View pointerEvents="none" style={styles.heroGlow} />
           {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
@@ -398,13 +386,6 @@ export default function PetApp({ onBack }: PetAppProps) {
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={styles.heroGlow} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <View style={styles.heroContent}>
@@ -566,13 +547,6 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroGlow} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
@@ -820,13 +794,6 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroGlow} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             {p ? (
@@ -929,13 +896,6 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroGlow} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <View style={styles.heroContent}>
@@ -1359,13 +1319,6 @@ function TabHero({
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[GOLD_WASH, GOLD_WASH_TRAIL]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={styles.heroGlow} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <View style={styles.heroContent}>

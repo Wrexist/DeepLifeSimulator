@@ -145,7 +145,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
+    outputRange: [0.12, 0.28],
   });
 
   const getTimeAwayText = () => {
@@ -528,7 +528,9 @@ const styles = StyleSheet.create({
     width: scale(44),
     height: scale(44),
     borderRadius: scale(22),
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    // Neutral slate chip — reads correctly behind any icon color (the previous
+    // fixed green tint clashed with the red Heart in the Life Progress card).
+    backgroundColor: 'rgba(148,163,184,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.md,
@@ -567,7 +569,9 @@ const styles = StyleSheet.create({
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    // Neutral slate chip — reads correctly behind every icon color used in the
+    // info rows (green, amber, blue, purple, red) instead of a fixed purple.
+    backgroundColor: 'rgba(148,163,184,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.md,

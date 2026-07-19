@@ -156,13 +156,6 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={['rgba(99, 102, 241, 0.14)', 'rgba(99, 102, 241, 0.03)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroGlow} />
             {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
             <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Empire snapshot</Text>

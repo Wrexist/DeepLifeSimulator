@@ -842,6 +842,8 @@ const styles = StyleSheet.create({
   },
   modalDark: {
     backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   header: {
     flexDirection: 'row',
@@ -871,6 +873,7 @@ const styles = StyleSheet.create({
   },
   searchInputDark: {
     borderColor: '#334155',
+    backgroundColor: '#0F172A',
     color: '#F9FAFB',
   },
   content: {

@@ -524,13 +524,6 @@ function BankAppInner({ onBack }: BankAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={['rgba(59, 130, 246, 0.14)', 'rgba(59, 130, 246, 0.03)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View
               pointerEvents="none"
               style={{ position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: 'rgba(59, 130, 246, 0.10)' }}

@@ -1108,6 +1108,9 @@ export const styles = StyleSheet.create({
     maxWidth: scale(340),
     borderRadius: responsiveBorderRadius.xl + 4,
     overflow: 'hidden',
+    // Solid slate panel so the card reads as a real surface; the blurple
+    // gradient (fallback renders only colors[0]) stays as an accent film on top.
+    backgroundColor: 'rgba(15,23,42,0.97)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Platform.select({

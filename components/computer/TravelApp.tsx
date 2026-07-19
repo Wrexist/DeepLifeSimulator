@@ -694,13 +694,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         {/* Detail hero — ticket-style route header, vibe hue is this screen's one focal gradient. */}
         <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[vibeTint(meta.hue, 0.16), vibeTint(meta.hue, 0.03)]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={[styles.detailBlob, { backgroundColor: vibeTint(meta.hue, 0.1) }]} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
@@ -916,13 +909,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         {/* Recipe B hero rendered AS a boarding pass. Identity teal wash. */}
         <View style={[getGlassCard(darkMode, 12), styles.passCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.passInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[tint(0.14), tint(0.03)]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.passBlob} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 

@@ -33,8 +33,8 @@ import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
-const MONEY_GRADIENT = ['#34D399', '#059669'] as const;
-const VITALITY_GRADIENT = ['#FB7185', '#E11D48'] as const;
+const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
+const VITALITY_GRADIENT = ['#E11D48', '#FB7185'] as const;
 
 // Reward kinds offered by the orb, one picked at random per appearance.
 type RewardKind = 'cash' | 'vitality';

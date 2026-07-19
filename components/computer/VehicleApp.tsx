@@ -36,7 +36,6 @@ import { Vehicle } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
 import BuyVehicleModal from '@/components/vehicles/BuyVehicleModal';
@@ -63,8 +62,6 @@ import {
   calculateFuelCost,
 } from '@/lib/vehicles/vehicles';
 import { AutoDownTier, AutoTerm } from '@/lib/vehicles/auto';
-
-const LinearGradient = LinearGradientFallback;
 
 // Identity accent — orange (#F97316 / rgb 249,115,22 / accent.amber). Per the
 // Slate Glass accent budget: solid only on small CTAs/badges; everywhere else
@@ -313,13 +310,6 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         ]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(249, 115, 22, 0.14)', 'rgba(249, 115, 22, 0.03)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View
             pointerEvents="none"
             style={{
@@ -567,13 +557,6 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={['rgba(249, 115, 22, 0.14)', 'rgba(249, 115, 22, 0.03)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View
               pointerEvents="none"
               style={{

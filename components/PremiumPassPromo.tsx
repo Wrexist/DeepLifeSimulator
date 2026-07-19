@@ -107,7 +107,7 @@ export default function PremiumPassPromo() {
     <Modal visible transparent animationType="fade" onRequestClose={close}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.card, { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }], opacity: pop }]}>
-          <LinearGradientFallback colors={['#B8860B', '#F5C542', '#FBBF24', '#B8860B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.inner}>
+          <LinearGradientFallback colors={['#FBBF24', '#F5C542', '#B8860B', '#B8860B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.inner}>
             <Animated.View pointerEvents="none" style={[styles.shimmer, { transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-scale(160), scale(320)] }) }, { rotate: '18deg' }] }]} />
             <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Dismiss premium offer" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <X size={scale(18)} color="#3B2F00" />

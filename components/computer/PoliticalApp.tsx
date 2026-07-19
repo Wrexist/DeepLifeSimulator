@@ -395,13 +395,6 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         ]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[sky(0.14), sky(0.03)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View pointerEvents="none" style={styles.heroBlob} />
           {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
@@ -578,13 +571,6 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[sky(0.14), sky(0.03)]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroBlob} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <View style={styles.heroCountRow}>

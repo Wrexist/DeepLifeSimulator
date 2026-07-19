@@ -827,13 +827,6 @@ function HeroCard({ theme, darkMode, children }: { theme: Theme; darkMode: boole
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(168,85,247,0.14)', 'rgba(168,85,247,0.03)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={styles.heroBlob} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <View style={{ gap: responsiveSpacing.sm }}>{children}</View>
