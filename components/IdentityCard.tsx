@@ -29,7 +29,7 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
-import PlayerAvatarView from '@/components/avatar/PlayerAvatarView';
+import { getAvatarPortrait } from '@/utils/facePool';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
@@ -463,6 +463,7 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
+  const avatar = getAvatarPortrait(userProfile?.avatarId, date?.age ?? 0, name, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.
@@ -482,12 +483,8 @@ function IdentityCard() {
         style={styles.card}
       >
         <View style={styles.avatarContainer}>
-          <PlayerAvatarView
-            avatarId={userProfile?.avatarId}
-            age={date?.age ?? 0}
-            sex={sex}
-            seed={name}
-            size={80}
+          <Image
+            source={avatar}
             style={[styles.avatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
           />
           <View
