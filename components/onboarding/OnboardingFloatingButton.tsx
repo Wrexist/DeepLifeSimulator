@@ -37,7 +37,7 @@ export default function OnboardingFloatingButton({
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#60A5FA', '#3B82F6', '#2563EB']}
+          colors={['#3B82F6', '#2563EB', '#1D4ED8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     overflow: 'hidden',
     minHeight: 64,
     justifyContent: 'center',

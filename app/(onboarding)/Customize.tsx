@@ -238,7 +238,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -303,7 +303,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -355,7 +355,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']}
+              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     // off at the corners (square border inside an overflow:hidden rounded box).
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: responsiveSpacing.md,
   },
   sectionHeader: {
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
   },
   sexCardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
     backgroundColor: 'rgba(59, 130, 246,0.15)',
   },
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(10),
   },
   sexualityChipSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },

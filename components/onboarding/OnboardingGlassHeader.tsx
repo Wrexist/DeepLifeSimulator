@@ -83,10 +83,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: responsiveFontSize['3xl'],
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F8FAFC',
     flex: 1,
     textAlign: 'center',
+    ...Platform.select({
+      ios: { fontFamily: 'AvenirNext-Heavy' },
+      default: { fontWeight: '900' as const },
+    }),
     ...Platform.select({
       web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' } as any,
       default: {

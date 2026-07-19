@@ -10,9 +10,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { responsivePadding } from '@/utils/scaling';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-
-const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -38,16 +35,6 @@ export default function OnboardingScreenShellV2({
 
   return (
     <View style={styles.container}>
-      {/* Immersive atmosphere: a soft blue aurora concentrated at the top that
-          fades through neutral into a deep near-black base. Gives the flat slate
-          shell real depth without adding clutter — minimal, but immersive. */}
-      <LinearGradient
-        colors={['rgba(37, 99, 235, 0.20)', 'rgba(30, 41, 59, 0)', 'rgba(2, 6, 23, 0.55)']}
-        locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-
       {/* Animated background glows — soft, slow-drifting orbs for life. */}
       <Animated.View
         style={[
@@ -112,7 +99,7 @@ export default function OnboardingScreenShellV2({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#020617',
     overflow: 'hidden',
   },
   backgroundGradient1: {

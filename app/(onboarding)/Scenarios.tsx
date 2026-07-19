@@ -213,7 +213,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
           colors={
             isSelected
               ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
-              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+              : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -223,13 +223,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
               scrim so the title and difficulty read cleanly over any art. */}
           <View style={styles.heroWrap}>
             <Image source={scenario.icon} style={styles.heroImage} resizeMode="cover" />
-            <LinearGradient
-              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.heroScrim}
-            />
+            <View style={styles.heroScrim} />
             {isRecommended ? (
               <View style={styles.recommendedPill}>
                 <Star size={11} color="#60A5FA" />
@@ -658,11 +652,11 @@ const styles = StyleSheet.create({
     // corners and the body supplies its own padding (no card-level padding).
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   cardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
   },
   heroWrap: {
@@ -676,7 +670,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   heroScrim: {
-    ...StyleSheet.absoluteFillObject,
+    // One flat band over the bottom of the hero so the title/difficulty read
+    // cleanly — never a gradient (the fallback would render a hard-edged block).
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '55%',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
   },
   heroTitleRow: {
     position: 'absolute',
