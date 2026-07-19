@@ -211,6 +211,10 @@ async function main() {
     'Max All Stats',
   ];
   for (const c of grants) await clickText(page, c, { exact: true, wait: 900 });
+  // Feature setups (Setups tab): darkweb access + BTC so the Onion terminal is alive
+  await clickText(page, 'Setups', { exact: true, wait: 1200 });
+  await clickText(page, 'Darkweb (BTC + opsec)', { exact: true, wait: 1500 });
+  await clickText(page, 'Cheats', { exact: true, wait: 1200 });
   await clickText(page, 'Save Game', { exact: true, wait: 1500 });
   // Wait until the save actually lands in localStorage with the rich money value
   let saved = false;
@@ -282,8 +286,71 @@ async function main() {
     }
   }
   await goTab(3); await shot(page, 'life');
-  console.log('LIFE:', JSON.stringify((await text(page)).slice(0, 1400)));
   await page.mouse.wheel(0, 900); await sleep(1200); await shot(page, 'life-2');
+
+  // ---- Life tab sections: Market (buy a Computer → unlocks desktop launcher),
+  // Family, Stats
+  await goTab(3);
+  await page.mouse.wheel(0, -3000); await sleep(800);
+  await clickText(page, 'Market', { exact: true, wait: 2500 });
+  await shot(page, 'life-market');
+  console.log('MARKET:', JSON.stringify((await text(page)).slice(0, 1200)));
+  // buy the computer: find the market row containing "Computer" + "$5000" and
+  // click the Buy button inside that row
+  const bought = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('div')].filter(d => {
+      const t = d.textContent || '';
+      return t.includes('Computer') && t.includes('$5000') && t.includes('Buy') && t.length < 400;
+    });
+    // smallest matching container = the row card
+    rows.sort((a, b) => (a.textContent || '').length - (b.textContent || '').length);
+    const row = rows[0];
+    if (!row) return 'no-row';
+    const btn = [...row.querySelectorAll('div,span')].find(e => (e.textContent || '').trim() === 'Buy');
+    if (!btn) return 'no-buy-btn';
+    btn.click();
+    return 'clicked-buy';
+  });
+  console.log('computer purchase:', bought);
+  await sleep(2000);
+  await clickText(page, 'Purchase', { exact: true, wait: 2500 });
+  console.log('dialog gone?', !(await allText(page)).includes('Purchase Computer?'));
+  const closeModal = async () => {
+    await clickAriaLast(page, 'Close', { wait: 1000 });
+    await page.mouse.click(391, 35); await sleep(1200); // top-right X fallback
+  };
+  await clickText(page, 'Family', { exact: true, wait: 2500 });
+  await shot(page, 'life-family');
+  await closeModal();
+  await clickText(page, 'Stats', { exact: true, wait: 2500 });
+  await shot(page, 'life-stats');
+  await closeModal();
+
+  // ---- Desktop launcher (Apps tab after owning a computer)
+  await goTab(2); await sleep(1500);
+  await page.mouse.wheel(0, -3000); await sleep(800);
+  await shot(page, 'desktop');
+  console.log('DESKTOP:', JSON.stringify((await text(page)).slice(0, 1600)));
+  const desktopApps = [
+    ['Hustle', 'company'], ['Dark Web', 'darkweb'], ['Crypto', 'crypto'],
+    ['Real Estate', 'realestate'], ['Garage', 'garage'], ['Luxury', 'luxury'],
+    ['Political Office', 'politics'], ['Travel', 'travel'],
+    ['Streaming', 'streaming'], ['YouVideo', 'youvideo'],
+  ];
+  for (const [label, name] of desktopApps) {
+    await goTab(2);
+    await page.mouse.wheel(0, -3000); await sleep(700);
+    let ok = await clickText(page, label, { exact: true, wait: 3200 });
+    if (!ok) { await page.mouse.wheel(0, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
+    if (!ok) { await page.mouse.wheel(0, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
+    if (ok) {
+      await shot(page, 'x-' + name);
+      // leave via back arrow (top-left) then fall back to tab bar
+      await page.mouse.click(43, 34); await sleep(1500);
+    } else {
+      console.log(name, 'NOT FOUND on desktop grid');
+    }
+  }
   await goTab(0); await shot(page, 'home-final');
 
   await browser.close();
