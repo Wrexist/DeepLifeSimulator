@@ -60,6 +60,14 @@ beforeEach(() => {
   );
 });
 
+// Failure-safe spy restoration: a manual spy.mockRestore() at the end of a test
+// is skipped when an assertion throws first, leaking the mock into later tests.
+// Safe globally here — the AsyncStorage jest.fn implementations are re-created
+// in the beforeEach above on every test.
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('sha256Hex', () => {
   it('matches the standard NIST vectors', () => {
     expect(sha256Hex('')).toBe(
@@ -405,7 +413,6 @@ describe('reconcileRedeemClaim', () => {
     const ledger = await readRedeemLedger();
     expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } }); // ...but NOT finalized
     expect(ledger.finalized).not.toContain(REAL_HASH);
-    spy.mockRestore();
   });
 
   it('finalize-only path also requires entitlement persistence to succeed', async () => {
@@ -423,7 +430,6 @@ describe('reconcileRedeemClaim', () => {
     const ledger = await readRedeemLedger();
     expect(ledger.pending).toEqual({ hash: REAL_HASH, reward: { m: 500 } });
     expect(ledger.finalized).not.toContain(REAL_HASH);
-    spy.mockRestore();
   });
 });
 
@@ -433,7 +439,6 @@ describe('persistRedeemedPerkEntitlements', () => {
     await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_unlock_all_perks' })).resolves.toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith(getProductConfig('deeplife_unlock_all_perks'));
-    spy.mockRestore();
   });
 
   it('no-ops (true) for {m} rewards; returns false — never throws — when persistence fails', async () => {
@@ -443,6 +448,5 @@ describe('persistRedeemedPerkEntitlements', () => {
     // Persistence threw → false, so callers keep the claim pending and retry.
     await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_mindset_perk' })).resolves.toBe(false);
     expect(spy).toHaveBeenCalledTimes(1);
-    spy.mockRestore();
   });
 });
