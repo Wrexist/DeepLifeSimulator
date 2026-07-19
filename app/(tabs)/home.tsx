@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { reconcileRedeemClaim, applyRedeemReward } from '@/utils/redeemCodes';
-// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
-const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGameActions, useItemActions } from '@/contexts/GameContext';
@@ -532,19 +529,6 @@ function HomeScreenContent() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Subtle ambient depth — barely-there gradient washes from indigo at the
-          top to nothing past the first card, then a deep shade at the bottom. */}
-      <LinearGradient
-        colors={['rgba(99, 102, 241, 0.07)', 'rgba(99, 102, 241, 0)']}
-        style={styles.topGlow}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.55)']}
-        style={styles.bottomShade}
-        pointerEvents="none"
-      />
-
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={{
@@ -837,20 +821,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-  },
-  topGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: scale(220),
-  },
-  bottomShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: scale(200),
   },
 
   // Hero strip ---------------------------------------------------------------

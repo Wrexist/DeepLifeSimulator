@@ -488,13 +488,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(lastGame)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               <View pointerEvents="none" style={styles.heroGlow} />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
 
@@ -694,13 +687,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(session.game)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
@@ -801,13 +787,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={GAME_ART[selectedGame.id]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
@@ -1105,13 +1084,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={GAME_ART[g.id]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               <View pointerEvents="none" style={styles.heroGlow} />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
@@ -1188,13 +1160,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(s.game)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(217, 70, 239, 0.16)', 'rgba(217, 70, 239, 0.03)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               <View pointerEvents="none" style={styles.heroGlow} />
               {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>

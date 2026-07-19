@@ -67,7 +67,7 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
           colors={
             isSelected
               ? ['rgba(59, 130, 246,0.22)', 'rgba(37, 99, 235,0.22)']
-              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+              : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -233,7 +233,7 @@ export default function Ambitions() {
               colors={
                 freeformSelected
                   ? ['rgba(59, 130, 246,0.22)', 'rgba(37, 99, 235,0.22)']
-                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+                  : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     padding: 16,
     gap: responsiveSpacing.md,

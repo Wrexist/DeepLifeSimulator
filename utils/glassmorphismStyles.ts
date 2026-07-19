@@ -178,9 +178,9 @@ export function getGlassAppCard(darkMode: boolean = false): ViewStyle {
       ? 'rgba(15, 23, 42, 0.4)'
       : 'rgba(255, 255, 255, 0.3)',
     borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1.5,
+    borderWidth: darkMode ? 1 : 1.5,
     borderColor: darkMode
-      ? 'rgba(255, 255, 255, 0.15)'
+      ? 'rgba(255, 255, 255, 0.08)'
       : 'rgba(255, 255, 255, 0.5)',
     ...getPlatformShadows(8, 0.2, 0, 16),
   };

@@ -86,7 +86,6 @@ import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -95,7 +94,6 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
 /** Identity accent (blue #3B82F6) as an "R, G, B" string for translucent tints. */
 const ACCENT_RGB = '59, 130, 246';
 const TEAL = '#14B8A6';
@@ -300,13 +298,6 @@ export default function StatisticsApp({ onBack }: Props) {
         style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[`rgba(${ACCENT_RGB}, 0.14)`, `rgba(${ACCENT_RGB}, 0.03)`]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View pointerEvents="none" style={styles.heroBlob} />
           {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
           <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
@@ -771,7 +762,6 @@ export default function StatisticsApp({ onBack }: Props) {
         {/* Big chart hero (Recipe B) */}
         <View style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}>
           <View style={styles.heroInner}>
-            <LinearGradient pointerEvents="none" colors={[withAlpha(color, 0.14), withAlpha(color, 0.03)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <Text style={[styles.heroLabel, { color: theme.textMuted }]}>{isNW ? 'NET WORTH' : 'WEEKLY EARNINGS'}</Text>
             <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>

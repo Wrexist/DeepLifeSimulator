@@ -500,17 +500,6 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         ]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={
-              lifeComplete
-                ? ['rgba(16, 185, 129, 0.14)', 'rgba(16, 185, 129, 0.03)']
-                : [`rgba(${IDENTITY_RGB}, 0.14)`, `rgba(${IDENTITY_RGB}, 0.03)`]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View
             pointerEvents="none"
             style={[
@@ -563,13 +552,6 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[`rgba(${IDENTITY_RGB}, 0.14)`, `rgba(${IDENTITY_RGB}, 0.03)`]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={[styles.heroBlob, { backgroundColor: `rgba(${IDENTITY_RGB}, 0.10)` }]} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 

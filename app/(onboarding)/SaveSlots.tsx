@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Trash2 } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
@@ -23,6 +22,7 @@ import {
 } from '@/utils/saveSlotMeta';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
+import { MENU_BACKGROUNDS, peekMenuBackgroundIndex } from '@/utils/menuBackground';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
@@ -41,13 +41,9 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
-
-// Near-black base + soft blue glow, matched to the in-game home screen (#020617)
-// and the main menu so the whole pre-game flow reads as one dark aesthetic.
+// Near-black base matched to the in-game home screen (#020617) and the main
+// menu so the whole pre-game flow reads as one dark aesthetic.
 const PAGE_BG = '#020617';
-const TOP_GLOW = ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0)'] as const;
-const BOTTOM_SHADE = ['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.6)'] as const;
 
 // Slot stats come from raw persisted JSON (no repair pass has run), so a
 // corrupt snapshot can carry NaN/Infinity/negative numbers — clamp for display.
@@ -100,9 +96,25 @@ export default function SaveSlots() {
   const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  // This screen's background artwork index (null until the shared cycle counter
+  // is peeked — the flat PAGE_BG shows meanwhile). PEEK, not take: the main menu
+  // owns advancing the cycle, so revisiting slots never rotates the artwork.
+  const [bgIndex, setBgIndex] = useState<number | null>(null);
 
   useEffect(() => {
     logOnboardingStepView('SaveSlots');
+  }, []);
+
+  // Mount-only: peek this launch's shared menu background. peekMenuBackgroundIndex
+  // never throws (boot-safe leaf), so no catch is needed.
+  useEffect(() => {
+    let cancelled = false;
+    void peekMenuBackgroundIndex().then((index) => {
+      if (!cancelled) setBgIndex(index);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // R3-C: Android hardware back → return to the main menu instead of leaving
@@ -374,8 +386,21 @@ export default function SaveSlots() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient pointerEvents="none" colors={TOP_GLOW} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.topGlow} />
-      <LinearGradient pointerEvents="none" colors={BOTTOM_SHADE} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.bottomShade} />
+      {/* This launch's shared menu artwork behind everything (pure decoration),
+          under a single flat scrim for text contrast — no gradients, so the
+          fallback renderer can never reintroduce a seam. Slightly stronger scrim
+          (0.6) than the menu because this screen carries denser text. */}
+      {bgIndex != null && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Image
+            source={MENU_BACKGROUNDS[bgIndex]}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFill}
+            accessibilityIgnoresInvertColors
+          />
+          <View style={styles.bgScrim} />
+        </View>
+      )}
 
       <View style={[styles.content, { paddingTop: insets.top }]}>
         <OnboardingGlassHeader
@@ -517,19 +542,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PAGE_BG,
   },
-  topGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: verticalScale(320),
-  },
-  bottomShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: verticalScale(220),
+  // One flat veil over the artwork so slot cards and dense stats keep full
+  // contrast on every image. Deliberately ONE layer — no gradient/stepped scrim.
+  bgScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.6)',
   },
   content: {
     flex: 1,
@@ -544,7 +561,7 @@ const styles = StyleSheet.create({
     paddingBottom: responsiveSpacing.lg,
   },
   card: {
-    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',

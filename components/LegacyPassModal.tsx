@@ -8,7 +8,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, Easing, ImageBackground } from 'react-native';
 import { X, Lock, Check, Crown, Gift, Sparkles, ArrowRight, CheckCircle2, Gem, Heart, Infinity as InfinityIcon } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -337,12 +336,10 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               <Animated.View style={[styles.heroWrap, { transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] }]}>
                 {/* ── Image band: the neon villa, clearly visible ── */}
                 <ImageBackground source={HERO_IMAGE} style={styles.heroImageBand} imageStyle={styles.heroImg} resizeMode="cover">
-                  {/* Light top vignette + a strong fade into the content band below */}
-                  <LinearGradientFallback
-                    colors={['rgba(8,12,24,0.32)', 'rgba(8,12,24,0.04)', 'rgba(11,16,32,0.55)', 'rgba(11,16,32,1)']}
-                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
+                  {/* Solid bottom fade into the content band (the multi-stop
+                      vignette collapsed to a flat translucent film under the
+                      LinearGradient fallback, letting the image bleed through). */}
+                  <View pointerEvents="none" style={styles.heroImageFade} />
                   {/* Shimmer sweep across the villa */}
                   <Animated.View pointerEvents="none" style={[styles.heroShimmer, { transform: [{ translateX: shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-scale(200), scale(440)] }) }, { rotate: '18deg' }] }]} />
                   {/* Floating crown + sparkles over the night sky */}
@@ -531,6 +528,7 @@ const styles = StyleSheet.create({
   },
   heroImageBand: { height: scale(150), justifyContent: 'flex-end', overflow: 'hidden' },
   heroImg: { borderTopLeftRadius: responsiveBorderRadius.lg, borderTopRightRadius: responsiveBorderRadius.lg },
+  heroImageFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: scale(64), backgroundColor: '#0B1020' },
   heroShimmer: {
     position: 'absolute', top: -scale(40), bottom: -scale(40), width: scale(70),
     backgroundColor: 'rgba(255,255,255,0.22)',

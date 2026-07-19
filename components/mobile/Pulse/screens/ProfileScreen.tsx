@@ -125,12 +125,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             style={styles.coverImg}
           />
         )}
-        <LinearGradient
-          colors={['transparent', 'rgba(15, 23, 42, 0.85)'] as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+        <View pointerEvents="none" style={styles.coverScrim} />
       </View>
 
       {/* Avatar + identity */}
@@ -365,6 +360,16 @@ const styles = StyleSheet.create({
   coverImg: {
     width: '100%',
     height: COVER_HEIGHT,
+  },
+  // Bottom-anchored scrim over the lower half of the cover (the transparent→dark
+  // gradient rendered as nothing under the fallback, since colors[0] is clear).
+  coverScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: COVER_HEIGHT / 2,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
   },
   identityWrap: {
     paddingHorizontal: responsiveSpacing.lg,

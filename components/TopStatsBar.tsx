@@ -602,17 +602,19 @@ function TopStatsBarComponent() {
  )}
  </View>
  <View style={styles.leftIconRow}>
+ {/* Same quiet circular button as Help/Settings beside it (the old big blue
+     "Shop" pill dominated the HUD — owner feedback); the blue storefront
+     glyph keeps it findable without shouting. */}
  <TouchableOpacity
  onPress={() => { buttonPress(); openStore('store'); }}
- style={styles.shopPill}
+ style={[styles.iconButton, darkMode && styles.iconButtonDark]}
  activeOpacity={0.85}
  accessibilityLabel="Open Shop"
  accessibilityRole="button"
  accessibilityHint="Tap to open the shop for gems, upgrades, perks, and Remove Ads"
  >
- <LinearGradient colors={['#3B82F6', '#2563EB'] as const} style={styles.shopPillGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
- <Store size={18} color="#FFFFFF" />
- <Text style={styles.shopPillLabel}>Shop</Text>
+ <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <Store size={22} color="#60A5FA" />
  </LinearGradient>
  </TouchableOpacity>
  <TouchableOpacity
@@ -1066,7 +1068,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  maxWidth: rightSectionWidth
  }]}>
  <LinearGradient
- colors={['#60A5FA', '#3B82F6', '#2563EB']}
+ colors={['#3B82F6', '#3B82F6', '#2563EB']}
  style={[
  styles.dateOuter,
  {

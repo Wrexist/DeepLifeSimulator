@@ -349,7 +349,7 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
   if (!(gameState.items || []).find(item => item.id === 'computer')?.owned) {
     return (
       <LinearGradient
-        colors={settings.darkMode ? ['#1E3A8A', '#1E293B'] : ['#FFFFFF', '#F8FAFC']}
+        colors={settings.darkMode ? ['#020617', '#020617'] : ['#FFFFFF', '#F8FAFC']}
         style={styles.container}
       >
         <View style={styles.noComputerContainer}>
@@ -417,7 +417,7 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
+      colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
       {/* Category segmented control */}

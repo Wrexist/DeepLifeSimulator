@@ -628,13 +628,6 @@ function HeroCard({ theme, darkMode, children }: { theme: ReturnType<typeof getT
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[withAlpha(CYAN, 0.14), withAlpha(CYAN, 0.03)]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={[styles.heroBlob, { backgroundColor: withAlpha(CYAN, 0.10) }]} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <View style={{ gap: responsiveSpacing.md }}>{children}</View>

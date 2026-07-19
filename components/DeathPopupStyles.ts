@@ -59,6 +59,9 @@ export function createStyles(darkMode: boolean) {
       flex: 1,
       borderRadius: scale(24),
       overflow: 'hidden',
+      // The card's gradient flattens to near-black under the fallback and would
+      // vanish against the scrim — pin the slate surface token as a solid fill.
+      backgroundColor: c.surface,
       ...getPlatformShadows(12, 0.3, 8, 24),
       flexDirection: 'column',
     },

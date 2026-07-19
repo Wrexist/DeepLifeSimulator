@@ -123,7 +123,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: embedded ? 'transparent' : theme.background }]}>
       <ScrollView
         style={styles.content}
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}

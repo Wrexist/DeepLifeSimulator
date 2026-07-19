@@ -152,7 +152,7 @@ const PerkCard = React.memo(function PerkCard({
                 ? ['rgba(59, 130, 246,0.2)', 'rgba(37, 99, 235,0.2)']
                 : isLocked
                   ? ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.6)']
-                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+                  : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -166,13 +166,7 @@ const PerkCard = React.memo(function PerkCard({
               the title and rarity read cleanly over any illustration. */}
           <View style={styles.heroWrap}>
             <Image source={perk.icon} style={styles.heroImage} resizeMode="cover" />
-            <LinearGradient
-              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.heroScrim}
-            />
+            <View style={styles.heroScrim} />
             {isPermanent ? (
               <View style={styles.permanentPill}>
                 <Text style={styles.permanentPillText}>PERMANENT</Text>
@@ -287,7 +281,7 @@ const MindsetCard = React.memo(function MindsetCard({
           colors={
             isSelected
               ? ['rgba(139, 92, 246, 0.3)', 'rgba(124, 58, 237, 0.3)']
-              : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+              : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -297,13 +291,7 @@ const MindsetCard = React.memo(function MindsetCard({
               to match the perk cards; the purple accent marks the category. */}
           <View style={styles.heroWrap}>
             <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
-            <LinearGradient
-              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.4)', 'rgba(15,23,42,0.97)']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.heroScrim}
-            />
+            <View style={styles.heroScrim} />
             {isRecommended ? (
               <View style={[styles.recommendedPill, styles.recommendedPillPurple]}>
                 <Star size={11} color="#A78BFA" />
@@ -587,7 +575,7 @@ export default function Perks() {
               colors={
                 activeTab === 'perks'
                   ? ['#3B82F6', '#2563EB']
-                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+                  : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
@@ -621,7 +609,7 @@ export default function Perks() {
               colors={
                 activeTab === 'mindset'
                   ? ['#3B82F6', '#2563EB']
-                  : ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.8)']
+                  : ['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']
               }
               style={styles.tabGradient}
             >
@@ -760,7 +748,7 @@ const styles = StyleSheet.create({
     // corners and the body supplies its own padding (no card-level padding).
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   heroWrap: {
@@ -774,7 +762,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   heroScrim: {
-    ...StyleSheet.absoluteFillObject,
+    // One flat band over the bottom of the hero so the title/rarity read
+    // cleanly — never a gradient (the fallback would render a hard-edged block).
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '55%',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
   },
   heroTitleRow: {
     position: 'absolute',
@@ -935,7 +930,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   mindsetCardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
   },
   mindsetNameSelected: {

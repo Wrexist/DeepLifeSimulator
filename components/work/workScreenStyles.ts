@@ -19,10 +19,10 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 export const styles = StyleSheet.create({
     background: {
         flex: 1,
-        backgroundColor: '#0F172A',
+        backgroundColor: '#020617',
     },
     backgroundDark: {
-        backgroundColor: '#0F172A',
+        backgroundColor: '#020617',
     },
     container: {
         flex: 1,
@@ -108,14 +108,16 @@ export const styles = StyleSheet.create({
         color: '#F8FAFC',
     },
     subheader: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginTop: 8,
+        fontSize: fontScale(12),
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        marginTop: scale(14),
         marginBottom: 8,
-        color: '#1E293B',
+        color: 'rgba(226, 232, 240, 0.5)',
     },
     subheaderDark: {
-        color: '#F8FAFC',
+        color: 'rgba(226, 232, 240, 0.5)',
     },
     comingSoonText: {
         fontSize: 16,

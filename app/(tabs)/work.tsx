@@ -777,7 +777,7 @@ function WorkScreenContent() {
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
     const workScreenGradient = settings.darkMode
-        ? [themeColors.palette.dark900, themeColors.palette.dark900]
+        ? ['#020617', '#020617']
         : [themeColors.palette.light50, themeColors.palette.light100];
 
     return (

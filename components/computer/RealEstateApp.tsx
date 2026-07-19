@@ -599,13 +599,6 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[`rgba(${IDENTITY_RGB}, 0.14)`, `rgba(${IDENTITY_RGB}, 0.03)`]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
             <View pointerEvents="none" style={styles.heroBlob} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 

@@ -404,13 +404,6 @@ export default function GamingApp({ onBack }: Props) {
         ]}
       >
         <View style={styles.heroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[tint(0.14), tint(0.03)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
           <View pointerEvents="none" style={styles.heroBlob} />
           {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
@@ -573,7 +566,6 @@ export default function GamingApp({ onBack }: Props) {
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient pointerEvents="none" colors={[tint(0.12), tint(0.03)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             <View pointerEvents="none" style={styles.heroBlob} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
@@ -703,7 +695,6 @@ export default function GamingApp({ onBack }: Props) {
           {/* Recipe B hero — catalog summary. */}
           <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
             <View style={[styles.heroInner, { gap: sp.md }]}>
-              <LinearGradient pointerEvents="none" colors={[tint(0.12), tint(0.03)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
               <View pointerEvents="none" style={styles.heroBlob} />
               {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
               <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>YOUR CATALOG</Text>
@@ -797,7 +788,6 @@ export default function GamingApp({ onBack }: Props) {
       {/* Recipe B hero — gear score ring + breakdown. */}
       <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
         <View style={[styles.heroInner, styles.studioHeroInner]}>
-          <LinearGradient pointerEvents="none" colors={[tint(0.14), tint(0.03)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <View pointerEvents="none" style={styles.heroBlob} />
           {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
           <ProgressRing

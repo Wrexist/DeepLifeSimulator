@@ -33,8 +33,8 @@ import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
-const MONEY_GRADIENT = ['#34D399', '#059669'] as const;
-const VITALITY_GRADIENT = ['#FB7185', '#E11D48'] as const;
+const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
+const VITALITY_GRADIENT = ['#E11D48', '#FB7185'] as const;
 
 // Reward kinds offered by the orb, one picked at random per appearance.
 type RewardKind = 'cash' | 'vitality';
@@ -47,7 +47,10 @@ const VITALITY_BOOST = 100; // +100 Health / Happiness / Energy (caps them at 10
 // (correctly) never tapped it. $500k keeps the full 1.5% meaningful through
 // ~$33M net worth and still caps ad income for whales.
 const REWARD_PCT = 0.015;
-const REWARD_MIN = 50;
+// $1k floor (owner request): a fresh Age-18 character starts with ~$200, so the
+// early-game offer must be worth a 30s ad — $50 read as an insult and was never
+// tapped. Whales stay bounded by REWARD_MAX exactly as before.
+const REWARD_MIN = 1_000;
 const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
 const FIRST_DELAY: [number, number] = [22000, 48000];

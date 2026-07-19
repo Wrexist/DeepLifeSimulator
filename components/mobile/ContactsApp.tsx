@@ -162,13 +162,6 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       ]}
     >
       <View style={styles.heroInner}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(249, 115, 22, 0.14)', 'rgba(249, 115, 22, 0.03)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <View pointerEvents="none" style={styles.heroGlow} />
         {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <Text style={[styles.statsTitle, { color: theme.textMuted }]}>{title}</Text>
