@@ -37,14 +37,27 @@ export function resolveSaveSigningRuntimeConfig(
       ? explicitIsDev
       : ((typeof __DEV__ !== 'undefined' && __DEV__) || env.NODE_ENV !== 'production');
 
-  const configuredRaw = env.EXPO_PUBLIC_SAVE_HMAC_KEY || env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY;
+  const configuredRaw =
+    env.EXPO_PUBLIC_SAVE_HMAC_KEY ||
+    env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY ||
+    process.env.EXPO_PUBLIC_SAVE_HMAC_KEY ||
+    process.env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY;
   const configuredHmacKey = typeof configuredRaw === 'string' ? configuredRaw.trim() : '';
 
   return {
     isDev,
-    requireSignedSaves: !isDev && env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES !== 'false',
-    allowWeakSaveMigration: isDev || env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true',
-    allowUnsignedLegacySaves: isDev || env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true',
+    requireSignedSaves:
+      !isDev &&
+      env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES !== 'false' &&
+      process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES !== 'false',
+    allowWeakSaveMigration:
+      isDev ||
+      env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true' ||
+      process.env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true',
+    allowUnsignedLegacySaves:
+      isDev ||
+      env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true' ||
+      process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true',
     configuredHmacKey: configuredHmacKey.length > 0 ? configuredHmacKey : null,
   };
 }
