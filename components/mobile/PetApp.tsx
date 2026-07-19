@@ -194,7 +194,12 @@ export default function PetApp({ onBack }: PetAppProps) {
   const handleFeedFromInventory = useCallback(
     (petId: string) => {
       const inventory = gameState.petFood ?? {};
-      const ownedFoodId = ['basic', 'premium', 'luxury'].find((id) => (inventory[id] ?? 0) > 0);
+      // Search the FULL catalog cheapest-first (a hardcoded 3-id list here
+      // ignored organic/gourmet/treats and falsely reported "Out of food").
+      const ownedFoodId = [...PET_FOODS]
+        .sort((a, b) => a.price - b.price)
+        .map((f) => f.id)
+        .find((id) => (inventory[id] ?? 0) > 0);
       if (!ownedFoodId) {
         flash('Out of food — buy some from the shop.');
         goTab('shop');

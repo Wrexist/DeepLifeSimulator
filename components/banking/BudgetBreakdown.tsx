@@ -86,7 +86,7 @@ export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets,
   return (
     <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
       <Text style={[styles.title, { color: theme.text }]}>
-        Last {weeks} weeks Â· {formatMoney(grandTotal)}
+        Last {weeks} weeks · {formatMoney(grandTotal)}
       </Text>
       {rows.map(([cat, amt]) => {
         const key = cat as BudgetCategory;

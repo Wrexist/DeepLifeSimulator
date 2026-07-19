@@ -345,3 +345,38 @@ export const clearCampusEvent = (
 ) => {
   setGameState((prev) => ({ ...prev, pendingCampusEventEducationId: undefined }));
 };
+
+/**
+ * Resolve a campus event with the player's chosen option: apply the choice's
+ * stat effects (clamped 0–100), route money through the canonical
+ * applyMoneyDelta path, and clear the pending flag — all in one atomic
+ * setState so a double-tap can't apply the effects twice (the second call
+ * sees the flag already cleared and no-ops).
+ */
+export const resolveCampusEventChoice = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  choice: {
+    effects: Partial<Record<'happiness' | 'health' | 'energy' | 'reputation' | 'money', number>>;
+  }
+) => {
+  setGameState((prev) => {
+    if (!prev.pendingCampusEventEducationId) return prev; // already resolved
+    const clamp = (n: number) => Math.max(0, Math.min(100, n));
+    const stats = { ...prev.stats };
+    for (const key of ['happiness', 'health', 'energy', 'reputation'] as const) {
+      const delta = choice.effects[key];
+      if (typeof delta === 'number' && isFinite(delta) && delta !== 0) {
+        stats[key] = clamp((stats[key] ?? 0) + delta);
+      }
+    }
+    let next: GameState = { ...prev, stats, pendingCampusEventEducationId: undefined };
+    const money = choice.effects.money;
+    if (typeof money === 'number' && isFinite(money) && money !== 0) {
+      const moneyPatch = applyMoneyDelta(next, money, 'Campus event');
+      // A rejected debit (can't afford) still resolves the event — campus
+      // events are flavor, not a purchase gate.
+      if (moneyPatch) next = { ...next, ...moneyPatch };
+    }
+    return next;
+  });
+};

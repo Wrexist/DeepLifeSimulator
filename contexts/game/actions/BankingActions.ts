@@ -263,7 +263,23 @@ export const payDownCard = (
     // Premium Credit Card IAP cashback floor — applied at settlement (payment),
     // matching where rewards now accrue (see chargeCreditCard anti-exploit note).
     const cashbackFloor = state.settings?.premiumCreditCard ? 0.1 : undefined;
-    const result = payCreditCard(state.banking, cardId, fromAccountId, amount, state.weeksLived, cashbackFloor);
+    // The mirrored checking balance is only re-synced from stats.money on the
+    // weekly tick, but the pay modal caps against LIVE cash — so mid-week the
+    // stale mirror could silently reject ("Insufficient funds") a payment the
+    // player can afford, or fund one they can't. Refresh the mirror to live
+    // cash before validating; the actual debit below hits stats.money anyway.
+    let bankingForPay = state.banking;
+    if (fundedFromCash) {
+      const liveCash =
+        typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+      bankingForPay = {
+        ...state.banking,
+        accounts: state.banking.accounts.map((a) =>
+          a.id === fromAccountId ? { ...a, balance: liveCash } : a
+        ),
+      };
+    }
+    const result = payCreditCard(bankingForPay, cardId, fromAccountId, amount, state.weeksLived, cashbackFloor);
     if (!result.ok) {
       log.warn(`Card pay failed: ${result.reason}`);
       return prev;

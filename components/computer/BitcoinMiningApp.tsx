@@ -463,13 +463,19 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     }
     queueSave();
   };
-  const handleStake = (fraction: number) => {
-    const coin = cryptos.find((c) => c.id === stakeCoinId);
+  // Takes the coin id from the caller: the Staking panel renders (and labels
+  // the buttons with) `effectiveStakeCoinId` — which falls back to the first
+  // coin the player actually owns — so staking must use that same id. Reading
+  // the raw `stakeCoinId` state here staked its 'btc' default even when the
+  // panel showed a different coin, failing with "Invalid stake amount" for
+  // players who hold no BTC.
+  const handleStake = (fraction: number, coinId: string) => {
+    const coin = cryptos.find((c) => c.id === coinId);
     const owned = coin?.owned ?? 0;
     // Round to avoid a float overshoot ever exceeding `owned` (stakeCrypto rejects
     // amount > owned). 100% stakes the full balance; lower fractions a slice of it.
     const amount = fraction >= 1 ? owned : Math.min(owned, owned * fraction);
-    const res = stakeCrypto(gameState, setGameState, stakeCoinId, amount, stakeLockWeeks);
+    const res = stakeCrypto(gameState, setGameState, coinId, amount, stakeLockWeeks);
     if (!res.success) {
       if (res.message) Alert.alert('Staking', res.message);
       return;
@@ -1059,7 +1065,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                   <TouchableOpacity
                     key={f}
                     disabled={stakeOwned <= 0}
-                    onPress={() => handleStake(f)}
+                    onPress={() => handleStake(f, effectiveStakeCoinId)}
                     style={[styles.buyBtn, { flex: 1, backgroundColor: stakeOwned <= 0 ? theme.surfaceElevated : amber.chip }]}
                     accessibilityRole="button"
                     accessibilityLabel={`Stake ${f === 1 ? 'the maximum' : `${f * 100} percent`} of ${stakeCoin?.symbol ?? 'holdings'}`}
