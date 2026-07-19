@@ -11,7 +11,24 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
-import { Check, Compass, Gem, Play, Sparkles, Star, Trophy } from 'lucide-react-native';
+import {
+  Building2,
+  Check,
+  Clapperboard,
+  Coins,
+  Compass,
+  Crown,
+  Fingerprint,
+  Gem,
+  GraduationCap,
+  Heart,
+  Landmark,
+  Play,
+  Sparkles,
+  Star,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
@@ -40,6 +57,20 @@ const BlurView = BlurViewFallback;
 /** Sentinel for the "no ambition" (freeform) choice. */
 const FREEFORM_ID = '__freeform__';
 
+// Lucide crest per ambition — the game's crisp line-icon language (tinted by
+// each ambition's accent color) instead of platform emoji, which render
+// inconsistently across devices and clash with the dark design.
+const AMBITION_ICONS: Record<string, LucideIcon> = {
+  business_empire: Building2,
+  global_celebrity: Clapperboard,
+  raise_dynasty: Crown,
+  rule_politics: Landmark,
+  master_craft: GraduationCap,
+  amass_fortune: Coins,
+  life_of_crime: Fingerprint,
+  true_love: Heart,
+};
+
 interface AmbitionCardViewProps {
   ambition: LifeAmbition;
   isSelected: boolean;
@@ -54,6 +85,9 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
   onSelect,
 }: AmbitionCardViewProps) {
   const { payoff } = ambition;
+  const accent = ambition.color;
+  const CrestIcon = AMBITION_ICONS[ambition.id] ?? Star;
+  const lastIndex = ambition.milestones.length - 1;
   return (
     <TouchableOpacity
       activeOpacity={0.92}
@@ -73,13 +107,17 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {/* Header — emoji crest + name + fantasy tagline. */}
+          {/* Accent band — a slim strip in the ambition's color, echoing the
+              full-bleed hero band on the Scenarios cards. */}
+          <View style={[styles.accentBand, { backgroundColor: accent }]} />
+
+          {/* Header — tinted lucide crest + name + fantasy tagline. */}
           <View style={styles.cardHeader}>
-            <View style={[styles.crest, { backgroundColor: `${ambition.color}22`, borderColor: `${ambition.color}66` }]}>
-              <Text style={styles.crestEmoji}>{ambition.emoji}</Text>
+            <View style={[styles.crest, { backgroundColor: `${accent}22`, borderColor: `${accent}66` }]}>
+              <CrestIcon size={scale(24)} color={accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
                 {ambition.name}
               </Text>
               <Text style={styles.cardTagline} numberOfLines={2}>
@@ -93,39 +131,66 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
             ) : null}
           </View>
 
-          {/* Milestone path — the staged objective. */}
+          {/* Milestone path — a connected timeline in the ambition's accent,
+              capped with a trophy on the final milestone. */}
           <View style={styles.pathWrap}>
+            <Text style={styles.pathHeading}>MILESTONES</Text>
             {ambition.milestones.map((m, i) => (
               <View key={m.id} style={styles.pathRow}>
-                <View style={styles.pathIndexBubble}>
-                  <Text style={styles.pathIndexText}>{i + 1}</Text>
+                <View style={styles.pathRail}>
+                  <View
+                    style={[
+                      styles.pathIndexBubble,
+                      { backgroundColor: `${accent}22`, borderColor: `${accent}80` },
+                    ]}
+                  >
+                    {i === lastIndex ? (
+                      <Trophy size={scale(10)} color={accent} />
+                    ) : (
+                      <Text style={[styles.pathIndexText, { color: accent }]}>{i + 1}</Text>
+                    )}
+                  </View>
+                  {i < lastIndex ? (
+                    <View style={[styles.pathConnector, { backgroundColor: `${accent}44` }]} />
+                  ) : null}
                 </View>
-                <Text style={styles.pathText} numberOfLines={1}>
+                <Text
+                  style={[styles.pathText, i === lastIndex && styles.pathTextFinal]}
+                  numberOfLines={1}
+                >
                   {m.title}
                 </Text>
               </View>
             ))}
           </View>
 
-          {/* Payoff — the one-time reward on fulfilment. */}
-          <View style={styles.payoffRow}>
-            <Trophy size={scale(13)} color="#FBBF24" />
-            <Text style={styles.payoffLabel}>Fulfill:</Text>
+          {/* Payoff — labeled reward cells, same visual as the Scenarios stat
+              cells, instead of the old inline chip row. */}
+          <View style={styles.rewardRow}>
             {payoff.gems ? (
-              <View style={styles.payoffChip}>
-                <Gem size={scale(12)} color="#FBBF24" />
-                <Text style={styles.payoffChipText}>{payoff.gems}</Text>
+              <View style={styles.rewardCell}>
+                <Text style={styles.rewardLabel}>Gems</Text>
+                <View style={styles.rewardValueRow}>
+                  <Gem size={scale(12)} color="#FBBF24" />
+                  <Text style={styles.rewardValue}>{payoff.gems}</Text>
+                </View>
               </View>
             ) : null}
             {payoff.money ? (
-              <View style={styles.payoffChip}>
-                <Text style={styles.payoffChipText}>{formatMoney(payoff.money)}</Text>
+              <View style={styles.rewardCell}>
+                <Text style={styles.rewardLabel}>Cash</Text>
+                <View style={styles.rewardValueRow}>
+                  <Text style={styles.rewardValue}>{formatMoney(payoff.money)}</Text>
+                </View>
               </View>
             ) : null}
             {payoff.prestigePoints ? (
-              <View style={styles.payoffChip}>
-                <Star size={scale(12)} color="#A855F7" />
-                <Text style={styles.payoffChipText}>{payoff.prestigePoints}</Text>
+              <View style={styles.rewardCell}>
+                <Text style={styles.rewardLabel}>Prestige</Text>
+                <View style={styles.rewardValueRow}>
+                  <Star size={scale(12)} color="#A855F7" />
+                  <Text style={styles.rewardValue}>{payoff.prestigePoints}</Text>
+                </View>
               </View>
             ) : null}
           </View>
@@ -327,6 +392,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
   },
+  accentBand: {
+    // Full-bleed strip across the top of the card (the card pads 16 on every
+    // side, so pull the band back out to the edges).
+    height: verticalScale(4),
+    marginTop: -16,
+    marginHorizontal: -16,
+    marginBottom: verticalScale(2),
+    opacity: 0.85,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -339,9 +413,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  crestEmoji: {
-    fontSize: fontScale(26),
   },
   cardTitle: {
     fontSize: responsiveFontSize.lg,
@@ -366,65 +437,88 @@ const styles = StyleSheet.create({
     width: scale(28),
   },
   pathWrap: {
-    gap: responsiveSpacing.xs,
     backgroundColor: 'rgba(15, 23, 42, 0.4)',
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
     padding: responsiveSpacing.sm,
   },
+  pathHeading: {
+    fontSize: fontScale(9),
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginBottom: verticalScale(6),
+  },
   pathRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: responsiveSpacing.sm,
+  },
+  pathRail: {
+    alignItems: 'center',
+    width: scale(18),
   },
   pathIndexBubble: {
     width: scale(18),
     height: scale(18),
     borderRadius: scale(9),
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pathConnector: {
+    flex: 1,
+    width: scale(2),
+    minHeight: verticalScale(8),
+    marginVertical: verticalScale(2),
+    borderRadius: scale(1),
   },
   pathIndexText: {
     fontSize: fontScale(9.5),
     fontWeight: '800',
-    color: '#60A5FA',
   },
   pathText: {
     flex: 1,
     fontSize: fontScale(12),
     fontWeight: '600',
     color: '#E2E8F0',
+    lineHeight: fontScale(18),
   },
-  payoffRow: {
+  pathTextFinal: {
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  rewardRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     flexWrap: 'wrap',
     gap: responsiveSpacing.xs,
   },
-  payoffLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    color: '#FBBF24',
-  },
-  payoffChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(4),
+  rewardCell: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: responsiveBorderRadius.full,
+    borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(4),
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    flex: 1,
+    minWidth: scale(70),
+    paddingHorizontal: responsiveSpacing.xs,
+    paddingVertical: verticalScale(8),
   },
-  payoffChipText: {
+  rewardLabel: {
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: verticalScale(2),
+  },
+  rewardValueRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scale(4),
+  },
+  rewardValue: {
     fontSize: fontScale(11),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   hintRow: {
     flexDirection: 'row',

@@ -3,7 +3,21 @@ import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity,
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
-import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
+import {
+  Backpack,
+  Bike,
+  Check,
+  Dumbbell,
+  Gem,
+  IdCard,
+  Laptop,
+  Play,
+  Shirt,
+  Smartphone,
+  Sparkles,
+  Star,
+  Target,
+} from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
@@ -126,24 +140,21 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
   }
 };
 
-const getScenarioItemIcon = (itemId: string): string => {
-  switch (itemId) {
-    case 'smartphone':
-      return '📱';
-    case 'driver_license':
-      return '🪪';
-    case 'business_suit':
-    case 'suit':
-      return '👔';
-    case 'gym_membership':
-      return '🏋️';
-    case 'computer':
-      return '💻';
-    case 'bike':
-      return '🚲';
-    default:
-      return '🎒';
-  }
+// Starting-item chips use the same lucide icon set as the rest of the game UI
+// (crisp line icons on the blue accent) instead of platform emoji, which render
+// inconsistently and clash with the dark design.
+const SCENARIO_ITEM_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  smartphone: Smartphone,
+  driver_license: IdCard,
+  business_suit: Shirt,
+  suit: Shirt,
+  gym_membership: Dumbbell,
+  computer: Laptop,
+  bike: Bike,
+};
+
+const getScenarioItemIcon = (itemId: string): React.ComponentType<{ size?: number; color?: string }> => {
+  return SCENARIO_ITEM_ICONS[itemId] ?? Backpack;
 };
 
 const formatTokenLabel = (token: string): string => {
@@ -286,16 +297,19 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
                     <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
                   </View>
                 ) : null}
-                {scenario.start.items?.map((item) => (
-                  <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                    <Text style={styles.tagText}>
-                      {getScenarioItemIcon(item)} {formatTokenLabel(item)}
-                    </Text>
-                  </View>
-                ))}
+                {scenario.start.items?.map((item) => {
+                  const ItemIcon = getScenarioItemIcon(item);
+                  return (
+                    <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
+                      <ItemIcon size={fontScale(12)} color="#60A5FA" />
+                      <Text style={styles.tagText}>{formatTokenLabel(item)}</Text>
+                    </View>
+                  );
+                })}
                 {scenario.start.traits?.map((trait) => (
                   <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                    <Text style={styles.tagText}>✨ {formatTokenLabel(trait)}</Text>
+                    <Sparkles size={fontScale(12)} color="#60A5FA" />
+                    <Text style={styles.tagText}>{formatTokenLabel(trait)}</Text>
                   </View>
                 ))}
               </View>
@@ -782,6 +796,9 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   tag: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scale(5),
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
