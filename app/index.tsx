@@ -7,6 +7,9 @@ import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
 // same background index the main menu is about to TAKE, so the loader renders
 // the identical artwork and boot dissolves seamlessly into the menu.
 import { MENU_BACKGROUNDS, peekMenuBackgroundIndex } from '@/utils/menuBackground';
+// RN-core-only (AccessibilityInfo), defensively caught — boot-safe. Mirrors the
+// main menu so reduce-motion users get the same instant (un-faded) handoff.
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export default function Index() {
   const router = useRouter();
@@ -58,7 +61,15 @@ export default function Index() {
     };
   }, []);
 
+  const reduced = useReducedMotion();
+
   const handleBgLoaded = () => {
+    // Match MainMenu: reduce-motion users skip the fade so the boot → menu
+    // artwork handoff stays instant and identical on both screens.
+    if (reduced) {
+      bgOpacity.setValue(1);
+      return;
+    }
     Animated.timing(bgOpacity, {
       toValue: 1,
       duration: 350,
@@ -238,10 +249,10 @@ export default function Index() {
 
         <View style={loadingStyles.hero}>
           <Text style={loadingStyles.eyebrow}>LIVE A THOUSAND LIVES</Text>
-          <Text style={loadingStyles.brandTop} numberOfLines={1}>
+          <Text style={loadingStyles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
             DEEP LIFE
           </Text>
-          <Text style={loadingStyles.brandBottom} numberOfLines={1}>
+          <Text style={loadingStyles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
             SIMULATOR
           </Text>
         </View>
