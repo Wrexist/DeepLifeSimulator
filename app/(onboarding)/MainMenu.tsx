@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -226,7 +226,8 @@ function TertiaryTile({
 }
 
 export default function MainMenu() {
-  const log = logger.scope('MainMenu');
+  // Memoized so effects/callbacks that log can list it as a stable dependency.
+  const log = useMemo(() => logger.scope('MainMenu'), []);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -263,21 +264,35 @@ export default function MainMenu() {
       try {
         const raw = await AsyncStorage.getItem(MENU_BG_CYCLE_KEY);
         const n = raw != null ? parseInt(raw, 10) : 0;
-        index = Number.isFinite(n) && n >= 0 ? n % MENU_BACKGROUNDS.length : 0;
-      } catch {
+        index = !Number.isNaN(n) && Number.isFinite(n) && n >= 0 ? n % MENU_BACKGROUNDS.length : 0;
+      } catch (error) {
+        log.warn('Failed to read menu background cycle (using first image)', { error });
         index = 0;
       }
+      const nextValue = String((index + 1) % MENU_BACKGROUNDS.length);
       try {
-        await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, String((index + 1) % MENU_BACKGROUNDS.length));
-      } catch {
-        // Non-critical — worst case the same image shows again next launch.
+        await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, nextValue);
+      } catch (error) {
+        // Quota pressure: this key is a single digit, so clearing + rewriting it
+        // is always safe. Anything else is non-critical — worst case the same
+        // image shows again next launch.
+        if (error instanceof Error && (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceeded'))) {
+          try {
+            await AsyncStorage.removeItem(MENU_BG_CYCLE_KEY);
+            await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, nextValue);
+          } catch (retryError) {
+            log.warn('Failed to advance menu background cycle after quota cleanup', { error: retryError });
+          }
+        } else {
+          log.warn('Failed to advance menu background cycle', { error });
+        }
       }
       if (!cancelled) setBgIndex(index);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [log]);
 
   const handleBgLoaded = useCallback(() => {
     if (reduced) {
@@ -533,7 +548,7 @@ export default function MainMenu() {
   // "Saved progress detected" pill). Tight separators so it fits one line.
   const continueSubtitle =
     saveSummary != null
-      ? `${saveSummary.name || 'Unnamed'} · ${saveSummary.age} yrs · ${formatMoney(saveSummary.money)}`
+      ? `${saveSummary.name || t('mainMenu.unnamed')} · ${saveSummary.age} ${t('mainMenu.years')} · ${formatMoney(saveSummary.money)}`
       : t('mainMenu.continueSubtitle');
 
   return (
