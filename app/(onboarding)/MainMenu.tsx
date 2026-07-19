@@ -28,6 +28,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTranslation } from '@/hooks/useTranslation';
 import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
+import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
@@ -64,18 +65,11 @@ interface SaveSummary {
   money: number;
 }
 
-// Owner-generated background artwork (see docs/menu-background-prompts.md) —
-// text-free, dark, composed for a quiet upper third. Metro needs literal
-// require paths, so the set is static. One image per app launch, cycled in
-// order via a tiny AsyncStorage counter; the flat #020617 base stays the
-// instant first paint and the permanent fallback.
-const MENU_BACKGROUNDS = [
-  require('@/assets/images/Main_Menu/Mainmenu_1.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_2.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_4.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_5.png'),
-] as const;
-const MENU_BG_CYCLE_KEY = 'menu_bg_cycle_v1';
+// One image per app launch, cycled in order via a tiny AsyncStorage counter;
+// the flat #020617 base stays the instant first paint and the permanent
+// fallback. The artwork set + cycle live in utils/menuBackground.ts, SHARED
+// with the boot loader (app/index.tsx), which peeks the same index so booting
+// dissolves seamlessly into this menu on the identical background.
 
 /**
  * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
@@ -259,45 +253,19 @@ export default function MainMenu() {
   const [bgIndex, setBgIndex] = useState<number | null>(null);
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
-  // Pick this launch's background and advance the cycle. Mount-only on purpose:
-  // rotating on every focus would swap the artwork when returning from
-  // SaveSlots/Settings, which reads as a glitch rather than variety.
+  // Take this launch's background (show + advance the shared cycle — see
+  // utils/menuBackground.ts). Mount-only on purpose: rotating on every focus
+  // would swap the artwork when returning from SaveSlots/Settings, which reads
+  // as a glitch rather than variety. takeMenuBackgroundIndex never throws.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      let index = 0;
-      try {
-        const raw = await AsyncStorage.getItem(MENU_BG_CYCLE_KEY);
-        const n = raw != null ? parseInt(raw, 10) : 0;
-        index = !Number.isNaN(n) && Number.isFinite(n) && n >= 0 ? n % MENU_BACKGROUNDS.length : 0;
-      } catch (error) {
-        log.warn('Failed to read menu background cycle (using first image)', { error });
-        index = 0;
-      }
-      const nextValue = String((index + 1) % MENU_BACKGROUNDS.length);
-      try {
-        await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, nextValue);
-      } catch (error) {
-        // Quota pressure: this key is a single digit, so clearing + rewriting it
-        // is always safe. Anything else is non-critical — worst case the same
-        // image shows again next launch.
-        if (error instanceof Error && (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceeded'))) {
-          try {
-            await AsyncStorage.removeItem(MENU_BG_CYCLE_KEY);
-            await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, nextValue);
-          } catch (retryError) {
-            log.warn('Failed to advance menu background cycle after quota cleanup', { error: retryError });
-          }
-        } else {
-          log.warn('Failed to advance menu background cycle', { error });
-        }
-      }
+    void takeMenuBackgroundIndex().then((index) => {
       if (!cancelled) setBgIndex(index);
-    })();
+    });
     return () => {
       cancelled = true;
     };
-  }, [log]);
+  }, []);
 
   const handleBgLoaded = useCallback(() => {
     if (reduced) {

@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
+// Boot-safe leaf module (storageWrapper + logger only; never throws). PEEKS the
+// same background index the main menu is about to TAKE, so the loader renders
+// the identical artwork and boot dissolves seamlessly into the menu.
+import { MENU_BACKGROUNDS, peekMenuBackgroundIndex } from '@/utils/menuBackground';
 
 export default function Index() {
   const router = useRouter();
@@ -19,20 +23,15 @@ export default function Index() {
 
   // Lightweight "alive" animations — RN core only (Animated), so the very first
   // production render stays crash-proof (no third-party animation deps here).
-  const titleGlow = useRef(new Animated.Value(0)).current;
   const dot0 = useRef(new Animated.Value(0.3)).current;
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
+  // This launch's background (null until the peek resolves — the flat #020617
+  // base shows meanwhile, exactly like the menu's fallback).
+  const [bgIndex, setBgIndex] = useState<number | null>(null);
+  const bgOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Soft pulsing glow behind the title so the screen breathes while loading.
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(titleGlow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(titleGlow, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-
     // Three dots that pulse in sequence — a calm "working…" rhythm.
     const pulse = (value: Animated.Value, delay: number) =>
       Animated.loop(
@@ -44,10 +43,29 @@ export default function Index() {
         ])
       );
 
-    const animations = [glow, pulse(dot0, 0), pulse(dot1, 200), pulse(dot2, 400)];
+    const animations = [pulse(dot0, 0), pulse(dot1, 200), pulse(dot2, 400)];
     animations.forEach((a) => a.start());
     return () => animations.forEach((a) => a.stop());
-  }, [titleGlow, dot0, dot1, dot2]);
+  }, [dot0, dot1, dot2]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void peekMenuBackgroundIndex().then((index) => {
+      if (!cancelled) setBgIndex(index);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleBgLoaded = () => {
+    Animated.timing(bgOpacity, {
+      toValue: 1,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
 
   // CRITICAL: Startup health check - verify critical modules before rendering
   useEffect(() => {
@@ -198,59 +216,123 @@ export default function Index() {
   const pct = Math.max(0, Math.min(100, currentProgress || 0));
   return (
     <View style={loadingStyles.container}>
-      <View style={loadingStyles.center}>
-        <View style={loadingStyles.titleWrap}>
-          <Animated.View
-            style={[
-              loadingStyles.titleGlow,
-              {
-                opacity: titleGlow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] }),
-                transform: [{ scale: titleGlow.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.08] }) }],
-              },
-            ]}
+      {/* Same artwork the menu is about to show, behind the same flat scrim —
+          pure decoration; the flat #020617 base is the instant fallback. */}
+      {bgIndex != null && (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: bgOpacity }]}>
+          <Image
+            source={MENU_BACKGROUNDS[bgIndex]}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFill}
+            onLoadEnd={handleBgLoaded}
+            accessibilityIgnoresInvertColors
           />
-          <Text style={loadingStyles.title}>DeepLife Simulator</Text>
-        </View>
-        <Text style={loadingStyles.tagline}>Your life. Every choice.</Text>
+          <View style={loadingStyles.bgScrim} />
+        </Animated.View>
+      )}
 
-        <View style={loadingStyles.dots}>
-          <Animated.View style={[loadingStyles.dot, { opacity: dot0, transform: [{ scale: dot0 }] }]} />
-          <Animated.View style={[loadingStyles.dot, { opacity: dot1, transform: [{ scale: dot1 }] }]} />
-          <Animated.View style={[loadingStyles.dot, { opacity: dot2, transform: [{ scale: dot2 }] }]} />
+      <View style={loadingStyles.content}>
+        {/* Same 0.9 / 1.1 framing as the main menu so the brand block sits in
+            the identical position and the boot → menu handoff is seamless. */}
+        <View style={loadingStyles.spacerTop} />
+
+        <View style={loadingStyles.hero}>
+          <Text style={loadingStyles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+          <Text style={loadingStyles.brandTop} numberOfLines={1}>
+            DEEP LIFE
+          </Text>
+          <Text style={loadingStyles.brandBottom} numberOfLines={1}>
+            SIMULATOR
+          </Text>
         </View>
 
-        <View style={loadingStyles.track}>
-          <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
+        <View style={loadingStyles.heroGap} />
+
+        <View style={loadingStyles.progressBlock}>
+          <View style={loadingStyles.dots}>
+            <Animated.View style={[loadingStyles.dot, { opacity: dot0, transform: [{ scale: dot0 }] }]} />
+            <Animated.View style={[loadingStyles.dot, { opacity: dot1, transform: [{ scale: dot1 }] }]} />
+            <Animated.View style={[loadingStyles.dot, { opacity: dot2, transform: [{ scale: dot2 }] }]} />
+          </View>
+          <View style={loadingStyles.track}>
+            <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
+          </View>
+          <Text style={loadingStyles.message}>{currentMessage}</Text>
         </View>
-        <Text style={loadingStyles.message}>{currentMessage}</Text>
+
+        <View style={loadingStyles.spacerBottom} />
+        <Text style={loadingStyles.footer}>YOUR LIFE. EVERY CHOICE.</Text>
       </View>
     </View>
   );
 }
 
+// Mirrors the MainMenu design language with fixed px values (the scaling utils
+// may not be loaded yet on this very first screen — RN core only here).
 const loadingStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  titleWrap: { alignItems: 'center', justifyContent: 'center' },
-  titleGlow: {
-    position: 'absolute',
-    width: 240,
-    height: 120,
-    borderRadius: 120,
-    backgroundColor: 'rgba(59, 130, 246, 0.35)',
+  container: { flex: 1, backgroundColor: '#020617' },
+  bgScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.52)',
   },
-  title: { color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
-  tagline: { color: '#94A3B8', fontSize: 15, fontWeight: '500', marginTop: 8, textAlign: 'center' },
-  dots: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 36 },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B82F6' },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  spacerTop: { flex: 0.9, width: '100%' },
+  spacerBottom: { flex: 1.1, width: '100%' },
+  hero: { alignItems: 'center' },
+  eyebrow: {
+    color: '#60A5FA',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 3,
+    marginBottom: 12,
+  },
+  brandTop: {
+    color: '#F8FAFC',
+    fontSize: 46,
+    letterSpacing: 1.5,
+    textAlign: 'center',
+    ...Platform.select({
+      ios: { fontFamily: 'AvenirNext-Heavy' },
+      default: { fontWeight: '900' as const },
+    }),
+  },
+  brandBottom: {
+    color: '#94A3B8',
+    fontSize: 20,
+    letterSpacing: 8,
+    textAlign: 'center',
+    marginTop: 4,
+    ...Platform.select({
+      ios: { fontFamily: 'AvenirNext-DemiBold' },
+      default: { fontWeight: '600' as const },
+    }),
+  },
+  heroGap: { height: 44 },
+  progressBlock: { width: '100%', alignItems: 'center' },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' },
   track: {
-    width: '70%',
+    width: '72%',
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 3,
     overflow: 'hidden',
-    marginTop: 28,
+    marginTop: 24,
   },
   bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
-  message: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center' },
+  message: { color: '#94A3B8', fontSize: 13, fontWeight: '500', marginTop: 14, textAlign: 'center' },
+  footer: {
+    color: 'rgba(148, 163, 184, 0.45)',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 3,
+  },
 });
