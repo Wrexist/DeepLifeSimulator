@@ -161,7 +161,12 @@ interface GameActionsContextType {
  fileDivorce: (spouseId: string, lawyerId?: string) => { success: boolean; message: string; settlement?: number; lawyerResult?: any } | void;
 
  // Save & Load (core functionality)
- saveGame: (force?: boolean) => Promise<void>;
+ // saveGame resolves true only when the save actually happened: force=true →
+ // the write completed and was verified on disk; force=false → the save was
+ // queued. Resolves false on validation-abort or any caught save error (it
+ // never rejects for those). Callers that must confirm durability — e.g.
+ // exactly-once grant finalization — pass force=true and check the result.
+ saveGame: (force?: boolean) => Promise<boolean>;
  loadGame: (slot: number) => Promise<GameState | null>;
 
  // Permanent Perks
@@ -199,15 +204,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Refs for AppState listener (prevents stale closures)
  const gameStateRef = useRef<GameState | null>(null);
  const isSavingRef = useRef(false);
- const saveGameRef = useRef<((force?: boolean) => Promise<void>) | null>(null);
+ const saveGameRef = useRef<((force?: boolean) => Promise<boolean>) | null>(null);
 
  // Save & Load Actions - MOVED BEFORE nextWeek TO FIX HOISTING
- const saveGame = useCallback(async (force: boolean = false): Promise<void> => {
+ const saveGame = useCallback(async (force: boolean = false): Promise<boolean> => {
  // Use ref to get current state (prevents stale closure)
  const currentState = gameStateRef.current;
  if (!currentState) {
  logger.warn('Cannot save: game state is null');
- return;
+ return false;
  }
  await saveLoadMutex.acquire('save');
  try {
@@ -233,12 +238,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (!revalidation.valid) {
  logger.error('[SAVE] State still invalid after repair, aborting save');
  showError('Save Error', 'Game state is corrupted and could not be repaired. Please reload your save.');
- return;
+ return false;
  }
  } else {
  logger.error('[SAVE] State corruption detected and could not be repaired, aborting save');
  showError('Save Error', 'Game state is corrupted and could not be saved. Please reload your save.');
- return;
+ return false;
  }
  }
 
@@ -304,9 +309,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  logger.info('Game save queued successfully', { slot: slotToUse });
+ return true;
  } catch (error) {
  logger.error('Failed to queue save:', error);
  showError('Save Error', 'Failed to save game progress. Will retry automatically.');
+ return false;
  } finally {
  saveLoadMutex.release();
  }

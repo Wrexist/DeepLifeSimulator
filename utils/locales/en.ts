@@ -19,6 +19,8 @@ export default {
     mainMenu: {
         continue: 'Continue',
         continueSubtitle: 'Resume your last game',
+        unnamed: 'Unnamed',
+        years: 'yrs',
         newGame: 'New Game',
         newGameSubtitle: 'Start a new life',
         saveSlots: 'Save Slots',

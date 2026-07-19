@@ -461,7 +461,9 @@ function HomeScreenContent() {
         await reconcileRedeemClaim({
           hasHash: (hash) => redeemedCodeHashesRef.current.includes(hash),
           grant: (hash, reward) => setGameState((prev) => applyRedeemReward(prev, hash, reward)),
-          save: () => saveGame(),
+          // Durable force-save: resolves true only when the write is verified,
+          // which is what gates finalization inside the reconciler.
+          save: () => saveGame(true),
         });
       } catch (err) {
         logger.warn('Redeem code reconcile failed', { error: err });

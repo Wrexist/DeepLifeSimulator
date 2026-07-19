@@ -14,12 +14,13 @@ import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloating
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { type SaveSlotData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
 import {
-  type SaveSlotData,
-  hasSaveStateShape,
-  hasMeaningfulSaveData,
-  checkIfAllSlotsFull,
-} from '@/src/features/onboarding/saveSlotHelpers';
+  readSaveSlotMeta,
+  ensureSaveSlotMeta,
+  deleteSaveSlotMeta,
+  probeSaveSlotBlob,
+} from '@/utils/saveSlotMeta';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
@@ -142,50 +143,46 @@ export default function SaveSlots() {
 
   const loadSlots = useCallback(async () => {
     try {
-      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
-        '@/utils/saveValidation'
-      );
-      const allowLegacy = shouldAllowUnsignedLegacySaves();
-      const slotData: SaveSlotData[] = [];
-
-      for (let i = 1; i <= 3; i++) {
-        let data: string | null = null;
+      // Data-source swap: read the tiny per-slot summary cache instead of
+      // HMAC-decoding + JSON.parsing all three multi-MB blobs on every visit.
+      // The only decode+parse now lives inside ensureSaveSlotMeta's one-time
+      // backfill (cold path), so the list paints instantly on revisits.
+      const resolveSlot = async (i: number): Promise<SaveSlotData> => {
         try {
-          data = await readSaveSlot(i, undefined, { allowLegacy });
-        } catch (storageError) {
-          log.error(`Storage error loading slot ${i}`, storageError);
-          slotData.push({ id: i, hasData: false, error: true });
-          continue;
-        }
+          let meta = await readSaveSlotMeta(i);
+          if (!meta) meta = await ensureSaveSlotMeta(i);
 
-        if (!data) {
-          slotData.push({ id: i, hasData: false });
-          continue;
-        }
-
-        try {
-          const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
-          if (!decoded.valid || typeof decoded.data !== 'string') {
-            slotData.push({ id: i, hasData: false, error: true });
-            continue;
-          }
-
-          const parsed = JSON.parse(decoded.data);
-          if (hasSaveStateShape(parsed)) {
-            slotData.push({
-              ...parsed,
+          if (meta) {
+            // Map the summary onto the fields the card already reads. `name` is
+            // the pre-combined "First Last"; stashing it as firstName keeps the
+            // existing `${firstName} ${lastName}`.trim() rendering unchanged.
+            return {
               id: i,
-              hasData: hasMeaningfulSaveData(parsed),
-            });
-          } else {
-            slotData.push({ id: i, hasData: false, error: true });
+              hasData: true,
+              userProfile: { firstName: meta.name },
+              stats: { money: meta.money },
+              date: { age: meta.age },
+              weeksLived: meta.weeksLived,
+            };
           }
-        } catch (parseError) {
-          log.error(`Failed parsing slot ${i}`, parseError);
-          slotData.push({ id: i, hasData: false, error: true });
-        }
-      }
 
+          // No usable summary: tell an EMPTY slot from an UNREADABLE one with a
+          // raw blob-existence probe (no decode/parse). An existing-but-
+          // unsummarizable blob is treated as "needs recovery" so Start New Game
+          // can never silently overwrite a possibly-recoverable save.
+          const probe = await probeSaveSlotBlob(i);
+          // 'exists' (blob present but unsummarizable) AND 'unknown' (storage
+          // read failed) both surface as recovery-needed — only a confirmed
+          // 'empty' may offer Start New Game, so a transient read failure can
+          // never invite overwriting recoverable data.
+          return probe === 'empty' ? { id: i, hasData: false } : { id: i, hasData: false, error: true };
+        } catch (slotError) {
+          log.error(`Failed resolving slot ${i}`, slotError);
+          return { id: i, hasData: false, error: true };
+        }
+      };
+
+      const slotData = await Promise.all([1, 2, 3].map(resolveSlot));
       setSlots(slotData);
     } catch (error) {
       log.error('Failed loading slots', error);
@@ -274,6 +271,10 @@ export default function SaveSlots() {
       await deleteSaveSlot(slotId);
       await deleteAllBackupsForSlot(slotId);
       await clearProtectedState(slotId);
+      // Clear the cached summary too so a stale name/age can never linger after
+      // the blob is gone (loadSlots below reads the summary cache first). Awaited
+      // to close the race with that reload.
+      await deleteSaveSlotMeta(slotId);
 
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
@@ -293,25 +294,16 @@ export default function SaveSlots() {
           raw !== null && parseInt(raw, 10) === slotId;
 
         if (pointsAtDeleted(lastSlotRaw) || pointsAtDeleted(currentSlotRaw)) {
-          const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } =
-            await import('@/utils/saveValidation');
-          const allowLegacy = shouldAllowUnsignedLegacySaves();
-
           let repointTo: number | null = null;
           for (let i = 1; i <= 3; i++) {
             if (i === slotId) continue;
-            try {
-              const data = await readSaveSlot(i, undefined, { allowLegacy });
-              if (!data) continue;
-              const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
-              if (!decoded.valid || typeof decoded.data !== 'string') continue;
-              const parsed = JSON.parse(decoded.data);
-              if (hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed)) {
-                repointTo = i;
-                break;
-              }
-            } catch {
-              // Unreadable slot while scanning for a repoint target — skip it.
+            // A cached summary exists only for a meaningful, playable save, so its
+            // presence is exactly the "has playable data" test the old decode+
+            // parse scan performed — without touching the multi-MB blob.
+            const meta = (await readSaveSlotMeta(i)) ?? (await ensureSaveSlotMeta(i));
+            if (meta) {
+              repointTo = i;
+              break;
             }
           }
 

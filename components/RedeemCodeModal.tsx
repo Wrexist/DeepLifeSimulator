@@ -22,6 +22,7 @@ import {
   beginRedeemClaim,
   finalizeRedeemClaim,
   applyRedeemReward,
+  persistRedeemedPerkEntitlements,
   rewardLabel,
   canAttemptRedeem,
   recordRedeemAttempt,
@@ -64,8 +65,9 @@ const STATUS_MESSAGE: Record<Exclude<RedeemStatus, 'idle' | 'submitting' | 'succ
  * Modal, which would trip the iOS stacked-modal hazard.
  *
  * Success path order is load-bearing (repo convention): begin → one setGameState
- * grant → macrotask yield → saveGame → finalize. If saveGame rejects, the marker
- * is left pending and the home reconciler completes the grant next launch.
+ * grant → entitlement persistence → macrotask yield → saveGame(true) → finalize
+ * ONLY when the force-save confirms durable success. Otherwise the marker stays
+ * pending and the home reconciler completes the grant next launch.
  */
 function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
   const { gameState, setGameState } = useGameState();
@@ -129,17 +131,36 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
     }
     // (b) ONE state update grants the reward AND flags the hash atomically.
     setGameState((prev) => applyRedeemReward(prev, hash, reward));
+    // (b2) the same cross-slot entitlement persistence a real purchase performs
+    //      (permanent perks survive new lives / other slots). Idempotent —
+    //      finalization below is gated on this succeeding too, so a transient
+    //      failure keeps the claim pending and the launch reconciler retries.
+    const entitlementsOk = await persistRedeemedPerkEntitlements(reward);
     // (c) macrotask yield — saveGame reads a post-commit ref synced in a passive
     //     effect, so it lags the commit by one cycle.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    // (d) persist DURABLY: force-save (the same path real IAP purchases use).
+    //     saveGame resolves true only after the write is verified on disk — a
+    //     plain saveGame() merely queues and swallows failures, which would let
+    //     us finalize a claim whose reward was never persisted.
+    let saved = false;
     try {
-      // (d) persist, then (e) finalize.
-      await saveGame();
-      await finalizeRedeemClaim(hash);
+      saved = await saveGame(true);
     } catch (err) {
-      // saveGame rejected — DO NOT finalize. The pending marker + the home
-      // reconciler complete the grant on next launch (the designed recovery).
-      logger.warn('Redeem claim save failed; will reconcile next launch', { error: err });
+      logger.warn('Redeem claim save threw; leaving pending for reconcile', { error: err });
+    }
+    if (saved && entitlementsOk) {
+      // (e) finalize only when BOTH durability steps are confirmed: the
+      //     force-save AND the cross-slot entitlement persistence.
+      await finalizeRedeemClaim(hash);
+    } else {
+      // NOT finalized — the pending marker + the home reconciler complete the
+      // claim on next launch (the designed recovery). The reward is already in
+      // memory, so the player keeps playing with it either way.
+      logger.warn('Redeem claim not fully durable; will reconcile next launch', {
+        saved,
+        entitlementsOk,
+      });
     }
     setSuccessLabel(rewardLabel(reward));
     setStatus('success');
