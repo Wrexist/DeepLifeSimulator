@@ -15,6 +15,7 @@
  * as extra variety. Metro requires static literal paths, so assets are listed.
  */
 import type { ImageSourcePropType } from 'react-native';
+import { playerAvatarSexFromId } from '@/utils/playerAvatar';
 
 // The original 5 — guaranteed fallbacks.
 const BASE = {
@@ -234,6 +235,9 @@ export function listStarterAvatars(sex: string, age = 18): { id: string; source:
 
 /** The sex encoded in a chosen avatar id (so appearance and gameplay sex agree). */
 export function avatarSexFromId(avatarId: string | undefined | null): 'male' | 'female' | undefined {
+  // Layered avatar configs (utils/playerAvatar `dl1:` ids) carry their sex.
+  const layered = playerAvatarSexFromId(avatarId);
+  if (layered) return layered;
   const p = avatarId ? parseAvatarId(avatarId) : null;
   if (!p) return undefined;
   return p.letter === 'f' ? 'female' : 'male';

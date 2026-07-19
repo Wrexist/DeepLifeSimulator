@@ -163,8 +163,23 @@ jest.mock('react-native-svg', () => {
   ];
   const mock = { __esModule: true, default: 'Svg' };
   for (const t of tags) mock[t] = t;
+  // SvgXml renders raw SVG strings (the layered player avatar); an inert host
+  // tag is enough for mount tests.
+  mock.SvgXml = 'SvgXml';
   return mock;
 });
+
+// @dicebear ships ESM-only builds jest can't parse (no js transform is
+// configured for node_modules). The avatar logic under test lives in
+// utils/playerAvatar; this mock only needs to be deterministic per options so
+// aging/threshold tests observe output changes.
+jest.mock('@dicebear/core', () => ({
+  __esModule: true,
+  createAvatar: (_style, options) => ({
+    toString: () => `<svg data-mock-options="${encodeURIComponent(JSON.stringify(options))}"></svg>`,
+  }),
+}));
+jest.mock('@dicebear/collection', () => ({ __esModule: true, adventurer: {} }));
 
 // Expo native `.js` modules ship ESM that ts-jest (which only transforms ts/tsx)
 // can't parse. Mock the ones the screen graph pulls in — we don't test their
