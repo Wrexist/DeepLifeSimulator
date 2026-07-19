@@ -107,10 +107,6 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {/* Accent band — a slim strip in the ambition's color, echoing the
-              full-bleed hero band on the Scenarios cards. */}
-          <View style={[styles.accentBand, { backgroundColor: accent }]} />
-
           {/* Header — tinted lucide crest + name + fantasy tagline. */}
           <View style={styles.cardHeader}>
             <View style={[styles.crest, { backgroundColor: `${accent}22`, borderColor: `${accent}66` }]}>
@@ -391,15 +387,6 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderColor: 'rgba(96, 165, 250, 0.85)',
     borderWidth: 2,
-  },
-  accentBand: {
-    // Full-bleed strip across the top of the card (the card pads 16 on every
-    // side, so pull the band back out to the edges).
-    height: verticalScale(4),
-    marginTop: -16,
-    marginHorizontal: -16,
-    marginBottom: verticalScale(2),
-    opacity: 0.85,
   },
   cardHeader: {
     flexDirection: 'row',
