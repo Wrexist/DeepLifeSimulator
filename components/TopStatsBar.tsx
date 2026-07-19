@@ -1068,7 +1068,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  maxWidth: rightSectionWidth
  }]}>
  <LinearGradient
- colors={['#60A5FA', '#3B82F6', '#2563EB']}
+ colors={['#3B82F6', '#3B82F6', '#2563EB']}
  style={[
  styles.dateOuter,
  {
