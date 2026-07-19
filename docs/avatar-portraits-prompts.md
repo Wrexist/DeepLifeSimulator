@@ -1,5 +1,10 @@
 # DeepLife — Complete Character Face Library (copy‑paste prompts)
 
+> **SUPERSEDED** — the amber-background style below was replaced by the
+> chosen **Modern Pixar dark-studio** direction. Use
+> **`avatar-portraits-prompts-modern-pixar.md`** instead; this file stays only
+> as the reference for each face's identity.
+
 The full set of prompts to generate every face the game needs, matching your
 existing 5 faces in `assets/images/Face/` (Baby / Male / Female / Old_Male /
 Old_Female). Generate these, drop them in `assets/images/Face/pool/`, and I wire

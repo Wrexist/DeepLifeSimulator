@@ -5,10 +5,16 @@ shown as the card / detail **artwork banner**. Until an image exists the app
 falls back to a per-tier gradient placeholder (a tinted dark panel with the
 item's emoji), so the game always looks finished — importing art just upgrades it.
 
+> **Copy-paste ready:** the **`prompts/`** folder next to this file has one
+> `.txt` per item with the full prompt (style clause already inlined) — open,
+> copy the whole file, paste into your image tool. Each `.txt` is named after
+> the catalog id, which is also the exact PNG filename to save the result as.
+
 ## Pipeline
 
 1. Generate each image with **any** AI image tool (Midjourney, DALL·E, Ideogram,
-   Firefly, SDXL, …). Paste the item's prompt below.
+   Firefly, SDXL, …). Paste the item's prompt from `prompts/<id>.txt` (or the
+   list below).
 2. Export a **PNG**, landscape **3:2** or **16:10**, about **1200px wide**
    (≈1200×800). The card crops to a wide banner and the detail sheet shows it
    taller, so keep the subject **centred** with a little breathing room.
