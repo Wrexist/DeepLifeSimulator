@@ -150,7 +150,12 @@ function PrimaryActionCard({
           <Text style={styles.primaryTitle} numberOfLines={1}>
             {loading ? 'Loading…' : title}
           </Text>
-          <Text style={styles.primarySubtitle} numberOfLines={1}>
+          <Text
+            style={styles.primarySubtitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
             {loading ? 'Please wait' : subtitle}
           </Text>
         </View>
@@ -713,19 +718,20 @@ const styles = StyleSheet.create({
     letterSpacing: scale(3),
     marginBottom: verticalScale(12),
   },
-  // Poster-grade brand type WITHOUT bundling font files: Futura Condensed
-  // ExtraBold and Avenir Next ship built into iOS — the same geometric
-  // condensed language as the DeepLife key art (assets/images/Main_Menu*.png).
-  // Named PostScript families must not be paired with a fontWeight, or iOS
-  // synthesizes a faux bold on top; Android falls back to the previous
-  // system-font weights.
+  // Poster-grade brand type WITHOUT bundling font files: Avenir Next Heavy
+  // ships built into iOS — smooth, wide geometric curves at maximum weight,
+  // the same language as the DeepLife key art (assets/images/Main_Menu*.png).
+  // (Futura Condensed ExtraBold was tried first; its narrow angular forms read
+  // harsh on-device.) Named PostScript families must not be paired with a
+  // fontWeight, or iOS synthesizes a faux bold on top; Android falls back to
+  // the previous system-font weights.
   brandTop: {
     color: '#F8FAFC',
-    fontSize: fontScale(54),
-    letterSpacing: scale(1.5),
+    fontSize: fontScale(48),
+    letterSpacing: scale(1),
     textAlign: 'center',
     ...Platform.select({
-      ios: { fontFamily: 'Futura-CondensedExtraBold' },
+      ios: { fontFamily: 'AvenirNext-Heavy' },
       default: { fontWeight: '900' as const },
     }),
   },
