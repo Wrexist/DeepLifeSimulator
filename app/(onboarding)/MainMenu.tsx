@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Image,
   InteractionManager,
   Platform,
   StyleSheet,
@@ -62,6 +63,19 @@ interface SaveSummary {
   age: number;
   money: number;
 }
+
+// Owner-generated background artwork (see docs/menu-background-prompts.md) —
+// text-free, dark, composed for a quiet upper third. Metro needs literal
+// require paths, so the set is static. One image per app launch, cycled in
+// order via a tiny AsyncStorage counter; the flat #020617 base stays the
+// instant first paint and the permanent fallback.
+const MENU_BACKGROUNDS = [
+  require('@/assets/images/Main_Menu/Mainmenu_1.png'),
+  require('@/assets/images/Main_Menu/Mainmenu_2.png'),
+  require('@/assets/images/Main_Menu/Mainmenu_4.png'),
+  require('@/assets/images/Main_Menu/Mainmenu_5.png'),
+] as const;
+const MENU_BG_CYCLE_KEY = 'menu_bg_cycle_v1';
 
 /**
  * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
@@ -234,6 +248,49 @@ export default function MainMenu() {
   // it before touching state, ensuring a stale slot's result can never
   // overwrite the current Continue card.
   const refreshGenRef = useRef(0);
+  // This launch's background (null until the cycle counter is read — the flat
+  // base shows meanwhile, so first paint stays instant).
+  const [bgIndex, setBgIndex] = useState<number | null>(null);
+  const bgOpacity = useRef(new Animated.Value(0)).current;
+
+  // Pick this launch's background and advance the cycle. Mount-only on purpose:
+  // rotating on every focus would swap the artwork when returning from
+  // SaveSlots/Settings, which reads as a glitch rather than variety.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      let index = 0;
+      try {
+        const raw = await AsyncStorage.getItem(MENU_BG_CYCLE_KEY);
+        const n = raw != null ? parseInt(raw, 10) : 0;
+        index = Number.isFinite(n) && n >= 0 ? n % MENU_BACKGROUNDS.length : 0;
+      } catch {
+        index = 0;
+      }
+      try {
+        await AsyncStorage.setItem(MENU_BG_CYCLE_KEY, String((index + 1) % MENU_BACKGROUNDS.length));
+      } catch {
+        // Non-critical — worst case the same image shows again next launch.
+      }
+      if (!cancelled) setBgIndex(index);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleBgLoaded = useCallback(() => {
+    if (reduced) {
+      bgOpacity.setValue(1);
+      return;
+    }
+    Animated.timing(bgOpacity, {
+      toValue: 1,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [bgOpacity, reduced]);
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
@@ -482,6 +539,22 @@ export default function MainMenu() {
   return (
     <>
       <View style={styles.root}>
+        {/* This launch's background artwork, faded in over the flat base with a
+            uniform dark scrim for text/card contrast. pointerEvents none — pure
+            decoration; a single flat scrim (no gradients) so the fallback
+            renderer can never reintroduce a seam. */}
+        {bgIndex != null && (
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: bgOpacity }]}>
+            <Image
+              source={MENU_BACKGROUNDS[bgIndex]}
+              resizeMode="cover"
+              style={StyleSheet.absoluteFill}
+              onLoadEnd={handleBgLoaded}
+              accessibilityIgnoresInvertColors
+            />
+            <View style={styles.bgScrim} />
+          </Animated.View>
+        )}
         <View
           style={[
             styles.content,
@@ -592,6 +665,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: PAGE_BG,
+  },
+  // Uniform dark veil over the artwork so the title, cards, and labels keep
+  // full contrast on every image. Deliberately ONE flat layer — a stepped or
+  // gradient scrim would recreate the hard-seam bug this screen just escaped.
+  bgScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.52)',
   },
   content: {
     flex: 1,
@@ -724,7 +804,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.md,
     marginBottom: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingVertical: verticalScale(15),
@@ -769,7 +849,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: scale(8),
     borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingVertical: verticalScale(14),
