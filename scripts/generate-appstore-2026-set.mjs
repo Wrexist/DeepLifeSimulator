@@ -15,11 +15,15 @@ import { fileURLToPath } from 'url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = join(ROOT, 'screenshots', 'appstore-2026', 'rich-captures');
-const OUT = join(ROOT, 'screenshots', 'appstore-2026', 'iphone-6.9');
-mkdirSync(OUT, { recursive: true });
 
 const img = (f) => 'data:image/png;base64,' + readFileSync(join(CAP, f)).toString('base64');
+// Design canvas (layout is tuned to this); each output size renders the same
+// canvas scaled to fit exactly.
 const W = 1320, H = 2868;
+const SIZES = [
+  { dir: 'iphone-6.9', w: 1320, h: 2868 },
+  { dir: 'iphone-6.5', w: 1284, h: 2778 },
+];
 
 const S = {
   home: img('27-home-final.png'),
@@ -188,15 +192,26 @@ function frameHtml(f) {
 }
 
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-const pg = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-for (const f of FRAMES) {
-  const file = join(OUT, f.id + '.html');
-  writeFileSync(file, frameHtml(f));
-  await pg.goto('file://' + file, { waitUntil: 'networkidle' });
-  await new Promise(r => setTimeout(r, 500));
-  await pg.screenshot({ path: join(OUT, f.id + '.png') });
-  rmSync(file);
-  console.log('✓', f.id);
+for (const size of SIZES) {
+  const OUT = join(ROOT, 'screenshots', 'appstore-2026', size.dir);
+  mkdirSync(OUT, { recursive: true });
+  const pg = await browser.newPage({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: 1 });
+  const sx = size.w / W, sy = size.h / H;
+  for (const f of FRAMES) {
+    const file = join(OUT, f.id + '.html');
+    let html = frameHtml(f);
+    if (size.w !== W || size.h !== H) {
+      html = html.replace('<div class="canvas">',
+        `<div class="canvas" style="transform:scale(${sx},${sy}); transform-origin:top left;">`);
+    }
+    writeFileSync(file, html);
+    await pg.goto('file://' + file, { waitUntil: 'networkidle' });
+    await new Promise(r => setTimeout(r, 500));
+    await pg.screenshot({ path: join(OUT, f.id + '.png'), clip: { x: 0, y: 0, width: size.w, height: size.h } });
+    rmSync(file);
+    console.log('✓', size.dir, f.id);
+  }
+  await pg.close();
 }
 await browser.close();
-console.log('Done →', OUT);
+console.log('Done');
