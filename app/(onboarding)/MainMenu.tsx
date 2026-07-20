@@ -405,11 +405,13 @@ export default function MainMenu() {
     }, [refreshHasSaveState])
   );
 
-  const openWhatsNew = () => {
+  const openWhatsNew = useCallback(() => {
     haptic.light();
     setWhatsNewUnseen(false);
     setShowWhatsNew(true);
-  };
+  }, []);
+
+  const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
 
   const continueGame = () => {
     haptic.light();
@@ -704,7 +706,7 @@ export default function MainMenu() {
         </Suspense>
       )}
 
-      <WhatsNewModal visible={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
+      <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
     </>
   );
 }

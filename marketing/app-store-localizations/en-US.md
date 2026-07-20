@@ -15,7 +15,7 @@ Real Economics. Real Choices.
 ## promotional_text
 
 ```text
-You're 18 with empty pockets and unlimited potential. Take out loans, play the market, buy property, bend the rules-then pass it all on. Build a dynasty or go bankrupt trying. Your move.
+You're 18 with empty pockets and unlimited potential. Take out loans, play the market, buy property, bend the rules, then pass it all on. Build a dynasty or go bankrupt trying. Your move.
 ```
 
 ## keywords

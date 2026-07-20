@@ -15,7 +15,7 @@ Get Rich, Go Broke, Start Over
 ## promotional_text
 
 ```text
-Eighteen years old, flat broke, endless potential. Take out loans, punt on stocks, buy property, bend the rules-build a dynasty for generations or lose the lot. Game on.
+Eighteen years old, flat broke, endless potential. Take out loans, punt on stocks, buy property, bend the rules, build a dynasty for generations or lose the lot. Game on.
 ```
 
 ## keywords

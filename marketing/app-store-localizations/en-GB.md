@@ -15,7 +15,7 @@ Build Your Fortune Or Collapse
 ## promotional_text
 
 ```text
-You're 18 without a penny and everything to play for. Take out loans, play the markets, climb the property ladder, bend the rules-build generational wealth or lose the lot. Fancy your chances?
+You're 18 without a penny and everything to play for. Take out loans, play the markets, climb the property ladder, bend the rules, build generational wealth or lose the lot. Fancy your chances?
 ```
 
 ## keywords

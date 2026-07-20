@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Alert, Linking, Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
@@ -130,6 +130,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
+  const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
@@ -532,7 +534,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   icon={Megaphone}
                   label="What's New"
                   accent="#60A5FA"
-                  onPress={() => setShowWhatsNew(true)}
+                  onPress={openWhatsNew}
                   accessibilityLabel="See what's new in the latest update"
                 />
 
@@ -763,7 +765,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
       {/* What's New update log — NESTED inside this presented Modal (same
           iOS-safe nesting as RedeemCodeModal). */}
-      <WhatsNewModal visible={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
+      <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
 
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (

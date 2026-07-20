@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CHANGELOG, LATEST_VERSION, type ChangeCategory } from '@/lib/config/changelog';
 import { markWhatsNewSeen } from '@/utils/whatsNewSeen';
 import { haptic } from '@/utils/haptics';
+import { scale, fontScale } from '@/utils/scaling';
 
 interface WhatsNewModalProps {
   visible: boolean;
@@ -31,8 +32,8 @@ const CATEGORY: Record<
 };
 
 /**
- * "What's New" update log. A clean, player-friendly changelog popup opened from
- * the Main Menu (top-right button) and Settings.
+ * "What's New" NEWS & UPDATES feed. A clean, player-friendly changelog popup
+ * opened from the Main Menu (top-right button) and Settings.
  *
  * Uses a plain <Modal> so it works BOTH at the root (Main Menu) and NESTED
  * inside the already-presented Settings Modal — the same iOS-safe nesting
@@ -60,16 +61,19 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
     return () => animation.stop();
   }, [visible, progress]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     haptic.light();
     onClose();
-  };
+  }, [onClose]);
+
+  // Absorbs taps on the card so they don't fall through to the dismiss overlay.
+  const absorbPress = useCallback(() => {}, []);
 
   // Entrance: fade + a small scale/translate originating from the top-right.
   const opacity = progress;
-  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [-14, 0] });
-  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [16, 0] });
+  const scaleAnim = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [scale(-14), 0] });
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [scale(16), 0] });
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -83,16 +87,16 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
         <Animated.View
           style={[
             styles.cardWrap,
-            { marginTop: insets.top + 12, opacity, transform: [{ translateX }, { translateY }, { scale }] },
+            { marginTop: insets.top + scale(12), opacity, transform: [{ translateX }, { translateY }, { scale: scaleAnim }] },
           ]}
         >
           {/* Stop taps on the card from bubbling to the dismiss overlay. */}
-          <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => {}}>
+          <TouchableOpacity activeOpacity={1} style={styles.card} onPress={absorbPress}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.titleRow}>
                 <View style={styles.iconChip}>
-                  <Megaphone size={18} color="#60A5FA" />
+                  <Megaphone size={scale(18)} color="#60A5FA" />
                 </View>
                 <View style={styles.headerTextWrap}>
                   <Text style={styles.eyebrow}>NEWS &amp; UPDATES</Text>
@@ -108,7 +112,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 testID="whats-new-close"
               >
-                <X size={18} color="#F9FAFB" />
+                <X size={scale(18)} color="#F9FAFB" />
               </TouchableOpacity>
             </View>
 
@@ -144,7 +148,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                       return (
                         <View key={changeIndex} style={styles.changeRow}>
                           <View style={[styles.tag, { backgroundColor: meta.tint }]}>
-                            <TagIcon size={11} color={meta.color} />
+                            <TagIcon size={scale(11)} color={meta.color} />
                             <Text style={[styles.tagText, { color: meta.color }]}>{meta.label}</Text>
                           </View>
                           <View style={styles.changeTextWrap}>
@@ -173,40 +177,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 18,
+    paddingHorizontal: scale(18),
   },
   cardWrap: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: scale(460),
   },
   card: {
     width: '100%',
     maxHeight: '82%',
     backgroundColor: '#1E293B',
-    borderRadius: 22,
+    borderRadius: scale(22),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: 18,
-    paddingBottom: 8,
-    paddingHorizontal: 18,
+    paddingTop: scale(18),
+    paddingBottom: scale(8),
+    paddingHorizontal: scale(18),
     overflow: 'hidden',
     // Soft lift so the popup reads as floating above the menu.
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: scale(12) },
     shadowOpacity: 0.4,
-    shadowRadius: 24,
+    shadowRadius: scale(24),
     elevation: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: scale(14),
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
     flex: 1,
   },
   headerTextWrap: {
@@ -214,15 +218,15 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: '#60A5FA',
-    fontSize: 10,
+    fontSize: fontScale(10),
     fontWeight: '800',
-    letterSpacing: 1.5,
-    marginBottom: 2,
+    letterSpacing: scale(1.5),
+    marginBottom: scale(2),
   },
   iconChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(14),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(96, 165, 250, 0.13)',
@@ -230,20 +234,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(96, 165, 250, 0.33)',
   },
   title: {
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '800',
     color: '#F9FAFB',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '500',
     color: '#94A3B8',
-    marginTop: 1,
+    marginTop: scale(1),
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(148, 163, 184, 0.15)',
@@ -252,25 +256,25 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   scrollContent: {
-    paddingBottom: 8,
+    paddingBottom: scale(8),
   },
   versionBlock: {
-    paddingTop: 4,
+    paddingTop: scale(4),
   },
   versionBlockDivider: {
-    marginTop: 18,
-    paddingTop: 18,
+    marginTop: scale(18),
+    paddingTop: scale(18),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   verbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: scale(8),
+    marginBottom: scale(6),
   },
   versionText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '800',
     color: '#F8FAFC',
   },
@@ -278,80 +282,80 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(52, 211, 153, 0.16)',
     borderColor: 'rgba(52, 211, 153, 0.4)',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    borderRadius: scale(8),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(2),
   },
   latestChipText: {
     color: '#6EE7B7',
-    fontSize: 10,
+    fontSize: fontScale(10),
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
   },
   verbarSpacer: {
     flex: 1,
   },
   versionDate: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#64748B',
   },
   headline: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '800',
-    lineHeight: 21,
+    lineHeight: fontScale(21),
     color: '#F8FAFC',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   summary: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: fontScale(13),
+    lineHeight: fontScale(18),
     color: '#94A3B8',
-    marginBottom: 14,
+    marginBottom: scale(14),
   },
   changeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
+    gap: scale(10),
+    marginBottom: scale(12),
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 1,
-    minWidth: 78,
+    gap: scale(4),
+    borderRadius: scale(8),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    marginTop: scale(1),
+    minWidth: scale(78),
     justifyContent: 'center',
   },
   tagText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: scale(0.4),
   },
   changeTextWrap: {
     flex: 1,
   },
   changeTitle: {
-    fontSize: 14.5,
+    fontSize: fontScale(14.5),
     fontWeight: '700',
     color: '#F1F5F9',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   changeDescription: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: fontScale(13),
+    lineHeight: fontScale(18),
     color: '#94A3B8',
   },
   footer: {
     textAlign: 'center',
     color: '#64748B',
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: scale(10),
+    marginBottom: scale(6),
   },
 });
 

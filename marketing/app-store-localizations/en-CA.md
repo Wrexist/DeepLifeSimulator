@@ -15,7 +15,7 @@ Money, Choices, Consequences
 ## promotional_text
 
 ```text
-You're 18 with nothing but potential. Borrow, invest, buy real estate, bend the rules-build a dynasty that outlives you or go bankrupt trying. Every single choice compounds.
+You're 18 with nothing but potential. Borrow, invest, buy real estate, bend the rules, build a dynasty that outlives you or go bankrupt trying. Every single choice compounds.
 ```
 
 ## keywords
