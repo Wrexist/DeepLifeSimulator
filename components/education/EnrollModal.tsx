@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: responsiveFontSize.sm },
   rowValue: { fontSize: responsiveFontSize.sm },
   eligibilityText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  eligibilityRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  eligibilityRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5), marginTop: scale(4) },
   classHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
   classHeader: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
   classCount: { fontSize: responsiveFontSize.xs, fontWeight: '600' },

@@ -56,9 +56,20 @@ export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
       if (!isPristineUnstartedState(parsed)) return false;
 
       await deleteSaveSlot(slot);
-      const { deleteAllBackupsForSlot, clearProtectedState } = await import('@/utils/saveBackup');
-      await deleteAllBackupsForSlot(slot);
-      await clearProtectedState(slot);
+      // Best-effort cleanup: once the blob itself is gone the purge HAS
+      // happened — a backup/protected-state failure must not flip the return
+      // to "not purged" (MainMenu would re-show a Continue card for a slot
+      // that no longer exists).
+      try {
+        const { deleteAllBackupsForSlot, clearProtectedState } = await import('@/utils/saveBackup');
+        await deleteAllBackupsForSlot(slot);
+        await clearProtectedState(slot);
+      } catch (cleanupError) {
+        log.warn('Backup/protected-state cleanup failed after phantom purge (non-critical)', {
+          slot,
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        });
+      }
     }
     // Blob already gone (or just deleted): clear the summary either way so the
     // pre-game screens stop advertising the phantom.

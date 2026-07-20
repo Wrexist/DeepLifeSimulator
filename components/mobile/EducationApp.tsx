@@ -320,6 +320,13 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   );
   const [activeCampusEvent, setActiveCampusEvent] = useState<CampusEvent | null>(null);
   const [campusEventResult, setCampusEventResult] = useState<string | null>(null);
+  const eventResultTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    // Clear the result-line timer on unmount so it can't set state afterwards.
+    return () => {
+      if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
+    };
+  }, []);
   React.useEffect(() => {
     if (pendingCampusEventId) {
       setActiveCampusEvent((cur) => cur ?? getRandomCampusEvent());
@@ -332,7 +339,8 @@ function EducationAppInner({ onBack }: EducationAppProps) {
     queueSave();
     setCampusEventResult(choice.resultText);
     // The result line lingers briefly, then clears itself.
-    setTimeout(() => setCampusEventResult(null), 4000);
+    if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
+    eventResultTimerRef.current = setTimeout(() => setCampusEventResult(null), 4000);
   }, [setGameState, queueSave]);
 
   // --- Tab bodies --------------------------------------------------------

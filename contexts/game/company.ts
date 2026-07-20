@@ -370,7 +370,10 @@ export function sellCompany(
     if (!(prev.companies || []).some(c => c.id === companyId)) return prev;
     const companies = prev.companies.filter(c => c.id !== companyId);
     // Canonical credit path (MONEY_CEILING clamp + dailySummary tracking).
+    // Abort outright if the credit is rejected — the company must never be
+    // removed while the player receives nothing.
     const salePatch = applyMoneyDelta(prev, sellValue, 'Company sale');
+    if (!salePatch) return prev;
     // Drop the sold company's Hustle overlay and count the exit — the
     // Dashboard 'Sold' milestone reads lifetimeStats.totalCompaniesSold.
     let hustleApp = prev.hustleApp;
@@ -388,7 +391,7 @@ export function sellCompany(
     }
     return {
       ...prev,
-      ...(salePatch ?? {}),
+      ...salePatch,
       companies,
       company: prev.company?.id === companyId ? undefined : prev.company,
       hustleApp,

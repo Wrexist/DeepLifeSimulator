@@ -301,10 +301,16 @@ export const sellOwnedProperty = (
 
     // Canonical credit path — a big sale near the money cap must respect
     // MONEY_CEILING like every other credit (M-7 parity with the buy flow).
+    // Abort if the credit is rejected: the property must never leave the
+    // portfolio while the player receives nothing.
     const salePatch = applyMoneyDelta(prev, result.saleProceeds, `Property sale: ${property.name}`);
+    if (!salePatch) {
+      log.warn(`Sale aborted: invalid proceeds for ${property.name}`);
+      return prev;
+    }
     return {
       ...prev,
-      ...(salePatch ?? {}),
+      ...salePatch,
       realEstate: result.properties,
       loans: newLoans,
     };

@@ -33,6 +33,7 @@ import { addWorker, removeWorker, quoteCompanySaleValue, sellCompany } from '@/c
 import { useCompanyActions } from '@/contexts/game/CompanyActionsContext';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
 import { LAB_TYPES, getLabUpgradeCost, type LabType } from '@/lib/rd/labs';
 import { getAvailableTechnologies, getTechnologiesForCompany, getTechnologyById } from '@/lib/rd/technologyTree';
@@ -121,7 +122,7 @@ export default function CompanyDetailScreen({
     hustleHaptics.tap();
     Alert.alert(
       'Sell company',
-      `Sell for $${quote.toLocaleString()} (50% of what you've invested)? Staff, upgrades, and any IPO position are gone for good.`,
+      `Sell for ${formatMoney(quote)} (50% of what you've invested)? Staff, upgrades, and any IPO position are gone for good.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -631,7 +632,7 @@ export default function CompanyDetailScreen({
           icon={AlertTriangle}
           color={HUSTLE_COLORS.danger}
           title="Sell company"
-          subtitle={`Divest for $${(quoteCompanySaleValue(gameState, companyId) ?? 0).toLocaleString()} — 50% of invested`}
+          subtitle={`Divest for ${formatMoney(quoteCompanySaleValue(gameState, companyId) ?? 0)} — 50% of invested`}
           theme={theme}
           onPress={handleSellCompany}
         />

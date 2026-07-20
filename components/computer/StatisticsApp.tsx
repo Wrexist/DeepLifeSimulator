@@ -1530,7 +1530,7 @@ const styles = StyleSheet.create({
   claimChip: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full, borderWidth: 1 },
   claimChipText: { fontSize: fs.xs, fontWeight: '800' },
   // Icon+text layout for the Claim/Claimed chips (lucide Gem instead of 💎).
-  claimTagRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  claimTagRow: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
   recItem: { fontSize: fs.xs, marginTop: sp.xs },
   pastLifeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
 
