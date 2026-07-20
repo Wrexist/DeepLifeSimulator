@@ -4,6 +4,36 @@
 
 ## Patterns to Watch For
 
+### 2026-07-20 - Weekly audit: GameState schema drift — 3 fields added to initialState AFTER the version bump, no migration/repair
+
+- What went wrong: `luxuryItems` (Luxury & Collectibles, commit `5e3cdf1`) and `ambitionId` /
+  `ambitionCompletedMilestones` / `ambitionRewardClaimed` (Life Ambitions, commit `ffd82cc`) were
+  added to `contexts/game/initialState.ts` on 2026-07-13, TWO days after `STATE_VERSION` was bumped
+  to 22 and `migrations[22]` was written (`9ddff7e`, 2026-07-11). The version was never bumped to 23,
+  so `migrations[22]` doesn't set them and `repairGameState` didn't backfill them → every existing
+  v22 save loads with these fields `undefined`. Not an active crash today ONLY because every consumer
+  happens to guard (`?? []`, `!!`, `|| []`), but that is one un-guarded future reader away from a
+  crash on the entire installed base — the exact "GameState drift" Hard Rule #3 exists to prevent.
+- Why the static audit missed it: `audit-save.cjs` verifies migrations `[2..N]` are all *covered*
+  and that `STATE_VERSION` matches the docs — both were true. It does NOT diff `initialState`'s field
+  set against what the migrations/repair actually set, so a field added without a version bump is
+  invisible to it. The save-migration stress test also spreads `...initialGameState`, so tests always
+  start complete and never exercise a real v22 save that lacks the newer fields.
+- How it was found: the weekly-audit Crash/Save subagent traced each `initialState` field added this
+  cycle back through git to confirm whether a migration + a `repairGameState` backfill existed. Fixed
+  by bumping `STATE_VERSION` to 23, adding an idempotent `migrations[23]` that backfills the three
+  concrete-default fields (only-if-missing), and mirroring the backfill into `repairGameState` for
+  partial/CloudSync saves. `ambitionId` intentionally omitted — its default is `undefined`, so an
+  absent key already equals the default. Updated DEV.md / WORKFLOW.md / CLAUDE.md to state v23.
+- Rule: adding a field to `initialState.ts` is a THREE-part change that must land together — (a) a
+  migration that bumps `STATE_VERSION` and backfills it, (b) a `repairGameState` backfill for partial
+  saves, (c) inclusion in `createTestGameState`. A field that consumers only ever read via `?? []` is
+  NOT safe drift — it's a latent crash waiting for the first non-guarded reader. Consider a static
+  check that diffs the `initialState` key set against fields set by the migration ladder + repair, so
+  this class fails the audit instead of a subagent having to catch it. (The `.claude/agents/*` +
+  `.claude/prompts/*` the SKILL references still don't exist in-repo — ran the deep pass with
+  general-purpose subagents again; same note as 2026-07-07.)
+
 ### 2026-07-07 - Weekly audit: divergent duplicate code paths (auto vs. manual wedding) + one unguarded call in a per-tick loop
 
 - Two code paths that reach the SAME outcome must produce IDENTICAL state, or one silently drifts.

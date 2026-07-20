@@ -312,6 +312,40 @@ describe('Save migration deep audit', () => {
     expect(result.state.darkWeb.heat).toBe(0);
   });
 
+  it('v23: backfills luxuryItems + ambition fields on a v22 save that predates them', () => {
+    // Reproduce the drift: a save at v22 that never carried the Luxury /
+    // Life-Ambition fields (added to initialState AFTER v22 shipped).
+    const state = makeV10State() as Record<string, unknown>;
+    state.version = 22;
+    delete state.luxuryItems;
+    delete state.ambitionId;
+    delete state.ambitionCompletedMilestones;
+    delete state.ambitionRewardClaimed;
+
+    const result = runMigrations(state);
+    expect(result.state.version).toBe(CURRENT_STATE_VERSION);
+    expect(Array.isArray(result.state.luxuryItems)).toBe(true);
+    expect(result.state.luxuryItems).toEqual([]);
+    expect(Array.isArray(result.state.ambitionCompletedMilestones)).toBe(true);
+    expect(result.state.ambitionCompletedMilestones).toEqual([]);
+    expect(result.state.ambitionRewardClaimed).toBe(false);
+  });
+
+  it('v23: does not clobber a save that already carries ambition/luxury data', () => {
+    const state = makeV10State() as Record<string, unknown>;
+    state.version = 22;
+    state.luxuryItems = ['rolex'];
+    state.ambitionId = 'tycoon';
+    state.ambitionCompletedMilestones = ['first_million'];
+    state.ambitionRewardClaimed = true;
+
+    const result = runMigrations(state);
+    expect(result.state.luxuryItems).toEqual(['rolex']);
+    expect(result.state.ambitionId).toBe('tycoon');
+    expect(result.state.ambitionCompletedMilestones).toEqual(['first_million']);
+    expect(result.state.ambitionRewardClaimed).toBe(true);
+  });
+
   // ── PRESERVATION: existing fields untouched ────────────────────────────
   it('Preservation: stats / weeksLived / date are untouched by ladder', () => {
     const state = makeV10State();
