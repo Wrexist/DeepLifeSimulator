@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   Modal,
   ScrollView,
   StyleSheet,
@@ -39,8 +40,10 @@ const CATEGORY: Record<
  * inside the already-presented Settings Modal — the same iOS-safe nesting
  * RedeemCodeModal/DevToolsModal rely on (never a sibling root Modal on iOS).
  *
- * The card is anchored to the top and animates out of the top-right corner
- * (where the Main Menu button lives) so it reads as popping from that button.
+ * Layout: a tall sheet that fills the screen between the safe-area insets, with
+ * a fixed header and a scrolling body. Tap-to-dismiss lives on a backdrop
+ * BEHIND the sheet so the ScrollView keeps its gestures (a ScrollView wrapped
+ * in a Touchable loses scrolling to the touchable's press responder).
  */
 function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
   const insets = useSafeAreaInsets();
@@ -66,33 +69,35 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
     onClose();
   }, [onClose]);
 
-  // Absorbs taps on the card so they don't fall through to the dismiss overlay.
-  const absorbPress = useCallback(() => {}, []);
-
-  // Entrance: fade + a small scale/translate originating from the top-right.
+  // Entrance: fade + a small rise/scale so the sheet settles into place.
   const opacity = progress;
-  const scaleAnim = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [scale(-14), 0] });
-  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [scale(16), 0] });
+  const scaleAnim = progress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] });
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [scale(12), 0] });
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={handleClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close What's New"
-      >
+      <View style={styles.overlay}>
+        {/* Dismiss backdrop — sits BEHIND the sheet so taps outside close the
+            popup while the ScrollView inside keeps full gesture control. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close What's New"
+        />
         <Animated.View
           style={[
             styles.cardWrap,
-            { marginTop: insets.top + scale(12), opacity, transform: [{ translateX }, { translateY }, { scale: scaleAnim }] },
+            {
+              marginTop: insets.top + scale(10),
+              marginBottom: insets.bottom + scale(10),
+              opacity,
+              transform: [{ translateY }, { scale: scaleAnim }],
+            },
           ]}
         >
-          {/* Stop taps on the card from bubbling to the dismiss overlay. */}
-          <TouchableOpacity activeOpacity={1} style={styles.card} onPress={absorbPress}>
-            {/* Header */}
+          <View style={styles.card}>
+            {/* Header (fixed) */}
             <View style={styles.header}>
               <View style={styles.titleRow}>
                 <View style={styles.iconChip}>
@@ -116,10 +121,11 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
               </TouchableOpacity>
             </View>
 
+            {/* Scrolling body (fills the rest of the sheet) */}
             <ScrollView
               style={styles.scroll}
               contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator
             >
               {CHANGELOG.map((entry, entryIndex) => {
                 const isLatest = entry.version === LATEST_VERSION;
@@ -164,9 +170,9 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
 
               <Text style={styles.footer}>Thanks for playing DeepLife 💙</Text>
             </ScrollView>
-          </TouchableOpacity>
+          </View>
         </Animated.View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 }
@@ -175,23 +181,25 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: scale(18),
+    paddingHorizontal: scale(16),
   },
+  // Fills the vertical space between the safe-area insets (margins applied
+  // inline) so the sheet is a tall, screen-filling panel rather than a small
+  // floating card. flex:1 gives the ScrollView a definite height to scroll in.
   cardWrap: {
     width: '100%',
-    maxWidth: scale(460),
+    maxWidth: scale(520),
+    flex: 1,
   },
   card: {
-    width: '100%',
-    maxHeight: '82%',
+    flex: 1,
     backgroundColor: '#1E293B',
     borderRadius: scale(22),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: scale(18),
-    paddingBottom: scale(8),
     paddingHorizontal: scale(18),
     overflow: 'hidden',
     // Soft lift so the popup reads as floating above the menu.
@@ -205,7 +213,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: scale(14),
+    paddingBottom: scale(14),
+    marginBottom: scale(4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   titleRow: {
     flexDirection: 'row',
@@ -253,10 +264,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.15)',
   },
   scroll: {
-    flexGrow: 0,
+    flex: 1,
   },
   scrollContent: {
-    paddingBottom: scale(8),
+    paddingTop: scale(14),
+    paddingBottom: scale(20),
   },
   versionBlock: {
     paddingTop: scale(4),
@@ -354,8 +366,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: fontScale(12),
     fontWeight: '600',
-    marginTop: scale(10),
-    marginBottom: scale(6),
+    marginTop: scale(14),
+    marginBottom: scale(4),
   },
 });
 
