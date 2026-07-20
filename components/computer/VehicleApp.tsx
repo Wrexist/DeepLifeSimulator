@@ -466,10 +466,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           ) : (
             <ActionChip icon={Star} label="Set active" fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleSetActive(v)} a11y={`Set ${v.name} as active`} />
           )}
-          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} />
+          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
         </View>
         <View style={styles.actionRow}>
-          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
+          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
       </View>
@@ -630,8 +630,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
         {/* Actions */}
         <View style={styles.actionRow}>
-          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} />
-          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} />
+          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
+          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
 
@@ -877,8 +877,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                       key={p.type}
                       accessibilityRole="button"
                       accessibilityLabel={`Buy ${p.type} insurance for ${v.name}`}
+                      accessibilityState={{ disabled: cash < p.monthlyCost * 6 }}
+                      disabled={cash < p.monthlyCost * 6}
                       onPress={() => handleBuyInsurance(v, p.type)}
-                      style={[styles.planBtn, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}
+                      style={[styles.planBtn, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }, cash < p.monthlyCost * 6 && { opacity: 0.55 }]}
                     >
                       <Text style={[styles.planType, { color: ORANGE }]}>{p.type}</Text>
                       <Text style={[styles.planCoverage, { color: theme.text }]}>{p.coveragePercent}%</Text>
@@ -1116,6 +1118,7 @@ function ActionChip({
   color,
   onPress,
   a11y,
+  disabled,
 }: {
   icon?: React.ComponentType<{ size: number; color: string }>;
   label: string;
@@ -1123,13 +1126,17 @@ function ActionChip({
   color: string;
   onPress: () => void;
   a11y: string;
+  /** Grey out + block taps (unaffordable / nothing to do) — same 0.55 pattern as the dealer buy card. */
+  disabled?: boolean;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={a11y}
-      style={[styles.actionBtn, { backgroundColor: fill }]}
+      accessibilityState={{ disabled: !!disabled }}
+      style={[styles.actionBtn, { backgroundColor: fill }, disabled && { opacity: 0.55 }]}
     >
       {Icon && <Icon size={scale(12)} color={color} />}
       <Text style={[styles.actionBtnText, { color }]} numberOfLines={1}>{label}</Text>

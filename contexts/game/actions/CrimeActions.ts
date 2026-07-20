@@ -48,13 +48,34 @@ function setBtcOwned(state: GameState, owned: number): GameState {
  * outcome still debits the BTC (you paid the vendor) but you don't get anything.
  */
 export const buyMarketListing = (
+  currentState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   listingId: string
-) => {
+): { success: boolean; outcome?: 'success' | 'scam'; message: string } => {
   // P1-2: pre-roll outside the updater — React 19 StrictMode runs the updater
   // twice in dev; rolling Math.random() inside would produce a different
   // outcome on each invocation.
   const purchaseRoll = Math.random();
+
+  // E-2: no transactions once the player is dead — reject in the pre-check so
+  // setGameState is never even called (the updater keeps its own guard too).
+  if (currentState.showDeathPopup) {
+    return { success: false, message: 'Unavailable right now.' };
+  }
+
+  // Evaluate on the caller's snapshot so the outcome can be reported to the
+  // UI (same pattern as runJobStage below) — a scam debits the full cost and
+  // grants nothing, which used to happen with zero feedback.
+  const snapshot = ensureDarkWeb(currentState);
+  if (!snapshot.darkWeb) return { success: false, message: 'Dark web is unavailable.' };
+  const snapListing = snapshot.darkWeb.listings.find((l) => l.id === listingId);
+  if (!snapListing) return { success: false, message: 'Listing is no longer available.' };
+  if (getBtcOwned(snapshot) < snapListing.costBtc) {
+    return { success: false, message: `You need ${snapListing.costBtc.toFixed(4)} ₿ for this.` };
+  }
+  const preview = attemptPurchase(snapshot.darkWeb, listingId, purchaseRoll);
+  if (!preview.ok) return { success: false, message: preview.reason };
+
   setGameState((prev) => {
     if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureDarkWeb(prev);
@@ -77,6 +98,18 @@ export const buyMarketListing = (
     const stateAfterBtc = setBtcOwned(state, btc - result.result.spentBtc);
     return { ...stateAfterBtc, darkWeb: result.result.dw };
   });
+
+  return preview.result.outcome === 'scam'
+    ? {
+        success: true,
+        outcome: 'scam',
+        message: `Scammed. The vendor took your ${preview.result.spentBtc.toFixed(4)} ₿ and vanished.`,
+      }
+    : {
+        success: true,
+        outcome: 'success',
+        message: `Delivered. ${snapListing.title} is yours.`,
+      };
 };
 
 // ---------------------------------------------------------------------------

@@ -43,6 +43,7 @@ import {
   Briefcase,
   Flame,
   Crown,
+  Gem,
   Zap,
   Star,
   Clock,
@@ -1225,17 +1226,19 @@ function TimelineItem({
             <Text style={[styles.tagText, { color: cc }]}>{milestone.category}</Text>
           </View>
           {claimed ? (
-            <View style={[styles.tag, { backgroundColor: withAlpha(accent.success, 0.14) }]}>
-              <Text style={[styles.tagText, { color: accent.success }]}>Claimed +{reward}💎</Text>
+            <View style={[styles.tag, styles.claimTagRow, { backgroundColor: withAlpha(accent.success, 0.14) }]}>
+              <Text style={[styles.tagText, { color: accent.success }]}>Claimed +{reward}</Text>
+              <Gem size={scale(10)} color={accent.success} />
             </View>
           ) : (
             <TouchableOpacity
               onPress={onClaim}
               accessibilityRole="button"
               accessibilityLabel={`Claim ${reward} gems for ${milestone.label}`}
-              style={[styles.claimChip, { backgroundColor: withAlpha(accent.gold, 0.16), borderColor: withAlpha(accent.gold, 0.5) }]}
+              style={[styles.claimChip, styles.claimTagRow, { backgroundColor: withAlpha(accent.gold, 0.16), borderColor: withAlpha(accent.gold, 0.5) }]}
             >
-              <Text style={[styles.claimChipText, { color: accent.gold }]}>Claim +{reward}💎</Text>
+              <Text style={[styles.claimChipText, { color: accent.gold }]}>Claim +{reward}</Text>
+              <Gem size={scale(11)} color={accent.gold} />
             </TouchableOpacity>
           )}
         </View>
@@ -1526,6 +1529,8 @@ const styles = StyleSheet.create({
   tagText: { fontSize: fs.xs, fontWeight: '700', textTransform: 'capitalize' },
   claimChip: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full, borderWidth: 1 },
   claimChipText: { fontSize: fs.xs, fontWeight: '800' },
+  // Icon+text layout for the Claim/Claimed chips (lucide Gem instead of 💎).
+  claimTagRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   recItem: { fontSize: fs.xs, marginTop: sp.xs },
   pastLifeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
 

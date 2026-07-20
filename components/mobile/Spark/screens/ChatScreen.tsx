@@ -85,6 +85,9 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
       saveGame?.();
     } else {
       sparkHaptics.error();
+      // Surface WHY (e.g. already dating someone) — a silent haptic made the
+      // header heart read as a dead button.
+      setError(result.message);
     }
   }, [setGameState, gameState, matchId, onOpenPartnerProfile, saveGame]);
 

@@ -139,13 +139,16 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                   />
                 )}
                 {quote.scholarship.eligibility !== 'none' && (
-                  <Text style={[styles.eligibilityText, { color: accent.success }]}>
-                    {quote.scholarship.eligibility === 'full'
-                      ? '🎓 Full ride — your GPA earned you this'
-                      : quote.scholarship.eligibility === 'half'
-                        ? '🎓 Half-off — your record speaks for itself'
-                        : '🎓 Partial aid awarded'}
-                  </Text>
+                  <View style={styles.eligibilityRow}>
+                    <GraduationCap size={scale(13)} color={accent.success} />
+                    <Text style={[styles.eligibilityText, { color: accent.success }]}>
+                      {quote.scholarship.eligibility === 'full'
+                        ? 'Full ride — your GPA earned you this'
+                        : quote.scholarship.eligibility === 'half'
+                          ? 'Half-off — your record speaks for itself'
+                          : 'Partial aid awarded'}
+                    </Text>
+                  </View>
                 )}
               </View>
             )}
@@ -346,7 +349,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   rowLabel: { fontSize: responsiveFontSize.sm },
   rowValue: { fontSize: responsiveFontSize.sm },
-  eligibilityText: { fontSize: responsiveFontSize.xs, fontWeight: '700', marginTop: 4 },
+  eligibilityText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  eligibilityRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   classHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
   classHeader: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
   classCount: { fontSize: responsiveFontSize.xs, fontWeight: '600' },

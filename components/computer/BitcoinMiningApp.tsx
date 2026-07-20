@@ -52,6 +52,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
 import {
   repairRig,
@@ -381,9 +382,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       };
       const miners = { ...(w.miners ?? {}) };
       miners[tierId] = (miners[tierId] ?? 0) + 1;
+      // Canonical debit (same guards the trading side uses — see
+      // CryptoTradingActions applyMoneyDelta note).
+      const minerPatch = applyMoneyDelta(prev, -price, 'Buy miner');
+      if (!minerPatch) return prev;
       return {
         ...prev,
-        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - price },
+        ...minerPatch,
         warehouse: { ...w, miners },
       };
     });

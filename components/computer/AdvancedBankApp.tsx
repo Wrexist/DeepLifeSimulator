@@ -1303,6 +1303,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Set weekly budget"
         subtitle={budgetTargetCategory ? `Weekly cap for ${budgetTargetCategory}. Enter 0 to clear.` : undefined}
         confirmLabel="Set cap"
+        // "Enter 0 to clear" needs 0 to be confirmable (setBudgetTarget deletes
+        // the cap when amount <= 0) — without this the promise was impossible.
+        allowZero
         presets={[100, 250, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setBudgetTargetCategory(null)}

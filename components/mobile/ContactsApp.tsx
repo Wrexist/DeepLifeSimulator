@@ -47,6 +47,12 @@ import {
   ChevronRight,
   AlertTriangle,
   Handshake,
+  Award,
+  Baby,
+  Ban,
+  Gem,
+  Pin,
+  Target,
   X as XIcon,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -517,9 +523,9 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     const innerLine = [styles.innerLifeLine, { color: theme.textSecondary }];
     const milestone =
       r.marriageWeek != null
-        ? `💍 Married since wk ${r.marriageWeek}${r.anniversaryWeek ? ` · anniversary wk ${r.anniversaryWeek}` : ''}`
+        ? `Married since wk ${r.marriageWeek}${r.anniversaryWeek ? ` · anniversary wk ${r.anniversaryWeek}` : ''}`
         : r.engagementWeek != null
-          ? `💍 Engaged since wk ${r.engagementWeek}`
+          ? `Engaged since wk ${r.engagementWeek}`
           : null;
     return (
       <View key={c.id} style={cardSurface}>
@@ -595,54 +601,87 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                 attraction/respect), goals, gift tastes, and memories. */}
             {r.npcOpinion ? (
               <View style={styles.opinionRow}>
-                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                  🤝 Trust <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
-                </Text>
-                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                  💘 Attraction <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
-                </Text>
-                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                  🎖️ Respect <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
-                </Text>
+                <View style={styles.innerLifeRow}>
+                  <Handshake size={fontScale(12)} color={theme.textSecondary} />
+                  <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                    Trust <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
+                  </Text>
+                </View>
+                <View style={styles.innerLifeRow}>
+                  <Heart size={fontScale(12)} color={theme.textSecondary} />
+                  <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                    Attraction <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
+                  </Text>
+                </View>
+                <View style={styles.innerLifeRow}>
+                  <Award size={fontScale(12)} color={theme.textSecondary} />
+                  <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                    Respect <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
+                  </Text>
+                </View>
               </View>
             ) : null}
             {milestone ? (
-              <Text style={innerLine} numberOfLines={1}>{milestone}</Text>
+              <View style={styles.innerLifeRow}>
+                <Gem size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>{milestone}</Text>
+              </View>
             ) : null}
             {r.isPregnant ? (
-              <Text style={innerLine} numberOfLines={1}>
-                🤰 Expecting{r.pregnancyChildName ? ` · ${r.pregnancyChildName}` : ''}
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <Baby size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  Expecting{r.pregnancyChildName ? ` · ${r.pregnancyChildName}` : ''}
+                </Text>
+              </View>
             ) : null}
             {/* Current WANT — the actionable "right now" ask (rotates over time).
                 Satisfying it via the matching action below gives a bond boost. */}
             {r.npcWant ? (
-              <Text style={innerLine} numberOfLines={1}>
-                💭 Right now: <Text style={{ color: theme.text, fontWeight: '700' }}>{r.npcWant.label}</Text>
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <MessageCircle size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  Right now: <Text style={{ color: theme.text, fontWeight: '700' }}>{r.npcWant.label}</Text>
+                </Text>
+              </View>
             ) : null}
             {(r.npcGoals ?? []).filter((g) => !g.fulfilled).slice(0, 3).map((g) => (
-              <Text key={g.id} style={innerLine} numberOfLines={1}>🎯 Dreams of: {g.label}</Text>
+              <View key={g.id} style={styles.innerLifeRow}>
+                <Target size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>Dreams of: {g.label}</Text>
+              </View>
             ))}
             {r.giftPreferences && r.giftPreferences.length > 0 ? (
-              <Text style={innerLine} numberOfLines={1}>
-                🎁 Loves: {r.giftPreferences.slice(0, 3).join(', ')}
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <Gift size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  Loves: {r.giftPreferences.slice(0, 3).join(', ')}
+                </Text>
+              </View>
             ) : null}
             {r.giftDislikes && r.giftDislikes.length > 0 ? (
-              <Text style={innerLine} numberOfLines={1}>
-                🚫 Dislikes: {r.giftDislikes.slice(0, 3).join(', ')}
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <Ban size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  Dislikes: {r.giftDislikes.slice(0, 3).join(', ')}
+                </Text>
+              </View>
             ) : null}
             {typeof r.moneyRequestAttempts === 'number' && r.moneyRequestAttempts > 0 ? (
-              <Text style={innerLine} numberOfLines={1}>
-                💵 Asked for money {r.moneyRequestAttempts}× recently{r.moneyRequestAttempts >= 5 ? " · can't refuse next time" : ''}
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <DollarSign size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  Asked for money {r.moneyRequestAttempts}× recently{r.moneyRequestAttempts >= 5 ? " · can't refuse next time" : ''}
+                </Text>
+              </View>
             ) : null}
             {r.lastLifeEvent ? (
-              <Text style={innerLine} numberOfLines={1}>
-                📌 {r.lastLifeEvent.event} (wk {r.lastLifeEvent.weeksLived})
-              </Text>
+              <View style={styles.innerLifeRow}>
+                <Pin size={fontScale(12)} color={theme.textSecondary} />
+                <Text style={innerLine} numberOfLines={1}>
+                  {r.lastLifeEvent.event} (wk {r.lastLifeEvent.weeksLived})
+                </Text>
+              </View>
             ) : null}
             {r.npcMemories && r.npcMemories.length > 0 ? (
               <Text
@@ -1559,7 +1598,9 @@ const styles = StyleSheet.create({
   dateRowPrice: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
   opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   opinionStat: { fontSize: fontScale(11) },
-  innerLifeLine: { fontSize: fontScale(11.5) },
+  innerLifeLine: { flex: 1, fontSize: fontScale(11.5) },
+  // Icon + text row for the inner-life readouts (lucide glyphs, not emoji).
+  innerLifeRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
   // Labelled fact pills (job / income / dates / gifts) on a surfaceElevated inset.
   factRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   factChip: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.md },

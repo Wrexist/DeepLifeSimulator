@@ -402,7 +402,7 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
     // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
       <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? '#0F172A' : '#F8FAFC' }}>
-        <AppComponent onBack={() => setActiveApp(null)} />
+        <AppComponent onBack={() => { buttonPress(); setActiveApp(null); }} />
       </View>
     );
   }

@@ -265,7 +265,10 @@ export function MobileScreenContent({ embedded = false }: { embedded?: boolean }
   }
 
   const columns = isTablet() ? 3 : 2;
-  const cardGap = responsiveSpacing.md;
+  // Must match the appsGrid style's `gap` (sm) — sizing cards for a larger gap
+  // than the layout renders makes space-evenly redistribute the leftovers into
+  // uneven, header-misaligned columns (computer.tsx already uses sm for both).
+  const cardGap = responsiveSpacing.sm;
   const horizontalPad = responsivePadding.horizontal;
   const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
 

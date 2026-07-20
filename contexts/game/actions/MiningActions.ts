@@ -6,6 +6,7 @@ import { Dispatch, SetStateAction } from 'react';
 import { GameState, Warehouse, MinerUpgrade, MiningPool, StakingPosition, MiningStatistics } from '../types';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { MINER_REPAIR_COSTS } from './weekly/applyMiningWarehouse';
+import { applyMoneyDelta } from './MoneyActions';
 
 // Tiny positive floor written to `autoRepairWeeklyCost` when the player arms
 // auto-repair. It exists to (a) satisfy the truthy gate the warehouse durability
@@ -71,12 +72,13 @@ export function repairRig(
     if ((prev.stats?.money ?? 0) < freshCost) return prev;
 
     didRepair = true;
+    // Canonical money path (NaN/ceiling guards + dailySummary tracking) — the
+    // affordability re-check above keeps behavior identical.
+    const repairPatch = applyMoneyDelta(prev, -freshCost, 'Miner repair');
+    if (!repairPatch) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: Math.max(0, prev.stats.money - freshCost),
-      },
+      ...repairPatch,
       warehouse: {
         ...prev.warehouse,
         minerDurability: {
@@ -400,12 +402,11 @@ export function buyMinerUpgrade(
       ? upgrades.map((u, i) => i === upgradeIndex ? newUpgrade : u)
       : [...upgrades, newUpgrade];
 
+    const upgradePatch = applyMoneyDelta(prev, -freshInflatedCost, 'Miner upgrade');
+    if (!upgradePatch) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: Math.max(0, prev.stats.money - freshInflatedCost),
-      },
+      ...upgradePatch,
       warehouse: {
         ...prev.warehouse,
         upgrades: updatedUpgrades,
@@ -717,12 +718,11 @@ export function upgradeEnergySystem(
     if (prev.warehouse.energyType === energyType) return prev;
     if ((prev.stats?.money ?? 0) < cost) return prev;
 
+    const energyPatch = applyMoneyDelta(prev, -cost, 'Energy system upgrade');
+    if (!energyPatch) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: Math.max(0, prev.stats.money - cost),
-      },
+      ...energyPatch,
       warehouse: {
         ...prev.warehouse,
         energyType,
@@ -775,12 +775,11 @@ export function upgradeAutomation(
     if (prevLevel !== currentLevel || prevLevel >= 5) return prev;
     if ((prev.stats?.money ?? 0) < inflatedCost) return prev;
 
+    const automationPatch = applyMoneyDelta(prev, -inflatedCost, 'Warehouse automation');
+    if (!automationPatch) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: Math.max(0, prev.stats.money - inflatedCost),
-      },
+      ...automationPatch,
       warehouse: {
         ...prev.warehouse,
         automationLevel: prevLevel + 1,

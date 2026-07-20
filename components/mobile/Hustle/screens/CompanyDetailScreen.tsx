@@ -29,7 +29,7 @@ import { getGlassCard, getGlassButton, getPlatformShadows } from '@/utils/glassm
 import KPICard from '../components/KPICard';
 import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
-import { addWorker, removeWorker } from '@/contexts/game/company';
+import { addWorker, removeWorker, quoteCompanySaleValue, sellCompany } from '@/contexts/game/company';
 import { useCompanyActions } from '@/contexts/game/CompanyActionsContext';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -112,6 +112,36 @@ export default function CompanyDetailScreen({
     removeWorker(gameState, setGameState, companyId);
     saveGame?.();
   }, [gameState, setGameState, companyId, saveGame]);
+
+  // Exit path — the suite let you found/staff/IPO/acquire but never divest.
+  // 50% of total (inflated) investment, quoted up front in the confirm.
+  const handleSellCompany = useCallback(() => {
+    const quote = quoteCompanySaleValue(gameState, companyId);
+    if (quote == null) return;
+    hustleHaptics.tap();
+    Alert.alert(
+      'Sell company',
+      `Sell for $${quote.toLocaleString()} (50% of what you've invested)? Staff, upgrades, and any IPO position are gone for good.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sell',
+          style: 'destructive',
+          onPress: () => {
+            const r = sellCompany(gameState, setGameState, companyId);
+            if (r.success) {
+              hustleHaptics.success();
+              saveGame?.();
+              onBack();
+            } else {
+              hustleHaptics.error();
+              if (r.message) Alert.alert('Sale failed', r.message);
+            }
+          },
+        },
+      ],
+    );
+  }, [gameState, setGameState, companyId, saveGame, onBack]);
 
   const handleBuyUpgrade = useCallback((upgradeId: string) => {
     const r = buyCompanyUpgrade(gameState, setGameState, upgradeId, { updateMoney }, companyId);
@@ -595,6 +625,15 @@ export default function CompanyDetailScreen({
           theme={theme}
           onPress={() => { hustleHaptics.tap(); onOpenAcquisitions(); }}
           badge={pendingAcqCount}
+        />
+
+        <ActionRow
+          icon={AlertTriangle}
+          color={HUSTLE_COLORS.danger}
+          title="Sell company"
+          subtitle={`Divest for $${(quoteCompanySaleValue(gameState, companyId) ?? 0).toLocaleString()} — 50% of invested`}
+          theme={theme}
+          onPress={handleSellCompany}
         />
 
         {/* ───────── Family legacy department ───────── */}

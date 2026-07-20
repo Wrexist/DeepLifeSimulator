@@ -407,8 +407,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         {
           text: 'Buy',
           onPress: () => {
-            buyMarketListing(setGameState, listing.id);
+            const res = buyMarketListing(gameState, setGameState, listing.id);
             queueSave();
+            // Surface the outcome — a scam debits the full cost and grants
+            // nothing, which read as a silent BTC drain without this.
+            Alert.alert(res.outcome === 'scam' ? 'Scammed!' : res.success ? 'Purchase Complete' : 'Purchase Failed', res.message);
           },
         },
       ]
@@ -1445,7 +1448,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
       <LaunderModal
         visible={showLaunder}
-        dirtyBtc={dw.dirtyBtc}
+        dirtyBtc={dw.dirtyBtc ?? 0}
         launderingSkillLevel={dw.skills.laundering?.level ?? 1}
         frontCount={countLaunderingFronts(gameState)}
         darkMode={darkMode}
@@ -1457,12 +1460,15 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         }}
       />
 
+      {/* `?? 0` guards: a partial darkWeb save can lack cleanBtc/dirtyBtc, and
+          this modal is always mounted — an unguarded .toFixed threw in render. */}
       <AmountInputModal
         visible={showCashOut}
         title="Cash out clean BTC"
-        subtitle={`Clean wallet: ${dw.cleanBtc.toFixed(4)} ₿. Moves into your regular BTC holdings.`}
+        subtitle={`Clean wallet: ${(dw.cleanBtc ?? 0).toFixed(4)} ₿. Moves into your regular BTC holdings.`}
         confirmLabel="Cash Out"
-        maxAmount={dw.cleanBtc}
+        maxAmount={dw.cleanBtc ?? 0}
+        currency="btc"
         presets={[0.1, 0.5, 1]}
         darkMode={darkMode}
         onClose={() => setShowCashOut(false)}

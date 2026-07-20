@@ -54,7 +54,8 @@ const BOOST_DURATION_WEEKS = 1;
 // Fresh "liked you" entries granted immediately on Boost purchase — a tangible,
 // on-screen payoff so the 50-gem spend visibly does something right away.
 const BOOST_LIKED_YOU_BONUS = 3;
-const REWIND_GEM_COST = 20;
+// Exported so SwipeScreen's confirm dialog can quote the real price.
+export const REWIND_GEM_COST = 20;
 
 // ─────────────────────────────────────────────────────────────────────
 // Internal helpers

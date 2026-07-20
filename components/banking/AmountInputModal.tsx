@@ -12,7 +12,7 @@ const LinearGradient = LinearGradientFallback;
 interface Props {
   visible: boolean;
   title: string;
-  /** Helper text shown under the title, e.g. "From: Checking Â· Available $1,200". */
+  /** Helper text shown under the title, e.g. "From: Checking · Available $1,200". */
   subtitle?: string;
   /** Confirm button label. Default "Confirm". */
   confirmLabel?: string;
@@ -20,6 +20,14 @@ interface Props {
   maxAmount?: number;
   /** Suggestions shown as quick chips. */
   presets?: number[];
+  /** Allow confirming 0 (e.g. "enter 0 to clear a budget cap"). Default false. */
+  allowZero?: boolean;
+  /**
+   * Unit the amount is denominated in. 'usd' (default) renders $-prefixed
+   * presets and a floored Max; 'btc' renders ₿ amounts with decimals kept —
+   * flooring a sub-1 BTC Max to 0 made the chip a no-op.
+   */
+  currency?: 'usd' | 'btc';
   darkMode: boolean;
   onConfirm: (amount: number) => void;
   onClose: () => void;
@@ -32,10 +40,15 @@ export default function AmountInputModal({
   confirmLabel = 'Confirm',
   maxAmount,
   presets,
+  allowZero = false,
+  currency = 'usd',
   darkMode,
   onConfirm,
   onClose,
 }: Props) {
+  const isBtc = currency === 'btc';
+  const unitPrefix = isBtc ? '₿' : '$';
+  const formatAmount = (n: number) => (isBtc ? `₿${n.toFixed(4)}` : formatMoney(n));
   const theme = getThemeColors(darkMode);
   const [text, setText] = useState('');
 
@@ -44,7 +57,7 @@ export default function AmountInputModal({
   }, [visible]);
 
   const amount = parseFloat(text) || 0;
-  const valid = amount > 0 && (maxAmount == null || amount <= maxAmount);
+  const valid = (allowZero ? amount >= 0 : amount > 0) && (maxAmount == null || amount <= maxAmount);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -63,7 +76,7 @@ export default function AmountInputModal({
           {subtitle && <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>}
 
           <View style={[styles.inputWrap, { borderColor: valid ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
-            <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
+            <Text style={[styles.currency, { color: theme.textSecondary }]}>{unitPrefix}</Text>
             <TextInput
               value={text}
               onChangeText={setText}
@@ -91,12 +104,12 @@ export default function AmountInputModal({
                   onPress={() => setText(String(p))}
                   style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
                 >
-                  <Text style={[styles.presetText, { color: theme.text }]}>${p.toLocaleString()}</Text>
+                  <Text style={[styles.presetText, { color: theme.text }]}>{isBtc ? `₿${p}` : `$${p.toLocaleString()}`}</Text>
                 </TouchableOpacity>
               ))}
               {maxAmount != null && maxAmount > 0 && (
                 <TouchableOpacity
-                  onPress={() => setText(String(Math.floor(maxAmount)))}
+                  onPress={() => setText(isBtc ? String(Number(maxAmount.toFixed(6))) : String(Math.floor(maxAmount)))}
                   style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
                 >
                   <Text style={[styles.presetText, { color: theme.text }]}>Max</Text>
@@ -106,7 +119,7 @@ export default function AmountInputModal({
           )}
 
           {maxAmount != null && amount > maxAmount && (
-            <Text style={styles.error}>Exceeds available {formatMoney(maxAmount)}</Text>
+            <Text style={styles.error}>Exceeds available {formatAmount(maxAmount)}</Text>
           )}
 
           <TouchableOpacity

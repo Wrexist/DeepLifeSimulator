@@ -4,7 +4,7 @@
  * Apology / Recall / Lawsuit / Cover up / Restructure each have unique
  * cost+reputation+severity-drop profiles. Calls resolveScandal action.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X, AlertTriangle, MessagesSquare, Undo2, Scale, EyeOff, Building2 } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -25,15 +25,17 @@ type OptionMeta = {
   iconColor: string;
   title: string;
   cost: string;
+  /** Numeric cost for affordability gating — must match resolveScandal's table. */
+  costValue: number;
   effect: string;
 };
 
 const OPTIONS: OptionMeta[] = [
-  { id: 'apology', Icon: MessagesSquare, iconColor: '#3B82F6', title: 'Public apology', cost: 'Free', effect: '+2 rep · severity drops faster' },
-  { id: 'recall', Icon: Undo2, iconColor: '#0EA5E9', title: 'Product recall', cost: '$50,000', effect: '+4 rep · 40 severity drop' },
-  { id: 'lawsuit', Icon: Scale, iconColor: '#F59E0B', title: 'Lawsuit', cost: '$100,000', effect: '-3 rep · 50 severity drop' },
-  { id: 'cover_up', Icon: EyeOff, iconColor: '#94A3B8', title: 'Cover up', cost: '$25,000', effect: '-1 rep · 30% resurge risk' },
-  { id: 'restructure', Icon: Building2, iconColor: '#10B981', title: 'Restructure', cost: '$200,000', effect: '+8 rep · 70 severity drop' },
+  { id: 'apology', Icon: MessagesSquare, iconColor: '#3B82F6', title: 'Public apology', cost: 'Free', costValue: 0, effect: '+2 rep · severity drops faster' },
+  { id: 'recall', Icon: Undo2, iconColor: '#0EA5E9', title: 'Product recall', cost: '$50,000', costValue: 50_000, effect: '+4 rep · 40 severity drop' },
+  { id: 'lawsuit', Icon: Scale, iconColor: '#F59E0B', title: 'Lawsuit', cost: '$100,000', costValue: 100_000, effect: '-3 rep · 50 severity drop' },
+  { id: 'cover_up', Icon: EyeOff, iconColor: '#94A3B8', title: 'Cover up', cost: '$25,000', costValue: 25_000, effect: '-1 rep · 30% resurge risk' },
+  { id: 'restructure', Icon: Building2, iconColor: '#10B981', title: 'Restructure', cost: '$200,000', costValue: 200_000, effect: '+8 rep · 70 severity drop' },
 ];
 
 interface ResolveScandalModalProps {
@@ -47,6 +49,10 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
   const { theme } = useTheme();
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const scandal = overlay?.activeScandal;
+  const cash = gameState.stats?.money ?? 0;
+  // Failure feedback — every sibling Hustle modal surfaces a resultMsg on a
+  // failed action; this one used to answer an unaffordable tap with only a buzz.
+  const [resultMsg, setResultMsg] = useState<string | null>(null);
 
   const handleChoice = useCallback((method: HustleScandalResolution) => {
     const r = resolveScandal(setGameState, gameState, companyId, method);
@@ -56,6 +62,7 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
       onDismiss();
     } else {
       hustleHaptics.error();
+      setResultMsg(r.message);
     }
   }, [setGameState, gameState, companyId, onDismiss, saveGame]);
 
@@ -88,15 +95,18 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(380) }}>
             {OPTIONS.map((opt) => {
               const Icon = opt.Icon;
+              const unaffordable = opt.costValue > cash;
               return (
                 <Pressable
                   key={opt.id}
                   onPress={() => handleChoice(opt.id)}
+                  disabled={unaffordable}
                   accessibilityRole="button"
                   accessibilityLabel={opt.title}
+                  accessibilityState={{ disabled: unaffordable }}
                   style={({ pressed }) => [
                     styles.optionCard,
-                    { backgroundColor: theme.surfaceElevated, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+                    { backgroundColor: theme.surfaceElevated, borderColor: theme.border, opacity: unaffordable ? 0.5 : pressed ? 0.85 : 1 },
                   ]}
                 >
                   <Icon size={fontScale(20)} color={opt.iconColor} />
@@ -104,11 +114,14 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
                     <Text style={[styles.optionTitle, { color: theme.text }]}>{opt.title}</Text>
                     <Text style={[styles.optionEffect, { color: theme.textSecondary }]}>{opt.effect}</Text>
                   </View>
-                  <Text style={[styles.optionCost, { color: theme.text }]}>{opt.cost}</Text>
+                  <Text style={[styles.optionCost, { color: unaffordable ? HUSTLE_COLORS.danger : theme.text }]}>{opt.cost}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
+          {resultMsg ? (
+            <Text style={[styles.resultMsg, { color: theme.textSecondary }]}>{resultMsg}</Text>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -116,6 +129,12 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
 }
 
 const styles = StyleSheet.create({
+  resultMsg: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: responsiveSpacing.sm,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',

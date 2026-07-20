@@ -9,6 +9,10 @@ import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 
 const LinearGradient = LinearGradientFallback;
 
+// 2% commission — MUST match STOCK_FEE in contexts/game/actions/StockActions.ts
+// (buy validation here mirrors buyStockMarket's gross-cost check).
+const STOCK_FEE = 0.02;
+
 interface Props {
   visible: boolean;
   symbol: string | null;
@@ -58,7 +62,10 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
 
   const valid = useMemo(() => {
     if (!symbol || amount <= 0) return false;
-    if (side === 'buy' && amount > cash) return false;
+    // Buys settle at amount × (1 + fee) in buyStockMarket — validate against
+    // the same gross cost, or amounts in (cash/1.02, cash] enable Confirm but
+    // get silently rejected by the action.
+    if (side === 'buy' && amount * (1 + STOCK_FEE) > cash) return false;
     if (side === 'sell' && amount > ownedShares) return false;
     if (type === 'limit' && limit <= 0) return false;
     if (type === 'stop' && stop <= 0) return false;
