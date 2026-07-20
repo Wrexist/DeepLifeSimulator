@@ -9,7 +9,8 @@ import { join } from 'path';
 const OUT = process.env.OUT || 'screenshots/appstore-2026/rich-captures';
 const URL = 'http://localhost:8090';
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const VIEWPORT = { width: 430, height: 932 };
+const VIEWPORT = { width: Number(process.env.VIEW_W) || 430, height: Number(process.env.VIEW_H) || 932 };
+const DSF = Number(process.env.DSF) || 3;
 
 const text = (page) => page.evaluate(() => document.body?.innerText || '').catch(() => '');
 // includes modal/portal text that innerText misses
@@ -131,7 +132,7 @@ async function dismissPopups(page) {
 async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: DSF, isMobile: true, hasTouch: true });
 
   page.on('console', m => { const t = m.text(); if (/ERROR|corrupt|invalid|signature|hmac|breaker|circuit|Failed/i.test(t)) console.log('[c]', t.slice(0, 200)); });
   page.on('requestfailed', r => console.log('[reqfail]', r.url().slice(-80), r.failure()?.errorText));
@@ -282,7 +283,7 @@ async function main() {
     if (opened) {
       await shot(page, 'app-' + app.toLowerCase());
       // leave the app via its top-left back arrow (apps cover the tab bar)
-      await page.mouse.click(43, 34); await sleep(1800);
+      await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1800);
     }
   }
   await goTab(3); await shot(page, 'life');
@@ -317,7 +318,7 @@ async function main() {
   console.log('dialog gone?', !(await allText(page)).includes('Purchase Computer?'));
   const closeModal = async () => {
     await clickAriaLast(page, 'Close', { wait: 1000 });
-    await page.mouse.click(391, 35); await sleep(1200); // top-right X fallback
+    await page.mouse.click(VIEWPORT.width-39, 35); await sleep(1200); // top-right X fallback
   };
   await clickText(page, 'Family', { exact: true, wait: 2500 });
   await shot(page, 'life-family');
@@ -346,7 +347,7 @@ async function main() {
     if (ok) {
       await shot(page, 'x-' + name);
       // leave via back arrow (top-left) then fall back to tab bar
-      await page.mouse.click(43, 34); await sleep(1500);
+      await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1500);
     } else {
       console.log(name, 'NOT FOUND on desktop grid');
     }
