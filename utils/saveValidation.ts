@@ -457,6 +457,28 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // Additive optional fields that post-date their subsystem's last migration
+  // (Luxury catalog + Life Ambitions). Migration 23 fills them on a version
+  // ladder, but repair also runs on partial saves (CloudSync merge / hand-edit)
+  // that a wholesale migration can miss, so heal a present-but-incomplete state
+  // here too. Only the concrete-default fields need it; `ambitionId` defaults to
+  // undefined (absent = freeform), so an absent key already equals the default.
+  if (!Array.isArray(s.luxuryItems)) {
+    s.luxuryItems = [];
+    repairs.push('Backfilled missing luxuryItems array from defaults');
+    repaired = true;
+  }
+  if (!Array.isArray(s.ambitionCompletedMilestones)) {
+    s.ambitionCompletedMilestones = [];
+    repairs.push('Backfilled missing ambitionCompletedMilestones array from defaults');
+    repaired = true;
+  }
+  if (typeof s.ambitionRewardClaimed !== 'boolean') {
+    s.ambitionRewardClaimed = false;
+    repairs.push('Backfilled missing ambitionRewardClaimed flag from defaults');
+    repaired = true;
+  }
+
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
   // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
   // consumers that fall back only on nullish (`favorLedger ?? emptyLedger()`,

@@ -640,6 +640,30 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 22;
     return state;
   },
+
+  // Version 23: schema-drift backfill. Three OPTIONAL fields were added to
+  // `initialState` (Luxury & Collectibles + Life Ambitions, 2026-07-13) AFTER
+  // v22 shipped, without their own version bump — so a v22 save loads without
+  // them. Every consumer already reads them via `?? []` / `!!`, so this is not
+  // an active crash; it closes the invariant (Hard Rule #3: every initialState
+  // field is migration- and repair-covered) before any future non-guarded
+  // reader lands. Only sets a value when missing — idempotent, never clobbers.
+  // `ambitionId` is intentionally omitted: its default is `undefined` (absent =
+  // freeform life), so an absent key already equals the default.
+  23: (state) => {
+    if (!Array.isArray(state.luxuryItems)) {
+      state.luxuryItems = [];
+    }
+    if (!Array.isArray(state.ambitionCompletedMilestones)) {
+      state.ambitionCompletedMilestones = [];
+    }
+    if (typeof state.ambitionRewardClaimed !== 'boolean') {
+      state.ambitionRewardClaimed = false;
+    }
+
+    state.version = 23;
+    return state;
+  },
 };
 
 /**
