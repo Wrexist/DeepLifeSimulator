@@ -194,7 +194,12 @@ export default function PetApp({ onBack }: PetAppProps) {
   const handleFeedFromInventory = useCallback(
     (petId: string) => {
       const inventory = gameState.petFood ?? {};
-      const ownedFoodId = ['basic', 'premium', 'luxury'].find((id) => (inventory[id] ?? 0) > 0);
+      // Search the FULL catalog cheapest-first (a hardcoded 3-id list here
+      // ignored organic/gourmet/treats and falsely reported "Out of food").
+      const ownedFoodId = [...PET_FOODS]
+        .sort((a, b) => a.price - b.price)
+        .map((f) => f.id)
+        .find((id) => (inventory[id] ?? 0) > 0);
       if (!ownedFoodId) {
         flash('Out of food — buy some from the shop.');
         goTab('shop');
@@ -936,7 +941,11 @@ export default function PetApp({ onBack }: PetAppProps) {
               const evalResult = evaluatePetForCompetition(p, c.id);
               if (!evalResult) return null;
               const winPct = Math.round(evalResult.winProbability * 100);
-              const eligible = evalResult.meetsRequirement;
+              // One competition per pet per week (enterCompetition rejects
+              // re-entry) — grey the button out instead of letting the tap
+              // fall through to an "already competed" flash.
+              const competedThisWeek = p.lastCompetitionWeek === week;
+              const eligible = evalResult.meetsRequirement && !competedThisWeek;
               return (
                 <View
                   key={c.id}
@@ -962,8 +971,8 @@ export default function PetApp({ onBack }: PetAppProps) {
                     <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
                       Prize {formatMoney(c.prize)} · Entry {formatMoney(c.entryFee)}
                     </Text>
-                    <Text style={[styles.cardMeta, { color: eligible ? accent.success : accent.warning }]}>
-                      {eligible
+                    <Text style={[styles.cardMeta, { color: evalResult.meetsRequirement ? accent.success : accent.warning }]}>
+                      {evalResult.meetsRequirement
                         ? `Meets ${c.requirement} ≥ ${c.minValue} (have ${evalResult.gatingValue})`
                         : `Need ${c.requirement} ≥ ${c.minValue} · have ${evalResult.gatingValue}`}
                     </Text>
@@ -976,7 +985,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                     accessibilityState={{ disabled: !eligible }}
                     accessibilityLabel={`Enter ${c.name}`}
                   >
-                    <Text style={[styles.chipText, { color: eligible ? theme.text : theme.textMuted }]}>Enter</Text>
+                    <Text style={[styles.chipText, { color: eligible ? theme.text : theme.textMuted }]}>{competedThisWeek ? 'Done' : 'Enter'}</Text>
                   </TouchableOpacity>
                 </View>
               );

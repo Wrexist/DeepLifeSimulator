@@ -52,6 +52,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
 import {
   repairRig,
@@ -381,9 +382,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       };
       const miners = { ...(w.miners ?? {}) };
       miners[tierId] = (miners[tierId] ?? 0) + 1;
+      // Canonical debit (same guards the trading side uses — see
+      // CryptoTradingActions applyMoneyDelta note).
+      const minerPatch = applyMoneyDelta(prev, -price, 'Buy miner');
+      if (!minerPatch) return prev;
       return {
         ...prev,
-        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - price },
+        ...minerPatch,
         warehouse: { ...w, miners },
       };
     });
@@ -463,13 +468,19 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     }
     queueSave();
   };
-  const handleStake = (fraction: number) => {
-    const coin = cryptos.find((c) => c.id === stakeCoinId);
+  // Takes the coin id from the caller: the Staking panel renders (and labels
+  // the buttons with) `effectiveStakeCoinId` — which falls back to the first
+  // coin the player actually owns — so staking must use that same id. Reading
+  // the raw `stakeCoinId` state here staked its 'btc' default even when the
+  // panel showed a different coin, failing with "Invalid stake amount" for
+  // players who hold no BTC.
+  const handleStake = (fraction: number, coinId: string) => {
+    const coin = cryptos.find((c) => c.id === coinId);
     const owned = coin?.owned ?? 0;
     // Round to avoid a float overshoot ever exceeding `owned` (stakeCrypto rejects
     // amount > owned). 100% stakes the full balance; lower fractions a slice of it.
     const amount = fraction >= 1 ? owned : Math.min(owned, owned * fraction);
-    const res = stakeCrypto(gameState, setGameState, stakeCoinId, amount, stakeLockWeeks);
+    const res = stakeCrypto(gameState, setGameState, coinId, amount, stakeLockWeeks);
     if (!res.success) {
       if (res.message) Alert.alert('Staking', res.message);
       return;
@@ -1059,7 +1070,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                   <TouchableOpacity
                     key={f}
                     disabled={stakeOwned <= 0}
-                    onPress={() => handleStake(f)}
+                    onPress={() => handleStake(f, effectiveStakeCoinId)}
                     style={[styles.buyBtn, { flex: 1, backgroundColor: stakeOwned <= 0 ? theme.surfaceElevated : amber.chip }]}
                     accessibilityRole="button"
                     accessibilityLabel={`Stake ${f === 1 ? 'the maximum' : `${f * 100} percent`} of ${stakeCoin?.symbol ?? 'holdings'}`}

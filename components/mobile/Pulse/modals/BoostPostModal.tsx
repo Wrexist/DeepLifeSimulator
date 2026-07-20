@@ -26,7 +26,7 @@ interface BoostPostModalProps {
 }
 
 export default function BoostPostModal({ visible, postId, onDismiss }: BoostPostModalProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const gems = gameState.stats?.gems ?? 0;
@@ -37,11 +37,14 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
     const result = boostPostWithGems(setGameState, gameState, postId, GEM_COST);
     if (result.success) {
       pulseHaptics.success();
+      // Persist the gem spend like every sibling Pulse mutation — without
+      // this a reload inside the 2-minute autosave window reverted it.
+      setTimeout(() => { void saveGame?.(); }, 0);
       onDismiss();
     } else {
       pulseHaptics.error();
     }
-  }, [postId, canAfford, setGameState, gameState, onDismiss]);
+  }, [postId, canAfford, setGameState, gameState, saveGame, onDismiss]);
 
   if (!visible) return null;
 

@@ -299,9 +299,18 @@ export const sellOwnedProperty = (
           : '')
     );
 
+    // Canonical credit path — a big sale near the money cap must respect
+    // MONEY_CEILING like every other credit (M-7 parity with the buy flow).
+    // Abort if the credit is rejected: the property must never leave the
+    // portfolio while the player receives nothing.
+    const salePatch = applyMoneyDelta(prev, result.saleProceeds, `Property sale: ${property.name}`);
+    if (!salePatch) {
+      log.warn(`Sale aborted: invalid proceeds for ${property.name}`);
+      return prev;
+    }
     return {
       ...prev,
-      stats: { ...prev.stats, money: cash + result.saleProceeds },
+      ...salePatch,
       realEstate: result.properties,
       loans: newLoans,
     };
@@ -387,7 +396,7 @@ export const maintainProperty = (
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', cost)
         : prev.banking,
-      stats: { ...prev.stats, money: cash - cost },
+      ...(applyMoneyDelta(prev, -cost, 'Property maintenance') ?? { stats: { ...prev.stats, money: cash - cost } }),
       realEstate: updated,
     };
   });
@@ -433,7 +442,7 @@ export const installPropertyDecor = (
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', item.cost)
         : prev.banking,
-      stats: { ...prev.stats, money: cash - item.cost },
+      ...(applyMoneyDelta(prev, -item.cost, 'Property decor') ?? { stats: { ...prev.stats, money: cash - item.cost } }),
       realEstate: installDecorPure(prev.realEstate ?? [], propertyId, decorId),
     };
   });
@@ -477,7 +486,7 @@ export const addPropertyRoom = (
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', room.cost)
         : prev.banking,
-      stats: { ...prev.stats, money: cash - room.cost },
+      ...(applyMoneyDelta(prev, -room.cost, 'Property room addition') ?? { stats: { ...prev.stats, money: cash - room.cost } }),
       realEstate: addRoomPure(prev.realEstate ?? [], propertyId, roomId),
     };
   });
@@ -519,7 +528,7 @@ export const upgradePropertyTier = (
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', nextTier.cost)
         : prev.banking,
-      stats: { ...prev.stats, money: cash - nextTier.cost },
+      ...(applyMoneyDelta(prev, -nextTier.cost, 'Property tier upgrade') ?? { stats: { ...prev.stats, money: cash - nextTier.cost } }),
       realEstate: upgradePropertyPure(prev.realEstate ?? [], propertyId, nextTier.level),
     };
   });

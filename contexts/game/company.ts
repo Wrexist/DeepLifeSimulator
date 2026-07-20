@@ -3,6 +3,7 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from './companyUpgradeCatalog';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
+import { applyMoneyDelta } from './actions/MoneyActions';
 import type { GameState, Company, CompanyUpgrade } from './types';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -311,17 +312,14 @@ export function removeWorker(
 }
 
 
-export function sellCompany(
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
-  companyId: string
-): { success: boolean; message?: string; sellValue?: number } {
-  const companyIndex = (gameState.companies || []).findIndex(c => c.id === companyId);
-  if (companyIndex === -1) {
-    return { success: false, message: 'Company not found' };
-  }
-
-  const company = (gameState.companies || [])[companyIndex];
+/**
+ * Sale value quote: 50% of total (inflated) investment — company cost plus
+ * every upgrade level purchased. Pure; used by both the confirm dialog and
+ * sellCompany itself so the quoted and paid numbers can never diverge.
+ */
+export function quoteCompanySaleValue(gameState: GameState, companyId: string): number | null {
+  const company = (gameState.companies || []).find(c => c.id === companyId);
+  if (!company) return null;
   
   // Calculate total investment (company cost + all upgrade costs)
   const companyCosts = {
@@ -354,15 +352,49 @@ export function sellCompany(
   });
 
   const totalInvestment = inflatedCompanyCost + totalUpgradeCost;
-  const sellValue = Math.round(totalInvestment * 0.5); // 50% of total investment
+  return Math.round(totalInvestment * 0.5); // 50% of total investment
+}
+
+export function sellCompany(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  companyId: string
+): { success: boolean; message?: string; sellValue?: number } {
+  const sellValue = quoteCompanySaleValue(gameState, companyId);
+  if (sellValue == null) {
+    return { success: false, message: 'Company not found' };
+  }
 
   setGameState(prev => {
+    // Re-check against prev — a same-batch double-tap must not sell twice.
+    if (!(prev.companies || []).some(c => c.id === companyId)) return prev;
     const companies = prev.companies.filter(c => c.id !== companyId);
+    // Canonical credit path (MONEY_CEILING clamp + dailySummary tracking).
+    // Abort outright if the credit is rejected — the company must never be
+    // removed while the player receives nothing.
+    const salePatch = applyMoneyDelta(prev, sellValue, 'Company sale');
+    if (!salePatch) return prev;
+    // Drop the sold company's Hustle overlay and count the exit — the
+    // Dashboard 'Sold' milestone reads lifetimeStats.totalCompaniesSold.
+    let hustleApp = prev.hustleApp;
+    if (hustleApp) {
+      const overlays = { ...hustleApp.companies };
+      delete overlays[companyId];
+      hustleApp = {
+        ...hustleApp,
+        companies: overlays,
+        lifetimeStats: {
+          ...hustleApp.lifetimeStats,
+          totalCompaniesSold: (hustleApp.lifetimeStats?.totalCompaniesSold ?? 0) + 1,
+        },
+      };
+    }
     return {
       ...prev,
+      ...salePatch,
       companies,
       company: prev.company?.id === companyId ? undefined : prev.company,
-      stats: { ...prev.stats, money: prev.stats.money + sellValue },
+      hustleApp,
     };
   });
 

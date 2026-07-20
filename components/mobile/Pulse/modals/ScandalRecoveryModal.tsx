@@ -59,7 +59,7 @@ const OPTION_BLURBS: Record<
 };
 
 export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: ScandalRecoveryModalProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const handleChoice = useCallback(
@@ -67,12 +67,14 @@ export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: Sc
       const result = recoverFromScandal(setGameState, gameState, method);
       if (result.success) {
         pulseHaptics.success();
+        // Persist the lawsuit fee / gem spend like every sibling mutation.
+        setTimeout(() => { void saveGame?.(); }, 0);
         onDismiss();
       } else {
         pulseHaptics.error();
       }
     },
-    [setGameState, gameState, onDismiss],
+    [setGameState, gameState, saveGame, onDismiss],
   );
 
   if (!visible || !scandal) return null;

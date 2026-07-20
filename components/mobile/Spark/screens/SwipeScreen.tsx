@@ -10,6 +10,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -31,6 +32,7 @@ import {
   swipeOnProfile,
   rewindLastSwipe,
   dismissCatfishSuspicion,
+  REWIND_GEM_COST,
 } from '@/contexts/game/actions/SparkActions';
 import { swipesRemaining, superLikesRemaining, isCatfish } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
@@ -264,7 +266,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
     [top, remaining, remainingSuper, animateOff],
   );
 
-  const handleRewind = useCallback(() => {
+  const doRewind = useCallback(() => {
     const r = rewindLastSwipe(setGameState, gameState);
     if (r.success) {
       sparkHaptics.tap();
@@ -272,8 +274,23 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       saveGame?.();
     } else {
       sparkHaptics.error();
+      showInfo(r.message);
     }
-  }, [setGameState, gameState, saveGame]);
+  }, [setGameState, gameState, saveGame, showInfo]);
+
+  const handleRewind = useCallback(() => {
+    // Free tier pays 20 gems — confirm before charging (Boost gets a whole
+    // confirming modal; a one-tap silent gem drain here was the outlier).
+    const isPremium = gameState.sparkApp?.premium?.perks?.rewindLastSwipe ?? false;
+    if (isPremium) {
+      doRewind();
+      return;
+    }
+    Alert.alert('Rewind last swipe', `Undo your last swipe for ${REWIND_GEM_COST} gems?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: `Rewind (${REWIND_GEM_COST} gems)`, onPress: doRewind },
+    ]);
+  }, [gameState, doRewind]);
 
   if (!top) {
     return (

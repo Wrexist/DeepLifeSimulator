@@ -41,14 +41,19 @@ import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
 import EnrollModal, { EnrollTemplate } from '@/components/education/EnrollModal';
 import {
-  clearCampusEvent,
   enrollInProgram,
+  resolveCampusEventChoice,
   studyExtra,
   togglePauseProgram,
   toggleStudyGroup,
   withdrawFromProgram,
 } from '@/contexts/game/actions/EducationActions';
-import { STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
+import {
+  STUDY_GROUP_JOIN_COST,
+  getRandomCampusEvent,
+  type CampusEvent,
+  type CampusEventChoice,
+} from '@/lib/education/educationSystem';
 import { highestGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
 import { meritRate } from '@/lib/education/scholarships';
 
@@ -303,17 +308,39 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   }, [setGameState, queueSave]);
 
   // Campus events: the weekly tick flags `pendingCampusEventEducationId` when
-  // one fires; this dismissable banner finally CONSUMES that flag via the
-  // previously-dead `clearCampusEvent` action (replacing the `{false && …}`
-  // unused-var placeholder).
+  // one fires. The flag only carries the education id, so the UI draws the
+  // concrete event ONCE when the flag appears (stable across re-renders) and
+  // presents its real choices — each applies stat/money effects via
+  // resolveCampusEventChoice, restoring the decision mechanic instead of the
+  // old consequence-free "something happened" dismiss banner.
   const pendingCampusEventId = gameState.pendingCampusEventEducationId;
   const pendingCampusEventName = useMemo(
     () => educations.find((e) => e.id === pendingCampusEventId)?.name,
     [educations, pendingCampusEventId]
   );
-  const handleDismissCampusEvent = useCallback(() => {
-    clearCampusEvent(setGameState);
+  const [activeCampusEvent, setActiveCampusEvent] = useState<CampusEvent | null>(null);
+  const [campusEventResult, setCampusEventResult] = useState<string | null>(null);
+  const eventResultTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    // Clear the result-line timer on unmount so it can't set state afterwards.
+    return () => {
+      if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
+    };
+  }, []);
+  React.useEffect(() => {
+    if (pendingCampusEventId) {
+      setActiveCampusEvent((cur) => cur ?? getRandomCampusEvent());
+    } else {
+      setActiveCampusEvent(null);
+    }
+  }, [pendingCampusEventId]);
+  const handleCampusEventChoice = useCallback((choice: CampusEventChoice) => {
+    resolveCampusEventChoice(setGameState, choice);
     queueSave();
+    setCampusEventResult(choice.resultText);
+    // The result line lingers briefly, then clears itself.
+    if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
+    eventResultTimerRef.current = setTimeout(() => setCampusEventResult(null), 4000);
   }, [setGameState, queueSave]);
 
   // --- Tab bodies --------------------------------------------------------
@@ -569,17 +596,63 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         }}
       />
 
-      {pendingCampusEventId ? (
+      {pendingCampusEventId && activeCampusEvent ? (
         <View
           style={{
             position: 'absolute',
             left: responsiveSpacing.md,
             right: responsiveSpacing.md,
             bottom: getAppScreenBottomPadding(insets.bottom),
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             gap: responsiveSpacing.sm,
+            padding: responsiveSpacing.md,
+            borderRadius: 14,
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: withAlpha(CYAN, 0.45),
+          }}
+        >
+          <Text style={{ color: CYAN, fontWeight: '800', fontSize: scale(10), letterSpacing: 0.6 }}>
+            {`CAMPUS EVENT${pendingCampusEventName ? ` · ${pendingCampusEventName.toUpperCase()}` : ''}`}
+          </Text>
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: scale(14) }}>
+            {activeCampusEvent.title}
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: scale(12), lineHeight: scale(17) }}>
+            {activeCampusEvent.description}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: responsiveSpacing.sm }}>
+            {activeCampusEvent.choices.map((choice) => (
+              <TouchableOpacity
+                key={choice.label}
+                onPress={() => handleCampusEventChoice(choice)}
+                accessibilityRole="button"
+                accessibilityLabel={choice.label}
+                style={{
+                  flex: 1,
+                  paddingVertical: responsiveSpacing.sm,
+                  paddingHorizontal: responsiveSpacing.sm,
+                  borderRadius: 10,
+                  backgroundColor: withAlpha(CYAN, 0.16),
+                  borderWidth: 1,
+                  borderColor: withAlpha(CYAN, 0.35),
+                }}
+              >
+                <Text style={{ color: CYAN, fontWeight: '700', fontSize: scale(12), textAlign: 'center' }}>
+                  {choice.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {campusEventResult ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: responsiveSpacing.md,
+            right: responsiveSpacing.md,
+            bottom: getAppScreenBottomPadding(insets.bottom),
             padding: responsiveSpacing.md,
             borderRadius: 14,
             backgroundColor: theme.surface,
@@ -587,22 +660,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
             borderColor: theme.border,
           }}
         >
-          <Text style={{ flex: 1, color: theme.text, fontSize: scale(13) }}>
-            {`Something happened on campus${pendingCampusEventName ? ` in ${pendingCampusEventName}` : ''}.`}
-          </Text>
-          <TouchableOpacity
-            onPress={handleDismissCampusEvent}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss campus event"
-            style={{
-              paddingVertical: responsiveSpacing.xs,
-              paddingHorizontal: responsiveSpacing.md,
-              borderRadius: 10,
-              backgroundColor: withAlpha(CYAN, 0.16),
-            }}
-          >
-            <Text style={{ color: CYAN, fontWeight: '700', fontSize: scale(13) }}>Dismiss</Text>
-          </TouchableOpacity>
+          <Text style={{ color: theme.text, fontSize: scale(13) }}>{campusEventResult}</Text>
         </View>
       ) : null}
     </View>

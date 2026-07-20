@@ -29,6 +29,11 @@ export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onS
     if (!visible) setSelected(null);
   }, [visible]);
 
+  // A template already running can't be started again (startJob rejects it),
+  // so show it disabled with an "In progress" tag instead of a silent no-op.
+  const isTemplateActive = (tpl: DarkWebJobTemplate): boolean =>
+    (darkWeb.activeJobs ?? []).some((j) => j.templateId === tpl.id && j.status === 'in-progress');
+
   const meetsSkillReqs = (tpl: DarkWebJobTemplate): boolean => {
     if (!tpl.requiresSkills) return true;
     for (const [skill, min] of Object.entries(tpl.requiresSkills)) {
@@ -52,7 +57,8 @@ export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onS
 
           <ScrollView style={{ maxHeight: scale(420) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {JOB_TEMPLATES.map((tpl) => {
-              const eligible = meetsSkillReqs(tpl);
+              const alreadyRunning = isTemplateActive(tpl);
+              const eligible = meetsSkillReqs(tpl) && !alreadyRunning;
               const active = selected?.id === tpl.id;
               return (
                 <TouchableOpacity
@@ -72,8 +78,8 @@ export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onS
                   <View style={styles.tplHeader}>
                     <Target size={scale(14)} color={accent.info} />
                     <Text style={[styles.tplName, { color: theme.text }]}>{tpl.name}</Text>
-                    <Text style={[styles.tplPayout, { color: accent.success }]}>
-                      {tpl.payoutBtc.toFixed(3)} ₿
+                    <Text style={[styles.tplPayout, { color: alreadyRunning ? theme.textMuted : accent.success }]}>
+                      {alreadyRunning ? 'In progress' : `${tpl.payoutBtc.toFixed(3)} ₿`}
                     </Text>
                   </View>
                   <Text style={[styles.tplDesc, { color: theme.textMuted }]}>{tpl.description}</Text>

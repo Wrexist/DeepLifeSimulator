@@ -1097,6 +1097,9 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         subtitle={`Higher conversion than direct campaign. Permanently raises scandal risk. BTC owned: ${btcOwned.toFixed(4)} (~${formatMoney(btcOwned * btcPrice)})`}
         confirmLabel="Funnel"
         maxAmount={btcOwned}
+        // BTC-denominated input: ₿ prefix/presets and a decimal-preserving Max
+        // (the default USD mode floored a sub-1 BTC Max to a useless 0).
+        currency="btc"
         presets={[0.1, 0.5, 1]}
         darkMode={darkMode}
         onClose={() => setShowRaiseDirty(false)}

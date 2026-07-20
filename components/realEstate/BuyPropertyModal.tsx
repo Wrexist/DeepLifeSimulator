@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, AlertCircle, Home, CheckCircle2 } from 'lucide-react-native';
 import { GameState, RealEstate } from '@/contexts/game/types';
+import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -45,6 +46,10 @@ function formatMoney(n: number): string {
 }
 
 export default function BuyPropertyModal({ visible, property, gameState, weeklyIncome, darkMode, onClose, onConfirm }: Props) {
+  // Commercial listings (office tower, warehouse) can't be a home — the rest
+  // of the app gates comfort/energy off for them, so offering the residence
+  // toggle here produced a dead "living in a warehouse" outcome.
+  const commercial = property ? isCommercialCatalogId(property.id) : false;
   const theme = getThemeColors(darkMode);
   const [tier, setTier] = useState<DownPaymentTier>('standard');
   const [term, setTerm] = useState<MortgageTerm>('30y');
@@ -130,19 +135,21 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
               </View>
             )}
 
-            <TouchableOpacity
-              onPress={() => setAsResidence(!asResidence)}
-              style={[styles.residenceRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
-            >
-              {asResidence ? (
-                <CheckCircle2 size={scale(18)} color={accent.info} />
-              ) : (
-                <Home size={scale(18)} color={theme.textMuted} />
-              )}
-              <Text style={[styles.residenceLabel, { color: theme.text }]}>
-                Make this my primary residence
-              </Text>
-            </TouchableOpacity>
+            {!commercial && (
+              <TouchableOpacity
+                onPress={() => setAsResidence(!asResidence)}
+                style={[styles.residenceRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+              >
+                {asResidence ? (
+                  <CheckCircle2 size={scale(18)} color={accent.info} />
+                ) : (
+                  <Home size={scale(18)} color={theme.textMuted} />
+                )}
+                <Text style={[styles.residenceLabel, { color: theme.text }]}>
+                  Make this my primary residence
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {quote && quote.rejected && (
               <View style={[styles.errorRow, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
@@ -172,7 +179,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
 
           <TouchableOpacity
             disabled={!quote || quote.rejected}
-            onPress={() => onConfirm({ tier, term, asResidence })}
+            onPress={() => onConfirm({ tier, term, asResidence: commercial ? false : asResidence })}
             style={[
               styles.confirm,
               { backgroundColor: quote && !quote.rejected ? accent.info : theme.border },

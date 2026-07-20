@@ -56,13 +56,23 @@ const cases: Array<{ name: string; invoke: (sg: Dispatch<SetStateAction<GameStat
   { name: 'transferBetweenOwnAccounts', invoke: (sg) => transferBetweenOwnAccounts(sg, 'a', 'b', 1_000) },
   { name: 'spendOnCard', invoke: (sg) => spendOnCard(sg, 'card-1', 1_000, 'shopping') },
   { name: 'payDownCard', invoke: (sg) => payDownCard(sg, 'card-1', 'acct-1', 1_000) },
-  { name: 'buyMarketListing', invoke: (sg) => buyMarketListing(sg, 'listing-1') },
   { name: 'submitMixerTransaction', invoke: (sg) => submitMixerTransaction(sg, 'standard', 0.1) },
   { name: 'cashOutCleanBtc', invoke: (sg) => cashOutCleanBtc(sg, 0.5) },
   { name: 'acquireNewIdentity', invoke: (sg) => acquireNewIdentity(sg) },
 ];
 
 describe('E-2: dead players cannot execute financial transactions', () => {
+  // buyMarketListing now pre-checks on the caller's snapshot (to report
+  // scam/success outcomes to the UI), so for a dead player it rejects BEFORE
+  // ever calling setGameState — strictly stronger than the updater-only guard.
+  it('buyMarketListing rejects a dead player without touching state', () => {
+    const prev = deadState();
+    const cap = captureUpdater();
+    const res = buyMarketListing(prev, cap.setGameState, 'listing-1');
+    expect(res.success).toBe(false);
+    expect(() => cap.run(prev)).toThrow(); // setGameState never called
+  });
+
   it.each(cases)(
     '$name no-ops (returns prev unchanged) when showDeathPopup is set',
     ({ invoke }) => {

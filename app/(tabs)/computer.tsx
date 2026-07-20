@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -147,6 +147,14 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
     }
   }, [embedded, gameState.items, router, currentRoute]);
   const navigation = useNavigation<any>();
+
+  // Stable close handler (passed into every hosted app) — same tap feedback
+  // as the phone shell's close, and declared before the early returns below
+  // per the Rules of Hooks.
+  const handleCloseApp = useCallback(() => {
+    buttonPress();
+    setActiveApp(null);
+  }, [buttonPress]);
 
   // Reset to apps grid when the Computer tab is pressed
   useEffect(() => {
@@ -402,7 +410,7 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
     // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
       <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? '#0F172A' : '#F8FAFC' }}>
-        <AppComponent onBack={() => setActiveApp(null)} />
+        <AppComponent onBack={handleCloseApp} />
       </View>
     );
   }

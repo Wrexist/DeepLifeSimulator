@@ -123,6 +123,9 @@ export default function NotificationsScreen({
   onWatchAd,
 }: NotificationsScreenProps = {}) {
   const { gameState, setGameState } = useGame();
+  // Mirror RewardedAdModal's reward math (150 for Verified Pro, 50 otherwise)
+  // so the CTA label always matches what the player actually receives.
+  const adFollowerReward = gameState.socialMedia?.verifiedPro?.active === true ? 150 : 50;
   const { theme } = useTheme();
 
   const notifications: PulseNotification[] = useMemo(
@@ -162,7 +165,7 @@ export default function NotificationsScreen({
               style={[styles.adCta, { borderColor: PULSE_COLORS.accent }]}
             >
               <Text style={[styles.adCtaText, { color: PULSE_COLORS.accent }]}>
-                ▶ Watch ad for +50 followers
+                ▶ Watch ad for +{adFollowerReward} followers
               </Text>
             </Pressable>
           ) : null}
@@ -189,7 +192,7 @@ export default function NotificationsScreen({
           style={[styles.adCtaHeader, { borderColor: PULSE_COLORS.accent }]}
         >
           <Text style={[styles.adCtaText, { color: PULSE_COLORS.accent }]}>
-            ▶ Watch ad for +50 followers
+            ▶ Watch ad for +{adFollowerReward} followers
           </Text>
         </Pressable>
       ) : null}

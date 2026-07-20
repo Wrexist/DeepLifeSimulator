@@ -11,7 +11,7 @@
 
 import { GameState, Relationship, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { applyMoneyDelta, updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
@@ -202,13 +202,19 @@ export const goOnDate = (
         return prev;
       }
     }
+    // Canonical money path: applyMoneyDelta accumulates dailySummary.moneyChange
+    // (the direct stats.money write made date spend invisible to the daily
+    // summary). Pre-clamped to cash on hand to keep the old "broke players can
+    // still date" clamp semantics.
+    const dateSpend = Math.min(prev.stats.money || 0, config.cost);
+    const moneyPatch = applyMoneyDelta(prev, -dateSpend, 'Date');
     return ({
     ...prev,
+    ...(moneyPatch ?? {}),
     // Spark lifetime stat: this date counts toward the dating profile readout.
     sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDatesGoneOn'),
     stats: {
-      ...prev.stats,
-      money: Math.max(0, (prev.stats.money || 0) - config.cost),
+      ...(moneyPatch?.stats ?? prev.stats),
       energy: Math.max(0, Math.min(100, (prev.stats.energy || 0) - config.energy)),
       happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
     },
@@ -321,14 +327,15 @@ export const giveGift = (
     const prevMoney = prev.stats.money || 0;
     if (prevMoney < config.cost) return prev;
 
+    // Canonical money path (affordability was rejected above, so this only
+    // adds the dailySummary tracking the direct write skipped).
+    const giftPatch = applyMoneyDelta(prev, -config.cost, 'Gift');
+    if (!giftPatch) return prev;
     return {
       ...prev,
+      ...giftPatch,
       // Spark lifetime stat: this gift counts toward the dating profile readout.
       sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalGiftsGiven'),
-      stats: {
-        ...prev.stats,
-        money: Math.max(0, prevMoney - config.cost),
-      },
       relationships: (prev.relationships || []).map(r => {
         if (r.id !== partnerId) return r;
         // NPC reactivity: scale the boost by how much THIS npc likes this gift

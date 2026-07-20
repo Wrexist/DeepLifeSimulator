@@ -33,7 +33,7 @@ interface SummaryData {
 }
 
 export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [phase, setPhase] = useState<Phase>(gameState.socialMedia?.liveSession?.active ? 'live' : 'setup');
   const [topic, setTopic] = useState('Just chatting');
@@ -84,6 +84,9 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
   const handleEnd = useCallback(() => {
     const result = endLiveStream(setGameState, gameState);
     if (result.success) {
+      // Persist tips + follower gains now — this is the moment the whole
+      // stream's accumulated value lands in state.
+      setTimeout(() => { void saveGame?.(); }, 0);
       setSummary({
         totalDonations: result.totalDonations,
         newFollowers: result.newFollowers,
@@ -92,7 +95,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
       });
       setPhase('summary');
     }
-  }, [setGameState, gameState]);
+  }, [setGameState, gameState, saveGame]);
 
   const live = gameState.socialMedia?.liveSession;
 

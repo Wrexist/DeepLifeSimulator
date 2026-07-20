@@ -268,11 +268,21 @@ export const prepayLoan = (
     if (acctIdx === -1) return prev;
     const account = state.banking.accounts[acctIdx];
 
-    const payAmount = Math.min(account.balance, amount, loan.remaining);
+    // The mirrored checking account's `balance` is only re-synced from
+    // stats.money on the weekly tick, so mid-week it can be stale in either
+    // direction. The pay modal caps against LIVE cash — validate and clamp
+    // against the same source, or a stale-low mirror silently under-pays and
+    // a stale-high mirror pays with money the player no longer has.
+    const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
+    const liveCash =
+      typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+    const fundingBalance = fundedFromCash ? liveCash : account.balance;
+
+    const payAmount = Math.min(fundingBalance, amount, loan.remaining);
     if (payAmount <= 0) return prev;
 
     const accounts = [...state.banking.accounts];
-    accounts[acctIdx] = { ...account, balance: account.balance - payAmount };
+    accounts[acctIdx] = { ...account, balance: Math.max(0, fundingBalance - payAmount) };
     const banking = { ...state.banking, accounts };
 
     const loans = [...state.loans];
@@ -292,7 +302,7 @@ export const prepayLoan = (
     // debit above only touched the account balance, which the next mirror tick
     // restored from stats.money — free debt repayment. Debit authoritative
     // stats.money so the prepayment actually costs the player.
-    if (MIRRORED_ACCOUNT_IDS.has(fromAccountId)) {
+    if (fundedFromCash) {
       const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
       return {
         ...state,

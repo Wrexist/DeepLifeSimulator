@@ -139,6 +139,15 @@ export default function PulseApp({ onBack }: PulseAppProps) {
         />
         <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
         <ProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
+        {/* Must be mounted here too: this overlay is an early return, so the
+            main return's BoostPostModal never renders while the profile is
+            open — without this, Boost on your own profile posts sets
+            boostPostId but no modal ever appears (silently dead button). */}
+        <BoostPostModal
+          visible={!!boostPostId}
+          postId={boostPostId}
+          onDismiss={() => setBoostPostId(null)}
+        />
       </View>
     );
   }

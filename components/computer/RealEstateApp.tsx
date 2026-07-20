@@ -431,7 +431,9 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     const condition = p.condition ?? 90;
     const conditionColor = condition >= 70 ? accent.success : condition >= 40 ? accent.warning : accent.danger;
     const cycle = p.marketCycle ?? 'stable';
-    const weeklyIncomeRow = p.status === 'rented' ? (p.tenant?.weeklyRent ?? p.rent ?? 0) : 0;
+    // Only a unit with an actual TENANT earns — a vacant rented-mode unit
+    // falling back to asking rent painted phantom income in earning-green.
+    const weeklyIncomeRow = p.status === 'rented' && p.tenant ? (p.tenant.weeklyRent ?? p.rent ?? 0) : 0;
 
     return (
       <View style={[getGlassCard(darkMode, 6), styles.rowCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>

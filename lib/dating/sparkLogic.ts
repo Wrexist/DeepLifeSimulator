@@ -37,14 +37,18 @@ export function calculateMatchProbability(
   const stats = state.stats;
   const reputation = stats?.reputation ?? 0;
   const sparkProfile = state.sparkApp?.profile;
-  const hasPhotos = (sparkProfile?.photos?.length ?? 0) > 0;
+  // The player always has a portrait (their avatar IS the profile photo), so
+  // photo count is no longer an input — nothing in the game ever populated
+  // profile.photos, which made this bonus permanently unreachable. A rich bio
+  // now carries the "effort put into the profile" bonus instead.
   const hasBio = (sparkProfile?.bio?.length ?? 0) > 20;
+  const hasRichBio = (sparkProfile?.bio?.length ?? 0) >= 60;
 
   // Base rate scales loosely with reputation: low rep ~25%, high rep ~70%.
   let p = 0.25 + Math.min(0.45, reputation / 200);
 
   // Profile quality lifts match rate meaningfully.
-  if (hasPhotos) p += 0.08;
+  if (hasRichBio) p += 0.08;
   if (hasBio) p += 0.05;
   if (sparkProfile?.attractivenessScore != null) {
     p += Math.min(0.15, sparkProfile.attractivenessScore / 1000);
@@ -240,18 +244,20 @@ export function calculateJealousyRisk(state: GameState): number {
 export function scorePlayerProfile(state: GameState): number {
   const sp = state.sparkApp;
   if (!sp) return 0;
-  const photos = sp.profile?.photos?.length ?? 0;
   const bioLen = (sp.profile?.bio ?? '').length;
   const interests = (sp.profile?.interests ?? []).length;
   const reputation = state.stats?.reputation ?? 0;
   const money = state.stats?.money ?? 0;
   const verified = sp.premium?.perks?.verifiedBadge ? 8 : 0;
 
-  let s = 10;
-  s += Math.min(25, photos * 8);          // up to 25 from photos
-  s += Math.min(15, bioLen / 6);          // up to 15 from bio length
-  s += Math.min(10, interests * 2);       // up to 10 from interests
-  s += Math.min(20, reputation / 2);      // up to 20 from rep
+  // No photo term: profile.photos was never populated by anything, which
+  // stranded 25 points and capped the meter at 75 forever. The weights below
+  // sum to exactly 100 from inputs the player can actually influence
+  // (15 base + 25 bio + 15 interests + 25 rep + 12 wealth + 8 verified).
+  let s = 15;
+  s += Math.min(25, bioLen / 4);          // up to 25 from bio length
+  s += Math.min(15, interests * 3);       // up to 15 from interests
+  s += Math.min(25, reputation / 2);      // up to 25 from rep
   s += Math.min(12, Math.log10(Math.max(1, money)));
   s += verified;
   return Math.min(100, Math.round(s));

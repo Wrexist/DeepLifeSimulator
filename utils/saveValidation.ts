@@ -1136,6 +1136,28 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 }
 
 /**
+ * True when the state is the pristine boot default — no life has been started.
+ *
+ * Every real game built by onboarding has a `scenarioId` AND a non-empty
+ * `userProfile.firstName` (name entry is mandatory); the provider's initial
+ * state has neither. Persisting such a state is what created the phantom
+ * "Unnamed Character · $200 · 18" save on a clean install: the background /
+ * periodic autosave fired while the user was still on the main menu and wrote
+ * the untouched default into slot 1 (which also set `lastSlot`, lighting up
+ * the Continue card). saveGame skips these states entirely.
+ */
+export function isPristineUnstartedState(state: any): boolean {
+  if (!state || typeof state !== 'object') return true;
+  const hasScenario = typeof state.scenarioId === 'string' && state.scenarioId.length > 0;
+  const firstName = state.userProfile?.firstName;
+  const lastName = state.userProfile?.lastName;
+  const hasName =
+    (typeof firstName === 'string' && firstName.trim().length > 0) ||
+    (typeof lastName === 'string' && lastName.trim().length > 0);
+  return !hasScenario && !hasName;
+}
+
+/**
  * Validate game state structure and data integrity
  * Enhanced to be more permissive and allow saving with warnings
  */
