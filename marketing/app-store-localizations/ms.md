@@ -85,35 +85,17 @@ Mula hari ini. Kumpul harta sampai jutaan ringgit. Atau bankrap dengan bergaya. 
 ## whats_new
 
 ```text
-v1.4.0 - Kualiti & Pembetulan Crash
+v2.5.8 - Kestabilan & Kualiti
 
-Kami dengar maklum balas kamu. Kemas kini ini fokus penuh pada kestabilan:
+Terima kasih kerana bermain Deep Life Simulator. Kemas kini ini fokus menjadikan permainan lebih lancar dan lebih dipercayai:
 
-70+ Pepijat Dibaiki
-• Sistem save diperkukuh - data rosak pada save lama dibaiki
-• Sistem pembelian dirombak - semua perk IAP kini berfungsi dengan betul
-• Pembetulan ekonomi - fi saham, kadar sewa dan nilai kenderaan kini konsisten
-• Crash semasa buka app dan ralat jarang berlaku telah diselesaikan
+• Pembetulan pepijat pada sistem save, ekonomi dan kedai dalam aplikasi
+• Peningkatan prestasi dan kestabilan menyeluruh
+• Penambahbaikan umum berdasarkan isu yang kamu laporkan
 
-Sistem Keadilan
-• Dapat anak: dijamin selepas 15 percubaan
-• Lamaran kahwin: pasti berjaya pada hubungan 95%+
-• Permohonan kerja: pasti diterima dengan kelayakan sempurna
-• Peristiwa mingguan: dijamin selepas 6 minggu tanpa peristiwa
-• Penyakit: maksimum 1 setiap 4 minggu (kamu yang minta!)
+Setiap kemas kini bertujuan menjadikan pilihan kamu lebih bermakna dan save kamu lebih selamat.
 
-Akibat Hubungan
-• Pasangan pergi selepas 8 minggu diabaikan
-• Suami/isteri failkan cerai selepas 12 minggu diabaikan
-• Penyelesaian kewangan yang realistik
-
-Prestasi Lebih Pantas
-• Pengiraan pendapatan 90% lebih laju
-• Pengiraan perbelanjaan keluarga 50% lebih laju
-• Fail save 80% lebih kecil
-• Kekal lancar selepas 1000+ minggu
-
-Terima kasih kerana bermain! Sertai Discord kami: discord.gg/invite/rzktazdX8v
+Sertai Discord kami: discord.gg/invite/rzktazdX8v
 Tiada iklan paksa. Tiada pay-to-win. Simulasi hidup yang adil dan strategik.
 ```
 

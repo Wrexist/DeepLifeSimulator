@@ -89,23 +89,17 @@ Kezdd el még ma. Építsd fel a vagyonod. Vagy bukj el látványosan. Így is, 
 ## whats_new
 
 ```text
-v1.4.0 - Stabilitás és hibajavítások
+v2.5.8 - Stabilitás és hibajavítások
 
-Meghallgattunk titeket. Ez a frissítés a stabilitásról és a tisztességes játékélményről szól:
+Köszönjük, hogy a Deep Life Simulatort játszod! Ez a frissítés arról szól, hogy a játék gördülékenyebb és megbízhatóbb legyen:
 
-70+ hibajavítás
-Megerősített mentési rendszer, teljesen átdolgozott vásárlási rendszer (minden IAP-előny mostantól helyesen érvényesül), gazdasági javítások, indítási összeomlások megszüntetve.
+• Hibajavítások a mentésekben, a gazdaságban és az alkalmazáson belüli boltban
+• Teljesítmény- és stabilitásjavítások mindenütt
+• Általános csiszolás az általatok jelzett problémák alapján
 
-Méltányossági rendszer
-Garantált gyermek 15 próbálkozás után, garantált sikeres lánykérés 95%+ kapcsolatnál, garantált heti esemény 6 eseménytelen hét után, legfeljebb 1 betegség 4 hetente (ti kértétek!).
+Minden frissítés célja, hogy a döntéseid többet érjenek, a mentéseid pedig biztonságosabbak legyenek.
 
-Kapcsolati következmények
-A partnerek 8 hét elhanyagolás után elhagynak, a házastársak 12 hét után beadják a válókeresetet. Reális vagyonmegosztás. A kapcsolatoknak újra tétje van.
-
-Teljesítmény
-90%-kal gyorsabb jövedelemszámítás, 50%-kal gyorsabb családi kiadások, 80%-kal kisebb mentésfájlok, gördülékeny játék 1000+ hét után is.
-
-Köszönjük, hogy játszol! Mondd el a véleményed a Discordon: discord.gg/invite/rzktazdX8v
+Mondd el a véleményed a Discordon: discord.gg/invite/rzktazdX8v
 
 Nincsenek kényszerített reklámok. Nincs pay-to-win. Csak egy tisztességes, stratégiai életszimulátor.
 ```

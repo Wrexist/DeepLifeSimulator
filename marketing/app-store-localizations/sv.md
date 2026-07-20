@@ -89,17 +89,15 @@ Börja i dag. Bygg din förmögenhet. Eller krascha spektakulärt. Oavsett vilke
 ## whats_new
 
 ```text
-v1.4.0 - Stabilitet och förbättringar
+v2.5.8 - Stabilitet och förbättringar
 
-Vi har lyssnat på er feedback. Den här uppdateringen handlar om stabilitet och spelkänsla:
+Tack för att du spelar Deep Life Simulator. Den här uppdateringen handlar helt om att göra spelet mjukare och mer pålitligt:
 
-• 70+ buggfixar - sparsystemet förstärkt, startkrascher lösta, ekonomin (courtage, hyror, fordonsvärden) nu konsekvent
-• Köpsystemet omgjort - alla köpta förmåner aktiveras nu korrekt
-• Rättvisesystem - barn garanteras efter 15 försök, frieri lyckas alltid vid 95+ % relation, veckohändelse garanteras efter 6 veckor, max 1 sjukdom per 4 veckor (ni bad om det)
-• Relationer med konsekvenser - partners lämnar efter 8 veckors försummelse, skilsmässa efter 12, realistiska bodelningar
-• Prestanda - 90 % snabbare inkomstberäkningar, 80 % mindre sparfiler, mjukare spel efter 1000+ veckor
+• Buggfixar i sparsystemet, ekonomin och butiken i appen
+• Prestanda- och stabilitetsförbättringar genomgående
+• Allmän finputsning utifrån problemen ni rapporterat
 
-Uppdateringen bygger på de vanligaste problemen ni rapporterat i recensionerna. Tack för att ni spelar!
+Varje uppdatering strävar efter att göra dina val mer betydelsefulla och dina sparfiler säkrare.
 
 Gå med i vår Discord: discord.gg/invite/rzktazdX8v
 
@@ -206,7 +204,7 @@ Gå med i vår Discord-community: discord.gg/invite/rzktazdX8v
 - Keyword field (98/100) avoids every name/subtitle word and targets high-volume Swedish intent terms: pengar, karriär, bli rik, aktier, investera, konkurs, jobb, brott, fängelse, miljardär - plus "tycoon" and "idle", which Swedes search in English, not translated.
 - "bli rik" is a strong get-rich intent phrase in Swedish mobile search and also yields the standalone tokens "bli" and "rik" for combined queries.
 - Google Play: top keywords (livssimulator, pengar, lån, aktier, karriär, bli rik, konkurs) are woven into the first 160 chars of the full description and repeated naturally throughout the body.
-- All copy is in natural Swedish du-form; feature counts (20+ karriärer, 80+ händelser, 70+ buggfixar, performance percentages) match the English source exactly.
+- All copy is in natural Swedish du-form; feature counts (20+ karriärer, 80+ händelser) match the English source exactly.
 - "Det här är inte BitLife" kept in body copy only, never in metadata, per legal notes.
 - A/B test suggestion: current subtitle vs. the punchier "Bli rik - eller gå i konkurs" (28 chars) - conversion-focused but drops the native genre keyword, so test on conversion rate, not rankings.
 - Consider testing GP short description against "Bygg rikedom från noll. Fatta tuffa beslut. Se allt rasa. Igen." (closer to EN Option 1's attitude).

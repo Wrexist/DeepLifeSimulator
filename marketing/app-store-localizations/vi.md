@@ -95,17 +95,15 @@ Bắt đầu ngay hôm nay. Gây dựng cơ đồ - hoặc sụp đổ ngoạn m
 ## whats_new
 
 ```text
-v1.4.0 - Bản cập nhật ổn định lớn nhất từ trước đến nay
+v2.5.8 - Ổn định & Hoàn thiện
 
-Chúng tôi đã lắng nghe phản hồi của bạn. Bản cập nhật này tập trung toàn lực vào độ ổn định và trải nghiệm:
+Cảm ơn bạn đã chơi Deep Life Simulator. Bản cập nhật này tập trung hoàn toàn vào việc giúp game mượt mà và đáng tin cậy hơn:
 
-Sửa hơn 70 lỗi - gia cố hệ thống lưu, khắc phục hỏng dữ liệu ở bản lưu cũ, sửa crash khi khởi động, chuẩn hóa phí chứng khoán, giá thuê và giá trị xe
-Đại tu hệ thống mua hàng - mọi đặc quyền IAP giờ áp dụng chính xác
-Hệ thống công bằng - chấm dứt chuỗi xui xẻo vô tận: sinh con, cầu hôn, xin việc và sự kiện hằng tuần đều có bảo đảm; tối đa 1 lần bệnh mỗi 4 tuần (điều bạn yêu cầu)
-Hệ quả quan hệ - người yêu rời đi sau 8 tuần bị bỏ bê, bạn đời đệ đơn ly hôn sau 12 tuần; chia tài sản sát thực tế
-Hiệu năng - tính thu nhập nhanh hơn 90%, file lưu nhỏ hơn 80%, mượt mà cả sau 1000+ tuần chơi
+• Sửa lỗi ở hệ thống lưu, nền kinh tế và cửa hàng trong ứng dụng
+• Cải thiện hiệu năng và độ ổn định trên toàn bộ game
+• Tinh chỉnh tổng thể dựa trên các vấn đề bạn đã phản ánh
 
-Bản cập nhật này giải quyết trực tiếp các vấn đề được báo cáo nhiều nhất trong đánh giá. Cảm ơn bạn đã đồng hành!
+Mỗi bản cập nhật đều hướng tới việc khiến lựa chọn của bạn có trọng lượng hơn và bản lưu của bạn an toàn hơn.
 
 Tham gia Discord để góp ý: discord.gg/invite/rzktazdX8v
 

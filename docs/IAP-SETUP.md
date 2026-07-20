@@ -164,9 +164,10 @@ eas secret:create --name EXPO_PUBLIC_IAP_VERIFY_TOKEN --value "<your dedicated v
      non-consumables come back, gem packs correctly do NOT.
    - Kill the app mid-purchase, relaunch — the transaction completes exactly
      once (the idempotency ledger prevents double-grants).
-3. Reminder: the production EAS profile currently sets
-   `EXPO_PUBLIC_ENABLE_DEVTOOLS=true` so TestFlight shows the dev console —
-   strip it before the public App Store release.
+3. Reminder: the production EAS profile does NOT set
+   `EXPO_PUBLIC_ENABLE_DEVTOOLS`, so release builds ship with the dev console
+   hidden. Use the `preview` (internal QA) profile if you need a build that
+   exposes the dev tools.
 
 ## Part 6 — App Review notes
 

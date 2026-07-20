@@ -44,7 +44,7 @@ module.exports = {
     icon: "./assets/images/icon.png",
     scheme: "deeplife",
     userInterfaceStyle: "automatic",
-    description: "The ultimate life simulation game where every choice matters",
+    description: "Real economics, real choices. Start at 18 with nothing, take loans, invest, and build wealth — or go bankrupt trying. Every decision compounds.",
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.deeplife.simulator",

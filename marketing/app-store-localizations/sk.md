@@ -89,35 +89,17 @@ Začni ešte dnes. Vybuduj majetok. Alebo veľkolepo skrachuj. Príbeh na rozpr�
 ## whats_new
 
 ```text
-v1.4.0 - Kvalita a stabilita
+v2.5.8 - Kvalita a stabilita
 
-Vypočuli sme tvoju spätnú väzbu. Táto aktualizácia je celá o stabilite a lepšom pocite z hry:
+Ďakujeme, že hráš Deep Life Simulator. Táto aktualizácia je celá o plynulejšej a spoľahlivejšej hre:
 
-70+ opravených chýb
-• Odolnejší systém ukladania - opravené poškodenie starších uložených pozícií
-• Prepracovaný systém nákupov - všetky zakúpené výhody sa už aplikujú správne
-• Opravy ekonomiky - poplatky za akcie, nájomné aj ceny vozidiel sú konzistentné
-• Opravy pádov pri štarte aj chýb v okrajových situáciách
+• Opravy chýb v ukladaniach, ekonomike a v obchode v aplikácii
+• Vylepšenia výkonu a stability celkovo
+• Celkové doladenie na základe problémov, ktoré ste nahlásili
 
-Systém férovosti
-• Deti: zaručené po 15 pokusoch
-• Žiadosť o ruku: zaručený úspech pri vzťahu 95 %+
-• Žiadosť o prácu: zaručená pri perfektnej kvalifikácii
-• Týždenné udalosti: zaručené po 6 týždňoch bez udalostí
-• Choroby: maximálne 1 za 4 týždne
+Každá aktualizácia sa snaží, aby tvoje voľby znamenali viac a tvoje uložené pozície boli bezpečnejšie.
 
-Následky vo vzťahoch
-• Partner odíde po 8 týždňoch zanedbávania
-• Manžel či manželka požiada o rozvod po 12 týždňoch
-• Realistické finančné vyrovnania
-
-Výkon
-• O 90 % rýchlejšie výpočty príjmov
-• O 50 % rýchlejšie rodinné výdavky
-• O 80 % menšie súbory uložených pozícií
-• Plynulá hra aj po 1000+ týždňoch
-
-Ďakujeme, že hráš. Pridaj sa na náš Discord a povedz nám svoj názor: discord.gg/invite/rzktazdX8v
+Pridaj sa na náš Discord a povedz nám svoj názor: discord.gg/invite/rzktazdX8v
 
 Žiadne nanútené reklamy. Žiadne pay-to-win. Len férový strategický simulátor.
 ```

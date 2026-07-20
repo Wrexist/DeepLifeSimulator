@@ -15,7 +15,7 @@ Build Your Fortune Or Collapse
 ## promotional_text
 
 ```text
-Start at 18 without a penny. Take out loans, play the markets, climb the property ladder, break the law-build generational wealth or lose the lot. Fancy your chances?
+You're 18 without a penny and everything to play for. Take out loans, play the markets, climb the property ladder, bend the rules, build generational wealth or lose the lot. Fancy your chances?
 ```
 
 ## keywords
@@ -99,17 +99,15 @@ Ready to play? Download now and see if you can build generational wealth-or go b
 ## whats_new
 
 ```text
-v1.4.0 - Quality of Life & Crash Fixes
+v2.5.8 - Stability & Polish
 
-We listened to your feedback. This update is all about stability:
+Thank you for playing Deep Life Simulator. This update is all about making the game smoother and more reliable:
 
-• 70+ bug fixes - save system hardened, data corruption on older saves fixed, startup crashes resolved
-• Purchase system overhauled - every IAP perk now applies correctly, so every penny works the way it should
-• New fairness systems - guaranteed outcomes end endless bad-luck streaks: children, marriage proposals, job applications, and weekly events all have pity timers now (and disease is capped at 1 per 4 weeks-you asked for this)
-• Relationship consequences - neglected partners now leave, spouses file for divorce, and settlements are realistic
-• Performance - 90% faster income calculations, 80% smaller save files, smoother gameplay after 1000+ weeks
+• Bug fixes across saves, the economy, and the in-app store
+• Performance and stability improvements throughout
+• General polish based on the issues you've reported
 
-This update tackles the top issues reported in your reviews. Thank you for playing.
+Every update aims to make your choices matter more and your saves safer.
 
 Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
 

@@ -89,21 +89,15 @@ Kreni danas. Izgradi svoje bogatstvo. Ili se spektakularno sruši. Kako god bilo
 ## whats_new
 
 ```text
-v1.4.0 - Stabilnost i ispravci
+v2.5.8 - Stabilnost i dorada
 
-Poslušali smo vaše povratne informacije. Ovo ažuriranje donosi stabilnost i pošteniju igru:
+Hvala što igraš Deep Life Simulator. Ovo ažuriranje usmjereno je na to da igra bude tečnija i pouzdanija:
 
-70+ ispravljenih grešaka
-Ojačan sustav spremanja, potpuno prerađen sustav kupnji (sve IAP pogodnosti sada se ispravno primjenjuju), ispravci u ekonomiji, riješena rušenja pri pokretanju.
+• Ispravci grešaka u spremanjima, ekonomiji i trgovini unutar aplikacije
+• Poboljšanja performansi i stabilnosti kroz cijelu igru
+• Općenita dorada na temelju problema koje ste prijavili
 
-Sustav poštenja
-Zajamčeno dijete nakon 15 pokušaja, zajamčena prosidba pri odnosu od 95%+, zajamčen tjedni događaj nakon 6 tjedana bez događaja, najviše 1 bolest svaka 4 tjedna (vi ste to tražili!).
-
-Posljedice u odnosima
-Partneri odlaze nakon 8 tjedana zanemarivanja, supružnici traže razvod nakon 12. Realistične financijske nagodbe. Odnosi opet imaju smisla.
-
-Performanse
-90% brži izračuni prihoda, 50% brži obiteljski troškovi, 80% manje datoteke spremanja, glatka igra i nakon 1000+ tjedana.
+Svako ažuriranje ima za cilj da tvoje odluke znače više, a tvoje snimke budu sigurnije.
 
 Hvala što igraš! Reci nam svoje mišljenje na Discordu: discord.gg/invite/rzktazdX8v
 

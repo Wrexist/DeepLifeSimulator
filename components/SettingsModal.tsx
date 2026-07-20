@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Alert, Linking, Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
@@ -9,12 +9,13 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift } from 'lucide-react-native';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import RedeemCodeModal from './RedeemCodeModal';
+import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
@@ -128,6 +129,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [showRedeemCode, setShowRedeemCode] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
+  const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
@@ -524,6 +528,16 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   />
                 )}
 
+                {/* What's New — player-facing update log. Opens a sheet NESTED
+                    inside this Settings Modal (mirrors RedeemCodeModal). */}
+                <SettingsActionButton
+                  icon={Megaphone}
+                  label="What's New"
+                  accent="#60A5FA"
+                  onPress={openWhatsNew}
+                  accessibilityLabel="See what's new in the latest update"
+                />
+
                 {settingItems.map(item => (
                   <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
                     <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
@@ -748,6 +762,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       {/* Redeem Code sheet — NESTED inside this presented Modal (mirrors the
           DevToolsModal nesting) so it never stacks a sibling root Modal on iOS. */}
       <RedeemCodeModal visible={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
+
+      {/* What's New update log — NESTED inside this presented Modal (same
+          iOS-safe nesting as RedeemCodeModal). */}
+      <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
 
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (

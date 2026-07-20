@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { ChevronRight, Play, Plus, Save, Settings } from 'lucide-react-native';
+import { ChevronRight, Megaphone, Play, Plus, Save, Settings } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
@@ -46,6 +46,12 @@ import { haptic } from '@/utils/haptics';
 // Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
 // when the user actually opens Settings.
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
+
+// What's New popup is a leaf component (changelog data + RN primitives only, no
+// context graph), so a static import is safe and cheap here — it doesn't drag
+// the heavy Settings graph into MainMenu's module init the way SettingsModal did.
+import WhatsNewModal from '@/components/WhatsNewModal';
+import { hasUnseenWhatsNew } from '@/utils/whatsNewSeen';
 
 // One flat, near-black base matched to the in-game home screen (#020617) so the
 // menu reads as one aesthetic with the game. NO gradients: the app-wide
@@ -237,6 +243,10 @@ export default function MainMenu() {
   const [hasSave, setHasSave] = useState(false);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  // Drives the small "NEW" dot on the top-right button until the player opens
+  // the update log once (persisted via utils/whatsNewSeen).
+  const [whatsNewUnseen, setWhatsNewUnseen] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
   // Guards setState after unmount for the deferred backfill below.
@@ -384,11 +394,24 @@ export default function MainMenu() {
   useFocusEffect(
     useCallback(() => {
       void refreshHasSaveState();
+      // Refresh the What's New badge on every focus so it clears after the
+      // player views the log (e.g. via Settings) and returns to the menu.
+      void hasUnseenWhatsNew().then((unseen) => {
+        if (isMountedRef.current) setWhatsNewUnseen(unseen);
+      });
       return () => {
         backfillTaskRef.current?.cancel();
       };
     }, [refreshHasSaveState])
   );
+
+  const openWhatsNew = useCallback(() => {
+    haptic.light();
+    setWhatsNewUnseen(false);
+    setShowWhatsNew(true);
+  }, []);
+
+  const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
 
   const continueGame = () => {
     haptic.light();
@@ -660,6 +683,21 @@ export default function MainMenu() {
             </Text>
           </RevealItem>
         </View>
+
+        {/* What's New — a quiet top-right corner button that opens the update
+            log. A small green dot flags an unseen release. */}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="What's New"
+          accessibilityHint="See the latest updates and improvements"
+          activeOpacity={0.85}
+          onPress={openWhatsNew}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[styles.whatsNewButton, { top: insets.top + verticalScale(12) }]}
+        >
+          <Megaphone size={scale(20)} color="#93C5FD" />
+          {whatsNewUnseen ? <View style={styles.whatsNewDot} /> : null}
+        </TouchableOpacity>
       </View>
 
       {showSettings && (
@@ -667,6 +705,8 @@ export default function MainMenu() {
           <SettingsModal visible={showSettings} onClose={() => setShowSettings(false)} />
         </Suspense>
       )}
+
+      <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
     </>
   );
 }
@@ -870,6 +910,33 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontSize: fontScale(13),
     fontWeight: '600',
+  },
+
+  // What's New (top-right corner) ---------------------------------------------
+  whatsNewButton: {
+    position: 'absolute',
+    right: responsiveSpacing.lg,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 10,
+    ...getPlatformShadows(6, 0.25, 4, 10),
+  },
+  whatsNewDot: {
+    position: 'absolute',
+    top: scale(9),
+    right: scale(9),
+    width: scale(10),
+    height: scale(10),
+    borderRadius: scale(5),
+    backgroundColor: '#34D399',
+    borderWidth: 1.5,
+    borderColor: '#0B1220',
   },
 
   // Footer --------------------------------------------------------------------

@@ -95,28 +95,15 @@ Begin vandaag. Bouw je fortuin op. Of crash spectaculair. Hoe dan ook: je hebt s
 ## whats_new
 
 ```text
-v1.4.0 - Stabiliteit & kwaliteit
+v2.5.8 - Stabiliteit & kwaliteit
 
-We hebben naar jullie feedback geluisterd. Deze update draait om stabiliteit en een soepeler spel:
+Bedankt voor het spelen van Deep Life Simulator. Deze update draait helemaal om een soepeler en betrouwbaarder spel:
 
-70+ bugfixes
-• Savesysteem versterkt - datacorruptie op oudere saves opgelost
-• Aankoopsysteem vernieuwd - alle gekochte voordelen werken nu correct
-• Economie gerepareerd - aandelenkosten, huurprijzen en autowaardes kloppen weer
-• Crashes bij het opstarten en zeldzame fouten opgelost
+• Bugfixes in saves, de economie en de in-app store
+• Verbeteringen aan prestaties en stabiliteit door het hele spel heen
+• Algemene verfijning op basis van de problemen die jullie hebben gemeld
 
-Eerlijkheidssysteem
-• Kinderen krijgen: gegarandeerd na 15 pogingen
-• Huwelijksaanzoek: gegarandeerd succes bij 95%+ relatie
-• Sollicitaties: gegarandeerd bij perfecte kwalificaties
-• Maximaal 1 ziekte per 4 weken (jullie vroegen erom)
-
-Relatiegevolgen
-• Partners vertrekken na 8 weken verwaarlozing, echtgenoten vragen na 12 weken een scheiding aan
-• Financiële afwikkelingen zijn realistisch - relaties voelen weer betekenisvol
-
-Prestaties
-• 90% snellere inkomensberekeningen, 80% kleinere savebestanden en soepeler spelen na 1000+ weken
+Elke update is erop gericht om jouw keuzes meer te laten tellen en je saves veiliger te maken.
 
 Bedankt voor het spelen. Deel je feedback in onze Discord: discord.gg/invite/rzktazdX8v
 

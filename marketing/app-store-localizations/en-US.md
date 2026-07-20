@@ -15,7 +15,7 @@ Real Economics. Real Choices.
 ## promotional_text
 
 ```text
-Start at 18 with empty pockets. Take out loans, play the market, buy property, break the law-then pass it all on. Build a dynasty or go bankrupt trying. Your move.
+You're 18 with empty pockets and unlimited potential. Take out loans, play the market, buy property, bend the rules, then pass it all on. Build a dynasty or go bankrupt trying. Your move.
 ```
 
 ## keywords
@@ -99,17 +99,15 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-v1.4.0 - Quality of Life & Crash Fixes
+v2.5.8 - Stability & Polish
 
-We listened to your feedback. This update is all about stability:
+Thank you for playing Deep Life Simulator. This release is all about making the game smoother and more reliable:
 
-• 70+ bug fixes - save system hardened, data corruption on older saves fixed, startup crashes resolved
-• Purchase system overhauled - every IAP perk now applies correctly, so every dollar works the way it should
-• New fairness systems - guaranteed outcomes end infinite bad-luck streaks: children, marriage proposals, job applications, and weekly events all have pity timers now (and disease is capped at 1 per 4 weeks-you asked for this)
-• Relationship consequences - neglected partners now leave, spouses file for divorce, and settlements are realistic
-• Performance - 90% faster income calculations, 80% smaller save files, smoother gameplay after 1000+ weeks
+• Bug fixes across saves, the economy, and the in-app store
+• Performance and stability improvements throughout
+• General polish based on the issues you've reported
 
-This update tackles the top issues reported in your reviews. Thank you for playing.
+Every update aims to make your choices matter more and your saves safer.
 
 Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
 
@@ -216,7 +214,7 @@ Join our Discord community: discord.gg/invite/rzktazdX8v
 • Keyword string targets the highest-volume US terms: "life simulator" (primary genre query), career, investing, tycoon, business, bankruptcy, strategy, money, simulation.
 • promotional_text is new conversion copy (not indexed): 18-with-nothing hook, loans/market/property/crime arc, dynasty-or-bankruptcy stakes.
 • Description keeps the approved structure verbatim; duplicate "80+ LIFE EVENTS" header from the source was merged into a single section and markdown artifacts (---, bold) removed since App Store fields render plain text.
-• whats_new condensed from the full v1.4.0 notes to ~950 chars, leading with "We listened" and ending with the Discord link per the conversion checklist.
+• whats_new refreshed for the v2.5.8 release: an honest "Stability & Polish" note (no invented metrics) leading with thanks and ending with the Discord link per the conversion checklist.
 • Google Play full description trimmed under the 4000-char limit by removing the redundant standalone "80+ LIFE EVENTS" section (the source copy exceeded 4000 code points); the 80+ events claim is retained twice elsewhere.
 • A/B test subtitle option 2 ("Build Your Fortune Or Collapse") after 4 weeks; do not rotate keywords or title.
 ```

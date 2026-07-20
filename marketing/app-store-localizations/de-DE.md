@@ -85,23 +85,17 @@ Starte jetzt. Baue dein Vermögen auf - oder crashe spektakulär. Eine Geschicht
 ## whats_new
 
 ```text
-v1.4.0 - Stabilität & Komfort
+v2.5.8 - Stabilität & Komfort
 
-Wir haben euer Feedback gelesen - und geliefert. Das ist unser bisher größtes Stabilitäts-Update:
+Danke, dass ihr Deep Life Simulator spielt! Bei diesem Update dreht sich alles darum, das Spiel flüssiger und zuverlässiger zu machen:
 
-70+ Bugfixes
-Speichersystem gehärtet, Startabstürze behoben, Wirtschaftswerte (Ordergebühren, Mieten, Fahrzeugwerte) endlich konsistent. Das Kaufsystem wurde komplett überarbeitet - jeder Euro wirkt jetzt korrekt.
+• Bugfixes bei Spielständen, der Wirtschaft und dem In-App-Shop
+• Verbesserungen bei Performance und Stabilität im ganzen Spiel
+• Allgemeiner Feinschliff auf Basis eurer gemeldeten Probleme
 
-Fairness-System
-Schluss mit endlosen Pechsträhnen: garantierte Erfolge bei Kinderwunsch, Heiratsanträgen, Bewerbungen und Wochenevents. Maximal 1 Krankheit pro 4 Wochen - ihr habt es euch gewünscht.
+Jedes Update soll dafür sorgen, dass eure Entscheidungen mehr zählen und eure Spielstände sicherer sind.
 
-Beziehungen mit Konsequenzen
-Wer Partner oder Ehepartner zu lange vernachlässigt, wird verlassen - inklusive realistischer Scheidungskosten. Beziehungen fühlen sich wieder bedeutsam an.
-
-Performance
-Bis zu 90 % schnellere Berechnungen, 80 % kleinere Spielstände, flüssiges Spielen auch nach 1000+ Wochen.
-
-Danke, dass ihr spielt! Feedback? Ab auf unseren Discord: discord.gg/invite/rzktazdX8v
+Feedback? Ab auf unseren Discord: discord.gg/invite/rzktazdX8v
 
 Keine Zwangswerbung. Kein Pay-to-win. Einfach eine faire, strategische Lebenssimulation.
 ```

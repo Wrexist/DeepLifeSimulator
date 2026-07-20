@@ -89,23 +89,17 @@ Deep Life Simulator e făcut pentru jucătorii care vor strategie, consecințe �
 ## whats_new
 
 ```text
-v1.4.0 - Stabilitate și remedieri
+v2.5.8 - Stabilitate și remedieri
 
-V-am ascultat feedbackul. Acest update e despre stabilitate și un joc mai corect:
+Îți mulțumim că joci Deep Life Simulator. Acest update e despre un joc mai fluid și mai stabil:
 
-70+ buguri rezolvate
-Sistem de salvare întărit, sistem de achiziții refăcut complet (toate avantajele IAP se aplică acum corect), corecții în economie, crash-uri la pornire eliminate.
+• Remedieri de buguri în salvări, economie și în magazinul din aplicație
+• Îmbunătățiri de performanță și stabilitate în general
+• Șlefuire generală pe baza problemelor pe care ni le-ați semnalat
 
-Sistem de corectitudine
-Copil garantat după 15 încercări, cerere în căsătorie garantată la 95%+ relație, eveniment săptămânal garantat după 6 săptămâni fără evenimente, maximum 1 boală la 4 săptămâni (voi ați cerut asta!).
+Fiecare update își propune să facă alegerile tale să conteze mai mult și salvările tale mai sigure.
 
-Consecințe în relații
-Partenerii pleacă după 8 săptămâni de neglijare, soții cer divorțul după 12. Partaje financiare realiste. Relațiile au din nou miză.
-
-Performanță
-Calcule de venit cu 90% mai rapide, cheltuieli de familie cu 50% mai rapide, fișiere de salvare cu 80% mai mici, joc fluid și după 1000+ săptămâni.
-
-Mulțumim că joci! Spune-ne părerea ta pe Discord: discord.gg/invite/rzktazdX8v
+Spune-ne părerea ta pe Discord: discord.gg/invite/rzktazdX8v
 
 Fără reclame forțate. Fără pay-to-win. Doar un simulator de viață corect și strategic.
 ```

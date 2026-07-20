@@ -13,7 +13,7 @@ Each `<locale>.md` contains every store field with its hard character limit:
 - `promotional_text` (170) - conversion hook, editable without review
 - `keywords` (100) - comma-separated, no spaces, locale-tuned search terms
 - `description` (4000) - full App Store description
-- `whats_new` (4000) - v1.4.0 release notes
+- `whats_new` (4000) - v2.5.8 release notes
 - `gp_short_description` (80) - Google Play short description (indexed)
 - `gp_full_description` (4000) - Google Play long description (indexed)
 - `notes` - ASO rationale per market (not uploaded)

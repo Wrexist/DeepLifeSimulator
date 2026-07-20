@@ -95,25 +95,15 @@ Bugün başla. Servetini kur. Ya da muhteşem bir çöküş yaşa. İki türlü 
 ## whats_new
 
 ```text
-v1.4.0 - Kalite ve Çökme Düzeltmeleri
+v2.5.8 - Kararlılık ve İyileştirmeler
 
-Geri bildirimlerinizi dinledik. Bu güncelleme tamamen stabilite ve daha akıcı bir oyun deneyimi için:
+Deep Life Simulator oynadığın için teşekkürler. Bu güncelleme tamamen oyunu daha akıcı ve daha güvenilir kılmakla ilgili:
 
-70+ Hata Düzeltmesi
-• Kayıt sistemi güçlendirildi, eski kayıtlardaki veri bozulmaları giderildi
-• Satın alma sistemi baştan ele alındı - tüm avantajlar artık doğru çalışıyor
-• Borsa komisyonları, kiralar ve araç değerleri tutarlı hale getirildi
-• Açılış çökmeleri ve uç durum hataları çözüldü
+• Kayıtlarda, ekonomide ve uygulama içi mağazada hata düzeltmeleri
+• Baştan sona performans ve kararlılık iyileştirmeleri
+• Bildirdiğiniz sorunlara dayanan genel iyileştirmeler
 
-Adalet Sistemi
-• Sonsuz şanssızlık bitti: çocuk, evlilik teklifi, iş başvurusu ve haftalık olaylar için garanti mekanikleri
-• Hastalık sıklığı sınırlandı: 4 haftada en fazla 1 (bunu siz istediniz)
-
-İlişki Sonuçları
-• İhmal edilen partnerler artık gerçekten terk ediyor, boşanmaların gerçekçi mali sonuçları var
-
-Performans
-• %90 daha hızlı gelir hesaplamaları, %80 daha küçük kayıt dosyaları, 1000+ hafta sonrasında bile akıcı oynanış
+Her güncelleme, seçimlerini daha anlamlı ve kayıtlarını daha güvenli kılmayı amaçlar.
 
 Geri bildirimlerini paylaşmak için Discord'umuza katıl: discord.gg/invite/rzktazdX8v
 
@@ -223,5 +213,5 @@ Discord topluluğumuza katıl: discord.gg/invite/rzktazdX8v
 - Crime cluster (suç, hapis) targets high-intent BitLife-adjacent searches without touching the trademark.
 - Google Play: top keywords (hayat simülasyonu, para, borsa, yatırım, zengin, yaşam simülasyonu) are woven into the first 160 chars of gp_full_description and repeated naturally throughout; short description leads with "zengin ol" + "hayat simülasyonu".
 - A/B test ideas: subtitle variant "Sıfırdan Zengin Ol!" (pure aspiration, no genre term) vs current; GP short description variant "Kredi çek, borsada oyna, servet kur. Gerçekçi hayat simülasyonu." to test economy-first vs aspiration-first hooks.
-- Copy uses energetic sen-form throughout, consistent with top-grossing TR mobile sim/tycoon listings; all feature counts (20+ careers, 80+ events, 70+ fixes) match the English source.
+- Copy uses energetic sen-form throughout, consistent with top-grossing TR mobile sim/tycoon listings; all feature counts (20+ careers, 80+ events) match the English source.
 ```

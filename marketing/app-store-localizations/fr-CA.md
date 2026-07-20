@@ -89,30 +89,15 @@ Embarque aujourd'hui. Bâtis ta fortune. Ou plante-toi solide. Dans les deux cas
 ## whats_new
 
 ```text
-v1.4.0 - Qualité de vie et correctifs de plantages
+v2.5.8 - Qualité de vie et stabilité
 
-On t'a écouté. Cette mise à jour, c'est de la stabilité d'un bord à l'autre :
+Merci de jouer à Deep Life Simulator. Cette mise à jour vise à rendre le jeu plus fluide et plus fiable :
 
-Plus de 70 bogues corrigés
-• Sauvegardes renforcées - fini la corruption des vieilles parties
-• Système d'achats refait - tous les bonus s'appliquent comme il faut
-• Économie cohérente - frais de bourse, loyers et valeurs des chars corrigés
-• Plantages au démarrage réglés
+• Correctifs de bogues touchant les sauvegardes, l'économie et la boutique intégrée
+• Améliorations de performances et de stabilité d'un bord à l'autre
+• Fignolage général basé sur les problèmes que tu nous as signalés
 
-Système d'équité
-• Enfant garanti après 15 essais
-• Demande en mariage garantie à 95 %+ de relation
-• Embauche garantie avec les qualifications parfaites
-• Événement garanti après 6 semaines sans rien
-• Max 1 maladie par 4 semaines (tu nous l'avais demandé)
-
-Relations avec conséquences
-• Ton partenaire te laisse après 8 semaines de négligence, divorce après 12
-• Règlements financiers réalistes
-
-Performances
-• Calculs de revenus 90 % plus vites, sauvegardes 80 % plus légères
-• Fluide même après 1000+ semaines de jeu
+Chaque mise à jour vise à donner plus de poids à tes choix et à mieux protéger tes sauvegardes.
 
 Merci de jouer. Viens jaser sur notre Discord : discord.gg/invite/rzktazdX8v
 
