@@ -146,7 +146,7 @@ function styleC(shotMain, shotLeft, shotRight) {
   return page(body, css);
 }
 
-const main = img('13-home-final.png');
+const main = img('27-home-final.png');
 const spark = img('05-app-spark.png');
 const stocks = img('07-app-stocks.png');
 

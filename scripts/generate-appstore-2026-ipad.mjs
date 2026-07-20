@@ -1,7 +1,8 @@
 /**
  * Generate the 10-image iPad App Store set (style C — "Life in Motion")
- * at 2064x2752 (13" iPad Pro; auto-scales to 12.9" 2048x2732) from real
- * iPad-viewport gameplay captures (1024x1366 @2x).
+ * at 2064x2752 (13" iPad Pro slot) from real iPad-viewport gameplay captures
+ * (1024x1366 @2x). App Store Connect accepts this 13" size for the 12.9"
+ * slot too (it downscales on upload); the script itself emits only 2064x2752.
  *
  * Prereq: screenshots/appstore-2026/rich-captures-ipad/
  *         (capture-rich-state.mjs run with VIEW_W=1024 VIEW_H=1366 DSF=2)
