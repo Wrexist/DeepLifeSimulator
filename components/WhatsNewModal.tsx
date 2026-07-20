@@ -94,9 +94,10 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                 <View style={styles.iconChip}>
                   <Megaphone size={18} color="#60A5FA" />
                 </View>
-                <View>
+                <View style={styles.headerTextWrap}>
+                  <Text style={styles.eyebrow}>NEWS &amp; UPDATES</Text>
                   <Text style={styles.title}>What's New</Text>
-                  <Text style={styles.subtitle}>Latest updates & improvements</Text>
+                  <Text style={styles.subtitle}>The latest features, fixes &amp; improvements</Text>
                 </View>
               </View>
               <TouchableOpacity
@@ -134,6 +135,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                       <Text style={styles.versionDate}>{entry.date}</Text>
                     </View>
 
+                    {entry.headline ? <Text style={styles.headline}>{entry.headline}</Text> : null}
                     {entry.summary ? <Text style={styles.summary}>{entry.summary}</Text> : null}
 
                     {entry.changes.map((change, changeIndex) => {
@@ -206,6 +208,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  eyebrow: {
+    color: '#60A5FA',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 2,
   },
   iconChip: {
     width: 40,
@@ -284,11 +296,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748B',
   },
+  headline: {
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 21,
+    color: '#F8FAFC',
+    marginBottom: 4,
+  },
   summary: {
     fontSize: 13,
     lineHeight: 18,
-    color: '#CBD5E1',
-    marginBottom: 12,
+    color: '#94A3B8',
+    marginBottom: 14,
   },
   changeRow: {
     flexDirection: 'row',
