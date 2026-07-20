@@ -85,35 +85,17 @@ Mulai hari ini. Kumpulkan harta sampai miliaran rupiah. Atau bangkrut spektakule
 ## whats_new
 
 ```text
-v1.4.0 - Kualitas & Perbaikan Crash
+v2.5.8 - Stabilitas & Kualitas
 
-Kami dengar masukan kalian. Update ini fokus penuh ke stabilitas:
+Terima kasih sudah memainkan Deep Life Simulator. Update ini fokus membuat game lebih mulus dan lebih andal:
 
-70+ Perbaikan Bug
-• Sistem save diperkuat - data korup di save lama diperbaiki
-• Sistem pembelian dirombak total - semua perk IAP kini bekerja dengan benar
-• Perbaikan ekonomi - biaya saham, harga sewa, dan nilai kendaraan kini konsisten
-• Crash saat startup dan error langka sudah dibereskan
+• Perbaikan bug pada sistem save, ekonomi, dan toko dalam aplikasi
+• Peningkatan performa dan stabilitas secara menyeluruh
+• Penyempurnaan umum berdasarkan masukan yang kalian laporkan
 
-Sistem Keadilan
-• Punya anak: dijamin setelah 15 percobaan
-• Lamaran nikah: pasti diterima di hubungan 95%+
-• Lamaran kerja: pasti diterima dengan kualifikasi sempurna
-• Event mingguan: dijamin setelah 6 minggu tanpa event
-• Penyakit: maksimal 1 per 4 minggu (sesuai permintaan kalian!)
+Setiap update bertujuan membuat pilihanmu makin berarti dan save-mu makin aman.
 
-Konsekuensi Hubungan
-• Pacar pergi setelah 8 minggu diabaikan
-• Pasangan menggugat cerai setelah 12 minggu diabaikan
-• Pembagian harta yang realistis
-
-Performa
-• Kalkulasi penghasilan 90% lebih cepat
-• Perhitungan pengeluaran keluarga 50% lebih cepat
-• File save 80% lebih kecil
-• Tetap mulus setelah 1000+ minggu
-
-Terima kasih sudah bermain! Gabung Discord kami: discord.gg/invite/rzktazdX8v
+Gabung Discord kami: discord.gg/invite/rzktazdX8v
 Tanpa iklan paksa. Tanpa pay-to-win. Simulasi kehidupan yang adil dan strategis.
 ```
 

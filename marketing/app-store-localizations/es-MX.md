@@ -85,30 +85,17 @@ Descárgalo hoy. Hazte millonario o quiebra en el intento: de cualquier forma, t
 ## whats_new
 
 ```text
-v1.4.0 - Estabilidad y mejoras de calidad
+v2.5.8 - Estabilidad y mejoras de calidad
 
-Los escuchamos. Esta actualización se enfoca en que el juego funcione como debe:
+Gracias por jugar Deep Life Simulator. Esta actualización se enfoca en hacer el juego más fluido y confiable:
 
-Más de 70 errores corregidos
-• Sistema de guardado reforzado: se acabaron las partidas corruptas
-• Sistema de compras renovado: todas las mejoras de paga se aplican bien, cada peso cuenta
-• Economía ajustada: comisiones de bolsa, rentas y valor de los vehículos ya son consistentes
-• Corregidos los crasheos al iniciar y otros errores raros
+• Errores corregidos en los guardados, la economía y la tienda de la app
+• Mejoras de rendimiento y estabilidad en todo el juego
+• Pulido general a partir de los problemas que nos reportaron
 
-Sistema de equidad (adiós a la mala suerte infinita)
-• Tener hijos: garantizado después de 15 intentos
-• Propuestas de matrimonio: éxito garantizado con relación de 95 %+
-• Eventos semanales garantizados tras 6 semanas sin ellos
-• Enfermedades: máximo 1 cada 4 semanas (ustedes lo pidieron)
+Cada actualización busca que tus decisiones pesen más y que tus partidas estén más seguras.
 
-Relaciones con consecuencias
-• Tu pareja te deja tras 8 semanas de descuido; el divorcio llega a las 12
-• Acuerdos económicos realistas
-
-Rendimiento
-• Cálculo de ingresos 90 % más rápido y partidas guardadas 80 % más ligeras
-
-Gracias por jugar. Cuéntennos qué mejorar en nuestro Discord: discord.gg/invite/rzktazdX8v
+Cuéntennos qué mejorar en nuestro Discord: discord.gg/invite/rzktazdX8v
 
 Sin anuncios forzados. Sin pay-to-win. Solo un simulador de vida justo y estratégico.
 ```

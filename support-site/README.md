@@ -6,7 +6,7 @@ Immersive multi-page GitHub Pages site for DeepLife Simulator.
 - `index.html` — animated hero, features, screenshot showcase, What's New, support & FAQ
 - `features.html` — deep-dive on every game system (alternating hero shots)
 - `gallery.html` — full screenshot gallery (real captures) with lightbox
-- `whats-new.html` — release notes / changelog (v2.5.1 + history)
+- `whats-new.html` — release notes / changelog (v2.5.8 + history)
 - `support.html` — contact + full FAQ / troubleshooting
 - `privacy.html` — full privacy policy (mirrors the canonical policy)
 

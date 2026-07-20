@@ -89,17 +89,15 @@ Start i dag. Byg din formue. Eller gå spektakulært ned. Uanset hvad får du en
 ## whats_new
 
 ```text
-v1.4.0 - Stabilitet og forbedringer
+v2.5.8 - Stabilitet og forbedringer
 
-Vi har lyttet til jeres feedback. Denne opdatering handler om stabilitet og spilfølelse:
+Tak, fordi du spiller Deep Life Simulator. Denne opdatering handler om at gøre spillet mere flydende og pålideligt:
 
-• 70+ fejlrettelser - gemmesystemet forstærket, opstartscrash løst, økonomien (kurtage, huslejer, bilværdier) nu konsistent
-• Købssystemet gennemrenoveret - alle købte fordele aktiveres nu korrekt
-• Fairness-system - barn garanteret efter 15 forsøg, frieri lykkes altid ved 95+ % relation, ugentlig begivenhed garanteret efter 6 uger, maks. 1 sygdom pr. 4 uger (I bad om det)
-• Relationer med konsekvenser - partnere går efter 8 ugers forsømmelse, skilsmisse efter 12, realistiske bodelinger
-• Ydeevne - 90 % hurtigere indkomstberegninger, 80 % mindre gemmefiler, mere flydende spil efter 1000+ uger
+• Fejlrettelser i gemte spil, økonomien og butikken i appen
+• Forbedringer af ydeevne og stabilitet hele vejen igennem
+• Generel finpudsning ud fra de problemer, I har rapporteret
 
-Opdateringen bygger på de mest rapporterede problemer fra jeres anmeldelser. Tak, fordi I spiller!
+Hver opdatering sigter mod at gøre dine valg mere betydningsfulde og dine gemte spil mere sikre.
 
 Join vores Discord: discord.gg/invite/rzktazdX8v
 
@@ -206,7 +204,7 @@ Join vores Discord: discord.gg/invite/rzktazdX8v
 - Keyword field (99/100) avoids every name/subtitle word and targets high-intent Danish terms: penge, karriere, bliv rig, aktier, investering, konkurs, fængsel, milliardær, job, valg - plus "tycoon" and "idle", which Danes search in English, untranslated.
 - "bliv rig" is the natural Danish get-rich query and also yields the standalone tokens "bliv" and "rig" for combined searches.
 - Google Play: top keywords (livssimulator, penge, lån, aktier, karriere, bliv rig, konkurs) appear in the first 160 chars of the full description and recur naturally through the body.
-- Copy is natural Danish du-form; "I/jeres" plural address is used in whats_new where the developer speaks to the whole community, which is the idiomatic patch-note voice in Danish. Feature counts (20+ karrierer, 80+ begivenheder, 70+ fejlrettelser, performance percentages) match the source.
+- Copy is natural Danish du-form; "I/jeres" plural address is used in whats_new where the developer speaks to the whole community, which is the idiomatic patch-note voice in Danish. Feature counts (20+ karrierer, 80+ begivenheder) match the source.
 - "Det her er ikke BitLife" kept in body copy only, never in metadata, per legal notes.
 - A/B test suggestion: current subtitle vs. "Bliv rig - eller gå konkurs" (27 chars) - punchier conversion angle but drops the native genre keyword, so measure conversion, not rankings.
 - Consider testing GP short description against "Byg rigdom fra bunden. Træf svære valg. Se det hele vælte. Igen." for attitude parity with the EN Option 1.

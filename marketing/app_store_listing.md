@@ -1,8 +1,8 @@
 # Deep Life Simulator — Production App Store Listing
 
-**Version:** March 2026
+**Version:** July 2026 (app v2.5.8)
 **Status:** Ready for App Store Connect & Google Play Console
-**Last Updated:** 2026-03-09
+**Last Updated:** 2026-07-20
 
 ---
 
@@ -151,9 +151,9 @@ Start today. Build your fortune. Or crash spectacularly. Either way, you'll have
 
 ---
 
-**What's New in v2.3.0:**
+**What's New in v2.5.8:**
 
-We listened to your feedback. This update fixes 70+ bugs, overhauls our purchase system so every dollar works correctly, and adds fairness systems that prevent infinite bad luck. Your saves are more stable. Your investments work properly. Your relationships have real consequences. This is our biggest stability update yet.
+Thank you for playing. This release focuses on stability and polish: bug fixes across saves, the economy, and the in-app store, plus performance improvements and general polish based on the issues you've reported. Your saves are safer and your choices matter more.
 
 **Ready to play?** Download now and see if you can build generational wealth—or if you'll go bankrupt trying.
 ```
@@ -162,40 +162,23 @@ We listened to your feedback. This update fixes 70+ bugs, overhauls our purchase
 
 ---
 
-## 6. What's New — Next Stability Update
+## 6. What's New — Current Release (v2.5.8)
 
 ```
-v2.3.1 — Quality of Life & Crash Fixes
+v2.5.8 — Stability & Polish
 
-We listened to your feedback. This update is all about stability and making the game feel better:
+Thank you for playing Deep Life Simulator. This release is all about making the game smoother and more reliable:
 
-✅ 70+ Bug Fixes
-• Save system hardened — fixed data corruption on older saves
-• Purchase system overhauled — all IAP perks now apply correctly
-• Economy fixes — stock fees, rent rates, and vehicle values now consistent
-• Crash fixes — resolved startup crashes and edge case errors
+✅ Bug Fixes
+• Saves, the economy, and the in-app store hardened for a more dependable run
 
-✅ Fairness System
-• Having children: guaranteed after 15 attempts
-• Marriage proposals: guaranteed success at 95%+ relationship
-• Job applications: guaranteed at perfect qualifications
-• Weekly events: guaranteed after 6 weeks without events
-• Disease cooldown: max 1 disease per 4 weeks (you asked for this)
+✅ Performance & Stability
+• Smoother, cleaner gameplay throughout
 
-✅ Relationship Consequences
-• Partners now leave after 8 weeks of neglect
-• Spouses file for divorce after 12 weeks of neglect
-• Financial settlements are realistic
-• Relationships feel meaningful again
+✅ Polish
+• General refinements based on the issues you've reported
 
-✅ Performance Improvements
-• 90% faster income calculations
-• 50% faster family expenses
-• 80% smaller save files
-• Smoother gameplay after 1000+ weeks
-
-✅ Your Feedback
-This update reflects the top issues reported in reviews. We fixed weekly progression bugs, disease frequency complaints, and purchase problems. Your saves are more stable and your choices matter more.
+Every update aims to make your choices matter more and your saves safer.
 
 **Thank you for playing. Join our Discord to share feedback:**
 discord.gg/deeplifesim
@@ -427,7 +410,7 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 2. **Subtitle:** "Real Economics. Real Choices."
 3. **Keywords:** [Use Option 1 above]
 4. **Description:** [Use Full Description v5.0 above]
-5. **Version Release Notes:** [Use What's New v2.3.1 above]
+5. **Version Release Notes:** [Use What's New v2.5.8 above]
 6. **Support URL:** discord.gg/deeplifesim
 7. **Category:** Games > Simulation
 8. **Content Rating:** [Per IARC questionnaire — likely 12+ due to violence/crime themes]
@@ -467,7 +450,7 @@ Track in App Store Connect:
 **Current Status:** 2.3 stars, needs improvement via stability fixes + ASO
 
 **Immediate Actions (Week 1):**
-1. Ship stability update (v2.3.1) with patch notes emphasizing "We listened"
+1. Ship stability update (v2.5.8) with patch notes emphasizing stability &amp; polish
 2. Respond to every review (esp. 1–2 star, thank 5-star)
 3. Update App Store listing with this copy
 4. Configure rating prompt in-app

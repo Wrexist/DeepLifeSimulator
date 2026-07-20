@@ -89,23 +89,17 @@ Comença avui. Construeix la teva fortuna. O esfondra't espectacularment. Sigui 
 ## whats_new
 
 ```text
-v1.4.0 - Estabilitat i correccions
+v2.5.8 - Estabilitat i correccions
 
-Us hem escoltat. Aquesta actualització va d'estabilitat i de fer el joc més just:
+Gràcies per jugar a Deep Life Simulator. Aquesta actualització busca fer el joc més fluid i fiable:
 
-Més de 70 errors corregits
-Sistema de desat reforçat, sistema de compres renovat de dalt a baix (tots els avantatges d'IAP ara s'apliquen correctament), correccions a l'economia i bloquejos d'inici resolts.
+• Correccions d'errors a les partides desades, l'economia i la botiga integrada
+• Millores de rendiment i estabilitat a tot el joc
+• Poliment general a partir dels problemes que ens heu reportat
 
-Sistema d'equitat
-Fill garantit després de 15 intents, proposta de matrimoni garantida amb una relació del 95%+, esdeveniment setmanal garantit després de 6 setmanes sense res, màxim 1 malaltia cada 4 setmanes (ho vau demanar!).
+Cada actualització vol que les teves decisions comptin més i que les teves partides estiguin més segures.
 
-Conseqüències a les relacions
-Les parelles marxen després de 8 setmanes de descuit, els cònjuges demanen el divorci després de 12. Acords econòmics realistes. Les relacions tornen a tenir sentit.
-
-Rendiment
-Càlculs d'ingressos un 90% més ràpids, despeses familiars un 50% més ràpides, fitxers de desat un 80% més petits, joc fluid fins i tot després de 1000+ setmanes.
-
-Gràcies per jugar! Digues-nos què en penses al Discord: discord.gg/invite/rzktazdX8v
+Digues-nos què en penses al Discord: discord.gg/invite/rzktazdX8v
 
 Sense anuncis forçats. Sense pay-to-win. Només un simulador de vida just i estratègic.
 ```

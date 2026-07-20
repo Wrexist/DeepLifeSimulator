@@ -89,30 +89,15 @@ Lance-toi aujourd'hui. Bâtis ta fortune. Ou plante-toi avec panache. Dans tous 
 ## whats_new
 
 ```text
-v1.4.0 - Confort de jeu et corrections de crashs
+v2.5.8 - Confort de jeu et stabilité
 
-On t'a écouté. Cette mise à jour mise tout sur la stabilité :
+Merci de jouer à Deep Life Simulator. Cette mise à jour vise à rendre le jeu plus fluide et plus fiable :
 
-Plus de 70 bugs corrigés
-• Sauvegardes fiabilisées - fini la corruption des anciennes parties
-• Système d'achats revu - tous les bonus s'appliquent correctement
-• Économie cohérente - frais boursiers, loyers et valeurs des véhicules corrigés
-• Crashs au démarrage résolus
+• Corrections de bugs sur les sauvegardes, l'économie et la boutique intégrée
+• Améliorations de performances et de stabilité un peu partout
+• Peaufinage général basé sur les problèmes que tu nous as signalés
 
-Système anti-malchance
-• Enfant garanti après 15 essais
-• Demande en mariage garantie à 95 %+ de relation
-• Embauche garantie avec le profil parfait
-• Événement garanti après 6 semaines sans rien
-• Max 1 maladie par 4 semaines (tu l'avais demandé)
-
-Relations avec conséquences
-• Ton partenaire te quitte après 8 semaines de négligence, divorce après 12
-• Compensations financières réalistes
-
-Performances
-• Calculs de revenus 90 % plus rapides, sauvegardes 80 % plus légères
-• Fluide même après 1000+ semaines de jeu
+Chaque mise à jour vise à donner plus de poids à tes choix et à mieux protéger tes sauvegardes.
 
 Merci de jouer. Rejoins-nous sur Discord : discord.gg/invite/rzktazdX8v
 

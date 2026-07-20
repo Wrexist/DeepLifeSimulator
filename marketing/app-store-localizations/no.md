@@ -95,27 +95,17 @@ Start i dag. Bygg formuen din. Eller gå konkurs med stil. Uansett får du en hi
 ## whats_new
 
 ```text
-v1.4.0 - Stabilitet og spillopplevelse
+v2.5.8 - Stabilitet og spillopplevelse
 
-Vi hørte på tilbakemeldingene deres. Denne oppdateringen handler om stabilitet:
+Takk for at du spiller Deep Life Simulator. Denne oppdateringen handler om å gjøre spillet jevnere og mer stabilt:
 
-70+ feilrettinger
-• Lagringssystemet forsterket - datakorrupsjon på eldre lagringer er fikset
-• Kjøpssystemet totalrenovert - alle kjøpte fordeler fungerer nå korrekt
-• Økonomifikser - aksjegebyrer, leiepriser og bilverdier er nå konsistente
+• Feilrettinger på tvers av lagringer, økonomien og butikken i appen
+• Forbedret ytelse og stabilitet gjennomgående
+• Generell finpuss basert på tilbakemeldingene deres
 
-Rettferdighetssystem
-• Garantier mot uendelig uflaks: barn, frierier, jobbsøknader og ukentlige hendelser gir nå garantert uttelling etter en grense
-• Maks én sykdom per 4 uker (dere ba om dette)
+Hver oppdatering skal gjøre valgene dine viktigere og lagringene dine tryggere.
 
-Konsekvenser i relasjoner
-• Partnere forlater deg etter 8 uker med forsømmelse, ektefeller søker skilsmisse etter 12
-• Realistiske økonomiske oppgjør
-
-Ytelse
-• 90 % raskere inntektsberegninger, 80 % mindre lagringsfiler og jevnere spillflyt etter 1000+ uker
-
-Takk for at du spiller! Bli med i Discord-fellesskapet vårt: discord.gg/invite/rzktazdX8v
+Bli med i Discord-fellesskapet vårt: discord.gg/invite/rzktazdX8v
 
 Ingen påtvungne annonser. Ingen pay-to-win. Bare en rettferdig, strategisk livssim.
 ```

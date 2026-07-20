@@ -89,19 +89,17 @@ Baixe agora. Construa sua fortuna. Ou quebre espetacularmente. De um jeito ou de
 ## whats_new
 
 ```text
-v1.4.0 - Qualidade de Vida e Correções
+v2.5.8 - Qualidade de Vida e Correções
 
-Nós ouvimos vocês! Esta é a nossa maior atualização de estabilidade até agora:
+Valeu por jogar o Deep Life Simulator! Esta atualização é toda sobre deixar o jogo mais fluido e confiável:
 
-Mais de 70 bugs corrigidos - sistema de salvamento reforçado, sistema de compras revisado (todas as vantagens compradas agora funcionam direitinho), economia consistente e travamentos na inicialização resolvidos.
+• Correções de bugs nos saves, na economia e na loja do app
+• Melhorias de desempenho e estabilidade no geral
+• Ajustes gerais com base nos problemas que vocês relataram
 
-Sistema de justiça - chega de azar infinito: filhos garantidos após 15 tentativas, pedido de casamento certeiro com 95%+ de relacionamento, eventos semanais garantidos e no máximo 1 doença a cada 4 semanas (vocês pediram!).
+Cada atualização busca fazer suas escolhas importarem mais e seus saves ficarem mais seguros.
 
-Consequências nos relacionamentos - parceiros vão embora após 8 semanas de abandono, cônjuges pedem divórcio após 12, e a partilha de bens é realista.
-
-Desempenho - cálculos de renda 90% mais rápidos, saves 80% menores e jogo fluido mesmo depois de 1000+ semanas.
-
-Valeu por jogar! Entre no nosso Discord e mande seu feedback: discord.gg/invite/rzktazdX8v
+Entre no nosso Discord e mande seu feedback: discord.gg/invite/rzktazdX8v
 
 Sem anúncios forçados. Sem pay-to-win. Só um simulador de vida justo e estratégico.
 ```

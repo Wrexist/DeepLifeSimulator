@@ -85,25 +85,15 @@ Aloita tänään. Rakenna omaisuutesi. Tai aja kaikki komeasti päin seinää. K
 ## whats_new
 
 ```text
-v1.4.0 - Vakautta ja pelituntumaa
+v2.5.8 - Vakautta ja pelituntumaa
 
-Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen:
+Kiitos, että pelaat Deep Life Simulatoria. Tämä päivitys keskittyy tekemään pelistä sujuvamman ja luotettavamman:
 
-70+ bugikorjausta
-• Tallennusjärjestelmä vahvistettu - vanhojen tallennusten datakorruptio korjattu
-• Ostojärjestelmä uusittu - kaikki ostetut edut toimivat nyt oikein
-• Talouskorjauksia - osakkeiden kulut, vuokratasot ja autojen arvot nyt johdonmukaisia
+• Bugikorjauksia tallennuksiin, talouteen ja sovelluksen kauppaan
+• Suorituskyky- ja vakausparannuksia kauttaaltaan
+• Yleistä hiontaa raportoimienne ongelmien pohjalta
 
-Reilun pelin järjestelmä
-• Takuut loputonta epäonnea vastaan: lapset, kosinnat, työhakemukset ja viikkotapahtumat onnistuvat nyt taatusti tietyn rajan jälkeen
-• Enintään yksi sairaus per 4 viikkoa (tätä toivoitte)
-
-Ihmissuhteiden seuraukset
-• Kumppani lähtee 8 viikon laiminlyönnin jälkeen, puoliso hakee avioeroa 12 viikon jälkeen
-• Realistiset ositukset
-
-Suorituskyky
-• 90 % nopeammat tulolaskennat, 80 % pienemmät tallennustiedostot ja sujuvampi peli 1000+ viikon jälkeen
+Jokainen päivitys pyrkii tekemään valinnoistasi merkityksellisempiä ja tallennuksistasi turvallisempia.
 
 Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/invite/rzktazdX8v
 
