@@ -4,7 +4,7 @@
 
 ## Patterns to Watch For
 
-### 2026-07-20 - Weekly audit: GameState schema drift — 3 fields added to initialState AFTER the version bump, no migration/repair
+### 2026-07-20 - Weekly audit: GameState schema drift — 4 fields added to initialState AFTER the version bump, no migration/repair
 
 - What went wrong: `luxuryItems` (Luxury & Collectibles, commit `5e3cdf1`) and `ambitionId` /
   `ambitionCompletedMilestones` / `ambitionRewardClaimed` (Life Ambitions, commit `ffd82cc`) were
