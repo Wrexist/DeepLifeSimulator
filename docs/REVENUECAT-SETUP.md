@@ -145,19 +145,28 @@ These are *public* (safe to ship in the app), like the existing `EXPO_PUBLIC_*` 
 
 ## Part 4 — App code integration
 
-This replaces the custom purchase + verify layer. It's a developer task; the
-steps below are the exact shape of the change.
+> **Already scaffolded in this repo (flag-gated, off by default):**
+> - `services/RevenueCatService.ts` — a complete guarded wrapper: `configure()`
+>   (self-configures on first use), `getEntitlements()`, `getCurrentOffering()`,
+>   `purchasePackage()`, `purchaseProduct()`, `restore()`,
+>   `addEntitlementsListener()`. Lazy-loads the SDK, so it's inert until you
+>   install + enable it — **current builds are unaffected**.
+> - `lib/config/featureFlags.ts` — `revenueCat` flag (`EXPO_PUBLIC_USE_REVENUECAT`).
+> - `.env.example` — the three env vars to fill in.
+>
+> So the remaining work is small and specified below (4.1–4.6). It's a developer
+> task and **must be tested on a device** before you flip the flag in production.
 
-### 4.1 Install
+### 4.1 Install the SDK
 
 ```bash
 npx expo install react-native-purchases
 ```
 
-`react-native-purchases` ships an Expo config plugin. Add it in `app.config.js`
-`plugins` (alongside the others) if the SDK asks — usually no extra config needed
-for iOS/Android beyond the native build. Then rebuild the dev client / EAS build
-(this is a native module — **Expo Go won't run it**, same as the current IAP).
+`expo install` picks the version matching your Expo SDK. It's a native module
+(**Expo Go won't run it** — use a dev/EAS build), and needs no config-plugin
+entry. This is intentionally not in `package.json` yet so current builds stay
+identical until you're ready.
 
 ### 4.2 Configure once at startup
 
@@ -165,89 +174,72 @@ Add a small init (e.g. in `app/entry.ts` or the existing IAP boot path), after
 ATT/tracking is resolved:
 
 ```ts
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-import { Platform } from 'react-native';
-
-export function initRevenueCat() {
-  if (__DEV__) Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-  const apiKey = Platform.select({
-    ios: process.env.EXPO_PUBLIC_RC_IOS_KEY,      // appl_xxx
-    android: process.env.EXPO_PUBLIC_RC_ANDROID_KEY, // goog_xxx
-  });
-  if (!apiKey) return; // web / misconfig → no-op (never crash)
-  Purchases.configure({ apiKey });
-}
+// Everything below uses the scaffolded service — you don't touch the raw SDK.
+import { revenueCatService } from '@/services/RevenueCatService';
 ```
+
+The service self-configures on first use, so there's nothing to add to the boot
+path.
 
 ### 4.3 Drive entitlements from RevenueCat
 
-Replace the "verify with our server" logic. The single source of truth becomes
-`customerInfo.entitlements.active`:
+The single source of truth becomes RevenueCat's active entitlements. On app
+resume / after purchase / after restore, apply them to game state using the
+**existing** helpers:
 
 ```ts
-import Purchases, { CustomerInfo } from 'react-native-purchases';
+import { revenueCatService } from '@/services/RevenueCatService';
+import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
 
-export async function refreshEntitlements(applyToGame: (e: { adsRemoved: boolean; premium: boolean }) => void) {
-  const info = await Purchases.getCustomerInfo();
-  applyToGame({
-    adsRemoved: !!info.entitlements.active['ads_removed'],
-    premium: !!info.entitlements.active['premium'],
+async function syncEntitlements(setGameState) {
+  const { adsRemoved, premium } = await revenueCatService.getEntitlements();
+  setGameState((prev) => {
+    let next = prev;
+    if (premium) next = applyDeepLifePlusBenefits(next);       // sets adsRemoved + welcome gems
+    else if (adsRemoved) next = { ...next, settings: { ...next.settings, adsRemoved: true } };
+    return next;
   });
 }
 
-// Live updates (renewals, restores on other devices, expiry):
-Purchases.addCustomerInfoUpdateListener((info: CustomerInfo) => {
-  // set settings.adsRemoved / premium tier from info.entitlements.active
+// Live updates (renewals, expiry, cross-device restore):
+const unsub = revenueCatService.addEntitlementsListener(({ adsRemoved, premium }) => {
+  // same apply-to-state as above
 });
 ```
 
-Wire `adsRemoved` into `settings.adsRemoved` (the flag `areAdsRemoved()` and
-`BannerAd`/`AdRewardOrb` already read) and `premium` into
-`subscriptionService.hasPremiumAccess()`. **Delete** the fail-closed
-`verifyReceiptWithServer` gate in `services/IAPService.ts` — RevenueCat is the
-verification now.
+`adsRemoved` feeds `settings.adsRemoved` (which `areAdsRemoved()`, `BannerAd`,
+`AdRewardOrb` already read); `premium` feeds `subscriptionService.hasPremiumAccess()`.
 
-### 4.4 Purchases
+### 4.4 Route purchases through the service
 
-```ts
-// Subscription / lifetime from an offering package:
-const offerings = await Purchases.getOfferings();
-const pkg = offerings.current?.availablePackages.find(p => p.identifier === 'annual');
-const { customerInfo } = await Purchases.purchasePackage(pkg);
-// entitlements now reflect the trial/purchase → refresh game flags.
+- **`components/SubscriptionModal.tsx`** (`handleSubscribe`): when
+  `revenueCatService.isEnabled()`, buy the selected package via
+  `revenueCatService.purchasePackage(pkg)` (from `getCurrentOffering()`), then
+  apply entitlements. Falls back to `subscriptionService.purchasePremium()` when
+  RC is off.
+- **`components/GemShopModal.tsx`** (`handlePurchase`): when enabled, call
+  `revenueCatService.purchaseProduct(id)` and, on success, grant the reward with
+  the **existing** `PRODUCT_CONFIGS` mapping (gem amounts / perk flags),
+  deduped by `transactionId` (reuse the `PROCESSED_IAP_TRANSACTIONS` ledger).
+  Only the *transport* changes — the reward logic stays.
 
-// Consumables (gems/boosts) by product id:
-const products = await Purchases.getProducts(['deeplife_gems_50000']);
-const { customerInfo, transaction } = await Purchases.purchaseStoreProduct(products[0]);
-// On success → grant the gems in game state (same grant code you have today),
-// keyed by transaction.transactionIdentifier for exactly-once (reuse the
-// PROCESSED_IAP_TRANSACTIONS ledger already in IAPService).
-```
+### 4.5 Restore
 
-Map the product → in-game reward using the existing `PRODUCT_CONFIGS` in
-`utils/iapConfig.ts` (gem amounts, perk flags) — that logic doesn't change; only
-the *purchase transport* does.
+Wire the existing "Restore" buttons (Store footer, Settings, `SubscriptionModal`)
+to `revenueCatService.restore()` when enabled, then apply the returned
+entitlements (4.3). Optionally read `getCurrentOffering()` in the paywall so the
+displayed prices + "7-day free trial" come straight from the store (localized).
 
-### 4.5 Restore + paywall
+### 4.6 What to remove (once RC is verified on device)
 
-- **Restore:** `await Purchases.restorePurchases()` → then `refreshEntitlements()`.
-  Wire into the existing "Restore" buttons (Store footer, Settings,
-  `SubscriptionModal`).
-- **Paywall prices:** optionally read `offerings.current` in `SubscriptionModal`
-  and `PremiumCrownButton` so the displayed price + "7-day free trial" come
-  straight from the store (localized, always accurate) instead of the hardcoded
-  fallbacks.
+- The fail-closed `EXPO_PUBLIC_IAP_VERIFY_URL` gate in `services/IAPService.ts`.
+- `server/iap-verify/*` (keep in git history; no longer deployed/called).
+- The `EXPO_PUBLIC_IAP_VERIFY_URL` / `_TOKEN` EAS secrets + the
+  `scripts/preflight-check.js` §9 gate that requires them.
 
-### 4.6 What to remove
-
-- The runtime fail-closed check on `EXPO_PUBLIC_IAP_VERIFY_URL` in
-  `services/IAPService.ts` (RevenueCat replaces it).
-- `server/iap-verify/*` (keep in git history, but it's no longer deployed/called).
-- The `EXPO_PUBLIC_IAP_VERIFY_URL` / `EXPO_PUBLIC_IAP_VERIFY_TOKEN` EAS secrets +
-  the `scripts/preflight-check.js` §9 gate that requires them.
-
-> This code change is sizeable but mechanical (swap the transport, keep the
-> reward logic). Ask and it can be implemented against these product IDs.
+> The service is done; 4.3–4.5 are a handful of small, well-scoped edits at
+> named call sites. Keep the flag **off** until you've run the Part 6 sandbox
+> pass on a device. Ask and these edits can be implemented for you.
 
 ---
 
