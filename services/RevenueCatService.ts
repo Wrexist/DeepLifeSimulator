@@ -88,10 +88,26 @@ function readEntitlements(customerInfo: any): RcEntitlements {
 
 class RevenueCatService {
   private configured = false;
+  // Last-known entitlements, kept in memory so synchronous callers
+  // (`iapService.isAdsRemoved()`, `subscriptionService.hasPremiumAccess()`) can
+  // OR them in without an await. Refreshed by every RC read/purchase/restore
+  // and by the customer-info listener.
+  private cache: RcEntitlements = { adsRemoved: false, premium: false };
 
   /** True when RevenueCat should be used in this build/session. */
   isEnabled(): boolean {
     return isFeatureEnabled('revenueCat') && Platform.OS !== 'web' && !!apiKey() && !!loadPurchases();
+  }
+
+  /** Synchronous last-known entitlements (never awaits; safe default false). */
+  cachedEntitlements(): RcEntitlements {
+    return this.cache;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private cacheFrom(customerInfo: any): RcEntitlements {
+    this.cache = readEntitlements(customerInfo);
+    return this.cache;
   }
 
   /**
@@ -119,7 +135,7 @@ class RevenueCatService {
     if (!(await this.configure())) return { adsRemoved: false, premium: false };
     try {
       const info = await loadPurchases().getCustomerInfo();
-      return readEntitlements(info);
+      return this.cacheFrom(info);
     } catch (error) {
       log.warn('getEntitlements failed', { error });
       return { adsRemoved: false, premium: false };
@@ -150,7 +166,7 @@ class RevenueCatService {
       const { customerInfo, transaction } = await loadPurchases().purchasePackage(pkg);
       return {
         success: true,
-        entitlements: readEntitlements(customerInfo),
+        entitlements: this.cacheFrom(customerInfo),
         transactionId: transaction?.transactionIdentifier,
       };
     } catch (error) {
@@ -167,7 +183,7 @@ class RevenueCatService {
       const { customerInfo, transaction } = await loadPurchases().purchaseStoreProduct(products[0]);
       return {
         success: true,
-        entitlements: readEntitlements(customerInfo),
+        entitlements: this.cacheFrom(customerInfo),
         transactionId: transaction?.transactionIdentifier,
       };
     } catch (error) {
@@ -180,7 +196,7 @@ class RevenueCatService {
     if (!(await this.configure())) return { adsRemoved: false, premium: false };
     try {
       const info = await loadPurchases().restorePurchases();
-      return readEntitlements(info);
+      return this.cacheFrom(info);
     } catch (error) {
       log.warn('restore failed', { error });
       return { adsRemoved: false, premium: false };
@@ -195,7 +211,7 @@ class RevenueCatService {
     if (!this.isEnabled()) return () => {};
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handler = (info: any) => cb(readEntitlements(info));
+      const handler = (info: any) => cb(this.cacheFrom(info));
       loadPurchases().addCustomerInfoUpdateListener(handler);
       return () => {
         try {

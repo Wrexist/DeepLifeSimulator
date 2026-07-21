@@ -16,6 +16,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { useSetGameState, useGameSelector } from '@/contexts/game/useGameSelector';
 import { subscriptionService } from '@/services/SubscriptionService';
 import { iapService } from '@/services/IAPService';
+import { revenueCatService } from '@/services/RevenueCatService';
 import { reconcileSubscriptionBenefits } from '@/contexts/game/actions/SubscriptionActions';
 import { reconcileLegacyPassSeason } from '@/contexts/game/actions/LegacyPassActions';
 import { logger } from '@/utils/logger';
@@ -33,6 +34,11 @@ export function SubscriptionReconciler(): null {
     runningRef.current = true;
     try {
       await subscriptionService.waitForInitialization();
+      // Refresh RevenueCat entitlements (when enabled) so the reads below see
+      // the latest cached ads_removed / premium before applying to game state.
+      if (revenueCatService.isEnabled()) {
+        await revenueCatService.getEntitlements();
+      }
       // Premium access via subscription OR the one-time lifetime unlock — both
       // keep ad-free + the Legacy Pass premium track.
       const plusActive = subscriptionService.hasPremiumAccess();
@@ -59,6 +65,15 @@ export function SubscriptionReconciler(): null {
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
   }, [reconcile, weeksLived]);
+
+  // Live RevenueCat entitlement changes (renewals, expiry, cross-device
+  // restore) → reconcile immediately. No-op when RevenueCat is disabled.
+  useEffect(() => {
+    const unsub = revenueCatService.addEntitlementsListener(() => {
+      void reconcile();
+    });
+    return unsub;
+  }, [reconcile]);
 
   return null;
 }

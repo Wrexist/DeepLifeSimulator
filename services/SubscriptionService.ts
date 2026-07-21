@@ -1,5 +1,6 @@
 import { Platform, Linking } from 'react-native';
 import { iapService } from './IAPService';
+import { revenueCatService } from './RevenueCatService';
 import { SUBSCRIPTION_PRODUCTS, IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { logger } from '@/utils/logger';
@@ -198,6 +199,11 @@ class SubscriptionService {
    * Pass premium track, ad-free, exclusive cosmetics).
    */
   hasPremiumAccess(): boolean {
+    // When RevenueCat drives entitlements, its cached `premium` is authoritative
+    // alongside the local subscription/lifetime state.
+    if (revenueCatService.isEnabled() && revenueCatService.cachedEntitlements().premium) {
+      return true;
+    }
     return this.getSubscriptionTier() !== 'free' || this.hasLifetimePremium();
   }
 

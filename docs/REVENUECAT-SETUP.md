@@ -145,17 +145,31 @@ These are *public* (safe to ship in the app), like the existing `EXPO_PUBLIC_*` 
 
 ## Part 4 — App code integration
 
-> **Already scaffolded in this repo (flag-gated, off by default):**
-> - `services/RevenueCatService.ts` — a complete guarded wrapper: `configure()`
->   (self-configures on first use), `getEntitlements()`, `getCurrentOffering()`,
->   `purchasePackage()`, `purchaseProduct()`, `restore()`,
->   `addEntitlementsListener()`. Lazy-loads the SDK, so it's inert until you
->   install + enable it — **current builds are unaffected**.
-> - `lib/config/featureFlags.ts` — `revenueCat` flag (`EXPO_PUBLIC_USE_REVENUECAT`).
-> - `.env.example` — the three env vars to fill in.
+> **✅ Already wired in this repo (flag-gated, off by default).** When the
+> `revenueCat` flag is on, purchases and restores automatically route through
+> RevenueCat and entitlements sync into game state — no further code needed:
+> - `services/RevenueCatService.ts` — complete guarded wrapper (lazy-loads the
+>   SDK; inert until installed + enabled, so **current builds are unaffected**).
+> - `services/IAPService.ts` — `purchaseProduct()` and `restorePurchases()` branch
+>   to RevenueCat when enabled, reusing the SAME `applyBenefit()` grant + exactly-
+>   once dedup; `isAdsRemoved()` reads RC's cached entitlement.
+> - `services/SubscriptionService.ts` — `hasPremiumAccess()` reads RC's cached
+>   `premium` entitlement.
+> - `components/SubscriptionReconciler.tsx` — refreshes RC entitlements on
+>   mount/foreground and reacts to live RC changes (renewals/expiry), applying
+>   `settings.adsRemoved` / premium via the existing reconcile logic.
+> - `lib/config/featureFlags.ts` — `revenueCat` flag (`EXPO_PUBLIC_USE_REVENUECAT`);
+>   `.env.example` — the env vars.
 >
-> So the remaining work is small and specified below (4.1–4.6). It's a developer
-> task and **must be tested on a device** before you flip the flag in production.
+> **So your remaining work is just:** 4.1 (install the SDK) + Part 5 (keys) +
+> flip the flag, after the dashboard setup. **Test on a device (Part 6) before
+> enabling in production** — this money path could not be run here.
+>
+> The paywall (`SubscriptionModal`) and Store (`GemShopModal`) need **no changes**
+> — they already call `iapService.purchaseProduct` / `restorePurchases`, which now
+> route through RevenueCat when enabled. (Optional polish, not required: read
+> `revenueCatService.getCurrentOffering()` in the paywall to show store-localized
+> prices + the trial.) Sections 4.3–4.6 below document what the wiring does.
 
 ### 4.1 Install the SDK
 
