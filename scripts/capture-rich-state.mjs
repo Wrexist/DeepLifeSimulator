@@ -88,7 +88,20 @@ async function chewLifeMoments(page) {
   }
 }
 
-let shotIdx = 0;
+// Canonical capture order. Each screenshot's numeric prefix is derived from its
+// FIXED position here — not a mutable success-counter — so a skipped conditional
+// capture (an app that fails to open) leaves its own slot empty instead of
+// shifting every later file's index. The generators hardcode these names
+// (e.g. `27-home-final.png`), so a missing capture then fails loudly (ENOENT)
+// rather than silently remapping to the wrong screen. Keep this in sync with the
+// shot() call order below.
+const SHOT_ORDER = [
+  'home', 'home-goals', 'work', 'apps', 'apps-2',
+  'app-spark', 'app-pulse', 'app-stocks', 'app-bank', 'app-contacts', 'app-education',
+  'life', 'life-2', 'life-market', 'life-family', 'life-stats', 'desktop',
+  'x-company', 'x-darkweb', 'x-crypto', 'x-realestate', 'x-garage', 'x-luxury',
+  'x-politics', 'x-travel', 'x-streaming', 'x-youvideo', 'home-final',
+];
 async function shot(page, name) {
   await chewLifeMoments(page);
   // dismiss the ad-reward orb if it floated back in
@@ -96,9 +109,12 @@ async function shot(page, name) {
     const d = page.locator('[aria-label="Dismiss"]');
     if (await d.count()) { await d.last().click({ timeout: 1500 }); await new Promise(r => setTimeout(r, 900)); }
   } catch { }
-  const file = join(OUT, `${String(shotIdx++).padStart(2, '0')}-${name}.png`);
+  const idx = SHOT_ORDER.indexOf(name);
+  // Named shots get their fixed NN- prefix; off-manifest shots (e.g. debug
+  // artifacts) are written without one so they never claim a canonical slot.
+  const file = join(OUT, idx >= 0 ? `${String(idx).padStart(2, '0')}-${name}.png` : `dbg-${name}.png`);
   await page.screenshot({ path: file });
-  console.log('  📸', name);
+  console.log('  📸', name, idx >= 0 ? `(#${idx})` : '(debug)');
 }
 
 async function waitFor(page, needle, timeout = 45000) {
