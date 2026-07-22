@@ -123,14 +123,15 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
-      # Revenue-critical config check. NON-BLOCKING for Android (continue-on-error):
-      # Android AdMob ad units aren't created yet (iOS-only ad launch), so a hard
-      # gate would block every upload. It still runs and prints warnings — set the
-      # EXPO_PUBLIC_ADMOB_*_ANDROID secrets and flip `continue-on-error` to false
-      # here to turn it into a hard gate once the Android ad units exist.
+      # Revenue-critical / integrity config gate. This IS blocking — save-signing
+      # (EXPO_PUBLIC_SAVE_HMAC_KEY), IAP receipt verification, and malformed ad
+      # unit IDs all fail the build closed, so a Play upload can never ship with
+      # unsigned saves or unverified purchases. The ONLY exception is
+      # --warn-missing-android-admob, which downgrades *missing Android AdMob ad
+      # units* to a warning (they aren't created yet — iOS-only ad launch). Drop
+      # that flag once the Android ad units exist to make ads blocking too.
       - name: Preflight (production config)
-        continue-on-error: true
-        run: node scripts/preflight-check.js --platform android
+        run: node scripts/preflight-check.js --platform android --warn-missing-android-admob
         env:
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'

@@ -66,6 +66,6 @@ To create it once:
 > app over the API — upload one build by hand in the Play Console once, then every
 > future run of this workflow can upload automatically. The workflow's Play
 > **track** is chosen per-run (default `internal`).
-
+>
 > Keep `UPDATED_PRIVACY_POLICY.md` and the Play Data Safety form in sync with the
 > shipped `EXPO_PUBLIC_ENABLE_ADMOB` + Android `AD_ID` permission.
