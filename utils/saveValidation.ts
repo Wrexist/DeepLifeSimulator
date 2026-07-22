@@ -481,12 +481,29 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // `realEstateActivity` (a concrete-default `[]`) is backfilled on the version
   // ladder by migration 22, but — like luxuryItems above — repair also runs on
   // partial saves (CloudSync merge / hand-edit) that a wholesale migration can
-  // miss, so heal a present-but-malformed state here too. Reads already guard
-  // with `?? []`, so this only closes the migration/repair asymmetry (CLAUDE.md
-  // save-format rule (b)); it is not fixing an active crash.
+  // miss, so heal a present-but-malformed state here too. This closes the
+  // migration/repair asymmetry (CLAUDE.md save-format rule (b)).
+  //
+  // Normalize the CONTENTS, not just the top-level shape: the weekly tick does
+  // `(prevActivity ?? []).map((e) => e.id)` (`applyRentAndHousing.ts:139`) and
+  // RealEstateApp spreads each entry (`RealEstateApp.tsx:338`), neither with a
+  // per-entry guard — so a present array carrying a `null`/non-object entry
+  // throws before the slice can be rebuilt, and the save keeps failing week
+  // progression. Drop malformed entries here (same "normalize a present-but-
+  // broken shape at the load boundary" contract as the favorLedger repair).
   if (!Array.isArray(s.realEstateActivity)) {
     s.realEstateActivity = [];
     repairs.push('Backfilled missing realEstateActivity array from defaults');
+    repaired = true;
+  } else if (
+    s.realEstateActivity.some(
+      (e: any) => e == null || typeof e !== 'object' || typeof e.id !== 'string',
+    )
+  ) {
+    s.realEstateActivity = s.realEstateActivity.filter(
+      (e: any) => e != null && typeof e === 'object' && typeof e.id === 'string',
+    );
+    repairs.push('Dropped malformed realEstateActivity entries');
     repaired = true;
   }
 
