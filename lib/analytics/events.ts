@@ -31,6 +31,7 @@ export type AnalyticsEventName =
   | 'achievement_unlocked'
   // ── Monetisation funnel ──
   | 'paywall_viewed'
+  | 'paywall_cta_tapped'
   | 'purchase_started'
   | 'purchase_succeeded'
   | 'purchase_failed'
@@ -73,6 +74,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'streak_changed',
   'achievement_unlocked',
   'paywall_viewed',
+  'paywall_cta_tapped',
   'purchase_started',
   'purchase_succeeded',
   'purchase_failed',

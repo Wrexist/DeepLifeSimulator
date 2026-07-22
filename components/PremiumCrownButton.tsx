@@ -8,12 +8,13 @@
  * Motion), and a small "7-DAY FREE" flag advertises the intro offer to lift taps.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, AppState } from 'react-native';
 import { Crown } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import { subscriptionService } from '@/services/SubscriptionService';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS, isDeepLifePlusActive } from '@/lib/subscription/deepLifePlus';
 
 const GOLD = '#FACC15';
@@ -32,6 +33,25 @@ export default function PremiumCrownButton({ variant = 'full', style }: Props) {
   // Re-checked whenever the paywall closes so the crown disappears right after
   // a successful subscribe.
   const [active, setActive] = useState<boolean>(() => isDeepLifePlusActive());
+
+  // Entitlements (subscription / restored IAP) load ASYNC on cold start, so the
+  // initial snapshot above can read `false` for an existing member. Re-check
+  // once initialization completes and on every foreground, so we never upsell
+  // someone who already owns DeepLife+.
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => {
+      if (mounted) setActive(isDeepLifePlusActive());
+    };
+    void subscriptionService.waitForInitialization().then(refresh).catch(refresh);
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') refresh();
+    });
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
 
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {

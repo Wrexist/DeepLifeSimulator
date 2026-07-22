@@ -88,8 +88,9 @@ then purchase through sandbox (no real charge).
 ## Part 2 — Google Play (Android only — skip if iOS-only for now)
 
 1. Play Console → **Monetize → Products → In-app products / Subscriptions** → create the same IDs from Appendix A.
-2. Play Console → **Setup → API access** → link a Google Cloud project → create a **service account** with **View financial data** + **Manage orders** → download its **JSON key** (you'll paste it into RevenueCat).
-3. Upload at least an **internal-testing** build so Play activates IAP.
+2. **7-day free trial (must match Apple):** on each subscription → **base plan → Add offer → Free trial → 7 days**. If you do **not** add the Android offer, the app will still show "7 days free" to Android users with no trial behind it — so either add the offer **or** set `DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 0` in `lib/subscription/deepLifePlus.ts` (which hides the trial messaging on both platforms). Don't promise a trial the store won't honor.
+3. Play Console → **Setup → API access** → link a Google Cloud project → create a **service account** with **View financial data** + **Manage orders** → download its **JSON key** (you'll paste it into RevenueCat).
+4. Upload at least an **internal-testing** build so Play activates IAP.
 
 ---
 
@@ -314,6 +315,7 @@ Then cut a new build: `eas build --profile production --platform ios`.
 Source of truth: `utils/iapConfig.ts`. Create each with the matching **type**.
 
 ### Auto-renewable subscriptions (Subscription group "DeepLife+")
+
 | Product ID | Price | Trial |
 |---|---|---|
 | `deeplife_premium_monthly` | $4.99 / month | 7-day free |

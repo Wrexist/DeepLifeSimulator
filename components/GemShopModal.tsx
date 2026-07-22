@@ -195,9 +195,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     return displayPrice ? `Buy · ${displayPrice}` : 'Buy';
   };
 
-  const ctaA11y = (name: string, displayPrice: string, owned: boolean, available: boolean): string => {
+  const ctaA11y = (id: string, name: string, displayPrice: string, owned: boolean, available: boolean): string => {
     if (owned) return `${name}, already owned`;
     if (!available) return `${name}, unavailable`;
+    if (purchasingId === id) return `Purchasing ${name}, please wait`;
     return `Buy ${name}${displayPrice ? ` for ${displayPrice}` : ''}`;
   };
 
@@ -381,7 +382,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         valueLine={valueLine}
         badges={badges}
         buttonText={buyLabel(p.id, false, displayPrice, available)}
-        accessibilityLabel={ctaA11y(name, displayPrice, false, available)}
+        accessibilityLabel={ctaA11y(p.id, name, displayPrice, false, available)}
         onPress={() => handlePurchase(p.id, name, displayPrice)}
         locked={!available || iapBusy}
       />
@@ -416,9 +417,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         badges={item.badges}
         owned={item.owned}
         buttonText={buyLabel(item.id, item.owned, displayPrice, available)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, item.owned, available)}
+        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, item.owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!available || (iapBusy && !item.owned)}
+        locked={!available || iapBusy || item.owned}
       />
     );
   };
@@ -448,9 +449,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         badges={item.badges}
         owned={owned}
         buttonText={buyLabel(item.id, owned, displayPrice, available)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, owned, available)}
+        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!available || (iapBusy && !owned)}
+        locked={!available || iapBusy || owned}
       />
     );
   };
@@ -825,7 +826,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               activeOpacity={0.7}
               style={styles.restoreBtn}
               accessibilityRole="button"
-              accessibilityLabel="Restore purchases"
+              accessibilityLabel={restoring ? 'Restoring purchases' : 'Restore purchases'}
+              accessibilityState={{ busy: restoring, disabled: iapBusy }}
             >
               {restoring ? (
                 <LoadingSpinner visible size="small" color="rgba(226, 232, 240, 0.6)" variant="compact" />

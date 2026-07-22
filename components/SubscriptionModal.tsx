@@ -24,6 +24,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
 import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -342,7 +343,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               </View>
               <View style={styles.trustItem}>
                 <Check size={scale(13)} color={TEXT_MUTED} />
-                <Text style={styles.trustText}>Secure via App Store</Text>
+                <Text style={styles.trustText}>
+                  {Platform.select({ ios: 'Secure via App Store', android: 'Secure via Google Play', default: 'Secure checkout' })}
+                </Text>
               </View>
             </View>
           ) : null}
