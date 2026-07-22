@@ -24,7 +24,7 @@ const LinearGradient = LinearGradientFallback;
 
 // Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
 // with a deliberately clean center so the DeepLife+ copy stays legible on top.
-const BANNER_ART = require('@/assets/images/deeplife-plus-banner.png');
+const BANNER_ART = require('@/assets/images/deeplife-plus-banner.webp');
 
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
