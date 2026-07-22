@@ -19,15 +19,12 @@ Go to [app.revenuecat.com](https://app.revenuecat.com) and complete the followin
 - [x] iOS app added in RC → Apps (Bundle ID: `com.deeplife.simulator`, matches `app.config.js` — the old doc reference to `com.isakmolin.deeplifesimulator` was stale/wrong)
 - [x] App Store Connect API Key uploaded, credentials show "Valid"
 
-### 1c. Connect Google Play (Android) — ⚠️ PARTIALLY DONE, blocked on you
+### 1c. Connect Google Play (Android) — ⚠️ ALMOST DONE
 
 - [x] Android app added in RC → Apps (package `com.deeplife.simulator`)
-- [ ] **Upload a Google Play Service Account JSON key** — this is a credential file, so it has to be done by you directly, not by me. Steps:
-  1. In [Google Play Console](https://play.google.com/console) → **Users and permissions** → **Invite new users**, or reuse an existing service account under **API access** (left sidebar, near the bottom, sometimes under Setup).
-  2. If no service account exists yet: Play Console → **Setup → API access** → **Choose a project to link** (or it auto-links) → **Create new service account**. This opens Google Cloud Console — follow the link, create the service account there (IAM & Admin → Service Accounts → Create), then come back to Play Console and click **Grant access** for it.
-  3. In Play Console, grant that service account **Finance → View financial data** and **App access → view app information (read-only)** permissions for Deep Life Simulator at minimum (RC's docs call this out precisely — see [RevenueCat: Google Play Store setup](https://www.revenuecat.com/docs/getting-started/entitlements/adding-android-store-credentials)).
-  4. Back in Google Cloud Console → IAM & Admin → Service Accounts → your account → **Keys** tab → **Add key → Create new key → JSON**. This downloads the `.json` file to your computer.
-  5. Go to **app.revenuecat.com → Apps → Deep Life Simulator (Play Store) → Service Account Credentials JSON** and upload that file yourself.
+- [x] Reused the existing `revenuecat-validator@dynasty-manager-491122.iam.gserviceaccount.com` service account (previously only scoped to another app) and granted it **Deep Life Simulator** app permissions in Play Console → Users and permissions: "View app information (read-only)" + "View financial data" — saved and confirmed (shows 3 permissions).
+- [x] Generated a fresh JSON private key for that service account via Google Cloud Console → IAM & Admin → Service Accounts → Keys → Add key → Create new key (JSON).
+- [ ] **Upload that JSON file to app.revenuecat.com → Apps → Deep Life Simulator (Play Store) → Service Account Credentials JSON.** This is the one remaining sub-step — it needs the downloaded file, which only exists on your machine's Downloads folder for security reasons.
 - [ ] **This step is a hard prerequisite for real purchases to validate on Android** — RC can't verify Android transactions without it, even after products exist.
 
 ### 1d. Create Entitlements — ✅ DONE
@@ -39,32 +36,31 @@ Both entitlements exist exactly as below (casing matters — the code checks the
 | `premium` | DeepLife+ / Premium | Grants `hasPremiumAccess()` → unlocks all premium game content |
 | `ads_removed` | Remove Ads | Drives `settings.adsRemoved` → hides all ads |
 
-### 1e. Create Products in RevenueCat
+### 1e. Create Products in RevenueCat (iOS) — ✅ DONE
 
-For **every** product listed in Appendix A of `docs/REVENUECAT-SETUP.md`, add it under **Products** using the exact store ID. Then attach it to the appropriate entitlement:
+Verified directly in the RevenueCat dashboard: the `premium` and `ads_removed` entitlements are already attached to the real App Store Connect products (`deeplife_premium_monthly`, `deeplife_premium_yearly`, `deeplife_remove_ads`, `deeplife_lifetime_premium`, etc.) — no manual product creation needed here for iOS.
 
-- Attach `deeplife_remove_ads` → `ads_removed` entitlement
-- Attach `deeplife_lifetime_premium` → both `premium` AND `ads_removed`
-- Attach `deeplife_premium_monthly` → `premium`
-- Attach `deeplife_premium_yearly` → `premium`
-- All other products: consumable/non-consumable — no entitlement attachment needed (their benefits are granted in-app via `applyProductBenefitsToState`)
+Note: the RC project also has a leftover "Deep Life Simulator Pro" **Test Store** entitlement and ~10 Test-Store-only packages in the `default` offering from earlier experimentation. These are harmless (the app's purchase code looks up non-subscription products directly by store ID, bypassing the offering entirely — see `RevenueCatService.ts`), but they're dashboard clutter worth deleting eventually.
 
-### 1f. Create the Default Offering
+Android products still need to be created in Play Console (§3) and then imported/attached here (§3d) — that part remains outstanding.
 
-- [ ] Go to **Offerings** → Create offering (identifier: `default`)
-- [ ] Add packages:
-  - Monthly subscription → `deeplife_premium_monthly`
-  - Annual subscription → `deeplife_premium_yearly`
-  - (Optionally) Lifetime → `deeplife_lifetime_premium`
-- [ ] Set 7-day free trial on both subscription products in App Store Connect (see §2 below) — RC reads trial eligibility from the store, not the RC dashboard
+### 1f. Create the Default Offering — ✅ DONE for iOS, ⚠️ Android pending
+
+- [x] `default` offering exists with Monthly/Annual packages correctly attached to the real iOS subscription products, with 7-day free trials configured in App Store Connect.
+- [ ] Once Android subscription products exist (§3a) and are imported (§3d), add Android Monthly/Annual packages to this same `default` offering alongside the iOS ones.
 
 ---
 
 ## 2. App Store Connect Setup (iOS)
 
-### 2a. Create All IAP Products
+### 2a. Create All IAP Products — ✅ DONE (verified July 2026)
 
-Go to **App Store Connect → Your App → Monetization → In-App Purchases** and create every product from the list below. Use the exact Product ID — Apple permanently reserves deleted IDs, so spelling matters.
+Confirmed directly in App Store Connect → Deep Life Simulator → Distribution → Monetization:
+- **24 In-App Purchase products already Approved**, covering the consumables/non-consumables list below.
+- **2 drafts still need finishing and submitting**: `deeplife_gems_50000` and `deeplife_mindset_perk`.
+- A **"DeepLife+" subscription group already exists** with both `deeplife_premium_monthly` and `deeplife_premium_yearly` configured.
+
+Full reference list (for confirming nothing was missed / for the Android equivalents in §3b):
 
 **Subscriptions** (Auto-Renewable):
 - `deeplife_premium_monthly` — $4.99/month, 7-day free trial
@@ -81,8 +77,7 @@ Go to **App Store Connect → Your App → Monetization → In-App Purchases** a
 - `deeplife_financial_planning`
 - `deeplife_business_banking`
 - `deeplife_private_banking`
-- `deeplife_revival_pack` ← check: `iapConfig.ts` uses `revival_pack`, not `deeplife_revival_pack`
-- `revival_pack` ← the actual ID in `iapConfig.ts`; create whichever one the file uses
+- `revival_pack` ← the actual ID used in `iapConfig.ts`
 
 **Consumables**:
 - `deeplife_gems_100`
@@ -101,9 +96,10 @@ Go to **App Store Connect → Your App → Monetization → In-App Purchases** a
 - `deeplife_skill_boost`
 - `deeplife_work_boost`
 
-### 2b. Submit Products for Review
+### 2b. Submit Products for Review — ⚠️ OUTSTANDING
 
-Products must be submitted to Apple for review before they appear in sandbox or production. Do this for each one in App Store Connect.
+- [ ] Finish and submit the 2 draft IAP products (`deeplife_gems_50000`, `deeplife_mindset_perk`).
+- [ ] Submit the "DeepLife+" subscription group for review. App Store Connect flags: **"Your first subscription group must be submitted with a new app version"** — meaning this can't be done as an IAP-only action from the IAP screen; it needs to be bundled with an app binary submission (i.e. your next `eas build --platform ios` + App Store submission). Plan for this when you do your next iOS release.
 
 ---
 
@@ -137,7 +133,7 @@ eas build --platform android --profile production
 Once the build finishes, either:
 - Run `eas submit --platform android` to push it straight to a Play Console track, or
 - Download the `.aab` from the EAS build page and upload it manually in
-  **Play Console → Testa och lansera (Test and release) → Internal testing → Create new release**.
+**Play Console → Testa och lansera (Test and release) → Internal testing → Create new release**.
 
 Only *after* a build lands on a track will the Subscriptions/one-time-products
 screens unlock. Come back to §3a/§3b below once that's done.
@@ -194,7 +190,7 @@ they should auto-import (or use "Attach products"). Then:
 - Attach `deeplife_lifetime_premium` → `premium` AND `ads_removed`
 - Attach `deeplife_premium_monthly` / `deeplife_premium_yearly` → `premium`
 - Add Android packages (Monthly / Annual) to the existing **default** offering
-  alongside the iOS packages already there.
+alongside the iOS packages already there.
 
 ---
 
@@ -248,8 +244,8 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ```env
 EXPO_PUBLIC_USE_REVENUECAT=true
-EXPO_PUBLIC_RC_IOS_KEY=appl_xxxx        # your iOS key
-EXPO_PUBLIC_RC_ANDROID_KEY=goog_xxxx    # your Android key
+EXPO_PUBLIC_RC_IOS_KEY=appl_xxxx # your iOS key
+EXPO_PUBLIC_RC_ANDROID_KEY=goog_xxxx # your Android key
 EXPO_PUBLIC_RC_ENTITLEMENT_PRO=premium
 ```
 
