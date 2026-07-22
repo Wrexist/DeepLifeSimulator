@@ -14,17 +14,13 @@ jest.mock('@/hooks/useReducedMotion', () => ({
 // The shared jest.setup lucide mock is an explicit allow-list that omits a few
 // icons this store uses (Gem / Sparkles / Star are real lucide exports, present
 // in the app). Provide the full set the store renders so the smoke test mounts.
-jest.mock('lucide-react-native', () => ({
-  __esModule: true,
-  X: 'X',
-  Gem: 'Gem',
-  Sparkles: 'Sparkles',
-  Star: 'Star',
-  TrendingUp: 'TrendingUp',
-  RefreshCw: 'RefreshCw',
-  AlertCircle: 'AlertCircle',
-  Check: 'Check',
-}));
+// Any lucide icon → a host stub named after the icon. A Proxy (instead of a
+// hand-maintained list) means icons pulled in by nested components — the
+// DeepLife+ banner and the SubscriptionModal it mounts — never break this smoke.
+jest.mock('lucide-react-native', () => new Proxy(
+  { __esModule: true } as Record<string, unknown>,
+  { get: (target, prop) => (prop in target ? target[prop as string] : prop) },
+));
 
 /**
  * Render smoke test for the redesigned IAP store (GemShopModal). It reads game
