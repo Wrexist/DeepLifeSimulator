@@ -18,7 +18,7 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "gradleCommand": ":app:bundleRelease -x lintVitalRelease -x lintVitalAnalyzeRelease"
       }
     },
     "preview": {

@@ -198,6 +198,18 @@ jobs:
           # policy is "sdkVersion" and expo-updates is hard-disabled, so the
           # fingerprint is unused metadata — safe to skip.
           EAS_SKIP_AUTO_FINGERPRINT: '1'
+          # Expo prebuild's generated gradle.properties defaults to a 2 GiB heap /
+          # 512 MiB metaspace Gradle daemon — too small for this project's
+          # lintVitalAnalyzeRelease (build 105 died with "OutOfMemoryError:
+          # Metaspace" in the ads/gesture-handler lint tasks after the daemon
+          # itself warned it was expiring on Metaspace). GRADLE_OPTS applies to
+          # the Gradle client JVM, and the -D system property it carries sets
+          # org.gradle.jvmargs for the daemon — overriding the generated
+          # gradle.properties without needing the (prebuild-owned) file itself.
+          # ubuntu-latest runners have 16 GiB RAM, so 4g/1g is comfortably safe.
+          # The inner double quotes matter: gradlew word-splits GRADLE_OPTS (via
+          # xargs), so they keep the multi-flag jvmargs value one property.
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"'
           # Consumed by app.config.js → android.versionCode (appVersionSource local).
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
