@@ -11,7 +11,7 @@
  * RevenueCat paywall isn't available), so you can drop it anywhere.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ImageBackground, StyleProp, ViewStyle } from 'react-native';
 import { Crown, ChevronRight, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import SubscriptionModal from '@/components/SubscriptionModal';
@@ -21,6 +21,10 @@ import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus'
 import { scale, fontScale } from '@/utils/scaling';
 
 const LinearGradient = LinearGradientFallback;
+
+// Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
+// with a deliberately clean center so the DeepLife+ copy stays legible on top.
+const BANNER_ART = require('@/assets/images/deeplife-plus-banner.png');
 
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
@@ -41,7 +45,9 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (reducedMotion || active) {
+    // Only the badge's crown glows; the banner now uses baked-in art and the
+    // inline pill has no glow, so skip the loop for them.
+    if (reducedMotion || active || variant !== 'badge') {
       pulse.setValue(0);
       return;
     }
@@ -53,7 +59,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
     );
     loop.start();
     return () => loop.stop();
-  }, [reducedMotion, active, pulse]);
+  }, [reducedMotion, active, pulse, variant]);
 
   // Never upsell an existing member.
   if (active) return null;
@@ -116,7 +122,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
     );
   }
 
-  // ── Shop banner: the fancy full-width card ──
+  // ── Shop banner: the fancy full-width card, over bespoke crown art ──
   return (
     <>
       <TouchableOpacity
@@ -126,26 +132,16 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
         accessibilityLabel={`DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''} — ad-free plus exclusive perks`}
         style={[styles.banner, style]}
       >
-        <LinearGradient
-          colors={['#2A2140', '#3B2B12', '#4A3410']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <ImageBackground
+          source={BANNER_ART}
           style={styles.bannerFill}
+          imageStyle={styles.bannerImg}
+          resizeMode="cover"
         >
-          <View style={styles.bannerCrownWrap}>
-            <Animated.View
-              style={[styles.bannerGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
-              pointerEvents="none"
-            />
-            <LinearGradient
-              colors={[GOLD_SOFT, GOLD, GOLD_DEEP]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bannerCrownCircle}
-            >
-              <Crown size={scale(22)} color={INK} fill={INK} strokeWidth={2} />
-            </LinearGradient>
-          </View>
+          {/* The art keeps the crown on the left; reserve that zone so the copy
+              lands on the dark center. Text shadows guarantee legibility even
+              if the art crops differently across screen widths. */}
+          <View style={styles.bannerCrownSpacer} pointerEvents="none" />
 
           <View style={styles.bannerBody}>
             <View style={styles.bannerTitleRow}>
@@ -163,7 +159,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
           </View>
 
           <ChevronRight size={fontScale(22)} color={GOLD_SOFT} />
-        </LinearGradient>
+        </ImageBackground>
       </TouchableOpacity>
       {modal}
     </>
@@ -213,33 +209,28 @@ const styles = StyleSheet.create({
   bannerFill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(14),
+    gap: scale(12),
+    minHeight: scale(88),
     paddingVertical: scale(14),
     paddingHorizontal: scale(16),
     borderWidth: 1,
     borderColor: 'rgba(250, 204, 21, 0.45)',
     borderRadius: scale(18),
   },
-  bannerCrownWrap: { width: scale(46), height: scale(46), alignItems: 'center', justifyContent: 'center' },
-  bannerGlow: {
-    position: 'absolute',
-    width: scale(48),
-    height: scale(48),
-    borderRadius: scale(24),
-    backgroundColor: 'rgba(250, 204, 21, 0.40)',
-  },
-  bannerCrownCircle: {
-    width: scale(42),
-    height: scale(42),
-    borderRadius: scale(21),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
+  bannerImg: { borderRadius: scale(18) },
+  // Leaves the art's left-anchored crown uncovered; the copy sits on the dark center.
+  bannerCrownSpacer: { width: '30%' },
   bannerBody: { flex: 1, gap: scale(3) },
   bannerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
-  bannerTitle: { color: '#FFFFFF', fontSize: fontScale(18), fontWeight: '900', letterSpacing: 0.2 },
+  bannerTitle: {
+    color: '#FFFFFF',
+    fontSize: fontScale(18),
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  },
   bannerPlus: { color: GOLD },
   bannerFlag: {
     flexDirection: 'row',
@@ -251,5 +242,12 @@ const styles = StyleSheet.create({
     paddingVertical: scale(2),
   },
   bannerFlagText: { color: INK, fontSize: fontScale(9), fontWeight: '900', letterSpacing: 0.3 },
-  bannerSub: { color: 'rgba(253, 230, 138, 0.92)', fontSize: fontScale(11.5), fontWeight: '600' },
+  bannerSub: {
+    color: 'rgba(253, 230, 138, 0.95)',
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
 });
