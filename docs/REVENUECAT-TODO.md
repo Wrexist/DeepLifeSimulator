@@ -19,13 +19,15 @@ Go to [app.revenuecat.com](https://app.revenuecat.com) and complete the followin
 - [x] iOS app added in RC → Apps (Bundle ID: `com.deeplife.simulator`, matches `app.config.js` — the old doc reference to `com.isakmolin.deeplifesimulator` was stale/wrong)
 - [x] App Store Connect API Key uploaded, credentials show "Valid"
 
-### 1c. Connect Google Play (Android) — ⚠️ ALMOST DONE
+### 1c. Connect Google Play (Android) — ✅ DONE, pending Google propagation
 
 - [x] Android app added in RC → Apps (package `com.deeplife.simulator`)
 - [x] Reused the existing `revenuecat-validator@dynasty-manager-491122.iam.gserviceaccount.com` service account (previously only scoped to another app) and granted it **Deep Life Simulator** app permissions in Play Console → Users and permissions: "View app information (read-only)" + "View financial data" — saved and confirmed (shows 3 permissions).
 - [x] Generated a fresh JSON private key for that service account via Google Cloud Console → IAM & Admin → Service Accounts → Keys → Add key → Create new key (JSON).
-- [ ] **Upload that JSON file to app.revenuecat.com → Apps → Deep Life Simulator (Play Store) → Service Account Credentials JSON.** This is the one remaining sub-step — it needs the downloaded file, which only exists on your machine's Downloads folder for security reasons.
-- [ ] **This step is a hard prerequisite for real purchases to validate on Android** — RC can't verify Android transactions without it, even after products exist.
+- [x] Uploaded that JSON file to app.revenuecat.com → Apps → Deep Life Simulator (Play Store) → Service Account Credentials JSON — saved successfully.
+- [x] Confirmed the Google Play Android Developer API (`androidpublisher.googleapis.com`) is Enabled on the `dynasty-manager-491122` Google Cloud project (required alongside the Play Console permissions).
+- [ ] RC currently shows "Credentials need attention" on this app — expected right after a fresh permission grant + key upload. RC's own tip: **wait up to 36 hours for Google to propagate the permission change**, then it should self-resolve (verify by retrying with a recent sandbox purchase once a build exists). No further action needed unless it's still failing after that window — if so, re-check the exact permission names in Play Console match "View app information and download bulk reports (read-only)" and "View financial data, orders, and cancellation survey responses".
+- [ ] (Optional, not blocking) RC also flagged **Google developer notifications (real-time purchase events)** as unconfigured — needs separate Pub/Sub API access for this same service account if you want real-time webhooks instead of polling. Not required for purchases to validate.
 
 ### 1d. Create Entitlements — ✅ DONE
 
