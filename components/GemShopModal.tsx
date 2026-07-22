@@ -213,7 +213,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       { id: IAP_PRODUCTS.GEMS_5000, gems: 5000, image: require('@/assets/images/iap/gems/gems_5000.png') },
       { id: IAP_PRODUCTS.GEMS_15000, gems: 15000, image: require('@/assets/images/iap/gems/gems_15000.png') },
       // Reuses the 15k artwork until a dedicated gems_50000.png asset lands.
-      { id: IAP_PRODUCTS.GEMS_50000, gems: 50000, image: require('@/assets/images/iap/gems/gems_15000.png') },
+      { id: IAP_PRODUCTS.GEMS_50000, gems: 50000, image: require('@/assets/images/iap/gems/gems_50000.png') },
     ];
     return base.map((p) => {
       const usd = usdToNumber(getProductConfig(p.id)?.price);
@@ -520,7 +520,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/perks/mindset.png'),
+      image: require('@/assets/images/iap/items/lifetime_premium.png'),
       title: 'Lifetime Premium',
       description: getProductConfig(IAP_PRODUCTS.LIFETIME_PREMIUM)?.description ?? 'No ads, all future updates.',
       features: getProductDisplayMeta(IAP_PRODUCTS.LIFETIME_PREMIUM).contents,
@@ -609,6 +609,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       owned: perks?.workBoost === true,
     },
     {
+      id: IAP_PRODUCTS.MINDSET,
+      accent: 'perks' as ShopAccent,
+      image: require('@/assets/images/iap/perks/mindset.png'),
+      title: 'Mindset',
+      owned: perks?.mindset === true,
+    },
+    {
       id: IAP_PRODUCTS.FAST_LEARNER,
       accent: 'perks' as ShopAccent,
       image: require('@/assets/images/iap/perks/fast_learner.png'),
@@ -639,7 +646,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/perks/mindset.png'),
+      image: require('@/assets/images/iap/items/lifetime_premium.png'),
       title: 'Lifetime Premium',
       owned: settings?.lifetimePremium === true,
     },
