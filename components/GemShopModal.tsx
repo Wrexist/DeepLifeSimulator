@@ -212,7 +212,6 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       { id: IAP_PRODUCTS.GEMS_1000, gems: 1000, image: require('@/assets/images/iap/gems/gems_1000.png') },
       { id: IAP_PRODUCTS.GEMS_5000, gems: 5000, image: require('@/assets/images/iap/gems/gems_5000.png') },
       { id: IAP_PRODUCTS.GEMS_15000, gems: 15000, image: require('@/assets/images/iap/gems/gems_15000.png') },
-      // Reuses the 15k artwork until a dedicated gems_50000.png asset lands.
       { id: IAP_PRODUCTS.GEMS_50000, gems: 50000, image: require('@/assets/images/iap/gems/gems_50000.png') },
     ];
     return base.map((p) => {
