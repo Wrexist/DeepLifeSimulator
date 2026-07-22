@@ -26,6 +26,7 @@ import { Platform } from 'react-native';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
 import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
+import { isSubscriptionProduct } from '@/utils/iapConfig';
 
 const log = logger.scope('RevenueCat');
 
@@ -205,17 +206,51 @@ class RevenueCatService {
     }
   }
 
-  /** Purchase a raw product by id (consumables — gems / boosts). */
+  /** Purchase a product by id — subscriptions, consumables, or non-consumables. */
   async purchaseProduct(productId: string): Promise<RcPurchaseResult> {
     if (!(await this.configure())) return { success: false, message: 'Store unavailable.' };
     try {
-      // The app calls with its internal id; the store product may be named
-      // differently (com.deeplife.simulator.*) — translate at the boundary.
+      // Translate the internal app id to the store product id at the RC boundary.
       const storeId = appToStoreProductId(productId);
       const P = loadPurchases();
-      // These are one-time products (gems / boosts / non-consumables). On
-      // Android, getProducts defaults to the SUBSCRIPTION category and returns
-      // an empty list for in-app products — so query NON_SUBSCRIPTION explicitly.
+
+      // ── Subscription products ────────────────────────────────────────────
+      // Play Billing V5+ requires subscriptions to be purchased via
+      // purchasePackage (offering/package context), NOT via the direct
+      // purchaseStoreProduct call. Attempting the direct call on Android returns
+      // a billing-unavailable error. Route all subscription SKUs through the
+      // current offering; fall back to a direct subscription product fetch only
+      // when the offering doesn't contain this SKU (e.g. a new product not yet
+      // in the default offering).
+      if (isSubscriptionProduct(productId)) {
+        const offering = await this.getCurrentOffering();
+        const pkg = offering?.availablePackages?.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (p: any) =>
+            p.storeProduct?.productIdentifier === storeId || p.identifier === storeId,
+        );
+        if (pkg) {
+          // purchasePackage already handles the configure guard internally.
+          return await this.purchasePackage(pkg);
+        }
+        // Fallback: product isn't in the current offering — fetch directly.
+        const subCategory = P?.PRODUCT_CATEGORY?.SUBSCRIPTION;
+        const subProducts = subCategory
+          ? await P.getProducts([storeId], subCategory)
+          : await P.getProducts([storeId]);
+        if (!subProducts?.length) return { success: false, message: 'Product not found.' };
+        const { customerInfo, transaction } = await P.purchaseStoreProduct(subProducts[0]);
+        return {
+          success: true,
+          entitlements: this.cacheFrom(customerInfo),
+          transactionId: transaction?.transactionIdentifier,
+        };
+      }
+
+      // ── Non-subscription products (consumables / non-consumables) ─────────
+      // On Android, getProducts defaults to the SUBSCRIPTION category and
+      // returns an empty list for in-app products — query NON_SUBSCRIPTION
+      // explicitly so the store returns these products.
       const nonSub = P?.PRODUCT_CATEGORY?.NON_SUBSCRIPTION;
       const products = nonSub
         ? await P.getProducts([storeId], nonSub)
