@@ -25,7 +25,7 @@
 import { Platform } from 'react-native';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
-import { appToStoreProductId } from '@/lib/subscription/revenueCatProductMap';
+import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
 
 const log = logger.scope('RevenueCat');
 
@@ -212,9 +212,16 @@ class RevenueCatService {
       // The app calls with its internal id; the store product may be named
       // differently (com.deeplife.simulator.*) — translate at the boundary.
       const storeId = appToStoreProductId(productId);
-      const products = await loadPurchases().getProducts([storeId]);
+      const P = loadPurchases();
+      // These are one-time products (gems / boosts / non-consumables). On
+      // Android, getProducts defaults to the SUBSCRIPTION category and returns
+      // an empty list for in-app products — so query NON_SUBSCRIPTION explicitly.
+      const nonSub = P?.PRODUCT_CATEGORY?.NON_SUBSCRIPTION;
+      const products = nonSub
+        ? await P.getProducts([storeId], nonSub)
+        : await P.getProducts([storeId]);
       if (!products?.length) return { success: false, message: 'Product not found.' };
-      const { customerInfo, transaction } = await loadPurchases().purchaseStoreProduct(products[0]);
+      const { customerInfo, transaction } = await P.purchaseStoreProduct(products[0]);
       return {
         success: true,
         entitlements: this.cacheFrom(customerInfo),
@@ -234,6 +241,28 @@ class RevenueCatService {
     } catch (error) {
       log.warn('restore failed', { error });
       return { adsRemoved: false, premium: false };
+    }
+  }
+
+  /**
+   * Restore prior purchases and return every owned product as an APP product id
+   * (store→app mapped). Lets IAPService re-apply the benefit for each restored
+   * non-consumable (perks, remove-ads, lifetime unlocks) through its normal
+   * grant path — not just the ads_removed / premium entitlements. Consumables
+   * are included in the raw list but IAPService filters them out (it never
+   * restores gems/money). Also refreshes the entitlement cache + listeners.
+   */
+  async restoreProductIds(): Promise<string[]> {
+    if (!(await this.configure())) return [];
+    try {
+      const info = await loadPurchases().restorePurchases();
+      this.cacheFrom(info);
+      const storeIds: string[] = info?.allPurchasedProductIdentifiers ?? [];
+      // De-dupe after mapping (an app id could map from more than one store id).
+      return Array.from(new Set(storeIds.map((id) => storeToAppProductId(id))));
+    } catch (error) {
+      log.warn('restoreProductIds failed', { error });
+      return [];
     }
   }
 

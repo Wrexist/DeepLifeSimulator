@@ -1687,11 +1687,30 @@ export class IAPService {
 
       // RevenueCat restore (opt-in): RC re-applies entitlements server-side and
       // fires the customer-info listener → SubscriptionReconciler syncs
-      // settings.adsRemoved / premium into game state.
+      // settings.adsRemoved / premium into game state. Beyond those two
+      // entitlements, re-apply every restored NON-CONSUMABLE (perks, premium
+      // credit card, lifetime unlocks, etc.) through the normal grant path so
+      // permanent perks not represented by an entitlement are also restored.
       if (revenueCatService.isEnabled()) {
-        const e = await revenueCatService.restore();
+        const restoredIds = await revenueCatService.restoreProductIds();
+        let restoredCount = 0;
+        for (const productId of restoredIds) {
+          // Never restore consumables (gems / money) — prevents re-granting them.
+          if (isConsumableProduct(productId)) {
+            continue;
+          }
+          // RC verifies ownership server-side; dedupe so a benefit is applied at
+          // most once even across repeated restores.
+          const transactionId = `rc_restore:${productId}`;
+          if (await this.isTransactionProcessed(transactionId)) {
+            continue;
+          }
+          await this.applyBenefit(productId, transactionId);
+          restoredCount++;
+        }
+        const e = revenueCatService.cachedEntitlements();
         this.setState({ isLoading: false });
-        return e.adsRemoved || e.premium;
+        return restoredCount > 0 || e.adsRemoved || e.premium;
       }
 
       if (!loadInAppPurchasesModule() || !InAppPurchases) {
