@@ -152,22 +152,21 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       # Android versionCode must STRICTLY INCREASE for every Play upload — Google
-      # rejects a versionCode it has already seen. `eas build --local` does NOT
-      # auto-increment (remote autoIncrement only runs on EAS cloud builds), so
-      # resolve one here. next-build-number.mjs returns App Store Connect's
-      # highest build +1 when the ASC_* secrets are set (keeping iOS/Android build
-      # numbers in lockstep), else a monotonic epoch fallback — both strictly
-      # increasing and under Google's 2.1B versionCode ceiling. app.config.js
+      # rejects a versionCode it has already seen or one lower than the last. `eas
+      # build --local` does NOT auto-increment (remote autoIncrement only runs on
+      # EAS cloud builds), so resolve one here.
+      #
+      # We deliberately DO NOT pass the ASC_* (Apple) secrets here: that script can
+      # only look up Apple's build numbers, never Google Play's. With ASC set it
+      # would return small iOS build numbers (e.g. 61); if a prior Android upload
+      # used the epoch fallback (~1.78e9), the next value would be LOWER and Google
+      # would reject it. Without ASC creds the script uses epoch seconds — strictly
+      # monotonic, always higher than any small historical versionCode, and under
+      # Google's 2.1B ceiling — which is exactly what Android wants. app.config.js
       # bakes it into android.versionCode (eas.json appVersionSource: local via
       # BUILD_NUMBER).
       - name: Compute unique versionCode
         run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
-        env:
-          # Optional — align Android versionCode with the iOS build series. Absent,
-          # the resolver falls back to epoch seconds (still unique + monotonic).
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
 
       # app.config.js reads expo.version from package.json (single source of
       # truth), so stamp the chosen version there. --no-git-tag-version keeps this
@@ -210,7 +209,6 @@ jobs:
           EXPO_PUBLIC_ADMOB_BANNER_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_ANDROID }}
           EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID }}
           EXPO_PUBLIC_ADMOB_REWARDED_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID }}
-          EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
 
       # Always keep the .aab, even if submit is skipped/fails — lets you upload
       # manually via the Play Console as a fallback.
