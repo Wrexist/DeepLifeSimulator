@@ -532,11 +532,21 @@ try {
     }
 
     if (missing.length > 0) {
-      log('[FAIL] Missing AdMob ad unit IDs for production:', RED);
-      missing.forEach((n) => log(`   - ${n}`, RED));
-      log('   Without these, AdMobService ships with Google test ad units', RED);
-      log('   (zero revenue). Configure via EAS secrets.', RED);
-      hasErrors = true;
+      // Opt-in escape hatch for platforms whose ad units don't exist yet (e.g.
+      // the Android launch ships before Android AdMob units are created). This
+      // downgrades ONLY the *missing Android ad unit* case to a warning so the
+      // build isn't blocked on ads — every other production-safety check (save
+      // signing, IAP verify, malformed IDs) still fails closed. iOS never passes
+      // this flag, so its hard gate is unchanged.
+      const advisory = process.argv.includes('--warn-missing-android-admob')
+        && platform === 'android';
+      const tag = advisory ? '[WARN]' : '[FAIL]';
+      const color = advisory ? YELLOW : RED;
+      log(`${tag} Missing AdMob ad unit IDs for production:`, color);
+      missing.forEach((n) => log(`   - ${n}`, color));
+      log('   Without these, AdMobService ships with Google test ad units', color);
+      log('   (zero revenue). Configure via EAS secrets.', color);
+      if (!advisory) hasErrors = true;
     }
     if (malformed.length > 0) {
       log('[FAIL] Malformed AdMob ad unit IDs (expect ca-app-pub-…/…):', RED);

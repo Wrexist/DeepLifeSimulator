@@ -35,5 +35,37 @@ The route-conflict guard (`npm run check:routes`) runs first and needs no secret
 ## Enable flags (set in `eas.json` production env)
 `EXPO_PUBLIC_ENABLE_ADMOB=true`, `EXPO_PUBLIC_ENABLE_IAP=true`, `EXPO_PUBLIC_ENABLE_ATT=true`.
 
+## CI release workflows (GitHub Actions ▸ Run workflow)
+
+Two credit-free "local build" workflows compile the native binary on the runner
+(`eas build --local`) and optionally submit — **zero EAS Build credits**:
+
+| Workflow | Runner | Output | Submits to | Extra secrets |
+|---|---|---|---|---|
+| `eas-build-local-ios.yml` | macOS (10x) | `.ipa` | TestFlight | ASC API key stored as EAS credentials |
+| `eas-build-local-android.yml` | ubuntu (1x) | `.aab` | Google Play | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
+
+Both need **`EXPO_TOKEN`** (EAS auth) and an EAS-registered signing key
+(iOS distribution cert / Android upload keystore — created once via
+`eas credentials`, then reused by `--local` builds).
+
+### Android → Google Play (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`)
+Paste the full JSON of a Google Play **service-account key** into this repo secret.
+To create it once:
+1. Google Play Console ▸ **Users & permissions** ▸ invite a service account (or
+   create one in Google Cloud Console under the linked project) and grant it
+   **"Release apps to testing tracks and manage releases"**.
+2. In Google Cloud Console, enable the **Google Play Android Developer API** and
+   download a **JSON key** for that service account.
+3. Add it as the repo secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (Settings ▸
+   Secrets ▸ Actions). The workflow writes it to `./play-service-account.json`
+   (gitignored) which `eas.json`'s `submit.production.android.serviceAccountKeyPath`
+   points at.
+
+> **First upload must be manual.** Google rejects the very first `.aab` for a new
+> app over the API — upload one build by hand in the Play Console once, then every
+> future run of this workflow can upload automatically. The workflow's Play
+> **track** is chosen per-run (default `internal`).
+>
 > Keep `UPDATED_PRIVACY_POLICY.md` and the Play Data Safety form in sync with the
 > shipped `EXPO_PUBLIC_ENABLE_ADMOB` + Android `AD_ID` permission.

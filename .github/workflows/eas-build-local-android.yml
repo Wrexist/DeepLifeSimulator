@@ -1,0 +1,261 @@
+name: Android Play Store (local build · no cloud credits)
+
+# Builds the Android app bundle (.aab) with `eas build --local` on a GitHub
+# ubuntu runner and (optionally) uploads it to Google Play. Like the iOS sibling
+# (.github/workflows/eas-build-local-ios.yml) this consumes ZERO EAS Build
+# credits. Unlike iOS, Android compiles on plain ubuntu — no macOS runner — so
+# the whole pipeline (gates + build + submit) runs in ONE cheap 1x-billed job.
+#
+# What you do: open Actions ▸ "Android Play Store (local build · no cloud
+# credits)" ▸ Run workflow ▸ type the version ▸ (tick Submit) ▸ Run. That's it.
+#
+# One-time prerequisites (see docs/RELEASE_SECRETS.md):
+#   • EXPO_TOKEN repo secret (same one the iOS workflow uses).
+#   • An Android upload keystore registered with EAS — run `eas credentials`
+#     once (or let any prior EAS Android build create it). `eas build --local`
+#     downloads it from EAS to sign the .aab, exactly like a cloud build.
+#   • To auto-upload: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret (a Google
+#     Play service-account key with the "Release apps to testing tracks"
+#     permission). Google requires the app's FIRST .aab to be uploaded manually
+#     in the Play Console — after that, this workflow's API upload works.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Marketing version to ship (e.g. 2.5.9). Bump it for every release so builds are clearly ordered.'
+        type: string
+        # Required with no default: forces an explicit choice on every run, so a
+        # stale package.json version can never be shipped by accident.
+        required: true
+      submit:
+        description: 'Upload the build to Google Play after building'
+        type: boolean
+        # Safe by default: a Play upload is outward-facing, so it is opt-in —
+        # tick this when you actually want to upload. Untick to only produce the
+        # .aab artifact (download it and upload by hand as a fallback).
+        default: false
+      track:
+        description: 'Google Play track to upload to (only used when Submit is ticked)'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+        # Internal testing: visible only to your testers, live in minutes, no
+        # Google review wait — the safe default. Promote to Production from the
+        # Play Console when you're happy, or pick "production" here to go live.
+        default: internal
+
+concurrency:
+  group: android-local-release
+  cancel-in-progress: false
+
+# Least privilege: this job only reads code, runs EAS, and uploads artifacts.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Fail fast if the requested marketing version isn't a full
+      # MAJOR.MINOR.PATCH string — `npm version` (used to stamp package.json
+      # below) rejects two-part inputs like "2.5".
+      - name: Validate marketing version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' must be a full MAJOR.MINOR.PATCH string (e.g. 2.5.9)."
+            exit 1
+          fi
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "::notice::Building marketing version $VERSION (package.json currently: $CURRENT)"
+
+      # Fail fast if EAS auth is missing, before any dependency install / build.
+      - name: Require EXPO_TOKEN
+        run: test -n "$EXPO_TOKEN" || { echo "::error::EXPO_TOKEN repo secret is not set — add it under Settings ▸ Secrets ▸ Actions"; exit 1; }
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # Fail fast if Submit is ticked but the Play service-account key is missing,
+      # so we don't spend a whole build only to fail at the upload step.
+      - name: Require Play service-account key when submitting
+        if: ${{ inputs.submit }}
+        run: test -n "$SA_JSON" || { echo "::error::Submit is ticked but GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set — add it or untick Submit"; exit 1; }
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Android/Gradle needs JDK 17 (Expo SDK 54 / RN 0.81). Pin it explicitly so
+      # the build is deterministic regardless of the runner's default JDK, and
+      # cache the Gradle downloads to speed up repeat builds.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ---- Cheap gates (fail fast before the ~15-min native build) -----------
+      - name: Route conflict check
+        run: npm run check:routes
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci
+
+      # Revenue-critical / integrity config gate. This IS blocking — save-signing
+      # (EXPO_PUBLIC_SAVE_HMAC_KEY), IAP receipt verification, and malformed ad
+      # unit IDs all fail the build closed, so a Play upload can never ship with
+      # unsigned saves or unverified purchases. The ONLY exception is
+      # --warn-missing-android-admob, which downgrades *missing Android AdMob ad
+      # units* to a warning (they aren't created yet — iOS-only ad launch). Drop
+      # that flag once the Android ad units exist to make ads blocking too.
+      - name: Preflight (production config)
+        run: node scripts/preflight-check.js --platform android --warn-missing-android-admob
+        env:
+          EXPO_PUBLIC_ENABLE_ADMOB: 'true'
+          EXPO_PUBLIC_ENABLE_IAP: 'true'
+          EXPO_PUBLIC_ENABLE_ATT: 'true'
+          EXPO_PUBLIC_SAVE_HMAC_KEY: ${{ secrets.EXPO_PUBLIC_SAVE_HMAC_KEY }}
+          EXPO_PUBLIC_IAP_VERIFY_URL: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_URL }}
+          EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID }}
+          EXPO_PUBLIC_ADMOB_BANNER_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_ANDROID }}
+          EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID }}
+          EXPO_PUBLIC_ADMOB_REWARDED_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID }}
+
+      # Authenticate eas-cli non-interactively so `eas build --local` can resolve
+      # the EAS-managed Android keystore and project secrets while logged in.
+      - name: Expo/EAS login
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Android versionCode must STRICTLY INCREASE for every Play upload — Google
+      # rejects a versionCode it has already seen or one lower than the last. `eas
+      # build --local` does NOT auto-increment (remote autoIncrement only runs on
+      # EAS cloud builds), so resolve one here.
+      #
+      # We deliberately DO NOT pass the ASC_* (Apple) secrets here: that script can
+      # only look up Apple's build numbers, never Google Play's. With ASC set it
+      # would return small iOS build numbers (e.g. 61); if a prior Android upload
+      # used the epoch fallback (~1.78e9), the next value would be LOWER and Google
+      # would reject it. Without ASC creds the script uses epoch seconds — strictly
+      # monotonic, always higher than any small historical versionCode, and under
+      # Google's 2.1B ceiling — which is exactly what Android wants. app.config.js
+      # bakes it into android.versionCode (eas.json appVersionSource: local via
+      # BUILD_NUMBER).
+      - name: Compute unique versionCode
+        run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
+
+      # app.config.js reads expo.version from package.json (single source of
+      # truth), so stamp the chosen version there. --no-git-tag-version keeps this
+      # a working-tree-only change; nothing is committed or pushed.
+      - name: Set marketing version from workflow input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "::notice::expo.version for this build: $(node -p "require('./package.json').version") (versionCode $BUILD_NUMBER)"
+
+      # --local compiles the .aab on this runner (no cloud credits). --output pins
+      # the artifact path so submit/upload are deterministic. EXPO_PUBLIC_* are
+      # passed explicitly so Metro embeds them at bundle time even if an EAS
+      # project secret is missing. eas.json's production profile builds an
+      # app-bundle (:app:bundleRelease), which is what Google Play requires.
+      - name: EAS Build Android (local)
+        run: |
+          mkdir -p build
+          eas build \
+            --platform android \
+            --profile production \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/build/deeplife.aab"
+        env:
+          # Same fingerprint crash guard as the iOS/cloud workflows: runtimeVersion
+          # policy is "sdkVersion" and expo-updates is hard-disabled, so the
+          # fingerprint is unused metadata — safe to skip.
+          EAS_SKIP_AUTO_FINGERPRINT: '1'
+          # Consumed by app.config.js → android.versionCode (appVersionSource local).
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          EXPO_PUBLIC_ENABLE_ADMOB: 'true'
+          EXPO_PUBLIC_ENABLE_IAP: 'true'
+          EXPO_PUBLIC_ENABLE_ATT: 'true'
+          EXPO_PUBLIC_SAVE_HMAC_KEY: ${{ secrets.EXPO_PUBLIC_SAVE_HMAC_KEY }}
+          EXPO_PUBLIC_IAP_VERIFY_URL: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_URL }}
+          EXPO_PUBLIC_IAP_VERIFY_TOKEN: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_TOKEN }}
+          EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID }}
+          EXPO_PUBLIC_ADMOB_BANNER_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_ANDROID }}
+          EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID }}
+          EXPO_PUBLIC_ADMOB_REWARDED_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID }}
+
+      # Always keep the .aab, even if submit is skipped/fails — lets you upload
+      # manually via the Play Console as a fallback.
+      - name: Upload .aab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deeplife-android-aab
+          path: build/deeplife.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      # `eas submit` reads its Google Play track from the submit profile in
+      # eas.json (there is no --track CLI flag), so write the chosen track into
+      # the profile at runtime. Working-tree-only; nothing is committed.
+      - name: Select Google Play track
+        if: ${{ inputs.submit }}
+        env:
+          TRACK: ${{ inputs.track }}
+        run: |
+          node -e "const fs=require('fs');const p='eas.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.submit.production.android.track=process.env.TRACK;fs.writeFileSync(p,JSON.stringify(j,null,2));"
+          echo "::notice::Uploading to Google Play track: $TRACK"
+
+      # The service-account key authenticates to Google Play. It's written to the
+      # path eas.json's android submit profile points at (serviceAccountKeyPath).
+      - name: Write Play service-account key
+        if: ${{ inputs.submit }}
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$SA_JSON" > play-service-account.json
+          node -e "JSON.parse(require('fs').readFileSync('play-service-account.json','utf8'))" \
+            || { echo '::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not valid JSON'; exit 1; }
+
+      # Submit does NOT consume build credits. Uses submit.production.android from
+      # eas.json (serviceAccountKeyPath + the track selected above).
+      - name: Submit to Google Play
+        if: ${{ inputs.submit }}
+        run: |
+          eas submit \
+            --platform android \
+            --profile production \
+            --path "$GITHUB_WORKSPACE/build/deeplife.aab" \
+            --non-interactive
+
+      # Remove the key from the runner's working tree promptly (runners are
+      # ephemeral, but don't leave a credential lying around mid-job).
+      - name: Clean up service-account key
+        if: ${{ always() && inputs.submit }}
+        run: rm -f play-service-account.json

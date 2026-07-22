@@ -45,6 +45,7 @@ yarn-error.*
 
 # secrets
 google-play-service-account.json
+play-service-account.json
 
 # IDE & tool state
 .cursor/
