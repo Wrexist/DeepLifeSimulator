@@ -32,6 +32,7 @@ import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { subscriptionService } from '@/services/SubscriptionService';
+import { revenueCatService } from '@/services/RevenueCatService';
 import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
@@ -162,6 +163,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   }, [busy, setGameState, saveGame]);
 
   const handleManage = useCallback(() => {
+    // Prefer RevenueCat's Customer Center (manage/cancel/restore/refund) when
+    // available; otherwise open the platform's subscription-management page.
+    if (revenueCatService.hasPaywallUI()) {
+      void revenueCatService.presentCustomerCenter();
+      return;
+    }
     void subscriptionService.cancelSubscription(selected.productId);
   }, [selected]);
 

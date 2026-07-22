@@ -25,12 +25,17 @@
 import { Platform } from 'react-native';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
+import { appToStoreProductId } from '@/lib/subscription/revenueCatProductMap';
 
 const log = logger.scope('RevenueCat');
 
 /** Entitlement identifiers — MUST match the RevenueCat dashboard exactly. */
 export const RC_ENTITLEMENT_PREMIUM = 'premium';
 export const RC_ENTITLEMENT_ADS_REMOVED = 'ads_removed';
+// The subscription / "pro" access entitlement. Configurable because your
+// RevenueCat entitlement may be named "pro", "premium", or "Deep Life Simulator
+// Pro" — set EXPO_PUBLIC_RC_ENTITLEMENT_PRO to whatever the dashboard uses.
+export const RC_ENTITLEMENT_PRO = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_PRO || 'pro';
 
 export interface RcEntitlements {
   /** Player owns Remove Ads / any premium tier → drive settings.adsRemoved. */
@@ -70,16 +75,38 @@ function loadPurchases(): any | null {
 }
 
 function apiKey(): string | undefined {
-  return Platform.select({
+  const platformKey = Platform.select({
     ios: process.env.EXPO_PUBLIC_RC_IOS_KEY,
     android: process.env.EXPO_PUBLIC_RC_ANDROID_KEY,
   });
+  // Fall back to a single cross-platform key (e.g. a RevenueCat Test Store key,
+  // which is one key for both platforms).
+  return platformKey || process.env.EXPO_PUBLIC_RC_API_KEY;
+}
+
+// react-native-purchases-ui (prebuilt Paywall + Customer Center). Lazy-required
+// like the core SDK so its absence can never crash the app.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let PurchasesUI: any | null = null;
+let uiLoadAttempted = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadPurchasesUI(): any | null {
+  if (uiLoadAttempted) return PurchasesUI;
+  uiLoadAttempted = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('react-native-purchases-ui');
+    PurchasesUI = mod?.default ?? mod;
+  } catch {
+    PurchasesUI = null;
+  }
+  return PurchasesUI;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function readEntitlements(customerInfo: any): RcEntitlements {
   const active = customerInfo?.entitlements?.active ?? {};
-  const premium = !!active[RC_ENTITLEMENT_PREMIUM];
+  const premium = !!active[RC_ENTITLEMENT_PREMIUM] || !!active[RC_ENTITLEMENT_PRO];
   // Any premium tier is also ad-free, so treat premium as implying ads_removed
   // even if only the `premium` entitlement is attached to a given product.
   const adsRemoved = !!active[RC_ENTITLEMENT_ADS_REMOVED] || premium;
@@ -120,7 +147,11 @@ class RevenueCatService {
     if (!this.isEnabled()) return false;
     try {
       const key = apiKey();
-      loadPurchases().configure({ apiKey: key });
+      const P = loadPurchases();
+      if (__DEV__ && P.LOG_LEVEL?.DEBUG !== undefined) {
+        try { P.setLogLevel(P.LOG_LEVEL.DEBUG); } catch { /* non-fatal */ }
+      }
+      P.configure({ apiKey: key });
       this.configured = true;
       log.info('configured');
       return true;
@@ -178,7 +209,10 @@ class RevenueCatService {
   async purchaseProduct(productId: string): Promise<RcPurchaseResult> {
     if (!(await this.configure())) return { success: false, message: 'Store unavailable.' };
     try {
-      const products = await loadPurchases().getProducts([productId]);
+      // The app calls with its internal id; the store product may be named
+      // differently (com.deeplife.simulator.*) — translate at the boundary.
+      const storeId = appToStoreProductId(productId);
+      const products = await loadPurchases().getProducts([storeId]);
       if (!products?.length) return { success: false, message: 'Product not found.' };
       const { customerInfo, transaction } = await loadPurchases().purchaseStoreProduct(products[0]);
       return {
@@ -200,6 +234,45 @@ class RevenueCatService {
     } catch (error) {
       log.warn('restore failed', { error });
       return { adsRemoved: false, premium: false };
+    }
+  }
+
+  /** True when the prebuilt RevenueCat Paywall UI is available in this build. */
+  hasPaywallUI(): boolean {
+    return this.isEnabled() && !!loadPurchasesUI()?.presentPaywallIfNeeded;
+  }
+
+  /**
+   * Present RevenueCat's prebuilt Paywall (designed in the RC dashboard) — only
+   * when the player lacks `requiredEntitlement`. Resolves true if they end up
+   * entitled (purchased/restored). Refreshes the entitlement cache afterward.
+   * No-op (returns false) when the UI package or a dashboard paywall is absent.
+   */
+  async presentPaywall(requiredEntitlement: string = RC_ENTITLEMENT_PRO): Promise<boolean> {
+    if (!(await this.configure())) return false;
+    const UI = loadPurchasesUI();
+    if (!UI?.presentPaywallIfNeeded) return false;
+    try {
+      const result = await UI.presentPaywallIfNeeded({ requiredEntitlementIdentifier: requiredEntitlement });
+      await this.getEntitlements();
+      // PAYWALL_RESULT.PURCHASED / RESTORED → the user is now entitled.
+      return result === 'PURCHASED' || result === 'RESTORED';
+    } catch (error) {
+      log.warn('presentPaywall failed', { error });
+      return false;
+    }
+  }
+
+  /** Present RevenueCat's Customer Center (manage / cancel / restore / refund). */
+  async presentCustomerCenter(): Promise<void> {
+    if (!(await this.configure())) return;
+    const UI = loadPurchasesUI();
+    if (!UI?.presentCustomerCenter) return;
+    try {
+      await UI.presentCustomerCenter();
+      await this.getEntitlements();
+    } catch (error) {
+      log.warn('presentCustomerCenter failed', { error });
     }
   }
 
