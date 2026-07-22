@@ -478,6 +478,17 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Backfilled missing ambitionRewardClaimed flag from defaults');
     repaired = true;
   }
+  // `realEstateActivity` (a concrete-default `[]`) is backfilled on the version
+  // ladder by migration 22, but — like luxuryItems above — repair also runs on
+  // partial saves (CloudSync merge / hand-edit) that a wholesale migration can
+  // miss, so heal a present-but-malformed state here too. Reads already guard
+  // with `?? []`, so this only closes the migration/repair asymmetry (CLAUDE.md
+  // save-format rule (b)); it is not fixing an active crash.
+  if (!Array.isArray(s.realEstateActivity)) {
+    s.realEstateActivity = [];
+    repairs.push('Backfilled missing realEstateActivity array from defaults');
+    repaired = true;
+  }
 
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
   // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
