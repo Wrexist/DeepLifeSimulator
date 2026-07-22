@@ -37,14 +37,34 @@ export function resolveSaveSigningRuntimeConfig(
       ? explicitIsDev
       : ((typeof __DEV__ !== 'undefined' && __DEV__) || env.NODE_ENV !== 'production');
 
-  const configuredRaw = env.EXPO_PUBLIC_SAVE_HMAC_KEY || env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY;
+  // Metro's EXPO_PUBLIC_* inlining only rewrites direct `process.env.X` member
+  // reads, so `env.X` on the default-param object is always undefined in web
+  // exports. Fall back to the inlined reads — but ONLY when the caller did not
+  // pass an explicit env override (tests inject bare env objects and must not
+  // pick up ambient values).
+  const isAmbientEnv = env === process.env;
+  const configuredRaw =
+    env.EXPO_PUBLIC_SAVE_HMAC_KEY ||
+    env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY ||
+    (isAmbientEnv
+      ? process.env.EXPO_PUBLIC_SAVE_HMAC_KEY || process.env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY
+      : undefined);
   const configuredHmacKey = typeof configuredRaw === 'string' ? configuredRaw.trim() : '';
 
   return {
     isDev,
-    requireSignedSaves: !isDev && env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES !== 'false',
-    allowWeakSaveMigration: isDev || env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true',
-    allowUnsignedLegacySaves: isDev || env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true',
+    requireSignedSaves:
+      !isDev &&
+      env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES !== 'false' &&
+      !(isAmbientEnv && process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES === 'false'),
+    allowWeakSaveMigration:
+      isDev ||
+      env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true' ||
+      (isAmbientEnv && process.env.EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION === 'true'),
+    allowUnsignedLegacySaves:
+      isDev ||
+      env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true' ||
+      (isAmbientEnv && process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES === 'true'),
     configuredHmacKey: configuredHmacKey.length > 0 ? configuredHmacKey : null,
   };
 }
