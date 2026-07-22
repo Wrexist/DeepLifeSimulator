@@ -19,6 +19,7 @@ import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Play, Gift, DollarSign, Heart, Smile, Zap, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -475,6 +476,10 @@ export default function AdRewardOrb() {
                 </LinearGradient>
               </Pressable>
             )}
+
+            {/* Ad-watchers are the prime audience for going ad-free — upsell
+                DeepLife+ right here. Self-hides for members. */}
+            <DeepLifePlusUpsell variant="inline" surface="ad_boost" />
           </View>
         </View>
       </Modal>

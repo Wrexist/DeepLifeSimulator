@@ -20,6 +20,7 @@ import {
   fontScale,
 } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
+import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
@@ -490,6 +491,9 @@ function IdentityCard() {
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
+          {/* DeepLife+ upsell — a glowing crown at the avatar's top-left corner
+              (prestige badge owns the top-right). Self-hides for members. */}
+          <DeepLifePlusUpsell variant="badge" surface="player_card" style={styles.premiumAvatarCrown} />
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             <TouchableOpacity
               style={styles.prestigeBadge}
