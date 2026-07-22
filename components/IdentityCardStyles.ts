@@ -470,6 +470,14 @@ export const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
+  // DeepLife+ crown — mirrors the prestige badge on the opposite (top-left)
+  // corner of the avatar so the two never overlap.
+  premiumAvatarCrown: {
+    position: 'absolute',
+    top: -responsiveSpacing.xs,
+    left: -responsiveSpacing.xs,
+    zIndex: 10,
+  },
   prestigeBadgeGradient: {
     flexDirection: 'row',
     alignItems: 'center',

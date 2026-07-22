@@ -384,6 +384,12 @@ jest.mock('react-native', () => {
     })),
   };
 
+  // Easing — the RN mock above omitted it, so any component that calls
+  // Easing.inOut(Easing.quad) (e.g. the DeepLife+ crown pulse) crashed. Provide
+  // non-throwing stubs; the Animated mock no-ops, so the value is never invoked.
+  const easingStub = () => easingStub;
+  mockExports.Easing = new Proxy({}, { get: () => easingStub });
+
   for (const name of componentNames) {
     mockExports[name] = name;
   }

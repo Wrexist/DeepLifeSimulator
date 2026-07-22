@@ -11,6 +11,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { scale, fontScale, responsiveBorderRadius, responsiveSpacing, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
@@ -787,6 +788,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
           {/* Content */}
           <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* DeepLife+ subscription upsell — pinned above every tab. Self-hides
+                for members and opens the RevenueCat paywall (or the in-app one). */}
+            <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
             {tab === 'gems' ? (
               <>
                 {storeBanner}
