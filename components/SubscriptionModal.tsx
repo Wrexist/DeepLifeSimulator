@@ -1,21 +1,38 @@
 /**
- * SubscriptionModal — the DeepLife+ paywall.
+ * SubscriptionModal — the DeepLife+ premium paywall.
  *
- * Lists the (truthful) benefits and the monthly / yearly plans, drives the
- * purchase via `subscriptionService`, and applies in-game benefits
- * (ad-free + welcome gems) via `applyDeepLifePlusBenefits` on success.
- * Also offers Restore and Manage (platform-controlled cancellation).
+ * A high-intent, conversion-optimized paywall: golden-crown hero, a truthful
+ * value stack, an annual-default plan selector with per-week price framing, and
+ * a free-trial-led CTA. Drives the purchase via `subscriptionService` and
+ * applies in-game benefits via `applyDeepLifePlusBenefits` on success.
+ *
+ * Marketing choices (all App Store compliant — NO countdown timers, fake
+ * scarcity, or strike-through "was" prices, per the app's review notes):
+ *   • Annual plan pre-selected (higher LTV; users anchor to the default).
+ *   • Free trial is the primary hook ("Start my 7-day free trial").
+ *   • Yearly framed per-week ("just $0.96/week") — the strongest value cue.
+ *   • Every listed benefit is one the game actually grants (kept truthful).
  */
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { X, Crown, Check } from 'lucide-react-native';
-import { useTheme } from '@/hooks/useTheme';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
+} from 'react-native';
+import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
-import { accent, colors } from '@/lib/config/theme';
+import { scale, fontScale } from '@/utils/scaling';
 import { subscriptionService } from '@/services/SubscriptionService';
+import { revenueCatService } from '@/services/RevenueCatService';
 import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
@@ -23,6 +40,9 @@ import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
   DEEP_LIFE_PLUS_LIFETIME,
+  DEEP_LIFE_PLUS_FREE_TRIAL_DAYS,
+  yearlyPerWeek,
+  yearlySavingsPercent,
   isDeepLifePlusActive,
   type DeepLifePlusPlan,
 } from '@/lib/subscription/deepLifePlus';
@@ -32,35 +52,84 @@ interface Props {
   onClose: () => void;
 }
 
+// Luxe dark + gold palette. Fixed (not theme-driven) so the paywall keeps its
+// premium look in every theme. Flat colors only — the app's LinearGradient
+// fallback renders just the first color, so we never rely on gradients.
+const GOLD = '#FACC15';
+const GOLD_SOFT = '#FDE68A';
+const GOLD_DEEP = '#F59E0B';
+const GOLD_TINT = 'rgba(250, 204, 21, 0.12)';
+const GOLD_BORDER = 'rgba(250, 204, 21, 0.38)';
+const SHEET_BG = '#0B1120';
+const CARD_BG = '#111A2E';
+const CARD_BORDER = 'rgba(255, 255, 255, 0.08)';
+const TEXT = '#F8FAFC';
+const TEXT_MUTED = '#94A3B8';
+const TEXT_DIM = '#64748B';
+
+const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  no_ads: Ban,
+  legacy_premium: Crown,
+  cosmetics: Palette,
+  welcome_gems: Gem,
+};
+
 export default function SubscriptionModal({ visible, onClose }: Props) {
-  const { theme } = useTheme();
   const reducedMotion = useReducedMotion();
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
-  const [selected, setSelected] = useState<DeepLifePlusPlan>(DEEP_LIFE_PLUS_PLANS[0]);
-  // When true the player picked the one-time "unlock forever" option instead of
-  // a subscription plan.
+
+  const yearlyPlan = useMemo(
+    () => DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly') ?? DEEP_LIFE_PLUS_PLANS[0],
+    [],
+  );
+  // Annual pre-selected — the higher-LTV default that users anchor to.
+  const [selected, setSelected] = useState<DeepLifePlusPlan>(yearlyPlan);
   const [lifetime, setLifetime] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const active = isDeepLifePlusActive();
 
-  // Funnel: record paywall impressions (no-op unless telemetry is enabled).
+  const trialDays = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS;
+  const perWeek = useMemo(() => yearlyPerWeek(), []);
+  const savingsPct = useMemo(() => yearlySavingsPercent(), []);
+  const trialEligible = !active && !lifetime && trialDays > 0;
+
+  // Crown glow — a slow gold pulse behind the crest. Native-driven; static when
+  // the OS "Reduce Motion" setting is on.
+  const glow = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible) return;
+    if (reducedMotion) {
+      glow.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.35, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [visible, reducedMotion, glow]);
+
   useEffect(() => {
     if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
   }, [visible, active]);
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     setMessage(null);
     try {
       const productId = lifetime ? DEEP_LIFE_PLUS_LIFETIME.productId : selected.productId;
+      track('paywall_cta_tapped', { surface: 'deeplife_plus', productId, trial: trialEligible });
       const res = await subscriptionService.purchasePremium(productId);
       if (res.success) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
-        void saveGame?.(false); // persist entitlement + welcome gems immediately
-        setMessage(lifetime ? 'Premium unlocked forever — enjoy!' : 'DeepLife+ activated — enjoy ad-free play!');
+        void saveGame?.(false);
+        setMessage(lifetime ? 'Premium unlocked forever — enjoy!' : 'DeepLife+ activated — welcome to the club!');
       } else {
         setMessage(res.message || 'Purchase could not be completed.');
       }
@@ -70,9 +139,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     } finally {
       setBusy(false);
     }
-  };
+  }, [busy, lifetime, selected, trialEligible, setGameState, saveGame]);
 
-  const handleRestore = async () => {
+  const handleRestore = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     setMessage(null);
@@ -80,7 +149,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       await subscriptionService.restoreSubscriptions();
       if (isDeepLifePlusActive()) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
-        void saveGame?.(false); // persist restored entitlement immediately
+        void saveGame?.(false);
         setMessage('Subscription restored.');
       } else {
         setMessage('No active subscription found to restore.');
@@ -91,150 +160,223 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     } finally {
       setBusy(false);
     }
+  }, [busy, setGameState, saveGame]);
+
+  const handleManage = useCallback(() => {
+    // Prefer RevenueCat's Customer Center (manage/cancel/restore/refund) when
+    // available; otherwise open the platform's subscription-management page.
+    if (revenueCatService.hasPaywallUI()) {
+      void revenueCatService.presentCustomerCenter();
+      return;
+    }
+    void subscriptionService.cancelSubscription(selected.productId);
+  }, [selected]);
+
+  const selectYearly = useCallback(() => { setLifetime(false); setSelected(yearlyPlan); }, [yearlyPlan]);
+  const selectPlan = useCallback((plan: DeepLifePlusPlan) => { setLifetime(false); setSelected(plan); }, []);
+  const selectLifetime = useCallback(() => setLifetime(true), []);
+
+  const glowStyle = {
+    opacity: glow,
+    transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
   };
 
-  const handleManage = () => {
-    void subscriptionService.cancelSubscription(selected.productId);
-  };
+  // Primary CTA copy — trial-led when eligible.
+  const ctaTitle = active
+    ? 'Manage subscription'
+    : lifetime
+      ? `Unlock Forever · ${DEEP_LIFE_PLUS_LIFETIME.price}`
+      : trialEligible
+        ? `Start My ${trialDays}-Day Free Trial`
+        : `Continue · ${selected.price} ${selected.unit}`;
+  const ctaSub = active
+    ? undefined
+    : lifetime
+      ? 'One-time payment · yours forever, never renews'
+      : trialEligible
+        ? `then ${selected.price} ${selected.unit} · cancel anytime`
+        : 'Cancel anytime';
 
   return (
     <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
-        <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <Crown size={scale(22)} color={accent.warning} />
-              <Text style={[styles.title, { color: theme.text }]}>DeepLife+</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close DeepLife Plus">
-              <X size={scale(22)} color={theme.textSecondary} />
-            </TouchableOpacity>
-          </View>
+      <View style={styles.overlay}>
+        <View style={styles.sheet}>
+          {/* Close */}
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close DeepLife Plus"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={scale(20)} color={TEXT_MUTED} />
+          </TouchableOpacity>
 
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {active ? 'Your subscription is active. Thank you!' : 'Go premium and get more out of every life.'}
-          </Text>
-
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {/* Benefits */}
-            <View style={[styles.benefitsBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              {DEEP_LIFE_PLUS_BENEFITS.map((b) => (
-                <View key={b.id} style={styles.benefitRow}>
-                  <Check size={scale(16)} color={accent.success} />
-                  <View style={styles.benefitText}>
-                    <Text style={[styles.benefitTitle, { color: theme.text }]}>{b.title}</Text>
-                    <Text style={[styles.benefitDesc, { color: theme.textSecondary }]}>{b.description}</Text>
-                  </View>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Hero */}
+            <View style={styles.hero}>
+              <View style={styles.crownWrap}>
+                <Animated.View style={[styles.crownGlow, glowStyle]} pointerEvents="none" />
+                <View style={styles.crownChip}>
+                  <Crown size={scale(34)} color={GOLD} fill={GOLD} />
                 </View>
-              ))}
+              </View>
+              <Text style={styles.brand}>
+                DeepLife<Text style={styles.brandPlus}>+</Text>
+              </Text>
+              <Text style={styles.tagline}>
+                {active ? 'Your membership is active — thank you!' : 'Your best life, unlocked.'}
+              </Text>
             </View>
 
-            {/* Plans */}
+            {/* Value stack */}
+            <View style={styles.benefits}>
+              {DEEP_LIFE_PLUS_BENEFITS.map((b) => {
+                const Icon = BENEFIT_ICON[b.id] ?? Check;
+                return (
+                  <View key={b.id} style={styles.benefitRow}>
+                    <View style={styles.benefitIcon}>
+                      <Icon size={scale(18)} color={GOLD} />
+                    </View>
+                    <View style={styles.benefitText}>
+                      <Text style={styles.benefitTitle}>{b.title}</Text>
+                      <Text style={styles.benefitDesc}>{b.description}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
             {!active && (
               <>
+                {/* Free-trial banner — the hook */}
+                {trialEligible ? (
+                  <View style={styles.trialBanner}>
+                    <Text style={styles.trialBannerTitle}>{trialDays} days free</Text>
+                    <Text style={styles.trialBannerSub}>
+                      Try everything, commitment-free. Cancel anytime before it ends and pay nothing.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Plan selector — annual default */}
                 <View style={styles.plansRow}>
-                  {DEEP_LIFE_PLUS_PLANS.map((plan) => {
-                    const isSel = !lifetime && plan.period === selected.period;
-                    return (
-                      <TouchableOpacity
-                        key={plan.period}
-                        style={[
-                          styles.planCard,
-                          { backgroundColor: theme.surface, borderColor: isSel ? colors.palette.primary : theme.border },
-                          isSel && { borderWidth: 2 },
-                        ]}
-                        onPress={() => { setLifetime(false); setSelected(plan); }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${plan.period} plan, ${plan.price} ${plan.unit}`}
-                      >
-                        {plan.badge ? (
-                          <View style={[styles.badge, { backgroundColor: accent.warning }]}>
-                            <Text style={styles.badgeText}>{plan.badge}</Text>
-                          </View>
-                        ) : null}
-                        <Text style={[styles.planPeriod, { color: theme.text }]}>
-                          {plan.period === 'monthly' ? 'Monthly' : 'Yearly'}
-                        </Text>
-                        <Text style={[styles.planPrice, { color: colors.palette.primary }]}>{plan.price}</Text>
-                        <Text style={[styles.planUnit, { color: theme.textSecondary }]}>{plan.unit}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {/* Annual */}
+                  <TouchableOpacity
+                    style={[styles.planCard, !lifetime && selected.period === 'yearly' && styles.planCardSelected]}
+                    onPress={selectYearly}
+                    activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Annual plan, ${yearlyPlan.price} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
+                  >
+                    {savingsPct ? (
+                      <View style={styles.saveBadge}>
+                        <Text style={styles.saveBadgeText}>SAVE {savingsPct}%</Text>
+                      </View>
+                    ) : null}
+                    <Text style={styles.planPeriod}>Annual</Text>
+                    <Text style={styles.planPrice}>{yearlyPlan.price}</Text>
+                    <Text style={styles.planUnit}>per year</Text>
+                    {perWeek ? <Text style={styles.planPerWeek}>just {perWeek}/week</Text> : null}
+                  </TouchableOpacity>
+
+                  {/* Monthly */}
+                  {DEEP_LIFE_PLUS_PLANS.filter((p) => p.period === 'monthly').map((plan) => (
+                    <TouchableOpacity
+                      key={plan.period}
+                      style={[styles.planCard, !lifetime && selected.period === 'monthly' && styles.planCardSelected]}
+                      onPress={() => selectPlan(plan)}
+                      activeOpacity={0.9}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Monthly plan, ${plan.price} per month`}
+                    >
+                      <Text style={styles.planPeriod}>Monthly</Text>
+                      <Text style={styles.planPrice}>{plan.price}</Text>
+                      <Text style={styles.planUnit}>per month</Text>
+                      <Text style={styles.planPerWeekMuted}>billed monthly</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
-                {/* One-time alternative — pay once, no subscription. */}
-                <View style={styles.orRow}>
-                  <View style={[styles.orLine, { backgroundColor: theme.border }]} />
-                  <Text style={[styles.orText, { color: theme.textMuted }]}>or pay once</Text>
-                  <View style={[styles.orLine, { backgroundColor: theme.border }]} />
-                </View>
+                {/* Pay-once alternative */}
                 <TouchableOpacity
-                  style={[
-                    styles.lifetimeCard,
-                    { backgroundColor: theme.surface, borderColor: lifetime ? colors.palette.primary : theme.border },
-                    lifetime && { borderWidth: 2 },
-                  ]}
-                  onPress={() => setLifetime(true)}
+                  style={[styles.lifetimeCard, lifetime && styles.lifetimeCardSelected]}
+                  onPress={selectLifetime}
+                  activeOpacity={0.9}
                   accessibilityRole="button"
-                  accessibilityLabel={`Unlock forever, one-time purchase, ${DEEP_LIFE_PLUS_LIFETIME.price}`}
+                  accessibilityLabel={`Unlock forever, one-time ${DEEP_LIFE_PLUS_LIFETIME.price}`}
                 >
-                  <View style={styles.lifetimeText}>
-                    <Text style={[styles.lifetimeTitle, { color: theme.text }]}>Unlock forever</Text>
-                    <Text style={[styles.lifetimeSub, { color: theme.textSecondary }]}>One-time · no subscription, never renews</Text>
+                  <View style={styles.lifetimeLeft}>
+                    <Text style={styles.lifetimeTitle}>Unlock forever</Text>
+                    <Text style={styles.lifetimeSub}>Pay once · no subscription, never renews</Text>
                   </View>
-                  <Text style={[styles.lifetimePrice, { color: colors.palette.primary }]}>{DEEP_LIFE_PLUS_LIFETIME.price}</Text>
+                  <Text style={styles.lifetimePrice}>{DEEP_LIFE_PLUS_LIFETIME.price}</Text>
                 </TouchableOpacity>
               </>
             )}
 
-            {message ? <Text style={[styles.message, { color: theme.text }]}>{message}</Text> : null}
+            {message ? <Text style={styles.message}>{message}</Text> : null}
           </ScrollView>
 
-          {/* Actions */}
-          {!active ? (
-            <TouchableOpacity
-              style={[styles.cta, { backgroundColor: colors.palette.primary }, busy && styles.ctaDisabled]}
-              onPress={handleSubscribe}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={lifetime
-                ? `Unlock forever, ${DEEP_LIFE_PLUS_LIFETIME.price}`
-                : `Subscribe ${selected.price} ${selected.unit}`}
-            >
-              {busy ? (
-                <ActivityIndicator color={colors.palette.white} />
-              ) : lifetime ? (
-                <Text style={styles.ctaText}>Unlock forever · {DEEP_LIFE_PLUS_LIFETIME.price}</Text>
-              ) : (
-                <Text style={styles.ctaText}>Subscribe · {selected.price} {selected.unit}</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.cta, { backgroundColor: theme.surfaceElevated }]}
-              onPress={handleManage}
-              accessibilityRole="button"
-              accessibilityLabel="Manage subscription"
-            >
-              <Text style={[styles.ctaText, { color: theme.text }]}>Manage subscription</Text>
-            </TouchableOpacity>
-          )}
+          {/* Primary CTA */}
+          <TouchableOpacity
+            style={[styles.cta, busy && styles.ctaDisabled]}
+            onPress={active ? handleManage : handleSubscribe}
+            disabled={busy}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={ctaTitle}
+          >
+            {busy ? (
+              <ActivityIndicator color="#1A1206" />
+            ) : (
+              <>
+                <Text style={styles.ctaText}>{ctaTitle}</Text>
+                {ctaSub ? <Text style={styles.ctaSub}>{ctaSub}</Text> : null}
+              </>
+            )}
+          </TouchableOpacity>
 
+          {/* Trust row */}
+          {!active ? (
+            <View style={styles.trustRow}>
+              <View style={styles.trustItem}>
+                <ShieldCheck size={scale(13)} color={TEXT_MUTED} />
+                <Text style={styles.trustText}>Cancel anytime</Text>
+              </View>
+              <View style={styles.trustItem}>
+                <Check size={scale(13)} color={TEXT_MUTED} />
+                <Text style={styles.trustText}>No commitment</Text>
+              </View>
+              <View style={styles.trustItem}>
+                <Check size={scale(13)} color={TEXT_MUTED} />
+                <Text style={styles.trustText}>
+                  {Platform.select({ ios: 'Secure via App Store', android: 'Secure via Google Play', default: 'Secure checkout' })}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Footer links */}
           <View style={styles.footerRow}>
             <TouchableOpacity onPress={handleRestore} disabled={busy} accessibilityRole="button" accessibilityLabel="Restore purchases">
-              <Text style={[styles.footerLink, { color: theme.textSecondary }]}>Restore</Text>
+              <Text style={styles.footerLink}>Restore</Text>
             </TouchableOpacity>
-            <Text style={[styles.footerDivider, { color: theme.textMuted }]}>·</Text>
+            <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={handleManage} accessibilityRole="button" accessibilityLabel="Manage subscription">
-              <Text style={[styles.footerLink, { color: theme.textSecondary }]}>Manage</Text>
+              <Text style={styles.footerLink}>Manage</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.legal, { color: theme.textMuted }]}>
-            {lifetime
-              ? 'One-time purchase. Yours forever — no subscription, never renews.'
-              : 'Auto-renews until cancelled. Manage or cancel anytime in your store account.'}
+          {/* Compliant legal disclosure */}
+          <Text style={styles.legal}>
+            {active
+              ? 'Manage or cancel anytime in your store account.'
+              : lifetime
+                ? 'One-time purchase. Yours forever — no subscription, never renews.'
+                : trialEligible
+                  ? `${trialDays}-day free trial, then ${selected.price} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
+                  : `${selected.price} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
           </Text>
         </View>
       </View>
@@ -243,50 +385,165 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.72)' },
   sheet: {
-    maxHeight: '88%',
-    borderTopLeftRadius: responsiveBorderRadius['2xl'],
-    borderTopRightRadius: responsiveBorderRadius['2xl'],
+    maxHeight: '94%',
+    backgroundColor: SHEET_BG,
+    borderTopLeftRadius: scale(26),
+    borderTopRightRadius: scale(26),
     borderWidth: 1,
-    paddingHorizontal: scale(16),
-    paddingTop: scale(14),
-    paddingBottom: scale(20),
+    borderColor: GOLD_BORDER,
+    paddingHorizontal: scale(18),
+    paddingTop: scale(18),
+    paddingBottom: scale(18),
   },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
-  title: { fontSize: fontScale(22), fontWeight: '800' },
-  subtitle: { fontSize: fontScale(13), marginTop: scale(4), marginBottom: scale(12) },
-  scrollContent: { paddingBottom: scale(8) },
-  benefitsBox: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: scale(12), marginBottom: scale(14) },
-  benefitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: scale(10), marginBottom: scale(10) },
+  closeBtn: {
+    position: 'absolute',
+    top: scale(14),
+    right: scale(14),
+    zIndex: 5,
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(148,163,184,0.14)',
+  },
+  scrollContent: { paddingBottom: scale(6) },
+
+  // Hero
+  hero: { alignItems: 'center', paddingTop: scale(8), paddingBottom: scale(14) },
+  crownWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: scale(12) },
+  crownGlow: {
+    position: 'absolute',
+    width: scale(120),
+    height: scale(120),
+    borderRadius: scale(60),
+    backgroundColor: 'rgba(250, 204, 21, 0.22)',
+  },
+  crownChip: {
+    width: scale(76),
+    height: scale(76),
+    borderRadius: scale(24),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GOLD_TINT,
+    borderWidth: 1.5,
+    borderColor: GOLD_BORDER,
+  },
+  brand: { fontSize: fontScale(30), fontWeight: '900', color: TEXT, letterSpacing: 0.3 },
+  brandPlus: { color: GOLD },
+  tagline: { fontSize: fontScale(14), fontWeight: '600', color: TEXT_MUTED, marginTop: scale(4), textAlign: 'center' },
+
+  // Benefits
+  benefits: {
+    backgroundColor: CARD_BG,
+    borderRadius: scale(18),
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    padding: scale(14),
+    marginBottom: scale(14),
+  },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), paddingVertical: scale(7) },
+  benefitIcon: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GOLD_TINT,
+    borderWidth: 1,
+    borderColor: GOLD_BORDER,
+  },
   benefitText: { flex: 1 },
-  benefitTitle: { fontSize: fontScale(14), fontWeight: '700' },
-  benefitDesc: { fontSize: fontScale(12), marginTop: scale(2) },
-  plansRow: { flexDirection: 'row', gap: scale(12) },
-  planCard: { flex: 1, borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: scale(14), alignItems: 'center' },
-  badge: { position: 'absolute', top: -scale(8), borderRadius: responsiveBorderRadius.full, paddingHorizontal: scale(8), paddingVertical: scale(2) },
-  badgeText: { color: '#1A1A1A', fontSize: fontScale(10), fontWeight: '800' },
-  planPeriod: { fontSize: fontScale(14), fontWeight: '700', marginTop: scale(4) },
-  planPrice: { fontSize: fontScale(20), fontWeight: '800', marginTop: scale(6) },
-  planUnit: { fontSize: fontScale(11), marginTop: scale(2) },
-  orRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), marginTop: scale(14), marginBottom: scale(10) },
-  orLine: { flex: 1, height: 1 },
-  orText: { fontSize: fontScale(11), fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
-  lifetimeCard: {
-    flexDirection: 'row', alignItems: 'center', gap: scale(12),
-    borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: scale(14),
+  benefitTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
+  benefitDesc: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(1) },
+
+  // Trial banner
+  trialBanner: {
+    backgroundColor: GOLD_TINT,
+    borderColor: GOLD_BORDER,
+    borderWidth: 1,
+    borderRadius: scale(16),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(14),
+    marginBottom: scale(14),
+    alignItems: 'center',
   },
-  lifetimeText: { flex: 1 },
-  lifetimeTitle: { fontSize: fontScale(15), fontWeight: '800' },
-  lifetimeSub: { fontSize: fontScale(11.5), marginTop: scale(2) },
-  lifetimePrice: { fontSize: fontScale(20), fontWeight: '800' },
-  message: { fontSize: fontScale(13), fontWeight: '600', textAlign: 'center', marginTop: scale(12) },
-  cta: { marginTop: scale(12), borderRadius: responsiveBorderRadius.lg, paddingVertical: scale(14), alignItems: 'center', justifyContent: 'center' },
+  trialBannerTitle: { fontSize: fontScale(18), fontWeight: '900', color: GOLD_SOFT },
+  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3), textAlign: 'center' },
+
+  // Plans
+  plansRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
+  planCard: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: scale(16),
+    borderWidth: 1.5,
+    borderColor: CARD_BORDER,
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(10),
+    alignItems: 'center',
+  },
+  planCardSelected: { borderColor: GOLD, backgroundColor: 'rgba(250,204,21,0.07)' },
+  saveBadge: {
+    position: 'absolute',
+    top: -scale(10),
+    backgroundColor: GOLD,
+    borderRadius: scale(10),
+    paddingHorizontal: scale(9),
+    paddingVertical: scale(2),
+  },
+  saveBadgeText: { color: '#1A1206', fontSize: fontScale(10), fontWeight: '900', letterSpacing: 0.3 },
+  planPeriod: { fontSize: fontScale(13), fontWeight: '700', color: TEXT_MUTED, marginTop: scale(2) },
+  planPrice: { fontSize: fontScale(22), fontWeight: '900', color: TEXT, marginTop: scale(4) },
+  planUnit: { fontSize: fontScale(11), color: TEXT_MUTED, marginTop: scale(1) },
+  planPerWeek: { fontSize: fontScale(12), fontWeight: '800', color: GOLD_SOFT, marginTop: scale(6) },
+  planPerWeekMuted: { fontSize: fontScale(11), color: TEXT_DIM, marginTop: scale(6) },
+
+  // Lifetime
+  lifetimeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: scale(16),
+    borderWidth: 1.5,
+    borderColor: CARD_BORDER,
+    paddingVertical: scale(13),
+    paddingHorizontal: scale(16),
+  },
+  lifetimeCardSelected: { borderColor: GOLD, backgroundColor: 'rgba(250,204,21,0.07)' },
+  lifetimeLeft: { flex: 1 },
+  lifetimeTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
+  lifetimeSub: { fontSize: fontScale(11.5), color: TEXT_MUTED, marginTop: scale(2) },
+  lifetimePrice: { fontSize: fontScale(20), fontWeight: '900', color: GOLD_SOFT },
+
+  message: { fontSize: fontScale(13), fontWeight: '700', color: TEXT, textAlign: 'center', marginTop: scale(12) },
+
+  // CTA
+  cta: {
+    marginTop: scale(14),
+    backgroundColor: GOLD,
+    borderRadius: scale(16),
+    paddingVertical: scale(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: GOLD_DEEP,
+    shadowOffset: { width: 0, height: scale(6) },
+    shadowOpacity: 0.4,
+    shadowRadius: scale(14),
+    elevation: 8,
+  },
   ctaDisabled: { opacity: 0.6 },
-  ctaText: { color: '#FFFFFF', fontSize: fontScale(15), fontWeight: '800' },
+  ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2 },
+  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2) },
+
+  // Trust + footer
+  trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },
+  trustItem: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
+  trustText: { fontSize: fontScale(11.5), fontWeight: '600', color: TEXT_MUTED },
   footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(8), marginTop: scale(12) },
-  footerLink: { fontSize: fontScale(13), fontWeight: '600' },
-  footerDivider: { fontSize: fontScale(13) },
-  legal: { fontSize: fontScale(10), textAlign: 'center', marginTop: scale(10) },
+  footerLink: { fontSize: fontScale(13), fontWeight: '700', color: TEXT_MUTED },
+  footerDivider: { fontSize: fontScale(13), color: TEXT_DIM },
+  legal: { fontSize: fontScale(10), lineHeight: fontScale(14), color: TEXT_DIM, textAlign: 'center', marginTop: scale(10) },
 });

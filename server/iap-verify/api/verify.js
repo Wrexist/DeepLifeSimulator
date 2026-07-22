@@ -48,7 +48,7 @@ const ALLOW_SOFT_LAUNCH_IN_PROD = process.env.ALLOW_SOFT_LAUNCH_IN_PROD === 'tru
 const KNOWN_PRODUCT_IDS = new Set([
   'deeplife_premium_monthly', 'deeplife_premium_yearly', 'deeplife_lifetime_premium',
   'deeplife_gems_100', 'deeplife_gems_500', 'deeplife_gems_1000', 'deeplife_gems_5000',
-  'deeplife_gems_15000', 'deeplife_gems_starter', 'deeplife_gems_premium',
+  'deeplife_gems_15000', 'deeplife_gems_50000', 'deeplife_gems_starter', 'deeplife_gems_premium',
   'deeplife_gems_ultimate', 'deeplife_gems_mega', 'deeplife_youth_pill_single',
   'deeplife_youth_pill_pack', 'deeplife_money_boost', 'deeplife_skill_boost',
   'deeplife_work_boost', 'deeplife_mindset_perk', 'deeplife_mindset',

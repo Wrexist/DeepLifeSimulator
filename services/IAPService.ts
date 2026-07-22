@@ -11,6 +11,11 @@ import {
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { track } from '@/lib/analytics';
+// RevenueCat transport (opt-in). When enabled, purchases/restore route through
+// RevenueCat (which verifies server-side) instead of the self-hosted verify
+// server, while reusing the SAME applyBenefit grant + dedup below. No import
+// cycle: RevenueCatService depends only on featureFlags/logger.
+import { revenueCatService } from '@/services/RevenueCatService';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { clampHobbySkillLevel } from '@/utils/stateValidation';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
@@ -780,6 +785,42 @@ export class IAPService {
   private async runPurchaseFlow(productId: string): Promise<PurchaseResult> {
     try {
       this.setState({ isLoading: true, error: null });
+
+      // ── RevenueCat transport (opt-in) ───────────────────────────────────────
+      // RC verifies the receipt server-side and finishes the transaction itself,
+      // so we skip the expo-iap purchase + self-hosted verify + finishTransaction
+      // and reuse the SAME applyBenefit(...) grant + exactly-once dedup below.
+      if (revenueCatService.isEnabled()) {
+        const config = getProductConfig(productId) || getSubscriptionConfig(productId);
+        if (!config) {
+          this.setState({ isLoading: false });
+          return { success: false, message: `Product configuration not found for ${productId}. Please check iapConfig.ts` };
+        }
+        const rc = await revenueCatService.purchaseProduct(productId);
+        if (rc.cancelled) {
+          this.setState({ isLoading: false });
+          return { success: false, message: 'Purchase was cancelled' };
+        }
+        if (!rc.success) {
+          this.setState({ isLoading: false });
+          return { success: false, message: rc.message || 'Purchase could not be completed.' };
+        }
+        const transactionId = rc.transactionId || `${productId}:rc:${Date.now()}`;
+        // Same in-memory lock + persisted ledger the native path uses;
+        // applyBenefit marks the transaction processed at its end.
+        if (!this.processingTransactions.has(transactionId)) {
+          this.processingTransactions.add(transactionId);
+          try {
+            if (!(await this.isTransactionProcessed(transactionId))) {
+              await this.applyBenefit(productId, transactionId);
+            }
+          } finally {
+            this.processingTransactions.delete(transactionId);
+          }
+        }
+        this.setState({ isLoading: false });
+        return { success: true, message: 'Purchase successful!', productId, transactionId };
+      }
 
       // If module exists but connection is not ready, retry initialization on-demand.
       const hasNativeIapModule = loadInAppPurchasesModule() && !!InAppPurchases;
@@ -1568,6 +1609,11 @@ export class IAPService {
 
   // Check if ads are removed
   isAdsRemoved(): boolean {
+    // When RevenueCat drives entitlements, its cached `ads_removed`/`premium`
+    // is authoritative alongside the local purchase ledger.
+    if (revenueCatService.isEnabled() && revenueCatService.cachedEntitlements().adsRemoved) {
+      return true;
+    }
     return this.hasPurchased(IAP_PRODUCTS.REMOVE_ADS);
   }
 
@@ -1638,6 +1684,34 @@ export class IAPService {
     try {
       logger.info('=== Starting Purchase Restoration ===');
       this.setState({ isLoading: true, error: null });
+
+      // RevenueCat restore (opt-in): RC re-applies entitlements server-side and
+      // fires the customer-info listener → SubscriptionReconciler syncs
+      // settings.adsRemoved / premium into game state. Beyond those two
+      // entitlements, re-apply every restored NON-CONSUMABLE (perks, premium
+      // credit card, lifetime unlocks, etc.) through the normal grant path so
+      // permanent perks not represented by an entitlement are also restored.
+      if (revenueCatService.isEnabled()) {
+        const restoredIds = await revenueCatService.restoreProductIds();
+        let restoredCount = 0;
+        for (const productId of restoredIds) {
+          // Never restore consumables (gems / money) — prevents re-granting them.
+          if (isConsumableProduct(productId)) {
+            continue;
+          }
+          // RC verifies ownership server-side; dedupe so a benefit is applied at
+          // most once even across repeated restores.
+          const transactionId = `rc_restore:${productId}`;
+          if (await this.isTransactionProcessed(transactionId)) {
+            continue;
+          }
+          await this.applyBenefit(productId, transactionId);
+          restoredCount++;
+        }
+        const e = revenueCatService.cachedEntitlements();
+        this.setState({ isLoading: false });
+        return restoredCount > 0 || e.adsRemoved || e.premium;
+      }
 
       if (!loadInAppPurchasesModule() || !InAppPurchases) {
         logger.warn('IAP module not available');

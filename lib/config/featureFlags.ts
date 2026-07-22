@@ -34,6 +34,14 @@ export const FEATURE_FLAGS = {
   // is additionally consent-gated at runtime (see FirebaseAnalyticsService).
   firebaseAnalytics: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_FIREBASE === 'true',
 
+  // RevenueCat (in-app purchases + subscriptions via the RevenueCat SDK).
+  // OPT-IN only (=== 'true'): when enabled, purchases/entitlements route through
+  // RevenueCatService instead of the self-hosted verify server. Native SDK, so
+  // it must never init by accident — off in Boring Build and until explicitly
+  // switched on with EXPO_PUBLIC_USE_REVENUECAT=true (after the dashboard setup
+  // in docs/REVENUECAT-SETUP.md). See RevenueCatService for the guarded loader.
+  revenueCat: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_USE_REVENUECAT === 'true',
+
   // App Tracking Transparency (iOS)
   att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT !== 'false',
   

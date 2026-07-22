@@ -16,6 +16,7 @@ import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
 import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import IdentityCard from '@/components/IdentityCard';
+import PremiumCrownButton from '@/components/PremiumCrownButton';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
@@ -550,6 +551,14 @@ function HomeScreenContent() {
           <IdentityCard />
         </FadeInUp>
 
+        {/* DeepLife+ upsell — a golden crown entry to the premium paywall.
+            Self-contained (owns its modal) and hides itself for members. */}
+        <FadeInUp delay={10}>
+          <View style={styles.premiumCrownRow}>
+            <PremiumCrownButton />
+          </View>
+        </FadeInUp>
+
         {/* Non-blocking weekly recap — restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
         <FadeInUp delay={20}>
@@ -768,6 +777,11 @@ function HomeScreenContent() {
 }
 
 const styles = StyleSheet.create({
+  premiumCrownRow: {
+    alignItems: 'center',
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(2),
+  },
   progressLinkCard: {
     flexDirection: 'row',
     alignItems: 'center',

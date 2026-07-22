@@ -67,16 +67,76 @@ export interface DeepLifePlusBenefit {
   description: string;
 }
 
-/** Only perks the game genuinely delivers today. Keep this truthful. */
+/**
+ * Only perks the game genuinely delivers today. KEEP THIS TRUTHFUL — the copy is
+ * marketable but every line must match what the game actually grants (App Store
+ * rejects paywalls that promise benefits the app doesn't deliver).
+ */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
-  { id: 'no_ads', title: 'Ad-free', description: 'Removes all ads, forever while subscribed.' },
-  { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlocks the premium reward track every season.' },
-  { id: 'cosmetics', title: 'Exclusive cosmetics', description: 'Seasonal themes, frames and skins from the premium track.' },
-  { id: 'welcome_gems', title: 'Gem welcome bonus', description: 'A one-time gem grant the first time you subscribe.' },
+  { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
+  { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
+  { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
+  { id: 'welcome_gems', title: '500 Welcome Gems', description: 'A one-time gem bonus the moment you join.' },
 ];
 
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
+
+/**
+ * Introductory free-trial length advertised on the paywall (the "Try 7 days
+ * free" hook). IMPORTANT: the MATCHING introductory offer must be configured on
+ * the `deeplife_premium_*` subscription products in App Store Connect / Play
+ * Console — StoreKit/Play present and enforce the actual trial at checkout; the
+ * app only advertises it here. Set to 0 to hide all trial messaging (e.g. if the
+ * store offer isn't live yet), so we never promise a trial the store won't honor.
+ */
+export const DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 7;
+
+/** Parse a localized price string ("$49.99", "€49,99") to a number; 0 if unknown. */
+function priceToNumber(p?: string): number {
+  if (!p) return 0;
+  // Keep digits + separators, then treat the LAST separator as the decimal.
+  const cleaned = p.replace(/[^0-9.,]/g, '');
+  const norm = cleaned.replace(/[.,](?=.*[.,])/g, '').replace(',', '.');
+  const n = Number(norm);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** The leading currency symbol of a price string ("$", "€", "£"); "$" fallback. */
+function currencySymbol(p?: string): string {
+  const m = p?.match(/^[^\d\s]+/);
+  return m ? m[0] : '$';
+}
+
+/** Format a number with the currency symbol of a reference price. */
+function formatLike(amount: number, ref?: string): string {
+  return `${currencySymbol(ref)}${amount.toFixed(2)}`;
+}
+
+/**
+ * Effective per-week price of the yearly plan, e.g. "$0.96" — the strongest
+ * value framing ("less than a coffee a week"). Empty string if it can't be
+ * computed from the store price.
+ */
+export function yearlyPerWeek(): string {
+  const yearly = DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly');
+  const n = priceToNumber(yearly?.price);
+  if (n <= 0) return '';
+  return formatLike(n / 52, yearly?.price);
+}
+
+/**
+ * Whole-percent savings of the yearly plan vs paying monthly for a year
+ * (e.g. 17). 0 if it can't be computed.
+ */
+export function yearlySavingsPercent(): number {
+  const monthly = priceToNumber(DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'monthly')?.price);
+  const yearly = priceToNumber(DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly')?.price);
+  if (monthly <= 0 || yearly <= 0) return 0;
+  const twelveMonths = monthly * 12;
+  if (yearly >= twelveMonths) return 0;
+  return Math.round(((twelveMonths - yearly) / twelveMonths) * 100);
+}
 
 /** Look up a DeepLife+ plan by billing period; `undefined` if none matches. */
 export function getDeepLifePlusPlan(period: BillingPeriod): DeepLifePlusPlan | undefined {

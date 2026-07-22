@@ -95,7 +95,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const gems = useGameSelector((s) => s.stats?.gems ?? 0);
 
   const [tab, setTab] = useState<StoreTab>(initialTab ?? 'gems');
-  const [iapLoading, setIapLoading] = useState(false);
+  // Scoped so ONLY the pressed product shows "Processing…" (not every button),
+  // and Restore has its own state. `iapBusy` still locks all controls while any
+  // operation is in flight so two purchases can't overlap.
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const iapBusy = purchasingId !== null || restoring;
   const [iapState, setIapState] = useState(() => iapService.getState());
 
   const reducedMotion = useReducedMotion();
@@ -183,16 +188,17 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   };
 
   // Real-money CTA label — the real price is unmistakable on every buy button.
-  const buyLabel = (owned: boolean, displayPrice: string, available: boolean): string => {
+  const buyLabel = (id: string, owned: boolean, displayPrice: string, available: boolean): string => {
     if (owned) return 'Owned';
     if (!available) return 'Unavailable';
-    if (iapLoading) return 'Processing…';
+    if (purchasingId === id) return 'Processing…';
     return displayPrice ? `Buy · ${displayPrice}` : 'Buy';
   };
 
-  const ctaA11y = (name: string, displayPrice: string, owned: boolean, available: boolean): string => {
+  const ctaA11y = (id: string, name: string, displayPrice: string, owned: boolean, available: boolean): string => {
     if (owned) return `${name}, already owned`;
     if (!available) return `${name}, unavailable`;
+    if (purchasingId === id) return `Purchasing ${name}, please wait`;
     return `Buy ${name}${displayPrice ? ` for ${displayPrice}` : ''}`;
   };
 
@@ -238,7 +244,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // Confirm step + purchase. Transaction logic is unchanged — presentation only.
   const handlePurchase = async (id: string, name: string, displayPrice: string) => {
-    if (iapLoading) {
+    if (iapBusy) {
       Alert.alert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
       return;
     }
@@ -262,7 +268,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         {
           text: priceText ? `Buy ${priceText}` : 'Buy',
           onPress: async () => {
-            setIapLoading(true);
+            setPurchasingId(id);
             try {
               logger.info(`Attempting to purchase: ${id} (${name})`);
               const result = await iapService.purchaseProduct(id);
@@ -286,7 +292,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               }
               Alert.alert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
             } finally {
-              setIapLoading(false);
+              setPurchasingId(null);
             }
           },
         },
@@ -323,11 +329,11 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   };
 
   const handleRestorePurchases = async () => {
-    if (iapLoading) {
+    if (iapBusy) {
       Alert.alert('Please Wait', 'A purchase operation is already in progress.');
       return;
     }
-    setIapLoading(true);
+    setRestoring(true);
     try {
       logger.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
@@ -349,7 +355,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         { text: 'OK', style: 'default' },
       ]);
     } finally {
-      setIapLoading(false);
+      setRestoring(false);
     }
   };
 
@@ -375,10 +381,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         valueLine={valueLine}
         badges={badges}
-        buttonText={buyLabel(false, displayPrice, available)}
-        accessibilityLabel={ctaA11y(name, displayPrice, false, available)}
+        buttonText={buyLabel(p.id, false, displayPrice, available)}
+        accessibilityLabel={ctaA11y(p.id, name, displayPrice, false, available)}
         onPress={() => handlePurchase(p.id, name, displayPrice)}
-        locked={!available || iapLoading}
+        locked={!available || iapBusy}
       />
     );
   };
@@ -410,10 +416,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         badges={item.badges}
         owned={item.owned}
-        buttonText={buyLabel(item.owned, displayPrice, available)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, item.owned, available)}
+        buttonText={buyLabel(item.id, item.owned, displayPrice, available)}
+        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, item.owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!available || (iapLoading && !item.owned)}
+        locked={!available || iapBusy || item.owned}
       />
     );
   };
@@ -442,10 +448,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         badges={item.badges}
         owned={owned}
-        buttonText={buyLabel(owned, displayPrice, available)}
-        accessibilityLabel={ctaA11y(item.title, displayPrice, owned, available)}
+        buttonText={buyLabel(item.id, owned, displayPrice, available)}
+        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, owned, available)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
-        locked={!available || (iapLoading && !owned)}
+        locked={!available || iapBusy || owned}
       />
     );
   };
@@ -816,18 +822,19 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
           <View style={styles.footer}>
             <TouchableOpacity
               onPress={handleRestorePurchases}
-              disabled={iapLoading}
+              disabled={iapBusy}
               activeOpacity={0.7}
               style={styles.restoreBtn}
               accessibilityRole="button"
-              accessibilityLabel="Restore purchases"
+              accessibilityLabel={restoring ? 'Restoring purchases' : 'Restore purchases'}
+              accessibilityState={{ busy: restoring, disabled: iapBusy }}
             >
-              {iapLoading ? (
+              {restoring ? (
                 <LoadingSpinner visible size="small" color="rgba(226, 232, 240, 0.6)" variant="compact" />
               ) : (
                 <RefreshCw size={scale(13)} color="rgba(226, 232, 240, 0.6)" />
               )}
-              <Text style={styles.restoreText}>{iapLoading ? 'Restoring…' : 'Restore Purchases'}</Text>
+              <Text style={styles.restoreText}>{restoring ? 'Restoring…' : 'Restore Purchases'}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

@@ -1,5 +1,6 @@
 import { Platform, Linking } from 'react-native';
 import { iapService } from './IAPService';
+import { revenueCatService } from './RevenueCatService';
 import { SUBSCRIPTION_PRODUCTS, IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { logger } from '@/utils/logger';
@@ -164,8 +165,17 @@ class SubscriptionService {
    * Get current subscription tier
    */
   getSubscriptionTier(): SubscriptionTier {
+    // When RevenueCat drives billing it is the single authoritative source for
+    // the subscription tier, so every gate agrees. We deliberately do NOT fall
+    // back to the local auto-renewing records here — they can be stale once RC
+    // owns billing. The one-time lifetime unlock is a separate migration path,
+    // honored via hasLifetimePremium() / hasPremiumAccess(), not this method.
+    if (revenueCatService.isEnabled()) {
+      return revenueCatService.cachedEntitlements().premium ? 'premium' : 'free';
+    }
+
     const activeSubs = this.getActiveSubscriptions();
-    
+
     if (activeSubs.length === 0) {
       return 'free';
     }
@@ -198,6 +208,11 @@ class SubscriptionService {
    * Pass premium track, ad-free, exclusive cosmetics).
    */
   hasPremiumAccess(): boolean {
+    // When RevenueCat drives entitlements, its cached `premium` is authoritative
+    // alongside the local subscription/lifetime state.
+    if (revenueCatService.isEnabled() && revenueCatService.cachedEntitlements().premium) {
+      return true;
+    }
     return this.getSubscriptionTier() !== 'free' || this.hasLifetimePremium();
   }
 
@@ -205,20 +220,30 @@ class SubscriptionService {
    * Check if feature is available for current tier
    */
   hasFeature(feature: string): boolean {
-    const tier = this.getSubscriptionTier();
-    
-    const featureTiers: Record<string, SubscriptionTier[]> = {
-      'ad_free': ['premium', 'ultimate'],
-      'unlimited_saves': ['premium', 'ultimate'],
-      'cloud_sync': ['premium', 'ultimate'],
-      'premium_themes': ['premium', 'ultimate'],
-      'advanced_analytics': ['ultimate'],
-      'priority_support': ['ultimate'],
-      'early_access': ['ultimate'],
-    };
+    // Premium-tier features derive from hasPremiumAccess() so they agree with
+    // every other premium gate — RevenueCat entitlement, an active subscription,
+    // OR the one-time lifetime unlock all grant them. Ultimate-only features
+    // still require the explicit 'ultimate' tier.
+    const premiumFeatures = new Set([
+      'ad_free',
+      'unlimited_saves',
+      'cloud_sync',
+      'premium_themes',
+    ]);
+    if (premiumFeatures.has(feature)) {
+      return this.hasPremiumAccess();
+    }
 
-    const requiredTiers = featureTiers[feature] || [];
-    return requiredTiers.includes(tier);
+    const ultimateFeatures = new Set([
+      'advanced_analytics',
+      'priority_support',
+      'early_access',
+    ]);
+    if (ultimateFeatures.has(feature)) {
+      return this.getSubscriptionTier() === 'ultimate';
+    }
+
+    return false;
   }
 
   /**
