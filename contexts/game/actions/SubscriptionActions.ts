@@ -14,7 +14,9 @@
 import type { GameState } from '@/contexts/game/types';
 import {
   DEEP_LIFE_PLUS_WELCOME_GEMS,
+  DEEP_LIFE_PLUS_PERFECT_WEEK_BONUS,
   dailyGemAmount,
+  weekKeysForDayKey,
 } from '@/lib/subscription/deepLifePlus';
 
 const safeAddGems = (base: number | undefined, amount: number): number => {
@@ -68,6 +70,12 @@ export function canClaimDailyGems(state: GameState, todayKey: string): boolean {
  * members, 20 otherwise) and stamps the claim day so it can't be claimed twice
  * on the same UTC day. A no-op (returns the same state) on a repeat same-day
  * claim, so it's safe to call optimistically.
+ *
+ * PERFECT-WEEK BONUS: if THIS claim completes a full Mon→Sun week of claims, it
+ * pays one extra daily drop (the 7th day is effectively 2×). This is naturally
+ * idempotent — the claim that completes the week is unique (each day is claimable
+ * only once), so the bonus is granted exactly once per completed week with no
+ * extra persisted flag.
  */
 export function claimDailyGems(state: GameState, todayKey: string): GameState {
   if (!canClaimDailyGems(state, todayKey)) return state;
@@ -77,6 +85,16 @@ export function claimDailyGems(state: GameState, todayKey: string): GameState {
     ? state.settings.deepLifePlusGemClaimDays
     : [];
   const nextDays = [...prevDays.filter((k) => k !== todayKey), todayKey].slice(-14);
+
+  const dailyAmount = dailyGemAmount(state.settings);
+  const weekKeys = weekKeysForDayKey(todayKey);
+  const claimedSet = new Set(nextDays);
+  const perfectWeek =
+    DEEP_LIFE_PLUS_PERFECT_WEEK_BONUS &&
+    weekKeys.length === 7 &&
+    weekKeys.every((k) => claimedSet.has(k));
+  const totalGrant = dailyAmount + (perfectWeek ? dailyAmount : 0);
+
   return {
     ...state,
     settings: {
@@ -86,7 +104,7 @@ export function claimDailyGems(state: GameState, todayKey: string): GameState {
     },
     stats: {
       ...state.stats,
-      gems: safeAddGems(state.stats?.gems, dailyGemAmount(state.settings)),
+      gems: safeAddGems(state.stats?.gems, totalGrant),
     },
   };
 }

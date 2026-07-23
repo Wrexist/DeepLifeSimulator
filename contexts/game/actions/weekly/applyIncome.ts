@@ -112,8 +112,12 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
     baseTotalIncome += luckBonus;
   }
 
-  // 5. Money Multiplier gold upgrade — 1.5× when active.
-  const moneyMultiplierBonus = input.prevState.goldUpgrades?.multiplier ? 1.5 : 1;
+  // 5. Money Multiplier gold upgrade — 1.5× when active. The Tycoon Empire
+  //    upgrade doubles earnings again on top (stacks with everything), the
+  //    aspirational high-gem sink.
+  const moneyMultiplierBonus =
+    (input.prevState.goldUpgrades?.multiplier ? 1.5 : 1) *
+    (input.prevState.goldUpgrades?.tycoon ? 2 : 1);
 
   // 6. Onboarding perk income multipliers (stacked product).
   // Perks catalog is a static ES import (no side effects on load) — keeps the

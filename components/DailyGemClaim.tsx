@@ -15,7 +15,7 @@
  */
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Gem, Crown, ChevronRight, Check, X } from 'lucide-react-native';
+import { Gem, Crown, ChevronRight, Check, X, Sparkles } from 'lucide-react-native';
 import { useGameSelector, shallowEqual, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
@@ -29,6 +29,7 @@ import {
   dailyGemExtraPerYear,
   utcDayKey,
   buildDeepLifePlusWeekStatus,
+  isPerfectDeepLifePlusWeek,
   type WeekDayCell,
 } from '@/lib/subscription/deepLifePlus';
 import { claimDailyGems } from '@/contexts/game/actions/SubscriptionActions';
@@ -76,6 +77,9 @@ export default function DailyGemClaim() {
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
   // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
   const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
+  // A completed Mon→Sun week pays a bonus daily drop (see claimDailyGems). When
+  // today's claim closed out the week, celebrate it.
+  const perfectWeek = claimedToday && isPerfectDeepLifePlusWeek(claimDays, new Date());
 
   const onClaim = useCallback(() => {
     // Re-read "today" at claim time so a session open across midnight still
@@ -90,7 +94,12 @@ export default function DailyGemClaim() {
     <View style={styles.wrap}>
       <WeekStrip cells={week} />
 
-      {claimedToday ? (
+      {claimedToday && perfectWeek ? (
+        <View style={[styles.claim, styles.claimPerfect]} accessibilityRole="text">
+          <Sparkles size={fontScale(15)} color={INK} />
+          <Text style={styles.claimPerfectText}>Perfect week! Bonus gems claimed 🎉</Text>
+        </View>
+      ) : claimedToday ? (
         <View style={[styles.claim, styles.claimDone]} accessibilityRole="text">
           <Check size={fontScale(15)} color={GOLD_SOFT} />
           <Text style={styles.claimDoneText}>Daily gems claimed · back tomorrow</Text>
@@ -200,6 +209,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   claimDoneText: { color: GOLD_SOFT, fontSize: fontScale(12.5), fontWeight: '700' },
+  claimPerfect: { backgroundColor: GOLD_SOFT, justifyContent: 'center' },
+  claimPerfectText: { color: INK, fontSize: fontScale(13), fontWeight: '900', letterSpacing: 0.1 },
 
   teaser: {
     flexDirection: 'row',

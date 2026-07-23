@@ -150,6 +150,8 @@ export function applyProductBenefitsToState(
     gameState.goldUpgrades.skill_mastery = true;
     gameState.goldUpgrades.time_machine = true;
     gameState.goldUpgrades.immortality = true;
+    gameState.goldUpgrades.tycoon = true;
+    gameState.goldUpgrades.chronomaster = true;
   }
 
   // Everything unlocked
@@ -165,6 +167,8 @@ export function applyProductBenefitsToState(
     gameState.goldUpgrades.skill_mastery = true;
     gameState.goldUpgrades.time_machine = true;
     gameState.goldUpgrades.immortality = true;
+    gameState.goldUpgrades.tycoon = true;
+    gameState.goldUpgrades.chronomaster = true;
   }
 
   // Unlimited youth pills

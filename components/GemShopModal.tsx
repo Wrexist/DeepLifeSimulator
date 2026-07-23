@@ -13,6 +13,12 @@ import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import DailyGemClaim from '@/components/DailyGemClaim';
+import {
+  memberUpgradeCost,
+  DEEP_LIFE_PLUS_UPGRADE_DISCOUNT,
+  hasDeepLifePlusEntitlement,
+} from '@/lib/subscription/deepLifePlus';
+import { activeGemPromo, formatPromoCountdown } from '@/lib/shop/gemPromo';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
@@ -370,7 +376,16 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     const badges: ShopBadge[] = [];
     if (p.id === bestGemId) badges.push({ label: 'Best Value', color: BADGE_BEST });
     if (config?.popular === true) badges.push({ label: 'Most Popular', color: BADGE_POPULAR });
-    const valueLine = gemValueLine(p.id, p.gems, p.perDollar);
+    // "Value climbs with the tier": honest +X% more gems-per-$ vs the smallest
+    // pack, appended to the ratio line so bigger packs read as the better deal.
+    const baseValueLine = gemValueLine(p.id, p.gems, p.perDollar);
+    const smallestPerDollar = gemPacks[0]?.perDollar ?? 0;
+    const bonusPct =
+      smallestPerDollar > 0 && p.perDollar > smallestPerDollar
+        ? Math.round((p.perDollar / smallestPerDollar - 1) * 100)
+        : 0;
+    const valueLine =
+      baseValueLine && bonusPct >= 5 ? `${baseValueLine} · +${bonusPct}% more per $` : baseValueLine;
     return (
       <ShopItemCard
         key={p.id}
@@ -466,7 +481,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     owned: boolean;
     featured?: string;
   }) => {
-    const afford = gems >= item.price;
+    // DeepLife+ members pay 20% less — same helper the reducer charges with.
+    const cost = memberUpgradeCost(item.price, settings);
+    const discounted = cost < item.price;
+    const afford = gems >= cost;
     // Single badge only — the card reserves limited top-right space, so two
     // badges collide with the title. A featured tag (e.g. "Most Popular") leads
     // when present; otherwise "Permanent" reassures it's a one-time buy (and the
@@ -476,6 +494,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         ? { label: item.featured, color: BADGE_BEST }
         : { label: 'Permanent', color: BADGE_POPULAR },
     ];
+    // Show the member saving honestly: discounted price + "was X · DeepLife+ 20% off".
+    const valueLine = discounted
+      ? `DeepLife+ · ${Math.round(DEEP_LIFE_PLUS_UPGRADE_DISCOUNT * 100)}% off (was ${item.price.toLocaleString()})`
+      : undefined;
     const buttonText = item.owned ? 'Owned' : afford ? 'Redeem' : 'Not enough gems';
     return (
       <ShopItemCard
@@ -484,16 +506,17 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         image={item.image}
         title={item.name}
         description={item.description}
-        priceLabel={item.price.toLocaleString()}
+        priceLabel={cost.toLocaleString()}
         priceKind="gems"
+        valueLine={valueLine}
         badges={badges}
         buttonText={buttonText}
         accessibilityLabel={
           item.owned
             ? `${item.name}, already owned`
-            : `${item.name}, costs ${item.price.toLocaleString()} gems`
+            : `${item.name}, costs ${cost.toLocaleString()} gems`
         }
-        onPress={() => handleBuyUpgrade(item.id, item.price)}
+        onPress={() => handleBuyUpgrade(item.id, cost)}
         owned={item.owned}
         locked={!afford && !item.owned}
       />
@@ -721,14 +744,57 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       owned: goldUpgrades?.immortality || false,
       featured: 'Ultimate',
     },
+    {
+      id: 'tycoon',
+      name: 'Tycoon Empire',
+      description: 'Double all earnings — stacks on top of every other bonus',
+      price: 100000,
+      image: require('@/assets/images/iap/upgrades/money_multiplier.png'),
+      owned: goldUpgrades?.tycoon || false,
+      featured: 'Prestige',
+    },
+    {
+      id: 'chronomaster',
+      name: 'Chronomaster',
+      description: 'Every time-rewind is free, forever',
+      price: 150000,
+      image: require('@/assets/images/iap/upgrades/time_machine.png'),
+      owned: goldUpgrades?.chronomaster || false,
+      featured: 'Prestige',
+    },
   ];
 
   // "Short on gems?" bridge: if the player can't afford the cheapest upgrade they
-  // don't already own, offer a one-tap jump to the Gems tab (the conversion path).
+  // don't already own (member price), offer a one-tap jump to the Gems tab.
   const cheapestUnownedUpgrade = upgrades
     .filter((u) => !u.owned)
-    .reduce((min, u) => Math.min(min, u.price), Infinity);
+    .reduce((min, u) => Math.min(min, memberUpgradeCost(u.price, settings)), Infinity);
   const shortOnGemsForUpgrades = Number.isFinite(cheapestUnownedUpgrade) && gems < cheapestUnownedUpgrade;
+
+  // An honest limited-time promo (ships disabled — nothing renders until a real
+  // store offer is configured; see lib/shop/gemPromo.ts).
+  const gemPromo = activeGemPromo(new Date());
+  const gemPromoCountdown = gemPromo ? formatPromoCountdown(new Date(), gemPromo.endsAtIso) : '';
+
+  // Starter offer: highlight the one-time Starter Pack to players who haven't
+  // converted yet (no ads-removed / lifetime / DeepLife+). Reuses the existing
+  // GEMS_STARTER SKU + its real store price — no new product needed.
+  const showStarterOffer =
+    !hasDeepLifePlusEntitlement(settings) &&
+    settings?.adsRemoved !== true &&
+    settings?.lifetimePremium !== true;
+  const starterOffer = {
+    id: IAP_PRODUCTS.GEMS_STARTER,
+    accent: 'packs' as ShopAccent,
+    image: require('@/assets/images/iap/packs/starter_pack.png'),
+    title: getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.name ?? 'Starter Pack',
+    description:
+      getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.description ??
+      'A big gem head start — your best first buy.',
+    features: getProductDisplayMeta(IAP_PRODUCTS.GEMS_STARTER).contents,
+    badges: [{ label: 'Best First Buy', color: BADGE_BEST }] as ShopBadge[],
+    owned: false,
+  };
 
   const tabs: { id: StoreTab; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = [
     { id: 'gems', label: 'Gems', icon: Gem, color: '#6366F1' },
@@ -812,9 +878,29 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
             {tab === 'gems' ? (
               <>
+                {/* Honest limited-time promo (only when a real store offer is live). */}
+                {gemPromo ? (
+                  <View style={styles.promoBanner}>
+                    <Sparkles size={scale(16)} color="#FDE68A" />
+                    <View style={styles.promoCopy}>
+                      <Text style={styles.promoHeadline}>{gemPromo.headline}</Text>
+                      {gemPromo.subtext ? <Text style={styles.promoSub}>{gemPromo.subtext}</Text> : null}
+                      {gemPromoCountdown ? <Text style={styles.promoCountdown}>{gemPromoCountdown}</Text> : null}
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* One-time Starter Pack highlight for players who haven't converted. */}
+                {showStarterOffer ? (
+                  <>
+                    <Text style={styles.sectionLabel}>Starter offer</Text>
+                    {renderHero(starterOffer)}
+                  </>
+                ) : null}
+
                 {/* Free daily reward — shares its claim state with the identity
                     card, so a player can only claim once per day from either. */}
-                <Text style={styles.sectionLabel}>Free daily reward</Text>
+                <Text style={[styles.sectionLabel, showStarterOffer && styles.sectionLabelSpaced]}>Free daily reward</Text>
                 <DailyGemClaim />
                 {storeBanner}
                 <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Gem packs</Text>
@@ -1023,6 +1109,29 @@ const styles = StyleSheet.create({
   },
   sectionLabelSpaced: {
     marginTop: verticalScale(16),
+  },
+  promoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(11),
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(250, 204, 21, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(250, 204, 21, 0.45)',
+    marginBottom: verticalScale(12),
+  },
+  promoCopy: { flex: 1, gap: verticalScale(1) },
+  promoHeadline: { fontSize: fontScale(13.5), fontWeight: '800', color: '#FDE68A', letterSpacing: 0.1 },
+  promoSub: { fontSize: fontScale(11.5), fontWeight: '600', color: 'rgba(253, 230, 138, 0.8)' },
+  promoCountdown: {
+    fontSize: fontScale(11),
+    fontWeight: '800',
+    color: '#FBBF24',
+    letterSpacing: 0.3,
+    marginTop: verticalScale(1),
+    fontVariant: ['tabular-nums'],
   },
   gemBridge: {
     flexDirection: 'row',

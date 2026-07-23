@@ -19,6 +19,7 @@ import {
 } from './types';
 import { haptic } from '@/utils/haptics';
 import { trackMoneyEarned, trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
+import { memberUpgradeCost } from '@/lib/subscription/deepLifePlus';
 
 interface MoneyActionsContextType {
   // Money & Economy
@@ -223,7 +224,9 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       return;
     }
 
-    // Define valid upgrade IDs and their gem costs (must match GemShopModal.tsx)
+    // Define valid upgrade IDs and their BASE gem costs (must match GemShopModal.tsx).
+    // DeepLife+ members pay 20% less — the discount is applied via memberUpgradeCost
+    // below so this gate and the GemShopModal price can never disagree.
     const upgradeDefinitions: Record<string, { cost: number; name: string }> = {
       multiplier: { cost: 5000, name: 'Money Multiplier' },
       energy_boost: { cost: 7500, name: 'Energy Boost' },
@@ -232,6 +235,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       skill_mastery: { cost: 15000, name: 'Skill Mastery' },
       time_machine: { cost: 25000, name: 'Time Machine' },
       immortality: { cost: 50000, name: 'Immortality' },
+      tycoon: { cost: 100000, name: 'Tycoon Empire' },
+      chronomaster: { cost: 150000, name: 'Chronomaster' },
     };
 
     const upgrade = upgradeDefinitions[upgradeId];
@@ -241,6 +246,9 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       return;
     }
 
+    // Price this player actually pays (DeepLife+ discount applied).
+    const cost = memberUpgradeCost(upgrade.cost, state.settings);
+
     // Check if already owned
     if (state.goldUpgrades?.[upgradeId as keyof typeof state.goldUpgrades]) {
       showError('Already Owned', `You already own ${upgrade.name}.`);
@@ -249,8 +257,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
     // Check if user has enough gems
     const currentGems = state.stats?.gems || 0;
-    if (currentGems < upgrade.cost) {
-      showError('Insufficient Gems', `You need ${upgrade.cost} gems to purchase ${upgrade.name}.`);
+    if (currentGems < cost) {
+      showError('Insufficient Gems', `You need ${cost.toLocaleString()} gems to purchase ${upgrade.name}.`);
       return;
     }
 
@@ -264,14 +272,17 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
         return prevState; // already owned by an earlier same-batch claim
       }
       const prevGems = prevState.stats?.gems || 0;
-      if (prevGems < upgrade.cost) {
+      // Re-price inside the updater from the freshest settings so the discount
+      // can't be dodged by a mid-batch entitlement change.
+      const liveCost = memberUpgradeCost(upgrade.cost, prevState.settings);
+      if (prevGems < liveCost) {
         return prevState; // not enough gems (e.g. a prior same-batch upgrade drained them)
       }
       return {
         ...prevState,
         stats: {
           ...prevState.stats,
-          gems: prevGems - upgrade.cost,
+          gems: prevGems - liveCost,
         },
         goldUpgrades: {
           ...prevState.goldUpgrades,
@@ -280,7 +291,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       };
     });
 
-    logger.info('Gold upgrade purchased:', { upgradeId, name: upgrade.name, cost: upgrade.cost });
+    logger.info('Gold upgrade purchased:', { upgradeId, name: upgrade.name, cost });
   }, [setGameState, showError]);
 
   const buyRevival = useCallback(() => {

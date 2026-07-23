@@ -11,8 +11,13 @@ import {
   DEEP_LIFE_PLUS_WELCOME_GEMS,
   DEEP_LIFE_PLUS_DAILY_GEMS,
   DAILY_GEMS_BASE,
+  DEEP_LIFE_PLUS_UPGRADE_DISCOUNT,
   dailyGemMemberMultiple,
   dailyGemExtraPerYear,
+  memberUpgradeCost,
+  deepLifePlusWeekKeys,
+  weekKeysForDayKey,
+  isPerfectDeepLifePlusWeek,
   getDeepLifePlusPlan,
   isDeepLifePlusProduct,
   buildDeepLifePlusWeekStatus,
@@ -133,6 +138,68 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
 
   it('per-year gap is the daily surplus times 365', () => {
     expect(dailyGemExtraPerYear()).toBe((DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365);
+  });
+
+  it('pays a perfect-week bonus (2× on the day that completes Mon→Sun)', () => {
+    // Seed the first six days of the current week as already claimed, then claim
+    // the seventh — that claim should pay the daily amount PLUS a bonus daily.
+    const keys = weekKeysForDayKey(TODAY);
+    const seventh = keys[keys.length - 1];
+    const firstSix = keys.slice(0, 6);
+    const s = free({ deepLifePlusGemClaimDays: firstSix });
+    const next = claimDailyGems(s, seventh);
+    expect(next.stats.gems).toBe(DAILY_GEMS_BASE * 2); // daily + perfect-week bonus
+  });
+
+  it('a normal mid-week claim pays only the daily amount (no bonus)', () => {
+    const keys = weekKeysForDayKey(TODAY);
+    const s = free({ deepLifePlusGemClaimDays: [keys[0]] });
+    expect(claimDailyGems(s, keys[2]).stats.gems).toBe(DAILY_GEMS_BASE); // just the daily
+  });
+});
+
+describe('memberUpgradeCost (DeepLife+ discount on gem-spend upgrades)', () => {
+  const member = { deepLifePlusActivated: true };
+  const lifer = { lifetimePremium: true };
+
+  it('charges free players the full price', () => {
+    expect(memberUpgradeCost(5000, {})).toBe(5000);
+    expect(memberUpgradeCost(5000, undefined)).toBe(5000);
+  });
+
+  it('gives members the configured discount', () => {
+    const expected = Math.round(5000 * (1 - DEEP_LIFE_PLUS_UPGRADE_DISCOUNT));
+    expect(memberUpgradeCost(5000, member)).toBe(expected);
+    expect(memberUpgradeCost(5000, lifer)).toBe(expected);
+    expect(expected).toBeLessThan(5000);
+  });
+
+  it('never returns below 1 and sanitizes a garbage base', () => {
+    expect(memberUpgradeCost(0, member)).toBe(0);
+    expect(memberUpgradeCost(-100, member)).toBe(0);
+    expect(memberUpgradeCost(Number.NaN, member)).toBe(0);
+  });
+});
+
+describe('deepLifePlusWeekKeys / weekKeysForDayKey', () => {
+  it('returns 7 Mon→Sun keys and agrees with the day-key variant', () => {
+    const now = new Date('2026-07-23T12:00:00Z'); // a Thursday
+    const fromDate = deepLifePlusWeekKeys(now);
+    expect(fromDate).toHaveLength(7);
+    expect(fromDate[0] < fromDate[6]).toBe(true); // Monday first, sorted ascending
+    expect(weekKeysForDayKey('2026-07-23')).toEqual(fromDate);
+  });
+
+  it('returns [] for a malformed day key', () => {
+    expect(weekKeysForDayKey('not-a-date')).toEqual([]);
+  });
+
+  it('isPerfectDeepLifePlusWeek is true only when all 7 days are claimed', () => {
+    const now = new Date('2026-07-23T12:00:00Z');
+    const keys = deepLifePlusWeekKeys(now);
+    expect(isPerfectDeepLifePlusWeek(keys, now)).toBe(true);
+    expect(isPerfectDeepLifePlusWeek(keys.slice(0, 6), now)).toBe(false);
+    expect(isPerfectDeepLifePlusWeek([], now)).toBe(false);
   });
 });
 

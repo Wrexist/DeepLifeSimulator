@@ -115,6 +115,39 @@ export function dailyGemExtraPerYear(): number {
   return Math.max(0, DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365;
 }
 
+/**
+ * DeepLife+ members pay this fraction less for gem-spend upgrades in the store
+ * (0.2 = 20% off). Applied at BOTH the display price and the actual gem
+ * deduction (memberUpgradeCost), so the sub feels valuable inside the shop, not
+ * just at the paywall.
+ */
+export const DEEP_LIFE_PLUS_UPGRADE_DISCOUNT = 0.2;
+
+/**
+ * Gem cost of a gem-spend upgrade for this player: full price normally, 20% off
+ * for DeepLife+ members (subscription or lifetime). The reducer that deducts
+ * gems and the store card that shows the price MUST both route through this so
+ * they can never disagree.
+ */
+export function memberUpgradeCost(
+  baseCost: number,
+  settings?: { deepLifePlusActivated?: boolean; lifetimePremium?: boolean },
+): number {
+  const base = Number.isFinite(baseCost) && baseCost > 0 ? Math.floor(baseCost) : 0;
+  if (base === 0) return 0; // invalid/zero base — nothing to charge
+  if (!hasDeepLifePlusEntitlement(settings)) return base;
+  // Floor at 1 so a legitimate small price never discounts to free.
+  return Math.max(1, Math.round(base * (1 - DEEP_LIFE_PLUS_UPGRADE_DISCOUNT)));
+}
+
+/**
+ * A full Mon→Sun week of daily claims pays a bonus equal to one more daily drop
+ * (so the 7th claim effectively pays 2×). Self-scaling: members get +250, free
+ * players +20. Turns the streak strip into a real retention hook. Set to false
+ * to disable the perfect-week bonus everywhere.
+ */
+export const DEEP_LIFE_PLUS_PERFECT_WEEK_BONUS = true;
+
 /** UTC calendar-day key ("YYYY-MM-DD") — the reset boundary for the daily claim. */
 export function utcDayKey(d: Date): string {
   const y = d.getUTCFullYear();
@@ -140,6 +173,36 @@ const MS_PER_DAY = 86_400_000;
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 /**
+ * The seven UTC day keys of `now`'s Mon→Sun week, Monday first. Shared by the
+ * status strip and the perfect-week bonus so both agree on the week window.
+ */
+export function deepLifePlusWeekKeys(now: Date): string[] {
+  // Midnight-UTC of this week's Monday.
+  const baseMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const mondayOffset = (new Date(baseMs).getUTCDay() + 6) % 7; // getUTCDay: 0=Sun
+  const mondayMs = baseMs - mondayOffset * MS_PER_DAY;
+  return WEEKDAY_LABELS.map((_, i) => utcDayKey(new Date(mondayMs + i * MS_PER_DAY)));
+}
+
+/**
+ * The Mon→Sun week keys for the week containing a "YYYY-MM-DD" day key (parsed at
+ * noon UTC so it's unambiguous). Empty array if the key is malformed. Lets the
+ * pure claim reducer — which only knows `todayKey` — find the current week.
+ */
+export function weekKeysForDayKey(dayKey: string): string[] {
+  const ms = Date.parse(`${dayKey}T12:00:00.000Z`);
+  if (!Number.isFinite(ms)) return [];
+  return deepLifePlusWeekKeys(new Date(ms));
+}
+
+/** True when every day of `now`'s Mon→Sun week is present in the claim set. */
+export function isPerfectDeepLifePlusWeek(claimDays: string[] | undefined, now: Date): boolean {
+  const claimed = new Set(Array.isArray(claimDays) ? claimDays : []);
+  const keys = deepLifePlusWeekKeys(now);
+  return keys.length === 7 && keys.every((k) => claimed.has(k));
+}
+
+/**
  * Build the Mon→Sun status strip for the daily gem drop from the claimed day
  * keys. Pure (takes `now`), so it's deterministic and unit-testable. Past days
  * before the player's first-ever claim are `inactive` (not `missed`), so a new
@@ -149,14 +212,10 @@ export function buildDeepLifePlusWeekStatus(claimDays: string[] | undefined, now
   const claimed = new Set(Array.isArray(claimDays) ? claimDays : []);
   const firstClaim = claimed.size ? [...claimed].sort()[0] : null;
   const todayKey = utcDayKey(now);
-
-  // Midnight-UTC of this week's Monday.
-  const baseMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const mondayOffset = (new Date(baseMs).getUTCDay() + 6) % 7; // getUTCDay: 0=Sun
-  const mondayMs = baseMs - mondayOffset * MS_PER_DAY;
+  const keys = deepLifePlusWeekKeys(now);
 
   return WEEKDAY_LABELS.map((label, i) => {
-    const key = utcDayKey(new Date(mondayMs + i * MS_PER_DAY));
+    const key = keys[i];
     let status: WeekDayStatus;
     if (claimed.has(key)) status = 'claimed';
     else if (key === todayKey) status = 'today';

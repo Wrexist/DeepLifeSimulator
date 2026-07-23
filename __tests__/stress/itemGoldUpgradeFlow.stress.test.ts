@@ -256,10 +256,11 @@ describe('Item + Gold Upgrade interactions', () => {
     expect(captured!.state.stats.gems).toBe(gemsBefore);
   });
 
-  it('buyGoldUpgrade: all 7 gold upgrades can be purchased in sequence', () => {
+  it('buyGoldUpgrade: all gold upgrades can be purchased in sequence', () => {
     mounted = mountGame();
-    seedWealthy(200_000); // Enough for all (5K+7.5K+6K+9K+15K+25K+50K = 117500)
-    const ids = ['multiplier', 'energy_boost', 'happiness_boost', 'fitness_boost', 'skill_mastery', 'time_machine', 'immortality'];
+    // Enough for all (5K+7.5K+6K+9K+15K+25K+50K+100K+150K = 367,500).
+    seedWealthy(400_000);
+    const ids = ['multiplier', 'energy_boost', 'happiness_boost', 'fitness_boost', 'skill_mastery', 'time_machine', 'immortality', 'tycoon', 'chronomaster'];
     for (const id of ids) {
       act(() => captured!.money.buyGoldUpgrade(id));
     }
@@ -404,8 +405,8 @@ describe('Item + Gold Upgrade interactions', () => {
     const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
     iapService.applyProductToState(state, IAP_PRODUCTS.GEMS_MEGA);
 
-    // All 7 individual upgrades should be flipped via the everythingUnlocked branch.
-    const expected = ['multiplier', 'energy_boost', 'happiness_boost', 'fitness_boost', 'skill_mastery', 'time_machine', 'immortality'];
+    // All individual upgrades should be flipped via the everythingUnlocked branch.
+    const expected = ['multiplier', 'energy_boost', 'happiness_boost', 'fitness_boost', 'skill_mastery', 'time_machine', 'immortality', 'tycoon', 'chronomaster'];
     for (const id of expected) {
       expect((state.goldUpgrades as Record<string, unknown>)?.[id]).toBe(true);
     }
