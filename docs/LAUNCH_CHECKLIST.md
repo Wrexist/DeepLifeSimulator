@@ -37,9 +37,10 @@ they're left as boxes for you.
 - [ ] **First `.aab` uploaded manually** — Google requires the very first upload
       by hand; the workflow's auto-submit only works afterward.
 - [ ] **14-day closed testing** — if this is a **personal** developer account
-      created after ~Nov 2023, Google requires a closed test with **12+ testers
-      for 14 continuous days** before you can request production access. Start
-      early; internal testing does **not** count toward it.
+      created after **November 13, 2023**, Google requires a closed test with
+      **at least 12 testers opted in continuously for 14 days** before you can
+      request production access. Start early; internal testing does **not**
+      count toward it.
 - [ ] **Android AdMob ad units** — not created yet. The Android build runs with
       `--warn-missing-android-admob`, so **ads won't serve on Android** until you
       create the units, set `EXPO_PUBLIC_ADMOB_{BANNER,INTERSTITIAL,REWARDED}_ANDROID`
