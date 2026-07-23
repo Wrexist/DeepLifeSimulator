@@ -29,6 +29,19 @@ describe('practicePursuit (hobby mastery)', () => {
     expect(ref.state.weeklyPursuitPractice?.running).toBe(1);
   });
 
+  it('Skill Mastery gold upgrade grants 50% more practice XP', () => {
+    const base = createTestGameState();
+    const state = createTestGameState({
+      stats: { ...base.stats, energy: 100, fitness: 10, health: 50 },
+      goldUpgrades: { skill_mastery: true },
+    });
+    const { ref, setGameState } = harness(state);
+
+    const r = practicePursuit(ref.state, setGameState, 'running');
+    expect(r.success).toBe(true);
+    expect(ref.state.pursuits?.running?.xp).toBe(Math.round(PRACTICE_XP * 1.5));
+  });
+
   it('accumulates XP into a level-up with a bonus', () => {
     // Seed near a level boundary so one practice crosses it.
     const base = createTestGameState();
