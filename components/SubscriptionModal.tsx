@@ -27,7 +27,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight } from 'lucide-react-native';
+import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -109,24 +109,49 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const savingsPct = useMemo(() => yearlySavingsPercent(), []);
   const trialEligible = !active && !lifetime && trialDays > 0;
 
-  // Crown glow — a slow gold pulse behind the crest. Native-driven; static when
-  // the OS "Reduce Motion" setting is on.
+  // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
+  // twinkling hero sparkles, and a periodic light sweep across the CTA. All
+  // native-driven and disabled under the OS "Reduce Motion" setting.
   const glow = useRef(new Animated.Value(0)).current;
+  const sparkle = useRef(new Animated.Value(0)).current; // hero twinkle
+  const shine = useRef(new Animated.Value(0)).current;    // CTA sweep
   useEffect(() => {
     if (!visible) return;
     if (reducedMotion) {
       glow.setValue(1);
+      sparkle.setValue(0.6);
+      shine.setValue(0);
       return;
     }
-    const loop = Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0.35, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [visible, reducedMotion, glow]);
+    const sparkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkle, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(sparkle, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(500),
+      ]),
+    );
+    // A light band sweeps across the CTA every ~3.5s (premium "shine").
+    const shineLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shine, { toValue: 1, duration: 1050, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.delay(2400),
+      ]),
+    );
+    glowLoop.start();
+    sparkleLoop.start();
+    shineLoop.start();
+    return () => {
+      glowLoop.stop();
+      sparkleLoop.stop();
+      shineLoop.stop();
+    };
+  }, [visible, reducedMotion, glow, sparkle, shine]);
 
   useEffect(() => {
     if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
@@ -203,6 +228,21 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     opacity: glow,
     transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
   };
+  const sparkleAStyle = {
+    opacity: sparkle,
+    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.1] }) }],
+  };
+  const sparkleBStyle = {
+    opacity: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1, 0.2] }),
+    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1.1, 0.6] }) }],
+  };
+  const shineStyle = {
+    opacity: shine.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.5, 0] }),
+    transform: [
+      { translateX: shine.interpolate({ inputRange: [0, 1], outputRange: [scale(-160), scale(420)] }) },
+      { skewX: '-18deg' },
+    ],
+  };
 
   // Primary CTA copy — trial-led when eligible.
   const ctaTitle = active
@@ -210,14 +250,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     : lifetime
       ? `Unlock Forever · ${DEEP_LIFE_PLUS_LIFETIME.price}`
       : trialEligible
-        ? `Start My ${trialDays}-Day Free Trial`
+        ? 'Start for $0.00 Today'
         : `Continue · ${selected.price} ${selected.unit}`;
   const ctaSub = active
     ? undefined
     : lifetime
       ? 'One-time payment · yours forever, never renews'
       : trialEligible
-        ? `No charge today · then ${selected.price} ${selected.unit} · cancel anytime`
+        ? `${trialDays} days free, then ${selected.price} ${selected.unit} · cancel anytime`
         : 'Cancel anytime';
 
   return (
@@ -240,6 +280,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <View style={styles.hero}>
               <View style={styles.crownWrap}>
                 <Animated.View style={[styles.crownGlow, glowStyle]} pointerEvents="none" />
+                <Animated.View style={[styles.sparkleA, sparkleAStyle]} pointerEvents="none">
+                  <Sparkles size={scale(15)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+                </Animated.View>
+                <Animated.View style={[styles.sparkleB, sparkleBStyle]} pointerEvents="none">
+                  <Sparkles size={scale(11)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+                </Animated.View>
                 <View style={styles.crownChip}>
                   <Crown size={scale(34)} color={GOLD} fill={GOLD} />
                 </View>
@@ -361,6 +407,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             accessibilityRole="button"
             accessibilityLabel={ctaTitle}
           >
+            <Animated.View style={[styles.ctaShine, shineStyle]} pointerEvents="none" />
             {busy ? (
               <ActivityIndicator color="#1A1206" />
             ) : (
@@ -472,6 +519,8 @@ const styles = StyleSheet.create({
     borderRadius: scale(60),
     backgroundColor: 'rgba(250, 204, 21, 0.22)',
   },
+  sparkleA: { position: 'absolute', top: scale(-2), right: scale(2) },
+  sparkleB: { position: 'absolute', bottom: scale(4), left: scale(4) },
   crownChip: {
     width: scale(76),
     height: scale(76),
@@ -604,11 +653,19 @@ const styles = StyleSheet.create({
     paddingVertical: scale(13),
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: GOLD_DEEP,
     shadowOffset: { width: 0, height: scale(6) },
     shadowOpacity: 0.4,
     shadowRadius: scale(14),
     elevation: 8,
+  },
+  ctaShine: {
+    position: 'absolute',
+    top: -scale(20),
+    bottom: -scale(20),
+    width: scale(70),
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
   ctaDisabled: { opacity: 0.6 },
   ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2 },
