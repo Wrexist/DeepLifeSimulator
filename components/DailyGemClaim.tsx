@@ -224,7 +224,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
           </Text>
         </Animated.View>
       ) : (
-        <Animated.View style={{ transform: [{ scale: pressV }] }}>
+        <Animated.View style={[styles.pressWrap, { transform: [{ scale: pressV }] }]}>
           <TouchableOpacity
             onPress={onClaim}
             onPressIn={onPressIn}
@@ -291,9 +291,14 @@ const styles = StyleSheet.create({
   // container is `alignItems: 'center'`, which would otherwise shrink this block
   // to content width and collapse the flex:1 button/teaser text to nothing.
   wrap: { marginTop: scale(10), width: '100%', alignSelf: 'stretch' },
+  // Every row below also pins itself to full width (alignSelf/width) so no single
+  // claim state can shrink to content and collapse its flex:1 text — belt-and-
+  // suspenders for the "narrow until you tap claim" bug.
+  pressWrap: { width: '100%' },
 
   // Weekly streak strip
   strip: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: scale(8),
@@ -310,6 +315,7 @@ const styles = StyleSheet.create({
 
   // Claim button / chip
   claim: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(10),
@@ -342,6 +348,7 @@ const styles = StyleSheet.create({
   claimPerfectText: { color: INK, fontSize: fontScale(13), fontWeight: '900', letterSpacing: 0.1 },
 
   teaser: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(10),
