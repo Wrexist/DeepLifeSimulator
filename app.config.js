@@ -2,9 +2,13 @@
 const { version } = require('./package.json');
 // Build number can be overridden via EAS: BUILD_NUMBER env variable
 const buildNumber = process.env.BUILD_NUMBER || "99";
-const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~7015403477";
-const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || admobAppId;
-const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || admobAppId;
+// AdMob App IDs — one per platform (iOS and Android are separate AdMob apps).
+// Defaults are the real per-platform App IDs; override via EAS env vars if needed.
+//   iOS     ~7015403477  (confirmed — used by the iOS build that serves ads)
+//   Android ~3290819490  (matches the committed AndroidManifest; Android ships
+//                         ad-free until its ad units are created in AdMob)
+const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || "ca-app-pub-2286247955186424~7015403477";
+const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "ca-app-pub-2286247955186424~3290819490";
 // Firebase config files (unlocks AdMob ARPU once the account is linked to the
 // Firebase/GA property). Paths can be overridden via EAS secret files.
 const iosGoogleServicesFile = process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist";
