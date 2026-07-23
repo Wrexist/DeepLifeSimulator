@@ -287,7 +287,10 @@ const DOT_BASE = {
 };
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: scale(10) },
+  // Full width regardless of the host's cross-axis alignment. The identity card's
+  // container is `alignItems: 'center'`, which would otherwise shrink this block
+  // to content width and collapse the flex:1 button/teaser text to nothing.
+  wrap: { marginTop: scale(10), width: '100%', alignSelf: 'stretch' },
 
   // Weekly streak strip
   strip: {
