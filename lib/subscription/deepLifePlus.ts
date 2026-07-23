@@ -74,13 +74,177 @@ export interface DeepLifePlusBenefit {
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
   { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day — 12× the free daily.' },
+  { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
   { id: 'welcome_gems', title: '500 Welcome Gems', description: 'A one-time gem bonus the moment you join.' },
+  { id: 'vip_support', title: 'VIP Priority Support', description: 'Your questions jump to the front of the queue.' },
 ];
 
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
+
+/** Daily gem drop for DeepLife+ members — claimable once per real calendar day. */
+export const DEEP_LIFE_PLUS_DAILY_GEMS = 250;
+
+/** Daily gem drop for non-subscribers ("normal players"). */
+export const DAILY_GEMS_BASE = 20;
+
+/** The daily gem amount for this player: 250 for members, 20 for everyone else. */
+export function dailyGemAmount(settings?: { deepLifePlusActivated?: boolean; lifetimePremium?: boolean }): number {
+  return hasDeepLifePlusEntitlement(settings) ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
+}
+
+/**
+ * How many times bigger the member daily drop is than the free one (floored, so
+ * the "N× the free daily" copy never overstates — 250 vs 20 → 12×). Drives the
+ * "sell the difference" upsell line on the daily-claim surfaces.
+ */
+export function dailyGemMemberMultiple(): number {
+  if (DAILY_GEMS_BASE <= 0) return 0;
+  return Math.floor(DEEP_LIFE_PLUS_DAILY_GEMS / DAILY_GEMS_BASE);
+}
+
+/**
+ * Extra gems a member collects over a free player across a full year of daily
+ * claims ((250 − 20) × 365 = 83,950) — the strongest concrete value framing for
+ * the daily-gem upsell.
+ */
+export function dailyGemExtraPerYear(): number {
+  return Math.max(0, DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365;
+}
+
+/**
+ * DeepLife+ members pay this fraction less for gem-spend upgrades in the store
+ * (0.2 = 20% off). Applied at BOTH the display price and the actual gem
+ * deduction (memberUpgradeCost), so the sub feels valuable inside the shop, not
+ * just at the paywall.
+ */
+export const DEEP_LIFE_PLUS_UPGRADE_DISCOUNT = 0.2;
+
+/**
+ * Gem cost of a gem-spend upgrade for this player: full price normally, 20% off
+ * for DeepLife+ members (subscription or lifetime). The reducer that deducts
+ * gems and the store card that shows the price MUST both route through this so
+ * they can never disagree.
+ */
+export function memberUpgradeCost(
+  baseCost: number,
+  settings?: { deepLifePlusActivated?: boolean; lifetimePremium?: boolean },
+): number {
+  const base = Number.isFinite(baseCost) && baseCost > 0 ? Math.floor(baseCost) : 0;
+  if (base === 0) return 0; // invalid/zero base — nothing to charge
+  if (!hasDeepLifePlusEntitlement(settings)) return base;
+  // Floor at 1 so a legitimate small price never discounts to free.
+  return Math.max(1, Math.round(base * (1 - DEEP_LIFE_PLUS_UPGRADE_DISCOUNT)));
+}
+
+/**
+ * A full Mon→Sun week of daily claims pays a bonus equal to one more daily drop
+ * (so the 7th claim effectively pays 2×). Self-scaling: members get +250, free
+ * players +20. Turns the streak strip into a real retention hook. Set to false
+ * to disable the perfect-week bonus everywhere.
+ */
+export const DEEP_LIFE_PLUS_PERFECT_WEEK_BONUS = true;
+
+/** UTC calendar-day key ("YYYY-MM-DD") — the reset boundary for the daily claim. */
+export function utcDayKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export type WeekDayStatus =
+  | 'claimed' // gem drop was claimed that day → green check
+  | 'missed' // a past day (on/after they started) that was skipped → red cross
+  | 'today' // today, not yet claimed → highlighted, ready
+  | 'future' // upcoming day this week → dim
+  | 'inactive'; // a past day before their first claim → neutral (never punished)
+
+export interface WeekDayCell {
+  key: string; // UTC day key
+  label: string; // single-letter weekday label (Mon-first)
+  status: WeekDayStatus;
+}
+
+const MS_PER_DAY = 86_400_000;
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/**
+ * The seven UTC day keys of `now`'s Mon→Sun week, Monday first. Shared by the
+ * status strip and the perfect-week bonus so both agree on the week window.
+ */
+export function deepLifePlusWeekKeys(now: Date): string[] {
+  // Midnight-UTC of this week's Monday.
+  const baseMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const mondayOffset = (new Date(baseMs).getUTCDay() + 6) % 7; // getUTCDay: 0=Sun
+  const mondayMs = baseMs - mondayOffset * MS_PER_DAY;
+  return WEEKDAY_LABELS.map((_, i) => utcDayKey(new Date(mondayMs + i * MS_PER_DAY)));
+}
+
+/**
+ * The Mon→Sun week keys for the week containing a "YYYY-MM-DD" day key (parsed at
+ * noon UTC so it's unambiguous). Empty array if the key is malformed. Lets the
+ * pure claim reducer — which only knows `todayKey` — find the current week.
+ */
+export function weekKeysForDayKey(dayKey: string): string[] {
+  const ms = Date.parse(`${dayKey}T12:00:00.000Z`);
+  if (!Number.isFinite(ms)) return [];
+  return deepLifePlusWeekKeys(new Date(ms));
+}
+
+/** True when every day of `now`'s Mon→Sun week is present in the claim set. */
+export function isPerfectDeepLifePlusWeek(claimDays: string[] | undefined, now: Date): boolean {
+  const claimed = new Set(Array.isArray(claimDays) ? claimDays : []);
+  const keys = deepLifePlusWeekKeys(now);
+  return keys.length === 7 && keys.every((k) => claimed.has(k));
+}
+
+/**
+ * Build the Mon→Sun status strip for the daily gem drop from the claimed day
+ * keys. Pure (takes `now`), so it's deterministic and unit-testable. Past days
+ * before the player's first-ever claim are `inactive` (not `missed`), so a new
+ * member is never shown red crosses for days they couldn't have claimed.
+ */
+export function buildDeepLifePlusWeekStatus(claimDays: string[] | undefined, now: Date): WeekDayCell[] {
+  const claimed = new Set(Array.isArray(claimDays) ? claimDays : []);
+  const firstClaim = claimed.size ? [...claimed].sort()[0] : null;
+  const todayKey = utcDayKey(now);
+  const keys = deepLifePlusWeekKeys(now);
+
+  return WEEKDAY_LABELS.map((label, i) => {
+    const key = keys[i];
+    let status: WeekDayStatus;
+    if (claimed.has(key)) status = 'claimed';
+    else if (key === todayKey) status = 'today';
+    else if (key > todayKey) status = 'future';
+    else if (!firstClaim || key < firstClaim) status = 'inactive';
+    else status = 'missed';
+    return { key, label, status };
+  });
+}
+
+/**
+ * Career-income boost for DeepLife+ members (1.25 = +25% weekly salary). Applied
+ * in the weekly payday reducer (applyCareerSalaryAndPenalty) and advertised on
+ * the paywall — keep the number and the "+25% career income" copy in sync.
+ */
+export const DEEP_LIFE_PLUS_INCOME_MULTIPLIER = 1.25;
+
+/**
+ * Pure in-state check: does this settings object reflect an active DeepLife+
+ * entitlement (subscription OR lifetime)? Used by pure reducers that can't call
+ * the subscription service. `deepLifePlusActivated` tracks the subscription
+ * (cleared on lapse); `lifetimePremium` is the one-time unlock.
+ */
+export function hasDeepLifePlusEntitlement(settings?: {
+  deepLifePlusActivated?: boolean;
+  lifetimePremium?: boolean;
+}): boolean {
+  return settings?.deepLifePlusActivated === true || settings?.lifetimePremium === true;
+}
 
 /**
  * Introductory free-trial length advertised on the paywall (the "Try 7 days

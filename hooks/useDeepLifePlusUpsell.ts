@@ -3,9 +3,8 @@
  * extracted so every upsell surface (player card, gem shop, ad-reward sheet,
  * the Home crown) behaves identically:
  *
- *   • prefers RevenueCat's dashboard-designed paywall when available, and falls
- *     back to the in-app SubscriptionModal otherwise (same rule the original
- *     PremiumCrownButton used);
+ *   • opens the in-app SubscriptionModal — the app's own fully-designed
+ *     DeepLife+ paywall (purchases still route through RevenueCat/StoreKit);
  *   • tracks WHICH surface opened the paywall, so we can see what converts;
  *   • exposes `active` (already a member) so a surface can hide itself — never
  *     upsell someone who already owns DeepLife+.
@@ -23,7 +22,6 @@ import { AppState } from 'react-native';
 import { haptic } from '@/utils/haptics';
 import { track } from '@/lib/analytics';
 import { subscriptionService } from '@/services/SubscriptionService';
-import { revenueCatService } from '@/services/RevenueCatService';
 import { isDeepLifePlusActive } from '@/lib/subscription/deepLifePlus';
 
 export function useDeepLifePlusUpsell(surface: string) {
@@ -48,17 +46,18 @@ export function useDeepLifePlusUpsell(surface: string) {
   const present = useCallback(async () => {
     haptic.light();
     try {
-      track('paywall_viewed', { surface });
+      // SubscriptionModal owns the `paywall_viewed` event (fired when it becomes
+      // visible). Here we record only WHICH surface opened it, so entry-point
+      // attribution is kept without double-counting the view.
+      track('paywall_open_tapped', { surface });
     } catch {
       /* analytics is best-effort — never block the paywall on it */
     }
-    // Prefer RevenueCat's prebuilt paywall when configured; otherwise open the
-    // app's custom DeepLife+ paywall.
-    if (revenueCatService.hasPaywallUI()) {
-      await revenueCatService.presentPaywall();
-      setActive(isDeepLifePlusActive());
-      return;
-    }
+    // Always open the app's own DeepLife+ paywall (SubscriptionModal): it's the
+    // fully-designed, conversion-optimized surface with the value stack, trial
+    // hook, plan anchoring and legal disclosures. Purchases still flow through
+    // RevenueCat/StoreKit via subscriptionService, so we keep RC's billing
+    // without RC's barebones dashboard-template UI.
     setOpen(true);
   }, [surface]);
 

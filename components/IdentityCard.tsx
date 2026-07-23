@@ -6,6 +6,7 @@ import { View,
   Modal,
   ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import DailyGemClaim from '@/components/DailyGemClaim';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
@@ -591,8 +592,11 @@ function IdentityCard() {
             </Text>
           </View>
         </View>
-        
-        <TouchableOpacity 
+
+        {/* Daily gem drop — 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
+        <DailyGemClaim />
+
+        <TouchableOpacity
           style={styles.netWorthContainer}
           onPress={() => setShowNetWorth(true)}
           activeOpacity={0.7}

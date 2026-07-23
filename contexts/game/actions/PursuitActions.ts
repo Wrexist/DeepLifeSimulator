@@ -75,6 +75,14 @@ export const practicePursuit = (
     /* commitment system optional */
   }
 
+  // Skill Mastery gold upgrade — the skills-axis levels up 50% faster. This is
+  // the honest wiring of the store's "All skills level up 50% faster" benefit,
+  // which previously set a flag nothing read. Applied before the level-up
+  // precompute below so the projected level and the committed XP agree.
+  if (gameState.goldUpgrades?.skill_mastery) {
+    xpGain = Math.round(xpGain * 1.5);
+  }
+
   const prevPursuit = gameState.pursuits?.[pursuitId] ?? { xp: 0, level: 0 };
   const projectedLevel = levelFromXp(prevPursuit.xp + xpGain);
   const willLevelUp = projectedLevel > (prevPursuit.level ?? 0);

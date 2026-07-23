@@ -164,3 +164,24 @@ describe('checkpointSystem — create → rewind round-trip', () => {
     expect(rewindToCheckpoint(live, cp.id)).toBeNull();
   });
 });
+
+describe('checkpointSystem — getRewindCost tiers', () => {
+  it('Time Machine upgrade halves the cost', () => {
+    const full = getRewindCost(0, false);
+    expect(getRewindCost(0, true)).toBe(Math.floor(full / 2));
+  });
+
+  it('Chronomaster makes every rewind free, overriding the Time Machine tier', () => {
+    expect(getRewindCost(0, false, true)).toBe(0);
+    expect(getRewindCost(3, true, true)).toBe(0); // free even at a high use count
+  });
+
+  it('lets a Chronomaster owner rewind with zero gems', () => {
+    const cp = createCheckpoint(heavyState(), 'Age 19');
+    const live = heavyState();
+    live.stats = { ...live.stats, gems: 0 };
+    live.checkpoints = [cp];
+    live.goldUpgrades = { ...(live.goldUpgrades ?? {}), chronomaster: true };
+    expect(rewindToCheckpoint(live, cp.id)).not.toBeNull();
+  });
+});

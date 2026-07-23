@@ -28,6 +28,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { DEEP_LIFE_PLUS_INCOME_MULTIPLIER, hasDeepLifePlusEntitlement } from '@/lib/subscription/deepLifePlus';
 import type { WeekContext } from './weekContext';
 
 export interface CareerSalaryAndPenaltyResult {
@@ -87,6 +88,11 @@ export function applyCareerSalaryAndPenalty(
         // Life Skills: Negotiation (+15%) / Executive (+10%) salary premium.
         // Clamped multiplier from the centralized accessor (never negative/NaN).
         payMultiplier *= getLifeSkillModifiers(prevState).salaryMult;
+        // DeepLife+ members earn a career-income boost (+25% salary). Read the
+        // in-state entitlement flag so weekly progression stays a pure function.
+        if (hasDeepLifePlusEntitlement(prevState.settings)) {
+          payMultiplier *= DEEP_LIFE_PLUS_INCOME_MULTIPLIER;
+        }
         if (payMultiplier !== 1) {
           careerSalary = Math.round(careerSalary * payMultiplier);
         }

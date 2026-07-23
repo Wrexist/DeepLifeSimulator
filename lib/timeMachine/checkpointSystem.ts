@@ -136,9 +136,15 @@ export function addCheckpoint(
  *
  * The Time Machine gold upgrade halves the cost — turns the 25,000-gem
  * upgrade into a real economic value-add (was previously a flag set on
- * purchase that nothing read).
+ * purchase that nothing read). The Chronomaster upgrade goes further and makes
+ * every rewind free (the top-tier gem sink), so it takes precedence.
  */
-export function getRewindCost(usesThisLife: number, hasTimeMachineUpgrade = false): number {
+export function getRewindCost(
+  usesThisLife: number,
+  hasTimeMachineUpgrade = false,
+  hasFreeRewinds = false,
+): number {
+  if (hasFreeRewinds) return 0;
   const baseCost = BASE_REWIND_COST * Math.pow(COST_MULTIPLIER, usesThisLife);
   return hasTimeMachineUpgrade ? Math.floor(baseCost / 2) : baseCost;
 }
@@ -158,7 +164,11 @@ export function rewindToCheckpoint(
     return null;
   }
 
-  const cost = getRewindCost(currentState.timeMachineUsesThisLife ?? 0, !!currentState.goldUpgrades?.time_machine);
+  const cost = getRewindCost(
+    currentState.timeMachineUsesThisLife ?? 0,
+    !!currentState.goldUpgrades?.time_machine,
+    !!currentState.goldUpgrades?.chronomaster,
+  );
   const gems = currentState.stats?.gems ?? 0;
   if (gems < cost) {
     logger.warn(`[TIME_MACHINE] Not enough gems: have ${gems}, need ${cost}`);

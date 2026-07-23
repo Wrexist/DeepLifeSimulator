@@ -25,8 +25,9 @@ import {
   Animated,
   Easing,
   Platform,
+  Linking,
 } from 'react-native';
-import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck } from 'lucide-react-native';
+import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles, Gift } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -36,6 +37,7 @@ import { revenueCatService } from '@/services/RevenueCatService';
 import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '@/lib/config/appConfig';
 import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
@@ -69,9 +71,23 @@ const TEXT_DIM = '#64748B';
 
 const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   no_ads: Ban,
+  daily_gems: Gift,
+  income_boost: TrendingUp,
   legacy_premium: Crown,
   cosmetics: Palette,
   welcome_gems: Gem,
+  vip_support: Headphones,
+};
+
+// Short right-aligned value chip per benefit (mockup-style). Honest labels only.
+const BENEFIT_CHIP: Record<string, string> = {
+  no_ads: 'AD-FREE',
+  daily_gems: '250/DAY',
+  income_boost: '+25%',
+  legacy_premium: 'ALL ACCESS',
+  cosmetics: 'EXCLUSIVE',
+  welcome_gems: '+500',
+  vip_support: 'VIP',
 };
 
 export default function SubscriptionModal({ visible, onClose }: Props) {
@@ -90,33 +106,84 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const active = isDeepLifePlusActive();
 
+  // Store-confirmed intro-offer eligibility for the selected plan (checked below).
+  // Defaults to 'unknown', which keeps the trial copy; only a definitive store
+  // 'ineligible' hides it.
+  const [introStatus, setIntroStatus] = useState<'eligible' | 'ineligible' | 'unknown'>('unknown');
+
   const trialDays = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS;
   const perWeek = useMemo(() => yearlyPerWeek(), []);
   const savingsPct = useMemo(() => yearlySavingsPercent(), []);
-  const trialEligible = !active && !lifetime && trialDays > 0;
+  // Advertise the free trial only when the store hasn't told us the user is
+  // INELIGIBLE (e.g. already consumed it) — otherwise "$0.00 today" would be a
+  // false promise and StoreKit would charge immediately. 'unknown' (Android /
+  // dev / before the check resolves) keeps the trial copy: Play enforces the
+  // real terms at checkout, and iOS is re-checked in the effect below.
+  const trialEligible = !active && !lifetime && trialDays > 0 && introStatus !== 'ineligible';
 
-  // Crown glow — a slow gold pulse behind the crest. Native-driven; static when
-  // the OS "Reduce Motion" setting is on.
+  // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
+  // twinkling hero sparkles, and a periodic light sweep across the CTA. All
+  // native-driven and disabled under the OS "Reduce Motion" setting.
   const glow = useRef(new Animated.Value(0)).current;
+  const sparkle = useRef(new Animated.Value(0)).current; // hero twinkle
+  const shine = useRef(new Animated.Value(0)).current;    // CTA sweep
   useEffect(() => {
     if (!visible) return;
     if (reducedMotion) {
       glow.setValue(1);
+      sparkle.setValue(0.6);
+      shine.setValue(0);
       return;
     }
-    const loop = Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0.35, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [visible, reducedMotion, glow]);
+    const sparkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkle, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(sparkle, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(500),
+      ]),
+    );
+    // A light band sweeps across the CTA every ~3.5s (premium "shine").
+    const shineLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shine, { toValue: 1, duration: 1050, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.delay(2400),
+      ]),
+    );
+    glowLoop.start();
+    sparkleLoop.start();
+    shineLoop.start();
+    return () => {
+      glowLoop.stop();
+      sparkleLoop.stop();
+      shineLoop.stop();
+    };
+  }, [visible, reducedMotion, glow, sparkle, shine]);
 
   useEffect(() => {
     if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
   }, [visible, active]);
+
+  // Re-check StoreKit/RevenueCat intro-offer eligibility for the selected plan
+  // whenever the sheet opens or the plan changes, so the free-trial copy is only
+  // shown to users the store will actually grant a trial. Best-effort: any
+  // failure leaves 'unknown' (trial copy stays).
+  useEffect(() => {
+    if (!visible || active || lifetime) return;
+    let cancelled = false;
+    setIntroStatus('unknown'); // reset while re-checking the newly selected plan
+    void revenueCatService.getIntroEligibility(selected.productId).then((status) => {
+      if (!cancelled) setIntroStatus(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, active, lifetime, selected.productId]);
 
   const handleSubscribe = useCallback(async () => {
     if (busy) return;
@@ -172,6 +239,15 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     void subscriptionService.cancelSubscription(selected.productId);
   }, [selected]);
 
+  const openLink = useCallback((url: string, what: string) => {
+    Linking.openURL(url).catch((error) => {
+      logger.error('[SubscriptionModal] failed to open link', { what, error });
+      setMessage("Couldn't open this link. Please try again.");
+    });
+  }, []);
+  const openTerms = useCallback(() => openLink(TERMS_OF_USE_URL, 'terms'), [openLink]);
+  const openPrivacy = useCallback(() => openLink(PRIVACY_POLICY_URL, 'privacy'), [openLink]);
+
   const selectYearly = useCallback(() => { setLifetime(false); setSelected(yearlyPlan); }, [yearlyPlan]);
   const selectPlan = useCallback((plan: DeepLifePlusPlan) => { setLifetime(false); setSelected(plan); }, []);
   const selectLifetime = useCallback(() => setLifetime(true), []);
@@ -180,6 +256,21 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     opacity: glow,
     transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
   };
+  const sparkleAStyle = {
+    opacity: sparkle,
+    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.1] }) }],
+  };
+  const sparkleBStyle = {
+    opacity: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1, 0.2] }),
+    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1.1, 0.6] }) }],
+  };
+  const shineStyle = {
+    opacity: shine.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.5, 0] }),
+    transform: [
+      { translateX: shine.interpolate({ inputRange: [0, 1], outputRange: [scale(-160), scale(420)] }) },
+      { skewX: '-18deg' },
+    ],
+  };
 
   // Primary CTA copy — trial-led when eligible.
   const ctaTitle = active
@@ -187,14 +278,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     : lifetime
       ? `Unlock Forever · ${DEEP_LIFE_PLUS_LIFETIME.price}`
       : trialEligible
-        ? `Start My ${trialDays}-Day Free Trial`
+        ? 'Start for $0.00 Today'
         : `Continue · ${selected.price} ${selected.unit}`;
   const ctaSub = active
     ? undefined
     : lifetime
       ? 'One-time payment · yours forever, never renews'
       : trialEligible
-        ? `then ${selected.price} ${selected.unit} · cancel anytime`
+        ? `${trialDays} days free, then ${selected.price} ${selected.unit} · cancel anytime`
         : 'Cancel anytime';
 
   return (
@@ -212,11 +303,17 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <X size={scale(20)} color={TEXT_MUTED} />
           </TouchableOpacity>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Hero */}
             <View style={styles.hero}>
               <View style={styles.crownWrap}>
                 <Animated.View style={[styles.crownGlow, glowStyle]} pointerEvents="none" />
+                <Animated.View style={[styles.sparkleA, sparkleAStyle]} pointerEvents="none">
+                  <Sparkles size={scale(15)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+                </Animated.View>
+                <Animated.View style={[styles.sparkleB, sparkleBStyle]} pointerEvents="none">
+                  <Sparkles size={scale(11)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+                </Animated.View>
                 <View style={styles.crownChip}>
                   <Crown size={scale(34)} color={GOLD} fill={GOLD} />
                 </View>
@@ -242,6 +339,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                       <Text style={styles.benefitTitle}>{b.title}</Text>
                       <Text style={styles.benefitDesc}>{b.description}</Text>
                     </View>
+                    {BENEFIT_CHIP[b.id] ? (
+                      <View style={styles.benefitChip}>
+                        <Text style={styles.benefitChipText}>{BENEFIT_CHIP[b.id]}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 );
               })}
@@ -252,10 +354,16 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {/* Free-trial banner — the hook */}
                 {trialEligible ? (
                   <View style={styles.trialBanner}>
-                    <Text style={styles.trialBannerTitle}>{trialDays} days free</Text>
-                    <Text style={styles.trialBannerSub}>
-                      Try everything, commitment-free. Cancel anytime before it ends and pay nothing.
-                    </Text>
+                    <View style={styles.trialBannerBody}>
+                      <Text style={styles.trialBannerTitle}>{trialDays} days risk-free</Text>
+                      <Text style={styles.trialBannerSub}>
+                        Try every perk. Love it or cancel — no charge.
+                      </Text>
+                    </View>
+                    <View style={styles.riskSeal}>
+                      <Text style={styles.riskSealPct}>100%</Text>
+                      <Text style={styles.riskSealLabel}>RISK-FREE</Text>
+                    </View>
                   </View>
                 ) : null}
 
@@ -327,12 +435,16 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             accessibilityRole="button"
             accessibilityLabel={ctaTitle}
           >
+            <Animated.View style={[styles.ctaShine, shineStyle]} pointerEvents="none" />
             {busy ? (
               <ActivityIndicator color="#1A1206" />
             ) : (
               <>
                 <Text style={styles.ctaText}>{ctaTitle}</Text>
                 {ctaSub ? <Text style={styles.ctaSub}>{ctaSub}</Text> : null}
+                <View style={styles.ctaChevronWrap} pointerEvents="none">
+                  <ChevronRight size={scale(22)} color="#1A1206" />
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -365,6 +477,20 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={handleManage} accessibilityRole="button" accessibilityLabel="Manage subscription">
               <Text style={styles.footerLink}>Manage</Text>
+            </TouchableOpacity>
+            {/* Apple requires a Terms (EULA) link on the paywall; the standard
+                EULA is iOS-specific, so link it on iOS only. */}
+            {Platform.OS === 'ios' ? (
+              <>
+                <Text style={styles.footerDivider}>·</Text>
+                <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
+                  <Text style={styles.footerLink}>Terms</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={openPrivacy} accessibilityRole="link" accessibilityLabel="Privacy Policy">
+              <Text style={styles.footerLink}>Privacy</Text>
             </TouchableOpacity>
           </View>
 
@@ -409,6 +535,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(148,163,184,0.14)',
   },
+  // flexShrink lets the scroll area shrink within the maxHeight-clamped sheet so
+  // the CTA + trust/footer below it stay pinned and visible while the content
+  // (hero, 6 benefits, plans) scrolls internally.
+  scroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: scale(6) },
 
   // Hero
@@ -421,6 +551,8 @@ const styles = StyleSheet.create({
     borderRadius: scale(60),
     backgroundColor: 'rgba(250, 204, 21, 0.22)',
   },
+  sparkleA: { position: 'absolute', top: scale(-2), right: scale(2) },
+  sparkleB: { position: 'absolute', bottom: scale(4), left: scale(4) },
   crownChip: {
     width: scale(76),
     height: scale(76),
@@ -458,9 +590,22 @@ const styles = StyleSheet.create({
   benefitText: { flex: 1 },
   benefitTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
   benefitDesc: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(1) },
+  benefitChip: {
+    borderWidth: 1,
+    borderColor: GOLD_BORDER,
+    backgroundColor: GOLD_TINT,
+    borderRadius: scale(9),
+    paddingHorizontal: scale(9),
+    paddingVertical: scale(5),
+    marginLeft: scale(8),
+  },
+  benefitChipText: { color: GOLD_SOFT, fontSize: fontScale(11), fontWeight: '900', letterSpacing: 0.3 },
 
   // Trial banner
   trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
     backgroundColor: GOLD_TINT,
     borderColor: GOLD_BORDER,
     borderWidth: 1,
@@ -468,10 +613,22 @@ const styles = StyleSheet.create({
     paddingVertical: scale(12),
     paddingHorizontal: scale(14),
     marginBottom: scale(14),
-    alignItems: 'center',
   },
-  trialBannerTitle: { fontSize: fontScale(18), fontWeight: '900', color: GOLD_SOFT },
-  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3), textAlign: 'center' },
+  trialBannerBody: { flex: 1 },
+  trialBannerTitle: { fontSize: fontScale(17), fontWeight: '900', color: GOLD_SOFT },
+  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3) },
+  riskSeal: {
+    width: scale(58),
+    height: scale(58),
+    borderRadius: scale(29),
+    borderWidth: 1.5,
+    borderColor: GOLD,
+    backgroundColor: 'rgba(250,204,21,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  riskSealPct: { fontSize: fontScale(16), fontWeight: '900', color: GOLD_SOFT, lineHeight: fontScale(18) },
+  riskSealLabel: { fontSize: fontScale(8), fontWeight: '900', color: GOLD_SOFT, letterSpacing: 0.4 },
 
   // Plans
   plansRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
@@ -528,15 +685,24 @@ const styles = StyleSheet.create({
     paddingVertical: scale(13),
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: GOLD_DEEP,
     shadowOffset: { width: 0, height: scale(6) },
     shadowOpacity: 0.4,
     shadowRadius: scale(14),
     elevation: 8,
   },
+  ctaShine: {
+    position: 'absolute',
+    top: -scale(20),
+    bottom: -scale(20),
+    width: scale(70),
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+  },
   ctaDisabled: { opacity: 0.6 },
   ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2 },
-  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2) },
+  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2), textAlign: 'center', paddingHorizontal: scale(24) },
+  ctaChevronWrap: { position: 'absolute', right: scale(16), top: 0, bottom: 0, justifyContent: 'center' },
 
   // Trust + footer
   trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },

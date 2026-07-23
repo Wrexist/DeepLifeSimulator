@@ -15,7 +15,6 @@ import { haptic } from '@/utils/haptics';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { subscriptionService } from '@/services/SubscriptionService';
-import { revenueCatService } from '@/services/RevenueCatService';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS, isDeepLifePlusActive } from '@/lib/subscription/deepLifePlus';
 
 const GOLD = '#FACC15';
@@ -70,15 +69,11 @@ export default function PremiumCrownButton({ variant = 'full', style }: Props) {
     return () => loop.stop();
   }, [reducedMotion, active, pulse]);
 
-  const onPress = useCallback(async () => {
+  const onPress = useCallback(() => {
     haptic.light();
-    // Prefer RevenueCat's prebuilt Paywall (designed in the dashboard) when it's
-    // available; otherwise open the app's custom DeepLife+ paywall.
-    if (revenueCatService.hasPaywallUI()) {
-      await revenueCatService.presentPaywall();
-      setActive(isDeepLifePlusActive());
-      return;
-    }
+    // Always open the app's own DeepLife+ paywall (SubscriptionModal) — the
+    // fully-designed surface — rather than RevenueCat's dashboard template.
+    // Purchases still route through RevenueCat/StoreKit via subscriptionService.
     setOpen(true);
   }, []);
 

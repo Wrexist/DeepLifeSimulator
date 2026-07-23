@@ -2,15 +2,29 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import {
   applyDeepLifePlusBenefits,
   reconcileSubscriptionBenefits,
+  claimDailyGems,
+  canClaimDailyGems,
 } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
   DEEP_LIFE_PLUS_WELCOME_GEMS,
+  DEEP_LIFE_PLUS_DAILY_GEMS,
+  DAILY_GEMS_BASE,
+  DEEP_LIFE_PLUS_UPGRADE_DISCOUNT,
+  dailyGemMemberMultiple,
+  dailyGemExtraPerYear,
+  memberUpgradeCost,
+  deepLifePlusWeekKeys,
+  weekKeysForDayKey,
+  isPerfectDeepLifePlusWeek,
   getDeepLifePlusPlan,
   isDeepLifePlusProduct,
+  buildDeepLifePlusWeekStatus,
+  utcDayKey,
 } from '@/lib/subscription/deepLifePlus';
 import { SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
+import type { GameSettings, GameState } from '@/contexts/game/types';
 
 describe('DeepLife+ config', () => {
   it('exposes a monthly and a yearly plan with prices', () => {
@@ -31,8 +45,14 @@ describe('DeepLife+ config', () => {
   });
 
   it('lists only deliverable benefits', () => {
+    // Every id here maps to functionality the game actually grants:
+    //   no_ads/welcome_gems/legacy_premium/cosmetics → applyDeepLifePlusBenefits + tier
+    //   income_boost → +25% career salary in applyCareerSalaryAndPenalty
+    //   vip_support  → priority-flagged support in HelpModal
     const ids = DEEP_LIFE_PLUS_BENEFITS.map((b) => b.id).sort();
-    expect(ids).toEqual(['cosmetics', 'legacy_premium', 'no_ads', 'welcome_gems'].sort());
+    expect(ids).toEqual(
+      ['cosmetics', 'daily_gems', 'income_boost', 'legacy_premium', 'no_ads', 'vip_support', 'welcome_gems'].sort(),
+    );
   });
 });
 
@@ -67,6 +87,160 @@ describe('applyDeepLifePlusBenefits', () => {
     applyDeepLifePlusBenefits(s);
     expect(s.stats.gems).toBe(5);
     expect(s.settings.deepLifePlusActivated).toBeUndefined();
+  });
+});
+
+describe('claimDailyGems (tiered daily gem drop)', () => {
+  const TODAY = '2026-07-23';
+  const YESTERDAY = '2026-07-22';
+  const member = (over: Partial<GameSettings> = {}): GameState =>
+    createTestGameState({ stats: { gems: 0 }, settings: { deepLifePlusActivated: true, ...over } });
+  const free = (over: Partial<GameSettings> = {}): GameState =>
+    createTestGameState({ stats: { gems: 0 }, settings: { ...over } });
+
+  it('grants a member the DeepLife+ daily amount (250)', () => {
+    const next = claimDailyGems(member(), TODAY);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+    expect(next.settings.deepLifePlusGemClaimDays).toContain(TODAY); // recorded for the streak strip
+  });
+
+  it('grants a free player the base daily amount (20)', () => {
+    expect(claimDailyGems(free(), TODAY).stats.gems).toBe(DAILY_GEMS_BASE);
+  });
+
+  it('is a no-op on a repeat same-day claim (returns the same state)', () => {
+    const claimed = member({ deepLifePlusLastGemClaim: TODAY });
+    expect(claimDailyGems(claimed, TODAY)).toBe(claimed);
+  });
+
+  it('is claimable again on a new day', () => {
+    const claimedYesterday = free({ deepLifePlusLastGemClaim: YESTERDAY });
+    expect(claimDailyGems(claimedYesterday, TODAY).stats.gems).toBe(DAILY_GEMS_BASE);
+  });
+
+  it('a lifetime-premium owner gets the member amount', () => {
+    const lifer = createTestGameState({ stats: { gems: 0 }, settings: { lifetimePremium: true } });
+    expect(claimDailyGems(lifer, TODAY).stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+  });
+
+  it('canClaim is only the same-day guard (everyone can claim)', () => {
+    expect(canClaimDailyGems(free(), TODAY)).toBe(true);
+    expect(canClaimDailyGems(member(), TODAY)).toBe(true);
+    expect(canClaimDailyGems(member({ deepLifePlusLastGemClaim: TODAY }), TODAY)).toBe(false);
+  });
+
+  it('sells the difference truthfully: member multiple is floored, never overstated', () => {
+    // 250 vs 20 → 12.5, floored to 12 so "12× the free daily" is never a lie.
+    expect(dailyGemMemberMultiple()).toBe(Math.floor(DEEP_LIFE_PLUS_DAILY_GEMS / DAILY_GEMS_BASE));
+    expect(dailyGemMemberMultiple() * DAILY_GEMS_BASE).toBeLessThanOrEqual(DEEP_LIFE_PLUS_DAILY_GEMS);
+  });
+
+  it('per-year gap is the daily surplus times 365', () => {
+    expect(dailyGemExtraPerYear()).toBe((DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365);
+  });
+
+  it('pays a perfect-week bonus (2× on the day that completes Mon→Sun)', () => {
+    // Seed the first six days of the current week as already claimed, then claim
+    // the seventh — that claim should pay the daily amount PLUS a bonus daily.
+    const keys = weekKeysForDayKey(TODAY);
+    const seventh = keys[keys.length - 1];
+    const firstSix = keys.slice(0, 6);
+    const s = free({ deepLifePlusGemClaimDays: firstSix });
+    const next = claimDailyGems(s, seventh);
+    expect(next.stats.gems).toBe(DAILY_GEMS_BASE * 2); // daily + perfect-week bonus
+  });
+
+  it('a normal mid-week claim pays only the daily amount (no bonus)', () => {
+    const keys = weekKeysForDayKey(TODAY);
+    const s = free({ deepLifePlusGemClaimDays: [keys[0]] });
+    expect(claimDailyGems(s, keys[2]).stats.gems).toBe(DAILY_GEMS_BASE); // just the daily
+  });
+});
+
+describe('memberUpgradeCost (DeepLife+ discount on gem-spend upgrades)', () => {
+  const member = { deepLifePlusActivated: true };
+  const lifer = { lifetimePremium: true };
+
+  it('charges free players the full price', () => {
+    expect(memberUpgradeCost(5000, {})).toBe(5000);
+    expect(memberUpgradeCost(5000, undefined)).toBe(5000);
+  });
+
+  it('gives members the configured discount', () => {
+    const expected = Math.round(5000 * (1 - DEEP_LIFE_PLUS_UPGRADE_DISCOUNT));
+    expect(memberUpgradeCost(5000, member)).toBe(expected);
+    expect(memberUpgradeCost(5000, lifer)).toBe(expected);
+    expect(expected).toBeLessThan(5000);
+  });
+
+  it('never returns below 1 and sanitizes a garbage base', () => {
+    expect(memberUpgradeCost(0, member)).toBe(0);
+    expect(memberUpgradeCost(-100, member)).toBe(0);
+    expect(memberUpgradeCost(Number.NaN, member)).toBe(0);
+  });
+});
+
+describe('deepLifePlusWeekKeys / weekKeysForDayKey', () => {
+  it('returns 7 Mon→Sun keys and agrees with the day-key variant', () => {
+    const now = new Date('2026-07-23T12:00:00Z'); // a Thursday
+    const fromDate = deepLifePlusWeekKeys(now);
+    expect(fromDate).toHaveLength(7);
+    expect(fromDate[0] < fromDate[6]).toBe(true); // Monday first, sorted ascending
+    expect(weekKeysForDayKey('2026-07-23')).toEqual(fromDate);
+  });
+
+  it('returns [] for a malformed day key', () => {
+    expect(weekKeysForDayKey('not-a-date')).toEqual([]);
+  });
+
+  it('isPerfectDeepLifePlusWeek is true only when all 7 days are claimed', () => {
+    const now = new Date('2026-07-23T12:00:00Z');
+    const keys = deepLifePlusWeekKeys(now);
+    expect(isPerfectDeepLifePlusWeek(keys, now)).toBe(true);
+    expect(isPerfectDeepLifePlusWeek(keys.slice(0, 6), now)).toBe(false);
+    expect(isPerfectDeepLifePlusWeek([], now)).toBe(false);
+  });
+});
+
+describe('buildDeepLifePlusWeekStatus (Mon→Sun streak strip)', () => {
+  // Weekday-independent: derive the actual week keys from the function's own
+  // output so the assertions hold whatever calendar day `now` lands on.
+  const now = new Date('2026-07-26T12:00:00Z');
+  const today = utcDayKey(now);
+  const weekKeys = buildDeepLifePlusWeekStatus([], now).map((c) => c.key);
+  const pastKeys = weekKeys.filter((k) => k < today);
+  const futureKeys = weekKeys.filter((k) => k > today);
+
+  it('returns Mon→Sun cells', () => {
+    const cells = buildDeepLifePlusWeekStatus([], now);
+    expect(cells).toHaveLength(7);
+    expect(cells.map((c) => c.label)).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S']);
+  });
+
+  it('with no claims: today is "today", past days are "inactive", future is "future"', () => {
+    const s = Object.fromEntries(buildDeepLifePlusWeekStatus([], now).map((c) => [c.key, c.status]));
+    expect(s[today]).toBe('today');
+    pastKeys.forEach((k) => expect(s[k]).toBe('inactive'));
+    futureKeys.forEach((k) => expect(s[k]).toBe('future'));
+  });
+
+  it('marks claimed days green and skipped days (after the first claim) as missed', () => {
+    if (pastKeys.length < 2) return; // guard: needs at least two past days
+    const claim = [pastKeys[0], today];
+    const s = Object.fromEntries(buildDeepLifePlusWeekStatus(claim, now).map((c) => [c.key, c.status]));
+    expect(s[pastKeys[0]]).toBe('claimed');
+    expect(s[today]).toBe('claimed');
+    pastKeys.slice(1).forEach((k) => expect(s[k]).toBe('missed'));
+  });
+
+  it('never shows a red cross before the first-ever claim (inactive, not missed)', () => {
+    if (pastKeys.length < 2) return;
+    // First claim is the LAST past day → every earlier past day is pre-membership.
+    const s = Object.fromEntries(
+      buildDeepLifePlusWeekStatus([pastKeys[pastKeys.length - 1]], now).map((c) => [c.key, c.status]),
+    );
+    pastKeys.slice(0, -1).forEach((k) => expect(s[k]).toBe('inactive'));
   });
 });
 
