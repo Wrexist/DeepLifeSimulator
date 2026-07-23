@@ -33,6 +33,13 @@ const INK = '#1A1206';
 // Unique gradient id per badge instance so multiple crowns don't collide on web.
 let _coinGradSeq = 0;
 
+// QA/testing escape hatch: when this build-time env is 'true', the upsell renders
+// even for members (who normally never see it), so the banner/badge/pill can be
+// verified on a premium account in an internal-testing build. Metro inlines
+// EXPO_PUBLIC_* at build time, so it is compiled to `false` in any normal
+// production build where the flag is unset — it can never leak to real users.
+const FORCE_UPSELL = process.env.EXPO_PUBLIC_FORCE_DEEPLIFE_UPSELL === 'true';
+
 interface Props {
   variant?: 'banner' | 'inline' | 'badge';
   /** Analytics label for which surface opened the paywall. */
@@ -49,12 +56,15 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
   const coinGradId = useRef(`dlpCoin${_coinGradSeq++}`).current;
 
+  // A member normally hides every surface — unless the force flag is on (QA).
+  const memberHidden = active && !FORCE_UPSELL;
+
   useEffect(() => {
     // Only the badge animates; the banner uses baked-in art and the inline pill
     // is static.
-    if (reducedMotion || active || variant !== 'badge') {
+    if (reducedMotion || memberHidden || variant !== 'badge') {
       // Leave a calm, visible glow when motion is off (0 would read as "off").
-      pulse.setValue(active ? 0 : 0.35);
+      pulse.setValue(memberHidden ? 0 : 0.35);
       breathe.setValue(0);
       twinkle.setValue(0);
       return;
@@ -88,10 +98,10 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
       breatheLoop.stop();
       twinkleLoop.stop();
     };
-  }, [reducedMotion, active, pulse, breathe, twinkle, variant]);
+  }, [reducedMotion, memberHidden, pulse, breathe, twinkle, variant]);
 
-  // Never upsell an existing member.
-  if (active) return null;
+  // Never upsell an existing member (unless the QA force flag is on).
+  if (memberHidden) return null;
 
   const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0;
   const trialText = showTrial ? `${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-DAY FREE` : 'PREMIUM';

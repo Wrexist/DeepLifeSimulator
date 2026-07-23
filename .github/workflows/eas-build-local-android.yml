@@ -47,6 +47,13 @@ on:
         # Google review wait — the safe default. Promote to Production from the
         # Play Console when you're happy, or pick "production" here to go live.
         default: internal
+      force_banner:
+        description: 'QA ONLY: force the DeepLife+ upsell to show even for premium accounts (do not submit this build to Play)'
+        type: boolean
+        # Bakes EXPO_PUBLIC_FORCE_DEEPLIFE_UPSELL=true so the banner/badge/pill
+        # render for members too — lets you verify them on your own premium
+        # account in an internal build. Off for any real release.
+        default: false
 
 concurrency:
   group: android-local-release
@@ -84,6 +91,14 @@ jobs:
         run: test -n "$EXPO_TOKEN" || { echo "::error::EXPO_TOKEN repo secret is not set — add it under Settings ▸ Secrets ▸ Actions"; exit 1; }
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # Guardrail: a force-banner build shows the upsell to paying members, so it
+      # must never reach Google Play. Refuse the combination up front.
+      - name: Refuse to submit a QA force-banner build
+        if: ${{ inputs.submit && inputs.force_banner }}
+        run: |
+          echo "::error::force_banner is a QA-only flag that shows the upsell to premium accounts — it must not be uploaded to Play. Untick Submit (build the .aab and sideload/internal-test it), or untick force_banner for a real release."
+          exit 1
 
       # Fail fast if Submit is ticked but the Play service-account key is missing,
       # so we don't spend a whole build only to fail at the upload step.
@@ -212,6 +227,9 @@ jobs:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"'
           # Consumed by app.config.js → android.versionCode (appVersionSource local).
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          # QA flag (see the force_banner input): when true, Metro inlines it so
+          # the DeepLife+ upsell renders for members too. Empty on real releases.
+          EXPO_PUBLIC_FORCE_DEEPLIFE_UPSELL: ${{ inputs.force_banner && 'true' || '' }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'
           EXPO_PUBLIC_ENABLE_ATT: 'true'
