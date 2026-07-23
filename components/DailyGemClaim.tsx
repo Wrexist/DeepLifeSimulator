@@ -26,6 +26,11 @@ import {
 } from '@/lib/subscription/deepLifePlus';
 import { claimDailyDeepLifePlusGems } from '@/contexts/game/actions/SubscriptionActions';
 
+// Fixed gold palette — intentionally NOT theme-driven, so the DeepLife+ surfaces
+// keep their premium look in light and dark mode (same choice the paywall makes).
+// Solid fills (no LinearGradient): the app's LinearGradient is the flat fallback
+// — expo-linear-gradient crashes on New Arch — so it would render a solid colour
+// here anyway. INK text on the gold button reads on any background.
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
 const INK = '#1A1206';

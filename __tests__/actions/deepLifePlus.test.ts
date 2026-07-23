@@ -14,6 +14,7 @@ import {
   isDeepLifePlusProduct,
 } from '@/lib/subscription/deepLifePlus';
 import { SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
+import type { GameSettings, GameState } from '@/contexts/game/types';
 
 describe('DeepLife+ config', () => {
   it('exposes a monthly and a yearly plan with prices', () => {
@@ -82,7 +83,7 @@ describe('applyDeepLifePlusBenefits', () => {
 describe('claimDailyDeepLifePlusGems (members-only daily gem drop)', () => {
   const TODAY = '2026-07-23';
   const YESTERDAY = '2026-07-22';
-  const member = (over = {}) =>
+  const member = (over: Partial<GameSettings> = {}): GameState =>
     createTestGameState({ stats: { gems: 0 }, settings: { deepLifePlusActivated: true, ...over } });
 
   it('grants the daily gems to a member who has not claimed today', () => {

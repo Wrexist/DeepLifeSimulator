@@ -19,7 +19,9 @@ import {
 } from '@/lib/subscription/deepLifePlus';
 
 const safeAddGems = (base: number | undefined, amount: number): number => {
-  const b = typeof base === 'number' && isFinite(base) ? base : 0;
+  // Normalize a possibly-corrupted balance too: a finite negative/fractional
+  // `base` must not survive (a stored -100 would otherwise become 400 here).
+  const b = typeof base === 'number' && isFinite(base) ? Math.max(0, Math.floor(base)) : 0;
   const a = isFinite(amount) && amount > 0 ? Math.floor(amount) : 0;
   return b + a;
 };

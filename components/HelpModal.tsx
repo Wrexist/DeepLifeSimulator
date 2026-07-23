@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { logger } from '@/utils/logger';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, Linking } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
@@ -679,6 +680,28 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // DeepLife+ members get a priority-flagged support request — a real VIP
+  // support channel (owner triages these first).
+  const handleContactSupport = useCallback(() => {
+    const isVip = hasDeepLifePlusEntitlement(gameState.settings);
+    const subject = isVip
+      ? 'DeepLife+ VIP Support Request'
+      : 'DeepLife Simulator - Support Request';
+    const tier = isVip ? '\nMembership: DeepLife+ (VIP)' : '';
+    const body = `Hello,\n\nI need help with DeepLife Simulator.\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}${tier}\n\nPlease describe your issue here:`;
+    const emailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    Linking.openURL(emailUrl)
+      .then(() => {
+        Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
+      })
+      .catch((error) => {
+        // Log the failure (never the body — it contains player details).
+        logger.error('[HelpModal] failed to open support email', { error });
+        Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
+      });
+  }, [gameState]);
+
   // Smart search with relevance ranking
   const filtered = useMemo(() => {
     if (!search.trim()) {
@@ -803,23 +826,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
 
           <TouchableOpacity
             style={[styles.contactButton, settings.darkMode && styles.contactButtonDark]}
-            onPress={() => {
-              // DeepLife+ members get a priority-flagged support request — a real
-              // VIP support channel (owner triages these first).
-              const isVip = hasDeepLifePlusEntitlement(gameState.settings);
-              const subject = isVip
-                ? 'DeepLife+ VIP Support Request'
-                : 'DeepLife Simulator - Support Request';
-              const tier = isVip ? '\nMembership: DeepLife+ (VIP)' : '';
-              const body = `Hello,\n\nI need help with DeepLife Simulator.\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}${tier}\n\nPlease describe your issue here:`;
-              const emailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-              Linking.openURL(emailUrl).then(() => {
-                Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
-              }).catch(() => {
-                Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
-              });
-            }}
+            onPress={handleContactSupport}
           >
             {hasDeepLifePlusEntitlement(gameState.settings) ? (
               <>
