@@ -11,21 +11,27 @@
  * RevenueCat paywall isn't available), so you can drop it anywhere.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ImageBackground, Platform, StyleProp, ViewStyle } from 'react-native';
 import { Crown, ChevronRight, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus';
 import { scale, fontScale } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+// Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
+// with a deliberately clean center so the DeepLife+ copy stays legible on top.
+const BANNER_ART = require('@/assets/images/deeplife-plus-banner.webp');
 
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
 const GOLD_DEEP = '#B45309';
+const GOLD_HILITE = '#FFFDF0';
 const INK = '#1A1206';
+
+// Unique gradient id per badge instance so multiple crowns don't collide on web.
+let _coinGradSeq = 0;
 
 interface Props {
   variant?: 'banner' | 'inline' | 'badge';
@@ -38,22 +44,51 @@ interface Props {
 export default function DeepLifePlusUpsell({ variant = 'banner', surface, style }: Props) {
   const { active, open, present, close } = useDeepLifePlusUpsell(surface);
   const reducedMotion = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;     // glow halo breathe
+  const breathe = useRef(new Animated.Value(0)).current;   // coin scale breathe
+  const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
+  const coinGradId = useRef(`dlpCoin${_coinGradSeq++}`).current;
 
   useEffect(() => {
-    if (reducedMotion || active) {
-      pulse.setValue(0);
+    // Only the badge animates; the banner uses baked-in art and the inline pill
+    // is static.
+    if (reducedMotion || active || variant !== 'badge') {
+      // Leave a calm, visible glow when motion is off (0 would read as "off").
+      pulse.setValue(active ? 0 : 0.35);
+      breathe.setValue(0);
+      twinkle.setValue(0);
       return;
     }
-    const loop = Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [reducedMotion, active, pulse]);
+    const breatheLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    // A quick glint every ~2.5s: pause, flash in, fade out, long pause.
+    const twinkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.timing(twinkle, { toValue: 1, duration: 340, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(twinkle, { toValue: 0, duration: 520, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.delay(1700),
+      ]),
+    );
+    glowLoop.start();
+    breatheLoop.start();
+    twinkleLoop.start();
+    return () => {
+      glowLoop.stop();
+      breatheLoop.stop();
+      twinkleLoop.stop();
+    };
+  }, [reducedMotion, active, pulse, breathe, twinkle, variant]);
 
   // Never upsell an existing member.
   if (active) return null;
@@ -62,10 +97,16 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const trialText = showTrial ? `${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-DAY FREE` : 'PREMIUM';
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] });
   const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.25] });
+  const breatheScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
+  const twinkleScale = twinkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.05] });
   const modal = <SubscriptionModal visible={open} onClose={close} />;
 
-  // ── Avatar badge: a small glowing crown the parent positions absolutely ──
+  // ── Avatar badge: a polished gold "coin" crown the parent positions absolutely.
+  // A real radial gradient (react-native-svg — the app's LinearGradient is the
+  // flat fallback since expo-linear-gradient crashes on New Arch), a crisp white
+  // rim, a pulsing glow halo, a gentle breathe, and a periodic sparkle glint. ──
   if (variant === 'badge') {
+    const coin = scale(26);
     return (
       <>
         <TouchableOpacity
@@ -80,14 +121,27 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
             style={[styles.badgeGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             pointerEvents="none"
           />
-          <LinearGradient
-            colors={[GOLD_SOFT, GOLD, GOLD_DEEP]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badgeCircle}
+          <Animated.View style={[styles.badgeCircle, { transform: [{ scale: breatheScale }] }]}>
+            <Svg width={coin} height={coin} viewBox="0 0 26 26" style={StyleSheet.absoluteFill}>
+              <Defs>
+                <RadialGradient id={coinGradId} cx="34%" cy="28%" r="78%">
+                  <Stop offset="0%" stopColor={GOLD_HILITE} />
+                  <Stop offset="32%" stopColor={GOLD_SOFT} />
+                  <Stop offset="70%" stopColor={GOLD} />
+                  <Stop offset="100%" stopColor={GOLD_DEEP} />
+                </RadialGradient>
+              </Defs>
+              <Circle cx="13" cy="13" r="12.3" fill={`url(#${coinGradId})`} />
+              <Circle cx="13" cy="13" r="12.3" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
+            </Svg>
+            <Crown size={scale(13)} color={INK} fill={INK} strokeWidth={2} />
+          </Animated.View>
+          <Animated.View
+            style={[styles.badgeSparkle, { opacity: twinkle, transform: [{ scale: twinkleScale }] }]}
+            pointerEvents="none"
           >
-            <Crown size={scale(14)} color={INK} fill={INK} strokeWidth={2} />
-          </LinearGradient>
+            <Sparkles size={scale(9)} color={GOLD_HILITE} fill={GOLD_HILITE} />
+          </Animated.View>
         </TouchableOpacity>
         {modal}
       </>
@@ -116,7 +170,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
     );
   }
 
-  // ── Shop banner: the fancy full-width card ──
+  // ── Shop banner: the fancy full-width card, over bespoke crown art ──
   return (
     <>
       <TouchableOpacity
@@ -126,26 +180,19 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
         accessibilityLabel={`DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''} — ad-free plus exclusive perks`}
         style={[styles.banner, style]}
       >
-        <LinearGradient
-          colors={['#2A2140', '#3B2B12', '#4A3410']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <ImageBackground
+          source={BANNER_ART}
           style={styles.bannerFill}
+          imageStyle={styles.bannerImg}
+          resizeMode="cover"
         >
-          <View style={styles.bannerCrownWrap}>
-            <Animated.View
-              style={[styles.bannerGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
-              pointerEvents="none"
-            />
-            <LinearGradient
-              colors={[GOLD_SOFT, GOLD, GOLD_DEEP]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bannerCrownCircle}
-            >
-              <Crown size={scale(22)} color={INK} fill={INK} strokeWidth={2} />
-            </LinearGradient>
-          </View>
+          {/* The art keeps the crown on the left; reserve that zone so the copy
+              lands on the dark center. Text shadows on the title/subtitle keep
+              them legible no matter how the art crops across screen widths.
+              (No scrim overlay: this component's LinearGradient is the flat
+              LinearGradientFallback, which can't render a directional scrim, and
+              a flat tint would dim the crown the design depends on.) */}
+          <View style={styles.bannerCrownSpacer} pointerEvents="none" />
 
           <View style={styles.bannerBody}>
             <View style={styles.bannerTitleRow}>
@@ -163,7 +210,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
           </View>
 
           <ChevronRight size={fontScale(22)} color={GOLD_SOFT} />
-        </LinearGradient>
+        </ImageBackground>
       </TouchableOpacity>
       {modal}
     </>
@@ -175,10 +222,10 @@ const styles = StyleSheet.create({
   badgeWrap: { width: scale(30), height: scale(30), alignItems: 'center', justifyContent: 'center' },
   badgeGlow: {
     position: 'absolute',
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
-    backgroundColor: 'rgba(250, 204, 21, 0.45)',
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
+    backgroundColor: 'rgba(250, 204, 21, 0.5)',
   },
   badgeCircle: {
     width: scale(26),
@@ -186,8 +233,22 @@ const styles = StyleSheet.create({
     borderRadius: scale(13),
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.65)',
+    // Warm depth so the coin reads as raised, not a flat sticker.
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(180, 83, 9, 0.55)' } as object,
+      default: {
+        shadowColor: GOLD_DEEP,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.55,
+        shadowRadius: 2,
+        elevation: 3,
+      },
+    }),
+  },
+  badgeSparkle: {
+    position: 'absolute',
+    top: scale(-1),
+    right: scale(-1),
   },
 
   // Ad-sheet inline pill
@@ -213,33 +274,28 @@ const styles = StyleSheet.create({
   bannerFill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(14),
+    gap: scale(12),
+    minHeight: scale(88),
     paddingVertical: scale(14),
     paddingHorizontal: scale(16),
     borderWidth: 1,
     borderColor: 'rgba(250, 204, 21, 0.45)',
     borderRadius: scale(18),
   },
-  bannerCrownWrap: { width: scale(46), height: scale(46), alignItems: 'center', justifyContent: 'center' },
-  bannerGlow: {
-    position: 'absolute',
-    width: scale(48),
-    height: scale(48),
-    borderRadius: scale(24),
-    backgroundColor: 'rgba(250, 204, 21, 0.40)',
-  },
-  bannerCrownCircle: {
-    width: scale(42),
-    height: scale(42),
-    borderRadius: scale(21),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
+  bannerImg: { borderRadius: scale(18) },
+  // Leaves the art's left-anchored crown uncovered; the copy sits on the dark center.
+  bannerCrownSpacer: { width: '30%' },
   bannerBody: { flex: 1, gap: scale(3) },
   bannerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
-  bannerTitle: { color: '#FFFFFF', fontSize: fontScale(18), fontWeight: '900', letterSpacing: 0.2 },
+  bannerTitle: {
+    color: '#FFFFFF',
+    fontSize: fontScale(18),
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  },
   bannerPlus: { color: GOLD },
   bannerFlag: {
     flexDirection: 'row',
@@ -251,5 +307,12 @@ const styles = StyleSheet.create({
     paddingVertical: scale(2),
   },
   bannerFlagText: { color: INK, fontSize: fontScale(9), fontWeight: '900', letterSpacing: 0.3 },
-  bannerSub: { color: 'rgba(253, 230, 138, 0.92)', fontSize: fontScale(11.5), fontWeight: '600' },
+  bannerSub: {
+    color: 'rgba(253, 230, 138, 0.95)',
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
 });
