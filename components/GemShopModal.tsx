@@ -901,7 +901,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
                 {/* Free daily reward — shares its claim state with the identity
                     card, so a player can only claim once per day from either. */}
                 <Text style={[styles.sectionLabel, showStarterOffer && styles.sectionLabelSpaced]}>Free daily reward</Text>
-                <DailyGemClaim />
+                {/* The shop sheet is always dark, so keep the claim's dark
+                    styling even when the app is in light mode. */}
+                <DailyGemClaim onDarkSurface />
                 {storeBanner}
                 <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Gem packs</Text>
                 {gemPacks.map(renderGemPackCard)}
