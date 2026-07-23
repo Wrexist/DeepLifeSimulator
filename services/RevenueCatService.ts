@@ -10,13 +10,10 @@
  *   - Does NOTHING unless the `revenueCat` feature flag is on
  *     (EXPO_PUBLIC_USE_REVENUECAT=true) AND the SDK is installed AND a public
  *     API key is present. Off by default → today's build is unaffected.
- *   - The SDK is LAZY-REQUIRED so the module being absent (not yet installed,
- *     web, Expo Go) can never crash the app — every method fails soft.
- *   - `react-native-purchases` is intentionally NOT added to package.json here
- *     so current builds stay identical. Install it when you're ready with:
- *         npx expo install react-native-purchases
- *     (that picks the version matching your Expo SDK). Then set the keys +
- *     flip the flag.
+ *   - The SDK is LAZY-REQUIRED so the module being absent (web, Expo Go, or a
+ *     build where it failed to link) can never crash the app — every method
+ *     fails soft. `react-native-purchases` (+ `-ui`) ARE in package.json; the
+ *     lazy require is purely a crash-safety guard, not an install gate.
  *
  * ENTITLEMENTS (create these in the RevenueCat dashboard — see the guide):
  *   - `premium`      → DeepLife+ / lifetime  → subscriptionService.hasPremiumAccess()
@@ -33,10 +30,11 @@ const log = logger.scope('RevenueCat');
 /** Entitlement identifiers — MUST match the RevenueCat dashboard exactly. */
 export const RC_ENTITLEMENT_PREMIUM = 'premium';
 export const RC_ENTITLEMENT_ADS_REMOVED = 'ads_removed';
-// The subscription / "pro" access entitlement. Configurable because your
-// RevenueCat entitlement may be named "pro", "premium", or "Deep Life Simulator
-// Pro" — set EXPO_PUBLIC_RC_ENTITLEMENT_PRO to whatever the dashboard uses.
-export const RC_ENTITLEMENT_PRO = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_PRO || 'pro';
+// The subscription / premium-access entitlement used by presentPaywall's gate.
+// Defaults to `premium` to match the actual dashboard entitlement (see above);
+// override with EXPO_PUBLIC_RC_ENTITLEMENT_PRO only if the dashboard uses a
+// different name.
+export const RC_ENTITLEMENT_PRO = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_PRO || 'premium';
 
 export interface RcEntitlements {
   /** Player owns Remove Ads / any premium tier → drive settings.adsRemoved. */

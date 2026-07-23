@@ -57,6 +57,35 @@ module.exports = {
         // Listing it here would shadow the plugin's wiring of the ATT
         // framework — keep only non-ATT keys here.
         ITSAppUsesNonExemptEncryption: false
+      },
+      // Apple privacy manifest (required since 2024). App-level declarations:
+      //  • NSPrivacyTracking: true — the app tracks via IDFA (AdMob + ATT).
+      //  • Required-reason APIs: the standard RN/Expo set — NSUserDefaults
+      //    (AsyncStorage, CA92.1), file timestamps (C617.1), system boot time
+      //    (35F9.1), disk space (E174.1). Over-declaring reasons is safe; the
+      //    rejection risk is UNDER-declaring, so we list the common set.
+      // The AdMob SDK ships its own manifest for ad data-collection + tracking
+      // domains; Apple aggregates all manifests, so we don't duplicate those.
+      privacyManifests: {
+        NSPrivacyTracking: true,
+        NSPrivacyAccessedAPITypes: [
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults",
+            NSPrivacyAccessedAPITypeReasons: ["CA92.1"]
+          },
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryFileTimestamp",
+            NSPrivacyAccessedAPITypeReasons: ["C617.1"]
+          },
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategorySystemBootTime",
+            NSPrivacyAccessedAPITypeReasons: ["35F9.1"]
+          },
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryDiskSpace",
+            NSPrivacyAccessedAPITypeReasons: ["E174.1"]
+          }
+        ]
       }
     },
     android: {
