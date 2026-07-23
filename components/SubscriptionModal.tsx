@@ -106,10 +106,20 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const active = isDeepLifePlusActive();
 
+  // Store-confirmed intro-offer eligibility for the selected plan (checked below).
+  // Defaults to 'unknown', which keeps the trial copy; only a definitive store
+  // 'ineligible' hides it.
+  const [introStatus, setIntroStatus] = useState<'eligible' | 'ineligible' | 'unknown'>('unknown');
+
   const trialDays = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS;
   const perWeek = useMemo(() => yearlyPerWeek(), []);
   const savingsPct = useMemo(() => yearlySavingsPercent(), []);
-  const trialEligible = !active && !lifetime && trialDays > 0;
+  // Advertise the free trial only when the store hasn't told us the user is
+  // INELIGIBLE (e.g. already consumed it) — otherwise "$0.00 today" would be a
+  // false promise and StoreKit would charge immediately. 'unknown' (Android /
+  // dev / before the check resolves) keeps the trial copy: Play enforces the
+  // real terms at checkout, and iOS is re-checked in the effect below.
+  const trialEligible = !active && !lifetime && trialDays > 0 && introStatus !== 'ineligible';
 
   // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
   // twinkling hero sparkles, and a periodic light sweep across the CTA. All
@@ -158,6 +168,22 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   useEffect(() => {
     if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
   }, [visible, active]);
+
+  // Re-check StoreKit/RevenueCat intro-offer eligibility for the selected plan
+  // whenever the sheet opens or the plan changes, so the free-trial copy is only
+  // shown to users the store will actually grant a trial. Best-effort: any
+  // failure leaves 'unknown' (trial copy stays).
+  useEffect(() => {
+    if (!visible || active || lifetime) return;
+    let cancelled = false;
+    setIntroStatus('unknown'); // reset while re-checking the newly selected plan
+    void revenueCatService.getIntroEligibility(selected.productId).then((status) => {
+      if (!cancelled) setIntroStatus(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, active, lifetime, selected.productId]);
 
   const handleSubscribe = useCallback(async () => {
     if (busy) return;

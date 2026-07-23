@@ -267,6 +267,36 @@ class RevenueCatService {
     }
   }
 
+  /**
+   * Trial / introductory-offer eligibility for a subscription product.
+   *
+   * iOS/StoreKit returns a definitive per-user verdict; Android and every
+   * disabled/error path return 'unknown' (Google doesn't expose per-user intro
+   * eligibility, and Play enforces the real terms at checkout). Never throws —
+   * the paywall uses this only to avoid promising a free trial the store won't
+   * honor, so 'unknown' safely leaves the trial copy as-is.
+   */
+  async getIntroEligibility(appProductId: string): Promise<'eligible' | 'ineligible' | 'unknown'> {
+    // Only iOS/StoreKit gives a per-user answer; skip the round-trip elsewhere.
+    if (Platform.OS !== 'ios') return 'unknown';
+    if (!(await this.configure())) return 'unknown';
+    try {
+      const storeId = appToStoreProductId(appProductId);
+      const P = loadPurchases();
+      const map = await P.checkTrialOrIntroductoryPriceEligibility([storeId]);
+      // INTRO_ELIGIBILITY_STATUS: 0 unknown, 1 ineligible, 2 eligible,
+      // 3 no-intro-offer-exists. Treat "no offer" as ineligible — there is no
+      // trial to advertise — so the CTA doesn't claim a free trial that can't apply.
+      const status = map?.[storeId]?.status;
+      if (status === 2) return 'eligible';
+      if (status === 1 || status === 3) return 'ineligible';
+      return 'unknown';
+    } catch (error) {
+      log.warn('checkTrialOrIntroductoryPriceEligibility failed', { error });
+      return 'unknown';
+    }
+  }
+
   /** Restore prior purchases; returns the restored entitlements. */
   async restore(): Promise<RcEntitlements> {
     if (!(await this.configure())) return { adsRemoved: false, premium: false };
