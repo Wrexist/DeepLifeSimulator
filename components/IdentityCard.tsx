@@ -593,7 +593,7 @@ function IdentityCard() {
           </View>
         </View>
 
-        {/* DeepLife+ members-only daily gem drop (upsell teaser for non-members). */}
+        {/* Daily gem drop — 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
         <DailyGemClaim />
 
         <TouchableOpacity

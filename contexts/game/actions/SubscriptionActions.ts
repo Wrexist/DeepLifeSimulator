@@ -14,8 +14,7 @@
 import type { GameState } from '@/contexts/game/types';
 import {
   DEEP_LIFE_PLUS_WELCOME_GEMS,
-  DEEP_LIFE_PLUS_DAILY_GEMS,
-  hasDeepLifePlusEntitlement,
+  dailyGemAmount,
 } from '@/lib/subscription/deepLifePlus';
 
 const safeAddGems = (base: number | undefined, amount: number): number => {
@@ -56,25 +55,22 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
 }
 
 /**
- * Can this player claim the members-only daily gem drop right now? True only for
- * an active DeepLife+ member who hasn't already claimed on `todayKey` (a UTC
- * day key from `utcDayKey(new Date())`).
+ * Can this player claim the daily gem drop right now? Everyone can claim once per
+ * UTC day (`todayKey` from `utcDayKey(new Date())`) — the AMOUNT is tiered
+ * (members 250, free players 20), not eligibility.
  */
-export function canClaimDailyDeepLifePlusGems(state: GameState, todayKey: string): boolean {
-  return (
-    hasDeepLifePlusEntitlement(state.settings) &&
-    state.settings?.deepLifePlusLastGemClaim !== todayKey
-  );
+export function canClaimDailyGems(state: GameState, todayKey: string): boolean {
+  return state.settings?.deepLifePlusLastGemClaim !== todayKey;
 }
 
 /**
- * Claim the members-only daily gem drop: grants DEEP_LIFE_PLUS_DAILY_GEMS and
- * stamps the claim day so it can't be claimed twice on the same UTC day. A no-op
- * (returns the same state) for non-members or a repeat same-day claim, so it's
- * safe to call optimistically.
+ * Claim the daily gem drop: grants `dailyGemAmount(settings)` (250 for DeepLife+
+ * members, 20 otherwise) and stamps the claim day so it can't be claimed twice
+ * on the same UTC day. A no-op (returns the same state) on a repeat same-day
+ * claim, so it's safe to call optimistically.
  */
-export function claimDailyDeepLifePlusGems(state: GameState, todayKey: string): GameState {
-  if (!canClaimDailyDeepLifePlusGems(state, todayKey)) return state;
+export function claimDailyGems(state: GameState, todayKey: string): GameState {
+  if (!canClaimDailyGems(state, todayKey)) return state;
   // Append today to the claim history (dedup + keep the last 14 days) so the
   // weekly streak strip can show claimed vs missed days.
   const prevDays = Array.isArray(state.settings?.deepLifePlusGemClaimDays)
@@ -90,7 +86,7 @@ export function claimDailyDeepLifePlusGems(state: GameState, todayKey: string): 
     },
     stats: {
       ...state.stats,
-      gems: safeAddGems(state.stats?.gems, DEEP_LIFE_PLUS_DAILY_GEMS),
+      gems: safeAddGems(state.stats?.gems, dailyGemAmount(state.settings)),
     },
   };
 }

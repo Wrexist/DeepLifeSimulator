@@ -1,16 +1,17 @@
 /**
- * DailyGemClaim — the DeepLife+ members-only daily gem drop, shown on the
- * identity card.
+ * DailyGemClaim — the daily gem drop shown on the identity card. Everyone can
+ * claim once per UTC day; the amount is tiered (DeepLife+ members 250, free
+ * players 20).
  *
- *   • Active member → a Mon→Sun streak strip (green check = claimed, red cross =
- *     missed) plus a gold "Claim 500 gems" button (or a "claimed · back
- *     tomorrow" chip once today is done).
- *   • Non-member    → a teaser that opens the DeepLife+ paywall (doubles as an
- *     upsell).
+ *   • Everyone     → a Mon→Sun streak strip (green check = claimed, red cross =
+ *     missed) plus a gold "Claim N gems" button (or a "claimed · back tomorrow"
+ *     chip once today is done).
+ *   • Non-members  → additionally a nudge that opens the DeepLife+ paywall (get
+ *     the bigger 250/day drop).
  *
  * The reset boundary is the real UTC calendar day; the grant, day-stamp, and
- * claim-history live in the pure `claimDailyDeepLifePlusGems` reducer, so this
- * component only wires up state, save, and haptics.
+ * claim-history live in the pure `claimDailyGems` reducer, so this component
+ * only wires up state, save, and haptics.
  */
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
@@ -23,11 +24,12 @@ import { haptic } from '@/utils/haptics';
 import { scale, fontScale } from '@/utils/scaling';
 import {
   DEEP_LIFE_PLUS_DAILY_GEMS,
+  DAILY_GEMS_BASE,
   utcDayKey,
   buildDeepLifePlusWeekStatus,
   type WeekDayCell,
 } from '@/lib/subscription/deepLifePlus';
-import { claimDailyDeepLifePlusGems } from '@/contexts/game/actions/SubscriptionActions';
+import { claimDailyGems } from '@/contexts/game/actions/SubscriptionActions';
 
 // Fixed gold palette — intentionally NOT theme-driven, so the DeepLife+ surfaces
 // keep their premium look in light and dark mode (same choice the paywall makes).
@@ -68,47 +70,24 @@ export default function DailyGemClaim() {
   const claimDays = useGameSelector((s) => s.settings?.deepLifePlusGemClaimDays, shallowEqual);
 
   const todayKey = utcDayKey(new Date());
-  const claimedToday = active && lastClaim === todayKey;
+  const claimedToday = lastClaim === todayKey;
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
+  // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
+  const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
 
   const onClaim = useCallback(() => {
     // Re-read "today" at claim time so a session open across midnight still
     // stamps the correct day.
     const key = utcDayKey(new Date());
     haptic.success();
-    setGameState((prev) => claimDailyDeepLifePlusGems(prev, key));
+    setGameState((prev) => claimDailyGems(prev, key));
     void saveGame?.(false);
   }, [setGameState, saveGame]);
 
-  // ── Non-member: an upsell teaser that opens the paywall ──
-  if (!active) {
-    return (
-      <>
-        <TouchableOpacity
-          onPress={present}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel={`DeepLife Plus — claim ${DEEP_LIFE_PLUS_DAILY_GEMS} gems every day`}
-          style={styles.teaser}
-        >
-          <View style={styles.iconWrapMuted}>
-            <Crown size={scale(16)} color={GOLD} fill={GOLD} />
-          </View>
-          <Text style={styles.teaserText}>
-            <Text style={styles.teaserBrand}>DeepLife+</Text> members claim{' '}
-            {DEEP_LIFE_PLUS_DAILY_GEMS} gems every day
-          </Text>
-          <ChevronRight size={fontScale(16)} color={GOLD_SOFT} />
-        </TouchableOpacity>
-        <SubscriptionModal visible={open} onClose={close} />
-      </>
-    );
-  }
-
-  // ── Member: the weekly streak strip + claim / claimed state ──
   return (
     <View style={styles.wrap}>
       <WeekStrip cells={week} />
+
       {claimedToday ? (
         <View style={[styles.claim, styles.claimDone]} accessibilityRole="text">
           <Check size={fontScale(15)} color={GOLD_SOFT} />
@@ -119,18 +98,41 @@ export default function DailyGemClaim() {
           onPress={onClaim}
           activeOpacity={0.9}
           accessibilityRole="button"
-          accessibilityLabel={`Claim your ${DEEP_LIFE_PLUS_DAILY_GEMS} daily gems`}
+          accessibilityLabel={`Claim your ${amount} daily gems`}
           style={styles.claim}
         >
           <View style={styles.iconWrap}>
             <Gem size={scale(16)} color={INK} fill={INK} />
           </View>
           <Text style={styles.claimText}>
-            Claim your <Text style={styles.claimAmount}>{DEEP_LIFE_PLUS_DAILY_GEMS}</Text> daily gems
+            Claim your <Text style={styles.claimAmount}>{amount}</Text> daily gems
           </Text>
           <ChevronRight size={fontScale(16)} color={INK} />
         </TouchableOpacity>
       )}
+
+      {/* Non-members: nudge to the 250/day member drop (opens the paywall). */}
+      {!active ? (
+        <>
+          <TouchableOpacity
+            onPress={present}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={`Upgrade to DeepLife Plus for ${DEEP_LIFE_PLUS_DAILY_GEMS} gems a day`}
+            style={styles.teaser}
+          >
+            <View style={styles.iconWrapMuted}>
+              <Crown size={scale(16)} color={GOLD} fill={GOLD} />
+            </View>
+            <Text style={styles.teaserText}>
+              <Text style={styles.teaserBrand}>DeepLife+</Text> members get{' '}
+              {DEEP_LIFE_PLUS_DAILY_GEMS} gems a day
+            </Text>
+            <ChevronRight size={fontScale(16)} color={GOLD_SOFT} />
+          </TouchableOpacity>
+          <SubscriptionModal visible={open} onClose={close} />
+        </>
+      ) : null}
     </View>
   );
 }

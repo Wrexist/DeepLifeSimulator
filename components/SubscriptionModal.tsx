@@ -82,7 +82,7 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
 // Short right-aligned value chip per benefit (mockup-style). Honest labels only.
 const BENEFIT_CHIP: Record<string, string> = {
   no_ads: 'AD-FREE',
-  daily_gems: '500/DAY',
+  daily_gems: '250/DAY',
   income_boost: '+25%',
   legacy_premium: 'ALL ACCESS',
   cosmetics: 'EXCLUSIVE',

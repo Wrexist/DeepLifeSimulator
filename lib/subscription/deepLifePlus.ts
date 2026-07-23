@@ -74,7 +74,7 @@ export interface DeepLifePlusBenefit {
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
   { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
-  { id: 'daily_gems', title: 'Daily Gem Drop', description: '500 gems to claim, every single day.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day — 12× the free daily.' },
   { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
@@ -85,8 +85,16 @@ export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
 
-/** Members-only daily gem drop — claimable once per real calendar day. */
-export const DEEP_LIFE_PLUS_DAILY_GEMS = 500;
+/** Daily gem drop for DeepLife+ members — claimable once per real calendar day. */
+export const DEEP_LIFE_PLUS_DAILY_GEMS = 250;
+
+/** Daily gem drop for non-subscribers ("normal players"). */
+export const DAILY_GEMS_BASE = 20;
+
+/** The daily gem amount for this player: 250 for members, 20 for everyone else. */
+export function dailyGemAmount(settings?: { deepLifePlusActivated?: boolean; lifetimePremium?: boolean }): number {
+  return hasDeepLifePlusEntitlement(settings) ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
+}
 
 /** UTC calendar-day key ("YYYY-MM-DD") — the reset boundary for the daily claim. */
 export function utcDayKey(d: Date): string {
