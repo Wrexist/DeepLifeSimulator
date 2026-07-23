@@ -215,7 +215,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
               </View>
             </View>
             <Text style={styles.bannerSub} numberOfLines={2}>
-              Ad-free forever · exclusive perks · a monthly gem drop{showTrial ? ' — free for a week' : ''}
+              Ad-free forever · +25% income · daily gems{showTrial ? ' — free for a week' : ''}
             </Text>
           </View>
 

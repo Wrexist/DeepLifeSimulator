@@ -2,11 +2,14 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import {
   applyDeepLifePlusBenefits,
   reconcileSubscriptionBenefits,
+  claimDailyDeepLifePlusGems,
+  canClaimDailyDeepLifePlusGems,
 } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
   DEEP_LIFE_PLUS_WELCOME_GEMS,
+  DEEP_LIFE_PLUS_DAILY_GEMS,
   getDeepLifePlusPlan,
   isDeepLifePlusProduct,
 } from '@/lib/subscription/deepLifePlus';
@@ -37,7 +40,7 @@ describe('DeepLife+ config', () => {
     //   vip_support  → priority-flagged support in HelpModal
     const ids = DEEP_LIFE_PLUS_BENEFITS.map((b) => b.id).sort();
     expect(ids).toEqual(
-      ['cosmetics', 'income_boost', 'legacy_premium', 'no_ads', 'vip_support', 'welcome_gems'].sort(),
+      ['cosmetics', 'daily_gems', 'income_boost', 'legacy_premium', 'no_ads', 'vip_support', 'welcome_gems'].sort(),
     );
   });
 });
@@ -73,6 +76,47 @@ describe('applyDeepLifePlusBenefits', () => {
     applyDeepLifePlusBenefits(s);
     expect(s.stats.gems).toBe(5);
     expect(s.settings.deepLifePlusActivated).toBeUndefined();
+  });
+});
+
+describe('claimDailyDeepLifePlusGems (members-only daily gem drop)', () => {
+  const TODAY = '2026-07-23';
+  const YESTERDAY = '2026-07-22';
+  const member = (over = {}) =>
+    createTestGameState({ stats: { gems: 0 }, settings: { deepLifePlusActivated: true, ...over } });
+
+  it('grants the daily gems to a member who has not claimed today', () => {
+    const next = claimDailyDeepLifePlusGems(member(), TODAY);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+  });
+
+  it('is a no-op on a repeat same-day claim (returns the same state)', () => {
+    const claimed = member({ deepLifePlusLastGemClaim: TODAY });
+    expect(claimDailyDeepLifePlusGems(claimed, TODAY)).toBe(claimed);
+  });
+
+  it('is claimable again on a new day', () => {
+    const claimedYesterday = member({ deepLifePlusLastGemClaim: YESTERDAY });
+    const next = claimDailyDeepLifePlusGems(claimedYesterday, TODAY);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+  });
+
+  it('does NOT grant gems to a non-member (returns the same state)', () => {
+    const free = createTestGameState({ stats: { gems: 0 } });
+    expect(claimDailyDeepLifePlusGems(free, TODAY)).toBe(free);
+  });
+
+  it('also works for a lifetime-premium owner', () => {
+    const lifer = createTestGameState({ stats: { gems: 0 }, settings: { lifetimePremium: true } });
+    expect(claimDailyDeepLifePlusGems(lifer, TODAY).stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+  });
+
+  it('canClaim reflects membership + same-day state', () => {
+    expect(canClaimDailyDeepLifePlusGems(member(), TODAY)).toBe(true);
+    expect(canClaimDailyDeepLifePlusGems(member({ deepLifePlusLastGemClaim: TODAY }), TODAY)).toBe(false);
+    expect(canClaimDailyDeepLifePlusGems(createTestGameState(), TODAY)).toBe(false);
   });
 });
 

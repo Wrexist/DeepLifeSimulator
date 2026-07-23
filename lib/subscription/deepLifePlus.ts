@@ -74,6 +74,7 @@ export interface DeepLifePlusBenefit {
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
   { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: '500 gems to claim, every single day.' },
   { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
@@ -83,6 +84,17 @@ export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
 
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
+
+/** Members-only daily gem drop — claimable once per real calendar day. */
+export const DEEP_LIFE_PLUS_DAILY_GEMS = 500;
+
+/** UTC calendar-day key ("YYYY-MM-DD") — the reset boundary for the daily claim. */
+export function utcDayKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 /**
  * Career-income boost for DeepLife+ members (1.25 = +25% weekly salary). Applied

@@ -12,7 +12,11 @@
  * Pure + immutable — drop into `setGameState(prev => applyDeepLifePlusBenefits(prev))`.
  */
 import type { GameState } from '@/contexts/game/types';
-import { DEEP_LIFE_PLUS_WELCOME_GEMS } from '@/lib/subscription/deepLifePlus';
+import {
+  DEEP_LIFE_PLUS_WELCOME_GEMS,
+  DEEP_LIFE_PLUS_DAILY_GEMS,
+  hasDeepLifePlusEntitlement,
+} from '@/lib/subscription/deepLifePlus';
 
 const safeAddGems = (base: number | undefined, amount: number): number => {
   const b = typeof base === 'number' && isFinite(base) ? base : 0;
@@ -45,6 +49,39 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
     stats: {
       ...state.stats,
       gems: safeAddGems(state.stats?.gems, gemGrant),
+    },
+  };
+}
+
+/**
+ * Can this player claim the members-only daily gem drop right now? True only for
+ * an active DeepLife+ member who hasn't already claimed on `todayKey` (a UTC
+ * day key from `utcDayKey(new Date())`).
+ */
+export function canClaimDailyDeepLifePlusGems(state: GameState, todayKey: string): boolean {
+  return (
+    hasDeepLifePlusEntitlement(state.settings) &&
+    state.settings?.deepLifePlusLastGemClaim !== todayKey
+  );
+}
+
+/**
+ * Claim the members-only daily gem drop: grants DEEP_LIFE_PLUS_DAILY_GEMS and
+ * stamps the claim day so it can't be claimed twice on the same UTC day. A no-op
+ * (returns the same state) for non-members or a repeat same-day claim, so it's
+ * safe to call optimistically.
+ */
+export function claimDailyDeepLifePlusGems(state: GameState, todayKey: string): GameState {
+  if (!canClaimDailyDeepLifePlusGems(state, todayKey)) return state;
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      deepLifePlusLastGemClaim: todayKey,
+    },
+    stats: {
+      ...state.stats,
+      gems: safeAddGems(state.stats?.gems, DEEP_LIFE_PLUS_DAILY_GEMS),
     },
   };
 }
