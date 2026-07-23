@@ -25,6 +25,7 @@ import {
   Animated,
   Easing,
   Platform,
+  Linking,
 } from 'react-native';
 import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -36,6 +37,7 @@ import { revenueCatService } from '@/services/RevenueCatService';
 import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '@/lib/config/appConfig';
 import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
@@ -172,6 +174,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     void subscriptionService.cancelSubscription(selected.productId);
   }, [selected]);
 
+  const openTerms = useCallback(() => { void Linking.openURL(TERMS_OF_USE_URL); }, []);
+  const openPrivacy = useCallback(() => { void Linking.openURL(PRIVACY_POLICY_URL); }, []);
+
   const selectYearly = useCallback(() => { setLifetime(false); setSelected(yearlyPlan); }, [yearlyPlan]);
   const selectPlan = useCallback((plan: DeepLifePlusPlan) => { setLifetime(false); setSelected(plan); }, []);
   const selectLifetime = useCallback(() => setLifetime(true), []);
@@ -194,7 +199,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     : lifetime
       ? 'One-time payment · yours forever, never renews'
       : trialEligible
-        ? `then ${selected.price} ${selected.unit} · cancel anytime`
+        ? `No charge today · then ${selected.price} ${selected.unit} · cancel anytime`
         : 'Cancel anytime';
 
   return (
@@ -365,6 +370,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={handleManage} accessibilityRole="button" accessibilityLabel="Manage subscription">
               <Text style={styles.footerLink}>Manage</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
+              <Text style={styles.footerLink}>Terms</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={openPrivacy} accessibilityRole="link" accessibilityLabel="Privacy Policy">
+              <Text style={styles.footerLink}>Privacy</Text>
             </TouchableOpacity>
           </View>
 
