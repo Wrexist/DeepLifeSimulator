@@ -361,8 +361,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                       </Text>
                     </View>
                     <View style={styles.riskSeal}>
-                      <Text style={styles.riskSealPct}>100%</Text>
-                      <Text style={styles.riskSealLabel}>RISK-FREE</Text>
+                      <Text style={styles.riskSealPct} numberOfLines={1} adjustsFontSizeToFit>
+                        100%
+                      </Text>
+                      <Text style={styles.riskSealLabel} numberOfLines={1} adjustsFontSizeToFit>
+                        RISK-FREE
+                      </Text>
                     </View>
                   </View>
                 ) : null}
@@ -443,7 +447,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 <Text style={styles.ctaText}>{ctaTitle}</Text>
                 {ctaSub ? <Text style={styles.ctaSub}>{ctaSub}</Text> : null}
                 <View style={styles.ctaChevronWrap} pointerEvents="none">
-                  <ChevronRight size={scale(22)} color="#1A1206" />
+                  <ChevronRight size={scale(20)} color="#1A1206" />
                 </View>
               </>
             )}
@@ -618,17 +622,33 @@ const styles = StyleSheet.create({
   trialBannerTitle: { fontSize: fontScale(17), fontWeight: '900', color: GOLD_SOFT },
   trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3) },
   riskSeal: {
-    width: scale(58),
-    height: scale(58),
-    borderRadius: scale(29),
+    width: scale(62),
+    height: scale(62),
+    borderRadius: scale(31),
     borderWidth: 1.5,
     borderColor: GOLD,
     backgroundColor: 'rgba(250,204,21,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: scale(6),
+    overflow: 'hidden',
   },
-  riskSealPct: { fontSize: fontScale(16), fontWeight: '900', color: GOLD_SOFT, lineHeight: fontScale(18) },
-  riskSealLabel: { fontSize: fontScale(8), fontWeight: '900', color: GOLD_SOFT, letterSpacing: 0.4 },
+  riskSealPct: {
+    fontSize: fontScale(15),
+    fontWeight: '900',
+    color: GOLD_SOFT,
+    lineHeight: fontScale(17),
+    textAlign: 'center',
+    alignSelf: 'stretch',
+  },
+  riskSealLabel: {
+    fontSize: fontScale(7.5),
+    fontWeight: '900',
+    color: GOLD_SOFT,
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    alignSelf: 'stretch',
+  },
 
   // Plans
   plansRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
@@ -700,9 +720,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
   ctaDisabled: { opacity: 0.6 },
-  ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2 },
-  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2), textAlign: 'center', paddingHorizontal: scale(24) },
-  ctaChevronWrap: { position: 'absolute', right: scale(16), top: 0, bottom: 0, justifyContent: 'center' },
+  // Symmetric horizontal padding keeps the centered title/subtitle clear of the
+  // absolutely-positioned chevron on the right (which occupies ~scale(34) of edge
+  // space) on every screen width, so they never overlap.
+  ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2, textAlign: 'center', paddingHorizontal: scale(34) },
+  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2), textAlign: 'center', paddingHorizontal: scale(38) },
+  ctaChevronWrap: { position: 'absolute', right: scale(14), top: 0, bottom: 0, justifyContent: 'center' },
 
   // Trust + footer
   trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },
