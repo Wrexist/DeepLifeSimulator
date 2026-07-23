@@ -10,8 +10,10 @@ export const SUPPORT_EMAIL = 'deeplifesimulator@gmail.com';
 export const DISCORD_URL = 'https://discord.gg/rzktazdX8v';
 export const PRIVACY_POLICY_URL = 'https://wrexist.github.io/deeplife-sim-support/privacy.html';
 // Terms of Use (EULA). Apple's standard EULA — a functional Terms link is
-// REQUIRED on any auto-renewing-subscription paywall (App Store Review 3.1.2);
-// this is the app's terms unless a custom one is later hosted.
+// REQUIRED on any auto-renewing-subscription paywall (App Store Review 3.1.2).
+// This is Apple-specific, so the paywall links it on iOS ONLY (Google Play
+// doesn't require an in-app Terms link); host an app-owned terms page and add a
+// platform-specific URL here if Android should link Terms too.
 export const TERMS_OF_USE_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
 // ── Store Links ───────────────────────────────────────────

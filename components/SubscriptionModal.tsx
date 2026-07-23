@@ -174,8 +174,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     void subscriptionService.cancelSubscription(selected.productId);
   }, [selected]);
 
-  const openTerms = useCallback(() => { void Linking.openURL(TERMS_OF_USE_URL); }, []);
-  const openPrivacy = useCallback(() => { void Linking.openURL(PRIVACY_POLICY_URL); }, []);
+  const openLink = useCallback((url: string, what: string) => {
+    Linking.openURL(url).catch((error) => {
+      logger.error('[SubscriptionModal] failed to open link', { what, error });
+      setMessage("Couldn't open this link. Please try again.");
+    });
+  }, []);
+  const openTerms = useCallback(() => openLink(TERMS_OF_USE_URL, 'terms'), [openLink]);
+  const openPrivacy = useCallback(() => openLink(PRIVACY_POLICY_URL, 'privacy'), [openLink]);
 
   const selectYearly = useCallback(() => { setLifetime(false); setSelected(yearlyPlan); }, [yearlyPlan]);
   const selectPlan = useCallback((plan: DeepLifePlusPlan) => { setLifetime(false); setSelected(plan); }, []);
@@ -371,10 +377,16 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <TouchableOpacity onPress={handleManage} accessibilityRole="button" accessibilityLabel="Manage subscription">
               <Text style={styles.footerLink}>Manage</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>·</Text>
-            <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
-              <Text style={styles.footerLink}>Terms</Text>
-            </TouchableOpacity>
+            {/* Apple requires a Terms (EULA) link on the paywall; the standard
+                EULA is iOS-specific, so link it on iOS only. */}
+            {Platform.OS === 'ios' ? (
+              <>
+                <Text style={styles.footerDivider}>·</Text>
+                <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
+                  <Text style={styles.footerLink}>Terms</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
             <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={openPrivacy} accessibilityRole="link" accessibilityLabel="Privacy Policy">
               <Text style={styles.footerLink}>Privacy</Text>

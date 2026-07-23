@@ -43,10 +43,13 @@ export function useDeepLifePlusUpsell(surface: string) {
     };
   }, []);
 
-  const present = useCallback(() => {
+  const present = useCallback(async () => {
     haptic.light();
     try {
-      track('paywall_viewed', { surface });
+      // SubscriptionModal owns the `paywall_viewed` event (fired when it becomes
+      // visible). Here we record only WHICH surface opened it, so entry-point
+      // attribution is kept without double-counting the view.
+      track('paywall_open_tapped', { surface });
     } catch {
       /* analytics is best-effort — never block the paywall on it */
     }
