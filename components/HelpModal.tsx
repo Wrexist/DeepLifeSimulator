@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, Linking } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
-import { X, Mail } from 'lucide-react-native';
+import { X, Mail, Crown } from 'lucide-react-native';
+import { hasDeepLifePlusEntitlement } from '@/lib/subscription/deepLifePlus';
 import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 
 interface HelpModalProps {
@@ -803,10 +804,16 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           <TouchableOpacity
             style={[styles.contactButton, settings.darkMode && styles.contactButtonDark]}
             onPress={() => {
-              const subject = 'DeepLife Simulator - Support Request';
-              const body = `Hello,\n\nI need help with DeepLife Simulator.\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}\n\nPlease describe your issue here:`;
+              // DeepLife+ members get a priority-flagged support request — a real
+              // VIP support channel (owner triages these first).
+              const isVip = hasDeepLifePlusEntitlement(gameState.settings);
+              const subject = isVip
+                ? 'DeepLife+ VIP Support Request'
+                : 'DeepLife Simulator - Support Request';
+              const tier = isVip ? '\nMembership: DeepLife+ (VIP)' : '';
+              const body = `Hello,\n\nI need help with DeepLife Simulator.\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}${tier}\n\nPlease describe your issue here:`;
               const emailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-              
+
               Linking.openURL(emailUrl).then(() => {
                 Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
               }).catch(() => {
@@ -814,8 +821,17 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
               });
             }}
           >
-            <Mail size={20} color="#FFFFFF" />
-            <Text style={styles.contactButtonText}>Contact Support</Text>
+            {hasDeepLifePlusEntitlement(gameState.settings) ? (
+              <>
+                <Crown size={20} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.contactButtonText}>VIP Priority Support</Text>
+              </>
+            ) : (
+              <>
+                <Mail size={20} color="#FFFFFF" />
+                <Text style={styles.contactButtonText}>Contact Support</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>

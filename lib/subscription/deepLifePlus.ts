@@ -74,13 +74,35 @@ export interface DeepLifePlusBenefit {
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
   { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
+  { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
   { id: 'welcome_gems', title: '500 Welcome Gems', description: 'A one-time gem bonus the moment you join.' },
+  { id: 'vip_support', title: 'VIP Priority Support', description: 'Your questions jump to the front of the queue.' },
 ];
 
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
+
+/**
+ * Career-income boost for DeepLife+ members (1.25 = +25% weekly salary). Applied
+ * in the weekly payday reducer (applyCareerSalaryAndPenalty) and advertised on
+ * the paywall — keep the number and the "+25% career income" copy in sync.
+ */
+export const DEEP_LIFE_PLUS_INCOME_MULTIPLIER = 1.25;
+
+/**
+ * Pure in-state check: does this settings object reflect an active DeepLife+
+ * entitlement (subscription OR lifetime)? Used by pure reducers that can't call
+ * the subscription service. `deepLifePlusActivated` tracks the subscription
+ * (cleared on lapse); `lifetimePremium` is the one-time unlock.
+ */
+export function hasDeepLifePlusEntitlement(settings?: {
+  deepLifePlusActivated?: boolean;
+  lifetimePremium?: boolean;
+}): boolean {
+  return settings?.deepLifePlusActivated === true || settings?.lifetimePremium === true;
+}
 
 /**
  * Introductory free-trial length advertised on the paywall (the "Try 7 days

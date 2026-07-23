@@ -27,7 +27,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck } from 'lucide-react-native';
+import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -71,9 +71,21 @@ const TEXT_DIM = '#64748B';
 
 const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   no_ads: Ban,
+  income_boost: TrendingUp,
   legacy_premium: Crown,
   cosmetics: Palette,
   welcome_gems: Gem,
+  vip_support: Headphones,
+};
+
+// Short right-aligned value chip per benefit (mockup-style). Honest labels only.
+const BENEFIT_CHIP: Record<string, string> = {
+  no_ads: 'AD-FREE',
+  income_boost: '+25%',
+  legacy_premium: 'ALL ACCESS',
+  cosmetics: 'EXCLUSIVE',
+  welcome_gems: '+500',
+  vip_support: 'VIP',
 };
 
 export default function SubscriptionModal({ visible, onClose }: Props) {
@@ -253,6 +265,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                       <Text style={styles.benefitTitle}>{b.title}</Text>
                       <Text style={styles.benefitDesc}>{b.description}</Text>
                     </View>
+                    {BENEFIT_CHIP[b.id] ? (
+                      <View style={styles.benefitChip}>
+                        <Text style={styles.benefitChipText}>{BENEFIT_CHIP[b.id]}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 );
               })}
@@ -263,10 +280,16 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {/* Free-trial banner — the hook */}
                 {trialEligible ? (
                   <View style={styles.trialBanner}>
-                    <Text style={styles.trialBannerTitle}>{trialDays} days free</Text>
-                    <Text style={styles.trialBannerSub}>
-                      Try everything, commitment-free. Cancel anytime before it ends and pay nothing.
-                    </Text>
+                    <View style={styles.trialBannerBody}>
+                      <Text style={styles.trialBannerTitle}>{trialDays} days risk-free</Text>
+                      <Text style={styles.trialBannerSub}>
+                        Try every perk. Love it or cancel — no charge.
+                      </Text>
+                    </View>
+                    <View style={styles.riskSeal}>
+                      <Text style={styles.riskSealPct}>100%</Text>
+                      <Text style={styles.riskSealLabel}>RISK-FREE</Text>
+                    </View>
                   </View>
                 ) : null}
 
@@ -344,6 +367,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               <>
                 <Text style={styles.ctaText}>{ctaTitle}</Text>
                 {ctaSub ? <Text style={styles.ctaSub}>{ctaSub}</Text> : null}
+                <View style={styles.ctaChevronWrap} pointerEvents="none">
+                  <ChevronRight size={scale(22)} color="#1A1206" />
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -483,9 +509,22 @@ const styles = StyleSheet.create({
   benefitText: { flex: 1 },
   benefitTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
   benefitDesc: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(1) },
+  benefitChip: {
+    borderWidth: 1,
+    borderColor: GOLD_BORDER,
+    backgroundColor: GOLD_TINT,
+    borderRadius: scale(9),
+    paddingHorizontal: scale(9),
+    paddingVertical: scale(5),
+    marginLeft: scale(8),
+  },
+  benefitChipText: { color: GOLD_SOFT, fontSize: fontScale(11), fontWeight: '900', letterSpacing: 0.3 },
 
   // Trial banner
   trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
     backgroundColor: GOLD_TINT,
     borderColor: GOLD_BORDER,
     borderWidth: 1,
@@ -493,10 +532,22 @@ const styles = StyleSheet.create({
     paddingVertical: scale(12),
     paddingHorizontal: scale(14),
     marginBottom: scale(14),
-    alignItems: 'center',
   },
-  trialBannerTitle: { fontSize: fontScale(18), fontWeight: '900', color: GOLD_SOFT },
-  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3), textAlign: 'center' },
+  trialBannerBody: { flex: 1 },
+  trialBannerTitle: { fontSize: fontScale(17), fontWeight: '900', color: GOLD_SOFT },
+  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3) },
+  riskSeal: {
+    width: scale(58),
+    height: scale(58),
+    borderRadius: scale(29),
+    borderWidth: 1.5,
+    borderColor: GOLD,
+    backgroundColor: 'rgba(250,204,21,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  riskSealPct: { fontSize: fontScale(16), fontWeight: '900', color: GOLD_SOFT, lineHeight: fontScale(18) },
+  riskSealLabel: { fontSize: fontScale(8), fontWeight: '900', color: GOLD_SOFT, letterSpacing: 0.4 },
 
   // Plans
   plansRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
@@ -561,7 +612,8 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.6 },
   ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2 },
-  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2) },
+  ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2), textAlign: 'center', paddingHorizontal: scale(24) },
+  ctaChevronWrap: { position: 'absolute', right: scale(16), top: 0, bottom: 0, justifyContent: 'center' },
 
   // Trust + footer
   trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },
