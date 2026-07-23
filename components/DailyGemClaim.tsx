@@ -25,6 +25,8 @@ import { scale, fontScale } from '@/utils/scaling';
 import {
   DEEP_LIFE_PLUS_DAILY_GEMS,
   DAILY_GEMS_BASE,
+  dailyGemMemberMultiple,
+  dailyGemExtraPerYear,
   utcDayKey,
   buildDeepLifePlusWeekStatus,
   type WeekDayCell,
@@ -111,23 +113,29 @@ export default function DailyGemClaim() {
         </TouchableOpacity>
       )}
 
-      {/* Non-members: nudge to the 250/day member drop (opens the paywall). */}
+      {/* Non-members: sell the gap — 20/day vs the 250/day member drop. */}
       {!active ? (
         <>
           <TouchableOpacity
             onPress={present}
             activeOpacity={0.9}
             accessibilityRole="button"
-            accessibilityLabel={`Upgrade to DeepLife Plus for ${DEEP_LIFE_PLUS_DAILY_GEMS} gems a day`}
+            accessibilityLabel={`Upgrade to DeepLife Plus for ${DEEP_LIFE_PLUS_DAILY_GEMS} gems a day, ${dailyGemMemberMultiple()} times more than your ${DAILY_GEMS_BASE} a day`}
             style={styles.teaser}
           >
             <View style={styles.iconWrapMuted}>
               <Crown size={scale(16)} color={GOLD} fill={GOLD} />
             </View>
-            <Text style={styles.teaserText}>
-              <Text style={styles.teaserBrand}>DeepLife+</Text> members get{' '}
-              {DEEP_LIFE_PLUS_DAILY_GEMS} gems a day
-            </Text>
+            <View style={styles.teaserCopy}>
+              <Text style={styles.teaserText}>
+                Unlock <Text style={styles.teaserBrand}>{DEEP_LIFE_PLUS_DAILY_GEMS}</Text> gems a day
+                {' '}with <Text style={styles.teaserBrand}>DeepLife+</Text>
+              </Text>
+              <Text style={styles.teaserSub}>
+                {dailyGemMemberMultiple()}× your {DAILY_GEMS_BASE}/day ·{' '}
+                {dailyGemExtraPerYear().toLocaleString()} more a year
+              </Text>
+            </View>
             <ChevronRight size={fontScale(16)} color={GOLD_SOFT} />
           </TouchableOpacity>
           <SubscriptionModal visible={open} onClose={close} />
@@ -215,7 +223,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(250, 204, 21, 0.35)',
   },
-  teaserText: { flex: 1, color: GOLD_SOFT, fontSize: fontScale(12.5), fontWeight: '700' },
+  teaserCopy: { flex: 1, gap: scale(2) },
+  teaserText: { color: GOLD_SOFT, fontSize: fontScale(12.5), fontWeight: '700' },
+  teaserSub: { color: 'rgba(253, 230, 138, 0.72)', fontSize: fontScale(11), fontWeight: '700', letterSpacing: 0.2 },
   teaserBrand: { color: GOLD, fontWeight: '900' },
 });
 

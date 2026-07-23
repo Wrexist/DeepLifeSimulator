@@ -96,6 +96,25 @@ export function dailyGemAmount(settings?: { deepLifePlusActivated?: boolean; lif
   return hasDeepLifePlusEntitlement(settings) ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
 }
 
+/**
+ * How many times bigger the member daily drop is than the free one (floored, so
+ * the "N× the free daily" copy never overstates — 250 vs 20 → 12×). Drives the
+ * "sell the difference" upsell line on the daily-claim surfaces.
+ */
+export function dailyGemMemberMultiple(): number {
+  if (DAILY_GEMS_BASE <= 0) return 0;
+  return Math.floor(DEEP_LIFE_PLUS_DAILY_GEMS / DAILY_GEMS_BASE);
+}
+
+/**
+ * Extra gems a member collects over a free player across a full year of daily
+ * claims ((250 − 20) × 365 = 83,950) — the strongest concrete value framing for
+ * the daily-gem upsell.
+ */
+export function dailyGemExtraPerYear(): number {
+  return Math.max(0, DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365;
+}
+
 /** UTC calendar-day key ("YYYY-MM-DD") — the reset boundary for the daily claim. */
 export function utcDayKey(d: Date): string {
   const y = d.getUTCFullYear();

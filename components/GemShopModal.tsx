@@ -5,13 +5,14 @@ import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from '@/utils/safeGameState';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { X, Gem, Sparkles, Star, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react-native';
+import { X, Gem, Sparkles, Star, TrendingUp, RefreshCw, AlertCircle, ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { scale, fontScale, responsiveBorderRadius, responsiveSpacing, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
+import DailyGemClaim from '@/components/DailyGemClaim';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
@@ -463,9 +464,14 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     price: number;
     image: any;
     owned: boolean;
+    featured?: string;
   }) => {
     const afford = gems >= item.price;
-    const badges: ShopBadge[] = [{ label: 'Permanent', color: BADGE_POPULAR }];
+    // A featured tag (e.g. "Most Popular") leads; "Permanent" reassures it's a
+    // one-time buy. ShopItemCard renders up to two badges.
+    const badges: ShopBadge[] = [];
+    if (item.featured) badges.push({ label: item.featured, color: BADGE_BEST });
+    badges.push({ label: 'Permanent', color: BADGE_POPULAR });
     const buttonText = item.owned ? 'Owned' : afford ? 'Redeem' : 'Not enough gems';
     return (
       <ShopItemCard
@@ -660,6 +666,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       price: 5000,
       image: require('@/assets/images/iap/upgrades/money_multiplier.png'),
       owned: goldUpgrades?.multiplier || false,
+      featured: 'Most Popular',
     },
     {
       id: 'energy_boost',
@@ -708,8 +715,16 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       price: 50000,
       image: require('@/assets/images/iap/upgrades/immortality.png'),
       owned: goldUpgrades?.immortality || false,
+      featured: 'Ultimate',
     },
   ];
+
+  // "Short on gems?" bridge: if the player can't afford the cheapest upgrade they
+  // don't already own, offer a one-tap jump to the Gems tab (the conversion path).
+  const cheapestUnownedUpgrade = upgrades
+    .filter((u) => !u.owned)
+    .reduce((min, u) => Math.min(min, u.price), Infinity);
+  const shortOnGemsForUpgrades = Number.isFinite(cheapestUnownedUpgrade) && gems < cheapestUnownedUpgrade;
 
   const tabs: { id: StoreTab; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = [
     { id: 'gems', label: 'Gems', icon: Gem, color: '#6366F1' },
@@ -793,7 +808,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
             {tab === 'gems' ? (
               <>
+                {/* Free daily reward — shares its claim state with the identity
+                    card, so a player can only claim once per day from either. */}
+                <Text style={styles.sectionLabel}>Free daily reward</Text>
+                <DailyGemClaim />
                 {storeBanner}
+                <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Gem packs</Text>
                 {gemPacks.map(renderGemPackCard)}
                 <Text style={styles.footnote}>
                   Prices are your App Store region’s price, shown and charged at purchase.
@@ -823,6 +843,19 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             {tab === 'upgrades' ? (
               <>
                 <Text style={styles.footnote}>Permanent upgrades — bought with in-game gems.</Text>
+                {shortOnGemsForUpgrades ? (
+                  <TouchableOpacity
+                    onPress={() => setTab('gems')}
+                    activeOpacity={0.85}
+                    style={styles.gemBridge}
+                    accessibilityRole="button"
+                    accessibilityLabel="Get more gems to unlock upgrades"
+                  >
+                    <Gem size={scale(15)} color="#A5B4FC" />
+                    <Text style={styles.gemBridgeText}>Short on gems? Top up to unlock these upgrades</Text>
+                    <ChevronRight size={scale(16)} color="#A5B4FC" />
+                  </TouchableOpacity>
+                ) : null}
                 {upgrades.map(renderUpgradeCard)}
               </>
             ) : null}
@@ -983,6 +1016,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginTop: verticalScale(6),
     marginBottom: verticalScale(10),
+  },
+  sectionLabelSpaced: {
+    marginTop: verticalScale(16),
+  },
+  gemBridge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(11),
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(129, 140, 248, 0.4)',
+    marginBottom: verticalScale(12),
+  },
+  gemBridgeText: {
+    flex: 1,
+    fontSize: fontScale(12.5),
+    fontWeight: '700',
+    color: '#C7D2FE',
+    letterSpacing: 0.1,
   },
   footnote: {
     fontSize: fontScale(11),

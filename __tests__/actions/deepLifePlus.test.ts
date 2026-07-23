@@ -11,6 +11,8 @@ import {
   DEEP_LIFE_PLUS_WELCOME_GEMS,
   DEEP_LIFE_PLUS_DAILY_GEMS,
   DAILY_GEMS_BASE,
+  dailyGemMemberMultiple,
+  dailyGemExtraPerYear,
   getDeepLifePlusPlan,
   isDeepLifePlusProduct,
   buildDeepLifePlusWeekStatus,
@@ -121,6 +123,16 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
     expect(canClaimDailyGems(free(), TODAY)).toBe(true);
     expect(canClaimDailyGems(member(), TODAY)).toBe(true);
     expect(canClaimDailyGems(member({ deepLifePlusLastGemClaim: TODAY }), TODAY)).toBe(false);
+  });
+
+  it('sells the difference truthfully: member multiple is floored, never overstated', () => {
+    // 250 vs 20 → 12.5, floored to 12 so "12× the free daily" is never a lie.
+    expect(dailyGemMemberMultiple()).toBe(Math.floor(DEEP_LIFE_PLUS_DAILY_GEMS / DAILY_GEMS_BASE));
+    expect(dailyGemMemberMultiple() * DAILY_GEMS_BASE).toBeLessThanOrEqual(DEEP_LIFE_PLUS_DAILY_GEMS);
+  });
+
+  it('per-year gap is the daily surplus times 365', () => {
+    expect(dailyGemExtraPerYear()).toBe((DEEP_LIFE_PLUS_DAILY_GEMS - DAILY_GEMS_BASE) * 365);
   });
 });
 
