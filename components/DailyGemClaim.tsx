@@ -18,11 +18,12 @@
  * stay legible on a light identity card. Hosts with a permanently-dark
  * background pass `onDarkSurface` to keep the dark styling in light mode.
  */
-import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { Gem, Crown, ChevronRight, Check, X, Sparkles } from 'lucide-react-native';
 import { useGameSelector, shallowEqual, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { haptic } from '@/utils/haptics';
@@ -57,21 +58,74 @@ const RED = '#EF4444';
 const AMBER_DEEP = '#92400E';
 const AMBER_BRAND = '#B45309';
 
+/**
+ * One weekday dot. When `pop` is true (the day just claimed this session), the
+ * dot springs in from a smaller scale and the check fades up — a clean, one-shot
+ * "stamp" animation. Otherwise it renders static (no motion on card open).
+ */
+function DayDot({
+  cell,
+  dotStyle,
+  pop,
+  reducedMotion,
+}: {
+  cell: WeekDayCell;
+  dotStyle: Record<WeekDayCell['status'], object>;
+  pop: boolean;
+  reducedMotion: boolean;
+}) {
+  const scaleV = useRef(new Animated.Value(1)).current;
+  const iconV = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!pop || reducedMotion) return;
+    scaleV.setValue(0.35);
+    iconV.setValue(0);
+    Animated.parallel([
+      // Spring the ring in with a soft overshoot.
+      Animated.spring(scaleV, { toValue: 1, friction: 5, tension: 170, useNativeDriver: true }),
+      // Fade/scale the check in just behind the ring.
+      Animated.timing(iconV, { toValue: 1, duration: 180, delay: 60, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, [pop, reducedMotion, scaleV, iconV]);
+
+  return (
+    <Animated.View style={[styles.dot, dotStyle[cell.status], { transform: [{ scale: scaleV }] }]}>
+      {cell.status === 'claimed' ? (
+        <Animated.View style={{ opacity: iconV, transform: [{ scale: iconV }] }}>
+          <Check size={scale(12)} color={INK} strokeWidth={3} />
+        </Animated.View>
+      ) : cell.status === 'missed' ? (
+        <X size={scale(11)} color="#FFFFFF" strokeWidth={3} />
+      ) : null}
+    </Animated.View>
+  );
+}
+
 /** Mon→Sun streak strip: green check for claimed days, red cross for missed. */
-function WeekStrip({ cells, light }: { cells: WeekDayCell[]; light: boolean }) {
+function WeekStrip({
+  cells,
+  light,
+  justClaimedKey,
+  reducedMotion,
+}: {
+  cells: WeekDayCell[];
+  light: boolean;
+  justClaimedKey: string | null;
+  reducedMotion: boolean;
+}) {
   const dotStyle = light ? DOT_STYLE_LIGHT : DOT_STYLE;
   return (
     <View style={styles.strip} accessibilityLabel="Daily gem claim streak this week">
       {cells.map((c, i) => (
         <View key={`${c.key}-${i}`} style={styles.stripCell}>
           <Text style={styles.stripLabel}>{c.label}</Text>
-          <View style={[styles.dot, dotStyle[c.status]]}>
-            {c.status === 'claimed' ? (
-              <Check size={scale(12)} color={INK} strokeWidth={3} />
-            ) : c.status === 'missed' ? (
-              <X size={scale(11)} color="#FFFFFF" strokeWidth={3} />
-            ) : null}
-          </View>
+          <DayDot
+            cell={c}
+            dotStyle={dotStyle}
+            pop={c.status === 'claimed' && c.key === justClaimedKey}
+            reducedMotion={reducedMotion}
+          />
         </View>
       ))}
     </View>
@@ -86,6 +140,7 @@ function WeekStrip({ cells, light }: { cells: WeekDayCell[]; light: boolean }) {
 export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface?: boolean }) {
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
+  const reducedMotion = useReducedMotion();
   const { active, open, present, close } = useDeepLifePlusUpsell('daily_gems');
   const lastClaim = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaim, shallowEqual);
   const claimDays = useGameSelector((s) => s.settings?.deepLifePlusGemClaimDays, shallowEqual);
@@ -103,6 +158,34 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   // today's claim closed out the week, celebrate it.
   const perfectWeek = claimedToday && isPerfectDeepLifePlusWeek(claimDays, new Date());
 
+  // The day claimed in THIS session — drives the one-shot pop on the streak dot
+  // and the claimed-chip entrance (so neither animates on a normal card open).
+  const [justClaimedKey, setJustClaimedKey] = useState<string | null>(null);
+
+  // Button press feedback: a subtle spring scale-down while held.
+  const pressV = useRef(new Animated.Value(1)).current;
+  const onPressIn = useCallback(() => {
+    if (reducedMotion) return;
+    Animated.spring(pressV, { toValue: 0.96, speed: 40, bounciness: 0, useNativeDriver: true }).start();
+  }, [pressV, reducedMotion]);
+  const onPressOut = useCallback(() => {
+    if (reducedMotion) return;
+    Animated.spring(pressV, { toValue: 1, speed: 30, bounciness: 8, useNativeDriver: true }).start();
+  }, [pressV, reducedMotion]);
+
+  // Claimed-chip entrance (fade + soft scale-up), played once when a claim lands.
+  const chipV = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!justClaimedKey) return;
+    if (reducedMotion) {
+      chipV.setValue(1);
+      return;
+    }
+    chipV.setValue(0);
+    Animated.spring(chipV, { toValue: 1, friction: 6, tension: 150, useNativeDriver: true }).start();
+  }, [justClaimedKey, reducedMotion, chipV]);
+  const chipScale = chipV.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
+
   const onClaim = useCallback(() => {
     // Re-read "today" at claim time so a session open across midnight still
     // stamps the correct day.
@@ -110,40 +193,56 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
     haptic.success();
     setGameState((prev) => claimDailyGems(prev, key));
     void saveGame?.(false);
+    setJustClaimedKey(key);
   }, [setGameState, saveGame]);
 
   return (
     <View style={styles.wrap}>
-      <WeekStrip cells={week} light={light} />
+      <WeekStrip cells={week} light={light} justClaimedKey={justClaimedKey} reducedMotion={reducedMotion} />
 
       {claimedToday && perfectWeek ? (
-        <View style={[styles.claim, styles.claimPerfect]} accessibilityRole="text">
+        <Animated.View
+          style={[styles.claim, styles.claimPerfect, { opacity: chipV, transform: [{ scale: chipScale }] }]}
+          accessibilityRole="text"
+        >
           <Sparkles size={fontScale(15)} color={INK} />
           <Text style={styles.claimPerfectText}>Perfect week! Bonus gems claimed 🎉</Text>
-        </View>
+        </Animated.View>
       ) : claimedToday ? (
-        <View style={[styles.claim, styles.claimDone, light && styles.claimDoneLight]} accessibilityRole="text">
+        <Animated.View
+          style={[
+            styles.claim,
+            styles.claimDone,
+            light && styles.claimDoneLight,
+            { opacity: chipV, transform: [{ scale: chipScale }] },
+          ]}
+          accessibilityRole="text"
+        >
           <Check size={fontScale(15)} color={light ? AMBER_DEEP : GOLD_SOFT} />
           <Text style={[styles.claimDoneText, light && styles.claimDoneTextLight]}>
             Daily gems claimed · back tomorrow
           </Text>
-        </View>
+        </Animated.View>
       ) : (
-        <TouchableOpacity
-          onPress={onClaim}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel={`Claim your ${amount} daily gems`}
-          style={styles.claim}
-        >
-          <View style={styles.iconWrap}>
-            <Gem size={scale(16)} color={INK} fill={INK} />
-          </View>
-          <Text style={styles.claimText}>
-            Claim your <Text style={styles.claimAmount}>{amount}</Text> daily gems
-          </Text>
-          <ChevronRight size={fontScale(16)} color={INK} />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: pressV }] }}>
+          <TouchableOpacity
+            onPress={onClaim}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={`Claim your ${amount} daily gems`}
+            style={styles.claim}
+          >
+            <View style={styles.iconWrap}>
+              <Gem size={scale(16)} color={INK} fill={INK} />
+            </View>
+            <Text style={styles.claimText}>
+              Claim your <Text style={styles.claimAmount}>{amount}</Text> daily gems
+            </Text>
+            <ChevronRight size={fontScale(16)} color={INK} />
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       {/* Non-members: sell the gap — 20/day vs the 250/day member drop. */}
