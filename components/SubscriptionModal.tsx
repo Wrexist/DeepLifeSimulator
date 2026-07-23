@@ -275,7 +275,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <X size={scale(20)} color={TEXT_MUTED} />
           </TouchableOpacity>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Hero */}
             <View style={styles.hero}>
               <View style={styles.crownWrap}>
@@ -507,6 +507,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(148,163,184,0.14)',
   },
+  // flexShrink lets the scroll area shrink within the maxHeight-clamped sheet so
+  // the CTA + trust/footer below it stay pinned and visible while the content
+  // (hero, 6 benefits, plans) scrolls internally.
+  scroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: scale(6) },
 
   // Hero
