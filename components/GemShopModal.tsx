@@ -467,11 +467,15 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     featured?: string;
   }) => {
     const afford = gems >= item.price;
-    // A featured tag (e.g. "Most Popular") leads; "Permanent" reassures it's a
-    // one-time buy. ShopItemCard renders up to two badges.
-    const badges: ShopBadge[] = [];
-    if (item.featured) badges.push({ label: item.featured, color: BADGE_BEST });
-    badges.push({ label: 'Permanent', color: BADGE_POPULAR });
+    // Single badge only — the card reserves limited top-right space, so two
+    // badges collide with the title. A featured tag (e.g. "Most Popular") leads
+    // when present; otherwise "Permanent" reassures it's a one-time buy (and the
+    // tab footnote already says every upgrade is permanent).
+    const badges: ShopBadge[] = [
+      item.featured
+        ? { label: item.featured, color: BADGE_BEST }
+        : { label: 'Permanent', color: BADGE_POPULAR },
+    ];
     const buttonText = item.owned ? 'Owned' : afford ? 'Redeem' : 'Not enough gems';
     return (
       <ShopItemCard
