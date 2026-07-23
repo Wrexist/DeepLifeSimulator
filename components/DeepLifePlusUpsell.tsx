@@ -11,16 +11,14 @@
  * RevenueCat paywall isn't available), so you can drop it anywhere.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ImageBackground, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ImageBackground, Platform, StyleProp, ViewStyle } from 'react-native';
 import { Crown, ChevronRight, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus';
 import { scale, fontScale } from '@/utils/scaling';
-
-const LinearGradient = LinearGradientFallback;
 
 // Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
 // with a deliberately clean center so the DeepLife+ copy stays legible on top.
@@ -29,7 +27,11 @@ const BANNER_ART = require('@/assets/images/deeplife-plus-banner.webp');
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
 const GOLD_DEEP = '#B45309';
+const GOLD_HILITE = '#FFFDF0';
 const INK = '#1A1206';
+
+// Unique gradient id per badge instance so multiple crowns don't collide on web.
+let _coinGradSeq = 0;
 
 interface Props {
   variant?: 'banner' | 'inline' | 'badge';
@@ -42,24 +44,51 @@ interface Props {
 export default function DeepLifePlusUpsell({ variant = 'banner', surface, style }: Props) {
   const { active, open, present, close } = useDeepLifePlusUpsell(surface);
   const reducedMotion = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;     // glow halo breathe
+  const breathe = useRef(new Animated.Value(0)).current;   // coin scale breathe
+  const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
+  const coinGradId = useRef(`dlpCoin${_coinGradSeq++}`).current;
 
   useEffect(() => {
-    // Only the badge's crown glows; the banner now uses baked-in art and the
-    // inline pill has no glow, so skip the loop for them.
+    // Only the badge animates; the banner uses baked-in art and the inline pill
+    // is static.
     if (reducedMotion || active || variant !== 'badge') {
-      pulse.setValue(0);
+      // Leave a calm, visible glow when motion is off (0 would read as "off").
+      pulse.setValue(active ? 0 : 0.35);
+      breathe.setValue(0);
+      twinkle.setValue(0);
       return;
     }
-    const loop = Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [reducedMotion, active, pulse, variant]);
+    const breatheLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    // A quick glint every ~2.5s: pause, flash in, fade out, long pause.
+    const twinkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.timing(twinkle, { toValue: 1, duration: 340, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(twinkle, { toValue: 0, duration: 520, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.delay(1700),
+      ]),
+    );
+    glowLoop.start();
+    breatheLoop.start();
+    twinkleLoop.start();
+    return () => {
+      glowLoop.stop();
+      breatheLoop.stop();
+      twinkleLoop.stop();
+    };
+  }, [reducedMotion, active, pulse, breathe, twinkle, variant]);
 
   // Never upsell an existing member.
   if (active) return null;
@@ -68,10 +97,16 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const trialText = showTrial ? `${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-DAY FREE` : 'PREMIUM';
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] });
   const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.25] });
+  const breatheScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
+  const twinkleScale = twinkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.05] });
   const modal = <SubscriptionModal visible={open} onClose={close} />;
 
-  // ── Avatar badge: a small glowing crown the parent positions absolutely ──
+  // ── Avatar badge: a polished gold "coin" crown the parent positions absolutely.
+  // A real radial gradient (react-native-svg — the app's LinearGradient is the
+  // flat fallback since expo-linear-gradient crashes on New Arch), a crisp white
+  // rim, a pulsing glow halo, a gentle breathe, and a periodic sparkle glint. ──
   if (variant === 'badge') {
+    const coin = scale(26);
     return (
       <>
         <TouchableOpacity
@@ -86,14 +121,27 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
             style={[styles.badgeGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             pointerEvents="none"
           />
-          <LinearGradient
-            colors={[GOLD_SOFT, GOLD, GOLD_DEEP]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badgeCircle}
+          <Animated.View style={[styles.badgeCircle, { transform: [{ scale: breatheScale }] }]}>
+            <Svg width={coin} height={coin} viewBox="0 0 26 26" style={StyleSheet.absoluteFill}>
+              <Defs>
+                <RadialGradient id={coinGradId} cx="34%" cy="28%" r="78%">
+                  <Stop offset="0%" stopColor={GOLD_HILITE} />
+                  <Stop offset="32%" stopColor={GOLD_SOFT} />
+                  <Stop offset="70%" stopColor={GOLD} />
+                  <Stop offset="100%" stopColor={GOLD_DEEP} />
+                </RadialGradient>
+              </Defs>
+              <Circle cx="13" cy="13" r="12.3" fill={`url(#${coinGradId})`} />
+              <Circle cx="13" cy="13" r="12.3" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
+            </Svg>
+            <Crown size={scale(13)} color={INK} fill={INK} strokeWidth={2} />
+          </Animated.View>
+          <Animated.View
+            style={[styles.badgeSparkle, { opacity: twinkle, transform: [{ scale: twinkleScale }] }]}
+            pointerEvents="none"
           >
-            <Crown size={scale(14)} color={INK} fill={INK} strokeWidth={2} />
-          </LinearGradient>
+            <Sparkles size={scale(9)} color={GOLD_HILITE} fill={GOLD_HILITE} />
+          </Animated.View>
         </TouchableOpacity>
         {modal}
       </>
@@ -174,10 +222,10 @@ const styles = StyleSheet.create({
   badgeWrap: { width: scale(30), height: scale(30), alignItems: 'center', justifyContent: 'center' },
   badgeGlow: {
     position: 'absolute',
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
-    backgroundColor: 'rgba(250, 204, 21, 0.45)',
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
+    backgroundColor: 'rgba(250, 204, 21, 0.5)',
   },
   badgeCircle: {
     width: scale(26),
@@ -185,8 +233,22 @@ const styles = StyleSheet.create({
     borderRadius: scale(13),
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.65)',
+    // Warm depth so the coin reads as raised, not a flat sticker.
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(180, 83, 9, 0.55)' } as object,
+      default: {
+        shadowColor: GOLD_DEEP,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.55,
+        shadowRadius: 2,
+        elevation: 3,
+      },
+    }),
+  },
+  badgeSparkle: {
+    position: 'absolute',
+    top: scale(-1),
+    right: scale(-1),
   },
 
   // Ad-sheet inline pill
