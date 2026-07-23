@@ -96,6 +96,50 @@ export function utcDayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+export type WeekDayStatus =
+  | 'claimed' // gem drop was claimed that day → green check
+  | 'missed' // a past day (on/after they started) that was skipped → red cross
+  | 'today' // today, not yet claimed → highlighted, ready
+  | 'future' // upcoming day this week → dim
+  | 'inactive'; // a past day before their first claim → neutral (never punished)
+
+export interface WeekDayCell {
+  key: string; // UTC day key
+  label: string; // single-letter weekday label (Mon-first)
+  status: WeekDayStatus;
+}
+
+const MS_PER_DAY = 86_400_000;
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/**
+ * Build the Mon→Sun status strip for the daily gem drop from the claimed day
+ * keys. Pure (takes `now`), so it's deterministic and unit-testable. Past days
+ * before the player's first-ever claim are `inactive` (not `missed`), so a new
+ * member is never shown red crosses for days they couldn't have claimed.
+ */
+export function buildDeepLifePlusWeekStatus(claimDays: string[] | undefined, now: Date): WeekDayCell[] {
+  const claimed = new Set(Array.isArray(claimDays) ? claimDays : []);
+  const firstClaim = claimed.size ? [...claimed].sort()[0] : null;
+  const todayKey = utcDayKey(now);
+
+  // Midnight-UTC of this week's Monday.
+  const baseMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const mondayOffset = (new Date(baseMs).getUTCDay() + 6) % 7; // getUTCDay: 0=Sun
+  const mondayMs = baseMs - mondayOffset * MS_PER_DAY;
+
+  return WEEKDAY_LABELS.map((label, i) => {
+    const key = utcDayKey(new Date(mondayMs + i * MS_PER_DAY));
+    let status: WeekDayStatus;
+    if (claimed.has(key)) status = 'claimed';
+    else if (key === todayKey) status = 'today';
+    else if (key > todayKey) status = 'future';
+    else if (!firstClaim || key < firstClaim) status = 'inactive';
+    else status = 'missed';
+    return { key, label, status };
+  });
+}
+
 /**
  * Career-income boost for DeepLife+ members (1.25 = +25% weekly salary). Applied
  * in the weekly payday reducer (applyCareerSalaryAndPenalty) and advertised on

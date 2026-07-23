@@ -75,11 +75,18 @@ export function canClaimDailyDeepLifePlusGems(state: GameState, todayKey: string
  */
 export function claimDailyDeepLifePlusGems(state: GameState, todayKey: string): GameState {
   if (!canClaimDailyDeepLifePlusGems(state, todayKey)) return state;
+  // Append today to the claim history (dedup + keep the last 14 days) so the
+  // weekly streak strip can show claimed vs missed days.
+  const prevDays = Array.isArray(state.settings?.deepLifePlusGemClaimDays)
+    ? state.settings.deepLifePlusGemClaimDays
+    : [];
+  const nextDays = [...prevDays.filter((k) => k !== todayKey), todayKey].slice(-14);
   return {
     ...state,
     settings: {
       ...state.settings,
       deepLifePlusLastGemClaim: todayKey,
+      deepLifePlusGemClaimDays: nextDays,
     },
     stats: {
       ...state.stats,

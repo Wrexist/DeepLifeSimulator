@@ -12,6 +12,8 @@ import {
   DEEP_LIFE_PLUS_DAILY_GEMS,
   getDeepLifePlusPlan,
   isDeepLifePlusProduct,
+  buildDeepLifePlusWeekStatus,
+  utcDayKey,
 } from '@/lib/subscription/deepLifePlus';
 import { SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
 import type { GameSettings, GameState } from '@/contexts/game/types';
@@ -90,6 +92,7 @@ describe('claimDailyDeepLifePlusGems (members-only daily gem drop)', () => {
     const next = claimDailyDeepLifePlusGems(member(), TODAY);
     expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
     expect(next.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+    expect(next.settings.deepLifePlusGemClaimDays).toContain(TODAY); // recorded for the streak strip
   });
 
   it('is a no-op on a repeat same-day claim (returns the same state)', () => {
@@ -118,6 +121,47 @@ describe('claimDailyDeepLifePlusGems (members-only daily gem drop)', () => {
     expect(canClaimDailyDeepLifePlusGems(member(), TODAY)).toBe(true);
     expect(canClaimDailyDeepLifePlusGems(member({ deepLifePlusLastGemClaim: TODAY }), TODAY)).toBe(false);
     expect(canClaimDailyDeepLifePlusGems(createTestGameState(), TODAY)).toBe(false);
+  });
+});
+
+describe('buildDeepLifePlusWeekStatus (Mon→Sun streak strip)', () => {
+  // Weekday-independent: derive the actual week keys from the function's own
+  // output so the assertions hold whatever calendar day `now` lands on.
+  const now = new Date('2026-07-26T12:00:00Z');
+  const today = utcDayKey(now);
+  const weekKeys = buildDeepLifePlusWeekStatus([], now).map((c) => c.key);
+  const pastKeys = weekKeys.filter((k) => k < today);
+  const futureKeys = weekKeys.filter((k) => k > today);
+
+  it('returns Mon→Sun cells', () => {
+    const cells = buildDeepLifePlusWeekStatus([], now);
+    expect(cells).toHaveLength(7);
+    expect(cells.map((c) => c.label)).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S']);
+  });
+
+  it('with no claims: today is "today", past days are "inactive", future is "future"', () => {
+    const s = Object.fromEntries(buildDeepLifePlusWeekStatus([], now).map((c) => [c.key, c.status]));
+    expect(s[today]).toBe('today');
+    pastKeys.forEach((k) => expect(s[k]).toBe('inactive'));
+    futureKeys.forEach((k) => expect(s[k]).toBe('future'));
+  });
+
+  it('marks claimed days green and skipped days (after the first claim) as missed', () => {
+    if (pastKeys.length < 2) return; // guard: needs at least two past days
+    const claim = [pastKeys[0], today];
+    const s = Object.fromEntries(buildDeepLifePlusWeekStatus(claim, now).map((c) => [c.key, c.status]));
+    expect(s[pastKeys[0]]).toBe('claimed');
+    expect(s[today]).toBe('claimed');
+    pastKeys.slice(1).forEach((k) => expect(s[k]).toBe('missed'));
+  });
+
+  it('never shows a red cross before the first-ever claim (inactive, not missed)', () => {
+    if (pastKeys.length < 2) return;
+    // First claim is the LAST past day → every earlier past day is pre-membership.
+    const s = Object.fromEntries(
+      buildDeepLifePlusWeekStatus([pastKeys[pastKeys.length - 1]], now).map((c) => [c.key, c.status]),
+    );
+    pastKeys.slice(0, -1).forEach((k) => expect(s[k]).toBe('inactive'));
   });
 });
 
