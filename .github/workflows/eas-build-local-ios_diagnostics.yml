@@ -1,0 +1,245 @@
+name: iOS TestFlight (local build · no cloud credits)
+
+# Builds the iOS app with `eas build --local` on a GitHub macOS runner and
+# (optionally) submits to TestFlight. Unlike .github/workflows/eas-build.yml
+# (which uses Expo's cloud build queue), this consumes ZERO EAS Build credits —
+# use it when the monthly cloud quota is exhausted.
+#
+# Cost note: macOS runner minutes bill ~10x. Cheap gates run on ubuntu first;
+# the expensive build/submit only runs on macos after they pass.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Marketing version to ship (e.g. 2.5.3). Apple rejects a version that was already released — bump it for every store release.'
+        type: string
+        # Required with no default: forces an explicit choice on every run, so
+        # a stale package.json version can never be submitted by accident
+        # ("You've already submitted this version of the app").
+        required: true
+      submit:
+        description: 'Submit the build to TestFlight after building'
+        type: boolean
+        # Safe by default: TestFlight submission is outward-facing and hard to
+        # reverse, so it is opt-in — tick this when you actually want to submit.
+        default: false
+
+concurrency:
+  group: ios-local-release
+  cancel-in-progress: false
+
+# Least privilege: these jobs only read code, run EAS, and upload artifacts.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # ---- Cheap gates on ubuntu (mirrors eas-build.yml) -----------------------
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Fail fast (before any macOS minutes) if the requested marketing
+      # version isn't a full MAJOR.MINOR.PATCH string. Three parts required:
+      # `npm version` (used to stamp package.json) rejects two-part inputs
+      # like "2.5", which would otherwise fail late in the macOS job.
+      - name: Validate marketing version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' must be a full MAJOR.MINOR.PATCH string (e.g. 2.5.3)."
+            exit 1
+          fi
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "::notice::Building marketing version $VERSION (package.json currently: $CURRENT)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Fail fast on Ubuntu if the EAS auth token is missing, before the
+      # build job spends (10x-billed) macOS minutes.
+      - name: Require EXPO_TOKEN
+        run: test -n "$EXPO_TOKEN" || { echo "::error::EXPO_TOKEN repo secret is not set — add it under Settings ▸ Secrets ▸ Actions"; exit 1; }
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Route conflict check
+        run: npm run check:routes
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci
+
+      # Hard gate (CLAUDE.md rule #6): enforce revenue-critical + save-signing
+      # production config before spending macOS minutes. All five required
+      # secrets must be configured as GitHub Actions repo secrets, or this
+      # fails — by design. Unlike eas-build.yml this is NOT continue-on-error
+      # and DOES include EXPO_PUBLIC_SAVE_HMAC_KEY (check 8).
+      - name: Preflight (production config)
+        run: node scripts/preflight-check.js --platform ios
+        env:
+          EXPO_PUBLIC_ENABLE_ADMOB: 'true'
+          EXPO_PUBLIC_ENABLE_IAP: 'true'
+          EXPO_PUBLIC_ENABLE_ATT: 'true'
+          EXPO_PUBLIC_SAVE_HMAC_KEY: ${{ secrets.EXPO_PUBLIC_SAVE_HMAC_KEY }}
+          EXPO_PUBLIC_IAP_VERIFY_URL: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_URL }}
+          EXPO_PUBLIC_ADMOB_IOS_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_IOS_APP_ID }}
+          EXPO_PUBLIC_ADMOB_BANNER_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_IOS }}
+          EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS }}
+          EXPO_PUBLIC_ADMOB_REWARDED_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_IOS }}
+
+  # ---- Expensive build + submit on macOS -----------------------------------
+  build-ios:
+    needs: verify
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Authenticates eas-cli non-interactively via EXPO_TOKEN so `eas build
+      # --local` can resolve EAS project secrets while logged in. NOTE: the build
+      # number is NOT taken from EAS here — see the "Compute unique build number"
+      # step below. Remote autoIncrement only runs on EAS *cloud* builds, never
+      # on --local, so the version is minted locally (eas.json appVersionSource
+      # is "local").
+      - name: Expo/EAS login
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # --local compiles on this runner (no cloud credits). --output pins the
+      # artifact path so submit/upload are deterministic. EXPO_PUBLIC_* are
+      # passed explicitly so Metro embeds them at bundle time even if a project
+      # secret is missing.
+      - name: Show Xcode Version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          ls /Applications | grep Xcode
+
+      # CFBundleVersion must be UNIQUE for every App Store upload — Apple rejects
+      # a resubmission of a build number it has already seen ("You've already
+      # submitted this build of the app"). `eas build --local` does NOT
+      # auto-increment (remote autoIncrement only runs on EAS cloud builds), so
+      # resolve it here: scripts/next-build-number.mjs returns one HIGHER than
+      # App Store Connect's current highest build (when the ASC_* secrets below
+      # are set), else a monotonic epoch fallback. app.config.js bakes it into
+      # ios.buildNumber / android.versionCode (eas.json appVersionSource: local).
+      - name: Compute unique build number (CFBundleVersion)
+        run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
+        env:
+          # Optional — set these repo secrets to track App Store Connect exactly.
+          # Without them the resolver falls back to epoch seconds (still unique).
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+
+      # app.config.js reads expo.version from package.json (single source of
+      # truth), so stamp the chosen version there. --no-git-tag-version keeps
+      # this a working-tree-only change; nothing is committed or pushed.
+      - name: Set marketing version from workflow input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "::notice::expo.version for this build: $(node -p "require('./package.json').version") (build $BUILD_NUMBER)"
+
+      - name: EAS Build iOS (local)
+        run: |
+          mkdir -p build
+          eas build \
+            --platform ios \
+            --profile production \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/build/deeplife.ipa"
+        env:
+          # Same fingerprint crash as eas-build.yml — see comment there.
+          EAS_SKIP_AUTO_FINGERPRINT: '1'
+          # Consumed by app.config.js → ios.buildNumber / android.versionCode.
+          # eas.json appVersionSource is "local", so this value is what gets
+          # baked into the binary's CFBundleVersion.
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          EXPO_PUBLIC_ENABLE_ADMOB: 'true'
+          EXPO_PUBLIC_ENABLE_IAP: 'true'
+          EXPO_PUBLIC_ENABLE_ATT: 'true'
+          EXPO_PUBLIC_SAVE_HMAC_KEY: ${{ secrets.EXPO_PUBLIC_SAVE_HMAC_KEY }}
+          EXPO_PUBLIC_IAP_VERIFY_URL: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_URL }}
+          EXPO_PUBLIC_IAP_VERIFY_TOKEN: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_TOKEN }}
+          EXPO_PUBLIC_ADMOB_IOS_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_IOS_APP_ID }}
+          EXPO_PUBLIC_ADMOB_BANNER_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_IOS }}
+          EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS }}
+          EXPO_PUBLIC_ADMOB_REWARDED_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_IOS }}
+
+      - name: Inspect IPA privacy manifests
+        run: |
+          mkdir -p ipa
+          unzip -q "$GITHUB_WORKSPACE/build/deeplife.ipa" -d ipa
+
+          echo "===== Expo config ====="
+          npx expo config --type public || true
+
+          echo "===== Podfile.lock Google SDK ====="
+          grep -n "Google-Mobile-Ads-SDK" ios/Podfile.lock || true
+          grep -n "Firebase" ios/Podfile.lock || true
+
+          echo "===== Privacy manifests in ios ====="
+          find ios -name "PrivacyInfo.xcprivacy" -print || true
+
+          echo "===== Privacy manifests in IPA ====="
+          find ipa -name "PrivacyInfo.xcprivacy" -print || true
+
+          for f in $(find ipa -name "PrivacyInfo.xcprivacy"); do
+            echo "=============================="
+            echo "$f"
+            plutil -p "$f" || cat "$f"
+          done
+
+      # Always keep the .ipa, even if submit is skipped/fails — lets you upload
+      # manually via Transporter as a fallback.
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deeplife-ios-ipa
+          path: build/deeplife.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      # Submit does NOT consume build credits. Uses submit.production.ios from
+      # eas.json (ascAppId + appleTeamId). Requires an App Store Connect API key
+      # stored as EAS credentials (set once: `eas credentials` or
+      # `eas submit` interactively), so --non-interactive can reuse it.
+      - name: Submit to TestFlight
+        if: ${{ inputs.submit }}
+        run: |
+          eas submit \
+            --platform ios \
+            --profile production \
+            --path "$GITHUB_WORKSPACE/build/deeplife.ipa" \
+            --non-interactive
