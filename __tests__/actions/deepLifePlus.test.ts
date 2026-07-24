@@ -4,6 +4,7 @@ import {
   reconcileSubscriptionBenefits,
   claimDailyGems,
   canClaimDailyGems,
+  canClaimDailyGemsFor,
 } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
@@ -155,6 +156,83 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
     const keys = weekKeysForDayKey(TODAY);
     const s = free({ deepLifePlusGemClaimDays: [keys[0]] });
     expect(claimDailyGems(s, keys[2]).stats.gems).toBe(DAILY_GEMS_BASE); // just the daily
+  });
+});
+
+describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)', () => {
+  const TODAY = '2026-07-23';
+  const YESTERDAY = '2026-07-22';
+  const DAY_MS = 86_400_000;
+  const NOW = Date.parse(`${TODAY}T09:00:00.000Z`); // a plausible claim time today
+  const member = (over: Partial<GameSettings> = {}): GameState =>
+    createTestGameState({ stats: { gems: 0 }, settings: { deepLifePlusActivated: true, ...over } });
+
+  it('stamps a monotonic epoch high-water mark on claim', () => {
+    const next = claimDailyGems(member(), TODAY, NOW);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBe(NOW);
+  });
+
+  it('REJECTS a claim when the clock is rolled backward below the last-claim mark', () => {
+    // Claimed today at NOW; attacker sets the device clock back a full day and
+    // uses the (now different) yesterday key to try to reclaim.
+    const claimed = member({ deepLifePlusLastGemClaim: TODAY, deepLifePlusLastGemClaimAt: NOW });
+    const rewound = NOW - DAY_MS;
+    expect(canClaimDailyGems(claimed, YESTERDAY, rewound)).toBe(false);
+    expect(claimDailyGems(claimed, YESTERDAY, rewound)).toBe(claimed); // no gems minted
+  });
+
+  it('does not move the mark backward — max(previous, now) wins', () => {
+    // A legit new-day claim whose wall clock is (implausibly) a touch behind the
+    // stored mark must not lower the high-water mark.
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const slightlyBack = NOW - 60_000; // 1 min behind, inside the skew tolerance
+    const next = claimDailyGems(s, TODAY, slightlyBack);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS); // tolerated, still claimable
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBe(NOW); // mark never decreases
+  });
+
+  it('allows the next legit claim once real time passes the mark', () => {
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const tomorrow = NOW + DAY_MS;
+    expect(canClaimDailyGems(s, TODAY, tomorrow)).toBe(true);
+    expect(claimDailyGems(s, TODAY, tomorrow).settings.deepLifePlusLastGemClaimAt).toBe(tomorrow);
+  });
+
+  it('stays backward-compatible with legacy 2-arg callers (guard skipped, no mark written)', () => {
+    const next = claimDailyGems(member(), TODAY); // no nowMs
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBeUndefined();
+  });
+
+  it('BLOCKS the alternating-adjacent-day farm across a midnight boundary', () => {
+    // The gap a pure epoch+tolerance guard missed: claim 23:59, cross midnight and
+    // claim 00:02 (3 min later — inside the 5-min skew tolerance), then rewind to
+    // 23:59 and reclaim yesterday's key, forever. Strict day-key monotonicity must
+    // refuse any key that isn't strictly later than the last claimed day.
+    const d23_2359 = Date.parse(`${YESTERDAY}T23:59:00.000Z`);
+    const d24_0002 = Date.parse(`${TODAY}T00:02:00.000Z`);
+    // Claim yesterday 23:59, then today 00:02 — both legit, strictly increasing.
+    const afterY = claimDailyGems(member(), YESTERDAY, d23_2359);
+    expect(afterY.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    const afterT = claimDailyGems(afterY, TODAY, d24_0002);
+    expect(afterT.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2); // two legit days
+    expect(afterT.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+    // Now rewind to 23:59 and try to reclaim YESTERDAY's key — must be refused
+    // (YESTERDAY is not strictly later than the stored TODAY), so no gems mint.
+    expect(canClaimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(false);
+    expect(claimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(afterT);
+    // And re-claiming TODAY is still the same-day no-op.
+    expect(canClaimDailyGems(afterT, TODAY, d24_0002)).toBe(false);
+  });
+
+  it('CTA tolerance matches the reducer: a sub-tolerance rewind on a new day still claimable', () => {
+    // A benign 1-min NTP backward nudge on an otherwise-new day must NOT be
+    // treated as settled by the UI predicate (shared with the reducer).
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const oneMinBack = NOW - 60_000;
+    expect(canClaimDailyGemsFor(YESTERDAY, NOW, TODAY, oneMinBack)).toBe(true);
+    expect(claimDailyGems(s, TODAY, oneMinBack).stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
   });
 });
 

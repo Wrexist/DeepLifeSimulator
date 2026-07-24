@@ -38,7 +38,7 @@ import {
   isPerfectDeepLifePlusWeek,
   type WeekDayCell,
 } from '@/lib/subscription/deepLifePlus';
-import { claimDailyGems } from '@/contexts/game/actions/SubscriptionActions';
+import { claimDailyGems, canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 
 // Gold palette. The SOLID-gold surfaces (the claim button, the "perfect week"
 // chip) carry INK text and read on ANY background, so they stay theme-independent
@@ -143,6 +143,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   const reducedMotion = useReducedMotion();
   const { active, open, present, close } = useDeepLifePlusUpsell('daily_gems');
   const lastClaim = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaim, shallowEqual);
+  const lastClaimAt = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaimAt);
   const claimDays = useGameSelector((s) => s.settings?.deepLifePlusGemClaimDays, shallowEqual);
   const darkMode = useGameSelector((s) => s.settings?.darkMode);
   // Use the light-mode variants only when the app is explicitly in light mode and
@@ -151,6 +152,12 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
 
   const todayKey = utcDayKey(new Date());
   const claimedToday = lastClaim === todayKey;
+  // Share the reducer's exact eligibility predicate (day-key monotonicity +
+  // tolerated epoch high-water mark) so the CTA and `claimDailyGems` can never
+  // disagree: a claim the reducer would accept always shows the button, and one
+  // it would refuse (already claimed, or a real clock rewind past the tolerance)
+  // shows the settled chip instead of a button that silently no-ops.
+  const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, Date.now());
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
   // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
   const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
@@ -191,7 +198,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
     // stamps the correct day.
     const key = utcDayKey(new Date());
     haptic.success();
-    setGameState((prev) => claimDailyGems(prev, key));
+    setGameState((prev) => claimDailyGems(prev, key, Date.now()));
     void saveGame?.(false);
     setJustClaimedKey(key);
   }, [setGameState, saveGame]);
@@ -208,7 +215,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
           <Sparkles size={fontScale(15)} color={INK} />
           <Text style={styles.claimPerfectText}>Perfect week! Bonus gems claimed 🎉</Text>
         </Animated.View>
-      ) : claimedToday ? (
+      ) : claimSettled ? (
         <Animated.View
           style={[
             styles.claim,
