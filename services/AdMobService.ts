@@ -6,10 +6,11 @@
  * after MAX_CONSECUTIVE_FAILURES failures the service disables itself for
  * the remainder of the session so a broken ad SDK can never crash the app.
  *
- * To configure for production:
- * 1. Replace the test ad unit IDs in AD_UNITS below with your real AdMob IDs
- * 2. Set your App IDs in app.config.js react-native-google-mobile-ads plugin
- * 3. Run `npx expo prebuild` to regenerate native projects
+ * Production config (already wired — this is reference, not a TODO):
+ *  - `resolveAdUnitId()` returns real ad-unit IDs in release builds and Google
+ *    TEST IDs only under `__DEV__`, so test ads can never reach production.
+ *  - App IDs come from app.config.js (`admobIosAppId` / `admobAndroidAppId`),
+ *    overridable via EXPO_PUBLIC_ADMOB_{IOS,ANDROID}_APP_ID.
  */
 
 import { Platform } from 'react-native';

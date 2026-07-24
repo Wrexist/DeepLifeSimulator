@@ -43,7 +43,9 @@ class AnalyticsService {
       
       if (firebase?.default) {
         this.isInitialized = true;
-        console.log('Analytics initialized with Firebase');
+        if (__DEV__) {
+          console.log('Analytics initialized with Firebase');
+        }
       } else {
         // Fallback to console logging in development
         this.isInitialized = true;
@@ -52,7 +54,9 @@ class AnalyticsService {
         }
       }
     } catch (error) {
-      console.error('Analytics initialization error:', error);
+      if (__DEV__) {
+        console.error('Analytics initialization error:', error);
+      }
       this.isInitialized = true; // Still allow tracking, just log to console
     }
   }
