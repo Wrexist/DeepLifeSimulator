@@ -71,8 +71,9 @@ module.exports = {
       // The AdMob SDK ships its own manifest for ad data-collection + tracking
       // domains; Apple aggregates all manifests, so we don't duplicate those.
       privacyManifests: {
-        NSPrivacyTracking: true,
-        NSPrivacyAccessedAPITypes: [
+          NSPrivacyTracking: true,
+          NSPrivacyTrackingDomains: [],
+          NSPrivacyAccessedAPITypes: [
           {
             NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults",
             NSPrivacyAccessedAPITypeReasons: ["CA92.1"]
