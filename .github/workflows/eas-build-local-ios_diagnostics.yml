@@ -1,4 +1,4 @@
-name: iOS TestFlight (local build · no cloud credits)
+name: TEST iOS TestFlight (local build · no cloud credits)
 
 # Builds the iOS app with `eas build --local` on a GitHub macOS runner and
 # (optionally) submits to TestFlight. Unlike .github/workflows/eas-build.yml
