@@ -4,6 +4,11 @@ import { GameStoreContext } from '@/contexts/game/useGameSelector';
 import { ReviewPromptHandler } from '@/components/ReviewPromptHandler';
 import { maybeRequestReview as maybeRequestReviewImport } from '@/utils/ratingPrompt';
 import { AFTERGLOW_MS, MAX_WAIT_MS } from '@/utils/reviewMoments';
+import {
+  beginCelebration,
+  endCelebration,
+  __resetCelebrationGateForTests,
+} from '@/utils/celebrationGate';
 import type { GameState } from '@/contexts/game/types';
 
 // The frequency gating has its own suite (utils/__tests__/ratingPrompt.test.ts)
@@ -84,6 +89,7 @@ describe('render — ReviewPromptHandler', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-07-24T12:00:00Z'));
+    __resetCelebrationGateForTests();
   });
 
   afterEach(() => {
@@ -154,6 +160,23 @@ describe('render — ReviewPromptHandler', () => {
     advance(MAX_WAIT_MS + 2000);
 
     expect(maybeRequestReview).not.toHaveBeenCalled();
+  });
+
+  it('waits for a celebration modal to be dismissed before asking', () => {
+    // The promotion celebration is local component state, invisible to
+    // GameState — without the celebration gate the afterglow timer elapses
+    // mid-celebration and the store sheet lands on top of the reward.
+    const store = makeStore(beforePromotion());
+    mount(store);
+
+    beginCelebration();
+    store.push(afterPromotion());
+    advance(AFTERGLOW_MS + 3000);
+    expect(maybeRequestReview).not.toHaveBeenCalled();
+
+    endCelebration();
+    advance(2000);
+    expect(maybeRequestReview).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a beat too small to be worth an ask', () => {

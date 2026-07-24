@@ -9,7 +9,7 @@ import { computeBailCost } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
-import { CrimeSkillId, GameState, GameStats } from './types';
+import { CrimeSkillId, GameState, GameStats, PromotionDetails } from './types';
 import { haptic } from '@/utils/haptics';
 
 interface JobActionsContextType {
@@ -19,7 +19,7 @@ interface JobActionsContextType {
   gainCrimeSkillXp: (skillId: CrimeSkillId, amount: number) => void;
   unlockCrimeSkillUpgrade: (skillId: CrimeSkillId, upgradeId: string, cost: number, levelReq: number) => void;
   applyForJob: (jobId: string) => void;
-  promoteCareer: (careerId: string) => { success: boolean; message: string };
+  promoteCareer: (careerId: string) => { success: boolean; message: string; promotion?: PromotionDetails };
   requestRaise: (careerId: string) => { success: boolean; message: string; approved?: boolean };
   quitJob: () => void;
 

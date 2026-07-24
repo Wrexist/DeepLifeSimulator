@@ -2,7 +2,7 @@
  * Job & Career Actions
  */
 import React from 'react';
-import { GameState, CrimeSkillId } from '../types';
+import { GameState, CrimeSkillId, PromotionDetails } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
@@ -772,7 +772,7 @@ export const promoteCareer = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   careerId: string
-): { success: boolean; message: string } => {
+): { success: boolean; message: string; promotion?: PromotionDetails } => {
   const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
@@ -827,9 +827,28 @@ export const promoteCareer = (
   });
 
   log.info(`Career promoted: ${careerId} to level ${newLevel} (${levelData.name})`);
+
+  // Snapshot the before/after story for the celebration. This is the only
+  // moment both rungs are known — `career` is the pre-promotion snapshot, so
+  // once state commits the old title and salary are unrecoverable.
+  const previousLevelData = career.levels[career.level];
+  const raiseMultiplier = career.raiseMultiplier ?? 1;
+  const paid = (base: number) => Math.round((base || 0) * raiseMultiplier);
+  const topLevel = Math.max(0, career.levels.length - 1);
+
   return {
     success: true,
-    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${levelData.salary}/week.`
+    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${levelData.salary}/week.`,
+    promotion: {
+      careerId,
+      fromTitle: previousLevelData?.name ?? 'Your old role',
+      toTitle: levelData.name,
+      fromSalary: paid(previousLevelData?.salary ?? 0),
+      toSalary: paid(levelData.salary),
+      level: newLevel,
+      topLevel,
+      isTopRank: newLevel >= topLevel,
+    },
   };
 };
 

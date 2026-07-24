@@ -188,6 +188,34 @@ export interface Career {
   lastRaiseWeeksLived?: number; // weeksLived of the last raise REQUEST (approved OR denied) — gates the cooldown.
 }
 
+/**
+ * Everything the promotion celebration needs to tell the story of a raise.
+ *
+ * Built by `promoteCareer` at the moment of the promotion, because that is the
+ * only place both the OLD and the NEW rung are known — once state commits, the
+ * previous title and salary are gone.
+ *
+ * Salaries here are what the player is actually PAID (base × any negotiated
+ * raiseMultiplier), so the celebrated number matches the payslip.
+ */
+export interface PromotionDetails {
+  careerId: string;
+  /** Rung title before the promotion, e.g. "Junior Developer". */
+  fromTitle: string;
+  /** Rung title after, e.g. "Senior Developer". */
+  toTitle: string;
+  /** Weekly pay before, after the raise multiplier. */
+  fromSalary: number;
+  /** Weekly pay after, after the raise multiplier. */
+  toSalary: number;
+  /** New level index (0-based). */
+  level: number;
+  /** Index of the top rung on this ladder. */
+  topLevel: number;
+  /** True when this promotion reached the top of the ladder. */
+  isTopRank: boolean;
+}
+
 /** A practiced hobby/skill (v21 mastery loop). Level is derived from xp but
  *  cached for cheap reads. */
 export interface PlayerPursuit {

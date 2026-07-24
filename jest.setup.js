@@ -441,6 +441,7 @@ jest.mock('lucide-react-native', () => ({
   CheckCircle: 'CheckCircle',
   Check: 'Check',
   TrendingUp: 'TrendingUp',
+  Crown: 'Crown',
   TrendingDown: 'TrendingDown',
   ArrowUp: 'ArrowUp',
   ArrowDown: 'ArrowDown',

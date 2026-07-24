@@ -9,10 +9,12 @@ import { View,
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
+import PromotionCelebrationModal from '@/components/work/PromotionCelebrationModal';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
+import type { PromotionDetails } from '@/contexts/game/types';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
@@ -80,6 +82,9 @@ function WorkScreenContent() {
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
     // Career id whose in-app "Manage Job" action sheet is open (null = closed).
     const [manageJobId, setManageJobId] = useState<string | null>(null);
+    // Promotion payoff. Held in local state (not GameState) because it is a
+    // one-shot presentation concern — nothing about it needs to survive a save.
+    const [promotionCelebration, setPromotionCelebration] = useState<PromotionDetails | null>(null);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 
     const {
@@ -595,10 +600,17 @@ function WorkScreenContent() {
             buttonText = 'Promote now';
             onPress = () => {
                 const result = promoteCareer(career.id);
-                if (result) {
-                    if (result.success) showSuccess(result.message);
-                    else showWarning(result.message);
+                if (!result) return;
+                if (!result.success) {
+                    showWarning(result.message);
+                    return;
                 }
+                // A promotion is the payoff of dozens of weeks of progress, so it
+                // gets the full celebration rather than a toast that scrolls away.
+                // `promotion` is absent only on legacy/edge paths — fall back to
+                // the message so the player is never left with no feedback.
+                if (result.promotion) setPromotionCelebration(result.promotion);
+                else showSuccess(result.message);
             };
         } else if (isEmployedHere) {
             const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
@@ -1062,6 +1074,12 @@ function WorkScreenContent() {
                     </View>
                 </TouchableOpacity>
             </Modal>
+
+            <PromotionCelebrationModal
+                visible={promotionCelebration !== null}
+                promotion={promotionCelebration}
+                onClose={() => setPromotionCelebration(null)}
+            />
 
         </LinearGradient>
     );

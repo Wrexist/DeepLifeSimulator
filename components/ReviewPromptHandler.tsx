@@ -54,6 +54,7 @@ import {
   type ReviewTrigger,
 } from '@/utils/reviewMoments';
 import { maybeRequestReview } from '@/utils/ratingPrompt';
+import { isCelebrationOnScreen } from '@/utils/celebrationGate';
 import { logger } from '@/utils/logger';
 
 interface ArmedBeat {
@@ -107,7 +108,10 @@ export function ReviewPromptHandler() {
         lastWeekChangeAt,
         appActive: AppState.currentState === 'active',
         soured: beat.soured,
-        calm: isCalmEnoughToAsk(store.getSnapshot()),
+        // A celebration modal is local component state, invisible to GameState,
+        // so the gate is checked alongside it — otherwise the sheet lands on
+        // top of the very celebration it is meant to follow.
+        calm: isCalmEnoughToAsk(store.getSnapshot()) && !isCelebrationOnScreen(),
       });
 
       if (decision === 'wait') {
