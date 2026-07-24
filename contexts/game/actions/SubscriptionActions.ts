@@ -57,19 +57,58 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
 }
 
 /**
+ * Small tolerance (5 min) so a benign NTP correction that nudges the wall clock
+ * slightly backward can't lock a legitimate player out of the daily claim. This
+ * is negligible against the ~24h cadence of a real daily drop, so it doesn't
+ * open the exploit back up.
+ */
+const CLAIM_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
  * Can this player claim the daily gem drop right now? Everyone can claim once per
  * UTC day (`todayKey` from `utcDayKey(new Date())`) — the AMOUNT is tiered
  * (members 250, free players 20), not eligibility.
+ *
+ * ANTI-CLOCK-MANIPULATION: gems are the paid premium currency, so the daily drop
+ * must not be farmable by moving the device clock. Beyond the same-day guard we
+ * enforce a MONOTONIC high-water mark (`deepLifePlusLastGemClaimAt`, epoch ms):
+ * a claim whose `nowMs` is earlier than the last recorded claim time (minus a
+ * tiny skew tolerance) is rejected. Rolling the clock BACKWARD to reclaim is
+ * therefore blocked outright; rolling it FORWARD still advances the mark, so the
+ * cheater is then locked out until real time actually catches up to the furthest
+ * point they jumped to (they can never return to real-time play and keep
+ * claiming). Without a trusted server clock this is the strongest client-side
+ * bound; a legit player crossing real UTC midnight always has `nowMs` well ahead
+ * of the mark, so they are never affected.
+ *
+ * `nowMs` is optional so pure/legacy callers that only know the day key still
+ * work (the monotonic guard is simply skipped); real call sites pass `Date.now()`.
  */
-export function canClaimDailyGems(state: GameState, todayKey: string): boolean {
-  return state.settings?.deepLifePlusLastGemClaim !== todayKey;
+export function canClaimDailyGems(state: GameState, todayKey: string, nowMs?: number): boolean {
+  if (state.settings?.deepLifePlusLastGemClaim === todayKey) return false;
+  const lastAt = state.settings?.deepLifePlusLastGemClaimAt;
+  if (
+    typeof nowMs === 'number' &&
+    isFinite(nowMs) &&
+    typeof lastAt === 'number' &&
+    isFinite(lastAt) &&
+    nowMs < lastAt - CLAIM_CLOCK_SKEW_TOLERANCE_MS
+  ) {
+    // Clock rewound below the high-water mark — refuse (backward-clock farm).
+    return false;
+  }
+  return true;
 }
 
 /**
  * Claim the daily gem drop: grants `dailyGemAmount(settings)` (250 for DeepLife+
  * members, 20 otherwise) and stamps the claim day so it can't be claimed twice
  * on the same UTC day. A no-op (returns the same state) on a repeat same-day
- * claim, so it's safe to call optimistically.
+ * claim or a rewound clock, so it's safe to call optimistically.
+ *
+ * Records `deepLifePlusLastGemClaimAt` as a monotonic high-water mark (never
+ * decreases) so the clock can't be rolled backward to reclaim — see
+ * `canClaimDailyGems`. `nowMs` is optional for pure/legacy callers.
  *
  * PERFECT-WEEK BONUS: if THIS claim completes a full Mon→Sun week of claims, it
  * pays one extra daily drop (the 7th day is effectively 2×). This is naturally
@@ -77,8 +116,8 @@ export function canClaimDailyGems(state: GameState, todayKey: string): boolean {
  * only once), so the bonus is granted exactly once per completed week with no
  * extra persisted flag.
  */
-export function claimDailyGems(state: GameState, todayKey: string): GameState {
-  if (!canClaimDailyGems(state, todayKey)) return state;
+export function claimDailyGems(state: GameState, todayKey: string, nowMs?: number): GameState {
+  if (!canClaimDailyGems(state, todayKey, nowMs)) return state;
   // Append today to the claim history (dedup + keep the last 14 days) so the
   // weekly streak strip can show claimed vs missed days.
   const prevDays = Array.isArray(state.settings?.deepLifePlusGemClaimDays)
@@ -95,12 +134,23 @@ export function claimDailyGems(state: GameState, todayKey: string): GameState {
     weekKeys.every((k) => claimedSet.has(k));
   const totalGrant = dailyAmount + (perfectWeek ? dailyAmount : 0);
 
+  // Advance the high-water mark monotonically: max(previous, now). It never moves
+  // backward, so a later rewound clock can't reset it (see canClaimDailyGems).
+  const prevAt = state.settings?.deepLifePlusLastGemClaimAt;
+  const prevAtSafe = typeof prevAt === 'number' && isFinite(prevAt) ? prevAt : undefined;
+  const nowSafe = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : undefined;
+  const nextAt =
+    nowSafe !== undefined
+      ? Math.max(prevAtSafe ?? nowSafe, nowSafe)
+      : prevAtSafe; // no usable clock: leave the mark untouched (legacy 2-arg call)
+
   return {
     ...state,
     settings: {
       ...state.settings,
       deepLifePlusLastGemClaim: todayKey,
       deepLifePlusGemClaimDays: nextDays,
+      ...(nextAt !== undefined ? { deepLifePlusLastGemClaimAt: nextAt } : {}),
     },
     stats: {
       ...state.stats,

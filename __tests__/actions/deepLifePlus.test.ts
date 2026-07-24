@@ -158,6 +158,53 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
   });
 });
 
+describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)', () => {
+  const TODAY = '2026-07-23';
+  const YESTERDAY = '2026-07-22';
+  const DAY_MS = 86_400_000;
+  const NOW = Date.parse(`${TODAY}T09:00:00.000Z`); // a plausible claim time today
+  const member = (over: Partial<GameSettings> = {}): GameState =>
+    createTestGameState({ stats: { gems: 0 }, settings: { deepLifePlusActivated: true, ...over } });
+
+  it('stamps a monotonic epoch high-water mark on claim', () => {
+    const next = claimDailyGems(member(), TODAY, NOW);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBe(NOW);
+  });
+
+  it('REJECTS a claim when the clock is rolled backward below the last-claim mark', () => {
+    // Claimed today at NOW; attacker sets the device clock back a full day and
+    // uses the (now different) yesterday key to try to reclaim.
+    const claimed = member({ deepLifePlusLastGemClaim: TODAY, deepLifePlusLastGemClaimAt: NOW });
+    const rewound = NOW - DAY_MS;
+    expect(canClaimDailyGems(claimed, YESTERDAY, rewound)).toBe(false);
+    expect(claimDailyGems(claimed, YESTERDAY, rewound)).toBe(claimed); // no gems minted
+  });
+
+  it('does not move the mark backward — max(previous, now) wins', () => {
+    // A legit new-day claim whose wall clock is (implausibly) a touch behind the
+    // stored mark must not lower the high-water mark.
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const slightlyBack = NOW - 60_000; // 1 min behind, inside the skew tolerance
+    const next = claimDailyGems(s, TODAY, slightlyBack);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS); // tolerated, still claimable
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBe(NOW); // mark never decreases
+  });
+
+  it('allows the next legit claim once real time passes the mark', () => {
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const tomorrow = NOW + DAY_MS;
+    expect(canClaimDailyGems(s, TODAY, tomorrow)).toBe(true);
+    expect(claimDailyGems(s, TODAY, tomorrow).settings.deepLifePlusLastGemClaimAt).toBe(tomorrow);
+  });
+
+  it('stays backward-compatible with legacy 2-arg callers (guard skipped, no mark written)', () => {
+    const next = claimDailyGems(member(), TODAY); // no nowMs
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaimAt).toBeUndefined();
+  });
+});
+
 describe('memberUpgradeCost (DeepLife+ discount on gem-spend upgrades)', () => {
   const member = { deepLifePlusActivated: true };
   const lifer = { lifetimePremium: true };

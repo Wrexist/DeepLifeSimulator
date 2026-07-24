@@ -1507,6 +1507,7 @@ export interface GameSettings {
   deepLifePlusWelcomeClaimed?: boolean; // Sticky: welcome gems granted once ever (never cleared on lapse)
   deepLifePlusLastGemClaim?: string; // UTC day key of the last daily gem-drop claim (members-only)
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip
+  deepLifePlusLastGemClaimAt?: number; // Monotonic epoch-ms high-water mark of the last claim — blocks backward-clock farming
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle
