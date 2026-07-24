@@ -325,6 +325,96 @@ try {
   hasErrors = true;
 }
 
+// 5b. iOS privacy manifest — App Store *upload validation* rules.
+// These fire after the build succeeds and after the upload is accepted, so a
+// mistake here costs a full build + TestFlight processing round trip and lands
+// the version in "Invalid Binary" (that is how builds 161/162 died). Cheap to
+// check here, expensive to discover from Apple.
+logSection('5b. iOS Privacy Manifest (App Store binary validation)');
+try {
+  const appConfigPath = path.join(process.cwd(), 'app.config.js');
+  if (!fs.existsSync(appConfigPath)) {
+    log('[SKIP] app.config.js not found', YELLOW);
+  } else {
+    delete require.cache[require.resolve(appConfigPath)];
+    const loadedConfig = require(appConfigPath);
+    const expoConfig = loadedConfig?.expo || loadedConfig?.default?.expo || null;
+    const manifest = expoConfig?.ios?.privacyManifests;
+
+    if (!manifest) {
+      log('[SKIP] No expo.ios.privacyManifests declared', YELLOW);
+    } else {
+      // Local tally: the global `hasErrors` is already sticky from earlier
+      // sections, so the PASS line has to be gated on THIS section's result.
+      let manifestErrors = 0;
+      const fail = (message) => {
+        log(message, RED);
+        manifestErrors += 1;
+        hasErrors = true;
+      };
+
+      const tracking = manifest.NSPrivacyTracking === true;
+      const domains = manifest.NSPrivacyTrackingDomains;
+      const hasDomains = Array.isArray(domains) && domains.length > 0;
+
+      // ITMS-91064, both directions. Apple's docs: when NSPrivacyTracking is
+      // true "you need to provide a list of internet domains in
+      // NSPrivacyTrackingDomains"; conversely the domain list may only be
+      // present when tracking is declared. An empty array satisfies neither.
+      if (tracking && !hasDomains) {
+        fail('[FAIL] NSPrivacyTracking is true but NSPrivacyTrackingDomains is empty/absent');
+        log('   Apple rejects this at upload with ITMS-91064 (Invalid tracking information)', RED);
+        log('   → Either set NSPrivacyTracking: false and let the AdMob/Firebase SDK', RED);
+        log('     manifests declare tracking (preferred — see app.config.js), or list the', RED);
+        log('     real tracking domains. Note: domains listed here are BLOCKED by iOS when', RED);
+        log('     ATT is denied, which stops ad serving for those users.', RED);
+      } else if (!tracking && Array.isArray(domains) && domains.length > 0) {
+        fail('[FAIL] NSPrivacyTrackingDomains is non-empty but NSPrivacyTracking is not true');
+        log('   Apple rejects this at upload with ITMS-91064 (Invalid tracking information)', RED);
+      } else if (!tracking && Array.isArray(domains)) {
+        // Not a hard reject, but an empty array with tracking false is noise
+        // that reads like a half-applied fix — drop the key instead.
+        log('[WARN] NSPrivacyTrackingDomains is present but empty with NSPrivacyTracking false', YELLOW);
+        log('   Remove the key entirely; an empty array is not a fix for ITMS-91064.', YELLOW);
+      }
+
+      // ITMS-91053/91055 guard: every required-reason API entry needs a type
+      // and at least one reason code, or the upload is rejected the same way.
+      const apiTypes = manifest.NSPrivacyAccessedAPITypes;
+      if (apiTypes !== undefined) {
+        if (!Array.isArray(apiTypes)) {
+          fail('[FAIL] NSPrivacyAccessedAPITypes must be an array');
+        } else {
+          apiTypes.forEach((entry, index) => {
+            const type = entry?.NSPrivacyAccessedAPIType;
+            const reasons = entry?.NSPrivacyAccessedAPITypeReasons;
+            if (!type || typeof type !== 'string') {
+              fail(`[FAIL] NSPrivacyAccessedAPITypes[${index}] is missing NSPrivacyAccessedAPIType`);
+            }
+            if (!Array.isArray(reasons) || reasons.length === 0) {
+              fail(`[FAIL] NSPrivacyAccessedAPITypes[${index}] (${type || 'unknown'}) has no reason codes`);
+              log('   Apple rejects an accessed-API entry with an empty NSPrivacyAccessedAPITypeReasons', RED);
+            }
+          });
+        }
+      }
+
+      if (manifestErrors === 0) {
+        const apiCount = Array.isArray(apiTypes) ? apiTypes.length : 0;
+        log(
+          tracking
+            ? `[PASS] Privacy manifest valid (tracking true with ${domains.length} declared domain(s), ${apiCount} required-reason API entries)`
+            : `[PASS] Privacy manifest valid (tracking declared by SDK manifests, ${apiCount} required-reason API entries)`,
+          GREEN,
+        );
+      }
+    }
+  }
+} catch (error) {
+  log('[FAIL] Privacy manifest check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 // 6. Startup safety guardrails (prevent forced optional service init)
 logSection('6. IAP Native Module Availability');
 try {
