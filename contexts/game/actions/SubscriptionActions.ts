@@ -65,39 +65,70 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
 const CLAIM_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
 /**
- * Can this player claim the daily gem drop right now? Everyone can claim once per
- * UTC day (`todayKey` from `utcDayKey(new Date())`) — the AMOUNT is tiered
- * (members 250, free players 20), not eligibility.
+ * Pure eligibility predicate over primitives (no GameState) so the reducer and
+ * the claim UI can share ONE source of truth for "can claim right now" — the CTA
+ * and the reducer can never disagree about the tolerance or the guards.
  *
  * ANTI-CLOCK-MANIPULATION: gems are the paid premium currency, so the daily drop
- * must not be farmable by moving the device clock. Beyond the same-day guard we
- * enforce a MONOTONIC high-water mark (`deepLifePlusLastGemClaimAt`, epoch ms):
- * a claim whose `nowMs` is earlier than the last recorded claim time (minus a
- * tiny skew tolerance) is rejected. Rolling the clock BACKWARD to reclaim is
- * therefore blocked outright; rolling it FORWARD still advances the mark, so the
- * cheater is then locked out until real time actually catches up to the furthest
- * point they jumped to (they can never return to real-time play and keep
- * claiming). Without a trusted server clock this is the strongest client-side
- * bound; a legit player crossing real UTC midnight always has `nowMs` well ahead
- * of the mark, so they are never affected.
+ * must not be farmable by moving the device clock. Two layered guards:
+ *
+ *   1. STRICT DAY-KEY MONOTONICITY (primary). `todayKey` must be strictly LATER
+ *      than the last claimed day key. Keys are `YYYY-MM-DD`, so a lexicographic
+ *      `<=` is a chronological one. This closes both the same-day repeat AND the
+ *      alternating-adjacent-day rewind farm (claim 07-24, rewind to 07-23 → the
+ *      07-23 key is not > 07-24 → refused), which a pure epoch+tolerance check
+ *      could not (two timestamps a few minutes apart across midnight both sit
+ *      inside the skew tolerance).
+ *   2. MONOTONIC epoch high-water mark (defense in depth). A wall clock sitting
+ *      below the last recorded claim time (minus a small NTP skew tolerance) is
+ *      also rejected.
+ *
+ * Together: rolling the clock BACKWARD to reclaim is blocked outright; rolling it
+ * FORWARD only advances both marks, so the cheater is locked out until real time
+ * catches up to the furthest day they jumped to (they can never return to
+ * real-time play and keep claiming). Without a trusted server clock this is the
+ * strongest client-side bound; a legit player crossing real UTC midnight always
+ * has a strictly greater day key and a `nowMs` well ahead of the mark, so they
+ * are never affected.
  *
  * `nowMs` is optional so pure/legacy callers that only know the day key still
- * work (the monotonic guard is simply skipped); real call sites pass `Date.now()`.
+ * work (the epoch guard is simply skipped); real call sites pass `Date.now()`.
  */
-export function canClaimDailyGems(state: GameState, todayKey: string, nowMs?: number): boolean {
-  if (state.settings?.deepLifePlusLastGemClaim === todayKey) return false;
-  const lastAt = state.settings?.deepLifePlusLastGemClaimAt;
+export function canClaimDailyGemsFor(
+  lastClaimKey: string | undefined,
+  lastClaimAt: number | undefined,
+  todayKey: string,
+  nowMs?: number,
+): boolean {
+  // (1) Strictly-increasing day keys only — never re-claim the current or an
+  // earlier day (lexicographic <= on YYYY-MM-DD is chronological).
+  if (lastClaimKey && todayKey <= lastClaimKey) return false;
+  // (2) Epoch high-water mark: refuse a clock rewound below the last claim time.
   if (
     typeof nowMs === 'number' &&
     isFinite(nowMs) &&
-    typeof lastAt === 'number' &&
-    isFinite(lastAt) &&
-    nowMs < lastAt - CLAIM_CLOCK_SKEW_TOLERANCE_MS
+    typeof lastClaimAt === 'number' &&
+    isFinite(lastClaimAt) &&
+    nowMs < lastClaimAt - CLAIM_CLOCK_SKEW_TOLERANCE_MS
   ) {
-    // Clock rewound below the high-water mark — refuse (backward-clock farm).
     return false;
   }
   return true;
+}
+
+/**
+ * Can this player claim the daily gem drop right now? Everyone can claim once per
+ * UTC day (`todayKey` from `utcDayKey(new Date())`) — the AMOUNT is tiered
+ * (members 250, free players 20), not eligibility. Delegates to
+ * `canClaimDailyGemsFor` (see it for the anti-clock-manipulation guards).
+ */
+export function canClaimDailyGems(state: GameState, todayKey: string, nowMs?: number): boolean {
+  return canClaimDailyGemsFor(
+    state.settings?.deepLifePlusLastGemClaim,
+    state.settings?.deepLifePlusLastGemClaimAt,
+    todayKey,
+    nowMs,
+  );
 }
 
 /**

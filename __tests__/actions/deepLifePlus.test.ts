@@ -4,6 +4,7 @@ import {
   reconcileSubscriptionBenefits,
   claimDailyGems,
   canClaimDailyGems,
+  canClaimDailyGemsFor,
 } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
@@ -202,6 +203,36 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
     const next = claimDailyGems(member(), TODAY); // no nowMs
     expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
     expect(next.settings.deepLifePlusLastGemClaimAt).toBeUndefined();
+  });
+
+  it('BLOCKS the alternating-adjacent-day farm across a midnight boundary', () => {
+    // The gap a pure epoch+tolerance guard missed: claim 23:59, cross midnight and
+    // claim 00:02 (3 min later — inside the 5-min skew tolerance), then rewind to
+    // 23:59 and reclaim yesterday's key, forever. Strict day-key monotonicity must
+    // refuse any key that isn't strictly later than the last claimed day.
+    const d23_2359 = Date.parse(`${YESTERDAY}T23:59:00.000Z`);
+    const d24_0002 = Date.parse(`${TODAY}T00:02:00.000Z`);
+    // Claim yesterday 23:59, then today 00:02 — both legit, strictly increasing.
+    const afterY = claimDailyGems(member(), YESTERDAY, d23_2359);
+    expect(afterY.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    const afterT = claimDailyGems(afterY, TODAY, d24_0002);
+    expect(afterT.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2); // two legit days
+    expect(afterT.settings.deepLifePlusLastGemClaim).toBe(TODAY);
+    // Now rewind to 23:59 and try to reclaim YESTERDAY's key — must be refused
+    // (YESTERDAY is not strictly later than the stored TODAY), so no gems mint.
+    expect(canClaimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(false);
+    expect(claimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(afterT);
+    // And re-claiming TODAY is still the same-day no-op.
+    expect(canClaimDailyGems(afterT, TODAY, d24_0002)).toBe(false);
+  });
+
+  it('CTA tolerance matches the reducer: a sub-tolerance rewind on a new day still claimable', () => {
+    // A benign 1-min NTP backward nudge on an otherwise-new day must NOT be
+    // treated as settled by the UI predicate (shared with the reducer).
+    const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
+    const oneMinBack = NOW - 60_000;
+    expect(canClaimDailyGemsFor(YESTERDAY, NOW, TODAY, oneMinBack)).toBe(true);
+    expect(claimDailyGems(s, TODAY, oneMinBack).stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
   });
 });
 

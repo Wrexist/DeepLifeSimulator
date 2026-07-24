@@ -38,7 +38,7 @@ import {
   isPerfectDeepLifePlusWeek,
   type WeekDayCell,
 } from '@/lib/subscription/deepLifePlus';
-import { claimDailyGems } from '@/contexts/game/actions/SubscriptionActions';
+import { claimDailyGems, canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 
 // Gold palette. The SOLID-gold surfaces (the claim button, the "perfect week"
 // chip) carry INK text and read on ANY background, so they stay theme-independent
@@ -152,12 +152,12 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
 
   const todayKey = utcDayKey(new Date());
   const claimedToday = lastClaim === todayKey;
-  // Anti-clock-manipulation: if the device clock is currently behind the
-  // monotonic high-water mark of the last claim, the claim reducer will refuse
-  // (see claimDailyGems). Don't offer a button that would silently no-op — treat
-  // it as already-settled until real time catches back up.
-  const clockRewound = typeof lastClaimAt === 'number' && Number.isFinite(lastClaimAt) && Date.now() < lastClaimAt;
-  const claimSettled = claimedToday || clockRewound;
+  // Share the reducer's exact eligibility predicate (day-key monotonicity +
+  // tolerated epoch high-water mark) so the CTA and `claimDailyGems` can never
+  // disagree: a claim the reducer would accept always shows the button, and one
+  // it would refuse (already claimed, or a real clock rewind past the tolerance)
+  // shows the settled chip instead of a button that silently no-ops.
+  const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, Date.now());
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
   // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
   const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
