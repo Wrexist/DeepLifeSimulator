@@ -17,6 +17,7 @@ import { CompanyActionsProvider } from './CompanyActionsContext';
 import { initialGameState, STATE_VERSION } from './initialState';
 import { GameState } from './types';
 import { IAPHandler } from '@/components/IAPHandler';
+import { ReviewPromptHandler } from '@/components/ReviewPromptHandler';
 
 /**
  * Lightweight error boundary for individual provider isolation.
@@ -111,6 +112,7 @@ export function GameProvider({
                                     <ProviderBoundary name="GameActionsProvider">
                                       <GameActionsProvider>
                                         <IAPHandler />
+                                        <ReviewPromptHandler />
                                         {children}
                                       </GameActionsProvider>
                                     </ProviderBoundary>

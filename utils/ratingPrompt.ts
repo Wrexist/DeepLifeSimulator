@@ -1,154 +1,307 @@
 /**
- * In-App Rating Prompt Utility
+ * In-App Rating Prompt
  *
- * Intelligently prompts the player to rate the app on the app store.
+ * Asks iOS/Android to show the native "rate this app" sheet, but only at a
+ * genuine positive beat (see `utils/reviewMoments.ts`) and only rarely.
  *
- * Features:
- * - Tracks rating prompts in AsyncStorage to prevent spam
- * - Only shows when conditions are favorable (positive moments, milestones)
- * - Respects cooldown period (60 weeks between prompts)
- * - Gracefully handles missing native modules
+ * WHY THE GATING IS THIS STRICT
+ * -----------------------------
+ * `StoreReview.requestReview()` is a REQUEST, not a command. iOS shows the
+ * sheet at most ~3 times per app per 365 days and silently no-ops after that —
+ * and the promise resolves either way, so we can never tell whether the player
+ * actually saw anything. Two consequences drive the design:
  *
- * Usage:
- *   import { maybeRequestReview } from '@/utils/ratingPrompt';
- *   // Call after positive moments like promotion, wedding, etc.
- *   await maybeRequestReview(gameState, isPositiveEvent);
+ *  1. Every call is potentially a wasted one of three yearly chances, so the
+ *     bar to spend one has to be high.
+ *  2. Cooldowns MUST be measured in wall-clock time, not game weeks. A player
+ *     can burn 60 in-game weeks in a single sitting; a game-week-only cooldown
+ *     (what the previous version of this file used) would spend all three
+ *     yearly asks in one evening and then look "broken" for a year.
+ *
+ * So: wall-clock cooldown is the primary guard, the game-week cooldown is a
+ * secondary one that stops a single life asking twice, and there is a
+ * once-per-app-session latch on top.
+ *
+ * TESTING NOTE: on iOS `isAvailableAsync()` resolves FALSE for TestFlight
+ * builds — Apple blocks the sheet outside the App Store. A TestFlight build
+ * will therefore always log `store-review-unavailable` and show nothing. That
+ * is correct behaviour, not a bug; verify the gating via the logs (or the
+ * unit tests), and the sheet itself only in an App Store build.
  */
 
+import { Platform } from 'react-native';
 import { lazyAsyncStorage as AsyncStorage } from './storageWrapper';
-import { GameState } from '@/contexts/game/types';
 import { logger } from './logger';
+import type { GameState } from '@/contexts/game/types';
+import type { ReviewTrigger } from './reviewMoments';
 
-const STORAGE_KEY = 'lastReviewPromptWeek';
-const PROMPT_COOLDOWN_WEEKS = 60;
-const MIN_WEEKS_PLAYED = 20;
+export type { ReviewTrigger } from './reviewMoments';
 
-function normalizeErrorContext(error: unknown): Record<string, unknown> {
+const STORAGE_KEY = 'reviewPrompt.v1';
+/** Pre-v1 key: a bare game-week number. Read once, then folded into the record. */
+const LEGACY_STORAGE_KEY = 'lastReviewPromptWeek';
+
+/** Weeks the player must have lived before we ever consider asking. */
+export const MIN_WEEKS_PLAYED = 20;
+/**
+ * Wall-clock gap between asks. iOS allows ~3 sheets per 365 days; 120 days
+ * spaces our attempts so we never burn two on the same allowance window.
+ */
+export const PROMPT_COOLDOWN_DAYS = 120;
+/** Game-week gap, so one long session can't produce two asks. */
+export const PROMPT_COOLDOWN_WEEKS = 60;
+/**
+ * Wall-clock delay between the FIRST qualifying beat and the first ask. Stops
+ * a player who imports a save (or blitzes 20 weeks on day one) from being
+ * asked minutes after install.
+ */
+export const MIN_HOURS_BEFORE_FIRST_PROMPT = 24;
+/** Lifetime safety net. With a 120-day gap this spans ~1.5 years. */
+export const MAX_LIFETIME_PROMPTS = 5;
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Why a call did or didn't reach `requestReview()`. Surfaced for logs + tests. */
+export type ReviewPromptReason =
+  | 'requested'
+  | 'unsupported-platform'
+  | 'invalid-state'
+  | 'not-enough-progress'
+  | 'already-asked-this-session'
+  | 'settling-in'
+  | 'cooldown-wallclock'
+  | 'cooldown-gameweeks'
+  | 'max-lifetime-prompts'
+  | 'store-review-unavailable'
+  | 'no-store-action'
+  | 'request-failed';
+
+export interface ReviewPromptOutcome {
+  /** True only when `requestReview()` was actually called without throwing. */
+  requested: boolean;
+  reason: ReviewPromptReason;
+}
+
+export interface ReviewPromptRecord {
+  version: 1;
+  /** Epoch ms of the first qualifying beat we ever saw. */
+  firstEligibleAt: number;
+  /** Epoch ms of the last `requestReview()` call. 0 = never asked. */
+  lastPromptAt: number;
+  /** `weeksLived` at the last ask. */
+  lastPromptWeek: number;
+  /** How many times we've asked, ever. */
+  promptCount: number;
+}
+
+/** Minimal slice of expo-store-review we depend on. */
+interface StoreReviewModule {
+  isAvailableAsync: () => Promise<boolean>;
+  hasAction: () => Promise<boolean>;
+  requestReview: () => Promise<void>;
+}
+
+/**
+ * Once-per-app-session latch. Module scope, so it resets on cold start —
+ * exactly the lifetime we want. Set BEFORE awaiting the native call so two
+ * beats landing in the same tick can't both get through.
+ */
+let askedThisSession = false;
+
+function emptyRecord(): ReviewPromptRecord {
+  return { version: 1, firstEligibleAt: 0, lastPromptAt: 0, lastPromptWeek: 0, promptCount: 0 };
+}
+
+function errorContext(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
-    return {
-      errorName: error.name,
-      errorMessage: error.message,
-      errorStack: error.stack,
-    };
+    return { errorName: error.name, errorMessage: error.message };
   }
-
-  return {
-    errorValue: String(error),
-  };
+  return { errorValue: String(error) };
 }
 
-/**
- * Checks conditions and requests app review if appropriate
- *
- * Conditions for prompt:
- * 1. Player has played at least MIN_WEEKS_PLAYED (20 weeks)
- * 2. At least PROMPT_COOLDOWN_WEEKS (60 weeks) since last prompt
- * 3. A positive event flag is passed (promotion, wedding, purchase, etc.)
- *
- * @param gameState - Current game state
- * @param isPositiveEvent - Whether this is happening during a positive event/moment
- * @returns Promise<boolean> - Whether the review prompt was shown
- */
-export async function maybeRequestReview(
-  gameState: GameState,
-  isPositiveEvent: boolean = false
-): Promise<boolean> {
+/** Load expo-store-review lazily — mirrors the storageWrapper pattern so a
+ *  missing/failed native module degrades to "no prompt" instead of a crash. */
+function loadStoreReview(): StoreReviewModule | null {
   try {
-    // Validate required inputs
-    if (!gameState || typeof gameState.weeksLived !== 'number') {
-      logger.warn('[RatingPrompt] Invalid gameState', { weeksLived: gameState?.weeksLived });
-      return false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('expo-store-review');
+    if (
+      mod &&
+      typeof mod.requestReview === 'function' &&
+      typeof mod.isAvailableAsync === 'function' &&
+      typeof mod.hasAction === 'function'
+    ) {
+      return mod as StoreReviewModule;
     }
-
-    // Condition 1: Must have played at least MIN_WEEKS_PLAYED weeks
-    if (gameState.weeksLived < MIN_WEEKS_PLAYED) {
-      logger.debug('[RatingPrompt] Not enough weeks played', { weeksLived: gameState.weeksLived });
-      return false;
-    }
-
-    // Condition 2: Must be a positive moment to trigger prompt
-    if (!isPositiveEvent) {
-      logger.debug('[RatingPrompt] Not a positive event moment');
-      return false;
-    }
-
-    // Condition 3: Check cooldown period
-    try {
-      const lastPromptWeekStr = await AsyncStorage.getItem(STORAGE_KEY);
-      const lastPromptWeek = lastPromptWeekStr ? parseInt(lastPromptWeekStr, 10) : 0;
-
-      const weeksSinceLastPrompt = gameState.weeksLived - lastPromptWeek;
-      if (weeksSinceLastPrompt < PROMPT_COOLDOWN_WEEKS) {
-        logger.debug('[RatingPrompt] Still in cooldown period', {
-          weeksSinceLastPrompt,
-          requiredCooldown: PROMPT_COOLDOWN_WEEKS,
-        });
-        return false;
-      }
-    } catch (err) {
-      logger.warn('[RatingPrompt] Error reading last prompt week from storage', normalizeErrorContext(err));
-      // Continue anyway - assume this is first time
-    }
-
-    // All conditions met - request review
-    try {
-      const StoreReview = require('expo-store-review');
-
-      // Check if the API is available (not all devices/platforms support it)
-      if (StoreReview && typeof StoreReview.requestReview === 'function') {
-        // Attempt to show the review prompt
-        await StoreReview.requestReview();
-
-        // Record this prompt in storage for cooldown tracking
-        try {
-          await AsyncStorage.setItem(STORAGE_KEY, String(gameState.weeksLived));
-          logger.info('[RatingPrompt] Review prompt shown and recorded', {
-            week: gameState.weeksLived,
-          });
-        } catch (storageErr) {
-          logger.warn('[RatingPrompt] Failed to record prompt week in storage', normalizeErrorContext(storageErr));
-          // Don't fail the whole operation if storage fails
-        }
-
-        return true;
-      } else {
-        logger.debug('[RatingPrompt] StoreReview module or requestReview not available');
-        return false;
-      }
-    } catch (moduleErr) {
-      // expo-store-review may not be installed or available
-      logger.debug('[RatingPrompt] expo-store-review not available', normalizeErrorContext(moduleErr));
-      return false;
-    }
+    return null;
   } catch (err) {
-    logger.error('[RatingPrompt] Unexpected error in maybeRequestReview', err);
-    return false;
-  }
-}
-
-/**
- * Reset the rating prompt cooldown (for testing or manual override)
- * @internal
- */
-export async function resetRatingPromptCooldown(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    logger.info('[RatingPrompt] Cooldown reset');
-  } catch (err) {
-    logger.warn('[RatingPrompt] Failed to reset cooldown', normalizeErrorContext(err));
-  }
-}
-
-/**
- * Get the week the last review prompt was shown
- * @internal
- */
-export async function getLastReviewPromptWeek(): Promise<number | null> {
-  try {
-    const weekStr = await AsyncStorage.getItem(STORAGE_KEY);
-    return weekStr ? parseInt(weekStr, 10) : null;
-  } catch (err) {
-    logger.warn('[RatingPrompt] Failed to read last prompt week', normalizeErrorContext(err));
+    logger.debug('[RatingPrompt] expo-store-review unavailable', errorContext(err));
     return null;
   }
+}
+
+async function readRecord(): Promise<ReviewPromptRecord> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<ReviewPromptRecord>;
+      return {
+        version: 1,
+        firstEligibleAt: Number(parsed?.firstEligibleAt) || 0,
+        lastPromptAt: Number(parsed?.lastPromptAt) || 0,
+        lastPromptWeek: Number(parsed?.lastPromptWeek) || 0,
+        promptCount: Number(parsed?.promptCount) || 0,
+      };
+    }
+
+    // Migrate the pre-v1 key so players who were (theoretically) prompted by
+    // the old code path keep their game-week cooldown. The old code could
+    // never actually fire — expo-store-review was not installed — but reading
+    // the key is free and makes the migration honest either way.
+    const legacy = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    const legacyWeek = legacy ? parseInt(legacy, 10) : 0;
+    if (Number.isFinite(legacyWeek) && legacyWeek > 0) {
+      return { ...emptyRecord(), lastPromptWeek: legacyWeek };
+    }
+  } catch (err) {
+    logger.warn('[RatingPrompt] Failed to read prompt record', errorContext(err));
+  }
+  return emptyRecord();
+}
+
+async function writeRecord(record: ReviewPromptRecord): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+  } catch (err) {
+    // Never fail the caller over telemetry-ish bookkeeping.
+    logger.warn('[RatingPrompt] Failed to persist prompt record', errorContext(err));
+  }
+}
+
+/**
+ * Consider showing the native review sheet after a positive beat.
+ *
+ * Safe to call freely: it is cheap when gated out, never throws, and never
+ * blocks the caller on anything the player can see.
+ *
+ * @param trigger  Which beat prompted this call (logged, not gated on).
+ * @param gameState Current state — read for `weeksLived` only.
+ */
+export async function maybeRequestReview(
+  trigger: ReviewTrigger,
+  gameState: GameState | null | undefined
+): Promise<ReviewPromptOutcome> {
+  try {
+    // The sheet is a native affordance; there is nothing to show on web.
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      return { requested: false, reason: 'unsupported-platform' };
+    }
+
+    const weeksLived = gameState?.weeksLived;
+    if (typeof weeksLived !== 'number' || !Number.isFinite(weeksLived)) {
+      logger.warn('[RatingPrompt] Invalid gameState', { weeksLived });
+      return { requested: false, reason: 'invalid-state' };
+    }
+
+    if (weeksLived < MIN_WEEKS_PLAYED) {
+      return { requested: false, reason: 'not-enough-progress' };
+    }
+
+    if (askedThisSession) {
+      return { requested: false, reason: 'already-asked-this-session' };
+    }
+
+    const now = Date.now();
+    const record = await readRecord();
+
+    // First qualifying beat: remember when, ask on a later one.
+    if (record.firstEligibleAt === 0) {
+      await writeRecord({ ...record, firstEligibleAt: now });
+      return { requested: false, reason: 'settling-in' };
+    }
+    if (now - record.firstEligibleAt < MIN_HOURS_BEFORE_FIRST_PROMPT * HOUR_MS) {
+      return { requested: false, reason: 'settling-in' };
+    }
+
+    if (record.promptCount >= MAX_LIFETIME_PROMPTS) {
+      return { requested: false, reason: 'max-lifetime-prompts' };
+    }
+
+    if (record.lastPromptAt > 0 && now - record.lastPromptAt < PROMPT_COOLDOWN_DAYS * DAY_MS) {
+      return { requested: false, reason: 'cooldown-wallclock' };
+    }
+
+    if (record.lastPromptWeek > 0 && weeksLived - record.lastPromptWeek < PROMPT_COOLDOWN_WEEKS) {
+      return { requested: false, reason: 'cooldown-gameweeks' };
+    }
+
+    const StoreReview = loadStoreReview();
+    if (!StoreReview) {
+      return { requested: false, reason: 'store-review-unavailable' };
+    }
+
+    // iOS: false in TestFlight and in the simulator. Android: false below 5.0.
+    if (!(await StoreReview.isAvailableAsync())) {
+      logger.debug('[RatingPrompt] Store review not available on this build/device');
+      return { requested: false, reason: 'store-review-unavailable' };
+    }
+    if (!(await StoreReview.hasAction())) {
+      logger.debug('[RatingPrompt] Store review has no action available');
+      return { requested: false, reason: 'no-store-action' };
+    }
+
+    // Latch BEFORE the await: a second beat in the same tick must not race in
+    // behind this one and spend another of the yearly allowance.
+    askedThisSession = true;
+
+    try {
+      await StoreReview.requestReview();
+    } catch (err) {
+      // Unlatch: nothing was shown, so a later beat this session may still try.
+      askedThisSession = false;
+      logger.warn('[RatingPrompt] requestReview threw', errorContext(err));
+      return { requested: false, reason: 'request-failed' };
+    }
+
+    await writeRecord({
+      version: 1,
+      firstEligibleAt: record.firstEligibleAt,
+      lastPromptAt: now,
+      lastPromptWeek: weeksLived,
+      promptCount: record.promptCount + 1,
+    });
+
+    logger.info('[RatingPrompt] Review requested', {
+      trigger,
+      weeksLived,
+      promptCount: record.promptCount + 1,
+    });
+    return { requested: true, reason: 'requested' };
+  } catch (err) {
+    logger.error('[RatingPrompt] Unexpected error in maybeRequestReview', err);
+    return { requested: false, reason: 'request-failed' };
+  }
+}
+
+/** Current persisted record — for dev tools and tests. @internal */
+export async function getReviewPromptRecord(): Promise<ReviewPromptRecord> {
+  return readRecord();
+}
+
+/** Wipe the cooldown/session state so the next beat can ask again. @internal */
+export async function resetReviewPromptState(): Promise<void> {
+  askedThisSession = false;
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+    logger.info('[RatingPrompt] Prompt state reset');
+  } catch (err) {
+    logger.warn('[RatingPrompt] Failed to reset prompt state', errorContext(err));
+  }
+}
+
+/** Test seam: clear the once-per-session latch without touching storage. @internal */
+export function __resetSessionLatchForTests(): void {
+  askedThisSession = false;
 }
