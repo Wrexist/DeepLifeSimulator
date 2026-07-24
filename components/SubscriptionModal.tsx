@@ -114,12 +114,23 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const trialDays = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS;
   const perWeek = useMemo(() => yearlyPerWeek(), []);
   const savingsPct = useMemo(() => yearlySavingsPercent(), []);
+  // DEV / preview-only override: force the trial-eligible ($0 · 7-day) layout so
+  // it can be seen and screenshotted without a fresh sandbox Apple ID. An Apple
+  // ID that already redeemed the intro offer is PERMANENTLY ineligible, so the
+  // real trial paywall is otherwise invisible on a developer's device. Double-
+  // gated: the same dev-tools switch that is stripped from production builds AND
+  // a dedicated opt-in var — so it can never surface to a real store user.
+  const previewTrialPaywall =
+    (__DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEVTOOLS === 'true') &&
+    process.env.EXPO_PUBLIC_PREVIEW_TRIAL === 'true';
+
   // Advertise the free trial only when the store hasn't told us the user is
   // INELIGIBLE (e.g. already consumed it) — otherwise "$0.00 today" would be a
   // false promise and StoreKit would charge immediately. 'unknown' (Android /
   // dev / before the check resolves) keeps the trial copy: Play enforces the
   // real terms at checkout, and iOS is re-checked in the effect below.
-  const trialEligible = !active && !lifetime && trialDays > 0 && introStatus !== 'ineligible';
+  const trialEligible =
+    !active && !lifetime && trialDays > 0 && (previewTrialPaywall || introStatus !== 'ineligible');
 
   // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
   // twinkling hero sparkles, and a periodic light sweep across the CTA. All
