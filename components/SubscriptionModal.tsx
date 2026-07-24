@@ -273,20 +273,27 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   };
 
   // Primary CTA copy — trial-led when eligible.
+  // When the store says this user is trial-INELIGIBLE (already consumed their
+  // intro offer), we can't honestly promise "$0.00 today" — but we still lead
+  // with the brand + the smallest true price cue (per-week for annual) instead
+  // of a flat "Continue · $9.99/year", which reads as a bill, not a value.
+  const isAnnual = !lifetime && selected.period === 'yearly';
   const ctaTitle = active
     ? 'Manage subscription'
     : lifetime
       ? `Unlock Forever · ${DEEP_LIFE_PLUS_LIFETIME.price}`
       : trialEligible
         ? 'Start for $0.00 Today'
-        : `Continue · ${selected.price} ${selected.unit}`;
+        : 'Get DeepLife+';
   const ctaSub = active
     ? undefined
     : lifetime
       ? 'One-time payment · yours forever, never renews'
       : trialEligible
         ? `${trialDays} days free, then ${selected.price} ${selected.unit} · cancel anytime`
-        : 'Cancel anytime';
+        : isAnnual && perWeek
+          ? `Just ${perWeek}/week · billed ${selected.price} ${selected.unit} · cancel anytime`
+          : `${selected.price} ${selected.unit} · cancel anytime`;
 
   return (
     <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
