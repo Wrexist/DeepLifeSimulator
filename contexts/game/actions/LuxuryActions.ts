@@ -33,6 +33,10 @@ import {
   resolveMuseumLoan,
   resolveRace,
   resolveTrackDay,
+  getHostingAvailability,
+  pickAttendees,
+  quoteEvent,
+  resolveEvent,
   type LuxuryVerb,
   type VerbOutcome,
 } from '@/lib/luxury';
@@ -269,3 +273,77 @@ export const performLuxuryVerb = (
 /** Re-export so the UI can label the item a verb belongs to. */
 export const luxuryVerbItemName = (verbId: string): string | undefined =>
   getLuxuryItem(getLuxuryVerb(verbId)?.itemId ?? '')?.name;
+
+
+/**
+ * Host an event at a luxury venue — a dinner, a party, a charity gala.
+ *
+ * This is the first thing in the feature where owning two trophies is worth
+ * more than owning them apart: the rest of the collection decides who turns up
+ * (`getGuestList`), and a better room means more reputation and warmer
+ * relationships. The party is also the only luxury action that touches the
+ * player's actual social graph.
+ */
+export const hostLuxuryEvent = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  itemId: string,
+  tier: string,
+): LuxuryActionResult => {
+  const availability = getHostingAvailability(gameState, itemId, tier);
+  if (!availability.available) {
+    return { success: false, message: availability.reason ?? 'You cannot host that right now.' };
+  }
+
+  const quote = quoteEvent(gameState, itemId, tier);
+  if (!quote) return { success: false, message: 'That is not a venue.' };
+
+  const weeksLived = gameState.weeksLived ?? 0;
+  const outcome = resolveEvent(quote, pickAttendees(gameState, quote.guestsReached));
+
+  setGameState((prev) => {
+    // Re-check against fresh state so a double-tap can't host twice.
+    if (!getHostingAvailability(prev, itemId, tier).available) return prev;
+
+    const spend = applyMoneyDelta(prev, -outcome.cost, `Hosted: ${quote.spec.label}`);
+    if (!spend) return prev;
+
+    const stats = { ...prev.stats, ...(spend.stats ?? {}) };
+    stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0) + outcome.happiness));
+    stats.reputation = Math.max(0, Math.min(100, (stats.reputation ?? 0) + outcome.reputation));
+
+    // Warm everyone who came. Clamped to 100 so a run of parties can't push a
+    // relationship past its ceiling.
+    const attendees = new Set(outcome.attendeeIds);
+    const relationships = attendees.size > 0
+      ? (prev.relationships || []).map((r) =>
+          r && attendees.has(r.id)
+            ? {
+                ...r,
+                relationshipScore: Math.max(
+                  0,
+                  Math.min(100, (r.relationshipScore ?? 0) + outcome.relationshipGain),
+                ),
+              }
+            : r,
+        )
+      : prev.relationships;
+
+    return {
+      ...prev,
+      ...spend,
+      stats,
+      relationships,
+      luxuryHoldings: {
+        ...(prev.luxuryHoldings || {}),
+        [itemId]: {
+          ...(prev.luxuryHoldings?.[itemId] ?? { acquiredWeek: weeksLived }),
+          lastHostedWeek: weeksLived,
+        },
+      },
+    };
+  });
+
+  log.info(`Hosted ${tier} at ${itemId}`);
+  return { success: true, message: outcome.message };
+};

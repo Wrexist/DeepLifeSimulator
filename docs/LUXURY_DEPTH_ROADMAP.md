@@ -1,6 +1,7 @@
 # Luxury & Collectibles — Depth Audit and Roadmap
 
-**Status:** plan only. No gameplay code has been written against this document yet.
+**Status:** Phases 1–5 delivered. See "Delivered" below for what shipped and what
+is deliberately still open.
 **Scope:** `lib/luxury/`, `contexts/game/actions/LuxuryActions.ts`,
 `components/computer/LuxuryApp.tsx`, and every system they should touch and don't.
 
@@ -11,6 +12,28 @@ nothing happens there, nothing else in the game knows it exists.
 
 This document is four audits and a five-phase roadmap. Every claim is grounded
 in a file path so it can be checked rather than believed.
+
+---
+
+## Delivered
+
+| Phase | What shipped | Where |
+|---|---|---|
+| 1 | `luxuryHoldings` sidecar (`STATE_VERSION` 24) — per-item state, additive, `luxuryItems` still the ownership source of truth | `contexts/game/types.ts`, `utils/saveMigrations.ts` |
+| 2 | The private island mints a real `RealEstate` and inherits the whole property stack. Six estate-scale room additions including a **helipad** and **airstrip** | `lib/luxury/operations.ts`, `lib/realEstate/housing.ts` |
+| 3 | Aircraft ladder (helicopter $2.5M → light jet $12M → private jet), pilot licence (`STATE_VERSION` 25), and basing: an airstrip takes the jet from 30% to 60% faster trips | `lib/vehicles/aircraft.ts`, `lib/travel/transportation.ts` |
+| 4 | Yield (~54% of upkeep offset) + appreciation, some items gaining and some losing value. Net worth reads the appreciated value | `lib/luxury/catalog.ts`, `contexts/game/actions/weekly/applyLuxuryItems.ts` |
+| 4b | Verbs: race the horse, book a track day, loan the diamond. Completion bar retuned from 3 items/$25M to 6/$150M | `lib/luxury/verbs.ts` |
+| 5 | Hosting — dinners, parties and galas at venue items, where the REST of the collection decides who turns up. Brand partnerships read the collection | `lib/luxury/hosting.ts`, `lib/social/brandPartnerships.ts` |
+
+**Still open**, deliberately, from Phase 5's original list:
+
+- **Life moments / memories** for big purchases (`lib/lifeMoments/`) — buying the
+  island should be a story beat, and is not one yet.
+- **Prestige** — a completed collection still means nothing across lives.
+- **Luxury-gated events** in `lib/events/` — hosting covers "who comes to your
+  party", but there are still no invitations OUT (a gala you get invited to, the
+  owners' enclosure, a box at the stadium).
 
 ---
 

@@ -222,6 +222,12 @@ export interface LuxuryHolding {
   /** Museum loan: `weeksLived` the item comes back. Unsellable until then. */
   loanedUntilWeek?: number;
   /**
+   * `weeksLived` an event was last held at this venue. Per-venue rather than
+   * global, so owning both the island and the penthouse gives two places to
+   * entertain — a genuine reason to own both.
+   */
+  lastHostedWeek?: number;
+  /**
    * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
    *
    * A private island is land. Rather than reimplementing building, upgrading,

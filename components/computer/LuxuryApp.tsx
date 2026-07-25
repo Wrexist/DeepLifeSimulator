@@ -81,8 +81,13 @@ import {
   LUXURY_LIFE_VALUE_THRESHOLD,
   verbsForItem,
   getVerbAvailability,
+  isHostingVenue,
+  getGuestList,
+  getHostingAvailability,
+  quoteEvent,
+  EVENT_TIERS,
 } from '@/lib/luxury';
-import { performLuxuryVerb, purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
+import { hostLuxuryEvent, performLuxuryVerb, purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
 import { luxuryArtFor, luxuryTierVisual, LUXURY_ART_BASE } from '@/components/computer/luxury/luxuryArt';
 
 const LinearGradient = LinearGradientFallback;
@@ -482,6 +487,16 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     [gameState, setGameState, queueSave, showToast],
   );
 
+  /** Throw something at a venue you own. */
+  const runHost = useCallback(
+    (itemId: string, tier: string) => {
+      const result = hostLuxuryEvent(gameState, setGameState, itemId, tier);
+      showToast(result.message);
+      if (result.success) queueSave();
+    },
+    [gameState, setGameState, queueSave, showToast],
+  );
+
   const confirmSell = useCallback(() => {
     const item = pendingSell;
     setPendingSell(null);
@@ -706,6 +721,51 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
               {/* VERBS — the things you can DO with it. A trophy that can only
                   be bought and sold is the least interactive object in the game
                   despite being the most expensive. Shown only when owned. */}
+              {/* HOSTING — the collection becomes a social life. The rest of
+                  what you own decides who turns up, so a broader collection is
+                  a better room and every unrelated trophy improves every party. */}
+              {isOwned && isHostingVenue(item.id) ? (
+                <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                  <Text style={[styles.verbLabel, { color: theme.text }]}>Entertain</Text>
+                  <Text style={[styles.verbDesc, { color: theme.textMuted }]}>
+                    {getGuestList(gameState).summary}
+                  </Text>
+                  {EVENT_TIERS.map((spec) => {
+                    const quote = quoteEvent(gameState, item.id, spec.tier);
+                    const availability = getHostingAvailability(gameState, item.id, spec.tier);
+                    if (!quote) return null;
+                    return (
+                      <TouchableOpacity
+                        key={spec.tier}
+                        activeOpacity={availability.available ? 0.85 : 1}
+                        disabled={!availability.available}
+                        onPress={() => runHost(item.id, spec.tier)}
+                        style={[styles.verbRow, !availability.available && styles.verbRowDisabled]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${spec.label} for ${formatMoney(quote.cost)}`}
+                      >
+                        <View style={styles.verbInfo}>
+                          <Text style={[styles.verbLabel, { color: theme.text }]}>{spec.label}</Text>
+                          <Text style={[styles.verbDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                            {availability.available
+                              ? `+${quote.reputation} reputation · ${quote.guestsReached} guests`
+                              : availability.reason}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.verbCta,
+                            { color: availability.available ? EMERALD : theme.textMuted },
+                          ]}
+                        >
+                          {formatMoney(quote.cost)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
+
               {isOwned && verbsForItem(item.id).length > 0 ? (
                 <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                   {verbsForItem(item.id).map((verb) => {

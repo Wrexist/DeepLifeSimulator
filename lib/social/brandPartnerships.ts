@@ -77,8 +77,85 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
       expiresIn: 8, // Expires in 8 weeks
     });
   }
-  
+
+  // Luxury-house offers. A brand does not approach an influencer purely on
+  // reach — it approaches the one whose life already looks like the campaign.
+  // Owning the hypercar, the watch collection or the jet is what makes the
+  // player that person, so the collection RAISES both eligibility and rate.
+  //
+  // Deliberately reachable at a LOWER follower count than the premium tier
+  // above: an audience of 40,000 who watch you get out of a hypercar is worth
+  // more to a watch house than 100,000 who do not.
+  const luxuryPull = getLuxuryBrandPull(state);
+  if (luxuryPull.qualifies && socialData.followers >= 40_000) {
+    const payment = Math.floor(socialData.followers * luxuryPull.ratePerFollower);
+    offers.push({
+      id: `luxury_house_${Date.now()}`,
+      brandName: luxuryPull.brandName,
+      type: 'brand_deal',
+      payment,
+      requirements: {
+        minFollowers: 40_000,
+        minEngagementRate: 12,
+      },
+      description: `${luxuryPull.hook} — $${payment.toLocaleString()}`,
+      expiresIn: 6,
+    });
+  }
+
   return offers;
+}
+
+/**
+ * What the player's collection is worth to a luxury house.
+ *
+ * Reads ownership only — no follower maths — so it stays a pure statement about
+ * the collection and the caller decides how to combine it with reach.
+ */
+export function getLuxuryBrandPull(state: GameState): {
+  qualifies: boolean;
+  brandName: string;
+  hook: string;
+  /** Dollars per follower this partnership pays. */
+  ratePerFollower: number;
+} {
+  const owned = new Set(state.luxuryItems ?? []);
+
+  // Ordered best-fit first: the most photogenic asset defines the campaign.
+  if (owned.has('supercar')) {
+    return {
+      qualifies: true,
+      brandName: 'Marque Automotive',
+      hook: 'Shoot the campaign with your own car',
+      ratePerFollower: 7,
+    };
+  }
+  if (owned.has('rare_watch_collection')) {
+    return {
+      qualifies: true,
+      brandName: 'Maison Horologie',
+      hook: 'A collector campaign, wearing your own pieces',
+      ratePerFollower: 6,
+    };
+  }
+  if (owned.has('luxury_yacht') || owned.has('mega_yacht') || owned.has('private_island')) {
+    return {
+      qualifies: true,
+      brandName: 'Riviera Resorts',
+      hook: 'A destination campaign shot where you already are',
+      ratePerFollower: 5.5,
+    };
+  }
+  if (owned.has('fine_art_collection') || owned.has('museum_diamond')) {
+    return {
+      qualifies: true,
+      brandName: 'Atelier Privé',
+      hook: 'A quiet-luxury feature built around your collection',
+      ratePerFollower: 5,
+    };
+  }
+
+  return { qualifies: false, brandName: '', hook: '', ratePerFollower: 0 };
 }
 
 /**
