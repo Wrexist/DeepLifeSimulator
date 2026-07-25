@@ -19,6 +19,7 @@ import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { trackBudgetSpend } from '@/lib/banking/operations';
+import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
   createLuxuryProperty,
   getLuxuryItem,
@@ -26,6 +27,14 @@ import {
   isDevelopable,
   luxuryPropertyId,
   ownsLuxuryItem,
+  getLuxuryVerb,
+  getVerbAvailability,
+  isOnLoan,
+  resolveMuseumLoan,
+  resolveRace,
+  resolveTrackDay,
+  type LuxuryVerb,
+  type VerbOutcome,
 } from '@/lib/luxury';
 
 const log = logger.scope('LuxuryActions');
@@ -131,6 +140,11 @@ export const sellLuxuryItem = (
   if (!ownsLuxuryItem(gameState.luxuryItems, itemId)) {
     return { success: false, message: `You don't own the ${item.name}.` };
   }
+  // An item on public display is not yours to sell out from under the museum.
+  // This is the cost that makes the loan fee and reputation worth something.
+  if (isOnLoan(gameState.luxuryHoldings?.[itemId], gameState.weeksLived)) {
+    return { success: false, message: `The ${item.name} is on loan. You can't sell it until it comes back.` };
+  }
 
   const refund = getLuxuryResaleValue(item);
 
@@ -164,3 +178,94 @@ export const sellLuxuryItem = (
   log.info(`Player sold luxury: ${item.name} (+$${refund.toLocaleString()})`);
   return { success: true, message: `Sold your ${item.name} for $${refund.toLocaleString()}.` };
 };
+
+
+/**
+ * Perform a luxury VERB — race the horse, book a track day, loan the diamond.
+ *
+ * The outcome comes from `getDeterministicRoll` keyed on the verb and the week,
+ * so reloading the save and replaying the same week produces the same result.
+ * Without that, every outcome would be rerollable by force-quitting.
+ */
+export const performLuxuryVerb = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  verbId: string,
+): LuxuryActionResult & { outcome?: VerbOutcome } => {
+  const verb: LuxuryVerb | undefined = getLuxuryVerb(verbId);
+  if (!verb) {
+    log.error(`Luxury verb ${verbId} not found`);
+    return { success: false, message: 'That is not something you can do.' };
+  }
+
+  const availability = getVerbAvailability(verb, gameState);
+  if (!availability.available) {
+    return { success: false, message: availability.reason ?? 'You cannot do that right now.' };
+  }
+
+  const item = getLuxuryItem(verb.itemId);
+  const weeksLived = gameState.weeksLived ?? 0;
+  const rollKey = `luxury-verb-${verb.id}-${weeksLived}`;
+  const needsRoll = verb.id !== 'museum_loan';
+  const roll = needsRoll ? getDeterministicRoll(gameState, rollKey) : 0;
+
+  const outcome: VerbOutcome =
+    verb.id === 'race_horse'
+      ? resolveRace(roll, gameState.luxuryHoldings?.[verb.itemId])
+      : verb.id === 'track_day'
+        ? resolveTrackDay(roll)
+        : resolveMuseumLoan(weeksLived);
+
+  setGameState((prev) => {
+    // Re-check against fresh state so a double-tap can't run the verb twice.
+    if (!getVerbAvailability(verb, prev).available) return prev;
+
+    // Entry fee + outcome money in ONE money movement, so a losing track day
+    // can never overdraft past the guard.
+    const netMoney = outcome.money - verb.cost;
+    const moved = netMoney !== 0 ? applyMoneyDelta(prev, netMoney, `Luxury: ${verb.label}`) : null;
+    if (netMoney !== 0 && !moved) return prev; // unaffordable → whole thing rejects
+
+    const prevHolding = prev.luxuryHoldings?.[verb.itemId] ?? { acquiredWeek: weeksLived };
+    const stats = { ...prev.stats, ...(moved?.stats ?? {}) };
+    if (verb.energyCost > 0) {
+      stats.energy = Math.max(0, (stats.energy ?? 0) - verb.energyCost);
+    }
+    if (outcome.happiness !== 0) {
+      stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0) + outcome.happiness));
+    }
+    if (outcome.reputation !== 0) {
+      stats.reputation = Math.max(0, Math.min(100, (stats.reputation ?? 0) + outcome.reputation));
+    }
+
+    return {
+      ...prev,
+      ...(moved ?? {}),
+      stats,
+      // Commit the roll so the same week can never be rerolled by reloading.
+      // NOTE: this returns the LOG, not a state patch — it must be assigned to
+      // `rngCommitLog`, never spread, or the log's own fields (seed, entries,
+      // order) land on the state root.
+      ...(needsRoll ? { rngCommitLog: commitDeterministicRoll(prev, rollKey, weeksLived) } : {}),
+      luxuryHoldings: {
+        ...(prev.luxuryHoldings || {}),
+        [verb.itemId]: {
+          ...prevHolding,
+          ...(outcome.holdingPatch ?? {}),
+          lastActionWeek: weeksLived,
+        },
+      },
+    };
+  });
+
+  log.info(`Luxury verb ${verb.id}: ${outcome.good ? 'good' : 'bad'} outcome`);
+  return {
+    success: true,
+    message: outcome.message,
+    outcome,
+  };
+};
+
+/** Re-export so the UI can label the item a verb belongs to. */
+export const luxuryVerbItemName = (verbId: string): string | undefined =>
+  getLuxuryItem(getLuxuryVerb(verbId)?.itemId ?? '')?.name;

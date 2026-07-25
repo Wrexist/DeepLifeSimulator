@@ -28,6 +28,7 @@ import {
   getTotalLuxuryPrestige,
   getTotalLuxuryUpkeep,
   getTotalLuxuryYield,
+  getLoanIncome,
 } from '@/lib/luxury';
 import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
@@ -63,7 +64,9 @@ export function applyLuxuryItemsForWeek(
   // upkeep. Crediting first means an insolvent week nets zero, never a gain.
   //
   // Both are mirror-safe: stats.money only, never a mirrored bank balance.
-  const yieldTotal = getTotalLuxuryYield(ids);
+  // A museum loan pays a weekly fee for as long as the piece is on display, on
+  // top of the catalog yields. It ends by itself when the loan expires.
+  const yieldTotal = getTotalLuxuryYield(ids) + getLoanIncome(ids, holdings, ctx.nextWeeksLived);
   if (yieldTotal > 0) {
     const beforeYield = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
     ctx.newStats.money = beforeYield + yieldTotal;

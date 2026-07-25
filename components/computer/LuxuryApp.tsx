@@ -79,8 +79,10 @@ import {
   isLuxuryLifeComplete,
   LUXURY_LIFE_MIN_ITEMS,
   LUXURY_LIFE_VALUE_THRESHOLD,
+  verbsForItem,
+  getVerbAvailability,
 } from '@/lib/luxury';
-import { purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
+import { performLuxuryVerb, purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
 import { luxuryArtFor, luxuryTierVisual, LUXURY_ART_BASE } from '@/components/computer/luxury/luxuryArt';
 
 const LinearGradient = LinearGradientFallback;
@@ -469,6 +471,17 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     }
   }, [pendingBuy, gameState, setGameState, queueSave, showToast]);
 
+  /** Run a luxury verb — race the horse, book a track day, loan the diamond. */
+  const runVerb = useCallback(
+    (verbId: string) => {
+      const result = performLuxuryVerb(gameState, setGameState, verbId);
+      // The outcome message IS the feedback — a win, a crash, a loan confirmed.
+      showToast(result.message);
+      if (result.success) queueSave();
+    },
+    [gameState, setGameState, queueSave, showToast],
+  );
+
   const confirmSell = useCallback(() => {
     const item = pendingSell;
     setPendingSell(null);
@@ -689,6 +702,43 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   </Text>
                 </View>
               </View>
+
+              {/* VERBS — the things you can DO with it. A trophy that can only
+                  be bought and sold is the least interactive object in the game
+                  despite being the most expensive. Shown only when owned. */}
+              {isOwned && verbsForItem(item.id).length > 0 ? (
+                <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                  {verbsForItem(item.id).map((verb) => {
+                    const availability = getVerbAvailability(verb, gameState);
+                    return (
+                      <TouchableOpacity
+                        key={verb.id}
+                        activeOpacity={availability.available ? 0.85 : 1}
+                        disabled={!availability.available}
+                        onPress={() => runVerb(verb.id)}
+                        style={[styles.verbRow, !availability.available && styles.verbRowDisabled]}
+                        accessibilityRole="button"
+                        accessibilityLabel={verb.label}
+                      >
+                        <View style={styles.verbInfo}>
+                          <Text style={[styles.verbLabel, { color: theme.text }]}>{verb.label}</Text>
+                          <Text style={[styles.verbDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                            {availability.available ? verb.description : availability.reason}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.verbCta,
+                            { color: availability.available ? EMERALD : theme.textMuted },
+                          ]}
+                        >
+                          {verb.cost > 0 ? formatMoney(verb.cost) : 'Go'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
 
               {isOwned ? (
                 <TouchableOpacity
@@ -1161,6 +1211,17 @@ const styles = StyleSheet.create({
   },
   detailPriceText: { color: '#FFFFFF', fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
   ownershipCard: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
+  verbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    paddingVertical: scale(6),
+  },
+  verbRowDisabled: { opacity: 0.5 },
+  verbInfo: { flex: 1 },
+  verbLabel: { fontSize: responsiveFontSize.base, fontWeight: '800' },
+  verbDesc: { fontSize: responsiveFontSize.sm, fontWeight: '600', marginTop: scale(2) },
+  verbCta: { fontSize: responsiveFontSize.base, fontWeight: '800' },
   ownershipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   ownershipTotalRow: { borderTopWidth: 1, paddingTop: responsiveSpacing.sm },
   ownershipLabel: { fontSize: responsiveFontSize.sm, fontWeight: '500' },

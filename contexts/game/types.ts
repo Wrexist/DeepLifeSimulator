@@ -207,6 +207,21 @@ export interface LuxuryHolding {
    */
   currentValue?: number;
   /**
+   * `weeksLived` when a luxury VERB was last performed on this item (racing it,
+   * a track day, a museum loan). Drives the cooldown.
+   *
+   * ABSENT means never done, which is why the cooldown check treats undefined
+   * as "infinitely long ago" rather than week 0 — otherwise every verb would be
+   * on cooldown for a brand-new item bought late in a life.
+   */
+  lastActionWeek?: number;
+  /** Racehorse: career runs. Absent = never raced. */
+  runs?: number;
+  /** Racehorse: career wins. Better form makes a better horse. */
+  wins?: number;
+  /** Museum loan: `weeksLived` the item comes back. Unsellable until then. */
+  loanedUntilWeek?: number;
+  /**
    * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
    *
    * A private island is land. Rather than reimplementing building, upgrading,

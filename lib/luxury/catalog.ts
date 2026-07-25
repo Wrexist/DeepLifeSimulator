@@ -256,10 +256,21 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
 /** Fraction of purchase price recovered on resale + counted toward net worth. */
 export const LUXURY_RESALE_FRACTION = 0.6;
 
-/** `luxury_life` completes at N owned items OR the value threshold below. */
-export const LUXURY_LIFE_MIN_ITEMS = 3;
+/**
+ * `luxury_life` completes at N owned items OR the value threshold below.
+ *
+ * RETUNED (Audit C3): this was 3 items or $25M — about 2% of the catalog's
+ * $1.22B, reachable with the two cheapest items plus one more. The endgame of a
+ * twelve-piece collection announced itself as a three-item errand, and the
+ * headline on the Luxury screen read "0 / 3 collectibles".
+ *
+ * Half the catalogue, or a genuinely serious collection by value. Raising the
+ * bar cannot un-complete anyone: the weekly tick only ever flips the achievement
+ * TO complete, never back.
+ */
+export const LUXURY_LIFE_MIN_ITEMS = 6;
 /** …or once total (sticker) luxury value reaches this. */
-export const LUXURY_LIFE_VALUE_THRESHOLD = 25_000_000;
+export const LUXURY_LIFE_VALUE_THRESHOLD = 150_000_000;
 
 /** Max reputation the whole collection can drift you toward (safety cap). */
 export const LUXURY_REPUTATION_CAP = 100;
