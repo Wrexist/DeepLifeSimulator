@@ -34,7 +34,7 @@ export const INSURANCE_PLANS: Omit<VehicleInsurance, 'active' | 'expiresWeek'>[]
 export interface VehicleTemplate {
   id: string;
   name: string;
-  type: 'car' | 'motorcycle' | 'luxury' | 'sports';
+  type: 'car' | 'motorcycle' | 'luxury' | 'sports' | 'plane';
   price: number;
   weeklyMaintenanceCost: number;
   weeklyFuelCost: number;
@@ -288,11 +288,58 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
 ];
 
 // Driver's license cost and requirements
+// ─── Aircraft ────────────────────────────────────────────────────────────
+// `type: 'plane'` existed in the Vehicle union with nothing in it, so there was
+// no rung between a $22k SUV and the $65M luxury private jet. These two fill it.
+//
+// They are ordinary VEHICLE_TEMPLATES so they inherit the whole garage: buy,
+// sell, weekly costs, condition. What differs is the licence — `purchaseVehicle`
+// requires a PILOT licence for these, not a driving one (see isAircraftVehicleId
+// in lib/vehicles/aircraft.ts) — and that they want somewhere to be based.
+export const AIRCRAFT_TEMPLATES: VehicleTemplate[] = [
+  {
+    id: 'utility_helicopter',
+    name: 'Utility Helicopter',
+    type: 'plane',
+    // The rung below the jet: real air transport at a price a successful
+    // mid-game player can actually reach.
+    price: 2_500_000,
+    weeklyMaintenanceCost: 3_200,
+    weeklyFuelCost: 1_800,
+    reputationBonus: 8,
+    // speedBonus is the GROUND-travel bonus; the real benefit is the air
+    // duration multiplier in aircraft.ts. Kept modest so it doesn't double-dip.
+    speedBonus: 15,
+    maxSpeed: 160,
+    fuelEfficiency: 4,
+    fuelCapacity: 110,
+    description: 'A light twin. Lands where roads do not go — if you have a pad for it.',
+  },
+  {
+    id: 'light_jet',
+    name: 'Light Jet',
+    type: 'plane',
+    price: 12_000_000,
+    weeklyMaintenanceCost: 9_000,
+    weeklyFuelCost: 6_500,
+    reputationBonus: 14,
+    speedBonus: 20,
+    maxSpeed: 520,
+    fuelEfficiency: 3,
+    fuelCapacity: 500,
+    description: 'Six seats and real range. Wants a runway of its own.',
+  },
+];
+
 export const DRIVERS_LICENSE = {
   cost: 500,
   minAge: 16,
   description: "Required to own and drive any vehicle. Visit the DMV to get yours!",
 };
+
+// Aircraft live in the same catalog so every existing lookup, purchase and
+// garage path finds them without a second code path.
+VEHICLE_TEMPLATES.push(...AIRCRAFT_TEMPLATES);
 
 // Helper functions
 export function getVehicleTemplate(id: string): VehicleTemplate | undefined {

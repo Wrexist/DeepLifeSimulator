@@ -694,6 +694,19 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 24;
     return state;
   },
+
+  // Version 25: `hasPilotLicense`. Concrete default (false), so it needs a real
+  // backfill rather than an absent-means-default carve-out — `purchaseVehicle`
+  // reads it to gate aircraft, and `undefined` would work by accident today but
+  // silently break the first time something does a strict comparison.
+  25: (state) => {
+    if (typeof state.hasPilotLicense !== 'boolean') {
+      state.hasPilotLicense = false;
+    }
+
+    state.version = 25;
+    return state;
+  },
 };
 
 /**

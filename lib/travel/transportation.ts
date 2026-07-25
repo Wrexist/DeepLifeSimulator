@@ -6,6 +6,7 @@
  */
 
 import { GameState } from '@/contexts/game/types';
+import { airDurationMultiplier, getAirTravelStatus } from '@/lib/vehicles/aircraft';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -20,6 +21,10 @@ export interface TransportationMods {
     vehicleSpeedBonusPct: number;
     politicsCostReductionPct: number;
     politicsCommuteReductionPct: number;
+    /** Trip-time cut from an owned aircraft, 0-100. */
+    aircraftDurationCutPct: number;
+    /** Player-facing line describing the aircraft and whether it is based. */
+    aircraftSummary: string;
   };
 }
 
@@ -46,17 +51,25 @@ export function transportationMods(state: GameState): TransportationMods {
 
   const costMultiplier = Math.max(0, 1 - politicsCostReductionPct / 100);
 
-  // Both vehicle and politics shave duration. We multiply (not add) to avoid the
-  // multiplier going negative when both are maxed.
+  // Aircraft: the reason a private jet exists. An owned aircraft cuts trip
+  // DURATION (not cost — fuel and crew are expensive), and cuts it much harder
+  // once it has somewhere of its own to land. See lib/vehicles/aircraft.ts.
+  const airStatus = getAirTravelStatus(state);
+  const aircraftFactor = airDurationMultiplier(state);
+
+  // Vehicle, politics and aircraft all shave duration. We multiply (not add) to
+  // avoid the multiplier going negative when several are maxed.
   const vehicleFactor = 1 - vehicleSpeedBonusPct / 100; // 50%→0.5×
   const politicsFactor = 1 - politicsCommuteReductionPct / 100;
-  const durationMultiplier = Math.max(0.25, vehicleFactor * politicsFactor); // floor at 25% so trips always take a real week
+  const durationMultiplier = Math.max(0.25, vehicleFactor * politicsFactor * aircraftFactor); // floor at 25% so trips always take a real week
 
   return {
     costMultiplier,
     durationMultiplier,
     breakdown: {
       vehicleSpeedBonusPct,
+      aircraftDurationCutPct: Math.round((1 - aircraftFactor) * 100),
+      aircraftSummary: airStatus.summary,
       politicsCostReductionPct,
       politicsCommuteReductionPct,
     },

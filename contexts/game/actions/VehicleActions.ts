@@ -11,6 +11,7 @@
 
 import { GameState, Vehicle, VehicleInsurance } from '../types';
 import { getActiveRental, getRentalPlan } from '@/lib/vehicles/scooterRental';
+import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
 import { rejectIfBlocked } from './_guards';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
@@ -77,16 +78,22 @@ export const purchaseVehicle = (
   vehicleId: string,
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
-  // Check if has driver's license
-  if (!gameState.hasDriversLicense) {
-    return { success: false, message: 'You need a driver\'s license to purchase a vehicle!' };
-  }
-
   // Find vehicle template
   const template = VEHICLE_TEMPLATES.find(v => v.id === vehicleId);
   if (!template) {
     log.error(`Vehicle template ${vehicleId} not found`);
     return { success: false, message: 'Vehicle not found.' };
+  }
+
+  // Licence gate. Aircraft need a PILOT licence — a driving licence is neither
+  // sufficient nor required to own a helicopter, and gating the aircraft ladder
+  // behind its own qualification is what makes it feel earned.
+  if (isAircraftVehicleId(vehicleId)) {
+    if (!gameState.hasPilotLicense) {
+      return { success: false, message: 'You need a pilot\'s license to buy an aircraft.' };
+    }
+  } else if (!gameState.hasDriversLicense) {
+    return { success: false, message: 'You need a driver\'s license to purchase a vehicle!' };
   }
 
   // CRITICAL: Validate template price before comparison
@@ -1081,4 +1088,44 @@ export const endScooterRental = (
     success: true,
     message: `${active.plan.name} ended. No more weekly charge.`,
   };
+};
+
+
+/**
+ * Get a pilot's licence. Mirrors `getDriversLicense`: age gate, cash gate,
+ * atomic grant. Required before any aircraft can be purchased.
+ */
+export const getPilotLicense = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message: string } => {
+  if (gameState.hasPilotLicense) {
+    return { success: false, message: 'You already have a pilot\'s license!' };
+  }
+  if ((gameState.date?.age ?? 0) < PILOT_LICENSE.minAge) {
+    return {
+      success: false,
+      message: `You must be at least ${PILOT_LICENSE.minAge} to train for a pilot's license.`,
+    };
+  }
+  const money = typeof gameState.stats?.money === 'number' && isFinite(gameState.stats.money)
+    ? gameState.stats.money
+    : 0;
+  if (money < PILOT_LICENSE.cost) {
+    return {
+      success: false,
+      message: `Flight training costs $${PILOT_LICENSE.cost.toLocaleString()}.`,
+    };
+  }
+
+  setGameState(prev => {
+    // Re-check against fresh state so a double-tap can't charge twice.
+    if (prev.hasPilotLicense) return prev;
+    const spend = applyMoneyDelta(prev, -PILOT_LICENSE.cost, 'Pilot license training');
+    if (!spend) return prev;
+    return { ...prev, ...spend, hasPilotLicense: true };
+  });
+
+  log.info('Player obtained pilot license');
+  return { success: true, message: 'Licensed to fly. The sky just got a lot smaller.' };
 };

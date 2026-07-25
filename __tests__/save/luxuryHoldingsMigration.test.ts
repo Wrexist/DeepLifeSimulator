@@ -11,11 +11,12 @@ import { repairGameState } from '@/utils/saveValidation';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
-describe('STATE_VERSION 24 registration', () => {
-  it('is the current version and is covered by a migration', () => {
-    expect(STATE_VERSION).toBe(24);
-    expect(CURRENT_STATE_VERSION).toBe(24);
+describe('STATE_VERSION registration', () => {
+  it('is the current version and every recent bump is covered', () => {
+    expect(STATE_VERSION).toBe(25);
+    expect(CURRENT_STATE_VERSION).toBe(25);
     expect(isMigrationVersionCovered(24)).toBe(true);
+    expect(isMigrationVersionCovered(25)).toBe(true);
   });
 
   it('ships the field in initialState so the test factory inherits it', () => {
@@ -39,7 +40,7 @@ describe('migration 24 — backfill', () => {
 
     const { state } = runMigrations(save);
 
-    expect(state.version).toBe(24);
+    expect(state.version).toBe(25);
     expect(Object.keys(state.luxuryHoldings).sort()).toEqual(['private_island', 'supercar']);
     // Stamped from the save's own week, not 0 — an island bought in a 412-week
     // life must not claim to have been owned since birth.
@@ -105,7 +106,7 @@ describe('migration 24 — backfill', () => {
 
   it('migrates a much older save all the way forward', () => {
     const { state } = runMigrations({ version: 20, weeksLived: 88, luxuryItems: ['museum_diamond'] });
-    expect(state.version).toBe(24);
+    expect(state.version).toBe(25);
     expect(state.luxuryHoldings.museum_diamond.acquiredWeek).toBe(88);
   });
 });
@@ -141,5 +142,25 @@ describe('repairGameState — partial saves that skipped the chain', () => {
 
     // The original acquisition week survives — repair must never restamp it.
     expect(healthy.luxuryHoldings!.supercar.acquiredWeek).toBe(3);
+  });
+});
+
+describe('migration 25 — pilot licence', () => {
+  it('backfills the flag as false', () => {
+    const { state } = runMigrations({ version: 24, weeksLived: 10 });
+    expect(state.hasPilotLicense).toBe(false);
+  });
+
+  it('never revokes a licence the player already holds', () => {
+    const { state } = runMigrations({ version: 24, weeksLived: 10, hasPilotLicense: true });
+    expect(state.hasPilotLicense).toBe(true);
+  });
+
+  it('is repaired on a partial save too', () => {
+    const broken = { ...initialGameState, hasPilotLicense: undefined } as unknown as {
+      hasPilotLicense?: boolean;
+    };
+    repairGameState(broken);
+    expect(broken.hasPilotLicense).toBe(false);
   });
 });

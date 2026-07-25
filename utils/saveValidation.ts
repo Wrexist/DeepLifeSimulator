@@ -482,6 +482,11 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // every owned id — an owned item with no holding reads as "acquired at week 0"
   // everywhere downstream. Mirrors migration 24 exactly, because repair also
   // runs on partial saves (CloudSync merge / hand-edit) the ladder never saw.
+  if (typeof s.hasPilotLicense !== 'boolean') {
+    s.hasPilotLicense = false;
+    repairs.push('Backfilled missing hasPilotLicense flag from defaults');
+    repaired = true;
+  }
   if (!s.luxuryHoldings || typeof s.luxuryHoldings !== 'object' || Array.isArray(s.luxuryHoldings)) {
     s.luxuryHoldings = {};
     repairs.push('Backfilled missing luxuryHoldings record from defaults');

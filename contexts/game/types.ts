@@ -2190,6 +2190,14 @@ export interface GameState {
   hasPhone: boolean;
   computerPreviouslyOwned: boolean;
   hasDriversLicense?: boolean; // Driver's license for vehicle ownership
+  /**
+   * Pilot's licence (STATE_VERSION 25) — required to own or fly any aircraft,
+   * exactly as `hasDriversLicense` gates ground vehicles. Kept as its own flag
+   * rather than folded into the driving licence because flying is a separate,
+   * far more expensive qualification, and gating the aircraft ladder behind it
+   * is what makes a helicopter feel earned rather than merely afforded.
+   */
+  hasPilotLicense?: boolean;
   foods: Food[];
   healthActivities: HealthActivity[];
   dietPlans: DietPlan[];
