@@ -15,9 +15,8 @@ item's emoji), so the game always looks finished — importing art just upgrades
 1. Generate each image with **any** AI image tool (Midjourney, DALL·E, Ideogram,
    Firefly, SDXL, …). Paste the item's prompt from `prompts/<id>.txt` (or the
    list below).
-2. Export a **PNG**, landscape **3:2** or **16:10**, about **1200px wide**
-   (≈1200×800). The card crops to a wide banner and the detail sheet shows it
-   taller, so keep the subject **centred** with a little breathing room.
+2. Export a **PNG**, landscape **2:1**, **1600×800**. See *Framing* below —
+   the app crops these, and 2:1 is the ratio that survives both crops best.
 3. Name the file **exactly** as specified (the catalog `id` + `.png`, all
    lowercase, e.g. `rare_watch_collection.png`). The filename is the wiring key —
    a typo means the app can't find it.
@@ -27,6 +26,55 @@ item's emoji), so the game always looks finished — importing art just upgrades
    automatically; anything still commented out keeps the gradient placeholder.
    (The require lines ship commented so a missing file never breaks the build.)
 
+## The set — 12 items
+
+Tick these off as you go. Prices are what the player pays, and they set the tone:
+the $250k watch tray should look attainable-expensive, the $500M stadium should
+look like something a person cannot really own.
+
+| ✓ | File | Item | Tier | Price |
+|---|---|---|---|---|
+| ☐ | `rare_watch_collection.png` | Rare Watch Collection | entry | $250K |
+| ☐ | `museum_diamond.png` | Museum-Grade Diamond | entry | $600K |
+| ☐ | `fine_art_collection.png` | Fine Art Collection | premium | $1.2M |
+| ☐ | `supercar.png` | Hypercar | premium | $2.5M |
+| ☐ | `racehorse.png` | Thoroughbred Racehorse | premium | $6M |
+| ☐ | `vineyard_estate.png` | Vineyard Estate | elite | $15M |
+| ☐ | `luxury_yacht.png` | Luxury Yacht | elite | $32M |
+| ☐ | `private_jet.png` | Private Jet | elite | $65M |
+| ☐ | `private_island.png` | Private Island | ultra | $120M |
+| ☐ | `trophy_penthouse.png` | Trophy Penthouse | ultra | $180M |
+| ☐ | `mega_yacht.png` | Mega-Yacht | ultra | $300M |
+| ☐ | `sports_team_stake.png` | Pro Sports Team Stake | ultra | $500M |
+
+Partial sets are fine — the app falls back per item, so you can ship four images
+and the other eight keep their gradient placeholders. Nothing breaks, nothing
+looks half-finished.
+
+## Framing — read this before generating
+
+The app never letterboxes. Both surfaces render the image with `resizeMode="cover"`,
+so whatever doesn't match the box's aspect ratio is **cropped away**, centred.
+There are two boxes, measured from the live layout (`LuxuryApp.tsx`: card banner
+`scale(132)` tall, detail hero `scale(190)` tall, both full card width inside
+`responsiveSpacing.md` padding — the ratios are device-independent because width
+and height scale by the same factor):
+
+| Surface | Aspect | What a 2:1 source loses |
+|---|---|---|
+| Card banner (browse list) | **2.6 : 1** | top + bottom — **23% of height** |
+| Detail sheet hero | **1.8 : 1** | left + right — **10% of width** |
+
+So with a 2:1 source, the only region guaranteed visible everywhere is the
+**central 77% of height × 90% of width**. Keep the subject inside that. Treat the
+outer band as bleed: atmosphere, floor, sky, bokeh — never the watch face, never
+the hull, never the horse's head.
+
+> **Why not 3:2?** The previous spec said 3:2 / 1200×800. In a 2.6:1 card banner
+> that keeps only **58% of the image height** — 42% of everything you generate is
+> thrown away before anyone sees it, and centred subjects get their tops and
+> bottoms sliced. 2:1 is the compromise that keeps the most of both crops.
+
 ## Shared style clause
 
 Prepend (or append) this to every prompt so the set reads as one cohesive,
@@ -34,7 +82,8 @@ premium collection:
 
 > **premium dark editorial product photography, deep navy-black background
 > #0B1220, soft rim lighting, subtle blue accent glow, no text, no watermark,
-> centered composition, ultra detailed**
+> subject centred within the middle 75% of the frame, generous bleed around the
+> edges, ultra detailed, landscape 2:1, 1600x800**
 
 ---
 
