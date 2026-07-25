@@ -247,10 +247,16 @@ export function getTotalLuxuryMarketValue(
   ownedIds: readonly string[] | undefined | null,
   holdings: Record<string, LuxuryHolding> | undefined | null,
 ): number {
-  return getOwnedLuxuryItems(ownedIds).reduce(
-    (sum, item) => sum + Math.floor(getHoldingValue(item, holdings?.[item.id]) * LUXURY_RESALE_FRACTION),
-    0,
-  );
+  return getOwnedLuxuryItems(ownedIds).reduce((sum, item) => {
+    const holding = holdings?.[item.id];
+    // Condition discounts the value — a damaged painting is worth less than an
+    // undamaged one. Imported lazily to keep the module graph acyclic (risk.ts
+    // reads getHoldingValue from here).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { conditionValueMultiplier, getCondition } = require('./risk') as typeof import('./risk');
+    const condition = conditionValueMultiplier(getCondition(holding));
+    return sum + Math.floor(getHoldingValue(item, holding) * LUXURY_RESALE_FRACTION * condition);
+  }, 0);
 }
 
 export interface AppreciationResult {

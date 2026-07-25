@@ -285,6 +285,8 @@ export interface PreRolls {
   petSickness: number[];
   petSicknessType: number[];
   /** Per-vehicle accident rolls (up to 10 vehicles). */
+  /** Per-luxury-item incident rolls (theft, storm, injury). */
+  luxuryIncident: number[];
   vehicleAccident: number[];
   vehicleAccidentSeverity: number[];
   /** Timestamp captured outside the updater (Date.now() is impure too). */
@@ -318,6 +320,7 @@ export function buildPreRolls(): PreRolls {
     // Pet sickness (one pair per pet). Sized to 20; the consumer wraps the
     // index (modulo) so larger pet collections still get a valid roll instead
     // of an out-of-range `undefined` that reads as sickness-immune.
+    luxuryIncident: Array.from({ length: 20 }, () => Math.random()),
     petSickness: Array.from({ length: 20 }, () => Math.random()),
     petSicknessType: Array.from({ length: 20 }, () => Math.random()),
     // Vehicle accidents (one pair per vehicle, max 10)

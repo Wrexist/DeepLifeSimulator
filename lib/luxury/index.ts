@@ -6,3 +6,4 @@ export * from './catalog';
 export * from './operations';
 export * from './verbs';
 export * from './hosting';
+export * from './risk';

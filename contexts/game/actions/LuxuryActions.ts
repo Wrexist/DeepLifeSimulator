@@ -33,6 +33,8 @@ import {
   resolveMuseumLoan,
   resolveRace,
   resolveTrackDay,
+  getCondition,
+  getRestoreCost,
   getHostingAvailability,
   pickAttendees,
   quoteEvent,
@@ -346,4 +348,90 @@ export const hostLuxuryEvent = (
 
   log.info(`Hosted ${tier} at ${itemId}`);
   return { success: true, message: outcome.message };
+};
+
+
+/**
+ * Insure or un-insure an owned item.
+ *
+ * The premium is charged weekly by the luxury tick, so this action only flips
+ * the flag — there is nothing to pay up front, and cancelling takes effect from
+ * the next week. That mirrors how the vehicle insurance already behaves.
+ */
+export const setLuxuryInsurance = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  itemId: string,
+  insured: boolean,
+): LuxuryActionResult => {
+  const item = getLuxuryItem(itemId);
+  if (!item) return { success: false, message: 'Item not found.' };
+  if (!ownsLuxuryItem(gameState.luxuryItems, itemId)) {
+    return { success: false, message: `You don't own the ${item.name}.` };
+  }
+
+  setGameState((prev) => ({
+    ...prev,
+    luxuryHoldings: {
+      ...(prev.luxuryHoldings || {}),
+      [itemId]: {
+        ...(prev.luxuryHoldings?.[itemId] ?? { acquiredWeek: prev.weeksLived ?? 0 }),
+        insured,
+      },
+    },
+  }));
+
+  return {
+    success: true,
+    message: insured
+      ? `${item.name} insured. The premium starts next week.`
+      : `${item.name} is no longer insured. You are carrying the risk yourself.`,
+  };
+};
+
+/**
+ * Pay to restore a damaged item to pristine.
+ *
+ * Charged in full up front, unlike the weekly costs, because this is a job you
+ * commission rather than a bill that arrives.
+ */
+export const restoreLuxuryItem = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  itemId: string,
+): LuxuryActionResult => {
+  const item = getLuxuryItem(itemId);
+  if (!item) return { success: false, message: 'Item not found.' };
+  if (!ownsLuxuryItem(gameState.luxuryItems, itemId)) {
+    return { success: false, message: `You don't own the ${item.name}.` };
+  }
+
+  const holding = gameState.luxuryHoldings?.[itemId];
+  const cost = getRestoreCost(item, holding);
+  if (cost <= 0) {
+    return { success: false, message: `The ${item.name} is already in perfect condition.` };
+  }
+  if ((gameState.stats?.money ?? 0) < cost) {
+    return { success: false, message: `Restoration would cost $${cost.toLocaleString()}.` };
+  }
+
+  setGameState((prev) => {
+    // Re-check against fresh state so a double-tap can't charge twice.
+    const fresh = prev.luxuryHoldings?.[itemId];
+    if (getCondition(fresh) >= 100) return prev;
+    const freshCost = getRestoreCost(item, fresh);
+    const spend = applyMoneyDelta(prev, -freshCost, `Restored ${item.name}`);
+    if (!spend) return prev;
+
+    return {
+      ...prev,
+      ...spend,
+      luxuryHoldings: {
+        ...(prev.luxuryHoldings || {}),
+        [itemId]: { ...(fresh ?? { acquiredWeek: prev.weeksLived ?? 0 }), condition: 100 },
+      },
+    };
+  });
+
+  return { success: true, message: `${item.name} restored for $${cost.toLocaleString()}.` };
 };

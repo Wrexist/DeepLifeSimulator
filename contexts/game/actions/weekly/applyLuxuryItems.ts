@@ -29,6 +29,7 @@ import {
   getTotalLuxuryUpkeep,
   getTotalLuxuryYield,
   getLoanIncome,
+  applyLuxuryRiskForWeek,
 } from '@/lib/luxury';
 import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
@@ -42,6 +43,10 @@ export interface LuxuryWeekResult {
   holdings: Record<string, LuxuryHolding> | undefined;
   /** Net market-value change this week — net worth, not cash. */
   valueDelta: number;
+  /** Premiums + deductibles charged this week. */
+  riskCost: number;
+  /** Player-facing lines for anything that went wrong. */
+  incidents: string[];
 }
 
 export function applyLuxuryItemsForWeek(
@@ -51,7 +56,7 @@ export function applyLuxuryItemsForWeek(
 ): LuxuryWeekResult {
   const ids = luxuryItemIds || [];
   if (ids.length === 0) {
-    return { upkeep: 0, yield: 0, holdings: holdings ?? undefined, valueDelta: 0 };
+    return { upkeep: 0, yield: 0, holdings: holdings ?? undefined, valueDelta: 0, riskCost: 0, incidents: [] };
   }
 
   // (a) Yield THEN upkeep, in that order and for a reason.
@@ -101,7 +106,30 @@ export function applyLuxuryItemsForWeek(
   // cash; the player only realises it when they sell. Returns the same holdings
   // reference when nothing drifted, so a collection of pure trophies causes no
   // state churn.
-  const { holdings: nextHoldings, valueDelta } = appreciateLuxuryHoldings(ids, holdings);
+  const { holdings: appreciated, valueDelta } = appreciateLuxuryHoldings(ids, holdings);
 
-  return { upkeep, yield: yieldTotal, holdings: nextHoldings, valueDelta };
+  // (f) Risk — insurance premiums, and the occasional theft, storm or injury.
+  // Rolls come from the tick's pre-rolls, the same draw pet sickness and
+  // vehicle accidents use, so an incident is part of the deterministic week.
+  const risk = applyLuxuryRiskForWeek(ids, appreciated, ctx.preRolls?.luxuryIncident);
+  if (risk.cashOwed > 0) {
+    const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
+    ctx.newStats.money = Math.max(0, before - risk.cashOwed);
+  }
+  for (const incident of risk.incidents) {
+    ctx.notifications.push({
+      id: `luxury-incident-${incident.itemId}-${ctx.nextWeeksLived}`,
+      title: incident.insured ? 'Insurance claim' : 'Incident',
+      message: incident.message,
+    });
+  }
+
+  return {
+    upkeep,
+    yield: yieldTotal,
+    holdings: risk.holdings,
+    valueDelta,
+    riskCost: risk.cashOwed,
+    incidents: risk.incidents.map((i) => i.message),
+  };
 }

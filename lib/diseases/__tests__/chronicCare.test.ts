@@ -52,6 +52,7 @@ function stubCtx(
       // roll is NOT blocked by managed care WILL worsen this tick.
       diseaseComplication: [0.0001],
       diseaseProgression: [0.9],
+      luxuryIncident: [],
       petSickness: [],
       petSicknessType: [],
       vehicleAccident: [],

@@ -228,6 +228,16 @@ export interface LuxuryHolding {
    */
   lastHostedWeek?: number;
   /**
+   * Condition 0-100, exactly as vehicles carry it. ABSENT means pristine, so
+   * every item bought before risk existed is undamaged and valued as it was.
+   */
+  condition?: number;
+  /**
+   * Insured against incidents. Costs a real weekly premium on top of upkeep;
+   * in exchange an incident costs a deductible instead of the whole loss.
+   */
+  insured?: boolean;
+  /**
    * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
    *
    * A private island is land. Rather than reimplementing building, upgrading,
