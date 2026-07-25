@@ -17,23 +17,26 @@ import type { ImageSourcePropType } from 'react-native';
 import type { LuxuryItem } from '@/lib/luxury';
 
 /**
- * Catalog id → bundled artwork. SHIPS EMPTY: every entry is commented out so the
- * build has nothing to resolve until the art is generated. Uncomment a line the
- * moment its PNG exists in assets/images/luxury/.
+ * Catalog id → bundled artwork.
+ *
+ * All twelve are LIVE — the PNGs exist in assets/images/luxury/ and every entry
+ * resolves. If a file is ever removed, comment its line back out rather than
+ * leaving a dangling require: Metro resolves these at bundle time, so a missing
+ * file is a build failure, not a runtime fallback.
  */
 export const LUXURY_ART: Record<string, ImageSourcePropType> = {
-  // 'rare_watch_collection': require('@/assets/images/luxury/rare_watch_collection.png'),
-  // 'museum_diamond':        require('@/assets/images/luxury/museum_diamond.png'),
-  // 'fine_art_collection':   require('@/assets/images/luxury/fine_art_collection.png'),
-  // 'supercar':              require('@/assets/images/luxury/supercar.png'),
-  // 'racehorse':             require('@/assets/images/luxury/racehorse.png'),
-  // 'vineyard_estate':       require('@/assets/images/luxury/vineyard_estate.png'),
-  // 'luxury_yacht':          require('@/assets/images/luxury/luxury_yacht.png'),
-  // 'private_jet':           require('@/assets/images/luxury/private_jet.png'),
-  // 'private_island':        require('@/assets/images/luxury/private_island.png'),
-  // 'trophy_penthouse':      require('@/assets/images/luxury/trophy_penthouse.png'),
-  // 'mega_yacht':            require('@/assets/images/luxury/mega_yacht.png'),
-  // 'sports_team_stake':     require('@/assets/images/luxury/sports_team_stake.png'),
+  'rare_watch_collection': require('@/assets/images/luxury/rare_watch_collection.png'),
+  'museum_diamond':        require('@/assets/images/luxury/museum_diamond.png'),
+  'fine_art_collection':   require('@/assets/images/luxury/fine_art_collection.png'),
+  'supercar':              require('@/assets/images/luxury/supercar.png'),
+  'racehorse':             require('@/assets/images/luxury/racehorse.png'),
+  'vineyard_estate':       require('@/assets/images/luxury/vineyard_estate.png'),
+  'luxury_yacht':          require('@/assets/images/luxury/luxury_yacht.png'),
+  'private_jet':           require('@/assets/images/luxury/private_jet.png'),
+  'private_island':        require('@/assets/images/luxury/private_island.png'),
+  'trophy_penthouse':      require('@/assets/images/luxury/trophy_penthouse.png'),
+  'mega_yacht':            require('@/assets/images/luxury/mega_yacht.png'),
+  'sports_team_stake':     require('@/assets/images/luxury/sports_team_stake.png'),
 };
 
 /** Resolve bundled artwork for an item id, or null to use the gradient fallback. */
