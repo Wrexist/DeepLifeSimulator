@@ -220,6 +220,16 @@ jest.mock('expo-notifications', () => ({
   requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
 }), { virtual: true });
 
+// expo-store-review is a native module with no JS fallback, so it can never run
+// under Jest. Defaults say "the sheet is available and shows" — tests that care
+// about the unavailable paths override these per-test.
+jest.mock('expo-store-review', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  hasAction: jest.fn(() => Promise.resolve(true)),
+  requestReview: jest.fn(() => Promise.resolve()),
+  storeUrl: jest.fn(() => null),
+}), { virtual: true });
+
 jest.mock('@/services/RemoteLoggingService', () => ({
   remoteLogger: {
     log: jest.fn(),
@@ -431,6 +441,7 @@ jest.mock('lucide-react-native', () => ({
   CheckCircle: 'CheckCircle',
   Check: 'Check',
   TrendingUp: 'TrendingUp',
+  Crown: 'Crown',
   TrendingDown: 'TrendingDown',
   ArrowUp: 'ArrowUp',
   ArrowDown: 'ArrowDown',

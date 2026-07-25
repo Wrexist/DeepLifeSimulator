@@ -188,6 +188,94 @@ export interface Career {
   lastRaiseWeeksLived?: number; // weeksLived of the last raise REQUEST (approved OR denied) — gates the cooldown.
 }
 
+/**
+ * Per-item state for one owned luxury item (STATE_VERSION 24).
+ *
+ * Every field is optional and absent-means-default, so a holding minted by an
+ * older build (or backfilled by the migration) is always valid.
+ */
+export interface LuxuryHolding {
+  /** `weeksLived` when it was acquired. Drives "owned since" and appreciation. */
+  acquiredWeek: number;
+  /**
+   * Current market value, drifted weekly by `appreciateLuxuryHoldings`.
+   *
+   * ABSENT means "never drifted" and falls back to the catalog price, so an
+   * item bought before appreciation existed — or one that never appreciates —
+   * is valued exactly as it always was. That absent-means-default is why this
+   * needs no migration of its own.
+   */
+  currentValue?: number;
+  /**
+   * `weeksLived` when a luxury VERB was last performed on this item (racing it,
+   * a track day, a museum loan). Drives the cooldown.
+   *
+   * ABSENT means never done, which is why the cooldown check treats undefined
+   * as "infinitely long ago" rather than week 0 — otherwise every verb would be
+   * on cooldown for a brand-new item bought late in a life.
+   */
+  lastActionWeek?: number;
+  /** Racehorse: career runs. Absent = never raced. */
+  runs?: number;
+  /** Racehorse: career wins. Better form makes a better horse. */
+  wins?: number;
+  /** Museum loan: `weeksLived` the item comes back. Unsellable until then. */
+  loanedUntilWeek?: number;
+  /**
+   * `weeksLived` an event was last held at this venue. Per-venue rather than
+   * global, so owning both the island and the penthouse gives two places to
+   * entertain — a genuine reason to own both.
+   */
+  lastHostedWeek?: number;
+  /**
+   * Condition 0-100, exactly as vehicles carry it. ABSENT means pristine, so
+   * every item bought before risk existed is undamaged and valued as it was.
+   */
+  condition?: number;
+  /**
+   * Insured against incidents. Costs a real weekly premium on top of upkeep;
+   * in exchange an incident costs a deductible instead of the whole loss.
+   */
+  insured?: boolean;
+  /**
+   * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
+   *
+   * A private island is land. Rather than reimplementing building, upgrading,
+   * furnishing and maintaining it, the purchase mints a real property and hands
+   * the player the entire existing real-estate stack (`lib/realEstate/housing.ts`).
+   * This id is the link between the two systems.
+   */
+  propertyId?: string;
+}
+
+/**
+ * Everything the promotion celebration needs to tell the story of a raise.
+ *
+ * Built by `promoteCareer` at the moment of the promotion, because that is the
+ * only place both the OLD and the NEW rung are known — once state commits, the
+ * previous title and salary are gone.
+ *
+ * Salaries here are what the player is actually PAID (base × any negotiated
+ * raiseMultiplier), so the celebrated number matches the payslip.
+ */
+export interface PromotionDetails {
+  careerId: string;
+  /** Rung title before the promotion, e.g. "Junior Developer". */
+  fromTitle: string;
+  /** Rung title after, e.g. "Senior Developer". */
+  toTitle: string;
+  /** Weekly pay before, after the raise multiplier. */
+  fromSalary: number;
+  /** Weekly pay after, after the raise multiplier. */
+  toSalary: number;
+  /** New level index (0-based). */
+  level: number;
+  /** Index of the top rung on this ladder. */
+  topLevel: number;
+  /** True when this promotion reached the top of the ladder. */
+  isTopRank: boolean;
+}
+
 /** A practiced hobby/skill (v21 mastery loop). Level is derived from xp but
  *  cached for cheap reads. */
 export interface PlayerPursuit {
@@ -2119,6 +2207,20 @@ export interface GameState {
    * happiness + prestige benefit, and a resale fraction toward net worth.
    */
   luxuryItems?: string[];
+  /**
+   * Per-item state for owned luxury (STATE_VERSION 24), keyed by the SAME
+   * catalog id that appears in `luxuryItems`.
+   *
+   * `luxuryItems` remains the ownership source of truth — this is an additive
+   * SIDECAR, so every existing consumer (weekly upkeep, net worth, achievements,
+   * the Luxury Life completion check) keeps working untouched and a save with an
+   * empty record behaves exactly as before.
+   *
+   * It exists because ownership as a flat `string[]` has nowhere to put anything:
+   * a house built on the island, an airstrip, a horse's race record. Depth needs
+   * somewhere to live, and this is it.
+   */
+  luxuryHoldings?: Record<string, LuxuryHolding>;
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];
@@ -2128,6 +2230,14 @@ export interface GameState {
   hasPhone: boolean;
   computerPreviouslyOwned: boolean;
   hasDriversLicense?: boolean; // Driver's license for vehicle ownership
+  /**
+   * Pilot's licence (STATE_VERSION 25) — required to own or fly any aircraft,
+   * exactly as `hasDriversLicense` gates ground vehicles. Kept as its own flag
+   * rather than folded into the driving licence because flying is a separate,
+   * far more expensive qualification, and gating the aircraft ladder behind it
+   * is what makes a helicopter feel earned rather than merely afforded.
+   */
+  hasPilotLicense?: boolean;
   foods: Food[];
   healthActivities: HealthActivity[];
   dietPlans: DietPlan[];

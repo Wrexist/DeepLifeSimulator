@@ -44,6 +44,7 @@ function rolls(overrides: Partial<PreRolls> = {}): PreRolls {
     minerDegradation: 0,
     diseaseComplication: [],
     diseaseProgression: [],
+    luxuryIncident: [],
     petSickness: [],
     petSicknessType: [],
     vehicleAccident: [],

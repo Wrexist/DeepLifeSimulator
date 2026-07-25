@@ -51,6 +51,23 @@ export const ROOM_ADDITIONS: RoomAddition[] = [
   { id: 'garden', name: 'Garden', cost: 8000, roomsAdded: 1, description: 'A peaceful outdoor space. Reduces stress.', happinessBonus: 4 },
   { id: 'game_room', name: 'Game Room', cost: 12000, roomsAdded: 1, description: 'Entertainment for the whole family.', happinessBonus: 4 },
   { id: 'library', name: 'Library', cost: 9000, roomsAdded: 1, description: 'A quiet place for reading and study.', happinessBonus: 2 },
+
+  // ─── Estate-scale builds ────────────────────────────────────────────────
+  // Priced for the properties minted by developable luxury items (the private
+  // island and, later, the vineyard and penthouse) rather than for a starter
+  // home. They are ordinary room additions, so they flow through the same
+  // happiness, cost and rooms plumbing as everything above — nothing bespoke.
+  //
+  // `helipad` and `airstrip` are the ones that matter beyond happiness: they
+  // are what a helicopter and a private jet will need somewhere to be based
+  // (see docs/LUXURY_DEPTH_ROADMAP.md, Phase 3). Building one here is what
+  // turns two separate purchases into a third thing.
+  { id: 'guest_villas', name: 'Guest Villas', cost: 2_500_000, roomsAdded: 4, description: 'Standalone villas for guests. The island can host a party now.', happinessBonus: 6 },
+  { id: 'staff_quarters', name: 'Staff Quarters', cost: 1_200_000, roomsAdded: 3, description: 'Somewhere for the people who keep the place running.', happinessBonus: 3 },
+  { id: 'private_dock', name: 'Deep-Water Dock', cost: 3_000_000, roomsAdded: 1, description: 'Moor a yacht at your own door instead of a marina.', happinessBonus: 5 },
+  { id: 'helipad', name: 'Helipad', cost: 4_000_000, roomsAdded: 1, description: 'A pad to land on. Somewhere to base a helicopter.', happinessBonus: 4 },
+  { id: 'airstrip', name: 'Private Airstrip', cost: 18_000_000, roomsAdded: 2, description: 'Long enough for a jet. Your plane can finally come to you.', happinessBonus: 8 },
+  { id: 'infinity_pool', name: 'Infinity Pool', cost: 900_000, roomsAdded: 1, description: 'Edge of the pool, edge of the ocean, no line between them.', happinessBonus: 7 },
 ];
 
 // ─── Decoration Items ────────────────────────────────────────────────────

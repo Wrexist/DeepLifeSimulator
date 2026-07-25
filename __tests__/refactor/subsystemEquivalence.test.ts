@@ -5384,6 +5384,7 @@ describe('pre-tick — buildPreRolls', () => {
       'childPersonality',
       'diseaseComplication',
       'diseaseProgression',
+      'luxuryIncident',
       'minerDegradation',
       'petSickness',
       'petSicknessType',

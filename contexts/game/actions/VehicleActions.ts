@@ -9,7 +9,10 @@
  * - Weekly vehicle maintenance processing
  */
 
-import { GameState, VehicleInsurance } from '../types';
+import { GameState, Vehicle, VehicleInsurance } from '../types';
+import { getActiveRental, getRentalPlan } from '@/lib/vehicles/scooterRental';
+import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
+import { rejectIfBlocked } from './_guards';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
@@ -75,16 +78,22 @@ export const purchaseVehicle = (
   vehicleId: string,
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
-  // Check if has driver's license
-  if (!gameState.hasDriversLicense) {
-    return { success: false, message: 'You need a driver\'s license to purchase a vehicle!' };
-  }
-
   // Find vehicle template
   const template = VEHICLE_TEMPLATES.find(v => v.id === vehicleId);
   if (!template) {
     log.error(`Vehicle template ${vehicleId} not found`);
     return { success: false, message: 'Vehicle not found.' };
+  }
+
+  // Licence gate. Aircraft need a PILOT licence — a driving licence is neither
+  // sufficient nor required to own a helicopter, and gating the aircraft ladder
+  // behind its own qualification is what makes it feel earned.
+  if (isAircraftVehicleId(vehicleId)) {
+    if (!gameState.hasPilotLicense) {
+      return { success: false, message: 'You need a pilot\'s license to buy an aircraft.' };
+    }
+  } else if (!gameState.hasDriversLicense) {
+    return { success: false, message: 'You need a driver\'s license to purchase a vehicle!' };
   }
 
   // CRITICAL: Validate template price before comparison
@@ -952,3 +961,171 @@ export const purchaseVehicleWithAutoLoan = (
   return result;
 };
 
+
+// ---------------------------------------------------------------------------
+// Scooter / moped rentals — the first rung of the transport ladder
+// ---------------------------------------------------------------------------
+//
+// Deliberately NOT routed through purchaseVehicle: that path demands a driver's
+// licence and rejects a zero price. Both are correct for cars and wrong here —
+// needing no licence is exactly why a rented scooter is the option a broke
+// 18-year-old can reach, and the "price" of a rental is its weekly fee, not a
+// sticker price.
+//
+// The rental is stored as an ordinary Vehicle whose `weeklyMaintenanceCost` is
+// the weekly fee, so the existing weekly vehicle tick bills it, lapses it when
+// the player can't pay, and reports it in the weekly finance breakdown with no
+// new code and no new GameState field.
+
+/**
+ * Start a scooter/moped rental. Charges the signup fee up front; the weekly fee
+ * is collected by the ordinary vehicle weekly tick from here on.
+ */
+export const startScooterRental = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  planId: string
+): { success: boolean; message: string } => {
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
+  const plan = getRentalPlan(planId);
+  if (!plan) {
+    log.error(`Rental plan ${planId} not found`);
+    return { success: false, message: 'That rental is not available.' };
+  }
+
+  const existing = getActiveRental(gameState);
+  if (existing) {
+    return {
+      success: false,
+      message: `You're already on the ${existing.plan.name}. End it first to switch.`,
+    };
+  }
+
+  const money = typeof gameState.stats?.money === 'number' && isFinite(gameState.stats.money)
+    ? gameState.stats.money
+    : 0;
+  if (money < plan.signupFee) {
+    return { success: false, message: `You need $${plan.signupFee} to sign up.` };
+  }
+
+  setGameState(prev => {
+    // Re-check against `prev` so a double-tap can't sign up twice and charge
+    // the fee twice (same guard shape as purchaseVehicle/sellVehicle).
+    if (getActiveRental(prev)) return prev;
+
+    const credit = applyMoneyDelta(prev, -plan.signupFee, `${plan.name} signup`);
+    if (!credit) return prev;
+
+    const rental: Vehicle = {
+      id: plan.id,
+      name: plan.name,
+      // 'bicycle' is the closest existing type; a rental is not a car and must
+      // never be picked up by car-only logic (insurance, accidents, licences).
+      type: 'bicycle',
+      brand: 'Rental',
+      model: plan.name,
+      year: (prev.date?.year ?? 2000),
+      price: 0,
+      condition: 100,
+      fuelLevel: 100,
+      fuelCapacity: 0,
+      fuelEfficiency: 0,
+      mileage: 0,
+      // THE rental fee. Billed weekly by the existing vehicle tick.
+      weeklyMaintenanceCost: plan.weeklyPrice,
+      weeklyFuelCost: 0,
+      maxSpeed: plan.tier === 'moped' ? 30 : 15,
+      owned: true,
+      reputationBonus: 0,
+      speedBonus: plan.tier === 'moped' ? 6 : 3,
+    };
+
+    return {
+      ...prev,
+      ...credit,
+      vehicles: [...(prev.vehicles || []), rental],
+    };
+  });
+
+  log.info(`Started rental: ${plan.id}`);
+  return {
+    success: true,
+    message: `${plan.name} active — $${plan.weeklyPrice}/wk. Delivery work is open to you now.`,
+  };
+};
+
+/**
+ * End the active rental. No resale value — you never owned it. That asymmetry
+ * against selling a bike is the whole cost of renting, and it is what makes
+ * buying the upgrade feel earned.
+ */
+export const endScooterRental = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message: string } => {
+  const active = getActiveRental(gameState);
+  if (!active) {
+    return { success: false, message: 'You have no rental to end.' };
+  }
+
+  setGameState(prev => {
+    const stillActive = getActiveRental(prev);
+    if (!stillActive) return prev;
+    const vehicles = (prev.vehicles || []).filter(v => v.id !== stillActive.vehicle.id);
+    return {
+      ...prev,
+      vehicles,
+      activeVehicleId: prev.activeVehicleId === stillActive.vehicle.id
+        ? (vehicles.length > 0 ? vehicles[0].id : undefined)
+        : prev.activeVehicleId,
+    };
+  });
+
+  log.info(`Ended rental: ${active.plan.id}`);
+  return {
+    success: true,
+    message: `${active.plan.name} ended. No more weekly charge.`,
+  };
+};
+
+
+/**
+ * Get a pilot's licence. Mirrors `getDriversLicense`: age gate, cash gate,
+ * atomic grant. Required before any aircraft can be purchased.
+ */
+export const getPilotLicense = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message: string } => {
+  if (gameState.hasPilotLicense) {
+    return { success: false, message: 'You already have a pilot\'s license!' };
+  }
+  if ((gameState.date?.age ?? 0) < PILOT_LICENSE.minAge) {
+    return {
+      success: false,
+      message: `You must be at least ${PILOT_LICENSE.minAge} to train for a pilot's license.`,
+    };
+  }
+  const money = typeof gameState.stats?.money === 'number' && isFinite(gameState.stats.money)
+    ? gameState.stats.money
+    : 0;
+  if (money < PILOT_LICENSE.cost) {
+    return {
+      success: false,
+      message: `Flight training costs $${PILOT_LICENSE.cost.toLocaleString()}.`,
+    };
+  }
+
+  setGameState(prev => {
+    // Re-check against fresh state so a double-tap can't charge twice.
+    if (prev.hasPilotLicense) return prev;
+    const spend = applyMoneyDelta(prev, -PILOT_LICENSE.cost, 'Pilot license training');
+    if (!spend) return prev;
+    return { ...prev, ...spend, hasPilotLicense: true };
+  });
+
+  log.info('Player obtained pilot license');
+  return { success: true, message: 'Licensed to fly. The sky just got a lot smaller.' };
+};

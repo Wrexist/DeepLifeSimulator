@@ -1333,10 +1333,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
  let luxuryCharged = 0;
+ let nextLuxuryHoldings: typeof prevState.luxuryHoldings = prevState.luxuryHoldings;
  let updatedAchievements: typeof prevState.achievements = prevState.achievements;
  try {
  const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
- const luxuryUpkeep = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx).upkeep;
+ const luxuryWeek = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx, prevState.luxuryHoldings);
+ const luxuryUpkeep = luxuryWeek.upkeep;
+ // Appreciation moves net worth, not cash. Same reference when nothing drifted,
+ // so a collection of pure trophies causes no state churn.
+ nextLuxuryHoldings = luxuryWeek.holdings;
  // The helper floors the deduction at $0, so on a broke week it charges LESS than
  // the sticker upkeep. Report what actually left the wallet in the recap, not the
  // nominal (= nominal whenever the player could afford it).
@@ -2026,6 +2031,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
  // just flipped to complete — see updatedAchievements above).
  achievements: updatedAchievements,
+ // Luxury holdings after this week's value drift (same ref when nothing moved).
+ luxuryHoldings: nextLuxuryHoldings,
  careers: updatedCareers,
  currentJob: newCurrentJob,
  educations: updatedEducations,

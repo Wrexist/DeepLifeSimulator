@@ -63,16 +63,39 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false
       },
       // Apple privacy manifest (required since 2024). App-level declarations:
-      //  • NSPrivacyTracking: true — the app tracks via IDFA (AdMob + ATT).
+      //  • NSPrivacyTracking: false — see the ITMS-91064 note below. This is the
+      //    APP bundle's own manifest; the tracking is done by the AdMob /
+      //    Firebase SDKs, which ship their own manifests declaring it. Apple
+      //    aggregates every manifest in the IPA, so the app's privacy report
+      //    still reports tracking. The user-facing "Data Used to Track You"
+      //    nutrition label comes from the App Privacy questionnaire in App Store
+      //    Connect (IDFA ⇒ tracking), NOT from this key — keep that answered yes.
       //  • Required-reason APIs: the standard RN/Expo set — NSUserDefaults
       //    (AsyncStorage, CA92.1), file timestamps (C617.1), system boot time
       //    (35F9.1), disk space (E174.1). Over-declaring reasons is safe; the
       //    rejection risk is UNDER-declaring, so we list the common set.
-      // The AdMob SDK ships its own manifest for ad data-collection + tracking
-      // domains; Apple aggregates all manifests, so we don't duplicate those.
+      //
+      // DO NOT set NSPrivacyTracking back to true without also filling
+      // NSPrivacyTrackingDomains — that combination is what put builds 161/162
+      // into "Invalid Binary":
+      //   ITMS-91064: Invalid tracking information — "NSPrivacyTracking must be
+      //   true if NSPrivacyTrackingDomains isn't empty."
+      // Apple enforces the invariant in BOTH directions: per its docs, when
+      // NSPrivacyTracking is true "you need to provide a list of internet
+      // domains in NSPrivacyTrackingDomains". true + empty/absent = rejected at
+      // upload validation, before review ever sees the build. An empty array is
+      // NOT a fix — zero entries is still zero entries.
+      //
+      // And do NOT "fix" it by listing Google's ad-serving domains here either:
+      // iOS BLOCKS network requests to every domain in this array whenever ATT
+      // permission is denied. Listing googlesyndication.com / doubleclick.net
+      // would stop ads from loading at all (not just personalized ones) for the
+      // majority of users who decline the ATT prompt — the manifest would
+      // validate and the ad revenue would go to zero. That is exactly why the
+      // Google Mobile Ads SDK keeps its serving domains out of this key.
+      // scripts/preflight-check.js §5b enforces this invariant before a build.
       privacyManifests: {
-          NSPrivacyTracking: true,
-          NSPrivacyTrackingDomains: [],
+          NSPrivacyTracking: false,
           NSPrivacyAccessedAPITypes: [
           {
             NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults",
@@ -187,6 +210,12 @@ module.exports = {
           userTrackingPermission: "This identifier will be used to deliver personalized ads to you."
         }
       ],
+      // NOTE (Hard Rule #4 — "package in package.json ⇒ config plugin here"):
+      // expo-store-review is intentionally absent from this list. It ships NO
+      // app.plugin.js (verified against the 9.0.9 tarball) — it is a plain
+      // autolinked native module with nothing to configure at prebuild time.
+      // There is no plugin to add, so the rule is satisfied by omission.
+      //
       // In-app purchases. expo-iap replaces the deprecated expo-in-app-purchases
       // (which no longer links on SDK 54). Its config plugin wires the StoreKit /
       // Play Billing capability — Hard Rule #4: package in package.json ⇒ plugin here.

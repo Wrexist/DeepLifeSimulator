@@ -39,6 +39,61 @@ export interface LuxuryItem {
   prestige: number;
   /** Coarse tier label for grouping / copy. */
   tier: 'entry' | 'premium' | 'elite' | 'ultra';
+  /**
+   * Set when the item is LAND — buying it mints a real `RealEstate` entry and
+   * hands the player the whole existing property stack (upgrade tiers, room
+   * additions, decor, condition/maintenance, appreciation) instead of the item
+   * being an inert line on a balance sheet.
+   *
+   * `baseValue` is the property's starting market value, deliberately a
+   * FRACTION of the luxury price: the island's price buys the land, and what it
+   * is worth as developed property is something you then build.
+   */
+  /**
+   * Weekly cash the item PRODUCES while owned — charter fees, vintage sales,
+   * a season dividend, stud fees.
+   *
+   * This is the fix for luxury being 100% dead capital: every item used to be
+   * pure negative yield (pay sticker, lose 40% on resale, bleed upkeep forever)
+   * so the only decision a late-game player faced was a formality. Yield is
+   * deliberately set BELOW each item's own upkeep — a trophy that paid for
+   * itself would stop being a trophy and start being an investment.
+   */
+  yield?: {
+    /** Dollars per week while owned. */
+    weekly: number;
+    /** What the money is, for the weekly breakdown. */
+    label: string;
+  };
+
+  /**
+   * Value drift per week, as a percentage of purchase price. May be NEGATIVE —
+   * a hypercar holds its value, a yacht does not.
+   *
+   * Applied to `LuxuryHolding.currentValue`, so appreciation is per-holding and
+   * feeds net worth. Items that mint a property (developable) are deliberately
+   * excluded: the property appreciates through the real-estate system and
+   * appreciating both would count one asset twice.
+   */
+  appreciation?: {
+    weeklyRatePct: number;
+  };
+
+  developable?: {
+    /** Name of the minted property, e.g. "Private Island Compound". */
+    propertyName: string;
+    /** Weekly happiness the undeveloped property contributes. */
+    baseHappiness: number;
+  };
+
+  // NOTE ON VALUE: the minted property deliberately starts at a market value of
+  // ZERO. The land's worth is already counted by this item's own resale
+  // contribution to net worth (LUXURY_RESALE_FRACTION), so giving the property
+  // a starting value too would count one island twice — buying it would inflate
+  // net worth for free. Starting at zero also states the design honestly: the
+  // island is empty land, and the compound is worth exactly what you build on
+  // it. Every upgrade, room and furnishing the player pays for raises it from
+  // there.
 }
 
 /**
@@ -55,6 +110,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 1,
     prestige: 2,
     tier: 'entry',
+    appreciation: { weeklyRatePct: 0.10 },
   },
   {
     id: 'museum_diamond',
@@ -66,6 +122,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 1,
     prestige: 3,
     tier: 'entry',
+    appreciation: { weeklyRatePct: 0.06 },
   },
   {
     id: 'fine_art_collection',
@@ -77,6 +134,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 3,
     tier: 'premium',
+    appreciation: { weeklyRatePct: 0.08 },
   },
   {
     id: 'supercar',
@@ -88,6 +146,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 4,
     tier: 'premium',
+    appreciation: { weeklyRatePct: 0.04 },
   },
   {
     id: 'racehorse',
@@ -99,6 +158,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 5,
     tier: 'premium',
+    yield: { weekly: 2_200, label: 'Stud fees & prize money' },
   },
   {
     id: 'vineyard_estate',
@@ -110,6 +170,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 3,
     prestige: 6,
     tier: 'elite',
+    yield: { weekly: 5_000, label: 'Vintage sales' },
+    appreciation: { weeklyRatePct: 0.05 },
   },
   {
     id: 'luxury_yacht',
@@ -121,6 +183,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 3,
     prestige: 7,
     tier: 'elite',
+    yield: { weekly: 11_000, label: 'Charter fees' },
+    appreciation: { weeklyRatePct: -0.05 },
   },
   {
     id: 'private_jet',
@@ -132,6 +196,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 8,
     tier: 'elite',
+    appreciation: { weeklyRatePct: -0.06 },
   },
   {
     id: 'private_island',
@@ -143,6 +208,11 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 9,
     tier: 'ultra',
+    yield: { weekly: 30_000, label: 'Charter fees' },
+    developable: {
+      propertyName: 'Private Island Compound',
+      baseHappiness: 4,
+    },
   },
   {
     id: 'trophy_penthouse',
@@ -154,6 +224,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 10,
     tier: 'ultra',
+    yield: { weekly: 38_000, label: 'Short lets' },
   },
   {
     id: 'mega_yacht',
@@ -165,6 +236,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 5,
     prestige: 12,
     tier: 'ultra',
+    yield: { weekly: 85_000, label: 'Charter fees' },
+    appreciation: { weeklyRatePct: -0.05 },
   },
   {
     id: 'sports_team_stake',
@@ -176,16 +249,28 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 5,
     prestige: 15,
     tier: 'ultra',
+    yield: { weekly: 130_000, label: 'Season dividend' },
   },
 ];
 
 /** Fraction of purchase price recovered on resale + counted toward net worth. */
 export const LUXURY_RESALE_FRACTION = 0.6;
 
-/** `luxury_life` completes at N owned items OR the value threshold below. */
-export const LUXURY_LIFE_MIN_ITEMS = 3;
+/**
+ * `luxury_life` completes at N owned items OR the value threshold below.
+ *
+ * RETUNED (Audit C3): this was 3 items or $25M — about 2% of the catalog's
+ * $1.22B, reachable with the two cheapest items plus one more. The endgame of a
+ * twelve-piece collection announced itself as a three-item errand, and the
+ * headline on the Luxury screen read "0 / 3 collectibles".
+ *
+ * Half the catalogue, or a genuinely serious collection by value. Raising the
+ * bar cannot un-complete anyone: the weekly tick only ever flips the achievement
+ * TO complete, never back.
+ */
+export const LUXURY_LIFE_MIN_ITEMS = 6;
 /** …or once total (sticker) luxury value reaches this. */
-export const LUXURY_LIFE_VALUE_THRESHOLD = 25_000_000;
+export const LUXURY_LIFE_VALUE_THRESHOLD = 150_000_000;
 
 /** Max reputation the whole collection can drift you toward (safety cap). */
 export const LUXURY_REPUTATION_CAP = 100;

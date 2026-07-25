@@ -9,10 +9,24 @@ import { View,
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
+import PromotionCelebrationModal from '@/components/work/PromotionCelebrationModal';
+import TransportCard from '@/components/work/TransportCard';
+import { haptic } from '@/utils/haptics';
+import { startScooterRental, endScooterRental } from '@/contexts/game/actions/VehicleActions';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
+import type { PromotionDetails } from '@/contexts/game/types';
+import {
+    getEntryJobProfile,
+    isEntryTierCareer,
+    evaluateHiring,
+    getJobBoard,
+    weeksUntilBoardRefresh,
+    careerCeiling,
+    growthLabel,
+} from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
@@ -80,6 +94,9 @@ function WorkScreenContent() {
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
     // Career id whose in-app "Manage Job" action sheet is open (null = closed).
     const [manageJobId, setManageJobId] = useState<string | null>(null);
+    // Promotion payoff. Held in local state (not GameState) because it is a
+    // one-shot presentation concern — nothing about it needs to survive a save.
+    const [promotionCelebration, setPromotionCelebration] = useState<PromotionDetails | null>(null);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 
     const {
@@ -503,10 +520,15 @@ function WorkScreenContent() {
         const pendingApplication = gameState.careers.some(
             (c: Career) => c.applied && !c.accepted
         );
+        // Entry-tier jobs carry a hiring bar on top of the career's own
+        // `requirements` (which are empty for all eight of them). Enforced here,
+        // not just in the card, so the bar is a real gate rather than a label.
+        const meetsHiringBar = evaluateHiring(getEntryJobProfile(career.id), gameState).eligible;
         return (
             meetsFitness &&
             hasItems &&
             hasEducation &&
+            meetsHiringBar &&
             !career.applied &&
             !gameState.currentJob &&
             !pendingApplication
@@ -549,6 +571,11 @@ function WorkScreenContent() {
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
         const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level?.salary ?? 0}/wk`;
+        // Only entry-tier jobs have a hiring bar; everything else is governed by
+        // the career's own `requirements`.
+        const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
+            ? evaluateHiring(getEntryJobProfile(career.id), gameState)
+            : null;
 
         const metadata: JobCardMetadata[] = [];
         if (requiresFitness) {
@@ -569,6 +596,27 @@ function WorkScreenContent() {
             icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
             value: `Lv ${career.level + 1}/${career.levels.length}`,
         });
+        // Entry-tier jobs look identical when all you show is a wage, so surface
+        // what actually separates them: where the ladder tops out, how fast it
+        // climbs, and what a week of it costs you.
+        const entryProfile = getEntryJobProfile(career.id);
+        if (entryProfile && !isEmployedHere) {
+            const ceiling = careerCeiling(career);
+            if (ceiling > (level?.salary ?? 0)) {
+                metadata.push({
+                    icon: <TrendingUp size={scale(13)} color="rgba(232, 193, 92, 0.95)" />,
+                    value: `Tops out $${ceiling.toLocaleString()}/wk`,
+                });
+            }
+            metadata.push({
+                icon: <Sparkles size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
+                value: growthLabel(entryProfile.growth),
+            });
+            metadata.push({
+                icon: <Zap size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
+                value: `${entryProfile.weeklyToll.energy} energy/wk`,
+            });
+        }
         if (happinessPenalty < 0) {
             metadata.push({
                 icon: <Smile size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
@@ -595,10 +643,17 @@ function WorkScreenContent() {
             buttonText = 'Promote now';
             onPress = () => {
                 const result = promoteCareer(career.id);
-                if (result) {
-                    if (result.success) showSuccess(result.message);
-                    else showWarning(result.message);
+                if (!result) return;
+                if (!result.success) {
+                    showWarning(result.message);
+                    return;
                 }
+                // A promotion is the payoff of dozens of weeks of progress, so it
+                // gets the full celebration rather than a toast that scrolls away.
+                // `promotion` is absent only on legacy/edge paths — fall back to
+                // the message so the player is never left with no feedback.
+                if (result.promotion) setPromotionCelebration(result.promotion);
+                else showSuccess(result.message);
             };
         } else if (isEmployedHere) {
             const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
@@ -623,6 +678,12 @@ function WorkScreenContent() {
             buttonText = 'Locked';
             locked = true;
             lockReason = `Need ${missingItemNames.join(', ')}.`;
+        } else if (entryHiring && !entryHiring.eligible) {
+            // Say exactly what is short, so the job reads as a goal rather than
+            // an arbitrary "no".
+            buttonText = 'Not hiring you yet';
+            locked = true;
+            lockReason = `They want — ${entryHiring.missing.join(' · ')}`;
         } else if (!canApplyForCareer(career)) {
             buttonText = 'Unavailable';
             locked = true;
@@ -687,7 +748,7 @@ function WorkScreenContent() {
                 accent="career"
                 buttonAccent={buttonAccent}
                 title={level?.name ?? 'Unemployed'}
-                description={career.description}
+                description={entryProfile && !isEmployedHere ? entryProfile.vibe : career.description}
                 reward={reward}
                 metadata={metadata}
                 buttonText={buttonText}
@@ -765,6 +826,25 @@ function WorkScreenContent() {
     );
     const advancedIds = ['politician', 'celebrity', 'athlete'];
     const basicCareers = sortedCareers.filter(c => !advancedIds.includes(c.id));
+
+    // THE JOB BOARD.
+    // Every entry-tier career used to render at once: eight near-identical
+    // cards separated only by wage, which made the "choice" a max() over one
+    // column. Now a rotating shortlist is OPEN at any time, and the rest of the
+    // list is the gated/advanced careers you are working toward.
+    //
+    // A career you already work, applied to, or were accepted into is never
+    // hidden by the board — the board only curates what you can newly apply to.
+    const boardIds = new Set(getJobBoard(gameState).map(o => o.careerId));
+    const boardRefreshWeeks = weeksUntilBoardRefresh(gameState);
+    const visibleBasicCareers = basicCareers.filter(c => {
+        if (!isEntryTierCareer(c.id)) return true;
+        if (c.accepted || c.applied || gameState.currentJob === c.id) return true;
+        return boardIds.has(c.id);
+    });
+    const openingsCount = visibleBasicCareers.filter(
+        c => isEntryTierCareer(c.id) && !c.accepted && !c.applied
+    ).length;
 
     // Persistent "Current Job" summary so employment state is always visible,
     // not buried inside the Career tab.
@@ -858,6 +938,32 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
+                                    {/* Transport gates delivery work, so it belongs
+                                        above the gig list rather than buried in a
+                                        vehicles screen the player has no money for. */}
+                                    <TransportCard
+                                        gameState={gameState}
+                                        onRent={(planId) => {
+                                            const result = startScooterRental(gameState, setGameState, planId);
+                                            if (result.success) {
+                                                haptic.success();
+                                                showSuccess(result.message);
+                                                setTimeout(() => { void saveGame(); }, 0);
+                                            } else {
+                                                showWarning(result.message);
+                                            }
+                                        }}
+                                        onEndRental={() => {
+                                            const result = endScooterRental(gameState, setGameState);
+                                            if (result.success) {
+                                                haptic.medium();
+                                                showSuccess(result.message);
+                                                setTimeout(() => { void saveGame(); }, 0);
+                                            } else {
+                                                showWarning(result.message);
+                                            }
+                                        }}
+                                    />
                                     {legalStreetJobs.map(renderJobCard)}
                                 </View>
                             )}
@@ -879,7 +985,13 @@ function WorkScreenContent() {
                                         />
                                     </View>
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
-                                    {basicCareers.map(career => renderCareerCard(career))}
+                                    {openingsCount > 0 && (
+                                        <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
+                                            {openingsCount} {openingsCount === 1 ? 'opening' : 'openings'} on the board
+                                            {' · '}new listings in {boardRefreshWeeks} {boardRefreshWeeks === 1 ? 'week' : 'weeks'}
+                                        </Text>
+                                    )}
+                                    {visibleBasicCareers.map(career => renderCareerCard(career))}
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1063,11 +1175,27 @@ function WorkScreenContent() {
                 </TouchableOpacity>
             </Modal>
 
+            <PromotionCelebrationModal
+                visible={promotionCelebration !== null}
+                promotion={promotionCelebration}
+                onClose={() => setPromotionCelebration(null)}
+            />
+
         </LinearGradient>
     );
 }
 
 const local = StyleSheet.create({
+    boardNote: {
+        fontSize: fontScale(12),
+        fontWeight: '600',
+        color: 'rgba(71, 85, 105, 0.9)',
+        marginBottom: scale(8),
+        marginTop: scale(-2),
+    },
+    boardNoteDark: {
+        color: 'rgba(148, 163, 184, 0.85)',
+    },
     ringCount: {
         fontSize: fontScale(9.5),
         fontWeight: '800',

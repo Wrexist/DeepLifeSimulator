@@ -10,6 +10,7 @@ import {
   LUXURY_CATALOG,
   LUXURY_RESALE_FRACTION,
   LUXURY_LIFE_MIN_ITEMS,
+  LUXURY_LIFE_VALUE_THRESHOLD,
   getLuxuryResaleValue,
   getTotalLuxuryResaleValue,
   getTotalLuxuryUpkeep,
@@ -163,9 +164,13 @@ describe('sellLuxuryItem', () => {
 describe('applyLuxuryItemsForWeek', () => {
   it('deducts total upkeep from money and adds happiness', () => {
     const ctx = makeCtx({ money: 100_000, happiness: 50, reputation: 3 });
-    const { upkeep } = applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k, hap 3, prestige 7
+    const { upkeep, yield: produced } = applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k, hap 3, prestige 7
     expect(upkeep).toBe(getTotalLuxuryUpkeep(['luxury_yacht']));
-    expect(ctx.newStats.money).toBe(100_000 - upkeep);
+    // The yacht charters when the player isn't aboard, so the week is
+    // upkeep MINUS that income — still a net cost, just not the full sticker.
+    expect(produced).toBeGreaterThan(0);
+    expect(produced).toBeLessThan(upkeep);
+    expect(ctx.newStats.money).toBe(100_000 + produced - upkeep);
     expect(ctx.newStats.happiness).toBe(53);
   });
 
@@ -182,8 +187,10 @@ describe('applyLuxuryItemsForWeek', () => {
   });
 
   it('money floors at 0 and is a no-op with nothing owned', () => {
+    // Broke week: yield is credited before upkeep is charged, so an insolvent
+    // player nets ZERO rather than pocketing the charter income for free.
     const ctx = makeCtx({ money: 1_000 });
-    applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k > 1k cash
+    applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k > 1k cash + 11k yield
     expect(ctx.newStats.money).toBe(0);
 
     const ctx2 = makeCtx({ money: 5_000, happiness: 40 });
@@ -227,8 +234,24 @@ describe('isLuxuryLifeComplete', () => {
   });
 
   it('completes on a single high-value trophy (value threshold path)', () => {
-    // One $500M item is well past the $25M value threshold.
+    // One $500M item is well past the value threshold.
     expect(isLuxuryLifeComplete(['sports_team_stake'])).toBe(true);
+  });
+
+  it('demands a real collection, not an errand', () => {
+    // Audit C3: the bar used to be 3 items or $25M — about 2% of the catalog's
+    // total value, reachable with the two cheapest items plus one more.
+    const catalogValue = LUXURY_CATALOG.reduce((sum, i) => sum + i.price, 0);
+    expect(LUXURY_LIFE_MIN_ITEMS).toBeGreaterThanOrEqual(LUXURY_CATALOG.length / 2);
+    expect(LUXURY_LIFE_VALUE_THRESHOLD / catalogValue).toBeGreaterThan(0.1);
+
+    // The cheapest half of the catalog must not clear the VALUE path by itself,
+    // or the item-count path would be meaningless.
+    const cheapHalf = [...LUXURY_CATALOG]
+      .sort((a, b) => a.price - b.price)
+      .slice(0, LUXURY_LIFE_MIN_ITEMS - 1)
+      .map((i) => i.id);
+    expect(isLuxuryLifeComplete(cheapHalf)).toBe(false);
   });
 
   it('ignores unknown ids and duplicates', () => {

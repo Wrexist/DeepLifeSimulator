@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 23;
+export const STATE_VERSION = 25;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -777,6 +777,7 @@ export const initialGameState: GameState = {
   ],
   // Luxury & Collectibles — owned catalog ids (see lib/luxury). Additive/optional.
   luxuryItems: [],
+  luxuryHoldings: {},
   darkWebItems: [
     {
       id: 'usb',
@@ -1402,6 +1403,7 @@ export const initialGameState: GameState = {
   hasPhone: false,
   computerPreviouslyOwned: false,
   hasDriversLicense: false,
+  hasPilotLicense: false,
   day: 1,
   dailySummary: undefined,
   gamingStreaming: {

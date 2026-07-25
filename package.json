@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.5.10",
+  "version": "2.5.11",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -57,6 +57,7 @@
     "expo-router": "~6.0.24",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-store-review": "~9.0.9",
     "expo-tracking-transparency": "~6.0.8",
     "expo-updates": "~29.0.19",
     "lucide-react-native": "^0.475.0",

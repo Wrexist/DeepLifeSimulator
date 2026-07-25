@@ -23,20 +23,60 @@
 import {
   LUXURY_REPUTATION_CAP,
   LUXURY_REPUTATION_STEP,
+  appreciateLuxuryHoldings,
   getTotalLuxuryHappiness,
   getTotalLuxuryPrestige,
   getTotalLuxuryUpkeep,
+  getTotalLuxuryYield,
+  getLoanIncome,
+  applyLuxuryRiskForWeek,
 } from '@/lib/luxury';
+import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+
+export interface LuxuryWeekResult {
+  /** Total upkeep deducted (the deduction already happened). */
+  upkeep: number;
+  /** Total yield credited (the credit already happened). */
+  yield: number;
+  /** Holdings after appreciation. SAME reference when nothing drifted. */
+  holdings: Record<string, LuxuryHolding> | undefined;
+  /** Net market-value change this week — net worth, not cash. */
+  valueDelta: number;
+  /** Premiums + deductibles charged this week. */
+  riskCost: number;
+  /** Player-facing lines for anything that went wrong. */
+  incidents: string[];
+}
 
 export function applyLuxuryItemsForWeek(
   luxuryItemIds: string[] | undefined | null,
   ctx: WeekContext,
-): { upkeep: number } {
+  holdings?: Record<string, LuxuryHolding> | null,
+): LuxuryWeekResult {
   const ids = luxuryItemIds || [];
-  if (ids.length === 0) return { upkeep: 0 };
+  if (ids.length === 0) {
+    return { upkeep: 0, yield: 0, holdings: holdings ?? undefined, valueDelta: 0, riskCost: 0, incidents: [] };
+  }
 
-  // (a) Upkeep — deduct from REAL cash. Mirror-safe: stats.money only.
+  // (a) Yield THEN upkeep, in that order and for a reason.
+  //
+  // Yield is charter fees, vintage sales, a season dividend — real cash the
+  // collection produces. It is credited FIRST so the upkeep is charged against
+  // it. Deducting first would floor a broke player at $0 and then hand them the
+  // yield on top, which makes going broke *profitable*: a player with nothing
+  // owning the mega-yacht would collect $85,000/wk and never pay its $150,000
+  // upkeep. Crediting first means an insolvent week nets zero, never a gain.
+  //
+  // Both are mirror-safe: stats.money only, never a mirrored bank balance.
+  // A museum loan pays a weekly fee for as long as the piece is on display, on
+  // top of the catalog yields. It ends by itself when the loan expires.
+  const yieldTotal = getTotalLuxuryYield(ids) + getLoanIncome(ids, holdings, ctx.nextWeeksLived);
+  if (yieldTotal > 0) {
+    const beforeYield = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
+    ctx.newStats.money = beforeYield + yieldTotal;
+  }
+
   const upkeep = getTotalLuxuryUpkeep(ids);
   if (upkeep > 0) {
     const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
@@ -62,5 +102,34 @@ export function applyLuxuryItemsForWeek(
     }
   }
 
-  return { upkeep };
+  // (e) Appreciation — value drift on the holdings. This moves NET WORTH, not
+  // cash; the player only realises it when they sell. Returns the same holdings
+  // reference when nothing drifted, so a collection of pure trophies causes no
+  // state churn.
+  const { holdings: appreciated, valueDelta } = appreciateLuxuryHoldings(ids, holdings);
+
+  // (f) Risk — insurance premiums, and the occasional theft, storm or injury.
+  // Rolls come from the tick's pre-rolls, the same draw pet sickness and
+  // vehicle accidents use, so an incident is part of the deterministic week.
+  const risk = applyLuxuryRiskForWeek(ids, appreciated, ctx.preRolls?.luxuryIncident);
+  if (risk.cashOwed > 0) {
+    const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
+    ctx.newStats.money = Math.max(0, before - risk.cashOwed);
+  }
+  for (const incident of risk.incidents) {
+    ctx.notifications.push({
+      id: `luxury-incident-${incident.itemId}-${ctx.nextWeeksLived}`,
+      title: incident.insured ? 'Insurance claim' : 'Incident',
+      message: incident.message,
+    });
+  }
+
+  return {
+    upkeep,
+    yield: yieldTotal,
+    holdings: risk.holdings,
+    valueDelta,
+    riskCost: risk.cashOwed,
+    incidents: risk.incidents.map((i) => i.message),
+  };
 }
