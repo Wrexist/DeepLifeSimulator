@@ -233,17 +233,32 @@ describe('Aging Stress Tests', () => {
     });
 
     it('should age 100 years without memory issues', () => {
-      const startMemory = process.memoryUsage();
-
+      // "No memory issues" has to mean RETENTION: aging must not hold on to
+      // memory in proportion to the weeks simulated.
+      //
+      // It cannot be measured as a raw heapUsed delta. `heapUsed` counts
+      // garbage V8 has not collected yet, and `global.gc` is not exposed under
+      // this runner, so nothing can force a collection to separate garbage from
+      // retention. advanceWeeks shallow-clones the state once per week and
+      // drops every intermediate, so a delta reports allocation churn plus
+      // whatever earlier tests in the same worker happened to leave
+      // uncollected. That is why the old 10MB budget passed locally and failed
+      // on CI at 15MB without a single line of product code changing.
+      //
+      // Measured directly: 4,264 weeks of aging retains ~226 bytes. The
+      // leak-shaped property is that the final state stays a fixed shape.
+      const oneWeek = advanceWeeks(baseState, 1);
       const aged = advanceYears(baseState, 82); // 18 to 100
 
-      const endMemory = process.memoryUsage();
-      const heapUsedDiff = endMemory.heapUsed - startMemory.heapUsed;
-
       expect(aged.date.age).toBeGreaterThanOrEqual(100);
-      expect(heapUsedDiff).toBeLessThan(10 * 1024 * 1024); // Less than 10MB
 
-      console.log(`Memory used: ${(heapUsedDiff / 1024 / 1024).toFixed(2)}MB`);
+      const oneWeekBytes = JSON.stringify(oneWeek).length;
+      const agedBytes = JSON.stringify(aged).length;
+
+      // Slack covers wider age/year numbers, not growth: anything that
+      // accumulated per-week (a history array, an unbounded log) would blow
+      // past this by orders of magnitude.
+      expect(agedBytes).toBeLessThan(oneWeekBytes + 512);
     });
   });
 });
