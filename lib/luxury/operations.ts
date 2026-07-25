@@ -11,7 +11,7 @@
  * money helpers) and the weekly upkeep reducer.
  */
 
-import type { RealEstate } from '@/contexts/game/types';
+import type { LuxuryHolding, RealEstate } from '@/contexts/game/types';
 import {
   LUXURY_CATALOG,
   LUXURY_LIFE_MIN_ITEMS,
@@ -192,4 +192,108 @@ export function findLuxuryProperty(
   if (!Array.isArray(properties)) return undefined;
   const id = luxuryPropertyId(itemId);
   return properties.find((p) => p?.id === id);
+}
+
+// ---------------------------------------------------------------------------
+// Yield + appreciation — the collection stops being dead capital
+// ---------------------------------------------------------------------------
+//
+// Before this, every luxury item was pure negative yield: pay sticker, lose 40%
+// on resale, bleed upkeep forever, receive 1-5 happiness. For a player with $1B
+// that is not a decision, it is a formality.
+//
+// Two additions fix it without turning trophies into investments:
+//   YIELD        — weekly cash from charter fees, vintages, dividends. Set below
+//                  each item's own upkeep, so a fully owned collection still
+//                  costs money to hold; it just stops being a pure drain.
+//   APPRECIATION — value drift on the holding. Some things gain (art, watches),
+//                  some lose (yachts, jets), which is both truthful and makes
+//                  WHICH trophies you buy an actual decision.
+
+/** Total weekly cash produced by an owned collection. */
+export function getTotalLuxuryYield(ownedIds: readonly string[] | undefined | null): number {
+  return getOwnedLuxuryItems(ownedIds).reduce((sum, item) => sum + (item.yield?.weekly ?? 0), 0);
+}
+
+/** Per-item yield lines, for the weekly finance breakdown. */
+export function getLuxuryYieldBreakdown(
+  ownedIds: readonly string[] | undefined | null,
+): { id: string; label: string; weekly: number }[] {
+  return getOwnedLuxuryItems(ownedIds)
+    .filter((item) => (item.yield?.weekly ?? 0) > 0)
+    .map((item) => ({ id: item.id, label: item.yield!.label, weekly: item.yield!.weekly }));
+}
+
+/**
+ * The current market value of a single holding.
+ *
+ * Falls back to the catalog price whenever the holding has no tracked value —
+ * an item bought before appreciation existed, or one that never appreciates —
+ * so this is always safe to call and always returns something sane.
+ */
+export function getHoldingValue(item: LuxuryItem, holding: LuxuryHolding | undefined): number {
+  const tracked = holding?.currentValue;
+  return typeof tracked === 'number' && Number.isFinite(tracked) && tracked >= 0 ? tracked : item.price;
+}
+
+/**
+ * Total resale value of an owned collection, respecting appreciation.
+ *
+ * This is what net worth should count. `getTotalLuxuryResaleValue` (ids only)
+ * stays for callers that have no holdings to hand and remains exactly correct
+ * for a collection that has not appreciated.
+ */
+export function getTotalLuxuryMarketValue(
+  ownedIds: readonly string[] | undefined | null,
+  holdings: Record<string, LuxuryHolding> | undefined | null,
+): number {
+  return getOwnedLuxuryItems(ownedIds).reduce(
+    (sum, item) => sum + Math.floor(getHoldingValue(item, holdings?.[item.id]) * LUXURY_RESALE_FRACTION),
+    0,
+  );
+}
+
+export interface AppreciationResult {
+  /** Updated holdings. SAME reference when nothing moved (setState-identity safe). */
+  holdings: Record<string, LuxuryHolding>;
+  /** Net change in market value this week (may be negative). */
+  valueDelta: number;
+}
+
+/**
+ * Advance one week of value drift across an owned collection.
+ *
+ * Pure: takes holdings, returns holdings. Returns the SAME reference when no
+ * owned item appreciates, so the weekly tick does not churn state for the
+ * overwhelmingly common case of a player who owns nothing that drifts.
+ *
+ * Developable items are skipped — their minted property appreciates through the
+ * real-estate system, and drifting both would count one island twice.
+ */
+export function appreciateLuxuryHoldings(
+  ownedIds: readonly string[] | undefined | null,
+  holdings: Record<string, LuxuryHolding> | undefined | null,
+): AppreciationResult {
+  const owned = getOwnedLuxuryItems(ownedIds);
+  const current = holdings || {};
+  let next: Record<string, LuxuryHolding> | null = null;
+  let valueDelta = 0;
+
+  for (const item of owned) {
+    const ratePct = item.appreciation?.weeklyRatePct;
+    if (!ratePct || item.developable) continue;
+
+    const holding = current[item.id];
+    const before = getHoldingValue(item, holding);
+    // Drift is a percentage of the ORIGINAL price, not of the running value, so
+    // gains stay linear instead of compounding into absurdity over a long life.
+    const after = Math.max(0, Math.round(before + item.price * (ratePct / 100)));
+    if (after === before) continue;
+
+    if (!next) next = { ...current };
+    next[item.id] = { ...(holding ?? { acquiredWeek: 0 }), currentValue: after };
+    valueDelta += after - before;
+  }
+
+  return { holdings: next ?? current, valueDelta };
 }

@@ -1,6 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { getTotalLuxuryResaleValue } from '@/lib/luxury';
+import { getTotalLuxuryMarketValue } from '@/lib/luxury';
 
 export interface AchievementProgress {
   id: string;
@@ -27,6 +27,9 @@ interface NetWorthCacheKey {
   loans: any;
   vehicles: any;
   luxury: any;
+  /** Holdings drift weekly through appreciation WITHOUT the id list changing,
+   *  so keying on `luxuryItems` alone would serve a stale net worth forever. */
+  luxuryHoldings: any;
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -48,7 +51,8 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.companies === state.companies &&
       lastCacheKey.loans === state.loans &&
       lastCacheKey.vehicles === state.vehicles &&
-      lastCacheKey.luxury === state.luxuryItems) {
+      lastCacheKey.luxury === state.luxuryItems &&
+      lastCacheKey.luxuryHoldings === state.luxuryHoldings) {
     return lastNetWorthValue;
   }
 
@@ -148,9 +152,11 @@ export const netWorth = (state: GameState): number => {
   if (!isFinite(vehicleValue) || vehicleValue < 0) vehicleValue = 0;
 
   // Luxury & Collectibles value — resale fraction of owned trophies (a sink, not
-  // an investment, so it counts less than sticker). Pure helper is null-safe for
-  // old saves (absent luxuryItems → 0). Clamp for overflow parity.
-  let luxuryValue = getTotalLuxuryResaleValue(state.luxuryItems);
+  // an investment, so it counts less than sticker). Reads the APPRECIATED value
+  // per holding, falling back to the catalog price when a holding has never
+  // drifted — so an untouched collection is valued exactly as it always was.
+  // Null-safe for old saves (absent luxuryItems → 0). Clamp for overflow parity.
+  let luxuryValue = getTotalLuxuryMarketValue(state.luxuryItems, state.luxuryHoldings);
   if (!isFinite(luxuryValue) || luxuryValue < 0) luxuryValue = 0;
   if (luxuryValue > MAX_SAFE_VALUE) luxuryValue = MAX_SAFE_VALUE;
 
@@ -209,7 +215,8 @@ export const netWorth = (state: GameState): number => {
     companies: state.companies,
     loans: state.loans,
     vehicles: state.vehicles,
-    luxury: state.luxuryItems
+    luxury: state.luxuryItems,
+    luxuryHoldings: state.luxuryHoldings
   };
   lastNetWorthValue = clampedTotal;
 

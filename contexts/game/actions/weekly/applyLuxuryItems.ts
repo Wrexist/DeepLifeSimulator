@@ -23,20 +23,52 @@
 import {
   LUXURY_REPUTATION_CAP,
   LUXURY_REPUTATION_STEP,
+  appreciateLuxuryHoldings,
   getTotalLuxuryHappiness,
   getTotalLuxuryPrestige,
   getTotalLuxuryUpkeep,
+  getTotalLuxuryYield,
 } from '@/lib/luxury';
+import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+
+export interface LuxuryWeekResult {
+  /** Total upkeep deducted (the deduction already happened). */
+  upkeep: number;
+  /** Total yield credited (the credit already happened). */
+  yield: number;
+  /** Holdings after appreciation. SAME reference when nothing drifted. */
+  holdings: Record<string, LuxuryHolding> | undefined;
+  /** Net market-value change this week — net worth, not cash. */
+  valueDelta: number;
+}
 
 export function applyLuxuryItemsForWeek(
   luxuryItemIds: string[] | undefined | null,
   ctx: WeekContext,
-): { upkeep: number } {
+  holdings?: Record<string, LuxuryHolding> | null,
+): LuxuryWeekResult {
   const ids = luxuryItemIds || [];
-  if (ids.length === 0) return { upkeep: 0 };
+  if (ids.length === 0) {
+    return { upkeep: 0, yield: 0, holdings: holdings ?? undefined, valueDelta: 0 };
+  }
 
-  // (a) Upkeep — deduct from REAL cash. Mirror-safe: stats.money only.
+  // (a) Yield THEN upkeep, in that order and for a reason.
+  //
+  // Yield is charter fees, vintage sales, a season dividend — real cash the
+  // collection produces. It is credited FIRST so the upkeep is charged against
+  // it. Deducting first would floor a broke player at $0 and then hand them the
+  // yield on top, which makes going broke *profitable*: a player with nothing
+  // owning the mega-yacht would collect $85,000/wk and never pay its $150,000
+  // upkeep. Crediting first means an insolvent week nets zero, never a gain.
+  //
+  // Both are mirror-safe: stats.money only, never a mirrored bank balance.
+  const yieldTotal = getTotalLuxuryYield(ids);
+  if (yieldTotal > 0) {
+    const beforeYield = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
+    ctx.newStats.money = beforeYield + yieldTotal;
+  }
+
   const upkeep = getTotalLuxuryUpkeep(ids);
   if (upkeep > 0) {
     const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
@@ -62,5 +94,11 @@ export function applyLuxuryItemsForWeek(
     }
   }
 
-  return { upkeep };
+  // (e) Appreciation — value drift on the holdings. This moves NET WORTH, not
+  // cash; the player only realises it when they sell. Returns the same holdings
+  // reference when nothing drifted, so a collection of pure trophies causes no
+  // state churn.
+  const { holdings: nextHoldings, valueDelta } = appreciateLuxuryHoldings(ids, holdings);
+
+  return { upkeep, yield: yieldTotal, holdings: nextHoldings, valueDelta };
 }

@@ -198,6 +198,15 @@ export interface LuxuryHolding {
   /** `weeksLived` when it was acquired. Drives "owned since" and appreciation. */
   acquiredWeek: number;
   /**
+   * Current market value, drifted weekly by `appreciateLuxuryHoldings`.
+   *
+   * ABSENT means "never drifted" and falls back to the catalog price, so an
+   * item bought before appreciation existed — or one that never appreciates —
+   * is valued exactly as it always was. That absent-means-default is why this
+   * needs no migration of its own.
+   */
+  currentValue?: number;
+  /**
    * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
    *
    * A private island is land. Rather than reimplementing building, upgrading,

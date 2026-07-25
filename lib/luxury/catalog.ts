@@ -49,6 +49,36 @@ export interface LuxuryItem {
    * FRACTION of the luxury price: the island's price buys the land, and what it
    * is worth as developed property is something you then build.
    */
+  /**
+   * Weekly cash the item PRODUCES while owned — charter fees, vintage sales,
+   * a season dividend, stud fees.
+   *
+   * This is the fix for luxury being 100% dead capital: every item used to be
+   * pure negative yield (pay sticker, lose 40% on resale, bleed upkeep forever)
+   * so the only decision a late-game player faced was a formality. Yield is
+   * deliberately set BELOW each item's own upkeep — a trophy that paid for
+   * itself would stop being a trophy and start being an investment.
+   */
+  yield?: {
+    /** Dollars per week while owned. */
+    weekly: number;
+    /** What the money is, for the weekly breakdown. */
+    label: string;
+  };
+
+  /**
+   * Value drift per week, as a percentage of purchase price. May be NEGATIVE —
+   * a hypercar holds its value, a yacht does not.
+   *
+   * Applied to `LuxuryHolding.currentValue`, so appreciation is per-holding and
+   * feeds net worth. Items that mint a property (developable) are deliberately
+   * excluded: the property appreciates through the real-estate system and
+   * appreciating both would count one asset twice.
+   */
+  appreciation?: {
+    weeklyRatePct: number;
+  };
+
   developable?: {
     /** Name of the minted property, e.g. "Private Island Compound". */
     propertyName: string;
@@ -80,6 +110,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 1,
     prestige: 2,
     tier: 'entry',
+    appreciation: { weeklyRatePct: 0.10 },
   },
   {
     id: 'museum_diamond',
@@ -91,6 +122,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 1,
     prestige: 3,
     tier: 'entry',
+    appreciation: { weeklyRatePct: 0.06 },
   },
   {
     id: 'fine_art_collection',
@@ -102,6 +134,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 3,
     tier: 'premium',
+    appreciation: { weeklyRatePct: 0.08 },
   },
   {
     id: 'supercar',
@@ -113,6 +146,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 4,
     tier: 'premium',
+    appreciation: { weeklyRatePct: 0.04 },
   },
   {
     id: 'racehorse',
@@ -124,6 +158,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 2,
     prestige: 5,
     tier: 'premium',
+    yield: { weekly: 2_200, label: 'Stud fees & prize money' },
   },
   {
     id: 'vineyard_estate',
@@ -135,6 +170,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 3,
     prestige: 6,
     tier: 'elite',
+    yield: { weekly: 5_000, label: 'Vintage sales' },
+    appreciation: { weeklyRatePct: 0.05 },
   },
   {
     id: 'luxury_yacht',
@@ -146,6 +183,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 3,
     prestige: 7,
     tier: 'elite',
+    yield: { weekly: 11_000, label: 'Charter fees' },
+    appreciation: { weeklyRatePct: -0.05 },
   },
   {
     id: 'private_jet',
@@ -157,6 +196,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 8,
     tier: 'elite',
+    appreciation: { weeklyRatePct: -0.06 },
   },
   {
     id: 'private_island',
@@ -168,6 +208,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 9,
     tier: 'ultra',
+    yield: { weekly: 30_000, label: 'Charter fees' },
     developable: {
       propertyName: 'Private Island Compound',
       baseHappiness: 4,
@@ -183,6 +224,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 10,
     tier: 'ultra',
+    yield: { weekly: 38_000, label: 'Short lets' },
   },
   {
     id: 'mega_yacht',
@@ -194,6 +236,8 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 5,
     prestige: 12,
     tier: 'ultra',
+    yield: { weekly: 85_000, label: 'Charter fees' },
+    appreciation: { weeklyRatePct: -0.05 },
   },
   {
     id: 'sports_team_stake',
@@ -205,6 +249,7 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 5,
     prestige: 15,
     tier: 'ultra',
+    yield: { weekly: 130_000, label: 'Season dividend' },
   },
 ];
 

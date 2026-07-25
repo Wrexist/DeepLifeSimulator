@@ -163,9 +163,13 @@ describe('sellLuxuryItem', () => {
 describe('applyLuxuryItemsForWeek', () => {
   it('deducts total upkeep from money and adds happiness', () => {
     const ctx = makeCtx({ money: 100_000, happiness: 50, reputation: 3 });
-    const { upkeep } = applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k, hap 3, prestige 7
+    const { upkeep, yield: produced } = applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k, hap 3, prestige 7
     expect(upkeep).toBe(getTotalLuxuryUpkeep(['luxury_yacht']));
-    expect(ctx.newStats.money).toBe(100_000 - upkeep);
+    // The yacht charters when the player isn't aboard, so the week is
+    // upkeep MINUS that income — still a net cost, just not the full sticker.
+    expect(produced).toBeGreaterThan(0);
+    expect(produced).toBeLessThan(upkeep);
+    expect(ctx.newStats.money).toBe(100_000 + produced - upkeep);
     expect(ctx.newStats.happiness).toBe(53);
   });
 
@@ -182,8 +186,10 @@ describe('applyLuxuryItemsForWeek', () => {
   });
 
   it('money floors at 0 and is a no-op with nothing owned', () => {
+    // Broke week: yield is credited before upkeep is charged, so an insolvent
+    // player nets ZERO rather than pocketing the charter income for free.
     const ctx = makeCtx({ money: 1_000 });
-    applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k > 1k cash
+    applyLuxuryItemsForWeek(['luxury_yacht'], ctx); // upkeep 20k > 1k cash + 11k yield
     expect(ctx.newStats.money).toBe(0);
 
     const ctx2 = makeCtx({ money: 5_000, happiness: 40 });
