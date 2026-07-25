@@ -478,6 +478,33 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Backfilled missing ambitionRewardClaimed flag from defaults');
     repaired = true;
   }
+  // Per-item luxury state (v24). The sidecar must exist AND carry an entry for
+  // every owned id — an owned item with no holding reads as "acquired at week 0"
+  // everywhere downstream. Mirrors migration 24 exactly, because repair also
+  // runs on partial saves (CloudSync merge / hand-edit) the ladder never saw.
+  if (!s.luxuryHoldings || typeof s.luxuryHoldings !== 'object' || Array.isArray(s.luxuryHoldings)) {
+    s.luxuryHoldings = {};
+    repairs.push('Backfilled missing luxuryHoldings record from defaults');
+    repaired = true;
+  }
+  {
+    const holdingWeek =
+      typeof s.weeksLived === 'number' && isFinite(s.weeksLived) && s.weeksLived >= 0 ? s.weeksLived : 0;
+    let addedHoldings = 0;
+    for (const id of s.luxuryItems as string[]) {
+      if (typeof id === 'string' && !s.luxuryHoldings[id]) {
+        s.luxuryHoldings[id] = { acquiredWeek: holdingWeek };
+        addedHoldings += 1;
+      }
+    }
+    if (addedHoldings > 0) {
+      repairs.push(`Backfilled ${addedHoldings} missing luxuryHoldings entries`);
+      // MUST set `repaired`: the repaired clone is only written back onto the
+      // caller's object when this flag is true (see the write-back at the end of
+      // this function), so a backfill without it is computed and then discarded.
+      repaired = true;
+    }
+  }
   // `realEstateActivity` (a concrete-default `[]`) is backfilled on the version
   // ladder by migration 22, but — like luxuryItems above — repair also runs on
   // partial saves (CloudSync merge / hand-edit) that a wholesale migration can

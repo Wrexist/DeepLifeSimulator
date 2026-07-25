@@ -664,6 +664,36 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 23;
     return state;
   },
+
+  // Version 24: per-item luxury state (`luxuryHoldings`).
+  //
+  // `luxuryItems` (a flat id list) stays the ownership source of truth; this
+  // adds a SIDECAR record keyed by the same ids so a luxury item can finally
+  // carry state — when it was acquired, and for developable items the
+  // RealEstate.id the purchase minted.
+  //
+  // Backfill: every already-owned id gets a holding. `acquiredWeek` is stamped
+  // from the save's own `weeksLived` rather than 0, so an island bought in a
+  // 300-week life doesn't claim to have been owned since birth.
+  24: (state) => {
+    if (!state.luxuryHoldings || typeof state.luxuryHoldings !== 'object' || Array.isArray(state.luxuryHoldings)) {
+      state.luxuryHoldings = {};
+    }
+    const ownedIds = Array.isArray(state.luxuryItems) ? state.luxuryItems : [];
+    const acquiredWeek = typeof state.weeksLived === 'number' && isFinite(state.weeksLived) && state.weeksLived >= 0
+      ? state.weeksLived
+      : 0;
+    for (const id of ownedIds) {
+      if (typeof id !== 'string') continue;
+      // Never clobber a holding that already exists — idempotent re-runs.
+      if (!state.luxuryHoldings[id]) {
+        state.luxuryHoldings[id] = { acquiredWeek };
+      }
+    }
+
+    state.version = 24;
+    return state;
+  },
 };
 
 /**

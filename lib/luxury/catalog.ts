@@ -39,6 +39,31 @@ export interface LuxuryItem {
   prestige: number;
   /** Coarse tier label for grouping / copy. */
   tier: 'entry' | 'premium' | 'elite' | 'ultra';
+  /**
+   * Set when the item is LAND — buying it mints a real `RealEstate` entry and
+   * hands the player the whole existing property stack (upgrade tiers, room
+   * additions, decor, condition/maintenance, appreciation) instead of the item
+   * being an inert line on a balance sheet.
+   *
+   * `baseValue` is the property's starting market value, deliberately a
+   * FRACTION of the luxury price: the island's price buys the land, and what it
+   * is worth as developed property is something you then build.
+   */
+  developable?: {
+    /** Name of the minted property, e.g. "Private Island Compound". */
+    propertyName: string;
+    /** Weekly happiness the undeveloped property contributes. */
+    baseHappiness: number;
+  };
+
+  // NOTE ON VALUE: the minted property deliberately starts at a market value of
+  // ZERO. The land's worth is already counted by this item's own resale
+  // contribution to net worth (LUXURY_RESALE_FRACTION), so giving the property
+  // a starting value too would count one island twice — buying it would inflate
+  // net worth for free. Starting at zero also states the design honestly: the
+  // island is empty land, and the compound is worth exactly what you build on
+  // it. Every upgrade, room and furnishing the player pays for raises it from
+  // there.
 }
 
 /**
@@ -143,6 +168,10 @@ export const LUXURY_CATALOG: LuxuryItem[] = [
     happiness: 4,
     prestige: 9,
     tier: 'ultra',
+    developable: {
+      propertyName: 'Private Island Compound',
+      baseHappiness: 4,
+    },
   },
   {
     id: 'trophy_penthouse',

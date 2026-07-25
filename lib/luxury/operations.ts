@@ -11,6 +11,7 @@
  * money helpers) and the weekly upkeep reducer.
  */
 
+import type { RealEstate } from '@/contexts/game/types';
 import {
   LUXURY_CATALOG,
   LUXURY_LIFE_MIN_ITEMS,
@@ -114,4 +115,81 @@ export function isLuxuryLifeComplete(ownedIds: readonly string[] | undefined | n
   if (owned.length >= LUXURY_LIFE_MIN_ITEMS) return true;
   const value = owned.reduce((sum, item) => sum + item.price, 0);
   return value >= LUXURY_LIFE_VALUE_THRESHOLD;
+}
+
+// ---------------------------------------------------------------------------
+// Developable luxury — items that are LAND (STATE_VERSION 24)
+// ---------------------------------------------------------------------------
+//
+// A private island is a place, not a line item. Rather than reimplementing
+// building, upgrading, furnishing, maintaining and appreciating it, buying a
+// developable item MINTS a real `RealEstate` entry and hands the player the
+// whole existing property stack in lib/realEstate/housing.ts.
+//
+// The link is `LuxuryHolding.propertyId`. These helpers are pure — they build
+// the objects; LuxuryActions commits them inside its atomic updater.
+
+/** Stable, collision-proof property id for a developable luxury item. */
+export function luxuryPropertyId(itemId: string): string {
+  return `luxury_${itemId}`;
+}
+
+/**
+ * Build the `RealEstate` a developable purchase mints.
+ *
+ * Deliberately starts UNDEVELOPED — `upgradeLevel: 0`, no rooms, no interior.
+ * The island you buy is empty land and a dock; everything on it is something
+ * the player then chooses to build, which is where the depth lives.
+ *
+ * `status: 'owner'` (not `'rented'`) and `currentResidence: false` — owning an
+ * island must not silently relocate the player out of their actual home.
+ */
+export function createLuxuryProperty(
+  item: LuxuryItem,
+  weeksLived: number,
+): RealEstate | null {
+  if (!item.developable) return null;
+  const week = typeof weeksLived === 'number' && Number.isFinite(weeksLived) && weeksLived >= 0 ? weeksLived : 0;
+  return {
+    id: luxuryPropertyId(item.id),
+    name: item.developable.propertyName,
+    // Market value starts at ZERO — see the note in catalog.ts. The land's worth
+    // is already counted through the luxury item's resale contribution to net
+    // worth; valuing the property too would count one island twice and turn a
+    // purchase into a free net-worth gain. What the compound is worth is what
+    // the player builds on it.
+    price: 0,
+    weeklyHappiness: item.developable.baseHappiness,
+    weeklyEnergy: 0,
+    owned: true,
+    interior: [],
+    upgradeLevel: 0,
+    rooms: [],
+    status: 'owner',
+    currentResidence: false,
+    currentValue: 0,
+    purchasePrice: 0,
+    purchasedWeek: week,
+    condition: 100,
+    lastMaintenance: week,
+    // Upkeep stays on the LUXURY item (weeklyUpkeep) so the player is never
+    // billed twice for the same asset. The property's own upkeep is 0 until
+    // they build something that adds one.
+    upkeep: 0,
+  };
+}
+
+/** True when buying this item should mint a property. */
+export function isDevelopable(item: LuxuryItem | undefined): boolean {
+  return !!item?.developable;
+}
+
+/** The property minted by a luxury item, if it exists in `properties`. */
+export function findLuxuryProperty(
+  properties: readonly RealEstate[] | undefined | null,
+  itemId: string,
+): RealEstate | undefined {
+  if (!Array.isArray(properties)) return undefined;
+  const id = luxuryPropertyId(itemId);
+  return properties.find((p) => p?.id === id);
 }

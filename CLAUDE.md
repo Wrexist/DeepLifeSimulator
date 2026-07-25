@@ -47,7 +47,7 @@ AdMob/Firebase SDK manifests instead; see the comment in `app.config.js`.
 
 ## Save format
 
-- **Canonical `STATE_VERSION = 23`** — single source of truth in
+- **Canonical `STATE_VERSION = 24`** — single source of truth in
   `contexts/game/initialState.ts` (aliased as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the same change with (a) a
@@ -62,3 +62,9 @@ AdMob/Firebase SDK manifests instead; see the comment in `app.config.js`.
   e.g. `ambitionId`) need no backfill: still bump the version, but don't write
   the key. This is why v23 backfills `luxuryItems` / `ambitionCompletedMilestones`
   / `ambitionRewardClaimed` but intentionally omits `ambitionId`.
+- **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR
+  keyed by the same ids as `luxuryItems`, which stays the ownership source of
+  truth. Both the migration and `repairGameState` backfill a holding for every
+  already-owned id. When adding a repair, remember it must set `repaired = true`:
+  the repaired clone is only written back onto the caller's object when that flag
+  is set, so a backfill without it is computed and then silently discarded.

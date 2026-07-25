@@ -189,6 +189,26 @@ export interface Career {
 }
 
 /**
+ * Per-item state for one owned luxury item (STATE_VERSION 24).
+ *
+ * Every field is optional and absent-means-default, so a holding minted by an
+ * older build (or backfilled by the migration) is always valid.
+ */
+export interface LuxuryHolding {
+  /** `weeksLived` when it was acquired. Drives "owned since" and appreciation. */
+  acquiredWeek: number;
+  /**
+   * For DEVELOPABLE items only: the `RealEstate.id` this purchase minted.
+   *
+   * A private island is land. Rather than reimplementing building, upgrading,
+   * furnishing and maintaining it, the purchase mints a real property and hands
+   * the player the entire existing real-estate stack (`lib/realEstate/housing.ts`).
+   * This id is the link between the two systems.
+   */
+  propertyId?: string;
+}
+
+/**
  * Everything the promotion celebration needs to tell the story of a raise.
  *
  * Built by `promoteCareer` at the moment of the promotion, because that is the
@@ -2147,6 +2167,20 @@ export interface GameState {
    * happiness + prestige benefit, and a resale fraction toward net worth.
    */
   luxuryItems?: string[];
+  /**
+   * Per-item state for owned luxury (STATE_VERSION 24), keyed by the SAME
+   * catalog id that appears in `luxuryItems`.
+   *
+   * `luxuryItems` remains the ownership source of truth — this is an additive
+   * SIDECAR, so every existing consumer (weekly upkeep, net worth, achievements,
+   * the Luxury Life completion check) keeps working untouched and a save with an
+   * empty record behaves exactly as before.
+   *
+   * It exists because ownership as a flat `string[]` has nowhere to put anything:
+   * a house built on the island, an airstrip, a horse's race record. Depth needs
+   * somewhere to live, and this is it.
+   */
+  luxuryHoldings?: Record<string, LuxuryHolding>;
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];

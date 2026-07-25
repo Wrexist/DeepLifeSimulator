@@ -20,8 +20,11 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import {
+  createLuxuryProperty,
   getLuxuryItem,
   getLuxuryResaleValue,
+  isDevelopable,
+  luxuryPropertyId,
   ownsLuxuryItem,
 } from '@/lib/luxury';
 
@@ -77,11 +80,33 @@ export const purchaseLuxuryItem = (
       ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'lifestyle', item.price)
       : prev.banking;
 
+    const weeksLived = prev.weeksLived ?? 0;
+
+    // Developable items are LAND: mint a real RealEstate so the player inherits
+    // the whole property stack (upgrades, rooms, decor, maintenance,
+    // appreciation) instead of owning an inert line item. Guarded against a
+    // duplicate id so a re-buy after selling can never mint twice.
+    let realEstate = prev.realEstate;
+    let propertyId: string | undefined;
+    if (isDevelopable(item)) {
+      const minted = createLuxuryProperty(item, weeksLived);
+      if (minted) {
+        const existing = (prev.realEstate || []).some((p) => p?.id === minted.id);
+        realEstate = existing ? prev.realEstate : [...(prev.realEstate || []), minted];
+        propertyId = minted.id;
+      }
+    }
+
     return {
       ...prev,
       ...spend,
       banking,
+      realEstate,
       luxuryItems: [...(prev.luxuryItems || []), itemId],
+      luxuryHoldings: {
+        ...(prev.luxuryHoldings || {}),
+        [itemId]: { acquiredWeek: weeksLived, ...(propertyId ? { propertyId } : {}) },
+      },
     };
   });
 
@@ -115,10 +140,24 @@ export const sellLuxuryItem = (
     // "sold" keyword keeps this out of totalMoneyEarned (see isIncomeReason).
     const credit = applyMoneyDelta(prev, refund, `Sold luxury: ${item.name}`);
     if (!credit) return prev;
+    // Selling the land sells everything built on it. The minted property is
+    // removed with the item — leaving an orphan property behind would keep
+    // paying its upkeep and counting toward net worth for an island the player
+    // no longer owns.
+    const mintedId = luxuryPropertyId(itemId);
+    const realEstate = isDevelopable(item)
+      ? (prev.realEstate || []).filter((p) => p?.id !== mintedId)
+      : prev.realEstate;
+
+    const luxuryHoldings = { ...(prev.luxuryHoldings || {}) };
+    delete luxuryHoldings[itemId];
+
     return {
       ...prev,
       ...credit,
+      realEstate,
       luxuryItems: (prev.luxuryItems || []).filter((id) => id !== itemId),
+      luxuryHoldings,
     };
   });
 
