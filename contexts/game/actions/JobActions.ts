@@ -11,6 +11,10 @@ import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karm
 import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
+
+/** Street-job requirement ids that any transport tier can satisfy. */
+const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
 
 const log = logger.scope('JobActions');
 
@@ -108,8 +112,15 @@ export const performStreetJob = (
   // Check prerequisites - items
   if (job.requirements) {
     const items = gameState.items || [];
+    // TRANSPORT: the delivery gig lists `bike` because that used to be the only
+    // way to move. Any transport tier satisfies it now — a rented scooter is a
+    // valid (if slower and lower-paid) way to run deliveries, which is the
+    // whole point of the rental being reachable on a $200 starting wallet.
+    const transportTier = getTransportTier(gameState);
+    const satisfiedByTransport = (req: string) =>
+      TRANSPORT_REQUIREMENT_ITEMS.has(req) && transportTier !== 'none';
     const missingItems = job.requirements.filter(
-      req => !items.find(item => item.id === req)?.owned
+      req => !satisfiedByTransport(req) && !items.find(item => item.id === req)?.owned
     );
     if (missingItems.length > 0) {
       const itemNames = missingItems.map(id => {
@@ -216,7 +227,16 @@ export const performStreetJob = (
   const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
   const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
   
-  const moneyGained = success ? Math.round(basePay * (1 + levelBonus) * unemployedBonus) : 0;
+  // Transport multiplier: a rented scooter pays 0.7x, your own bike 1x, a moped
+  // 1.35x, a car 1.8x. That gradient is the progression — the rental unlocks
+  // the work, and every upgrade you buy out of it pays you more for the
+  // same run.
+  const transportTerms = job.requirements?.some(r => TRANSPORT_REQUIREMENT_ITEMS.has(r))
+    ? getDeliveryTerms(gameState, basePay)
+    : null;
+  const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
+
+  const moneyGained = success ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus) : 0;
   
   // Risk calculation — wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;

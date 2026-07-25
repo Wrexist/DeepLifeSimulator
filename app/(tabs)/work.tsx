@@ -10,6 +10,9 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import PromotionCelebrationModal from '@/components/work/PromotionCelebrationModal';
+import TransportCard from '@/components/work/TransportCard';
+import { haptic } from '@/utils/haptics';
+import { startScooterRental, endScooterRental } from '@/contexts/game/actions/VehicleActions';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -935,6 +938,32 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
+                                    {/* Transport gates delivery work, so it belongs
+                                        above the gig list rather than buried in a
+                                        vehicles screen the player has no money for. */}
+                                    <TransportCard
+                                        gameState={gameState}
+                                        onRent={(planId) => {
+                                            const result = startScooterRental(gameState, setGameState, planId);
+                                            if (result.success) {
+                                                haptic.success();
+                                                showSuccess(result.message);
+                                                setTimeout(() => { void saveGame(); }, 0);
+                                            } else {
+                                                showWarning(result.message);
+                                            }
+                                        }}
+                                        onEndRental={() => {
+                                            const result = endScooterRental(gameState, setGameState);
+                                            if (result.success) {
+                                                haptic.medium();
+                                                showSuccess(result.message);
+                                                setTimeout(() => { void saveGame(); }, 0);
+                                            } else {
+                                                showWarning(result.message);
+                                            }
+                                        }}
+                                    />
                                     {legalStreetJobs.map(renderJobCard)}
                                 </View>
                             )}
