@@ -80,3 +80,4 @@ export function normalizeIdentity(
   return identity;
 }
 export * from './headMesh';
+export * from './morphBinding';
