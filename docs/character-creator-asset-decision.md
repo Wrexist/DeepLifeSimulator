@@ -80,7 +80,27 @@ The budget question is therefore settled: this is affordable.
 
 ---
 
-## Recommendation
+## DECIDED (owner, this session)
+
+- **Route: A** — preset heads. Player picks one of ~10; no face sculpting.
+- **Licence: cleared.** Owner confirms DeepLife Simulator is under $1M USD
+  revenue, so MetaHuman is free under the standard Unreal Engine licence.
+- **Source: MetaHuman.**
+
+Route A is a strict subset of Route B, so moving to sculpting later reuses the
+same exports as base meshes. Nothing here is a one-way door.
+
+### What Route A changes in the app
+
+The facial-structure sliders have nothing to drive — a preset's shape is baked
+in at export. `FaceStudio` therefore takes the `RigBinding` and HIDES every
+group whose morphs are unbound, rather than shipping dead controls. The face
+genome is still stored and still feeds `computePresence`, so the character's
+looks continue to affect dating and hiring exactly as they do now.
+
+---
+
+## Original recommendation (kept for context)
 
 **Take the MetaHuman route, on a mobile LOD, with a trimmed morph set.**
 

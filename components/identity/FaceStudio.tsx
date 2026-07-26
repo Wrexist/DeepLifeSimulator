@@ -51,6 +51,7 @@ import {
   type HairStyle,
 } from '@/lib/identity';
 import { listStarterAvatars } from '@/utils/facePool';
+import type { RigBinding } from '@/lib/identity';
 import { haptic } from '@/utils/haptics';
 import { fontScale, scale } from '@/utils/scaling';
 
@@ -130,6 +131,23 @@ export interface FaceStudioProps {
   onDone?: () => void;
   sex?: string;
   age?: number;
+  /**
+   * The rig this creator is driving, from `bindGenomeToRig`.
+   *
+   * Route A (preset heads) binds almost nothing, because a preset's shape is
+   * baked in — so every facial-structure slider would be a control the player
+   * drags while nothing moves. Passing the binding lets the screen HIDE those
+   * rather than ship them dead, which is the whole reason `morphBinding`
+   * reports `unbound` instead of failing silently.
+   *
+   * Omit it and every slider shows — correct for route B, where an artist has
+   * authored a shape key for each one.
+   */
+  binding?: RigBinding;
+  /** Route A: the preset faces the player chooses between. */
+  presets?: { id: string; source: ImageSourcePropType }[];
+  selectedPresetId?: string;
+  onSelectPreset?: (id: string) => void;
   /** Shown as "Step N of total" when provided. */
   step?: number;
   totalSteps?: number;
@@ -144,12 +162,28 @@ export default function FaceStudio({
   onDone,
   sex = 'random',
   age = 18,
+  binding,
+  presets,
+  selectedPresetId,
+  onSelectPreset,
   step,
   totalSteps = 4,
   title = 'Build your face',
   subtitle = "Create a face that's uniquely yours.",
   doneLabel = 'Use this face',
 }: FaceStudioProps): React.JSX.Element {
+  // Only offer sliders the rig can actually move. A group whose every morph is
+  // unbound is dropped entirely rather than rendered with dead controls — an
+  // inert slider is worse than an absent one, because the player assumes their
+  // input did something and cannot tell that it did not.
+  const groups = useMemo(() => {
+    if (!binding) return GROUPS;
+    const dead = new Set<string>(binding.unbound);
+    return GROUPS
+      .map((g) => ({ ...g, morphs: g.morphs.filter((m) => !dead.has(m.key)) }))
+      .filter((g) => g.morphs.length > 0);
+  }, [binding]);
+
   const [openGroup, setOpenGroup] = useState<string | null>(GROUPS[0].title);
   const rollRef = useRef(0);
   const [portraitIndex, setPortraitIndex] = useState(0);
@@ -222,6 +256,32 @@ export default function FaceStudio({
           </View>
         </View>
 
+        {presets && presets.length > 0 ? (
+          <Card title="Face">
+            {/* Route A's primary control. Horizontal, because a grid of ten
+                faces would push every other control below the fold on a phone. */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.presetRow}>
+                {presets.map((preset) => {
+                  const active = preset.id === selectedPresetId;
+                  return (
+                    <TouchableOpacity
+                      key={preset.id}
+                      onPress={() => { haptic.light(); onSelectPreset?.(preset.id); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Face ${preset.id}`}
+                      accessibilityState={{ selected: active }}
+                      style={[styles.presetTile, active ? styles.presetTileOn : null]}
+                    >
+                      <Image source={preset.source} style={styles.presetImg} resizeMode="cover" />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Card>
+        ) : null}
+
         <Card title="Skin tone">
           <Swatches
             colors={SKIN_TONES}
@@ -262,7 +322,7 @@ export default function FaceStudio({
           />
         </Card>
 
-        {GROUPS.map((group) => {
+        {groups.map((group) => {
           const open = openGroup === group.title;
           const Chevron = open ? ChevronUp : ChevronDown;
           return (
@@ -435,6 +495,14 @@ const styles = StyleSheet.create({
   cardTitle: { color: C.text, fontSize: fontScale(15), fontWeight: '700' },
   groupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   groupBody: { marginTop: scale(13) },
+  presetRow: { flexDirection: 'row', gap: scale(9), paddingRight: scale(4) },
+  presetTile: {
+    width: scale(66), height: scale(84), borderRadius: scale(12),
+    borderWidth: 2, borderColor: 'transparent', overflow: 'hidden',
+    backgroundColor: C.frame,
+  },
+  presetTileOn: { borderColor: C.accent },
+  presetImg: { width: '100%', height: '100%' },
   swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(9) },
   swatchRing: {
     width: scale(38), height: scale(38), borderRadius: scale(19),

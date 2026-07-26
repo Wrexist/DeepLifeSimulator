@@ -10,6 +10,12 @@ which is the Blender sculpting in step 5).
 
 ---
 
+> **DECIDED:** Route **A**, MetaHuman, licence cleared (under $1M revenue).
+> You can skip Step 0 and Step 1 — they are recorded below for reference — and
+> **skip Step 5 entirely**, since Route A does no sculpting.
+>
+> Your path is: **Step 2 → 3 → 4 → 6 → 7.**
+
 ## Step 0 — Decide the route. Five minutes, and it changes step 5.
 
 | | What the player gets | Work | Bundle |
@@ -46,8 +52,11 @@ same export is the base mesh for B later.
 
 1. Go to <https://metahuman.com> and sign in with your Epic account.
 2. **Create MetaHuman** → pick a preset close to your target look.
-3. Sculpt the face you want as the **base**. For Route A, do this ~10 times to
-   get a spread of face shapes and skin tones; name them `head_01`… `head_10`.
+3. Sculpt the face you want as the **base**. **Route A: do this ~10 times**, to
+   get a spread of face shapes and skin tones. Name them `head_01`…`head_10`.
+   Aim for genuine variety — different face widths, jaw shapes, ages and skin
+   tones — because in Route A this set IS the customisation. Ten similar faces
+   give the player nothing to choose between.
 4. **Keep the hair simple or none.** MetaHuman hair is groom-based (millions of
    strands) and will not survive export to a phone. The app renders hair
    separately.
