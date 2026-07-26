@@ -117,3 +117,49 @@ These are decisions and actions I cannot take:
 
 Once a GLB exists, step 3 onward in `character-creator-spec.md` is ordinary
 engineering and can be done here.
+
+---
+
+## Finding 4 (verified after the decision): MetaHuman's blendshapes are EXPRESSIONS, not sculpting
+
+This is the one that changes the plan's shape, and it is worth understanding
+before anyone spends a day on an export.
+
+A MetaHuman ships **130+ morph targets driven by its Control Rig via Pose
+Assets, designed primarily for facial expression** — ARKit's 52 (jawOpen,
+mouthSmile, eyeBlink…) plus rig extras. Those animate a face. They do **not**
+sculpt one.
+
+The character's *shape* — the thing MetaHuman Creator lets you dial — lives in
+the **DNA file and rig logic**, and is **baked into the mesh at export**. So:
+
+> A MetaHuman export gives you **one specific face's geometry**, plus the
+> blendshapes to make it emote. It does **not** give you a face the player can
+> re-sculpt with a "jaw width" slider.
+
+That is a direct mismatch with spec §11 (40-60 adjustable face parameters).
+
+### Practical consequence for the pipeline
+
+`scripts/optimize-head-glb.mjs`'s default keep-list uses OUR morph names
+(`jawWidth`, `noseBridge`…). A MetaHuman export contains none of them, so the
+script's **abort guard will fire immediately** — correctly. That is the tool
+telling the truth, not a bug. Run `--list` first to see the real names.
+
+### Three ways forward
+
+| | Approach | Bundle | Player experience |
+| --- | --- | --- | --- |
+| **A** | **Preset heads.** Export 8-12 MetaHumans across face shapes and skin tones. Player picks one, then adjusts hair/colour/style only. | ~0.5 MB each after the pipeline → **4-6 MB for 10** | Choose a face. No free sculpting. Closest to BitLife, and the fastest to ship. |
+| **B** | **One base + authored sculpt shapes.** Export one male and one female head, then have an artist author the ~24 sculpting shape keys (jaw width, nose bridge…) in Blender on top. | ~1 MB for both | True sculpting. Delivers spec §11 as written. Costs one-time artist work. |
+| **C** | Runtime DNA/rig evaluation | n/a | **Not viable.** The MetaHuman rig needs Unreal; there is no three.js equivalent. |
+
+**Recommendation: B**, with A as the interim.
+
+B is the only route that makes the spec's sliders real, and the authoring is
+bounded — 24 shape keys on one head, done once, by someone comfortable in
+Blender. A ships sooner and is genuinely fine if "pick a face you like" is
+acceptable; it is also a strict subset of B, so starting with A wastes nothing.
+
+Either way the head budget holds: the measured pipeline puts a 12k-vert head
+with 24 morphs at 0.52 MB.

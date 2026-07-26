@@ -43,7 +43,16 @@ import { NodeIO } from '@gltf-transform/core';
 import { KHRMeshQuantization } from '@gltf-transform/extensions';
 import { dedup, prune, weld, quantize, sparse } from '@gltf-transform/functions';
 
-/** The morphs the app actually drives. Keep in sync with FACE_MORPH_KEYS. */
+/**
+ * The morphs the app actually drives. Keep in sync with `FACE_MORPH_KEYS`.
+ *
+ * NOTE for MetaHuman exports: none of these names will match. A MetaHuman ships
+ * ARKit-style EXPRESSION blendshapes (jawOpen, mouthSmile, eyeBlinkLeft…), not
+ * sculpting morphs — its face SHAPE is baked in at export from the DNA file.
+ * The abort guard will fire, which is the tool being correct rather than
+ * broken. Run with `--list` to see the rig's real names, and see
+ * `docs/character-creator-asset-decision.md` §"Finding 4" for the options.
+ */
 const DEFAULT_KEEP = [
   'faceWidth', 'faceLength', 'jawWidth', 'jawAngle', 'chinLength', 'chinProtrusion',
   'cheekboneHeight', 'cheekFullness', 'browHeight', 'browProtrusion',
