@@ -183,3 +183,134 @@ acceptable; it is also a strict subset of B, so starting with A wastes nothing.
 
 Either way the head budget holds: the measured pipeline puts a 12k-vert head
 with 24 morphs at 0.52 MB.
+
+---
+
+# Research round 2 — 2026-07-26
+
+Triggered by two things: MakeHuman's Windows build turned out to ship no
+readable source data (67 `.npz` caches, zero `.target` files), and the owner
+asked for the best possible creator rather than the fastest one. Both warranted
+re-checking the field instead of proceeding.
+
+## Finding 5 — the MakeHuman licence does not clearly permit what we planned
+
+This is the important one, and it is **unresolved by MakeHuman's own
+maintainers**, not merely unclear to us.
+
+- The program **and its data** — "3D models and 3D morphings" — are **AGPL3**.
+- CC0 is a *special and limited exception* for characters "bundled in an export
+  made using the file export functionality inside an OFFICIAL and UNMODIFIED
+  version of MakeHuman".
+- That exception explicitly does **not** apply when linking MakeHuman as a
+  library, running it in server mode, or making code interventions.
+- `makehuman-assets` states CC0 as of September 2020, but also that the
+  transition is "a work in progress".
+- Issue #199 ("License Clarification") asks precisely our question — reading the
+  targets programmatically and bundling them into another application — and
+  **no maintainer answer resolves it.**
+
+The distinction that matters:
+
+| What we do | Position |
+| --- | --- |
+| Design a head in the GUI, export it, ship the mesh | Covered by the CC0 exception. This was the original plan and it is fine. |
+| Read the `.target` database and bake it into the app as morph targets | **The unresolved case.** Not an "export"; it redistributes the asset database itself. |
+
+AGPL on a closed-source mobile game is not a minor risk — it is a
+source-disclosure obligation. **This is a legal question and nothing here is a
+legal opinion.** Whoever owns legal risk decides.
+
+## Finding 6 — ICT-FaceKit is a better base AND unambiguously licensed
+
+USC Institute for Creative Technologies' morphable face model. Checked the
+LICENSE file directly rather than trusting a summary: it is **MIT**, copyright
+USC ICT 2020, granting rights "to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell" without restriction. No export-path condition, no
+copyleft, no revenue threshold.
+
+What ships in `FaceXModel/`:
+
+| Piece | Form |
+| --- | --- |
+| Base topology | `generic_neutral_mesh.obj` |
+| Identity shape modes | `identity000.obj` … `identity069.obj` |
+| Expression blendshapes | ~30+, ARKit-named (`eyeBlink_L`, `browDown_R`, `cheekPuff_L`) |
+| Landmarks, rigid/morphable vertex sets | included |
+
+Three reasons it beats MakeHuman for a *premium* result:
+
+1. **It is scan-derived.** The shape modes are principal components of Light
+   Stage scans of real people, so the space it spans is the space real faces
+   occupy. MakeHuman's targets are artist-authored approximations. This is the
+   single biggest lever on whether output reads as "a person" or "a game
+   character".
+2. **Plain OBJ.** Every mode is a full mesh at identical topology, so a morph
+   target is `identityNNN − neutral` — subtraction, no format
+   reverse-engineering. Contrast the `.npz` cache route, where a wrong guess is
+   indistinguishable from a right one until the face deforms strangely.
+3. **Fixed topology is guaranteed**, which is the hard requirement for morph
+   targets and the reason AI-generated meshes cannot drive sliders at all.
+
+Caveat, stated plainly: the README claims 100 identity modes for the Light
+version while `FaceXModel/` contains 70 OBJs. Verify the real count before
+budgeting bundle size.
+
+## Finding 7 — PCA modes are not semantic sliders
+
+`identity017` is a statistical direction, not "jaw width". This is a genuine gap
+against spec §11 and must not be glossed over.
+
+It is solvable, and the solution is better than plain sliders:
+
+- **Identity space** — randomize, blend two faces, push toward older/younger.
+  Every sample lands on the scan manifold, so every result is a *plausible real
+  human*. Sliders cannot guarantee that; they let a player build an impossible
+  skull.
+- **Derived semantic morphs** — ICT ships landmark definitions, so a semantic
+  axis can be solved for offline: find the coefficient vector maximising
+  jaw-landmark separation while minimising movement elsewhere, then bake the
+  result as a single named morph target. Buildable and verifiable here, without
+  the owner installing anything.
+
+Best-in-class creators expose both. That is the recommendation.
+
+## Rendering — the "premium and polished" half
+
+Already in place: PMREM studio environment, ACES filmic tone mapping, exposure
+tuned to 1.45 (1.1 crushed deep skin tones to black), inertial drag, contact
+shadow.
+
+What actually moves perceived quality next, in order:
+
+1. **Eyes.** Cornea layer with a specular highlight is the largest perceptual
+   win per byte in any face render. Currently the weakest part.
+2. **Subsurface scattering.** `MeshPhysicalMaterial` costs more per pixel than
+   other materials but has effects off by default, so cost is opt-in;
+   `MeshTranslucentMaterial` is a drop-in alternative. Mobile guidance is 8–16
+   samples against 64–128 offline. **Must be measured on device, not assumed.**
+3. **Texture set** — albedo, normal, roughness, cavity. Cheap, topology-safe,
+   and where AI generation genuinely helps (see Finding 8).
+4. Bloom, vignette, FXAA — small, and only after the above.
+
+## Finding 8 — where AI does and does not fit
+
+- **Geometry: no.** Image-to-3D emits a fresh mesh with its own vertex layout
+  every time. Morph targets require identical topology across all shapes, so
+  generated heads yield presets, never sliders. Generated textures also bake in
+  lighting, which fights the studio environment.
+- **Skin textures: yes.** Albedo maps are images painted on the one fixed base
+  mesh, so topology does not apply. Large visible variety, near-zero risk.
+- **Photo → slider values: yes, later.** Fitting the identity coefficients from
+  a photo works *because* it outputs parameters rather than a mesh. A follow-on
+  to the editor, not a replacement.
+
+## Recommendation
+
+**Switch the base to ICT-FaceKit.** MIT removes the licence question entirely,
+the scan-derived basis is what makes output read as premium, and OBJ input
+removes the `.npz` reverse-engineering risk. Expose identity space *and* derived
+semantic sliders.
+
+Keep MakeHuman only as a GUI-export preset source if a fallback is wanted —
+that use is squarely inside its CC0 exception.
