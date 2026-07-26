@@ -37,9 +37,37 @@ function normalize(name: string): string {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/** Strip a trailing side marker so `jawWidthLeft` and `jaw_width_R` both match. */
+/**
+ * Strip a side marker so `jawWidthLeft`, `jaw_width_R` and MakeHuman's
+ * `l-eye-scale` all collapse to the same base.
+ *
+ * Sides appear as a SUFFIX in ARKit/Blender rigs and as a PREFIX in MakeHuman
+ * (`l-eye-…`, `r-cheek-…`). Both are handled, because an unhandled prefix means
+ * the left and right shapes never pair up and a single app morph ends up driving
+ * one eye — visibly wrong, and not something a name-only test would notice
+ * unless it is looking for it.
+ *
+ * The suffix branch deliberately does NOT strip a bare trailing `l`/`r`. It used
+ * to, and that quietly truncated any name ending in those letters:
+ * `…-incr` became `…-inc`, `head-rectangular` became `headrectangula`. Bare
+ * single letters are only a side marker when separated (`jaw_width_r`), and
+ * separators are already gone by the time this runs — so the only safe forms to
+ * match here are the spelled-out ones.
+ */
 function stripSide(normalized: string): string {
-  return normalized.replace(/(left|right|_l|_r|l|r)$/, '');
+  const withoutPrefix = normalized.replace(/^([lr])(?=[a-z]{3})/, '');
+  return withoutPrefix.replace(/(left|right)$/, '');
+}
+
+/**
+ * Strip MakeHuman's bipolar direction suffix to get the axis stem.
+ *
+ * MakeHuman names every slider as a PAIR — `nose-scale-horiz-decr` and
+ * `nose-scale-horiz-incr` are two ends of one axis. Matching has to happen on
+ * the stem (`nosescalehoriz`), or each half binds as if it were its own morph.
+ */
+function stripDirection(normalized: string): string {
+  return normalized.replace(/(incr|decr|forward|backward|up|down|in|out|less|more)$/, '');
 }
 
 /**
@@ -82,8 +110,61 @@ const ALIASES: Partial<Record<FaceMorphKey, string[]>> = {
   neckThickness: ['neckthickness', 'neckscale', 'neck'],
 };
 
-/** Markers a rig uses to name the opposing half of a bipolar axis. */
-const NEGATIVE_MARKERS = /(narrow|down|in|less|decr|shrink|small|thin|short)/i;
+/**
+ * Markers a rig uses to name the opposing half of a bipolar axis.
+ *
+ * ANCHORED TO THE END, and that anchoring is load-bearing. The first version was
+ * unanchored and included `in`, so it matched inside `incr` — meaning every one
+ * of MakeHuman's ~1000 `-incr` targets, the POSITIVE half of every axis, was
+ * classified as negative. Both halves of every slider would then have driven the
+ * same direction: a face that deforms identically whichever way you drag.
+ */
+const NEGATIVE_MARKERS =
+  /(narrow|down|in|less|decr|shrink|small|thin|short|backward|concave|compress)$/i;
+
+/**
+ * MakeHuman target stems, per app morph.
+ *
+ * MakeHuman is the chosen head source, and unlike ARKit it is a genuine
+ * SCULPTING set — every one of our 24 morphs has a real counterpart, so the
+ * creator's sliders can all be live rather than hidden.
+ *
+ * These are exact stems (direction suffix already removed) and they are matched
+ * in the alias pass, NOT the fuzzy prefix pass. That is deliberate: with ~1000
+ * targets in play, substring matching would bind `noseLength` to
+ * `nose-scale-horiz` — which is width. A wrong binding deforms the face and
+ * reads as a modelling bug; an unbound morph is inert and reported.
+ *
+ * PROVISIONAL until checked against a real install. `scripts/makehuman-targets.mjs
+ * --verify` reports every stem here that matches nothing, so a wrong guess fails
+ * loudly at build time instead of becoming a dead slider.
+ */
+const MAKEHUMAN_STEMS: Record<FaceMorphKey, string[]> = {
+  faceWidth: ['headscalehoriz'],
+  faceLength: ['headscalevert'],
+  jawWidth: ['chinbones'],
+  jawAngle: ['chinprognathism'],
+  chinLength: ['chinheight'],
+  chinProtrusion: ['chinprominent'],
+  cheekboneHeight: ['cheekbones'],
+  cheekFullness: ['cheekinner'],
+  browHeight: ['eyebrowstrans'],
+  browProtrusion: ['foreheadnubian'],
+  eyeSize: ['eyescale'],
+  eyeSpacing: ['eyemove'],
+  eyeDepth: ['eyepush1'],
+  eyeTilt: ['eyecorner1'],
+  noseLength: ['nosescalevert'],
+  noseWidth: ['nosescalehoriz'],
+  noseBridge: ['nosehump'],
+  noseTip: ['nosepointwidth'],
+  mouthWidth: ['mouthscalehoriz'],
+  lipFullness: ['mouthupperlipvolume', 'mouthlowerlipvolume'],
+  mouthHeight: ['mouthtrans'],
+  earSize: ['earscale'],
+  foreheadSlope: ['foreheadscalevert'],
+  neckThickness: ['neckscalehoriz'],
+};
 
 export interface RigBinding {
   /** App morph key -> the rig morph names it drives (often a left/right pair). */
@@ -118,6 +199,8 @@ export function bindGenomeToRig(rigMorphNames: readonly string[]): RigBinding {
     name,
     norm: normalize(name),
     base: stripSide(normalize(name)),
+    /** Side AND direction removed — the bipolar axis a MakeHuman target sits on. */
+    stem: stripDirection(stripSide(normalize(name))),
   }));
 
   const claim = (key: FaceMorphKey, predicate: (r: (typeof rig)[number]) => boolean) => {
@@ -141,6 +224,15 @@ export function bindGenomeToRig(rigMorphNames: readonly string[]): RigBinding {
     if (!aliases) continue;
     claim(key, (r) => aliases.includes(r.norm) || aliases.includes(r.base));
   }
+  // Pass 2b — MakeHuman axis stems. Exact match on the stem, so the positive
+  // half of a bipolar pair binds here and pass 4 collects its opposite. Runs
+  // before the fuzzy pass because with ~1000 targets loaded, substring matching
+  // reliably picks the wrong one.
+  for (const key of FACE_MORPH_KEYS) {
+    if (bound[key]) continue;
+    const stems = MAKEHUMAN_STEMS[key];
+    claim(key, (r) => !NEGATIVE_MARKERS.test(r.norm) && stems.includes(r.stem));
+  }
   // Pass 3 — alias as a prefix (`jawWidth` matching `head_jawWidth_ctrl`).
   // Last and narrowest: substring matching is where wrong bindings come from,
   // so it only runs for keys still unbound after the confident passes.
@@ -155,10 +247,29 @@ export function bindGenomeToRig(rigMorphNames: readonly string[]): RigBinding {
   const negative: Record<string, string[]> = {};
   for (const key of FACE_MORPH_KEYS) {
     if (!bound[key]) continue;
+    // 4a — MakeHuman axis stems. Exact, so it runs first for the same reason
+    // pass 1 does: the loose branch below matches `nosescalehoriz` against
+    // noseLength's `nosescale` alias, and noseLength is tried first, so without
+    // this ordering noseWidth silently loses its negative half.
+    for (const entry of rig) {
+      if (claimed.has(entry.name)) continue;
+      if (!NEGATIVE_MARKERS.test(entry.name)) continue;
+      if (!MAKEHUMAN_STEMS[key].includes(entry.stem)) continue;
+      (negative[key] ||= []).push(entry.name);
+      claimed.add(entry.name);
+    }
+  }
+  // 4b — marker-suffixed opposites (`jawWidthNarrow`), for rigs that are not
+  // MakeHuman. Loose, so it only sees what 4a left behind.
+  const mhStems = new Set(Object.values(MAKEHUMAN_STEMS).flat());
+  for (const key of FACE_MORPH_KEYS) {
+    if (!bound[key]) continue;
     const aliases = ALIASES[key] ?? [normalize(key)];
     for (const entry of rig) {
       if (claimed.has(entry.name)) continue;
       if (!NEGATIVE_MARKERS.test(entry.name)) continue;
+      // Never let a loose alias swallow another key's MakeHuman axis.
+      if (mhStems.has(entry.stem)) continue;
       const stem = entry.norm.replace(NEGATIVE_MARKERS, '');
       if (aliases.some((a) => stem === a || stem.startsWith(a)) || stem === normalize(key)) {
         (negative[key] ||= []).push(entry.name);
