@@ -61,6 +61,23 @@ Three levers, in order of effect:
 Realistic target: **a 5k-vertex head with ~22 sparse, quantized morphs, plus 1K
 textures, in roughly 1.5-3 MB.** That is affordable. The naive export is not.
 
+### Verified, not estimated
+
+`scripts/optimize-head-glb.mjs` implements this and was measured on a synthetic
+12k-vertex head carrying 45 named morph targets — deliberately built to look
+like a real desktop rig:
+
+```
+IN   6.60 MB  12000 verts  45 morph targets
+OUT  0.52 MB  12000 verts  24 morph targets   (92.1% smaller, 24/24 sparse)
+```
+
+That is **without any geometry decimation** — the vertex count is unchanged.
+Trimming to the 24 morphs the app drives, then sparse-encoding and quantizing,
+did all of it. Decimating to ~5k in Blender first would take it lower again.
+
+The budget question is therefore settled: this is affordable.
+
 ---
 
 ## Recommendation

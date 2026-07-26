@@ -38,7 +38,9 @@ exists.** Sequence the asset decision first.
 | Commissioned modular head | +3–8 MB | Not recommended — slowest and dearest, buys nothing MetaHuman now doesn't. |
 | Layered 2D pre-rendered portraits | +4–8 MB | Only if 3D is abandoned. No rotation, no live morphs — those spec features must be CUT, not faked. |
 
-The real bundle cost is the MORPH TARGETS, not the mesh: 45 morphs on a 10k-vert
+Measured: a synthetic 12k-vert head with 45 morphs goes 6.60 MB -> 0.52 MB
+through `scripts/optimize-head-glb.mjs`, with no decimation at all. See the
+decision doc. The real bundle cost is the MORPH TARGETS, not the mesh: 45 morphs on a 10k-vert
 head is ~5.4 MB of deltas alone. Sparse accessors, quantization, a ~5k-vert head
 and a trimmed ~22-morph set bring it to the figures above. See the decision doc.
 
