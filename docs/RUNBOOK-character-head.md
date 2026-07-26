@@ -67,22 +67,43 @@ same export is the base mesh for B later.
 
 ## Step 3 — Export to GLB
 
-MetaHuman does not export GLB directly, so it goes via Blender.
+MetaHuman does not export GLB, and **it does not export FBX from the website
+either.** The downloads page at metahuman.com lists only DCC plugins (Maya,
+Houdini, Marvelous Designer) and motion-capture tools — none of them is a
+"download my head as a mesh" button, and there is **no Blender plugin**. Getting
+geometry out means going through one of the tools below.
 
-1. In MetaHuman Creator, **Download** → choose the **Blender** or **Maya/FBX**
-   option (post-2025 licensing offers these; older accounts may only offer
-   Quixel Bridge → Unreal).
-2. Open the download in **Blender**.
-3. Delete everything except the **head mesh**. No body, no clothes, no
+> **Route A needs no blendshapes.** The face shape is baked in at export and the
+> creator UI hides any slider the rig cannot drive, so a plain static head mesh
+> is enough. That widens the options a long way — you are only after geometry +
+> textures. The `Shape Keys` tick below still matters for Route B later, and
+> costs nothing now.
+
+### 3a — Pick a way out of MetaHuman
+
+| | Cost | Size | Notes |
+| --- | --- | --- | --- |
+| **Unreal Engine** | Free | ~50–100 GB | The only free official route. MetaHuman Creator now lives inside UE; assemble there, then `Asset → Export → FBX` on the head skeletal mesh. |
+| **Maya + MetaHuman for Maya** | Maya Indie ~$300/yr (under $100k rev), full ~$2k/yr | ~5 GB | The route Epic supports best. Export FBX directly. |
+| **Houdini + MetaHuman for Houdini** | Indie ~$270/yr | ~3 GB | Apprentice (free) is non-commercial and restricts export — not usable for a shipped game. |
+| **MakeHuman instead** | Free, CC0 | ~200 MB | Not MetaHuman at all. Exports FBX/glTF directly, no engine, no account, no licence question. Lower fidelity. |
+
+Whichever you pick, the output you want is an **FBX** (or `.blend`, or USD) of
+the **head only**. Everything from 3b on is identical.
+
+### 3b — Convert to GLB in Blender
+
+1. Open the FBX in **Blender** (`File → Import → FBX`).
+2. Delete everything except the **head mesh**. No body, no clothes, no
    eyelashes, no groom hair. Keep the eyes only if you want them as one mesh —
    otherwise delete them; the app draws eyes itself.
-4. `File → Export → glTF 2.0 (.glb)` with:
+3. `File → Export → glTF 2.0 (.glb)` with:
    - Format: **glTF Binary (.glb)**
    - Include: **Selected Objects** (with the head selected)
-   - Data → Mesh: **✅ Apply Modifiers**, **✅ Shape Keys** ← *this one is
-     essential; without it you export a rigid head with no morphs at all*
+   - Data → Mesh: **✅ Apply Modifiers**, **✅ Shape Keys** ← *leave this on even
+     on Route A; it costs nothing and it is what Route B needs later*
    - Data → Material: **Export**, images **Automatic**
-5. Save it as `assets/models/head_raw.glb` in this repo.
+4. Save it as `assets/models/head_raw.glb` in this repo.
 
 ---
 
@@ -96,6 +117,11 @@ This prints every blendshape name in the file. **Do not skip this and do not
 guess the names.** Every rig names them differently, and a guessed name binds
 to nothing — producing a slider the player drags while nothing moves, with no
 error anywhere. That is the single most likely way this goes wrong.
+
+**On Route A an empty list is a valid result**, not a failure — a preset head has
+its shape baked in, and the creator UI hides every slider the rig cannot drive.
+`head:build` handles a morph-free head without aborting. Route B is where an
+empty list means something went wrong.
 
 Send me that list, or keep it for step 6.
 
@@ -195,7 +221,8 @@ to players until you turn it on, so none of this is blocking a release.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `head:list` prints nothing | Shape Keys were unticked on export | Re-export from Blender with **Data → Mesh → Shape Keys** on |
+| `head:list` prints nothing | Route A: expected — a preset head has no morphs. Route B: Shape Keys were unticked on export | Route A: carry on. Route B: re-export with **Data → Mesh → Shape Keys** on |
+| metahuman.com has no "export mesh" button | Correct — it only lists DCC plugins and mocap tools | See Step 3a; the free route is Unreal, or use MakeHuman |
 | `head:build` aborts, "every morph target removed" | keep-list does not match the rig | Use the names from `head:list` |
 | Output still over 3 MB | Too many verts | Decimate in Blender to ~5–8k, then re-export |
 | Names are `jawOpen`, `mouthSmile`, `eyeBlink` | You exported the ARKit **expression** set | Expected. Those animate, they do not sculpt — you need step 5 |
