@@ -76,7 +76,7 @@ import { MeshoptSimplifier } from 'meshoptimizer';
  * renders its own. Eyes ARE kept: real sclera and iris geometry is the biggest
  * perceptual win available in a face render.
  */
-const KEEP_MATERIALS = new Set([
+const KEEP_MATERIALS = new Set(process.env.ICT_MATERIALS?.split(',') ?? [
   'M_Face',
   'M_BackHead',
   'M_ScleraLeft',
@@ -337,6 +337,19 @@ async function main() {
     }),
   );
 
+  // Morph travel is expressed relative to this, so the pipeline does not care
+  // whether the source model is in metres, centimetres or arbitrary units.
+  let lo = [1e9, 1e9, 1e9];
+  let hi = [-1e9, -1e9, -1e9];
+  for (let v = 0; v < neutral.positions.length; v += 3) {
+    for (let k = 0; k < 3; k++) {
+      lo[k] = Math.min(lo[k], neutral.positions[v + k]);
+      hi[k] = Math.max(hi[k], neutral.positions[v + k]);
+    }
+  }
+  const meshExtent = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+  console.log(`  mesh extent ${meshExtent.toFixed(2)} units`);
+
   console.log('\nDeriving semantic axes from the identity basis:\n');
   console.log('  morph              on-axis   max cross   worst offender');
   console.log('  ' + '-'.repeat(62));
@@ -369,7 +382,12 @@ async function main() {
     for (let v = 0; v < delta.length; v += 3) {
       maxDisp = Math.max(maxDisp, Math.hypot(delta[v], delta[v + 1], delta[v + 2]));
     }
-    const TARGET_DISP = 0.012; // metres at full influence
+    // Full slider travel, as a FRACTION OF HEAD SIZE — never an absolute
+    // distance. The first version used 0.012 "metres", but ICT's mesh is
+    // centimetre-scale (~29 units head to shoulder), so every morph moved
+    // vertices by 0.04% of head height: all 21 sliders were visually inert
+    // while every number in the report looked healthy.
+    const TARGET_DISP = 0.035 * meshExtent;
     const norm = maxDisp > 1e-9 ? TARGET_DISP / maxDisp : 0;
     for (let v = 0; v < delta.length; v++) delta[v] *= norm;
 
