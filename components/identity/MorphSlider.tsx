@@ -23,6 +23,15 @@ export interface MorphSliderProps {
   /** [0, 1]. */
   value: number;
   onChange: (value: number) => void;
+  /**
+   * Fired once when a drag BEGINS, before the first change.
+   *
+   * Exists so the parent can snapshot for undo exactly once per gesture. The
+   * slider emits continuously while dragging, so a parent pushing history on
+   * every change would record a hundred entries for one thumb sweep and undo
+   * would appear to do nothing.
+   */
+  onEditStart?: () => void;
   darkMode?: boolean;
 }
 
@@ -30,6 +39,7 @@ export default function MorphSlider({
   label,
   value,
   onChange,
+  onEditStart,
   darkMode = true,
 }: MorphSliderProps): React.JSX.Element {
   const theme = getThemeColors(darkMode);
@@ -37,8 +47,8 @@ export default function MorphSlider({
   // Refs, not state: the pan handlers are created once, and reading a stale
   // `trackWidth`/`value` from a closure would make the thumb jump on every drag.
   const widthRef = useRef(0);
-  const valueRef = useRef(value);
-  valueRef.current = value;
+  /** Value at the moment the drag began; `gesture.dx` is relative to it. */
+  const dragStartRef = useRef(value);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -56,23 +66,41 @@ export default function MorphSlider({
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: (evt) => {
           const w = widthRef.current;
-          if (w > 0) onChange(clamp01(evt.nativeEvent.locationX / w));
+          if (w <= 0) return;
+          onEditStart?.();
+          const next = clamp01(evt.nativeEvent.locationX / w);
+          // Anchor the drag. `gesture.dx` is measured from where the gesture
+          // STARTED, so every move must be applied to the value at that moment.
+          dragStartRef.current = next;
+          onChange(next);
         },
         onPanResponderMove: (_evt, gesture) => {
           const w = widthRef.current;
           if (w <= 0) return;
-          onChange(clamp01(valueRef.current + gesture.dx / w * 0.02));
+          // Was `valueRef.current + gesture.dx / w * 0.02`, which is wrong twice
+          // over: dx is cumulative rather than a frame delta, so adding it to
+          // the LIVE value integrated a growing quantity and the thumb ran away
+          // quadratically; and the 0.02 factor meant dragging the entire track
+          // moved the value by two percent.
+          onChange(clamp01(dragStartRef.current + gesture.dx / w));
         },
         // Spec §8: haptic on RELEASE, not during the drag. Firing per-move
         // would buzz continuously for the whole gesture, which reads as a fault
         // rather than as feedback.
         onPanResponderRelease: () => haptic.light(),
       }),
-    [onChange],
+    [onChange, onEditStart],
   );
 
   const pct = clamp01(value);
   const thumbLeft = Math.max(0, Math.min(trackWidth - scale(18), pct * trackWidth - scale(9)));
+  // Bipolar: 0.5 is NEUTRAL, not "half". The morphs are signed — a value below
+  // the midpoint is a real deformation in the opposite direction — so the fill
+  // grows out from the centre. Filling from the left edge would say the neutral
+  // face is halfway to something, and make "narrower" look like "less".
+  const signed = (pct - 0.5) * 2;
+  const fillFrac = Math.abs(signed) / 2;
+  const fillLeft = signed >= 0 ? 0.5 : 0.5 - fillFrac;
 
   return (
     <View style={styles.row}>
@@ -85,7 +113,8 @@ export default function MorphSlider({
             style={[
               styles.fill,
               {
-                width: `${pct * 100}%`,
+                left: `${fillLeft * 100}%`,
+                width: `${fillFrac * 100}%`,
                 backgroundColor: ACCENT,
                 // Spec §8 "thin track with glow" — the glow is what stops a 5px
                 // track reading as a hairline on an OLED black background.
@@ -97,6 +126,9 @@ export default function MorphSlider({
             ]}
           />
         </View>
+        {/* Neutral marker. Without it there is no way to find the default by
+            eye on a bipolar track, and players cannot undo a nudge. */}
+        <View pointerEvents="none" style={[styles.centreTick, { backgroundColor: theme.textSecondary }]} />
         <View
           style={[
             styles.thumb,
@@ -106,7 +138,9 @@ export default function MorphSlider({
       </View>
       {/* Spec §8 "floating value indicator". A slider with no readout gives the
           player no way to return to a value they liked, or to describe one. */}
-      <Text style={[styles.value, { color: theme.textSecondary }]}>{Math.round(pct * 100)}</Text>
+      <Text style={[styles.value, { color: theme.textSecondary }]}>
+        {signed > 0 ? '+' : ''}{Math.round(signed * 100)}
+      </Text>
     </View>
   );
 }
@@ -140,11 +174,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: {
+    position: 'absolute',
     height: '100%',
     borderRadius: radii.round,
   },
+  centreTick: {
+    position: 'absolute',
+    left: '50%',
+    width: 1,
+    height: scale(11),
+    opacity: 0.45,
+  },
   value: {
-    width: scale(26),
+    width: scale(34),
     textAlign: 'right',
     fontSize: fontScale(12),
     fontWeight: '700',

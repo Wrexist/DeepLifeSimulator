@@ -36,8 +36,9 @@ import {
   View,
   type ImageSourcePropType,
 } from 'react-native';
-import { Check, ChevronDown, ChevronUp, Dices, RotateCcw } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Dices, Eye, RotateCcw, Undo2 } from 'lucide-react-native';
 import MorphSlider from './MorphSlider';
+import FaceCanvas from './FaceCanvas';
 import {
   EYE_COLORS,
   FACIAL_HAIR_STYLES,
@@ -199,19 +200,59 @@ export default function FaceStudio({
   const portrait: ImageSourcePropType | undefined =
     portraits[portraitIndex % Math.max(1, portraits.length)]?.source;
 
+  /**
+   * Undo history.
+   *
+   * Randomize replaces the WHOLE genome, so without this a player who liked
+   * their face and tapped the dice once more had no way back to it — the single
+   * most likely way to lose work on this screen.
+   *
+   * A ref plus a counter rather than state holding the array: the array is only
+   * ever read inside callbacks, and keeping it in state would re-render every
+   * slider on every push.
+   */
+  const historyRef = useRef<FaceGenome[]>([]);
+  const [undoDepth, setUndoDepth] = useState(0);
+  const pushHistory = useCallback(() => {
+    // Bounded. An unbounded stack on a screen the player can sit on for minutes
+    // holds every intermediate genome alive for the session.
+    historyRef.current = [...historyRef.current.slice(-19), genome];
+    setUndoDepth(historyRef.current.length);
+  }, [genome]);
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current[historyRef.current.length - 1];
+    if (!prev) return;
+    haptic.light();
+    historyRef.current = historyRef.current.slice(0, -1);
+    setUndoDepth(historyRef.current.length);
+    onChange(prev);
+  }, [onChange]);
+
+  /**
+   * The face as it was when this screen opened, for hold-to-compare.
+   *
+   * Captured once. Comparing against the previous *edit* would be useless —
+   * after a slider drag that is a face a hair's breadth away.
+   */
+  const baselineRef = useRef<FaceGenome>(genome);
+  const [comparing, setComparing] = useState(false);
+
   const randomize = useCallback(() => {
     haptic.medium();
+    pushHistory();
     rollRef.current += 1;
     onChange(randomizeFace(`studio-${rollRef.current}-${Date.now()}`, { sex }));
     setPortraitIndex((i) => i + 1);
-  }, [onChange, sex]);
+  }, [onChange, sex, pushHistory]);
 
   const reset = useCallback(() => {
     haptic.light();
+    pushHistory();
     const morphs = { ...genome.morphs };
     for (const key of Object.keys(morphs) as FaceMorphKey[]) morphs[key] = 0.5;
     onChange({ ...genome, morphs });
-  }, [genome, onChange]);
+  }, [genome, onChange, pushHistory]);
 
   const setMorph = useCallback(
     (key: FaceMorphKey, value: number) => {
@@ -245,13 +286,38 @@ export default function FaceStudio({
         {/* Portrait frame with the actions floated over it, as in the design —
             this keeps Randomize reachable without pushing the face down. */}
         <View style={styles.frame}>
-          {portrait ? (
-            <Image source={portrait} style={styles.portrait} resizeMode="contain" />
-          ) : (
-            <View style={styles.portrait} />
-          )}
+          {/* THE LIVE HEAD.
+              This was a static pool portrait, which meant the player dragged
+              21 sliders while watching an image that could not respond to any
+              of them — the controls were real and the preview was not. The
+              pool image survives as the fallback, so a device that cannot open
+              a GL context still shows a face rather than an empty frame. */}
+          <FaceCanvas
+            genome={comparing ? baselineRef.current : genome}
+            age={age ?? 22}
+            interactive
+            style={styles.portrait}
+            fallback={
+              portrait ? (
+                <Image source={portrait} style={styles.portrait} resizeMode="contain" />
+              ) : (
+                <View style={styles.portrait} />
+              )
+            }
+          />
           <View style={styles.actions}>
             <RoundAction icon={Dices} label="Randomize" onPress={randomize} accent />
+            <RoundAction icon={Undo2} label="Undo" onPress={undo} disabled={undoDepth === 0} />
+            {/* Press and HOLD. A toggle would need two taps to answer the one
+                question it exists for — "is this better than what I started
+                with?" — and the answer is only legible while both are in mind. */}
+            <RoundAction
+              icon={Eye}
+              label={comparing ? 'Original' : 'Compare'}
+              onPressIn={() => { haptic.light(); setComparing(true); }}
+              onPressOut={() => setComparing(false)}
+              active={comparing}
+            />
             <RoundAction icon={RotateCcw} label="Reset" onPress={reset} />
           </View>
         </View>
@@ -344,6 +410,7 @@ export default function FaceStudio({
                       label={m.label}
                       value={genome.morphs[m.key]}
                       onChange={(v) => setMorph(m.key, v)}
+                      onEditStart={pushHistory}
                     />
                   ))}
                 </View>
@@ -366,24 +433,38 @@ export default function FaceStudio({
 }
 
 function RoundAction({
-  icon: Icon, label, onPress, accent,
+  icon: Icon, label, onPress, onPressIn, onPressOut, accent, disabled, active,
 }: {
   icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
-  onPress: () => void;
+  onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   accent?: boolean;
+  disabled?: boolean;
+  active?: boolean;
 }): React.JSX.Element {
+  const tint = disabled ? C.muted : active ? C.accent : accent ? C.gold : C.sub;
   return (
     <View style={styles.actionWrap}>
       <TouchableOpacity
         onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={label}
-        style={[styles.roundBtn, accent ? styles.roundBtnAccent : null]}
+        accessibilityState={{ disabled: !!disabled, selected: !!active }}
+        style={[
+          styles.roundBtn,
+          accent ? styles.roundBtnAccent : null,
+          active ? styles.roundBtnActive : null,
+          disabled ? styles.roundBtnDisabled : null,
+        ]}
       >
-        <Icon size={scale(19)} color={accent ? C.gold : C.sub} />
+        <Icon size={scale(19)} color={tint} />
       </TouchableOpacity>
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Text style={[styles.actionLabel, disabled ? { color: C.muted } : null]}>{label}</Text>
     </View>
   );
 }
@@ -468,6 +549,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(12, 18, 28, 0.72)',
     borderWidth: 1, borderColor: '#26303F',
     alignItems: 'center', justifyContent: 'center',
+  },
+  roundBtnActive: {
+    borderColor: C.accent,
+    backgroundColor: C.accentSoft,
+  },
+  roundBtnDisabled: {
+    opacity: 0.4,
   },
   roundBtnAccent: { borderColor: 'rgba(255, 215, 107, 0.55)' },
   // The label sits ON the portrait, whose art can be anything from near-black
