@@ -12,7 +12,7 @@ import React, { useCallback } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import FaceCreator from './FaceCreator';
+import FaceStudio from './FaceStudio';
 import type { BodyProfile, FaceGenome } from '@/lib/identity';
 import { getThemeColors, radii, spacing } from '@/lib/config/theme';
 import { fontScale, scale } from '@/utils/scaling';
@@ -49,13 +49,14 @@ export default function FaceCreatorModal({
   const insets = useSafeAreaInsets();
   const theme = getThemeColors(true);
 
-  const handleDone = useCallback(
-    (portraitUri: string | null) => {
-      onDone?.(portraitUri);
-      onClose();
-    },
-    [onDone, onClose],
-  );
+  const handleDone = useCallback(() => {
+    // No baked portrait yet: the studio renders pre-rendered art rather than a
+    // live GL head, so there is no framebuffer to snapshot. The layered
+    // portrait pipeline will supply the stored image instead, and this stays
+    // the single place that decides what gets persisted.
+    onDone?.(null);
+    onClose();
+  }, [onDone, onClose]);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
@@ -69,7 +70,6 @@ export default function FaceCreatorModal({
           ]}
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
             <TouchableOpacity
               onPress={onClose}
               accessibilityRole="button"
@@ -81,14 +81,15 @@ export default function FaceCreatorModal({
           </View>
 
           <View style={styles.body}>
-            <FaceCreator
+            <FaceStudio
               genome={genome}
               onChange={onChange}
               onDone={handleDone}
               age={age}
-              body={body}
               sex={sex}
-              fallback={fallback}
+              step={2}
+              totalSteps={4}
+              title={title}
               doneLabel={doneLabel}
             />
           </View>
@@ -103,10 +104,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   title: { fontSize: fontScale(18), fontWeight: '700' },
-  body: { flex: 1, paddingHorizontal: spacing.lg, borderRadius: radii.lg },
+  body: { flex: 1 },
 });
