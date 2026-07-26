@@ -18,6 +18,7 @@ import type { KarmaState } from '@/lib/karma/karmaSystem';
 import type { AutomationState } from '@/lib/automation/automationTypes';
 
 import type { CareerRequirements } from '@/lib/types/requirements';
+import type { Identity } from '@/lib/identity/types';
 
 export interface GameStats {
   health: number;
@@ -2221,6 +2222,24 @@ export interface GameState {
    * somewhere to live, and this is it.
    */
   luxuryHoldings?: Record<string, LuxuryHolding>;
+  /**
+   * Identity & Body (STATE_VERSION 26) — the character's face genome, physical
+   * body, grooming/wardrobe state, and cosmetic surgery history.
+   *
+   * Optional because every pre-v26 save predates it. `normalizeIdentity` (in
+   * `lib/identity`) is the ONLY way this field is ever constructed or repaired —
+   * the migration, `repairGameState` and the onboarding builder all route
+   * through it, so a corrupt identity can only be fixed one way and the three
+   * call sites cannot drift.
+   *
+   * The face here is the AUTHORED genome and never changes with age. Aging is a
+   * pure render-time function (`applyAging`), which is what lets a 70-year-old
+   * still be recognisably the 20-year-old the player built — the thing the
+   * pre-rendered portrait pool could never do.
+   *
+   * @see lib/identity/types.ts for the full shape and the reasoning behind it.
+   */
+  identity?: Identity;
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];

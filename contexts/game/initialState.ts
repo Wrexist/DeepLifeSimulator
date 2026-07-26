@@ -2,8 +2,9 @@ import { GameState, LifeStage } from './types';
 import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { createIdentity } from '@/lib/identity';
 
-export const STATE_VERSION = 25;
+export const STATE_VERSION = 26;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -778,6 +779,12 @@ export const initialGameState: GameState = {
   // Luxury & Collectibles — owned catalog ids (see lib/luxury). Additive/optional.
   luxuryItems: [],
   luxuryHoldings: {},
+  // Identity & Body (v26). A fixed seed rather than a random one so
+  // `initialGameState` stays a true constant — `createTestGameState` spreads it,
+  // and a module-level `Math.random()` here would make every test run start from
+  // a different body and turn any body assertion flaky. Onboarding replaces this
+  // with a per-character seeded identity when the player creates their life.
+  identity: createIdentity('deeplife-default', 'male', 18),
   darkWebItems: [
     {
       id: 'usb',

@@ -96,6 +96,8 @@ import {
 } from './actions/weekly/applyPets';
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { applyIdentityForWeekFromState } from './actions/weekly/applyIdentity';
+import { computePresence } from '@/lib/identity';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
 import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
@@ -607,6 +609,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
    prevIsRetired: prevState.isRetired,
+   // Appearance at LOW weight here — see the `presence` doc on the input type.
+   presence: prevState.identity
+     ? computePresence({
+         face: prevState.identity.face,
+         body: prevState.identity.body,
+         style: prevState.identity.style,
+         age: prevState.date?.age ?? 25,
+         confidence: prevState.stats?.happiness,
+         reputation: prevState.stats?.reputation,
+         health: prevState.stats?.health,
+       }).total
+     : undefined,
  });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
@@ -1360,6 +1374,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[LUXURY TICK] Failed:', luxErr);
  }
 
+ // Identity & Body weekly tick — regimen resolution, body simulation, grooming
+ // decay, and the grocery/wardrobe cost. Runs in the same slot as the vehicle
+ // and luxury ticks (after the money writeback, before the stat clamp) so its
+ // deductions land on real cash and its happiness/energy deltas get bounded by
+ // the clamp below. See ./actions/weekly/applyIdentity.ts.
+ let identityCharged = 0;
+ let nextIdentity: typeof prevState.identity = prevState.identity;
+ try {
+ const identityWeek = applyIdentityForWeekFromState(prevState, weeklyCtx);
+ nextIdentity = identityWeek.identity;
+ identityCharged = identityWeek.spent;
+ // Only surface the notable lines (a downgrade the player should know about, a
+ // crossed threshold). Ordinary weeks return none, so this stays quiet.
+ for (const note of identityWeek.notes) {
+ weeklyCtx.notifications.push({
+ id: `identity-${weeklyCtx.nextWeeksLived}-${weeklyCtx.notifications.length}`,
+ title: 'Your Body',
+ message: note,
+ });
+ }
+ } catch (identityErr) {
+ logger.error('[IDENTITY TICK] Failed:', identityErr);
+ }
+
  let petFoodCharged = 0;
  try {
  const moneyBeforePetFood = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
@@ -1532,7 +1570,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // week the nominal overstates what was really paid); every other component is
  // already the real figure (loan autopay tracks its actual payment). Equals the
  // old nominal sum on any week the player could afford these upkeeps.
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged;
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged + identityCharged;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
@@ -1749,6 +1787,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'lifestyle', amount: petFoodCharged },
  // Luxury upkeep: actual amount applyLuxuryItemsForWeek deducted above (floored).
  { category: 'lifestyle', amount: luxuryCharged },
+ // Groceries + wardrobe upkeep: actual amount applyIdentityForWeek deducted.
+ { category: 'lifestyle', amount: identityCharged },
  // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
  { category: 'transport', amount: (prevState.vehicles || []).reduce(
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
@@ -2033,6 +2073,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  achievements: updatedAchievements,
  // Luxury holdings after this week's value drift (same ref when nothing moved).
  luxuryHoldings: nextLuxuryHoldings,
+ // Identity after this week's body simulation and grooming decay.
+ identity: nextIdentity,
  careers: updatedCareers,
  currentJob: newCurrentJob,
  educations: updatedEducations,

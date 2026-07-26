@@ -94,6 +94,33 @@ export function createTestGameState(overrides: Partial<GameState> = {}): GameSta
           },
         }
       : initialGameState.darkWeb,
+    // Identity & Body (v26). Deep-merged per branch so a test can override just
+    // `body.weightKg` without having to hand-build a face genome — and, more
+    // importantly, so overriding one branch cannot silently drop the others and
+    // hand the weekly tick an undefined body.
+    identity: overrides.identity
+      ? {
+          ...(initialGameState.identity ?? {}),
+          ...overrides.identity,
+          face: {
+            ...(initialGameState.identity?.face ?? {}),
+            ...(overrides.identity?.face ?? {}),
+            morphs: {
+              ...(initialGameState.identity?.face?.morphs ?? {}),
+              ...(overrides.identity?.face?.morphs ?? {}),
+            },
+          },
+          body: {
+            ...(initialGameState.identity?.body ?? {}),
+            ...(overrides.identity?.body ?? {}),
+          },
+          style: {
+            ...(initialGameState.identity?.style ?? {}),
+            ...(overrides.identity?.style ?? {}),
+          },
+          procedures: overrides.identity?.procedures ?? initialGameState.identity?.procedures ?? [],
+        }
+      : initialGameState.identity,
   };
 }
 

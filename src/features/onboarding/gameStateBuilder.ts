@@ -8,6 +8,7 @@
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
 import { avatarSexFromId } from '@/utils/facePool';
+import { createIdentity, type FaceGenome } from '@/lib/identity';
 import { perks as perksCatalog } from './perksData';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,14 @@ export interface BuildGameStateParams {
   selectedMindset: MindsetId | null;
   /** Chosen Life Ambition id (lib/ambitions). Optional — undefined = freeform life. */
   ambitionId?: string;
+  /**
+   * Face built in the 3D creator (STATE_VERSION 26). Optional — a player who
+   * skips the creator gets a seeded genome derived from their name, so every
+   * character has a real face whether or not they used the creator.
+   */
+  faceGenome?: FaceGenome;
+  /** PNG data URI snapshotted from the creator, when GL was available. */
+  facePortraitUri?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +166,8 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     selectedMindset,
     avatarId,
     ambitionId,
+    faceGenome,
+    facePortraitUri,
   } = params;
 
   // A picked avatar's sex wins over "random" so appearance and gameplay agree.
@@ -258,6 +269,20 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       gender: resolvedSex,
       seekingGender,
     },
+    // Identity & Body (v26). The creator's genome wins; otherwise a seeded one
+    // derived from the character's own name, so the face is stable across loads
+    // and two different characters never look identical.
+    identity: (() => {
+      const seed = `${firstName}${lastName}`.trim() || `slot-${scenario.id}`;
+      const identity = createIdentity(seed, resolvedSex, scenario.start.age ?? 18);
+      if (!faceGenome) return identity;
+      const withFace = { ...identity, face: faceGenome };
+      // Only a data URI is stored — see `normalizeIdentity`, which drops
+      // anything else because a dead file path renders as a blank circle.
+      return typeof facePortraitUri === 'string' && facePortraitUri.startsWith('data:image')
+        ? { ...withFace, portraitUri: facePortraitUri, portraitWeek: 0 }
+        : withFace;
+    })(),
     perks: {
       ...permanentPerks.reduce((acc: any, id: string) => ({ ...acc, [id]: true }), {}),
       ...selectedPerks.reduce((acc: any, id: string) => ({ ...acc, [id]: true }), {}),

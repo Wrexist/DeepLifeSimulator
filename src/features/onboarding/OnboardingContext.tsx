@@ -12,6 +12,14 @@ interface OnboardingState {
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
   avatarId?: string; // Chosen starter face (utils/facePool listStarterAvatars id)
+  /**
+   * The face built in the 3D creator (STATE_VERSION 26). Optional: a player who
+   * skips the creator keeps the `avatarId` starter-portrait path, and the game
+   * builder generates a seeded genome for them instead.
+   */
+  faceGenome?: import('@/lib/identity').FaceGenome;
+  /** PNG data URI snapshotted from the creator, if GL was available. */
+  facePortraitUri?: string;
   perks: string[];
   ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional — skippable.
 }
@@ -54,6 +62,7 @@ const isPristineDraft = (s: OnboardingState): boolean =>
   !s.firstName &&
   !s.lastName &&
   !s.avatarId &&
+  !s.faceGenome &&
   !s.ambitionId &&
   s.perks.length === 0;
 

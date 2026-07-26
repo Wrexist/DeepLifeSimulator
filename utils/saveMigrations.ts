@@ -10,6 +10,7 @@
  */
 import { logger } from '@/utils/logger';
 import { STATE_VERSION } from '@/contexts/game/initialState';
+import { createIdentity, normalizeIdentity } from '@/lib/identity';
 
 // Import from initialState.ts to prevent manual sync drift
 export const CURRENT_STATE_VERSION = STATE_VERSION;
@@ -705,6 +706,42 @@ const migrations: Record<number, (state: any) => any> = {
     }
 
     state.version = 25;
+    return state;
+  },
+
+  // Version 26: Identity & Body (`identity`).
+  //
+  // A concrete stored default (an object), so it needs a real backfill rather
+  // than an absent-means-default carve-out: the weekly identity tick simulates
+  // `identity.body` every week, and an undefined body would mean an existing
+  // save silently opts out of the entire chapter forever.
+  //
+  // The backfill DERIVES the character rather than handing everyone the same
+  // body. Seeding from the save's own name means a returning player's character
+  // gets a stable body and face of their own — and, crucially, the same one on
+  // every subsequent load, since the seed is part of the save.
+  //
+  // Age and sex are read from where the game actually keeps them (`date.age`,
+  // `social.sex`) so a 60-year-old's backfilled body is a 60-year-old's body.
+  26: (state) => {
+    if (!state.identity || typeof state.identity !== 'object' || Array.isArray(state.identity)) {
+      const first = typeof state.social?.firstName === 'string' ? state.social.firstName : '';
+      const last = typeof state.social?.lastName === 'string' ? state.social.lastName : '';
+      // Fall back to a constant rather than a random seed: a migration must be
+      // idempotent, and re-running it must not produce a different person.
+      const seed = `${first}${last}`.trim() || 'legacy-save';
+      const sex = typeof state.social?.sex === 'string' ? state.social.sex : 'male';
+      const age = typeof state.date?.age === 'number' && isFinite(state.date.age) && state.date.age >= 0
+        ? state.date.age
+        : 18;
+      state.identity = createIdentity(seed, sex, age);
+    } else {
+      // Present but possibly partial (a hand-edited or truncated save). Route it
+      // through the same normalizer everything else uses.
+      state.identity = normalizeIdentity(state.identity, 'legacy-save');
+    }
+
+    state.version = 26;
     return state;
   },
 };

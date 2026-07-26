@@ -1162,3 +1162,63 @@ type-check 0 · `eslint --quiet` 0 · `jest` all green (2349/145) · stress: `re
 - Breaking existing consumers → impossible by construction (their path is untouched).
 - Budget runs out mid-Phase-2 → Phase 1 is committed first; live app never left broken.
 
+
+---
+
+## 🧬 Chapter: Identity & Body + three.js face creator (2026-07-25)
+
+Branch: `claude/game-character-customization-fk5s4m`. Next chapter after Luxury.
+Decisions confirmed with the owner: procedural three.js head (no model assets),
+live GL on the creator only + a baked portrait everywhere else, chapter theme =
+Identity & Body.
+
+### Phase A — pure logic core (`lib/identity/`, zero native deps)
+- [x] `types.ts` — `FaceGenome`, `BodyProfile`, `StyleProfile`, `Identity`
+- [x] `faceGenome.ts` — defaults, seeded randomize, parent inheritance, age drift
+- [x] `body.ts` — weight/bodyFat/muscle weekly simulation
+- [x] `style.ts` — grooming + wardrobe decay & upkeep
+- [x] `presence.ts` — derived attractiveness/presence score (never stored)
+- [x] `procedures.ts` — cosmetic procedure catalog + outcome rolls
+- [x] `__tests__/` for each
+
+### Phase B — save plumbing (STATE_VERSION 25 → 26)
+- [x] `contexts/game/types.ts` — `identity?: Identity`
+- [x] `contexts/game/initialState.ts` — default identity + version bump
+- [x] `utils/saveMigrations.ts` — v26 migration w/ backfill
+- [x] `utils/saveValidation.ts` — `repairGameState` backfill (must set `repaired`)
+- [x] `__tests__/helpers/createTestGameState.ts`
+- [x] `DEV.md` / `CLAUDE.md` / `WORKFLOW.md` version sync
+
+### Phase C — weekly tick
+- [x] `contexts/game/actions/weekly/applyIdentity.ts`
+- [x] Wire into `GameActionsContext.nextWeek` (try/catch, like the luxury tick)
+
+### Phase D — the 3D creator
+- [x] `three` + `expo-gl` deps; metro web alias; jest isolation
+- [x] `components/identity/gl/` — procedural head mesh + renderer, lazy-required
+- [x] `FaceCanvas` w/ non-GL fallback so it never renders blank
+- [x] `FaceCreatorModal` — sliders, randomize, rotate, bake to portrait
+- [x] Wire into `app/(onboarding)/Customize.tsx` + an in-game entry point
+
+### Phase E — consequences (what makes it a chapter)
+- [x] Presence feeds dating, interviews/career, social reputation
+
+### Verify
+- [x] `npm run type-check`, targeted jest suites, `npm run lint:errors`
+
+### Outcome
+- **4,286 tests green** (171 new across identity), type-check clean, lint clean.
+- `STATE_VERSION 26`; `package.json` 2.5.11 → 2.6.0 for the next TestFlight build.
+- New native deps: `three` + `expo-gl` → **requires a fresh EAS build**, not OTA.
+- Preflight still fails on the two pre-existing missing EAS secrets
+  (`EXPO_PUBLIC_SAVE_HMAC_KEY`, `EXPO_PUBLIC_IAP_VERIFY_URL`) — unrelated to this work.
+
+### Known limits (honest)
+- The procedural head is **stylized**, not photoreal — a smooth 3D head with
+  legible features that respond to all 24 morphs, not a MetaHuman. Reaching
+  photoreal needs a licensed blendshape GLB, which was the option not taken.
+- Hair is a shell over the scalp with soft per-vertex coverage, not strands.
+- Grooming/procedure UI is not built yet: `GROOMING_SERVICES` and
+  `COSMETIC_PROCEDURES` are fully implemented and tested but have no screen, so
+  they are currently unreachable in game. That is the obvious next slice.
+

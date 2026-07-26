@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
+import { normalizeIdentity } from '@/lib/identity';
 import {
   resolveSaveSigningRuntimeConfig,
   resolveActiveSaveHmacKey,
@@ -491,6 +492,35 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     s.luxuryHoldings = {};
     repairs.push('Backfilled missing luxuryHoldings record from defaults');
     repaired = true;
+  }
+  // Identity & Body (v26). Mirrors migration 26, because repair also runs on
+  // partial saves (CloudSync merge / hand-edit) that never went up the ladder.
+  //
+  // Repaired UNCONDITIONALLY rather than only when absent: unlike a boolean
+  // flag, `identity` is a deep object whose every leaf feeds either the weekly
+  // body simulation or the 3D renderer. A partial one (a face with three morphs,
+  // a body with a NaN weight) passes an `if (!s.identity)` guard untouched and
+  // then deforms the mesh or NaN-poisons the tick. `normalizeIdentity` is
+  // idempotent, so re-running it on a good identity is free.
+  {
+    const before = s.identity;
+    const first = typeof s.social?.firstName === 'string' ? s.social.firstName : '';
+    const last = typeof s.social?.lastName === 'string' ? s.social.lastName : '';
+    const seed = `${first}${last}`.trim() || 'legacy-save';
+    const sex = typeof s.social?.sex === 'string' ? s.social.sex : 'male';
+    const age =
+      typeof s.date?.age === 'number' && isFinite(s.date.age) && s.date.age >= 0 ? s.date.age : 18;
+    const normalized = normalizeIdentity(before, seed, sex, age);
+    if (!before || typeof before !== 'object' || Array.isArray(before)) {
+      s.identity = normalized;
+      repairs.push('Backfilled missing identity (face/body/style) from defaults');
+      // MUST set `repaired` — see the luxuryHoldings note below.
+      repaired = true;
+    } else if (JSON.stringify(before) !== JSON.stringify(normalized)) {
+      s.identity = normalized;
+      repairs.push('Repaired malformed identity (face/body/style) values');
+      repaired = true;
+    }
   }
   {
     const holdingWeek =

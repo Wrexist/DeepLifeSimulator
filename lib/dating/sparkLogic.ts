@@ -13,6 +13,7 @@ import type {
   SparkPremium,
 } from '@/contexts/game/types';
 import type { DatingProfile } from './datingProfiles';
+import { computePresence, presenceMultiplier } from '@/lib/identity';
 
 // ── Match probability ─────────────────────────────────────────────────────
 
@@ -77,6 +78,29 @@ export function calculateMatchProbability(
   // Personality compatibility — friendly+caring is broad, ambitious is selective.
   if (profile.personality === 'ambitious' && reputation < 30) p *= 0.7;
   if (profile.personality === 'romantic' && hasBio) p += 0.05;
+
+  // Presence (STATE_VERSION 26) — how the player actually LOOKS and carries
+  // themselves. Applied at full strength (1.0) because this is dating: of every
+  // system that reads presence, this is the one where appearance legitimately
+  // matters most.
+  //
+  // A multiplier rather than an additive term, so it scales the odds the rest of
+  // the formula produced instead of overriding them — a player with no
+  // reputation and no money still cannot coast to a 95% match rate on looks.
+  // The band is ~0.75x to ~1.30x (see `presenceMultiplier`), which is a real
+  // edge without making the other inputs decorative.
+  if (state.identity) {
+    const presence = computePresence({
+      face: state.identity.face,
+      body: state.identity.body,
+      style: state.identity.style,
+      age: state.date?.age ?? 25,
+      confidence: state.stats?.happiness,
+      reputation,
+      health: state.stats?.health,
+    });
+    p *= presenceMultiplier(presence.total, 1);
+  }
 
   return Math.max(0.05, Math.min(0.95, p));
 }

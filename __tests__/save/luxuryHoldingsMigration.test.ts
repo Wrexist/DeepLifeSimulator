@@ -12,11 +12,17 @@ import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
-  it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(25);
-    expect(CURRENT_STATE_VERSION).toBe(25);
-    expect(isMigrationVersionCovered(24)).toBe(true);
-    expect(isMigrationVersionCovered(25)).toBe(true);
+  it('keeps the alias in sync and covers EVERY version up to the current one', () => {
+    expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
+    // Asserted as a range rather than against literals. The previous version of
+    // this test pinned `toBe(25)`, so it failed on the next bump for a reason
+    // that had nothing to do with luxury holdings. Sweeping the whole ladder
+    // checks the invariant that actually matters — a bump with no registered
+    // migration halts the chain at load time — and needs no edit when the
+    // version moves.
+    for (let v = 2; v <= CURRENT_STATE_VERSION; v++) {
+      expect(isMigrationVersionCovered(v)).toBe(true);
+    }
   });
 
   it('ships the field in initialState so the test factory inherits it', () => {
@@ -40,7 +46,7 @@ describe('migration 24 — backfill', () => {
 
     const { state } = runMigrations(save);
 
-    expect(state.version).toBe(25);
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(Object.keys(state.luxuryHoldings).sort()).toEqual(['private_island', 'supercar']);
     // Stamped from the save's own week, not 0 — an island bought in a 412-week
     // life must not claim to have been owned since birth.
@@ -106,7 +112,7 @@ describe('migration 24 — backfill', () => {
 
   it('migrates a much older save all the way forward', () => {
     const { state } = runMigrations({ version: 20, weeksLived: 88, luxuryItems: ['museum_diamond'] });
-    expect(state.version).toBe(25);
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(state.luxuryHoldings.museum_diamond.acquiredWeek).toBe(88);
   });
 });

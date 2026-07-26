@@ -480,6 +480,8 @@ export default function Perks() {
         permanentPerks,
         selectedMindset,
         ambitionId: state.ambitionId,
+        faceGenome: state.faceGenome,
+        facePortraitUri: state.facePortraitUri,
       });
 
       const slotToUse = state.slot || 1;

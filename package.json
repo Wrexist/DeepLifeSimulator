@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.5.11",
+  "version": "2.6.0",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -51,6 +51,7 @@
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",
     "expo-font": "~14.0.12",
+    "expo-gl": "~57.0.2",
     "expo-iap": "^4.3.5",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
@@ -73,6 +74,7 @@
     "react-native-svg": "15.12.1",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.2",
+    "three": "^0.185.1",
     "uuid": "^11.1.1"
   },
   "devDependencies": {
@@ -84,6 +86,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
+    "@types/three": "^0.185.1",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.33.0",
     "eslint-config-expo": "~10.0.0",
