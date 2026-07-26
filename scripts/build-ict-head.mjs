@@ -466,6 +466,7 @@ async function main() {
    * front instead. At portrait size the displacement is well under a pixel, and
    * it is what most real-time characters do rather than pay for refraction.
    */
+  const irisRadius = new Float32Array(vertCount);
   {
     const irisMats = SHADING_GROUPS.iris;
     const scleraMats = SHADING_GROUPS.sclera;
@@ -486,6 +487,7 @@ async function main() {
       return n ? [sx / n, sy / n, sz / n] : null;
     };
     const centres = { 1: centroidOf(scleraMats, 1), '-1': centroidOf(scleraMats, -1) };
+    const irisCentres = { 1: centroidOf(irisMats, 1), '-1': centroidOf(irisMats, -1) };
     const moved = new Set();
     for (const f of neutral.faces) {
       if (!irisMats.has(f.material)) continue;
@@ -494,12 +496,81 @@ async function main() {
         moved.add(v);
         const c = centres[Math.sign(neutral.positions[v * 3])];
         if (!c) continue;
-        for (let k = 0; k < 3; k++) {
-          neutral.positions[v * 3 + k] = c[k] + (neutral.positions[v * 3 + k] - c[k]) * 1.06;
-        }
+        // TRANSLATE along the outward radius, do not scale about the centre.
+        //
+        // Scaling by 1.06 moved the iris forward but also made it 6% larger, and
+        // it was already close to the size of the eyelid aperture: the iris then
+        // filled the whole visible eye with no sclera at the corners, which
+        // reads as an animal's eye rather than a person's.
+        // NOT shrunk about the iris centre. Tried at 0.80 to expose white sclera
+        // at the corners; because the iris centroid sits ON the eyeball surface,
+        // shrinking toward it pulled the disc back INSIDE the sclera and the
+        // eyes rendered solid white again. Leaving the iris at full width means
+        // it spans most of the aperture — less white than a real eye shows, and
+        // an accepted limitation rather than a fix worth breaking the eye for.
+        let dx = neutral.positions[v * 3] - c[0];
+        let dy = neutral.positions[v * 3 + 1] - c[1];
+        let dz = neutral.positions[v * 3 + 2] - c[2];
+        const len = Math.hypot(dx, dy, dz) || 1;
+        const push = len * 0.045;
+        neutral.positions[v * 3] += (dx / len) * push;
+        neutral.positions[v * 3 + 1] += (dy / len) * push;
+        neutral.positions[v * 3 + 2] += (dz / len) * push;
       }
     }
     console.log(`  nudged ${moved.size} iris verts in front of the sclera`);
+
+    /**
+     * Radial coordinate across the iris: 0 at the pupil centre, 1 at the rim.
+     *
+     * ICT's iris is a bare disc that expects a texture we do not have, so
+     * without this it renders as flat colour with NO PUPIL — a solid coloured
+     * eye, which is the single most alien thing a face can do. Baking the radius
+     * lets the shader draw the pupil, iris and limbal ring procedurally, with no
+     * texture and no dependency on how the iris happens to be UV-mapped.
+     */
+    // Computed for the SCLERA as well as the iris, and that is the important
+    // part. ICT's iris is an annulus — the pupil is a HOLE in the geometry —
+    // so the plain white sclera showed through it and every eye had a bright
+    // white disc where its pupil belongs. No shading of the iris can fix that;
+    // the surface behind the hole is what has to go dark.
+    // Sets, NOT arrays. A vertex appears once per face-corner, so an array
+    // holds ~6 copies of each and the normalisation below divided the same
+    // vertex by maxR six times — every radius collapsed toward zero, the whole
+    // sclera read as pupil, and both eyes rendered solid black.
+    const radialSets = [
+      { mats: irisMats, out: new Set() },
+      { mats: scleraMats, out: new Set() },
+    ];
+    for (const set of radialSets) {
+      for (const f of neutral.faces) {
+        if (!set.mats.has(f.material)) continue;
+        for (const v of f.v) {
+          const c = irisCentres[Math.sign(neutral.positions[v * 3])];
+          if (!c) continue;
+          irisRadius[v] = Math.hypot(
+            neutral.positions[v * 3] - c[0],
+            neutral.positions[v * 3 + 1] - c[1],
+            neutral.positions[v * 3 + 2] - c[2],
+          );
+          set.out.add(v);
+        }
+      }
+    }
+    // Normalised by the IRIS radius for both, so the two surfaces share one
+    // scale and the pupil drawn on the sclera lines up with the iris hole.
+    let maxR = 0;
+    for (const v of radialSets[0].out) maxR = Math.max(maxR, irisRadius[v]);
+    if (maxR > 0) {
+      for (const set of radialSets) {
+        for (const v of set.out) irisRadius[v] = Math.min(2, irisRadius[v] / maxR);
+      }
+    }
+    for (const [i, set] of radialSets.entries()) {
+      let lo = 9e9, hi = -9e9;
+      for (const v of set.out) { lo = Math.min(lo, irisRadius[v]); hi = Math.max(hi, irisRadius[v]); }
+      console.log(`  radial ${i === 0 ? 'iris  ' : 'sclera'} ${set.out.size} verts, r ${lo.toFixed(3)}..${hi.toFixed(3)}`);
+    }
   }
 
   /**
@@ -595,6 +666,7 @@ async function main() {
     const gPos = [];
     const gNrm = [];
     const gScalp = [];
+    const gIrisR = [];
     const gUv = [];
     const gIdx = [];
     for (const f of groupFaces) {
@@ -610,6 +682,7 @@ async function main() {
             neutral.positions[f.v[k] * 3 + 2],
           );
           gScalp.push(scalp[f.v[k]]);
+          gIrisR.push(irisRadius[f.v[k]]);
           gNrm.push(
             normals[f.v[k] * 3],
             normals[f.v[k] * 3 + 1],
@@ -635,6 +708,7 @@ async function main() {
       // Custom attributes must be underscore-prefixed per the glTF spec.
       // GLTFLoader surfaces this to three as the lowercased `_scalp`.
       .setAttribute('_SCALP', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(gScalp)).setBuffer(buf))
+      .setAttribute('_IRISR', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(gIrisR)).setBuffer(buf))
       .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(gIdx)).setBuffer(buf))
       // The NAME is the contract with the renderer — it looks materials up by
       // it. Renaming a group here silently un-styles that part of the face.

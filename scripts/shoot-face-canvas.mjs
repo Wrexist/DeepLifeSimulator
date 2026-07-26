@@ -150,16 +150,53 @@ if (parts.skin) {
 // skin roughness has no catchlight and the face reads dead, however good the
 // geometry underneath it is.
 if (parts.sclera) {
-  parts.sclera.material = new THREE.MeshPhysicalMaterial({
-    color: 0xe9e7e4, roughness: 0.14, metalness: 0,
-    clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6,
+  // The pupil is drawn HERE, not on the iris. ICT's iris is an annulus with a
+  // hole where the pupil belongs, so a bright sclera showed straight through it.
+  const scleraMat = new THREE.MeshPhysicalMaterial({
+    color: 0xdedbd6, roughness: 0.18, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75,
   });
+  scleraMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\\nattribute float _irisr;\\nvarying float vR;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvR = _irisr;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\\nvarying float vR;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\\n' +
+        'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));');
+  };
+  parts.sclera.material = scleraMat;
 }
 if (parts.iris) {
-  parts.iris.material = new THREE.MeshPhysicalMaterial({
-    color: 0x4a6b8a, roughness: 0.08, metalness: 0,
-    clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4,
-  });
+// Iris: pupil, limbal ring and radial fibres drawn from the baked _irisr.
+//
+// ICT's iris is a bare disc that expects a texture we do not have, so as flat
+// colour it rendered as a solid coloured eye with NO PUPIL — the single most
+// alien thing a face can do. Radius comes from the mesh, so this needs no
+// texture and does not care how the iris is UV-mapped.
+const irisMat = new THREE.MeshPhysicalMaterial({
+  color: 0x4a6b8a, roughness: 0.12, metalness: 0,
+  // envMapIntensity was 2.4 with clearcoatRoughness 0.02, which mirrored the
+  // key panel as a blown white blob covering the whole pupil. A catchlight
+  // should be a glint, not a headlight.
+  clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85,
+});
+irisMat.onBeforeCompile = (sh) => {
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\\nattribute float _irisr;\\nvarying float vR;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvR = _irisr;');
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\\nvarying float vR;')
+    .replace('#include <color_fragment>',
+      '#include <color_fragment>\\n' +
+      'float pupil = smoothstep(0.30, 0.38, vR);\\n' +
+      'float limbal = 1.0 - smoothstep(0.80, 1.0, vR);\\n' +
+      'float fibre = 0.88 + 0.12 * sin(vR * 46.0);\\n' +
+      'diffuseColor.rgb *= pupil * limbal * fibre;\\n' +
+      'diffuseColor.rgb = mix(vec3(0.02), diffuseColor.rgb, pupil);');
+};
+parts.iris.material = irisMat;
 }
 
 // Hair: a second mesh over the SAME geometry, grown outward along the normal by

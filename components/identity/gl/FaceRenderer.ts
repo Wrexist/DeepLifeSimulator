@@ -324,16 +324,57 @@ export function createFaceScene(
     // portrait: sharing the skin's roughness leaves the eyes with no catchlight
     // and the whole face reads dead, however good the geometry is.
     if (asset.parts.sclera) {
-      asset.parts.sclera.material = track(new THREE.MeshPhysicalMaterial({
-        color: 0xe9e7e4, roughness: 0.14, metalness: 0,
-        clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6,
+      // The pupil is drawn on the SCLERA, not the iris.
+      //
+      // ICT's iris is an ANNULUS — the pupil is a hole in the geometry — so a
+      // bright sclera showed straight through it and every eye had a white disc
+      // where its pupil belongs. No shading of the iris can fix that; the
+      // surface behind the hole is what has to go dark. `_irisr` is baked by the
+      // build script for both surfaces on one shared scale, so the drawn pupil
+      // lines up with the hole.
+      const scleraMat = track(new THREE.MeshPhysicalMaterial({
+        color: 0xdedbd6, roughness: 0.18, metalness: 0,
+        clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75,
       }));
+      scleraMat.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vR;')
+          .replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\n' +
+              'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));',
+          );
+      };
+      asset.parts.sclera.material = scleraMat;
     }
     if (asset.parts.iris) {
-      asset.parts.iris.material = track(new THREE.MeshPhysicalMaterial({
-        color: 0x4a6b8a, roughness: 0.08, metalness: 0,
-        clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4,
+      const irisMat = track(new THREE.MeshPhysicalMaterial({
+        color: 0x4a6b8a, roughness: 0.12, metalness: 0,
+        // 0.85, not 2.4, and clearcoatRoughness 0.10, not 0.02. At full strength
+        // the environment mirrored as a blown white blob covering the entire
+        // pupil — a catchlight should be a glint, not a headlight.
+        clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85,
       }));
+      irisMat.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vR;')
+          .replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\n' +
+              // Limbal ring and radial fibres. Cheap, and the difference between
+              // an eye and a coloured disc.
+              'float limbal = 1.0 - smoothstep(0.86, 1.0, vR);\n' +
+              'float fibre = 0.86 + 0.14 * sin(vR * 42.0);\n' +
+              'diffuseColor.rgb *= limbal * fibre;',
+          );
+      };
+      asset.parts.iris.material = irisMat;
     }
     // Geometry and textures are shared and cached, so they are deliberately NOT
     // tracked for disposal — freeing them would break the next canvas to mount.

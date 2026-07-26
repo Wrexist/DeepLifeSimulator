@@ -44,7 +44,8 @@
     "ict:build": "node scripts/build-ict-head.mjs",
     "ict:preview": "node scripts/preview-ict-head.mjs",
     "ict:shoot": "node scripts/shoot-face-canvas.mjs",
-    "ict:textures": "node scripts/bake-face-textures.mjs"
+    "ict:textures": "node scripts/bake-face-textures.mjs",
+    "ict:studio": "node scripts/shoot-face-studio.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
