@@ -162,6 +162,58 @@ if (parts.iris) {
   });
 }
 
+// Hair: a second mesh over the SAME geometry, grown outward along the normal by
+// the baked _scalp weight. Sharing the buffer means it inherits all 21 morph
+// targets automatically and follows the face as the sliders move it.
+const hairUniforms = {
+  uThickness: { value: 0.55 },
+  uLow: { value: 0.30 },
+  uColor: { value: new THREE.Color(0x2c1b12) },
+};
+let hairMesh = null;
+if (parts.skin && parts.skin.geometry.getAttribute('_scalp')) {
+  const hairMat = new THREE.MeshStandardMaterial({
+    color: 0x2c1b12, roughness: 0.86, metalness: 0,
+    transparent: true, depthWrite: true,
+  });
+  hairMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uThickness = hairUniforms.uThickness;
+    sh.uniforms.uLow = hairUniforms.uLow;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\\nattribute float _scalp;\\nvarying float vScalp;\\nuniform float uThickness;\\nuniform float uLow;')
+      .replace('#include <begin_vertex>',
+        '#include <begin_vertex>\\nvScalp = _scalp;\\ntransformed += normalize(objectNormal) * uThickness * smoothstep(uLow, 1.0, _scalp);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\\nvarying float vScalp;\\nuniform float uLow;')
+      .replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\\n' +
+        // Discard the bare fringe outright so it never darkens the skin beneath;
+        // fade the rest so the hairline is soft rather than a hard cap edge.
+        'if (vScalp < uLow) discard;\\ngl_FragColor.a *= smoothstep(uLow, uLow + 0.22, vScalp);');
+  };
+  hairMesh = new THREE.Mesh(parts.skin.geometry, hairMat);
+  parts.skin.parent.add(hairMesh);
+  allMeshes.push(hairMesh);
+}
+// Thickness arrives as a FRACTION of head size, never an absolute distance.
+// The geometry sits in KHR_mesh_quantization's local space (extent ~3.6, not
+// the model's 36), so absolute values were ~15% of the head: the shell tore
+// into spikes as adjacent vertices with diverging normals were pushed apart.
+const geomExtent = (() => {
+  parts.skin.geometry.computeBoundingBox();
+  const b = parts.skin.geometry.boundingBox;
+  return Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1;
+})();
+window.__setHair = (o) => {
+  if (!hairMesh) return false;
+  hairMesh.visible = o.style !== 'bald';
+  hairUniforms.uThickness.value = (o.frac ?? 0.05) * geomExtent;
+  hairUniforms.uLow.value = o.low ?? 0.30;
+  if (o.color) hairMesh.material.color.set(o.color);
+  renderer.render(scene, camera);
+  return true;
+};
+
 // WORLD-space box via setFromObject, not geometry.boundingBox.
 //
 // KHR_mesh_quantization stores positions as integers and compensates with a
@@ -171,7 +223,20 @@ if (parts.iris) {
 // size, sitting tiny in the middle of the frame.
 const holder = new THREE.Group();
 holder.add(gltf.scene);
-const box = new THREE.Box3().setFromObject(gltf.scene);
+// Frame on the SKIN, not the whole scene. The hair shell stands off the scalp,
+// so including it expanded the box and shrank the head in frame — and it would
+// shrink further for longer styles, making the framing depend on the haircut.
+// Framed from the NEUTRAL position attribute, not setFromObject.
+//
+// Box3.setFromObject expands the box to cover every morph target at full
+// influence, so the frame was sized for the most extreme face the rig can
+// reach (61 units against the neutral head's 36) and every character rendered
+// small and off-centre to leave room for a face nobody had chosen.
+gltf.scene.updateWorldMatrix(true, true);
+const framedOn = parts.skin ?? allMeshes[0];
+const box = new THREE.Box3()
+  .setFromBufferAttribute(framedOn.geometry.getAttribute('position'))
+  .applyMatrix4(framedOn.matrixWorld);
 const size = box.getSize(new THREE.Vector3());
 const centre = box.getCenter(new THREE.Vector3());
 const extent = Math.max(size.x, size.y, size.z);
@@ -293,8 +358,24 @@ async function main() {
   const sweep = process.argv.includes('--sweep');
   const tones = process.argv.includes('--tones');
   const maps = process.argv.includes('--maps');
+  const signed = process.argv.includes('--signed');
+  const hair = process.argv.includes('--hair');
   const TUNED = { exposure: 0.8, key: 0.85, fill: 0.3, rim: 0.45, env: 0.45 };
-  const shots = maps
+  const shots = hair
+    ? [
+        ['bald', { style: 'bald' }],
+        ['buzz', { style: 'buzz', frac: 0.035, low: 0.34, color: '#2c1b12' }],
+        ['short', { style: 'short', frac: 0.055, low: 0.30, color: '#4A2E1C' }],
+        ['medium', { style: 'medium', frac: 0.080, low: 0.24, color: '#0E0B0A' }],
+      ]
+    : signed
+    ? [
+        ['jawWidth -1', ['jawWidth', -1]],
+        ['jawWidth 0', ['jawWidth', 0]],
+        ['jawWidth +1', ['jawWidth', 1]],
+        ['noseWidth -1', ['noseWidth', -1]],
+      ]
+    : maps
     ? [
         ['no maps', { albedo: false, rough: false, normal: false }],
         ['albedo only', { albedo: true, rough: false, normal: false }],
@@ -327,7 +408,9 @@ async function main() {
 
   const buffers = [];
   for (const [label, arg] of shots) {
-    if (maps) await page.evaluate((o) => window.__setMaps(o), arg);
+    if (hair) await page.evaluate((o) => window.__setHair(o), arg);
+    else if (signed) await page.evaluate(([m, v]) => window.__apply(m, v), arg);
+    else if (maps) await page.evaluate((o) => window.__setMaps(o), arg);
     else if (sweep || tones) await page.evaluate((o) => window.__setLighting(o), arg);
     else await page.evaluate((m) => { window.__apply(m, 1); window.__setYaw(0); }, arg);
     buffers.push({ label, png: await page.locator('canvas').screenshot() });

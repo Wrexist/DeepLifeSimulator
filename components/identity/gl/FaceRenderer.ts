@@ -206,6 +206,27 @@ export function createFaceScene(
   // paths are kept side by side rather than the procedural one being deleted,
   // because expo-asset is a native module: an OTA build on older native code
   // has no way to read the file, and a character must always have a face.
+  /**
+   * Hair thickness per style, as a fraction of head size, and how high up the
+   * scalp the hair mass starts. Mirrors the procedural head's spec table so the
+   * two paths read as the same character, and the values are fractions for the
+   * reason recorded where they are applied.
+   */
+  const HAIR_SPEC: Record<string, { frac: number; low: number }> = {
+    buzz: { frac: 0.035, low: 0.34 },
+    short: { frac: 0.055, low: 0.30 },
+    medium: { frac: 0.080, low: 0.24 },
+    long: { frac: 0.095, low: 0.18 },
+    ponytail: { frac: 0.075, low: 0.22 },
+    afro: { frac: 0.130, low: 0.30 },
+    bun: { frac: 0.070, low: 0.26 },
+  };
+  const assetHairUniforms = {
+    uThickness: { value: 0.2 },
+    uLow: { value: 0.3 },
+  };
+  let assetHair: THREE.Mesh | null = null;
+  let assetGeomExtent = 1;
   let assetParts: Record<string, THREE.Mesh> | null = null;
   let assetMeshes: THREE.Mesh[] = [];
   let assetBinding: RigBinding | null = null;
@@ -220,7 +241,12 @@ export function createFaceScene(
    */
   function applyAssetGenome(input: FaceSceneInput): void {
     if (!assetParts || !assetBinding) return;
-    const { influences: byName } = genomeToInfluences(input.genome, assetBinding);
+    // `signed`: the ICT head's morphs are linear combinations of a scan-derived
+    // PCA basis, so a negative influence is a real face on the same manifold.
+    // That makes every slider bipolar without baking a second target per axis —
+    // the lower half was otherwise inert, since a single target only expresses
+    // "more". Verified by rendering -1 / 0 / +1: three distinct plausible faces.
+    const { influences: byName } = genomeToInfluences(input.genome, assetBinding, { signed: true });
 
     // EVERY primitive, not just the skin. Each carries the full morph set, and
     // driving only the skin would widen the face while leaving the eyeballs
@@ -246,6 +272,21 @@ export function createFaceScene(
     if (skinMat) skinMat.color.set(skin);
     const irisMat = assetParts.iris?.material as THREE.MeshPhysicalMaterial | undefined;
     if (irisMat) irisMat.color.set(iris);
+
+    if (assetHair) {
+      // The AGED style, so recession and greying show without touching the
+      // stored genome — same rule the procedural path follows.
+      const spec = HAIR_SPEC[aged.hairStyle];
+      assetHair.visible = aged.hairStyle !== 'bald' && !!spec;
+      if (spec) {
+        assetHairUniforms.uThickness.value = spec.frac * assetGeomExtent;
+        // Recession lifts the hairline on the top-front of the skull with age.
+        const recession = Math.max(0, Math.min(1, (input.age - 45) / 35));
+        assetHairUniforms.uLow.value = spec.low + recession * 0.18;
+        const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
+        (assetHair.material as THREE.MeshStandardMaterial).color.set(hairHex);
+      }
+    }
   }
 
   function adoptAsset(asset: HeadAsset, textures: SkinTextures): void {
@@ -298,6 +339,59 @@ export function createFaceScene(
     // tracked for disposal — freeing them would break the next canvas to mount.
     // Materials ARE tracked, because they are created per scene.
 
+    // Hair: a second mesh over the SAME geometry, grown outward along the normal
+    // by the baked `_scalp` weight. Sharing the buffer means it inherits all 21
+    // morph targets for free and follows the face as the sliders move it; a
+    // separate hair mesh would need its own copy of every one of them.
+    if (asset.parts.skin?.geometry.getAttribute('_scalp')) {
+      const hairMat = track(new THREE.MeshStandardMaterial({
+        color: 0x2c1b12, roughness: 0.86, metalness: 0,
+        transparent: true, depthWrite: true,
+      }));
+      hairMat.onBeforeCompile = (shader) => {
+        shader.uniforms.uThickness = assetHairUniforms.uThickness;
+        shader.uniforms.uLow = assetHairUniforms.uLow;
+        shader.vertexShader = shader.vertexShader
+          .replace(
+            '#include <common>',
+            '#include <common>\nattribute float _scalp;\nvarying float vScalp;\nuniform float uThickness;\nuniform float uLow;',
+          )
+          .replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\nvScalp = _scalp;\n' +
+              'transformed += normalize(objectNormal) * uThickness * smoothstep(uLow, 1.0, _scalp);',
+          );
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vScalp;\nuniform float uLow;')
+          .replace(
+            '#include <dithering_fragment>',
+            '#include <dithering_fragment>\n' +
+              // Discard the bare fringe outright so it never darkens the skin
+              // beneath, then fade so the hairline is soft, not a hard cap edge.
+              'if (vScalp < uLow) discard;\n' +
+              'gl_FragColor.a *= smoothstep(uLow, uLow + 0.22, vScalp);',
+          );
+      };
+      assetHair = new THREE.Mesh(asset.parts.skin.geometry, hairMat);
+      asset.parts.skin.parent?.add(assetHair);
+      assetMeshes = [...assetMeshes, assetHair];
+
+      // Thickness is a FRACTION of head size, resolved against the geometry's
+      // own extent. That extent is KHR_mesh_quantization's local space (~3.6,
+      // not the model's 36), and absolute values were ~15% of the head: the
+      // shell tore into spikes as adjacent vertices were pushed apart along
+      // diverging normals.
+      asset.parts.skin.geometry.computeBoundingBox();
+      const gb = asset.parts.skin.geometry.boundingBox;
+      assetGeomExtent = gb
+        ? Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z) || 1
+        : 1;
+    }
+
+    // Frame on the SKIN, not the whole scene. The hair shell stands off the
+    // scalp, so including it shrinks the head in frame — and by a different
+    // amount per haircut, which would make framing depend on the hairstyle.
+    //
     // Frame from the WORLD box of the loaded scene, and scale a wrapper rather
     // than the mesh. `KHR_mesh_quantization` puts a compensating transform on
     // the node, so the mesh's own bounding box is in pre-compensation units and
@@ -305,7 +399,17 @@ export function createFaceScene(
     // fraction of its size, tiny in the middle of frame.
     const holder = new THREE.Group();
     holder.add(asset.scene);
-    const box = new THREE.Box3().setFromObject(asset.scene);
+    // Framed from the NEUTRAL position attribute, not setFromObject.
+    //
+    // Box3.setFromObject expands the box to cover every morph target at full
+    // influence, so the frame gets sized for the most extreme face the rig can
+    // reach (61 units against the neutral head's 36) and every character
+    // renders small, leaving room for a face nobody chose.
+    asset.scene.updateWorldMatrix(true, true);
+    const framedOn = asset.parts.skin ?? asset.meshes[0];
+    const box = new THREE.Box3()
+      .setFromBufferAttribute(framedOn.geometry.getAttribute('position') as THREE.BufferAttribute)
+      .applyMatrix4(framedOn.matrixWorld);
     const size = box.getSize(new THREE.Vector3());
     const centre = box.getCenter(new THREE.Vector3());
     const scale = 2.35 / (Math.max(size.x, size.y, size.z) || 1);

@@ -54,3 +54,42 @@ describe('ICT head shading groups', () => {
     for (const v of Object.values(influences)) expect(v).toBe(0);
   });
 });
+
+describe('signed influences', () => {
+  const binding = bindGenomeToRig(MORPHS);
+  const at = (v: number) => {
+    const g = { ...randomizeFace('signed'), morphs: neutralMorphs() } satisfies FaceGenome;
+    g.morphs.jawWidth = v;
+    return genomeToInfluences(g, binding, { signed: true });
+  };
+
+  it('maps the full slider range onto one target, not half of it', () => {
+    // The whole point: a single morph target only expresses "more", so without
+    // signed influences everything below 0.5 was inert.
+    expect(at(1).influences.jawWidth).toBeCloseTo(1);
+    expect(at(0.5).influences.jawWidth).toBeCloseTo(0);
+    expect(at(0).influences.jawWidth).toBeCloseTo(-1);
+  });
+
+  it('reports nothing one-sided, so the UI need not clamp', () => {
+    expect(at(0).oneSided).toEqual([]);
+  });
+
+  it('still reports one-sided when signed is OFF', () => {
+    // Unsigned stays the default because negating an artist-authored blendshape
+    // turns the sculpt inside out rather than producing its opposite.
+    const g = { ...randomizeFace('signed'), morphs: neutralMorphs() } satisfies FaceGenome;
+    g.morphs.jawWidth = 0;
+    expect(genomeToInfluences(g, binding).oneSided).toContain('jawWidth');
+  });
+
+  it('keeps signed influences inside [-1, 1] for any genome', () => {
+    for (const v of [-5, 0, 0.25, 0.75, 1, 9, NaN]) {
+      const g = { ...randomizeFace('signed'), morphs: neutralMorphs() } satisfies FaceGenome;
+      g.morphs.jawWidth = v;
+      const out = genomeToInfluences(g, binding, { signed: true }).influences.jawWidth;
+      expect(out).toBeGreaterThanOrEqual(-1);
+      expect(out).toBeLessThanOrEqual(1);
+    }
+  });
+});

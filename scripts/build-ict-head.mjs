@@ -503,6 +503,44 @@ async function main() {
   }
 
   /**
+   * Per-vertex scalp weight, 1 where hair grows and 0 on the face.
+   *
+   * Baked here rather than derived at runtime because it needs the landmarks,
+   * which the GLB does not carry. Shipping it as an attribute lets the renderer
+   * grow hair by offsetting the EXISTING skin geometry along its normals in the
+   * vertex shader — so the hair shares the head's buffers and its morph targets,
+   * and follows the face automatically as the sliders move it. A separate hair
+   * mesh would need its own copy of all 21 morphs.
+   *
+   * The hairline is a curve in z, not a flat height: it sits high at the
+   * forehead and drops to the nape at the back. A single y threshold puts the
+   * back of the hairline halfway up the skull and reads as a bathing cap.
+   */
+  const scalp = new Float32Array(vertCount);
+  {
+    let browY = 0;
+    for (let i = 17; i <= 26; i++) browY += neutral.positions[landmarks[i] * 3 + 1];
+    browY /= 10;
+    let minZ = 1e9, maxZ = -1e9, maxY = -1e9;
+    for (let v = 0; v < vertCount; v++) {
+      minZ = Math.min(minZ, neutral.positions[v * 3 + 2]);
+      maxZ = Math.max(maxZ, neutral.positions[v * 3 + 2]);
+      maxY = Math.max(maxY, neutral.positions[v * 3 + 1]);
+    }
+    const H = Math.max(1e-6, maxY - browY);
+    const depth = Math.max(1e-6, maxZ - minZ);
+    for (let v = 0; v < vertCount; v++) {
+      const y = neutral.positions[v * 3 + 1];
+      const z = neutral.positions[v * 3 + 2];
+      const backness = (maxZ - z) / depth;            // 0 at the face, 1 at the nape
+      const hairline = browY + H * (0.30 - 0.62 * backness);
+      const fade = H * 0.10;
+      const t = (y - (hairline - fade)) / (2 * fade);
+      scalp[v] = Math.max(0, Math.min(1, t));
+    }
+  }
+
+  /**
    * Smooth vertex normals, area-weighted by the cross-product magnitude.
    *
    * Not optional once a normal map is in play. Without a NORMAL attribute
@@ -556,6 +594,7 @@ async function main() {
     const gRemap = new Map();
     const gPos = [];
     const gNrm = [];
+    const gScalp = [];
     const gUv = [];
     const gIdx = [];
     for (const f of groupFaces) {
@@ -570,6 +609,7 @@ async function main() {
             neutral.positions[f.v[k] * 3 + 1],
             neutral.positions[f.v[k] * 3 + 2],
           );
+          gScalp.push(scalp[f.v[k]]);
           gNrm.push(
             normals[f.v[k] * 3],
             normals[f.v[k] * 3 + 1],
@@ -592,6 +632,9 @@ async function main() {
       .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(gPos)).setBuffer(buf))
       .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(new Float32Array(gNrm)).setBuffer(buf))
       .setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(gUv)).setBuffer(buf))
+      // Custom attributes must be underscore-prefixed per the glTF spec.
+      // GLTFLoader surfaces this to three as the lowercased `_scalp`.
+      .setAttribute('_SCALP', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(gScalp)).setBuffer(buf))
       .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(gIdx)).setBuffer(buf))
       // The NAME is the contract with the renderer — it looks materials up by
       // it. Renaming a group here silently un-styles that part of the face.
@@ -647,7 +690,12 @@ async function main() {
     // from all 24 targets too — this is the highest-leverage step by far.
     simplify({ simplifier: MeshoptSimplifier, ratio: 0.35, error: 0.002, lockBorder: true }),
     prune({ keepAttributes: false }),
-    quantize({ quantizePosition: 14, quantizeTexcoord: 12 }),
+    quantize({
+      pattern: /^(POSITION|NORMAL|TEXCOORD)(_\d+)?$/,
+      quantizePosition: 14,
+      quantizeNormal: 10,
+      quantizeTexcoord: 12,
+    }),
     // Sparse LAST: quantize rewrites accessors and would convert sparse back to
     // dense, silently losing the saving while the size report still looked fine.
     //

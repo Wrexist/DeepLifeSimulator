@@ -300,9 +300,40 @@ export function bindGenomeToRig(rigMorphNames: readonly string[]): RigBinding {
 export function genomeToInfluences(
   genome: FaceGenome,
   binding: RigBinding,
+  options: {
+    /**
+     * Allow NEGATIVE influences, making a single target drive both halves.
+     *
+     * Only correct for rigs whose morphs are LINEAR — the ICT head's axes are
+     * combinations of a scan-derived PCA basis, so -1 is a real face on the same
+     * manifold as +1, and the slider becomes bipolar for free rather than by
+     * baking a second target per axis.
+     *
+     * It is WRONG for an artist-authored blendshape. Negating a sculpt does not
+     * produce its opposite; it produces the sculpt inside out. Hence opt-in, set
+     * by the renderer that knows which asset it loaded, rather than a default.
+     */
+    signed?: boolean;
+  } = {},
 ): { influences: Record<string, number>; oneSided: FaceMorphKey[] } {
   const influences: Record<string, number> = {};
   const oneSided: FaceMorphKey[] = [];
+
+  if (options.signed) {
+    for (const key of FACE_MORPH_KEYS) {
+      const targets = binding.bound[key];
+      if (!targets) continue;
+      const raw = genome.morphs[key];
+      const value = typeof raw === 'number' && isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0.5;
+      const signedValue = (value - 0.5) * 2;
+      for (const name of targets) influences[name] = signedValue;
+      // A declared opposing target would double-apply the same direction here,
+      // so it is held at zero rather than driven.
+      for (const name of binding.negative[key] ?? []) influences[name] = 0;
+    }
+    // Nothing is one-sided: the full slider range is expressible.
+    return { influences, oneSided };
+  }
 
   for (const key of FACE_MORPH_KEYS) {
     const targets = binding.bound[key];
