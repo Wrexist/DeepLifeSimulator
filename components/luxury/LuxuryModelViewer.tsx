@@ -16,7 +16,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { logger } from '@/utils/logger';
 import { useSpinControls } from './useSpinControls';
@@ -148,10 +148,24 @@ export default function LuxuryModelViewer({
         style={StyleSheet.absoluteFill}
       />
       <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} />
+      {/* Nothing about a rendered image says "you can turn this". Without a
+          hint most players never discover the interaction at all — the object
+          just spins by itself and reads as a video. Bottom-LEFT so it never
+          collides with the price pill or the Owned badge, both bottom-right. */}
+      <Text style={styles.hint} pointerEvents="none">Drag to turn</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  hint: {
+    position: 'absolute',
+    left: 12,
+    bottom: 10,
+    color: 'rgba(203, 213, 225, 0.55)',
+    fontSize: 10.5,
+    letterSpacing: 0.3,
+    fontWeight: '600',
+  },
 });

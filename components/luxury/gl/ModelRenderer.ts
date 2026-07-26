@@ -150,26 +150,40 @@ export function createModelScene(
       mesh.renderOrder = part.material.transmission ? 1 : 0;
       root.add(mesh);
     }
-    // Ground the object. Measured from the model's actual lowest vertex rather
-    // than assumed at y=0, because the diamond sits on a plinth and the yacht's
-    // keel hangs well below the origin — a fixed plane would float under one and
-    // cut through the other.
+    // Measure the model's real vertical extent. Used for BOTH the ground plane
+    // and the camera target.
     let lowest = Infinity;
+    let highest = -Infinity;
     for (const part of model.parts) {
       for (let i = 1; i < part.mesh.positions.length; i += 3) {
-        if (part.mesh.positions[i] < lowest) lowest = part.mesh.positions[i];
+        const y = part.mesh.positions[i];
+        if (y < lowest) lowest = y;
+        if (y > highest) highest = y;
       }
     }
     if (!isFinite(lowest)) lowest = 0;
+    if (!isFinite(highest)) highest = 0;
     shadow = createContactShadow(model.radius);
     shadow.mesh.position.y = lowest - model.radius * 0.012;
     scene.add(shadow.mesh);
 
     // Frame the camera from the model's own radius, so a watch and a yacht both
     // fill the viewport without per-model camera tuning.
-    const dist = Math.max(1.6, model.radius * 3.1);
-    camera.position.set(0, model.radius * 0.35, dist);
-    camera.lookAt(0, 0, 0);
+    // Frame on the model's vertical CENTRE, not the origin.
+    //
+    // `radius` is measured from the origin, but a model's mass is often not
+    // centred there — the diamond's stone sits entirely ABOVE its plinth, so
+    // aiming at (0,0,0) pointed the camera at the plinth and cropped the top of
+    // the stone clean off. Targeting the box centre and sizing from the box
+    // height frames any model correctly regardless of where its origin sits.
+    const centreY = (lowest + highest) / 2;
+    const halfHeight = Math.max(0.2, (highest - lowest) / 2);
+    // Fit the larger of the vertical extent and the horizontal radius, then add
+    // ~18% breathing room so nothing touches the frame edge.
+    const fitRadius = Math.max(halfHeight, model.radius * 0.72) * 1.18;
+    const dist = Math.max(1.2, fitRadius / Math.tan((camera.fov * Math.PI) / 360));
+    camera.position.set(0, centreY + halfHeight * 0.28, dist);
+    camera.lookAt(0, centreY, 0);
     camera.updateProjectionMatrix();
   }
 

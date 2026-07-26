@@ -123,7 +123,12 @@ export function createFaceScene(
   renderer.setClearColor(new THREE.Color(options.background ?? '#0F172A'), options.background ? 1 : 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  // 1.45, not 1.1. The studio environment is deliberately dark (it matches the
+  // app's near-black surfaces), and at 1.1 the deeper skin tones crushed to
+  // almost pure black — the face was unreadable for a large part of the
+  // palette. Exposure is the right lever: brightening the skin colour instead
+  // would have made the whole tone range wrong.
+  renderer.toneMappingExposure = 1.45;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(28, width / height, 0.1, 100);
@@ -142,13 +147,13 @@ export function createFaceScene(
   // edge to catch, which is most of what makes the morphs legible at all.
   // Softened now that the environment carries the base lighting — the previous
   // intensities were compensating for its absence and would blow out over it.
-  const key = new THREE.DirectionalLight(0xfff4e8, 1.15);
+  const key = new THREE.DirectionalLight(0xfff4e8, 1.7);
   key.position.set(-2.2, 2.6, 3.4);
-  const fill = new THREE.DirectionalLight(0xbfd4ff, 0.35);
+  const fill = new THREE.DirectionalLight(0xbfd4ff, 0.6);
   fill.position.set(2.8, -0.4, 2.0);
   const rim = new THREE.DirectionalLight(0xffffff, 0.65);
   rim.position.set(0.6, 1.2, -3.2);
-  const ambient = new THREE.AmbientLight(0xffffff, 0.10);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.26);
   scene.add(key, fill, rim, ambient);
 
   const root = new THREE.Group();
@@ -203,7 +208,7 @@ export function createFaceScene(
       // scattering, which is not viable on a phone.
       clearcoat: 0.22,
       clearcoatRoughness: 0.5,
-      envMapIntensity: 0.55,
+      envMapIntensity: 0.85,
     }));
     headMesh = new THREE.Mesh(track(toBufferGeometry(head)), headMaterial);
     root.add(headMesh);
