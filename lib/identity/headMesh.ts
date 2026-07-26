@@ -422,12 +422,20 @@ export function computeNormals(positions: Float32Array, indices: Uint32Array, ou
     if (len > 1e-8) {
       out[i] /= len; out[i + 1] /= len; out[i + 2] /= len;
     } else {
-      // A vertex with no usable area (a seam duplicate). Point it outward rather
-      // than leaving a zero normal, which would render as a black speck.
-      const plen = Math.hypot(positions[i], positions[i + 1], positions[i + 2]) || 1;
-      out[i] = positions[i] / plen;
-      out[i + 1] = positions[i + 1] / plen;
-      out[i + 2] = positions[i + 2] / plen;
+      // A vertex with no usable area (a seam duplicate, or one referenced by no
+      // triangle). Point it outward rather than leaving a zero normal, which
+      // renders as a black speck.
+      const plen = Math.hypot(positions[i], positions[i + 1], positions[i + 2]);
+      if (plen > 1e-8) {
+        out[i] = positions[i] / plen;
+        out[i + 1] = positions[i + 1] / plen;
+        out[i + 2] = positions[i + 2] / plen;
+      } else {
+        // The vertex sits exactly ON the origin, so there is no outward
+        // direction to derive. Dividing by `|p| || 1` (the previous form) left
+        // it at (0,0,0) — a black speck. Any unit vector is better than none.
+        out[i] = 0; out[i + 1] = 1; out[i + 2] = 0;
+      }
     }
   }
 }

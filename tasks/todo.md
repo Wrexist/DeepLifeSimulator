@@ -1222,3 +1222,49 @@ Identity & Body.
   `COSMETIC_PROCEDURES` are fully implemented and tested but have no screen, so
   they are currently unreachable in game. That is the obvious next slice.
 
+---
+
+## 💎 Luxury showcase: code-only 3D trophies (2026-07-26)
+
+Branch: `claude/game-character-customization-fk5s4m`. Follow-up to the Identity
+chapter, taking the img2threejs methodology (reconstruction-by-code, staged
+passes, verify each pass against the reference render) and applying it where it
+actually fits: hard-surface objects, not faces.
+
+- [x] `lib/geometry/mesh.ts` — shared primitives (lathe, box, torus, merge,
+      flatShade, transforms). No three.js.
+- [x] `lib/luxury/models/` — diamond, watch, yacht (x2 scales) + registry
+- [x] `components/luxury/` — `LuxuryModelViewer` + `ModelRenderer` (three.js)
+- [x] Wired into `LuxuryApp`'s DETAIL SHEET only — one GL context at a time
+- [x] Visual harness `lib/luxury/models/__tests__/preview.render.ts`
+- [x] Model invariant tests (finite geometry, in-range indices, unit normals,
+      determinism, triangle budget, real brilliant-cut proportions)
+
+### Defects the render harness caught (none were expressible as assertions)
+1. **Diamond half as deep as a real stone** — GIA proportions are fractions of
+   girdle DIAMETER, applied to the RADIUS. Rendered as a flat lens with no
+   pavilion. Now pinned by a test.
+2. **Watch showed a blank steel face** — the case lathe closed to a solid top
+   plate 0.005 below the dial and won the depth test. Dial, indices and hands
+   were all invisible.
+3. **Watch hero angle** was near edge-on; a watch has to be seen from above.
+4. **Yacht hull invisible** on the app's near-black surface (navy on near-black).
+5. **Zero-length normals** (black specks) from degenerate triangles in
+   `flatShade` and from vertices sitting exactly on the origin in
+   `computeNormals`. Fixed in both the new geometry lib and `headMesh.ts`.
+
+### Scope — what is NOT done
+- Only 4 catalogue ids have models: `museum_diamond`, `rare_watch_collection`,
+  `luxury_yacht`, `mega_yacht`. The other 8 keep their flat artwork and are
+  untouched; `buildLuxuryModel` returns null and every caller falls back.
+- Deliberately not attempted: the racehorse (organic) and the private island /
+  vineyard / penthouse / sports team (scenes, not objects). Code-only
+  reconstruction of those reads as a toy.
+- Fidelity is stated per model in `ProceduralModel.fidelity`: the watch has no
+  dial printing (that is texture), the yacht's superstructure is stepped blocks
+  rather than compound-curved glasshouse.
+
+### Verify
+- [x] 4,331 tests pass, type-check clean, lint clean on all touched files.
+- [x] Zero new assets — the 3.7 MB artwork budget is unchanged.
+

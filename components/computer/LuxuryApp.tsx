@@ -89,6 +89,7 @@ import {
 } from '@/lib/luxury';
 import { hostLuxuryEvent, performLuxuryVerb, purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
 import { luxuryArtFor, luxuryTierVisual, LUXURY_ART_BASE } from '@/components/computer/luxury/luxuryArt';
+import LuxuryModelViewer from '@/components/luxury/LuxuryModelViewer';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -675,7 +676,16 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
               contentContainerStyle={{ paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
             >
               <View style={[styles.sheetHeroBox, { height: scale(190), borderColor: theme.border }]}>
-                <ArtworkBanner item={item} emojiSize={scale(88)} />
+                {/* 3D showcase for the items that have a procedural model, with
+                    the existing artwork as the fallback for everything else.
+                    ONLY here, never in the card grid: the sheet shows one item
+                    at a time, so the app never holds more than one GL context,
+                    and a scrolling grid of live 3D would not hold frame rate. */}
+                <LuxuryModelViewer
+                  itemId={item.id}
+                  style={StyleSheet.absoluteFill as never}
+                  fallback={<ArtworkBanner item={item} emojiSize={scale(88)} />}
+                />
                 <View style={[styles.tierChip, { backgroundColor: tv.accentSoft, borderColor: tv.accentBorder }]}>
                   <Text style={[styles.tierChipText, { color: tv.accent }]}>{tv.label}</Text>
                 </View>
