@@ -10,9 +10,16 @@ which is the Blender sculpting in step 5).
 
 ---
 
-> **DECIDED:** Route **A**, MetaHuman, licence cleared (under $1M revenue).
-> You can skip Step 0 and Step 1 — they are recorded below for reference — and
-> **skip Step 5 entirely**, since Route A does no sculpting.
+> **DECIDED:** Route **A**, and the head source is **MakeHuman**, not MetaHuman.
+>
+> MetaHuman was the original choice and the licence was cleared (under $1M
+> revenue), but metahuman.com has no mesh export — reaching geometry requires
+> Unreal (~100 GB), Maya (~$300/yr) or Houdini (~$270/yr). See Step 3a. Since
+> Route A needs no blendshapes, MakeHuman gets the same job done for free, in an
+> afternoon, with CC0 output and no licence question at all.
+>
+> Skip Step 0 and Step 1 — recorded below for reference — and **skip Step 5**,
+> since Route A does no sculpting.
 >
 > Your path is: **Step 2 → 3 → 4 → 6 → 7.**
 
@@ -48,55 +55,88 @@ same export is the base mesh for B later.
 
 ---
 
-## Step 2 — Create the head in MetaHuman Creator
+## Step 2 — Create the heads in MakeHuman
 
-1. Go to <https://metahuman.com> and sign in with your Epic account.
-2. **Create MetaHuman** → pick a preset close to your target look.
-3. Sculpt the face you want as the **base**. **Route A: do this ~10 times**, to
-   get a spread of face shapes and skin tones. Name them `head_01`…`head_10`.
-   Aim for genuine variety — different face widths, jaw shapes, ages and skin
-   tones — because in Route A this set IS the customisation. Ten similar faces
-   give the player nothing to choose between.
-4. **Keep the hair simple or none.** MetaHuman hair is groom-based (millions of
-   strands) and will not survive export to a phone. The app renders hair
-   separately.
-5. Set **Level of Detail to LOD3 or lower** before export if the option is
-   offered. LOD0 is film-grade and far too heavy.
+Install from <https://www.makehumancommunity.org> (~200 MB, Windows/Mac/Linux).
+No account, no engine. Output is CC0 — you own what you make, commercially.
+
+For each of the ten heads:
+
+1. **Modelling → Main.** This tab alone gets you most of the variety, fast:
+   - **Gender** — do not only use the extremes; 0.3 and 0.7 read as distinct
+     faces rather than as "male" and "female".
+   - **Age** — spread these. 25 / 35 / 45 / 60 produce genuinely different
+     bone structure, not just wrinkles.
+   - **African / Asian / Caucasian** — three sliders that blend. Mixed
+     settings look far better than any single one at 100%.
+   - **Muscle / Weight** — changes jaw and cheek fullness.
+2. **Modelling → Face.** Optional, and only if you want to push a head further.
+   There are ~100 sliders here grouped by feature (head shape, jaw, nose, mouth,
+   eyes, chin, cheeks). This is where a head stops looking like a preset.
+3. **Materials → Skin.** **Do not skip this.** The default material is untextured
+   and renders as grey clay. Pick a skin per head. If the built-in set is thin,
+   the community asset downloader (Settings → Community, or the website's asset
+   library) has many more, also CC0.
+4. **Geometries → Eyes → Low-poly.** *Keep the eyes* — unlike the procedural
+   head, they arrive already seated correctly in the socket, which removes an
+   entire class of alignment bugs.
+5. **Geometries → Hair → None.** The app renders hair separately as its own
+   customisation, so baked-in hair would fight it.
+6. **Geometries → Clothes / Eyebrows / Eyelashes / Teeth / Tongue → None.**
+   Everything below the neck is discarded in Step 3 anyway; leaving it out here
+   is less to delete later.
+7. **Pose/Animate → Skeleton → None.** A static head needs no rig, and a
+   skeleton only adds size and export complications.
+
+Save each as `head_01` … `head_10`.
+
+> **Make them genuinely varied.** In Route A this set IS the customisation — the
+> player picks one and the shape is fixed. Ten similar faces give them nothing to
+> choose between. Vary age, ethnicity mix, face width, jaw shape and skin tone
+> deliberately, and check them side by side before exporting.
 
 ---
 
 ## Step 3 — Export to GLB
 
-MetaHuman does not export GLB, and **it does not export FBX from the website
-either.** The downloads page at metahuman.com lists only DCC plugins (Maya,
-Houdini, Marvelous Designer) and motion-capture tools — none of them is a
-"download my head as a mesh" button, and there is **no Blender plugin**. Getting
-geometry out means going through one of the tools below.
-
 > **Route A needs no blendshapes.** The face shape is baked in at export and the
 > creator UI hides any slider the rig cannot drive, so a plain static head mesh
-> is enough. That widens the options a long way — you are only after geometry +
-> textures. The `Shape Keys` tick below still matters for Route B later, and
+> is enough. The `Shape Keys` tick below still matters for Route B later, and
 > costs nothing now.
 
-### 3a — Pick a way out of MetaHuman
+### 3a — Head source (for the record)
+
+MakeHuman is decided. This table is why, and what to fall back to if its fidelity
+turns out not to be enough:
 
 | | Cost | Size | Notes |
 | --- | --- | --- | --- |
-| **Unreal Engine** | Free | ~50–100 GB | The only free official route. MetaHuman Creator now lives inside UE; assemble there, then `Asset → Export → FBX` on the head skeletal mesh. |
-| **Maya + MetaHuman for Maya** | Maya Indie ~$300/yr (under $100k rev), full ~$2k/yr | ~5 GB | The route Epic supports best. Export FBX directly. |
-| **Houdini + MetaHuman for Houdini** | Indie ~$270/yr | ~3 GB | Apprentice (free) is non-commercial and restricts export — not usable for a shipped game. |
-| **MakeHuman instead** | Free, CC0 | ~200 MB | Not MetaHuman at all. Exports FBX/glTF directly, no engine, no account, no licence question. Lower fidelity. |
+| **MakeHuman** ← chosen | Free, CC0 | ~200 MB | Exports directly. No engine, no account, no licence question. Lower fidelity than MetaHuman, but on a phone at portrait size the gap is much smaller than Epic's marketing renders suggest. |
+| Unreal Engine | Free | ~50–100 GB | The only free route to a MetaHuman mesh. Creator now lives inside UE; assemble, then `Asset → Export → FBX` on the head skeletal mesh. |
+| Maya + MetaHuman for Maya | Indie ~$300/yr (under $100k rev), full ~$2k/yr | ~5 GB | The route Epic supports best. FBX directly. |
+| Houdini + MetaHuman for Houdini | Indie ~$270/yr | ~3 GB | Apprentice (free) is non-commercial and restricts export — cannot ship. |
 
-Whichever you pick, the output you want is an **FBX** (or `.blend`, or USD) of
-the **head only**. Everything from 3b on is identical.
+Everything from 3b on is identical whichever you use.
 
-### 3b — Convert to GLB in Blender
+### 3b — Export from MakeHuman
+
+`Files → Export`, then:
+
+- Format: **glTF** if your build lists it — that skips Blender entirely, go
+  straight to Step 4. Otherwise **Filmbox (fbx)**.
+- **Feet on ground:** on. **Scale:** metres.
+
+If you got glTF, save it straight to `assets/models/head_raw.glb` and skip to
+Step 4. Otherwise continue.
+
+### 3c — Convert to GLB in Blender
 
 1. Open the FBX in **Blender** (`File → Import → FBX`).
-2. Delete everything except the **head mesh**. No body, no clothes, no
-   eyelashes, no groom hair. Keep the eyes only if you want them as one mesh —
-   otherwise delete them; the app draws eyes itself.
+2. **Cut the body off at the neck.** MakeHuman exports a whole figure; you want
+   the head only. In Edit Mode (`Tab`), hover the neck and press `L` with the
+   cursor over the head to select the connected island, or box-select everything
+   below the collarbone and `X → Vertices`. Keep the **eyes**.
+   Roughly: everything above the collarbone stays, everything below goes.
 3. `File → Export → glTF 2.0 (.glb)` with:
    - Format: **glTF Binary (.glb)**
    - Include: **Selected Objects** (with the head selected)
@@ -222,7 +262,9 @@ to players until you turn it on, so none of this is blocking a release.
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `head:list` prints nothing | Route A: expected — a preset head has no morphs. Route B: Shape Keys were unticked on export | Route A: carry on. Route B: re-export with **Data → Mesh → Shape Keys** on |
-| metahuman.com has no "export mesh" button | Correct — it only lists DCC plugins and mocap tools | See Step 3a; the free route is Unreal, or use MakeHuman |
+| metahuman.com has no "export mesh" button | Correct — it only lists DCC plugins and mocap tools | See Step 3a. This is why the route is MakeHuman |
+| Head renders as grey clay | No skin material was assigned in MakeHuman | **Materials → Skin**, pick one per head, re-export |
+| Head is enormous or microscopic in the app | Export scale was not metres | Re-export with **Scale: metres**, or `S` in Blender before exporting |
 | `head:build` aborts, "every morph target removed" | keep-list does not match the rig | Use the names from `head:list` |
 | Output still over 3 MB | Too many verts | Decimate in Blender to ~5–8k, then re-export |
 | Names are `jawOpen`, `mouthSmile`, `eyeBlink` | You exported the ARKit **expression** set | Expected. Those animate, they do not sculpt — you need step 5 |
