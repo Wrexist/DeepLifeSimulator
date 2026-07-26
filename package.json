@@ -42,7 +42,8 @@
     "mh:verify": "node scripts/makehuman-targets.mjs",
     "ict:report": "node scripts/build-ict-head.mjs",
     "ict:build": "node scripts/build-ict-head.mjs",
-    "ict:preview": "node scripts/preview-ict-head.mjs"
+    "ict:preview": "node scripts/preview-ict-head.mjs",
+    "ict:shoot": "node scripts/shoot-face-canvas.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

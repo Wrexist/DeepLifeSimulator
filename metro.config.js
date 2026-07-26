@@ -31,5 +31,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
+// The character head ships as a binary glTF. Metro's default assetExts has no
+// `glb`, so without this `require('.../head_ict.glb')` is resolved as a JS
+// module and the bundle fails — at build time, which is at least loud.
+if (!config.resolver.assetExts.includes('glb')) {
+  config.resolver.assetExts.push('glb');
+}
+
 module.exports = config;
 

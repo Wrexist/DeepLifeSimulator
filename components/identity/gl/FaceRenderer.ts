@@ -32,11 +32,15 @@ import {
   EYE_COLORS,
   HAIR_COLORS,
   SKIN_TONES,
+  bindGenomeToRig,
+  genomeToInfluences,
   type BodyProfile,
   type FaceGenome,
   type MeshData,
+  type RigBinding,
 } from '@/lib/identity';
 import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironment';
+import { loadHeadAsset, type HeadAsset } from './headAsset';
 
 export interface FaceSceneInput {
   genome: FaceGenome;
@@ -113,7 +117,15 @@ function makeShellMaterial(color: THREE.ColorRepresentation, roughness: number):
 export function createFaceScene(
   gl: WebGLRenderingContext & { drawingBufferWidth: number; drawingBufferHeight: number },
   initial: FaceSceneInput,
-  options: { background?: string } = {},
+  options: {
+    background?: string;
+    /**
+     * Called when the scanned head finishes loading and replaces the procedural
+     * one. The canvas render loop only draws when marked dirty, so without this
+     * the swap would not appear until the next slider drag.
+     */
+    onInvalidate?: () => void;
+  } = {},
 ): FaceScene {
   const width = gl.drawingBufferWidth;
   const height = gl.drawingBufferHeight;
@@ -188,8 +200,109 @@ export function createFaceScene(
     headMesh = hairMesh = beardMesh = null;
   }
 
+  // --- Scanned head (ICT-FaceKit) ------------------------------------------
+  //
+  // When the GLB is available it replaces the procedural head entirely. The two
+  // paths are kept side by side rather than the procedural one being deleted,
+  // because expo-asset is a native module: an OTA build on older native code
+  // has no way to read the file, and a character must always have a face.
+  let assetMesh: THREE.Mesh | null = null;
+  let assetBinding: RigBinding | null = null;
+  let assetMorphIndex: Map<string, number> | null = null;
+  let lastInput: FaceSceneInput = initial;
+
+  /**
+   * Push a genome onto the scanned head.
+   *
+   * This is the payoff of morph targets: it writes ~21 floats and touches no
+   * buffers at all. The procedural path rebuilds and re-uploads the whole mesh
+   * on every slider frame, which is what made dragging expensive.
+   */
+  function applyAssetGenome(input: FaceSceneInput): void {
+    if (!assetMesh || !assetBinding || !assetMorphIndex) return;
+    const influences = assetMesh.morphTargetInfluences;
+    if (!influences) return;
+    const { influences: byName } = genomeToInfluences(input.genome, assetBinding);
+    // Zero everything first. A morph left over from the previous genome would
+    // otherwise stay applied — the classic stale-influence bug, which looks
+    // like the slider you just moved affecting an unrelated feature.
+    influences.fill(0);
+    for (const [name, value] of Object.entries(byName)) {
+      const index = assetMorphIndex.get(name);
+      if (index !== undefined) influences[index] = value;
+    }
+
+    const aged = applyAging(input.genome, input.age);
+    const skin = SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.max(0, aged.skinTone))];
+    (assetMesh.material as THREE.MeshPhysicalMaterial).color.set(skin);
+  }
+
+  function adoptAsset(asset: HeadAsset): void {
+    if (disposed) return;
+    clearRoot();
+
+    assetBinding = bindGenomeToRig(asset.morphNames);
+    assetMorphIndex = new Map(asset.morphNames.map((name, i) => [name, i]));
+
+    const material = track(new THREE.MeshPhysicalMaterial({
+      color: 0xd8a887,
+      roughness: 0.72,
+      metalness: 0,
+      // Same 0.05 as the procedural head, for the same reason: at 0.22 the skin
+      // reads as moulded chocolate. Skin is mostly diffuse; the sheen is a hint.
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.7,
+      // 0.45, not the procedural head's 0.7 — see the relight note below.
+      envMapIntensity: 0.45,
+    }));
+    assetMesh = asset.mesh;
+    assetMesh.material = material;
+    // The geometry is shared and cached, so it is deliberately NOT tracked for
+    // disposal — freeing it here would break the next canvas that mounts.
+
+    // Frame from the WORLD box of the loaded scene, and scale a wrapper rather
+    // than the mesh. `KHR_mesh_quantization` puts a compensating transform on
+    // the node, so the mesh's own bounding box is in pre-compensation units and
+    // scaling the mesh applies a second factor on top: the head rendered at a
+    // fraction of its size, tiny in the middle of frame.
+    const holder = new THREE.Group();
+    holder.add(asset.scene);
+    const box = new THREE.Box3().setFromObject(asset.scene);
+    const size = box.getSize(new THREE.Vector3());
+    const centre = box.getCenter(new THREE.Vector3());
+    const scale = 2.35 / (Math.max(size.x, size.y, size.z) || 1);
+    holder.scale.setScalar(scale);
+    // Centred, then biased up so the FACE fills the frame rather than the neck
+    // and shoulders, which occupy the lower third of the model.
+    holder.position.set(-centre.x * scale, -centre.y * scale + 0.30, -centre.z * scale);
+    root.add(holder);
+
+    // Relight for the scanned head. These are NOT the procedural head's values
+    // and must not be shared with it: a scan-derived mesh has real surface
+    // normals and catches far more light, so the old rig (exposure 1.45, key
+    // 1.7) blew the face out to a flat white mask. Measured by rendering the
+    // full skin palette — the darkest tone still holds its form at 0.8, which
+    // is the check that matters, since crushing deep tones is what forced the
+    // procedural head up to 1.45 in the first place.
+    renderer.toneMappingExposure = 0.8;
+    key.intensity = 0.85;
+    fill.intensity = 0.3;
+    rim.intensity = 0.45;
+
+    applyAssetGenome(lastInput);
+    options.onInvalidate?.();
+  }
+
   function update(input: FaceSceneInput): void {
     if (disposed) return;
+    lastInput = input;
+
+    // Scanned head: morph influences only, no rebuild.
+    if (assetMesh) {
+      applyAssetGenome(input);
+      return;
+    }
+
     clearRoot();
 
     const { genome, age, body } = input;
@@ -291,7 +404,13 @@ export function createFaceScene(
     try { renderer.forceContextLoss(); } catch { /* not available on every driver */ }
   }
 
+  // Draw the procedural head immediately so the canvas is never blank, then
+  // swap in the scanned one when it arrives. Loading is ~1 MB of parsing; making
+  // the creator wait on it would show an empty frame on every open.
   update(initial);
+  void loadHeadAsset().then((asset) => {
+    if (asset && !disposed) adoptAsset(asset);
+  });
 
   return { scene, camera, renderer, root, update, setRotation, render, resize, dispose };
 }

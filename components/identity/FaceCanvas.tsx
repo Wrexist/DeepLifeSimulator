@@ -128,7 +128,12 @@ function FaceCanvasInner(
         // that merely renders a portrait.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { createFaceScene } = require('./gl/FaceRenderer') as typeof import('./gl/FaceRenderer');
-        const scene = createFaceScene(context, { genome, age, body });
+        const scene = createFaceScene(context, { genome, age, body }, {
+          // The scanned head loads asynchronously and the loop only draws when
+          // dirty, so without this the swap would not appear until the player
+          // happened to move a slider.
+          onInvalidate: () => { dirtyRef.current = true; },
+        });
         sceneRef.current = scene;
         glContextRef.current = context;
         scene.setRotation(yawRef.current, pitchRef.current);
