@@ -39,7 +39,9 @@
     "e2e:install": "playwright install --with-deps",
     "postinstall": "node scripts/fix-podspec.js",
     "android": "expo run:android",
-    "mh:verify": "node scripts/makehuman-targets.mjs"
+    "mh:verify": "node scripts/makehuman-targets.mjs",
+    "ict:report": "node scripts/build-ict-head.mjs",
+    "ict:build": "node scripts/build-ict-head.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
