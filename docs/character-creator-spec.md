@@ -28,11 +28,19 @@ exists.** Sequence the asset decision first.
 
 ### What acquiring the asset actually means
 
-| Route | Bundle | Notes |
+**Researched and decided — see `character-creator-asset-decision.md`.**
+
+| Route | Bundle | Status |
 | --- | --- | --- |
-| Licensed blendshape head (MakeHuman / MetaPerson / Character Creator) | +3–8 MB per head | Needs a licence review. Usually one male + one female base. |
-| Commissioned modular head | +3–8 MB | Full control of topology and morph naming. Slowest, most expensive. |
-| Layered 2D pre-rendered portraits | +4–8 MB | NOT 3D — no rotation, no live morphs. Reaches the reference's *image* quality but not its interaction. This is Direction 1 in `avatar-redesign-proposal.md`. |
+| **MetaHuman, mobile LOD** | ~1.5–3 MB | **Recommended.** Relicensed 2025: any engine, free under $1M revenue. The spec's own mood reference. |
+| MakeHuman (CC0) | ~1.5–3 MB | Fallback. Zero licence risk, lower fidelity, blendshapes need authoring. |
+| Ready Player Me | — | **Dead.** Netflix acquisition; public services shut down 31 Jan 2026. |
+| Commissioned modular head | +3–8 MB | Not recommended — slowest and dearest, buys nothing MetaHuman now doesn't. |
+| Layered 2D pre-rendered portraits | +4–8 MB | Only if 3D is abandoned. No rotation, no live morphs — those spec features must be CUT, not faked. |
+
+The real bundle cost is the MORPH TARGETS, not the mesh: 45 morphs on a 10k-vert
+head is ~5.4 MB of deltas alone. Sparse accessors, quantization, a ~5k-vert head
+and a trimmed ~22-morph set bring it to the figures above. See the decision doc.
 
 The spec's "Drag to rotate", idle blinking and live morph sliders all require
 the 3D route. If the 2D route is chosen, those three features must be cut from
