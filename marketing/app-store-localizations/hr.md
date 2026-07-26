@@ -84,6 +84,8 @@ TVOJA IGRA. TVOJA PRAVILA.
 Deep Life Simulator napravljen je za igrače koji od simulacije života žele strategiju, posljedice i dubinu. Bez reklama nagurenih u lice (postoji opcija trajnog uklanjanja). Bez pay-to-win mehanika koje kvare igru. Ekonomija je balansirana tako da dobre odluke vrijede više od sreće.
 
 Kreni danas. Izgradi svoje bogatstvo. Ili se spektakularno sruši. Kako god bilo, imat ćeš priču za ispričati.
+
+Uvjeti korištenja: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

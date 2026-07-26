@@ -90,6 +90,8 @@ SENİN OYUNUN. SENİN KURALLARIN.
 Deep Life Simulator; strateji, sonuç ve derinlik isteyen oyuncular için tasarlandı. Dayatılan reklam yok (kalıcı kaldırma seçeneği mevcut). Oyunu bozan pay-to-win mekanikleri yok. Ekonomi öyle dengelendi ki iyi kararlar şanstan daha çok kazandırır.
 
 Bugün başla. Servetini kur. Ya da muhteşem bir çöküş yaşa. İki türlü de anlatacak bir hikâyen olacak.
+
+Kullanım Koşulları: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

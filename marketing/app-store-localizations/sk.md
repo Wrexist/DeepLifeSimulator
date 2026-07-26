@@ -84,6 +84,8 @@ TVOJA HRA. TVOJE PRAVIDLÁ.
 Deep Life Simulator je pre hráčov, ktorí od simulátora života čakajú stratégiu, následky a hĺbku. Žiadne nanútené reklamy (môžeš ich natrvalo odstrániť). Žiadne pay-to-win mechaniky, ktoré rozbíjajú hru. Ekonomika je vyvážená tak, aby dobré rozhodnutia znamenali viac než šťastie.
 
 Začni ešte dnes. Vybuduj majetok. Alebo veľkolepo skrachuj. Príbeh na rozprávanie budeš mať tak či tak.
+
+Podmienky používania: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

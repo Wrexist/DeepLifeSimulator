@@ -80,6 +80,8 @@ SINUN PELISI. SINUN SÄÄNTÖSI.
 Deep Life Simulator on tehty pelaajille, jotka haluavat elämäsimulaatiolta strategiaa, seurauksia ja syvyyttä. Ei pakotettuja mainoksia (ne voi poistaa pysyvästi). Ei pelin rikkovaa pay-to-winiä. Talous on tasapainotettu niin, että hyvät päätökset merkitsevät enemmän kuin tuuri.
 
 Aloita tänään. Rakenna omaisuutesi. Tai aja kaikki komeasti päin seinää. Kummin päin vain, sinulla on tarina kerrottavana.
+
+Käyttöehdot: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

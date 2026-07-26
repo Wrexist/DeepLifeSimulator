@@ -84,6 +84,8 @@ JOCUL TĂU. REGULILE TALE.
 Deep Life Simulator e făcut pentru jucătorii care vor strategie, consecințe și profunzime de la un simulator de viață. Fără reclame băgate pe gât (există opțiune de eliminare permanentă). Fără mecanici pay-to-win care strică jocul. Economia e echilibrată astfel încât deciziile bune să conteze mai mult decât norocul.
 
 Începe azi. Construiește-ți averea. Sau prăbușește-te spectaculos. Oricum ar fi, vei avea o poveste de spus.
+
+Termeni de utilizare: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

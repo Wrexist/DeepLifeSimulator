@@ -94,6 +94,8 @@ Deep Life Simulator
 v2.5.8 更新速览：本次更新专注于让游戏更流畅、更稳定。修复了存档、经济系统与应用内商店的多处 Bug，全面提升性能与稳定性，并根据你反馈的问题进行整体打磨。
 
 今天就开始。白手起家赚出你的第一桶金，或者轰轰烈烈地破产--无论结局如何，你都会拥有一段值得讲述的人生。现在下载，看看你能不能缔造世代传承的财富帝国。
+
+使用条款: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

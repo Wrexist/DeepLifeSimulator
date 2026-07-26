@@ -94,6 +94,8 @@ Deep Life Simulator is designed for players who want strategy, consequence, and 
 Start today. Build your fortune. Or crash spectacularly. Either way, you'll have a story to tell.
 
 Ready to play? Download now and see if you can build generational wealth-or go bankrupt trying.
+
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

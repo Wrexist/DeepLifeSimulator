@@ -92,6 +92,8 @@ Deep Life Simulator
 『Deep Life Simulator』は、戦略と結果、そして深さを求めるプレイヤーのための人生シミュレーションゲームです。強制広告はありません（買い切りで永久に広告を削除するオプションもあります）。ゲームを壊すPay to Winもなし。運よりも「良い判断」が報われるよう、経済は緻密に調整されています。
 
 さあ、今日から始めましょう。財を成すか、派手に散るか。どちらにしても、誰かに語りたくなる人生が待っています。
+
+利用規約: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

@@ -90,6 +90,8 @@ GAME CỦA BẠN. LUẬT CỦA BẠN.
 Deep Life Simulator dành cho người chơi muốn chiến lược, hệ quả và chiều sâu từ một game mô phỏng. Không quảng cáo ép buộc (có tùy chọn gỡ vĩnh viễn). Không cơ chế pay-to-win phá game. Nền kinh tế được cân bằng để quyết định thông minh đáng giá hơn may mắn.
 
 Bắt đầu ngay hôm nay. Gây dựng cơ đồ - hoặc sụp đổ ngoạn mục. Đằng nào bạn cũng có một câu chuyện để kể.
+
+Điều khoản sử dụng: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

@@ -80,6 +80,8 @@ TU JUEGO, TUS REGLAS
 Deep Life Simulator está hecho para quien busca estrategia, consecuencias y profundidad. Sin anuncios forzados (puedes quitarlos para siempre) y sin pay-to-win que rompa el juego. La economía está balanceada para que las buenas decisiones pesen más que la suerte.
 
 Descárgalo hoy. Hazte millonario o quiebra en el intento: de cualquier forma, tendrás una historia que contar.
+
+Términos de uso: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

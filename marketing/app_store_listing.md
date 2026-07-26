@@ -156,9 +156,19 @@ Start today. Build your fortune. Or crash spectacularly. Either way, you'll have
 Thank you for playing. This release focuses on stability and polish: bug fixes across saves, the economy, and the in-app store, plus performance improvements and general polish based on the issues you've reported. Your saves are safer and your choices matter more.
 
 **Ready to play?** Download now and see if you can build generational wealth—or if you'll go bankrupt trying.
+
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 **Character count: 2,847 characters** ✓ (well under 4000 limit)
+
+> **Do not ship this description without the Terms of Use line.** The app sells
+> auto-renewable subscriptions (DeepLife+), and Guideline 3.1.2 requires a
+> functional Terms of Use (EULA) link in the app's *metadata* — the paywall link
+> inside the binary does not satisfy it. Submission `eb2036f8` was rejected on
+> 2026-07-25 for exactly this. We use Apple's standard EULA, so per Apple's own
+> instruction the link belongs in the App Description; a custom EULA would go in
+> App Store Connect → App Information → License Agreement instead.
 
 ---
 
@@ -388,6 +398,10 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 ✓ No false claims about earning real money
 ✓ Cloud save is optional (local save always available)
 ✓ All features accurately described
+✓ Terms of Use (EULA) link present in the App Description — REQUIRED by Guideline
+  3.1.2 for auto-renewable subscriptions, and enforced per-locale (all 39 locale
+  files in `marketing/app-store-localizations/` carry it). Privacy Policy is
+  covered by the dedicated App Store Connect Privacy Policy URL field.
 
 ---
 
@@ -409,7 +423,9 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 1. **Title:** "Deep Life Simulator"
 2. **Subtitle:** "Real Economics. Real Choices."
 3. **Keywords:** [Use Option 1 above]
-4. **Description:** [Use Full Description v5.0 above]
+4. **Description:** [Use Full Description v5.0 above — MUST end with the Terms of
+   Use line; see Guideline 3.1.2 note in section 5. Applies to every localization,
+   not just en-US.]
 5. **Version Release Notes:** [Use What's New v2.5.8 above]
 6. **Support URL:** discord.gg/deeplifesim
 7. **Category:** Games > Simulation

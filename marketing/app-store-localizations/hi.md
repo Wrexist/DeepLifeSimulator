@@ -90,6 +90,8 @@ sim,money,business,tycoon,rich,career,jail,crime,investing,billionaire,जीव
 Deep Life Simulator उन खिलाड़ियों के लिए है जो लाइफ सिमुलेशन में स्ट्रैटेजी, अंजाम और गहराई चाहते हैं। ज़बरदस्ती के विज्ञापन नहीं (हमेशा के लिए हटाने का विकल्प है)। कोई pay-to-win नहीं जो गेम बिगाड़े। इकोनॉमी ऐसी बैलेंस्ड है कि किस्मत से ज़्यादा समझदारी काम आती है।
 
 आज ही शुरू करो। अपनी दौलत खड़ी करो - या धमाकेदार तरीके से बर्बाद हो जाओ। कहानी दोनों ही सूरत में बनेगी।
+
+उपयोग की शर्तें: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

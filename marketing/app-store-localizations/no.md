@@ -90,6 +90,8 @@ DITT SPILL. DINE REGLER.
 Deep Life Simulator er laget for spillere som vil ha strategi, konsekvens og dybde i en livssimulering. Ingen påtvungne annonser (de kan fjernes permanent). Ingen pay-to-win som ødelegger spillet. Økonomien er balansert slik at gode beslutninger betyr mer enn flaks.
 
 Start i dag. Bygg formuen din. Eller gå konkurs med stil. Uansett får du en historie å fortelle.
+
+Vilkår for bruk: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

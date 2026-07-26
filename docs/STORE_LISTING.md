@@ -66,6 +66,18 @@ Category: **Games ▸ Simulation**. Tags: life sim, tycoon, economy, business.
 
 ### Description (reuse the Play full description above.)
 
+**Append this line to the App Store description — required, not optional:**
+
+```text
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+```
+
+DeepLife+ is an auto-renewable subscription, so Guideline 3.1.2 requires a
+functional Terms of Use (EULA) link in the App Store *metadata*. The paywall link
+inside the app does not satisfy this. Submission `eb2036f8` was rejected for the
+missing link on 2026-07-25. Apple's standard EULA is used, so the link goes in the
+description; the Play listing does not need it.
+
 ### Keywords (≤100 chars, comma-separated, no spaces)
 `life,simulator,tycoon,economy,business,money,invest,stock,career,idle,strategy,rich,bankrupt`
 

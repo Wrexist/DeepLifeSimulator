@@ -90,6 +90,8 @@ JOUW SPEL. JOUW REGELS.
 Deep Life Simulator is gemaakt voor spelers die strategie, gevolgen en diepgang willen in een levenssimulatie. Geen opgedrongen advertenties (je kunt ze permanent verwijderen). Geen pay-to-win dat het spel breekt. De economie is zo gebalanceerd dat goede beslissingen zwaarder wegen dan geluk.
 
 Begin vandaag. Bouw je fortuin op. Of crash spectaculair. Hoe dan ook: je hebt straks een verhaal te vertellen.
+
+Gebruiksvoorwaarden: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

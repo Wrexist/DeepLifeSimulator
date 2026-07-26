@@ -84,6 +84,8 @@ A TE JÁTÉKOD. A TE SZABÁLYAID.
 A Deep Life Simulator azoknak készült, akik stratégiát, következményeket és mélységet várnak egy életszimulátortól. Nincsenek az arcodba tolt reklámok (végleg eltávolíthatod őket). Nincs játékromboló pay-to-win. A gazdaság úgy van kiegyensúlyozva, hogy a jó döntések többet érjenek, mint a szerencse.
 
 Kezdd el még ma. Építsd fel a vagyonod. Vagy bukj el látványosan. Így is, úgy is lesz mit mesélned.
+
+Felhasználási feltételek: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

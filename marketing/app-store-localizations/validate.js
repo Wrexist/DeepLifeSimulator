@@ -18,6 +18,9 @@ const LIMITS = {
 };
 const REQUIRED = Object.keys(LIMITS);
 
+// Apple's standard EULA. Must appear in every localized App Store description.
+const EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
 function parse(md) {
   const fields = {};
   const re = /^##\s+([a-z_]+)\s*$\r?\n+```(?:text)?\r?\n([\s\S]*?)\r?\n```/gm;
@@ -43,6 +46,14 @@ function check(file) {
     report.push(`  ${ok ? 'ok ' : 'FAIL'} ${key.padEnd(22)} ${String(n).padStart(4)}/${limit}`);
     if (n === 0) problems.push(`EMPTY field: ${key}`);
     else if (n > limit) problems.push(`OVER LIMIT: ${key} is ${n}/${limit} (+${n - limit})`);
+    // Guideline 3.1.2: the app sells auto-renewable subscriptions (DeepLife+),
+    // so EVERY localized App Store description must carry a functional Terms of
+    // Use (EULA) link. The paywall link inside the binary does not satisfy this
+    // — Apple checks the metadata. Submission eb2036f8 was rejected on
+    // 2026-07-25 for exactly this, one round trip lost. Cheap to assert here.
+    if (key === 'description' && !text.includes(EULA_URL)) {
+      problems.push(`description: missing Terms of Use (EULA) link — append "${EULA_URL}" (App Review 3.1.2)`);
+    }
     if (key === 'keywords') {
       if (/,\s/.test(text)) problems.push('keywords: space after comma (wastes chars)');
       if (/\n/.test(text)) problems.push('keywords: contains newline');

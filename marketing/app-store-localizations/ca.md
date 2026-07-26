@@ -84,6 +84,8 @@ EL TEU JOC. LES TEVES REGLES.
 Deep Life Simulator està pensat per a jugadors que volen estratègia, conseqüències i profunditat en un simulador de vida. Sense anuncis forçats (pots eliminar-los permanentment). Sense mecàniques pay-to-win que trenquin el joc. L'economia està equilibrada perquè les bones decisions comptin més que la sort.
 
 Comença avui. Construeix la teva fortuna. O esfondra't espectacularment. Sigui com sigui, tindràs una història per explicar.
+
+Condicions d'ús: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new

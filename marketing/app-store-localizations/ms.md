@@ -80,6 +80,8 @@ ADIL. TIADA PAY-TO-WIN.
 Deep Life Simulator direka untuk pemain yang mahukan strategi, akibat dan kedalaman daripada permainan simulasi hidup. Tiada iklan yang dipaksa (ada pilihan buang iklan secara kekal). Tiada mekanik pay-to-win yang merosakkan permainan. Ekonominya seimbang: keputusan bijak lebih penting daripada nasib.
 
 Mula hari ini. Kumpul harta sampai jutaan ringgit. Atau bankrap dengan bergaya. Apa pun jadinya, kamu ada cerita untuk dikongsi.
+
+Terma Penggunaan: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 ```
 
 ## whats_new
