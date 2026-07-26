@@ -54,18 +54,28 @@ import { listStarterAvatars } from '@/utils/facePool';
 import { haptic } from '@/utils/haptics';
 import { fontScale, scale } from '@/utils/scaling';
 
-/** Palette, matched to the approved design rather than the generic theme. */
+/**
+ * Palette — the exact values from the character-creator spec (§2), not the
+ * generic app theme.
+ *
+ * This screen is deliberately its own visual island: the spec calls for a
+ * darker background and cooler cards than the rest of the app so the portrait
+ * reads as lit, and borrowing the shared theme tokens would quietly drift it
+ * back. `docs/character-creator-spec.md` is the source of truth.
+ */
 const C = {
-  bg: '#0A0E15',
-  card: '#111722',
-  cardBorder: '#1C2432',
-  frame: '#0D131D',
-  text: '#F3F6FA',
-  sub: '#93A1B5',
-  muted: '#64748B',
-  accent: '#2F6BFF',
-  accentSoft: 'rgba(47, 107, 255, 0.16)',
-  chip: '#171E2B',
+  bg: '#070A10',
+  card: '#121827',
+  cardBorder: 'rgba(255, 255, 255, 0.08)',
+  frame: '#0B111C',
+  text: '#FFFFFF',
+  sub: 'rgba(255, 255, 255, 0.65)',
+  muted: 'rgba(255, 255, 255, 0.38)',
+  accent: '#4C8DFF',
+  accentSoft: 'rgba(76, 141, 255, 0.16)',
+  /** Reserved for premium/randomize affordances (spec §7). */
+  gold: '#FFD76B',
+  chip: 'rgba(255, 255, 255, 0.05)',
 } as const;
 
 /**
@@ -311,7 +321,7 @@ function RoundAction({
         accessibilityLabel={label}
         style={[styles.roundBtn, accent ? styles.roundBtnAccent : null]}
       >
-        <Icon size={scale(19)} color={accent ? '#8FB4FF' : C.sub} />
+        <Icon size={scale(19)} color={accent ? C.gold : C.sub} />
       </TouchableOpacity>
       <Text style={styles.actionLabel}>{label}</Text>
     </View>
@@ -399,7 +409,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#26303F',
     alignItems: 'center', justifyContent: 'center',
   },
-  roundBtnAccent: { borderColor: 'rgba(47, 107, 255, 0.65)' },
+  roundBtnAccent: { borderColor: 'rgba(255, 215, 107, 0.55)' },
   // The label sits ON the portrait, whose art can be anything from near-black
   // to a bright orange glow. Plain text was unreadable over the light ones, so
   // it gets its own dark pill rather than relying on the image behind it.
@@ -408,7 +418,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(10.5),
     marginTop: scale(5),
     fontWeight: '700',
-    backgroundColor: 'rgba(10, 14, 21, 0.82)',
+    backgroundColor: 'rgba(7, 10, 16, 0.85)',
     paddingHorizontal: scale(7),
     paddingVertical: scale(2.5),
     borderRadius: 99,
@@ -441,11 +451,11 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: C.accentSoft, borderColor: C.accent },
   chipText: { color: C.sub, fontSize: fontScale(13), fontWeight: '600' },
-  chipTextOn: { color: '#9CC0FF' },
+  chipTextOn: { color: '#BBD4FF' },
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     padding: scale(16), paddingTop: scale(10),
-    backgroundColor: 'rgba(10, 14, 21, 0.96)',
+    backgroundColor: 'rgba(7, 10, 16, 0.97)',
     borderTopWidth: 1, borderTopColor: C.cardBorder,
   },
   primary: {

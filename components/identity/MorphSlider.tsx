@@ -14,7 +14,8 @@
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import { accent, getThemeColors, radii, spacing } from '@/lib/config/theme';
+import { getThemeColors, radii, spacing } from '@/lib/config/theme';
+import { haptic } from '@/utils/haptics';
 import { fontScale, scale } from '@/utils/scaling';
 
 export interface MorphSliderProps {
@@ -62,6 +63,10 @@ export default function MorphSlider({
           if (w <= 0) return;
           onChange(clamp01(valueRef.current + gesture.dx / w * 0.02));
         },
+        // Spec §8: haptic on RELEASE, not during the drag. Firing per-move
+        // would buzz continuously for the whole gesture, which reads as a fault
+        // rather than as feedback.
+        onPanResponderRelease: () => haptic.light(),
       }),
     [onChange],
   );
@@ -76,15 +81,32 @@ export default function MorphSlider({
       </Text>
       <View style={styles.trackWrap} onLayout={onLayout} {...panResponder.panHandlers}>
         <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
-          <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: accent.info }]} />
+          <View
+            style={[
+              styles.fill,
+              {
+                width: `${pct * 100}%`,
+                backgroundColor: ACCENT,
+                // Spec §8 "thin track with glow" — the glow is what stops a 5px
+                // track reading as a hairline on an OLED black background.
+                shadowColor: ACCENT,
+                shadowOpacity: 0.85,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 0 },
+              },
+            ]}
+          />
         </View>
         <View
           style={[
             styles.thumb,
-            { left: thumbLeft, backgroundColor: accent.info, borderColor: theme.surface },
+            { left: thumbLeft, backgroundColor: ACCENT, borderColor: '#070A10' },
           ]}
         />
       </View>
+      {/* Spec §8 "floating value indicator". A slider with no readout gives the
+          player no way to return to a value they liked, or to describe one. */}
+      <Text style={[styles.value, { color: theme.textSecondary }]}>{Math.round(pct * 100)}</Text>
     </View>
   );
 }
@@ -92,6 +114,9 @@ export default function MorphSlider({
 function clamp01(n: number): number {
   return !isFinite(n) ? 0.5 : n < 0 ? 0 : n > 1 ? 1 : n;
 }
+
+/** Spec §2 accent. Hard-coded rather than themed — see FaceStudio's palette note. */
+const ACCENT = '#4C8DFF';
 
 const styles = StyleSheet.create({
   row: {
@@ -117,6 +142,14 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: radii.round,
+  },
+  value: {
+    width: scale(26),
+    textAlign: 'right',
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    marginLeft: spacing.sm,
   },
   thumb: {
     position: 'absolute',
