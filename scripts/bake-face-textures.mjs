@@ -209,6 +209,12 @@ function main() {
   const nosePts = [P(lm[31]), P(lm[32]), P(lm[33]), P(lm[34]), P(lm[35])];
   const eyePts = [];
   for (let i = 36; i <= 47; i++) eyePts.push(P(lm[i]));
+  // Two separate brows and two separate eye loops. Chaining all of them into
+  // one path would draw a line straight across the bridge of the nose.
+  const browL = []; for (let i = 17; i <= 21; i++) browL.push(P(lm[i]));
+  const browR = []; for (let i = 22; i <= 26; i++) browR.push(P(lm[i]));
+  const eyeL = []; for (let i = 36; i <= 41; i++) eyeL.push(P(lm[i]));
+  const eyeR = []; for (let i = 42; i <= 47; i++) eyeR.push(P(lm[i]));
   const browPts = [];
   for (let i = 17; i <= 26; i++) browPts.push(P(lm[i]));
   const chinY = P(lm[8])[1];
@@ -218,6 +224,37 @@ function main() {
     let d = Infinity;
     for (const q of set) d = Math.min(d, dist(pt, q));
     return d / headScale;
+  };
+
+  /**
+   * Distance to a POLYLINE through the given points, not to the points.
+   *
+   * Landmarks along a brow sit ~2 units apart while an eyebrow band is well
+   * under one unit wide, so point distance left every texel BETWEEN two
+   * landmarks outside the band: the brows came out as a few faint smudges, or
+   * nothing at all. Features that are lines — brows, lid margins, lips — have
+   * to be measured against the line.
+   */
+  const nearestOnPath = (pt, pts, closed = false) => {
+    let best = Infinity;
+    const n = pts.length;
+    const last = closed ? n : n - 1;
+    for (let i = 0; i < last; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % n];
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const len2 = abx * abx + aby * aby + abz * abz;
+      let t = 0;
+      if (len2 > 1e-12) {
+        t = ((pt[0] - a[0]) * abx + (pt[1] - a[1]) * aby + (pt[2] - a[2]) * abz) / len2;
+        t = Math.max(0, Math.min(1, t));
+      }
+      const dx = pt[0] - (a[0] + abx * t);
+      const dy = pt[1] - (a[1] + aby * t);
+      const dz = pt[2] - (a[2] + abz * t);
+      best = Math.min(best, Math.hypot(dx, dy, dz));
+    }
+    return best / headScale;
   };
   /** 1 at the feature, falling to 0 by `range` (in head-widths). */
   const falloff = (d, range) => Math.max(0, 1 - d / range);
@@ -241,12 +278,38 @@ function main() {
     const dMouth = nearest(pt, mouthPts);
     const dNose = nearest(pt, nosePts);
     const dEye = nearest(pt, eyePts);
-    const dBrow = nearest(pt, browPts);
+    const dBrow = Math.min(nearestOnPath(pt, browL), nearestOnPath(pt, browR));
+    const dLid = Math.min(nearestOnPath(pt, eyeL, true), nearestOnPath(pt, eyeR, true));
 
     const lip = falloff(dMouth, 0.10) ** 2;
     const nostril = falloff(dNose, 0.06) ** 2;
     const socket = falloff(dEye, 0.09) ** 2;
-    const brow = falloff(dBrow, 0.07) ** 2;
+
+    /**
+     * EYEBROWS, as pigment rather than geometry.
+     *
+     * The head had none — the previous pass darkened the brow ridge by 6%,
+     * which is a shadow, not a brow. A face with no eyebrows reads as alien
+     * however good the underlying geometry is, and on a real device that was
+     * doing more damage than any other single thing.
+     *
+     * Painted rather than modelled because brows sit ON the skin: geometry
+     * would need its own mesh, its own morph targets to follow the face, and
+     * transparency sorting against the forehead.
+     */
+    const browCore = falloff(dBrow, 0.055);
+    // Squared falloff gives a soft edge; the band is tight so it reads as hair
+    // rather than a bruise, and only ABOVE the eye so it never tints the lid.
+    const brow = pt[1] > P(lm[37])[1] ? browCore ** 1.4 : browCore ** 3 * 0.35;
+
+    /**
+     * Lash line. A thin dark margin where the lid meets the eye.
+     *
+     * Real lashes are far too fine to model at this vertex count, but the DARK
+     * LINE they cast is most of what the eye reads — without it the lid edge is
+     * bare skin against white sclera and the eye looks lidless.
+     */
+    const lash = falloff(dLid, 0.022) ** 1.4;
     // Beard zone: below the nose base, excluding the lips themselves.
     const beardBand = pt[1] < noseBaseY
       ? Math.min(1, (noseBaseY - pt[1]) / Math.max(1e-6, noseBaseY - chinY) * 1.6)
@@ -261,13 +324,17 @@ function main() {
 
     // Albedo: near-neutral so the palette tone multiplies through cleanly.
     let r = 1, g = 1, b = 1;
-    const shade = 1 - (socket * 0.16 + nostril * 0.20 + brow * 0.06);
+    const shade = 1 - (socket * 0.14 + nostril * 0.20 + brow * 0.62 + lash * 0.45);
     r *= shade; g *= shade; b *= shade;
     // Lips read redder than cheeks on every skin tone, so the RELATIVE shift
     // survives the multiply where an absolute lip colour would not.
     r *= 1 + lip * 0.16; g *= 1 - lip * 0.10; b *= 1 - lip * 0.10;
     // Beard shadow is cooler and slightly darker, never a drawn beard.
     r *= 1 - beard * 0.07; g *= 1 - beard * 0.05; b *= 1 - beard * 0.02;
+    const browDesat = brow * 0.5 + lash * 0.35;
+    const mean = (r + g + b) / 3;
+    r += (mean - r) * browDesat; g += (mean - g) * browDesat; b += (mean - b) * browDesat;
+
     const drift = (broad - 0.5) * 0.09 + (fine - 0.5) * 0.045;
     r *= 1 + drift * 1.15; g *= 1 + drift * 0.85; b *= 1 + drift * 0.8;
 
@@ -279,7 +346,7 @@ function main() {
     // large part of why an untextured head reads as plastic — real skin varies
     // a lot across the face and the highlight shape is what shows it.
     const tzone = Math.max(falloff(dNose, 0.22) * 0.6, falloff(dBrow, 0.20) * 0.45);
-    let rg = 0.80 - lip * 0.34 - tzone * 0.16 + (fine - 0.5) * 0.10;
+    let rg = 0.80 - lip * 0.34 - tzone * 0.16 + brow * 0.16 + (fine - 0.5) * 0.10;
     rg = Math.max(0.18, Math.min(0.96, rg));
     const rv = Math.round(rg * 255);
     rough[o] = rough[o + 1] = rough[o + 2] = rv;

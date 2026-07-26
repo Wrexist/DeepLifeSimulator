@@ -502,20 +502,34 @@ async function main() {
         // it was already close to the size of the eyelid aperture: the iris then
         // filled the whole visible eye with no sclera at the corners, which
         // reads as an animal's eye rather than a person's.
-        // NOT shrunk about the iris centre. Tried at 0.80 to expose white sclera
-        // at the corners; because the iris centroid sits ON the eyeball surface,
-        // shrinking toward it pulled the disc back INSIDE the sclera and the
-        // eyes rendered solid white again. Leaving the iris at full width means
-        // it spans most of the aperture — less white than a real eye shows, and
-        // an accepted limitation rather than a fix worth breaking the eye for.
+        // Shrink ON THE SPHERE, then push out along the radius.
+        //
+        // A plain scale toward the iris centroid was tried first and broke the
+        // eye: the centroid sits ON the eyeball surface, so scaling toward it
+        // moves vertices INWARD through the sclera and the iris vanished behind
+        // it. The angular size is what needs to change, so the direction from
+        // the EYEBALL centre is rotated toward the iris axis while its length is
+        // preserved — the disc stays seated on the sphere and just covers less
+        // of it, which is what exposes white sclera at the corners.
+        const ic = irisCentres[Math.sign(neutral.positions[v * 3])];
         let dx = neutral.positions[v * 3] - c[0];
         let dy = neutral.positions[v * 3 + 1] - c[1];
         let dz = neutral.positions[v * 3 + 2] - c[2];
-        const len = Math.hypot(dx, dy, dz) || 1;
+        let len = Math.hypot(dx, dy, dz) || 1;
+        if (ic) {
+          const ax = ic[0] - c[0], ay = ic[1] - c[1], az = ic[2] - c[2];
+          const alen = Math.hypot(ax, ay, az) || 1;
+          const SHRINK = 0.78; // angular radius kept, as a fraction
+          let nx = (ax / alen) * (1 - SHRINK) + (dx / len) * SHRINK;
+          let ny = (ay / alen) * (1 - SHRINK) + (dy / len) * SHRINK;
+          let nz = (az / alen) * (1 - SHRINK) + (dz / len) * SHRINK;
+          const nlen = Math.hypot(nx, ny, nz) || 1;
+          dx = (nx / nlen) * len; dy = (ny / nlen) * len; dz = (nz / nlen) * len;
+        }
         const push = len * 0.045;
-        neutral.positions[v * 3] += (dx / len) * push;
-        neutral.positions[v * 3 + 1] += (dy / len) * push;
-        neutral.positions[v * 3 + 2] += (dz / len) * push;
+        neutral.positions[v * 3] = c[0] + dx + (dx / len) * push;
+        neutral.positions[v * 3 + 1] = c[1] + dy + (dy / len) * push;
+        neutral.positions[v * 3 + 2] = c[2] + dz + (dz / len) * push;
       }
     }
     console.log(`  nudged ${moved.size} iris verts in front of the sclera`);
@@ -592,20 +606,32 @@ async function main() {
     let browY = 0;
     for (let i = 17; i <= 26; i++) browY += neutral.positions[landmarks[i] * 3 + 1];
     browY /= 10;
-    let minZ = 1e9, maxZ = -1e9, maxY = -1e9;
+    let minZ = 1e9, maxZ = -1e9, maxY = -1e9, maxX = 0;
     for (let v = 0; v < vertCount; v++) {
       minZ = Math.min(minZ, neutral.positions[v * 3 + 2]);
       maxZ = Math.max(maxZ, neutral.positions[v * 3 + 2]);
       maxY = Math.max(maxY, neutral.positions[v * 3 + 1]);
+      maxX = Math.max(maxX, Math.abs(neutral.positions[v * 3]));
     }
     const H = Math.max(1e-6, maxY - browY);
     const depth = Math.max(1e-6, maxZ - minZ);
+    const halfWidth = Math.max(1e-6, maxX);
     for (let v = 0; v < vertCount; v++) {
+      const x = neutral.positions[v * 3];
       const y = neutral.positions[v * 3 + 1];
       const z = neutral.positions[v * 3 + 2];
       const backness = (maxZ - z) / depth;            // 0 at the face, 1 at the nape
-      const hairline = browY + H * (0.30 - 0.62 * backness);
-      const fade = H * 0.10;
+      const sideness = Math.min(1, Math.abs(x) / halfWidth);
+      // TEMPLES. The hairline rises toward the sides of the front half, so the
+      // hair clears the ears and the forehead corners show. Without this the
+      // hairline is one constant height all the way round the skull, which is
+      // exactly the bowl-cut rim the first version produced — the shell came
+      // down over the temples in a straight line and read as a helmet.
+      const temple = sideness * sideness * (1 - backness) * 0.34;
+      const hairline = browY + H * (0.32 - 0.66 * backness + temple);
+      // Wider fade than before (0.10). The narrow band gave a hard shelf where
+      // the shell met bare skin; hair should thin into the hairline.
+      const fade = H * 0.17;
       const t = (y - (hairline - fade)) / (2 * fade);
       scalp[v] = Math.max(0, Math.min(1, t));
     }
@@ -763,7 +789,12 @@ async function main() {
     // Decimate. Morph targets are per-vertex, so every vertex removed is removed
     // from all 24 targets too — this is the highest-leverage step by far.
     simplify({ simplifier: MeshoptSimplifier, ratio: 0.35, error: 0.002, lockBorder: true }),
-    prune({ keepAttributes: false }),
+    // keepAttributes: TRUE. With false, prune drops any attribute no MATERIAL
+    // references — and the materials written here carry only factors, no
+    // textures, so it silently deleted TEXCOORD_0 from every primitive. The
+    // skin/roughness/normal maps then had nothing to map through and never
+    // appeared, while the file merely looked smaller.
+    prune({ keepAttributes: true }),
     quantize({
       pattern: /^(POSITION|NORMAL|TEXCOORD)(_\d+)?$/,
       quantizePosition: 14,
@@ -797,6 +828,24 @@ async function main() {
   if (finalTargets === 0) {
     console.error('ABORT: no morph targets survived — the head would be rigid.');
     process.exit(3);
+  }
+
+  // UVs must survive. `prune({ keepAttributes: false })` drops any attribute no
+  // MATERIAL references, and these materials carry only factors — so it deleted
+  // TEXCOORD_0 from every primitive and the skin/roughness/normal maps had
+  // nothing to map through. Nothing else reported a problem: the file was
+  // smaller, morph counts were right, and the head rendered, just untextured.
+  for (const m of doc.getRoot().listMeshes()) {
+    for (const p of m.listPrimitives()) {
+      if (!p.getAttribute('TEXCOORD_0')) {
+        console.error(
+          `\nABORT: primitive "${p.getMaterial()?.getName()}" lost TEXCOORD_0.\n` +
+          '  Without UVs the baked skin textures cannot be applied at all.\n' +
+          '  Check prune() is called with keepAttributes: true.',
+        );
+        process.exit(3);
+      }
+    }
   }
 
   // Every shading group must still have its own material after optimisation.
