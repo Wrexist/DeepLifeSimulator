@@ -212,19 +212,51 @@ export function createFaceScene(
    * two paths read as the same character, and the values are fractions for the
    * reason recorded where they are applied.
    */
-  const HAIR_SPEC: Record<string, { frac: number; low: number }> = {
-    buzz: { frac: 0.035, low: 0.34 },
-    short: { frac: 0.055, low: 0.30 },
-    medium: { frac: 0.080, low: 0.24 },
-    long: { frac: 0.095, low: 0.18 },
-    ponytail: { frac: 0.075, low: 0.22 },
-    afro: { frac: 0.130, low: 0.30 },
-    bun: { frac: 0.070, low: 0.26 },
+  const HAIR_SPEC: Record<string, {
+    frac: number; low: number; base?: number;
+    front?: number; side?: number; back?: number;
+    strip?: number; stripW?: number; frizz?: number;
+  }> = {
+    buzz:     { frac: 0.030, low: 0.34, base: 1.0 },
+    crew:     { frac: 0.045, low: 0.32, base: 1.0, front: 0.25, side: -0.35 },
+    short:    { frac: 0.055, low: 0.30, base: 1.0 },
+    fringe:   { frac: 0.060, low: 0.28, base: 1.0, front: 0.60 },
+    medium:   { frac: 0.080, low: 0.24, base: 1.0 },
+    long:     { frac: 0.088, low: 0.20, base: 1.0, back: 0.35, side: 0.25 },
+    ponytail: { frac: 0.072, low: 0.24, base: 0.80, back: 0.55 },
+    bun:      { frac: 0.068, low: 0.28, base: 0.80, back: 0.45 },
+    afro:     { frac: 0.098, low: 0.32, base: 1.15, frizz: 0.22 },
+    curls:    { frac: 0.082, low: 0.30, base: 1.10, frizz: 0.40 },
+    mohawk:   { frac: 0.108, low: 0.24, base: 1.15, strip: 1, stripW: 0.13 },
+    undercut: { frac: 0.075, low: 0.30, base: 1.0, side: -1.20 },
+    quiff:    { frac: 0.082, low: 0.30, base: 0.85, front: 0.85, side: -0.55 },
+    receding: { frac: 0.050, low: 0.48, base: 1.0 },
   };
+
+  /**
+   * Facial hair, as a mix over the three baked zone weights: moustache, chin,
+   * jaw. The five styles are subsets of one region, so one bake serves them all.
+   */
+  const BEARD_SPEC: Record<string, { frac: number; mix: [number, number, number]; frizz: number }> = {
+    stubble:   { frac: 0.006, mix: [1, 1, 1], frizz: 0.5 },
+    moustache: { frac: 0.016, mix: [1, 0, 0], frizz: 0.2 },
+    goatee:    { frac: 0.018, mix: [1, 1, 0], frizz: 0.25 },
+    full:      { frac: 0.024, mix: [1, 1, 1], frizz: 0.3 },
+  };
+
   const assetHairUniforms = {
-    uThickness: { value: 0.2 },
-    uLow: { value: 0.3 },
+    uThickness: { value: 0.2 }, uLow: { value: 0.3 },
+    uBase: { value: 1 }, uFront: { value: 0 }, uSide: { value: 0 }, uBack: { value: 0 },
+    uStrip: { value: 0 }, uStripW: { value: 0.2 }, uFrizz: { value: 0 },
+    uHeadMin: { value: new THREE.Vector3() },
+    uHeadSize: { value: new THREE.Vector3(1, 1, 1) },
   };
+  const assetBeardUniforms = {
+    uThickness: { value: 0.02 },
+    uMix: { value: new THREE.Vector3(1, 1, 1) },
+    uFrizz: { value: 0.2 },
+  };
+  let assetBeard: THREE.Mesh | null = null;
   let assetHair: THREE.Mesh | null = null;
   let assetGeomExtent = 1;
   let assetParts: Record<string, THREE.Mesh> | null = null;
@@ -279,12 +311,35 @@ export function createFaceScene(
       const spec = HAIR_SPEC[aged.hairStyle];
       assetHair.visible = aged.hairStyle !== 'bald' && !!spec;
       if (spec) {
-        assetHairUniforms.uThickness.value = spec.frac * assetGeomExtent;
+        const u = assetHairUniforms;
+        u.uThickness.value = spec.frac * assetGeomExtent;
         // Recession lifts the hairline on the top-front of the skull with age.
         const recession = Math.max(0, Math.min(1, (input.age - 45) / 35));
-        assetHairUniforms.uLow.value = spec.low + recession * 0.18;
+        u.uLow.value = spec.low + recession * 0.18;
+        u.uBase.value = spec.base ?? 1;
+        u.uFront.value = spec.front ?? 0;
+        u.uSide.value = spec.side ?? 0;
+        u.uBack.value = spec.back ?? 0;
+        u.uStrip.value = spec.strip ?? 0;
+        u.uStripW.value = spec.stripW ?? 0.2;
+        u.uFrizz.value = spec.frizz ?? 0;
         const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
         (assetHair.material as THREE.MeshStandardMaterial).color.set(hairHex);
+      }
+    }
+    if (assetBeard) {
+      const spec = BEARD_SPEC[aged.facialHair];
+      assetBeard.visible = aged.facialHair !== 'none' && !!spec;
+      if (spec) {
+        assetBeardUniforms.uThickness.value = spec.frac * assetGeomExtent;
+        assetBeardUniforms.uMix.value.set(...spec.mix);
+        assetBeardUniforms.uFrizz.value = spec.frizz;
+        // Facial hair reads darker than scalp hair on the same head, so it is
+        // the hair colour knocked down rather than a second palette to keep in
+        // sync — a beard that does not match the hair looks like a costume.
+        const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
+        (assetBeard.material as THREE.MeshStandardMaterial).color
+          .set(hairHex).multiplyScalar(0.72);
       }
     }
   }
@@ -380,53 +435,86 @@ export function createFaceScene(
     // tracked for disposal — freeing them would break the next canvas to mount.
     // Materials ARE tracked, because they are created per scene.
 
-    // Hair: a second mesh over the SAME geometry, grown outward along the normal
-    // by the baked `_scalp` weight. Sharing the buffer means it inherits all 21
-    // morph targets for free and follows the face as the sliders move it; a
-    // separate hair mesh would need its own copy of every one of them.
+    // Hair and facial hair: two more meshes over the SAME geometry, grown
+    // outward along the normal from baked weights — `_scalp` for hair, `_beard`
+    // for facial hair. Sharing the buffer means both inherit all 21 morph
+    // targets and follow the face as the sliders move it; separate meshes would
+    // each need their own copy of every morph.
+    asset.parts.skin?.geometry.computeBoundingBox();
+    const gb = asset.parts.skin?.geometry.boundingBox ?? null;
+    if (gb) {
+      assetGeomExtent = Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z) || 1;
+      assetHairUniforms.uHeadMin.value.copy(gb.min);
+      assetHairUniforms.uHeadSize.value.subVectors(gb.max, gb.min);
+    }
+
     if (asset.parts.skin?.geometry.getAttribute('_scalp')) {
+      // OPAQUE, with a hard cut. Blending put the alpha ramp in
+      // `dithering_fragment`, which runs AFTER `alphatest_fragment`, so alphaTest
+      // never saw the lowered value: every semi-transparent fringe survived and
+      // blended with the dark background into a grey haze around the silhouette.
       const hairMat = track(new THREE.MeshStandardMaterial({
-        color: 0x2c1b12, roughness: 0.86, metalness: 0,
-        transparent: true, depthWrite: true,
+        color: 0x2C1B12, roughness: 0.80, metalness: 0,
+        side: THREE.FrontSide, envMapIntensity: 1.15,
       }));
       hairMat.onBeforeCompile = (shader) => {
-        shader.uniforms.uThickness = assetHairUniforms.uThickness;
-        shader.uniforms.uLow = assetHairUniforms.uLow;
+        Object.assign(shader.uniforms, assetHairUniforms);
         shader.vertexShader = shader.vertexShader
-          .replace(
-            '#include <common>',
-            '#include <common>\nattribute float _scalp;\nvarying float vScalp;\nuniform float uThickness;\nuniform float uLow;',
-          )
-          .replace(
-            '#include <begin_vertex>',
-            '#include <begin_vertex>\nvScalp = _scalp;\n' +
-              'transformed += normalize(objectNormal) * uThickness * smoothstep(uLow, 1.0, _scalp);',
-          );
+          .replace('#include <common>', '#include <common>\n' +
+            'attribute float _scalp;\nvarying float vAmt;\n' +
+            'uniform float uThickness, uLow, uBase, uFront, uSide, uBack, uStrip, uStripW, uFrizz;\n' +
+            'uniform vec3 uHeadMin, uHeadSize;\n' +
+            // Smooth in SPACE. A per-vertex hash makes neighbours diverge, which
+            // tears the shell into shards at any real thickness.
+            'float hnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x*6.1) * sin(p.y*5.3) * sin(p.z*4.7); }')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
+            'vec3 hf = (position - uHeadMin) / max(uHeadSize, vec3(1e-4));\n' +
+            'float fz = hf.z;\n' +                       // 0 nape, 1 forehead
+            'float fx = abs(hf.x - 0.5) * 2.0;\n' +      // 0 centre, 1 side
+            'float wFront = smoothstep(0.45, 0.88, fz);\n' +
+            'float wSide  = smoothstep(0.40, 0.95, fx);\n' +
+            'float wBack  = 1.0 - smoothstep(0.12, 0.55, fz);\n' +
+            'float amt = smoothstep(uLow, uLow + 0.30, _scalp);\n' +
+            'amt *= clamp(uBase + uFront*wFront + uSide*wSide + uBack*wBack, 0.0, 2.5);\n' +
+            // Centre strip carves a mohawk; everything outside it goes to zero.
+            'amt *= mix(1.0, 1.0 - smoothstep(uStripW, uStripW + 0.10, fx), uStrip);\n' +
+            'amt *= 1.0 + uFrizz * (hnoise(position * 2.2) - 0.5);\n' +
+            'amt = clamp(amt, 0.0, 1.35);\n' +
+            'vAmt = amt;\n' +
+            'transformed += normalize(objectNormal) * uThickness * amt;');
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vScalp;\nuniform float uLow;')
-          .replace(
-            '#include <dithering_fragment>',
-            '#include <dithering_fragment>\n' +
-              // Discard the bare fringe outright so it never darkens the skin
-              // beneath, then fade so the hairline is soft, not a hard cap edge.
-              'if (vScalp < uLow) discard;\n' +
-              'gl_FragColor.a *= smoothstep(uLow, uLow + 0.22, vScalp);',
-          );
+          .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+          .replace('#include <dithering_fragment>', '#include <dithering_fragment>\nif (vAmt < 0.34) discard;');
       };
       assetHair = new THREE.Mesh(asset.parts.skin.geometry, hairMat);
       asset.parts.skin.parent?.add(assetHair);
       assetMeshes = [...assetMeshes, assetHair];
+    }
 
-      // Thickness is a FRACTION of head size, resolved against the geometry's
-      // own extent. That extent is KHR_mesh_quantization's local space (~3.6,
-      // not the model's 36), and absolute values were ~15% of the head: the
-      // shell tore into spikes as adjacent vertices were pushed apart along
-      // diverging normals.
-      asset.parts.skin.geometry.computeBoundingBox();
-      const gb = asset.parts.skin.geometry.boundingBox;
-      assetGeomExtent = gb
-        ? Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z) || 1
-        : 1;
+    if (asset.parts.skin?.geometry.getAttribute('_beard')) {
+      const beardMat = track(new THREE.MeshStandardMaterial({
+        color: 0x241610, roughness: 0.86, metalness: 0,
+        side: THREE.FrontSide, envMapIntensity: 0.9,
+      }));
+      beardMat.onBeforeCompile = (shader) => {
+        Object.assign(shader.uniforms, assetBeardUniforms);
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\n' +
+            'attribute vec3 _beard;\nvarying float vAmt;\n' +
+            'uniform float uThickness, uFrizz;\nuniform vec3 uMix;\n' +
+            'float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x*15.0) * sin(p.y*13.0) * sin(p.z*11.0); }')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
+            'float amt = clamp(dot(_beard, uMix), 0.0, 1.0);\n' +
+            'amt *= 1.0 + uFrizz * (bnoise(position * 3.0) - 0.5);\n' +
+            'vAmt = amt;\n' +
+            'transformed += normalize(objectNormal) * uThickness * amt;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+          .replace('#include <dithering_fragment>', '#include <dithering_fragment>\nif (vAmt < 0.22) discard;');
+      };
+      assetBeard = new THREE.Mesh(asset.parts.skin.geometry, beardMat);
+      asset.parts.skin.parent?.add(assetBeard);
+      assetMeshes = [...assetMeshes, assetBeard];
     }
 
     // Frame on the SKIN, not the whole scene. The hair shell stands off the

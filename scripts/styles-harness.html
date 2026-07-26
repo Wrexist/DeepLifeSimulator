@@ -1,0 +1,274 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0B111C}canvas{display:block}</style>
+<script type="importmap">
+{"imports":{"three":"/node_modules/three/build/three.module.js",
+            "three/addons/":"/node_modules/three/examples/jsm/"}}
+</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const W = 420, H = 480;
+const canvas = document.createElement('canvas');
+canvas.width = W; canvas.height = H;
+document.body.appendChild(canvas);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(W, H, false);
+renderer.setClearColor(new THREE.Color('#0B111C'), 1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+camera.position.set(0, 0.05, 6.2);
+camera.lookAt(0, -0.02, 0);
+
+const envScene = new THREE.Scene();
+envScene.background = new THREE.Color(0x101521);
+const panel = (c, i, x, y, z, w, h) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.1),
+    new THREE.MeshBasicMaterial({ color: c, side: THREE.BackSide }));
+  m.material.color.multiplyScalar(i); m.position.set(x, y, z); m.lookAt(0, 0, 0);
+  envScene.add(m);
+};
+panel(0xfff2e2, 3.4, -4, 3, 4, 6, 6);
+panel(0xd6e6ff, 1.5, 5, 0, 2, 5, 6);
+panel(0xffffff, 2.2, 0, 2, -5, 7, 5);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(envScene, 0.04).texture;
+
+const key = new THREE.DirectionalLight(0xfff4e8, 0.85); key.position.set(-2.2, 2.6, 3.4);
+const fill = new THREE.DirectionalLight(0xbfd4ff, 0.3); fill.position.set(2.8, -0.4, 2.0);
+const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0.6, 1.2, -3.2);
+scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.26));
+
+const root = new THREE.Group(); root.position.y = 0.12; root.rotation.y = -0.62; scene.add(root);
+window.__ok = false;
+
+const gltf = await new GLTFLoader().loadAsync('/assets/models/head_ict.glb');
+const parts = {};
+gltf.scene.traverse((o) => { if (o.isMesh) parts[o.material?.name ?? '?'] = o; });
+
+const tex = new THREE.TextureLoader();
+const load = (p, srgb) => new Promise((r) => tex.load(p, (t) => {
+  t.flipY = false; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; r(t);
+}, undefined, () => r(null)));
+const [albedo, roughMap, normalMap] = await Promise.all([
+  load('/assets/textures/face_albedo.png', true),
+  load('/assets/textures/face_roughness.png', false),
+  load('/assets/textures/face_normal.png', false),
+]);
+
+parts.skin.material = new THREE.MeshPhysicalMaterial({
+  color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
+  normalScale: new THREE.Vector2(0.6, 0.6), roughness: 1, metalness: 0,
+  clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.45,
+});
+
+// Head bounds in the geometry's own (quantized) space, for the region masks.
+parts.skin.geometry.computeBoundingBox();
+const gb = parts.skin.geometry.boundingBox;
+const headMin = new THREE.Vector3().copy(gb.min);
+const headSize = new THREE.Vector3().subVectors(gb.max, gb.min);
+const geomExtent = Math.max(headSize.x, headSize.y, headSize.z) || 1;
+
+// ---------------------------------------------------------------- hair -----
+const HU = {
+  uThickness: { value: 0.2 }, uLow: { value: 0.3 },
+  uBase: { value: 1 }, uFront: { value: 0 }, uSide: { value: 0 }, uBack: { value: 0 },
+  uStrip: { value: 0 }, uStripW: { value: 0.2 }, uFrizz: { value: 0 },
+  uHeadMin: { value: headMin }, uHeadSize: { value: headSize },
+};
+
+const HAIR_VERT_HEAD = `
+attribute float _scalp;
+varying float vAmt;
+uniform float uThickness, uLow, uBase, uFront, uSide, uBack, uStrip, uStripW, uFrizz;
+uniform vec3 uHeadMin, uHeadSize;
+float hnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 6.1) * sin(p.y * 5.3) * sin(p.z * 4.7); }
+`;
+const HAIR_VERT_BODY = `
+  vec3 f = (position - uHeadMin) / max(uHeadSize, vec3(1e-4));
+  float fz = f.z;                              // 0 nape, 1 forehead
+  float fx = abs(f.x - 0.5) * 2.0;             // 0 centre, 1 side
+  float wFront = smoothstep(0.45, 0.88, fz);
+  float wSide  = smoothstep(0.40, 0.95, fx);
+  float wBack  = 1.0 - smoothstep(0.12, 0.55, fz);
+  float amt = smoothstep(uLow, uLow + 0.30, _scalp);
+  amt *= clamp(uBase + uFront * wFront + uSide * wSide + uBack * wBack, 0.0, 2.5);
+  // Centre strip for a mohawk: everything outside the strip goes to zero.
+  amt *= mix(1.0, 1.0 - smoothstep(uStripW, uStripW + 0.10, fx), uStrip);
+  // Frizz breaks a smooth shell into something that reads as curl rather than
+  // a moulded cap; deterministic per vertex so it does not shimmer.
+  amt *= 1.0 + uFrizz * (hnoise(position * 2.2) - 0.5);
+  amt = clamp(amt, 0.0, 1.35);
+  vAmt = amt;
+  transformed += normalize(objectNormal) * uThickness * amt;
+`;
+
+const hairMat = new THREE.MeshStandardMaterial({
+  // OPAQUE. Blending was the source of the grey haze: the alpha ramp lives in
+  // `dithering_fragment`, which runs AFTER `alphatest_fragment`, so alphaTest
+  // never saw the lowered value and every semi-transparent fringe survived to
+  // blend with the dark background. A hard cut on dense geometry looks better
+  // than a fringe that turns the silhouette grey, and needs no sorting.
+  color: 0x5A3A22, roughness: 0.80, metalness: 0, side: THREE.FrontSide,
+  envMapIntensity: 1.15,
+});
+hairMat.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, HU);
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>' + HAIR_VERT_HEAD)
+    .replace('#include <begin_vertex>', '#include <begin_vertex>' + HAIR_VERT_BODY);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+    .replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\nif (vAmt < 0.34) discard;');
+};
+const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
+parts.skin.parent.add(hair);
+
+/** frac is a FRACTION of head size — absolute values tore the shell into spikes. */
+const HAIR = {
+  bald:      null,
+  buzz:      { frac: 0.030, low: 0.34, base: 1.0 },
+  crew:      { frac: 0.045, low: 0.32, base: 1.0, front: 0.25, side: -0.35 },
+  short:     { frac: 0.055, low: 0.30, base: 1.0 },
+  fringe:    { frac: 0.060, low: 0.28, base: 1.0, front: 0.60 },
+  medium:    { frac: 0.080, low: 0.24, base: 1.0 },
+  long:      { frac: 0.088, low: 0.20, base: 1.0, back: 0.35, side: 0.25 },
+  ponytail:  { frac: 0.072, low: 0.24, base: 0.80, back: 0.55 },
+  bun:       { frac: 0.068, low: 0.28, base: 0.80, back: 0.45 },
+  afro:      { frac: 0.098, low: 0.32, base: 1.15, frizz: 0.22 },
+  curls:     { frac: 0.082, low: 0.30, base: 1.10, frizz: 0.40 },
+  mohawk:    { frac: 0.108, low: 0.24, base: 1.15, strip: 1, stripW: 0.13 },
+  undercut:  { frac: 0.075, low: 0.30, base: 1.0, side: -1.20 },
+  quiff:     { frac: 0.082, low: 0.30, base: 0.85, front: 0.85, side: -0.55 },
+  receding:  { frac: 0.050, low: 0.48, base: 1.0 },
+};
+window.__hairNames = Object.keys(HAIR);
+window.__setHair = (name) => {
+  const s = HAIR[name];
+  hair.visible = !!s;
+  if (s) {
+    HU.uThickness.value = s.frac * geomExtent;
+    HU.uLow.value = s.low;
+    HU.uBase.value = s.base ?? 1;
+    HU.uFront.value = s.front ?? 0;
+    HU.uSide.value = s.side ?? 0;
+    HU.uBack.value = s.back ?? 0;
+    HU.uStrip.value = s.strip ?? 0;
+    HU.uStripW.value = s.stripW ?? 0.2;
+    HU.uFrizz.value = s.frizz ?? 0;
+  }
+  renderer.render(scene, camera);
+};
+
+// -------------------------------------------------------------- beard ------
+const BU = {
+  uThickness: { value: 0.02 },
+  uMix: { value: new THREE.Vector3(1, 1, 1) },
+  uFrizz: { value: 0.2 },
+};
+const beardMat = new THREE.MeshStandardMaterial({
+  color: 0x241610, roughness: 0.86, metalness: 0, side: THREE.FrontSide,
+  envMapIntensity: 0.9,
+});
+beardMat.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, BU);
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', `#include <common>
+attribute vec3 _beard;
+varying float vAmt;
+uniform float uThickness, uFrizz;
+uniform vec3 uMix;
+float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin(p.z * 11.0); }`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+  // Three baked weights — moustache, chin, jaw — selected by uMix. The five
+  // styles are subsets of one region, so one bake serves all of them.
+  float amt = clamp(dot(_beard, uMix), 0.0, 1.0);
+  amt *= 1.0 + uFrizz * (bnoise(position * 3.0) - 0.5);
+  vAmt = amt;
+  transformed += normalize(objectNormal) * uThickness * amt;`);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+    .replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\nif (vAmt < 0.22) discard;');
+};
+const beard = new THREE.Mesh(parts.skin.geometry, beardMat);
+parts.skin.parent.add(beard);
+
+const BEARD = {
+  none:       null,
+  stubble:    { frac: 0.006, mix: [1, 1, 1], frizz: 0.5 },
+  moustache:  { frac: 0.016, mix: [1, 0, 0], frizz: 0.2 },
+  goatee:     { frac: 0.018, mix: [1, 1, 0], frizz: 0.25 },
+  full:       { frac: 0.024, mix: [1, 1, 1], frizz: 0.3 },
+};
+window.__beardNames = Object.keys(BEARD);
+window.__setBeard = (name) => {
+  const s = BEARD[name];
+  beard.visible = !!s;
+  if (s) {
+    BU.uThickness.value = s.frac * geomExtent;
+    BU.uMix.value.set(...s.mix);
+    BU.uFrizz.value = s.frizz;
+  }
+  renderer.render(scene, camera);
+};
+
+// eyes
+parts.sclera.material = (() => {
+  const m = new THREE.MeshPhysicalMaterial({
+    color: 0xdedbd6, roughness: 0.18, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vR;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+        'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));');
+  };
+  return m;
+})();
+parts.iris.material = (() => {
+  const m = new THREE.MeshPhysicalMaterial({
+    color: 0x4a6b8a, roughness: 0.12, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vR;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+        'float limbal = 1.0 - smoothstep(0.86, 1.0, vR);\n' +
+        'float fibre = 0.86 + 0.14 * sin(vR * 42.0);\n' +
+        'diffuseColor.rgb *= limbal * fibre;');
+  };
+  return m;
+})();
+
+// framing — neutral pose only, see FaceRenderer for why setFromObject is wrong
+const holder = new THREE.Group();
+holder.add(gltf.scene);
+gltf.scene.updateWorldMatrix(true, true);
+const box = new THREE.Box3()
+  .setFromBufferAttribute(parts.skin.geometry.getAttribute('position'))
+  .applyMatrix4(parts.skin.matrixWorld);
+const size = box.getSize(new THREE.Vector3());
+const centre = box.getCenter(new THREE.Vector3());
+const s = 2.35 / Math.max(size.x, size.y, size.z);
+holder.scale.setScalar(s);
+holder.position.set(-centre.x * s, -centre.y * s + 0.30, -centre.z * s);
+root.add(holder);
+
+window.__setHair('short');
+window.__setBeard('none');
+renderer.render(scene, camera);
+window.__ok = true;
+</script></body></html>

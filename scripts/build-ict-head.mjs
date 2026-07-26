@@ -212,6 +212,24 @@ const NOT_DERIVABLE = {
 
 const AXIS_INDEX = { x: 0, y: 1, z: 2 };
 
+/** smoothstep(edge0, x, edge1) with the value in the middle, for readability. */
+function smooth(edge0, x, edge1) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0 || 1e-6)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * 1 inside [lo, hi], falling to 0 over `feather` outside it.
+ *
+ * A band, not a ramp. Bare ramps are what inverted the facial-hair zones: they
+ * peak past their upper bound rather than closing, and with the edges the wrong
+ * way round the denominator goes negative and the whole thing flips silently.
+ */
+function band(lo, hi, x, feather) {
+  const f = Math.max(1e-6, feather);
+  return smooth(lo - f, x, lo + f) * (1 - smooth(hi - f, x, hi + f));
+}
+
 /** Parse only the `v` lines of an OBJ. Identity modes need nothing else. */
 function readPositions(file) {
   const text = readFileSync(file, 'utf8');
@@ -633,7 +651,98 @@ async function main() {
       // the shell met bare skin; hair should thin into the hairline.
       const fade = H * 0.17;
       const t = (y - (hairline - fade)) / (2 * fade);
-      scalp[v] = Math.max(0, Math.min(1, t));
+      let w = Math.max(0, Math.min(1, t));
+      // NAPE FLOOR. The back hairline falls to 0.34 head-heights below the brow,
+      // which on the back of the model is the NECK, not the skull. Offsetting
+      // the neck outward turned every style into a collar — a grey sheet
+      // standing off the back of the head, visible on all fifteen at once.
+      // Nothing above the skull is affected; this only cuts the tail.
+      const napeY = browY - H * 0.26;
+      w *= Math.max(0, Math.min(1, (y - napeY) / (H * 0.12)));
+      scalp[v] = w;
+    }
+  }
+
+  /**
+   * Facial-hair zones, as a vec3 of weights: moustache, chin, jaw.
+   *
+   * Three weights rather than one coverage mask because the five facial-hair
+   * styles are SUBSETS of the same region — a goatee is chin plus moustache, a
+   * full beard adds the jaw — and packing them lets the shader select a style
+   * from uniforms instead of needing a separate bake per style.
+   *
+   * Baked here for the same reason as the scalp mask: it needs the landmarks,
+   * which the GLB does not carry.
+   */
+  const beard = new Float32Array(vertCount * 3);
+  {
+    const L = (i) => [
+      neutral.positions[landmarks[i] * 3],
+      neutral.positions[landmarks[i] * 3 + 1],
+      neutral.positions[landmarks[i] * 3 + 2],
+    ];
+    const noseBase = L(33);
+    const chin = L(8);
+    const upperLip = L(51);
+    const lowerLip = L(57);
+    const mouthL = L(48);
+    const mouthR = L(54);
+    const faceH = Math.max(1e-6, noseBase[1] - chin[1]);
+    const mouthHalf = Math.max(1e-6, Math.abs(mouthR[0] - mouthL[0]) / 2);
+
+    // Jaw contour as a polyline, so "is this vertex on the neck" is a real test
+    // rather than a flat y threshold. A flat cut leaves beard hanging under the
+    // jaw on the throat, which reads as a bib rather than a beard.
+    const jaw = [];
+    for (let i = 0; i <= 16; i++) jaw.push(L(i));
+    const jawYAt = (x) => {
+      let best = jaw[0], bestD = Infinity;
+      for (const p of jaw) {
+        const d = Math.abs(p[0] - x);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      return best[1];
+    };
+    // Distance to the mouth opening, to keep hair off the lips themselves.
+    const lipPts = [];
+    for (let i = 48; i <= 59; i++) lipPts.push(L(i));
+    // Sideburn ceiling: the jaw contour beside the ear, which is roughly
+    // cheekbone height. A fraction of face height guesses at this and put the
+    // top of the beard wherever the face happened to be proportioned.
+    const jawTopY = (L(1)[1] + L(2)[1] + L(14)[1] + L(15)[1]) / 4;
+
+    for (let v = 0; v < vertCount; v++) {
+      const x = neutral.positions[v * 3];
+      const y = neutral.positions[v * 3 + 1];
+      const z = neutral.positions[v * 3 + 2];
+      // Front hemisphere only — the back of the skull is not a beard.
+      if (z < chin[2] - faceH * 1.4) continue;
+      // Above the jawline, i.e. not on the throat.
+      const onFace = y > jawYAt(x) - faceH * 0.16;
+      if (!onFace) continue;
+
+      let lipD = Infinity;
+      for (const p of lipPts) {
+        lipD = Math.min(lipD, Math.hypot(x - p[0], y - p[1], z - p[2]));
+      }
+      const offLips = Math.min(1, Math.max(0, (lipD - mouthHalf * 0.34) / (mouthHalf * 0.30)));
+
+      // Bands are expressed as "1 between lo and hi", never as a bare ramp.
+      //
+      // The first version used smooth(edge0, x, edge1), which ramps UPWARD — so
+      // the jaw band peaked ABOVE its upper bound and the beard covered the
+      // forehead and eyes instead of the chin. Worse, where edge0 > edge1 the
+      // denominator went negative and the ramp silently inverted, which is why
+      // it also came out asymmetric.
+      const mBand = band(upperLip[1] - faceH * 0.06, noseBase[1] + faceH * 0.04, y, faceH * 0.05)
+        * band(-mouthHalf * 1.45, mouthHalf * 1.45, x, mouthHalf * 0.25);
+      const cBand = band(chin[1] - faceH * 0.30, lowerLip[1] + faceH * 0.02, y, faceH * 0.06)
+        * band(-mouthHalf * 1.85, mouthHalf * 1.85, x, mouthHalf * 0.35);
+      const jBand = band(chin[1] - faceH * 0.30, jawTopY, y, faceH * 0.10);
+
+      beard[v * 3] = Math.max(0, Math.min(1, mBand)) * offLips;
+      beard[v * 3 + 1] = Math.max(0, Math.min(1, cBand)) * offLips;
+      beard[v * 3 + 2] = Math.max(0, Math.min(1, jBand)) * offLips;
     }
   }
 
@@ -693,6 +802,7 @@ async function main() {
     const gNrm = [];
     const gScalp = [];
     const gIrisR = [];
+    const gBeard = [];
     const gUv = [];
     const gIdx = [];
     for (const f of groupFaces) {
@@ -709,6 +819,7 @@ async function main() {
           );
           gScalp.push(scalp[f.v[k]]);
           gIrisR.push(irisRadius[f.v[k]]);
+          gBeard.push(beard[f.v[k] * 3], beard[f.v[k] * 3 + 1], beard[f.v[k] * 3 + 2]);
           gNrm.push(
             normals[f.v[k] * 3],
             normals[f.v[k] * 3 + 1],
@@ -735,6 +846,7 @@ async function main() {
       // GLTFLoader surfaces this to three as the lowercased `_scalp`.
       .setAttribute('_SCALP', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(gScalp)).setBuffer(buf))
       .setAttribute('_IRISR', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(gIrisR)).setBuffer(buf))
+      .setAttribute('_BEARD', doc.createAccessor().setType('VEC3').setArray(new Float32Array(gBeard)).setBuffer(buf))
       .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(gIdx)).setBuffer(buf))
       // The NAME is the contract with the renderer — it looks materials up by
       // it. Renaming a group here silently un-styles that part of the face.

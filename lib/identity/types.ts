@@ -67,12 +67,19 @@ export type FaceMorphs = Record<FaceMorphKey, number>;
 export const HAIR_STYLES = [
   'bald',
   'buzz',
+  'crew',
   'short',
+  'fringe',
   'medium',
   'long',
   'ponytail',
-  'afro',
   'bun',
+  'afro',
+  'curls',
+  'mohawk',
+  'undercut',
+  'quiff',
+  'receding',
 ] as const;
 export type HairStyle = (typeof HAIR_STYLES)[number];
 
