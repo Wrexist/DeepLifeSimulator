@@ -169,6 +169,21 @@ jest.mock('react-native-svg', () => {
 // Expo native `.js` modules ship ESM that ts-jest (which only transforms ts/tsx)
 // can't parse. Mock the ones the screen graph pulls in — we don't test their
 // behavior, only that screens mount around them.
+// expo-image-picker backs the DeepLife+ selfie flow. Mocked with the same
+// shape the component uses — permission requests and the two launchers — so
+// screens that mount SelfieCapture render, and a test that wants to drive the
+// flow can override the return values. Denied-by-default is the honest
+// starting point: the "you said no to photos" branch is the one that gets
+// written and never exercised.
+jest.mock('expo-image-picker', () => ({
+  __esModule: true,
+  CameraType: { front: 'front', back: 'back' },
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: false, status: 'denied' })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: false, status: 'denied' })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+}));
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {

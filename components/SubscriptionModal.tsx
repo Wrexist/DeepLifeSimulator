@@ -27,7 +27,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles, Gift } from 'lucide-react-native';
+import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles, Gift, ScanFace } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -70,6 +70,7 @@ const TEXT_MUTED = '#94A3B8';
 const TEXT_DIM = '#64748B';
 
 const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  photo_avatar: ScanFace,
   no_ads: Ban,
   daily_gems: Gift,
   income_boost: TrendingUp,
@@ -81,6 +82,7 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
 
 // Short right-aligned value chip per benefit (mockup-style). Honest labels only.
 const BENEFIT_CHIP: Record<string, string> = {
+  photo_avatar: 'EXCLUSIVE',
   no_ads: 'AD-FREE',
   daily_gems: '250/DAY',
   income_boost: '+25%',

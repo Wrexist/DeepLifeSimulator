@@ -139,7 +139,20 @@ const FACE_W = { a: 0, b: 16, axis: 'x' };
 
 const MEASURES = {
   // Absolute size…
-  faceWidth: FACE_W,
+  //
+  // `sense: -1` because the span runs the wrong way for the slider's NAME.
+  // Landmark 0 sits at negative x and 16 at positive x, so a wider face makes
+  // (x0 - x16) MORE negative — "increase this measurement" means "narrow the
+  // face". Measured on the shipped GLB, the faceWidth target at +1 influence
+  // reduced the head's overall width by 0.073 units: the slider was inverted,
+  // and had been since the rig was derived. Every check passed throughout,
+  // because a slider that moves the right feature the wrong way is still a
+  // slider that moves the right feature.
+  //
+  // Fixed here rather than in the renderer so the morph BAKED INTO THE FILE has
+  // the intuitive sense and every consumer — sliders, aging, the photo fitter,
+  // the report — inherits it without knowing about landmark ordering.
+  faceWidth: { ...FACE_W, sense: -1 },
   faceLength: FACE_H,
   // …everything else is a PROPORTION of it.
   //
@@ -292,11 +305,14 @@ function measure(positions, landmarks, spec) {
     return positions[landmarks[s.a] * 3 + k] - positions[landmarks[s.b] * 3 + k];
   };
   const value = span(spec);
-  if (!spec.over) return value;
+  // The outer measurement's sense only. The `over` denominator keeps its raw
+  // direction: flipping it would flip the ratio too and undo the correction.
+  const sense = spec.sense ?? 1;
+  if (!spec.over) return value * sense;
   const denom = span(spec.over);
   // Shape ratios only: guard the degenerate case rather than emitting Infinity,
   // which would poison the whole sensitivity matrix and every derived axis.
-  return Math.abs(denom) < 1e-9 ? 0 : value / denom;
+  return Math.abs(denom) < 1e-9 ? 0 : (value / denom) * sense;
 }
 
 /**
@@ -470,6 +486,71 @@ async function main() {
   console.log('  bindGenomeToRig reports them unbound and the UI hides them:');
   for (const [k, why] of Object.entries(NOT_DERIVABLE)) console.log(`    ${k.padEnd(16)} ${why}`);
   console.log('');
+
+  // ---- population statistics for photo fitting ----------------------------
+  //
+  // A selfie gives 2D landmarks, and a landmark measurement on its own means
+  // nothing: "the jaw is 0.71 of the face width" is only wide or narrow
+  // relative to a population. ICT's 100 identity modes ARE a population — they
+  // are the principal components of Light Stage scans of real people — so the
+  // spread of each measurement across them is exactly the reference the fitter
+  // needs, and it is already computed here.
+  //
+  // Emitted SCALE-INVARIANT: absolute measures are divided by the face width or
+  // height of the same face, because a photo has no absolute units. Which
+  // measures can be fitted at all, and which normaliser each one uses, is
+  // decided in lib/identity/faceMeasures.ts — this file only reports the stats.
+  {
+    const SIZE = { w: FACE_W, h: FACE_H };
+    // The normaliser per measure. A measure with `over` is already a ratio.
+    const NORM = {
+      faceWidth: 'h', faceLength: 'w', cheekboneHeight: 'h', browHeight: 'h',
+      eyeSize: 'h', eyeTilt: 'h',
+      chinProtrusion: 'h', browProtrusion: 'h', eyeDepth: 'w', noseBridge: 'h', noseTip: 'h',
+    };
+    const normalised = (positions, spec, norm) => {
+      const v = measure(positions, landmarks, spec);
+      if (!norm) return v;
+      // ABSOLUTE normaliser. The face-width span is negative (landmark 0 is at
+      // negative x), so dividing by it signed flips the sense of every measure
+      // normalised that way — a wider face would read as a LONGER one. Feature
+      // direction is the `sense` field's job; the normaliser is only a size.
+      const d = Math.abs(measure(positions, landmarks, SIZE[norm]));
+      return d < 1e-9 ? 0 : v / d;
+    };
+
+    const stats = {};
+    for (const k of keys) {
+      const spec = MEASURES[k];
+      const norm = NORM[k] ?? null;
+      const mean = normalised(neutral.positions, spec, norm);
+      // POPULATION sd, which is the ROOT-SUM-SQUARE of the per-mode deltas —
+      // not their standard deviation.
+      //
+      // Each identity file is the mean face plus ONE mode at unit amplitude, so
+      // the spread across the files measures how much a single component moves
+      // the feature. A face is a sum of all 100 at independent unit-variance
+      // weights, so the variance of the sum is the sum of the variances and the
+      // sd is their RSS — about 10x larger here. Using the across-file sd would
+      // put a perfectly ordinary jaw four standard deviations from the mean and
+      // peg every slider from every photo.
+      let ss = 0;
+      for (const m of modes) ss += (normalised(m, spec, norm) - mean) ** 2;
+      const sd = Math.sqrt(ss);
+      stats[k] = { mean: +mean.toFixed(6), sd: +(sd || 1e-6).toFixed(6), norm };
+    }
+    const outFile = 'assets/models/face-measure-stats.json';
+    writeFileSync(outFile, `${JSON.stringify({
+      // Bumped whenever MEASURES or the normalisers change, so a stale file
+      // fitted against different definitions fails loudly instead of producing
+      // a plausible wrong face.
+      version: 1,
+      source: 'ICT-FaceKit identity modes (mean face + 100 components)',
+      components: modes.length,
+      measures: stats,
+    }, null, 2)}\n`);
+    console.log(`  wrote ${outFile} (${keys.length} measures over ${modes.length} components)`);
+  }
 
   if (reportOnly) return;
 

@@ -200,6 +200,23 @@ module.exports = {
           resizeMode: "contain"
         }
       ],
+      // expo-image-picker powers the DeepLife+ "create from selfie" flow
+      // (components/identity/SelfieCapture.tsx). Hard Rule #4: package in
+      // package.json ⇒ config plugin here. The plugin's job is the Info.plist
+      // usage strings — iOS terminates the app on a permission prompt with no
+      // description, which reads as a crash the moment a player taps the card.
+      //
+      // The wording says what the photo is FOR and what happens to it, because
+      // "allow access to your photos" with no reason is the prompt people deny.
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "DeepLife Simulator uses a photo you choose to measure your face and build your 3D character.",
+          cameraPermission:
+            "DeepLife Simulator uses your camera to take a selfie and build your 3D character from it.",
+        }
+      ],
       // P0-13: expo-tracking-transparency is installed and used at runtime
       // (utils/trackingTransparency.ts); its config plugin wires the
       // AppTrackingTransparency.framework linkage and NSUserTrackingUsageDescription.

@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "source": "ICT-FaceKit identity modes (mean face + 100 components)",
+  "components": 100,
+  "measures": {
+    "faceWidth": {
+      "mean": 1.302251,
+      "sd": 0.067914,
+      "norm": "h"
+    },
+    "faceLength": {
+      "mean": 0.767901,
+      "sd": 0.040211,
+      "norm": "w"
+    },
+    "jawWidth": {
+      "mean": 0.777405,
+      "sd": 0.03088,
+      "norm": null
+    },
+    "jawAngle": {
+      "mean": 0.439796,
+      "sd": 0.023933,
+      "norm": null
+    },
+    "chinLength": {
+      "mean": 0.282111,
+      "sd": 0.024812,
+      "norm": null
+    },
+    "chinProtrusion": {
+      "mean": -0.026742,
+      "sd": 0.052441,
+      "norm": "h"
+    },
+    "cheekboneHeight": {
+      "mean": 0,
+      "sd": 0.005396,
+      "norm": "h"
+    },
+    "cheekFullness": {
+      "mean": 0.942219,
+      "sd": 0.030174,
+      "norm": null
+    },
+    "browHeight": {
+      "mean": 0.210497,
+      "sd": 0.017254,
+      "norm": "h"
+    },
+    "browProtrusion": {
+      "mean": -0.080197,
+      "sd": 0.01957,
+      "norm": "h"
+    },
+    "eyeSize": {
+      "mean": 0.071018,
+      "sd": 0.012232,
+      "norm": "h"
+    },
+    "eyeSpacing": {
+      "mean": 0.250434,
+      "sd": 0.016164,
+      "norm": null
+    },
+    "eyeDepth": {
+      "mean": -0.104486,
+      "sd": 0.026447,
+      "norm": "w"
+    },
+    "eyeTilt": {
+      "mean": 0.015934,
+      "sd": 0.009697,
+      "norm": "h"
+    },
+    "noseLength": {
+      "mean": 0.437239,
+      "sd": 0.019195,
+      "norm": null
+    },
+    "noseWidth": {
+      "mean": 0.170187,
+      "sd": 0.016547,
+      "norm": null
+    },
+    "noseBridge": {
+      "mean": 0.069286,
+      "sd": 0.009276,
+      "norm": "h"
+    },
+    "noseTip": {
+      "mean": 0.132949,
+      "sd": 0.023107,
+      "norm": "h"
+    },
+    "mouthWidth": {
+      "mean": 0.344273,
+      "sd": 0.024653,
+      "norm": null
+    },
+    "lipFullness": {
+      "mean": 0.167529,
+      "sd": 0.03281,
+      "norm": null
+    },
+    "mouthHeight": {
+      "mean": -0.113121,
+      "sd": 0.012873,
+      "norm": null
+    }
+  }
+}

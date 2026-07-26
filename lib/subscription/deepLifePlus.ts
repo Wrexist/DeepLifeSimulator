@@ -73,6 +73,14 @@ export interface DeepLifePlusBenefit {
  * rejects paywalls that promise benefits the app doesn't deliver).
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
+  // First, and deliberately. It is the only benefit on this list a free player
+  // cannot get by grinding, and the only one they can picture before they own
+  // it — "your face, in the game" sells itself in a way "+25% income" cannot.
+  //
+  // The copy says "from a selfie", not "photorealistic". What the feature does
+  // is measure a real face and drive a scan-derived rig with it; overselling it
+  // to "a photo of you" is how a paid feature earns refund requests.
+  { id: 'photo_avatar', title: 'Create Yourself From a Selfie', description: 'Our AI reads your face and builds your 3D character to match.' },
   { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
   { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day — 12× the free daily.' },
   { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },

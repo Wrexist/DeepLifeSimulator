@@ -48,11 +48,13 @@ describe('DeepLife+ config', () => {
   it('lists only deliverable benefits', () => {
     // Every id here maps to functionality the game actually grants:
     //   no_ads/welcome_gems/legacy_premium/cosmetics → applyDeepLifePlusBenefits + tier
-    //   income_boost → +25% career salary in applyCareerSalaryAndPenalty
-    //   vip_support  → priority-flagged support in HelpModal
+    //   income_boost  → +25% career salary in applyCareerSalaryAndPenalty
+    //   vip_support   → priority-flagged support in HelpModal
+    //   photo_avatar  → the selfie route in FaceCreatorModal, gated on the
+    //                   entitlement via useDeepLifePlusUpsell
     const ids = DEEP_LIFE_PLUS_BENEFITS.map((b) => b.id).sort();
     expect(ids).toEqual(
-      ['cosmetics', 'daily_gems', 'income_boost', 'legacy_premium', 'no_ads', 'vip_support', 'welcome_gems'].sort(),
+      ['cosmetics', 'daily_gems', 'income_boost', 'legacy_premium', 'no_ads', 'photo_avatar', 'vip_support', 'welcome_gems'].sort(),
     );
   });
 });

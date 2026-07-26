@@ -38,6 +38,19 @@ export type AnalyticsEventName =
   | 'purchase_failed'
   | 'ad_shown'
   | 'ad_rewarded'
+  // ── Photo-to-avatar (DeepLife+) ──
+  // The funnel this measures: how many players who see the two-card entry
+  // screen tap the selfie card, how many of those already own DeepLife+, and
+  // of the runs that start, how many produce a face the player keeps. Without
+  // `avatar_photo_kept` the feature can look successful while everybody
+  // discards the result.
+  | 'avatar_entry_viewed'
+  | 'avatar_photo_started'
+  | 'avatar_photo_generated'
+  | 'avatar_photo_provider_failed'
+  | 'avatar_photo_failed'
+  | 'avatar_photo_kept'
+  | 'avatar_photo_discarded'
   // ── Navigation ──
   | 'screen_view';
 
@@ -75,6 +88,13 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'streak_changed',
   'achievement_unlocked',
   'paywall_open_tapped',
+  'avatar_entry_viewed',
+  'avatar_photo_started',
+  'avatar_photo_generated',
+  'avatar_photo_provider_failed',
+  'avatar_photo_failed',
+  'avatar_photo_kept',
+  'avatar_photo_discarded',
   'paywall_viewed',
   'paywall_cta_tapped',
   'purchase_started',
