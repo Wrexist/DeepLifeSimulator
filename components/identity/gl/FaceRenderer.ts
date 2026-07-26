@@ -217,20 +217,31 @@ export function createFaceScene(
     front?: number; side?: number; back?: number;
     strip?: number; stripW?: number; frizz?: number;
   }> = {
-    buzz:     { frac: 0.030, low: 0.34, base: 1.0 },
-    crew:     { frac: 0.045, low: 0.32, base: 1.0, front: 0.25, side: -0.35 },
-    short:    { frac: 0.055, low: 0.30, base: 1.0 },
-    fringe:   { frac: 0.060, low: 0.28, base: 1.0, front: 0.60 },
-    medium:   { frac: 0.080, low: 0.24, base: 1.0 },
-    long:     { frac: 0.088, low: 0.20, base: 1.0, back: 0.35, side: 0.25 },
-    ponytail: { frac: 0.072, low: 0.24, base: 0.80, back: 0.55 },
-    bun:      { frac: 0.068, low: 0.28, base: 0.80, back: 0.45 },
-    afro:     { frac: 0.098, low: 0.32, base: 1.15, frizz: 0.22 },
-    curls:    { frac: 0.082, low: 0.30, base: 1.10, frizz: 0.40 },
-    mohawk:   { frac: 0.108, low: 0.24, base: 1.15, strip: 1, stripW: 0.13 },
-    undercut: { frac: 0.075, low: 0.30, base: 1.0, side: -1.20 },
-    quiff:    { frac: 0.082, low: 0.30, base: 0.85, front: 0.85, side: -0.55 },
-    receding: { frac: 0.050, low: 0.48, base: 1.0 },
+    // LENGTH IS COVERAGE, NOT THICKNESS.
+    //
+    // The shell is a hollow open-bottomed cap. While it hugs the skull it reads
+    // as hair on a head; the moment it balloons past the silhouette you see its
+    // rim and unlit interior as a flat grey plate. Rendering the shell without
+    // the head made that unmistakable — the thick styles were domes with the
+    // underside showing, which is what made every one of them look like a helmet.
+    //
+    // So thickness stays small for every style and "longer" is expressed by
+    // dropping `low`, so the hair covers further down the skull. This technique
+    // does short-to-medium convincingly and cannot do genuinely long hair.
+    buzz:     { frac: 0.022, low: 0.36, base: 1.0 },
+    crew:     { frac: 0.030, low: 0.34, base: 1.0, front: 0.20, side: -0.30 },
+    short:    { frac: 0.038, low: 0.31, base: 1.0 },
+    fringe:   { frac: 0.042, low: 0.27, base: 1.0, front: 0.50 },
+    medium:   { frac: 0.048, low: 0.24, base: 1.0 },
+    long:     { frac: 0.052, low: 0.12, base: 1.0, back: 0.20 },
+    ponytail: { frac: 0.045, low: 0.18, base: 1.0, back: 0.30 },
+    bun:      { frac: 0.042, low: 0.22, base: 1.0, back: 0.25 },
+    afro:     { frac: 0.060, low: 0.30, base: 1.20, frizz: 0.20 },
+    curls:    { frac: 0.052, low: 0.28, base: 1.10, frizz: 0.35 },
+    mohawk:   { frac: 0.065, low: 0.26, base: 1.15, strip: 1, stripW: 0.13 },
+    undercut: { frac: 0.040, low: 0.31, base: 1.0, side: -1.20 },
+    quiff:    { frac: 0.048, low: 0.29, base: 0.90, front: 0.70, side: -0.50 },
+    receding: { frac: 0.032, low: 0.46, base: 1.0 },
   };
 
   /**
@@ -377,6 +388,18 @@ export function createFaceScene(
         // 0.45, not the procedural head's 0.7 — see the relight note below.
         envMapIntensity: 0.45,
       }));
+      // Cheap subsurface. Skin glows warm where it is thin and seen edge-on —
+      // ear rims, nostrils, the edge of the jaw. Without it a smoothed head
+      // reads as a mannequin, which is exactly what softening the pores made it
+      // look like. Real SSS needs a second pass; a fresnel term costs nothing.
+      (asset.parts.skin.material as THREE.MeshPhysicalMaterial).onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <dithering_fragment>',
+          '#include <dithering_fragment>\n' +
+            'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
+            'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;',
+        );
+      };
     }
     // Eyes get their own wet materials. This is the cheapest large win in a
     // portrait: sharing the skin's roughness leaves the eyes with no catchlight
@@ -459,6 +482,11 @@ export function createFaceScene(
       const hairMat = track(new THREE.MeshStandardMaterial({
         color: 0x2C1B12, roughness: 0.80, metalness: 0,
         side: THREE.FrontSide, envMapIntensity: 1.15,
+        // Feathered edge, faded in `color_fragment` — BEFORE `alphatest_fragment`.
+        // Lowering alpha in `dithering_fragment` (after the test) let every
+        // fringe pixel survive and haze the silhouette grey; removing the fade
+        // fixed that but left a hard jagged cut. Here we get both.
+        transparent: true, alphaTest: 0.14, depthWrite: true,
       }));
       hairMat.onBeforeCompile = (shader) => {
         Object.assign(shader.uniforms, assetHairUniforms);
@@ -481,15 +509,25 @@ export function createFaceScene(
             'amt *= clamp(uBase + uFront*wFront + uSide*wSide + uBack*wBack, 0.0, 2.5);\n' +
             // Centre strip carves a mohawk; everything outside it goes to zero.
             'amt *= mix(1.0, 1.0 - smoothstep(uStripW, uStripW + 0.10, fx), uStrip);\n' +
+            // Thin at the nape, full at the crown. A constant offset balloons
+            // the occipital region into a smooth dome that catches the rim light.
+            'amt *= 0.42 + 0.58 * smoothstep(0.05, 0.62, fz);\n' +
             'amt *= 1.0 + uFrizz * (hnoise(position * 2.2) - 0.5);\n' +
             'amt = clamp(amt, 0.0, 1.35);\n' +
             'vAmt = amt;\n' +
             'transformed += normalize(objectNormal) * uThickness * amt;');
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying float vAmt;')
-          .replace('#include <dithering_fragment>', '#include <dithering_fragment>\nif (vAmt < 0.34) discard;');
+          .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+            'diffuseColor.a *= smoothstep(0.26, 0.44, vAmt);\n' +
+            // Roots darker than tips. One flat colour is most of what makes an
+            // offset shell read as a plastic cap rather than as hair.
+            'diffuseColor.rgb *= 0.72 + 0.42 * smoothstep(0.30, 1.20, vAmt);');
       };
       assetHair = new THREE.Mesh(asset.parts.skin.geometry, hairMat);
+      // Drawn after the skin; the shell is strictly outside it, so back-to-front
+      // is simply skin-then-hair and no per-triangle sorting is needed.
+      assetHair.renderOrder = 1;
       asset.parts.skin.parent?.add(assetHair);
       assetMeshes = [...assetMeshes, assetHair];
     }
@@ -498,6 +536,7 @@ export function createFaceScene(
       const beardMat = track(new THREE.MeshStandardMaterial({
         color: 0x241610, roughness: 0.86, metalness: 0,
         side: THREE.FrontSide, envMapIntensity: 0.9,
+        transparent: true, alphaTest: 0.12, depthWrite: true,
       }));
       beardMat.onBeforeCompile = (shader) => {
         Object.assign(shader.uniforms, assetBeardUniforms);
@@ -513,9 +552,13 @@ export function createFaceScene(
             'transformed += normalize(objectNormal) * uThickness * amt;');
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying float vAmt;')
-          .replace('#include <dithering_fragment>', '#include <dithering_fragment>\nif (vAmt < 0.22) discard;');
+          // Wider feather than the hair: a beard has no edge in reality, it
+          // thins out, and a hard boundary along the jaw looks painted on.
+          .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+            'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);');
       };
       assetBeard = new THREE.Mesh(asset.parts.skin.geometry, beardMat);
+      assetBeard.renderOrder = 1;
       asset.parts.skin.parent?.add(assetBeard);
       assetMeshes = [...assetMeshes, assetBeard];
     }

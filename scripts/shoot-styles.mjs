@@ -24,7 +24,7 @@ const ROOT = process.cwd();
 const PORT = 8933;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.png': 'image/png' };
 
-const PAGE = readFileSync(new URL('./styles-harness.html', import.meta.url), 'utf8');
+const PAGE = readFileSync(new URL(process.env.HARNESS ?? './styles-harness.html', import.meta.url), 'utf8');
 
 async function main() {
   const out = process.argv[2] ?? 'styles.png';
@@ -56,6 +56,7 @@ async function main() {
   const names = await page.evaluate((b) => (b ? window.__beardNames : window.__hairNames), beards);
   console.log(`${names.length} ${beards ? 'facial-hair' : 'hair'} styles`);
 
+  if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
   const shots = [];
   for (const name of names) {
     await page.evaluate(([n, b]) => (b ? window.__setBeard(n) : window.__setHair(n)), [name, beards]);

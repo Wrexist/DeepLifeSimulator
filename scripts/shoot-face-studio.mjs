@@ -207,11 +207,20 @@ const [albedo, roughMap, normalMap] = await Promise.all([
   load('/assets/textures/face_normal.png', false),
 ]);
 
-parts.skin.material = new THREE.MeshPhysicalMaterial({
-  color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
-  normalScale: new THREE.Vector2(0.22, 0.22), roughness: 1, metalness: 0,
-  clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.45,
-});
+parts.skin.material = (() => {
+  const m = new THREE.MeshPhysicalMaterial({
+    color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
+    normalScale: new THREE.Vector2(0.22, 0.22), roughness: 1, metalness: 0,
+    clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.45,
+  });
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\\n' +
+      'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\\n' +
+      'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
+  };
+  return m;
+})();
 parts.sclera.material = (() => {
   // The pupil is drawn on the SCLERA, not the iris: ICT's iris is an annulus
   // with a hole where the pupil belongs, so a bright sclera showed through it.
@@ -260,9 +269,13 @@ hairMat.onBeforeCompile = (sh) => {
     .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvScalp = _scalp;\\ntransformed += normalize(objectNormal) * uThickness * smoothstep(uLow, 1.0, _scalp);');
   sh.fragmentShader = sh.fragmentShader
     .replace('#include <common>', '#include <common>\\nvarying float vScalp;\\nuniform float uLow;')
-    .replace('#include <dithering_fragment>', '#include <dithering_fragment>\\nif (vScalp < uLow) discard;\\ngl_FragColor.a *= smoothstep(uLow, uLow + 0.22, vScalp);');
+    .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
+      'float a = smoothstep(uLow, uLow + 0.16, vScalp);\\n' +
+      'diffuseColor.a *= a;\\n' +
+      'diffuseColor.rgb *= 0.72 + 0.42 * a;');
 };
 const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
+hair.renderOrder = 1;
 parts.skin.parent.add(hair); meshes.push(hair);
 
 const holder = new THREE.Group();
@@ -281,7 +294,7 @@ root.add(holder);
 
 const gb = parts.skin.geometry.boundingBox;
 const geomExtent = Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z);
-hairU.uThickness.value = 0.055 * geomExtent;
+hairU.uThickness.value = 0.038 * geomExtent;
 
 window.__pose = (morphs, yaw) => {
   for (const m of meshes) {
