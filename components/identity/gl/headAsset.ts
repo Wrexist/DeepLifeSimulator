@@ -36,8 +36,22 @@ export interface HeadAsset {
    * head at a fraction of its size, sitting tiny in the middle of frame.
    */
   scene: THREE.Object3D;
-  /** The single head mesh, for driving `morphTargetInfluences`. */
+  /** The skin mesh — the one whose morph names define the rig. */
   mesh: THREE.Mesh;
+  /**
+   * Every mesh in the asset. All of them must be driven: each primitive carries
+   * the full morph set, and driving only the skin would widen the face while
+   * leaving the eyeballs behind in the old sockets.
+   */
+  meshes: THREE.Mesh[];
+  /**
+   * Meshes keyed by glTF material name — `skin`, `sclera`, `iris`.
+   *
+   * The head is one mesh with three primitives so that skin and eyes can carry
+   * genuinely different materials; three surfaces that as three Meshes. The
+   * names are the build script's contract.
+   */
+  parts: Record<string, THREE.Mesh>;
   /** Morph target names, in the index order `morphTargetInfluences` uses. */
   morphNames: string[];
 }
@@ -90,14 +104,19 @@ async function readGlb(): Promise<ArrayBuffer | null> {
  */
 function extractGeometry(gltf: { scene: THREE.Object3D }): HeadAsset | null {
   const meshes: THREE.Mesh[] = [];
+  const parts: Record<string, THREE.Mesh> = {};
   gltf.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    meshes.push(m);
+    const name = (m.material as THREE.Material | undefined)?.name;
+    if (name) parts[name] = m;
   });
-  if (meshes.length !== 1) {
-    logger.warn('[headAsset] expected exactly one mesh', { found: meshes.length });
+  if (meshes.length === 0) {
+    logger.warn('[headAsset] no meshes in the asset');
     return null;
   }
-  const mesh = meshes[0];
+  const mesh = parts.skin ?? meshes[0];
   const dict = mesh.morphTargetDictionary;
   if (!mesh.geometry.morphAttributes.position?.length || !dict) {
     logger.warn('[headAsset] head has no morph targets — sliders would be inert');
@@ -108,7 +127,7 @@ function extractGeometry(gltf: { scene: THREE.Object3D }): HeadAsset | null {
   const morphNames: string[] = [];
   for (const [name, index] of Object.entries(dict)) morphNames[index] = name;
 
-  return { scene: gltf.scene, mesh, morphNames };
+  return { scene: gltf.scene, mesh, meshes, parts, morphNames };
 }
 
 /**
@@ -148,4 +167,72 @@ export async function loadHeadAsset(): Promise<HeadAsset | null> {
 export function __resetHeadAssetCache(): void {
   cached = undefined;
   inFlight = null;
+  textureCache = undefined;
+}
+
+export interface SkinTextures {
+  albedo: THREE.Texture | null;
+  roughness: THREE.Texture | null;
+  normal: THREE.Texture | null;
+}
+
+let textureCache: SkinTextures | undefined;
+
+/**
+ * Build a three.js texture from a bundled image, the React Native way.
+ *
+ * `THREE.TextureLoader` cannot be used here: it goes through `ImageLoader`,
+ * which needs `document.createElement('img')`. Under expo-gl the supported route
+ * is to hand the renderer an Expo asset directly — its `texImage2D` accepts an
+ * object carrying `localUri` and uploads it natively.
+ *
+ * Every failure returns null and the caller ships an untextured material, which
+ * still renders a correct (if plainer) face. Texture loading must never be able
+ * to take the creator down.
+ */
+async function loadTexture(mod: unknown, srgb: boolean): Promise<THREE.Texture | null> {
+  const expoAsset = loadExpoAsset();
+  if (!expoAsset) return null;
+  try {
+    const asset = expoAsset.Asset.fromModule(mod as never);
+    await asset.downloadAsync();
+    if (!asset.localUri && !asset.uri) return null;
+    const texture = new THREE.Texture();
+    (texture as unknown as { image: unknown }).image = {
+      data: asset,
+      width: asset.width ?? 1024,
+      height: asset.height ?? 1024,
+      localUri: asset.localUri ?? asset.uri,
+    };
+    // glTF's UV origin is the opposite of three's default, and the head's UVs
+    // were written to glTF convention by the build script. Left flipped, the
+    // lips and eye-socket shading land on the wrong side of the face.
+    texture.flipY = false;
+    if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  } catch (err) {
+    logger.warn('[headAsset] texture load failed', { error: String(err) });
+    return null;
+  }
+}
+
+/** Load (or return the cached) skin texture set. Never throws. */
+export async function loadSkinTextures(): Promise<SkinTextures> {
+  if (textureCache) return textureCache;
+  try {
+    const [albedo, roughness, normal] = await Promise.all([
+      /* eslint-disable @typescript-eslint/no-var-requires */
+      loadTexture(require('@/assets/textures/face_albedo.png'), true),
+      loadTexture(require('@/assets/textures/face_roughness.png'), false),
+      loadTexture(require('@/assets/textures/face_normal.png'), false),
+      /* eslint-enable @typescript-eslint/no-var-requires */
+    ]);
+    textureCache = { albedo, roughness, normal };
+  } catch (err) {
+    logger.warn('[headAsset] skin textures unavailable', { error: String(err) });
+    textureCache = { albedo: null, roughness: null, normal: null };
+  }
+  return textureCache;
 }

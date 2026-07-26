@@ -40,7 +40,7 @@ import {
   type RigBinding,
 } from '@/lib/identity';
 import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironment';
-import { loadHeadAsset, type HeadAsset } from './headAsset';
+import { loadHeadAsset, loadSkinTextures, type HeadAsset, type SkinTextures } from './headAsset';
 
 export interface FaceSceneInput {
   genome: FaceGenome;
@@ -206,9 +206,9 @@ export function createFaceScene(
   // paths are kept side by side rather than the procedural one being deleted,
   // because expo-asset is a native module: an OTA build on older native code
   // has no way to read the file, and a character must always have a face.
-  let assetMesh: THREE.Mesh | null = null;
+  let assetParts: Record<string, THREE.Mesh> | null = null;
+  let assetMeshes: THREE.Mesh[] = [];
   let assetBinding: RigBinding | null = null;
-  let assetMorphIndex: Map<string, number> | null = null;
   let lastInput: FaceSceneInput = initial;
 
   /**
@@ -219,46 +219,84 @@ export function createFaceScene(
    * on every slider frame, which is what made dragging expensive.
    */
   function applyAssetGenome(input: FaceSceneInput): void {
-    if (!assetMesh || !assetBinding || !assetMorphIndex) return;
-    const influences = assetMesh.morphTargetInfluences;
-    if (!influences) return;
+    if (!assetParts || !assetBinding) return;
     const { influences: byName } = genomeToInfluences(input.genome, assetBinding);
-    // Zero everything first. A morph left over from the previous genome would
-    // otherwise stay applied — the classic stale-influence bug, which looks
-    // like the slider you just moved affecting an unrelated feature.
-    influences.fill(0);
-    for (const [name, value] of Object.entries(byName)) {
-      const index = assetMorphIndex.get(name);
-      if (index !== undefined) influences[index] = value;
+
+    // EVERY primitive, not just the skin. Each carries the full morph set, and
+    // driving only the skin would widen the face while leaving the eyeballs
+    // behind in the old sockets.
+    for (const mesh of assetMeshes) {
+      const influences = mesh.morphTargetInfluences;
+      const dict = mesh.morphTargetDictionary;
+      if (!influences || !dict) continue;
+      // Zero first. A morph left over from the previous genome would otherwise
+      // stay applied — the classic stale-influence bug, which looks like the
+      // slider you just moved affecting an unrelated feature.
+      influences.fill(0);
+      for (const [name, value] of Object.entries(byName)) {
+        const index = dict[name];
+        if (index !== undefined) influences[index] = value;
+      }
     }
 
     const aged = applyAging(input.genome, input.age);
     const skin = SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.max(0, aged.skinTone))];
-    (assetMesh.material as THREE.MeshPhysicalMaterial).color.set(skin);
+    const iris = EYE_COLORS[Math.min(EYE_COLORS.length - 1, Math.max(0, aged.eyeColor))];
+    const skinMat = assetParts.skin?.material as THREE.MeshPhysicalMaterial | undefined;
+    if (skinMat) skinMat.color.set(skin);
+    const irisMat = assetParts.iris?.material as THREE.MeshPhysicalMaterial | undefined;
+    if (irisMat) irisMat.color.set(iris);
   }
 
-  function adoptAsset(asset: HeadAsset): void {
+  function adoptAsset(asset: HeadAsset, textures: SkinTextures): void {
     if (disposed) return;
     clearRoot();
 
     assetBinding = bindGenomeToRig(asset.morphNames);
-    assetMorphIndex = new Map(asset.morphNames.map((name, i) => [name, i]));
 
-    const material = track(new THREE.MeshPhysicalMaterial({
-      color: 0xd8a887,
-      roughness: 0.72,
-      metalness: 0,
-      // Same 0.05 as the procedural head, for the same reason: at 0.22 the skin
-      // reads as moulded chocolate. Skin is mostly diffuse; the sheen is a hint.
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.7,
-      // 0.45, not the procedural head's 0.7 — see the relight note below.
-      envMapIntensity: 0.45,
-    }));
-    assetMesh = asset.mesh;
-    assetMesh.material = material;
-    // The geometry is shared and cached, so it is deliberately NOT tracked for
-    // disposal — freeing it here would break the next canvas that mounts.
+    assetParts = asset.parts;
+    assetMeshes = asset.meshes;
+
+    if (asset.parts.skin) {
+      asset.parts.skin.material = track(new THREE.MeshPhysicalMaterial({
+        color: 0xd8a887,
+        // The albedo map is near-neutral DETAIL — creases, mottling, a redder
+        // mouth — so `color` carries the palette tone and multiplies through it.
+        // Baking tone into the texture would mean ten of them.
+        map: textures.albedo ?? null,
+        roughnessMap: textures.roughness ?? null,
+        normalMap: textures.normal ?? null,
+        normalScale: new THREE.Vector2(0.6, 0.6),
+        // roughness 1 so the MAP is the value rather than a factor scaling it
+        // down; with a map absent this falls back to a sane single value below.
+        roughness: textures.roughness ? 1 : 0.72,
+        metalness: 0,
+        // Same 0.05 as the procedural head, for the same reason: at 0.22 the skin
+        // reads as moulded chocolate. Skin is mostly diffuse; the sheen is a hint.
+        clearcoat: 0.05,
+        clearcoatRoughness: 0.7,
+        // 0.45, not the procedural head's 0.7 — see the relight note below.
+        envMapIntensity: 0.45,
+      }));
+    }
+    // Eyes get their own wet materials. This is the cheapest large win in a
+    // portrait: sharing the skin's roughness leaves the eyes with no catchlight
+    // and the whole face reads dead, however good the geometry is.
+    if (asset.parts.sclera) {
+      asset.parts.sclera.material = track(new THREE.MeshPhysicalMaterial({
+        color: 0xe9e7e4, roughness: 0.14, metalness: 0,
+        clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6,
+      }));
+    }
+    if (asset.parts.iris) {
+      asset.parts.iris.material = track(new THREE.MeshPhysicalMaterial({
+        color: 0x4a6b8a, roughness: 0.08, metalness: 0,
+        clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4,
+      }));
+    }
+    // Geometry and textures are shared and cached, so they are deliberately NOT
+    // tracked for disposal — freeing them would break the next canvas to mount.
+    // Materials ARE tracked, because they are created per scene.
 
     // Frame from the WORLD box of the loaded scene, and scale a wrapper rather
     // than the mesh. `KHR_mesh_quantization` puts a compensating transform on
@@ -298,7 +336,7 @@ export function createFaceScene(
     lastInput = input;
 
     // Scanned head: morph influences only, no rebuild.
-    if (assetMesh) {
+    if (assetParts) {
       applyAssetGenome(input);
       return;
     }
@@ -408,8 +446,8 @@ export function createFaceScene(
   // swap in the scanned one when it arrives. Loading is ~1 MB of parsing; making
   // the creator wait on it would show an empty frame on every open.
   update(initial);
-  void loadHeadAsset().then((asset) => {
-    if (asset && !disposed) adoptAsset(asset);
+  void Promise.all([loadHeadAsset(), loadSkinTextures()]).then(([asset, textures]) => {
+    if (asset && !disposed) adoptAsset(asset, textures);
   });
 
   return { scene, camera, renderer, root, update, setRotation, render, resize, dispose };

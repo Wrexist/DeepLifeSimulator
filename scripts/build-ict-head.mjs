@@ -76,6 +76,34 @@ import { MeshoptSimplifier } from 'meshoptimizer';
  * renders its own. Eyes ARE kept: real sclera and iris geometry is the biggest
  * perceptual win available in a face render.
  */
+/**
+ * Shading groups -> the ICT materials that feed them.
+ *
+ * The key becomes the glTF material name, which is how `FaceRenderer` finds each
+ * primitive to style it. Adding a group here without teaching the renderer about
+ * it leaves that part of the face with the default material.
+ */
+const SHADING_GROUPS = {
+  skin: new Set(['M_Face', 'M_BackHead']),
+  // Sclera ONLY. M_LacrimalFluid and M_EyeBlend are thin transparent films
+  // that sit in FRONT of the iris; shaded opaque they covered it completely and
+  // the eyes rendered as blank white slits. They exist for wet-eye realism in a
+  // film render and are not worth transparency sorting at portrait size.
+  sclera: new Set(['M_ScleraLeft', 'M_ScleraRight']),
+  iris: new Set(['M_IrisLeft', 'M_IrisRight']),
+};
+
+/**
+ * Baked-in defaults per group. Deliberately distinct — see the dedup note where
+ * these are applied — and a reasonable standalone appearance for any viewer that
+ * does not swap in the app's runtime materials.
+ */
+const GROUP_DEFAULTS = {
+  skin: { color: [0.83, 0.66, 0.53, 1], roughness: 0.7 },
+  sclera: { color: [0.91, 0.90, 0.88, 1], roughness: 0.14 },
+  iris: { color: [0.29, 0.42, 0.54, 1], roughness: 0.08 },
+};
+
 const KEEP_MATERIALS = new Set(process.env.ICT_MATERIALS?.split(',') ?? [
   'M_Face',
   'M_BackHead',
@@ -424,57 +452,185 @@ async function main() {
 
   // ---- build the GLB ------------------------------------------------------
   console.log('Building GLB…');
-  const kept = neutral.faces.filter((f) => KEEP_MATERIALS.has(f.material));
-  const remap = new Map();
-  const pos = [];
-  const uv = [];
-  const idx = [];
-  for (const f of kept) {
-    for (let k = 0; k < 3; k++) {
-      const key = `${f.v[k]}/${f.vt[k]}`;
-      let n = remap.get(key);
-      if (n === undefined) {
-        n = pos.length / 3;
-        remap.set(key, n);
-        pos.push(
-          neutral.positions[f.v[k] * 3],
-          neutral.positions[f.v[k] * 3 + 1],
-          neutral.positions[f.v[k] * 3 + 2],
-        );
-        uv.push(f.vt[k] >= 0 ? neutral.uvs[f.vt[k] * 2] : 0, f.vt[k] >= 0 ? 1 - neutral.uvs[f.vt[k] * 2 + 1] : 0);
+
+  /**
+   * Push the iris out in front of the sclera.
+   *
+   * Anatomically the iris sits BEHIND the cornea — measured on this mesh, the
+   * iris front is at z 9.512 and the sclera front at 9.648 — so a film renderer
+   * shows it through a transparent corneal bulge. We shade the sclera opaque,
+   * because transparency needs sorting and a mask we do not have, and the result
+   * was eyes that rendered as blank white slits with no colour at all.
+   *
+   * Moving the iris fractionally outward along the eyeball radius puts it in
+   * front instead. At portrait size the displacement is well under a pixel, and
+   * it is what most real-time characters do rather than pay for refraction.
+   */
+  {
+    const irisMats = SHADING_GROUPS.iris;
+    const scleraMats = SHADING_GROUPS.sclera;
+    const centroidOf = (mats, side) => {
+      let sx = 0, sy = 0, sz = 0, n = 0;
+      const seen = new Set();
+      for (const f of neutral.faces) {
+        if (!mats.has(f.material)) continue;
+        for (const v of f.v) {
+          if (seen.has(v)) continue;
+          const x = neutral.positions[v * 3];
+          if (Math.sign(x) !== side) continue;
+          seen.add(v);
+          sx += x; sy += neutral.positions[v * 3 + 1]; sz += neutral.positions[v * 3 + 2];
+          n++;
+        }
       }
-      idx.push(n);
+      return n ? [sx / n, sy / n, sz / n] : null;
+    };
+    const centres = { 1: centroidOf(scleraMats, 1), '-1': centroidOf(scleraMats, -1) };
+    const moved = new Set();
+    for (const f of neutral.faces) {
+      if (!irisMats.has(f.material)) continue;
+      for (const v of f.v) {
+        if (moved.has(v)) continue;
+        moved.add(v);
+        const c = centres[Math.sign(neutral.positions[v * 3])];
+        if (!c) continue;
+        for (let k = 0; k < 3; k++) {
+          neutral.positions[v * 3 + k] = c[k] + (neutral.positions[v * 3 + k] - c[k]) * 1.06;
+        }
+      }
+    }
+    console.log(`  nudged ${moved.size} iris verts in front of the sclera`);
+  }
+
+  /**
+   * Smooth vertex normals, area-weighted by the cross-product magnitude.
+   *
+   * Not optional once a normal map is in play. Without a NORMAL attribute
+   * GLTFLoader computes normals at load, which is enough for plain shading —
+   * but three builds the tangent frame for normal mapping from the interpolated
+   * vertex normal, and with none supplied the perturbed normal came out
+   * effectively constant: the entire face rendered as a flat dark silhouette
+   * with no lighting at all, while albedo and roughness alone looked correct.
+   */
+  const normals = new Float32Array(neutral.positions.length);
+  for (const f of neutral.faces) {
+    const [a, b, c] = f.v;
+    const ax = neutral.positions[a * 3], ay = neutral.positions[a * 3 + 1], az = neutral.positions[a * 3 + 2];
+    const ux = neutral.positions[b * 3] - ax, uy = neutral.positions[b * 3 + 1] - ay, uz = neutral.positions[b * 3 + 2] - az;
+    const vx = neutral.positions[c * 3] - ax, vy = neutral.positions[c * 3 + 1] - ay, vz = neutral.positions[c * 3 + 2] - az;
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const i of f.v) {
+      normals[i * 3] += nx;
+      normals[i * 3 + 1] += ny;
+      normals[i * 3 + 2] += nz;
     }
   }
-  // Source vertex per output vertex, so morph deltas follow the same remap.
-  const sourceOf = new Array(pos.length / 3);
-  for (const [key, n] of remap) sourceOf[n] = parseInt(key.split('/')[0], 10);
-  console.log(`  kept ${kept.length} triangles, ${pos.length / 3} verts (from ${vertCount})`);
-
+  for (let i = 0; i < normals.length; i += 3) {
+    // `|| 1` rather than a bare divide: a vertex used by no triangle sums to
+    // zero, and NaN normals turn the whole primitive black.
+    const len = Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1;
+    normals[i] /= len;
+    normals[i + 1] /= len;
+    normals[i + 2] /= len;
+  }
   const doc = new Document();
   doc.createExtension(KHRMeshQuantization).setRequired(true);
   const buf = doc.createBuffer();
-  const prim = doc
-    .createPrimitive()
-    .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(pos)).setBuffer(buf))
-    .setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(uv)).setBuffer(buf))
-    .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(idx)).setBuffer(buf))
-    .setMaterial(doc.createMaterial('head').setRoughnessFactor(0.65).setMetallicFactor(0));
+  const mesh = doc.createMesh('head');
 
-  for (const [name, delta] of Object.entries(derived)) {
-    const arr = new Float32Array(pos.length);
-    for (let n = 0; n < sourceOf.length; n++) {
-      const s = sourceOf[n] * 3;
-      arr[n * 3] = delta[s];
-      arr[n * 3 + 1] = delta[s + 1];
-      arr[n * 3 + 2] = delta[s + 2];
+  /**
+   * One primitive per SHADING GROUP, not one for the whole head.
+   *
+   * Skin, sclera and iris need genuinely different materials — skin is a rough
+   * dielectric, an eyeball is wet and glossy — and a glTF primitive carries
+   * exactly one material. The first build merged everything into a single
+   * primitive, which made a separate eye material impossible: the eyes rendered
+   * with skin roughness, so they had no catchlight and the face looked dead.
+   * That is the cheapest large win available in a portrait, and it is a build
+   * decision, not a runtime one.
+   */
+  for (const [groupName, mats] of Object.entries(SHADING_GROUPS)) {
+    const groupFaces = neutral.faces.filter((f) => mats.has(f.material));
+    if (groupFaces.length === 0) continue;
+
+    const gRemap = new Map();
+    const gPos = [];
+    const gNrm = [];
+    const gUv = [];
+    const gIdx = [];
+    for (const f of groupFaces) {
+      for (let k = 0; k < 3; k++) {
+        const key = `${f.v[k]}/${f.vt[k]}`;
+        let n = gRemap.get(key);
+        if (n === undefined) {
+          n = gPos.length / 3;
+          gRemap.set(key, n);
+          gPos.push(
+            neutral.positions[f.v[k] * 3],
+            neutral.positions[f.v[k] * 3 + 1],
+            neutral.positions[f.v[k] * 3 + 2],
+          );
+          gNrm.push(
+            normals[f.v[k] * 3],
+            normals[f.v[k] * 3 + 1],
+            normals[f.v[k] * 3 + 2],
+          );
+          gUv.push(
+            f.vt[k] >= 0 ? neutral.uvs[f.vt[k] * 2] : 0,
+            f.vt[k] >= 0 ? 1 - neutral.uvs[f.vt[k] * 2 + 1] : 0,
+          );
+        }
+        gIdx.push(n);
+      }
     }
-    const target = doc.createPrimitiveTarget(name)
-      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(arr).setBuffer(buf));
-    prim.addTarget(target);
+    // Source vertex per output vertex, so morph deltas follow the same remap.
+    const sourceOf = new Array(gPos.length / 3);
+    for (const [key, n] of gRemap) sourceOf[n] = parseInt(key.split('/')[0], 10);
+
+    const prim = doc
+      .createPrimitive()
+      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(gPos)).setBuffer(buf))
+      .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(new Float32Array(gNrm)).setBuffer(buf))
+      .setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(gUv)).setBuffer(buf))
+      .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(gIdx)).setBuffer(buf))
+      // The NAME is the contract with the renderer — it looks materials up by
+      // it. Renaming a group here silently un-styles that part of the face.
+      //
+      // The factors must also DIFFER between groups. Given identical properties
+      // `dedup()` merges the three materials into one, all three primitives end
+      // up sharing a single name, and the renderer's lookup returns whichever
+      // primitive happened to be traversed last: the skin texture was applied
+      // to the iris while the face kept an untouched default and rendered flat
+      // white. Distinct factors are also correct on their own terms — they are
+      // what the model looks like if a client ignores our runtime materials.
+      .setMaterial(
+        doc.createMaterial(groupName)
+          .setBaseColorFactor(GROUP_DEFAULTS[groupName].color)
+          .setRoughnessFactor(GROUP_DEFAULTS[groupName].roughness)
+          .setMetallicFactor(0),
+      );
+
+    // Every group carries the full morph set. The eyeballs are rigid, but they
+    // must TRANSLATE with the socket — without their own targets a wider face
+    // would leave the eyes behind, floating in the wrong place.
+    for (const [name, delta] of Object.entries(derived)) {
+      const arr = new Float32Array(gPos.length);
+      for (let n = 0; n < sourceOf.length; n++) {
+        const s = sourceOf[n] * 3;
+        arr[n * 3] = delta[s];
+        arr[n * 3 + 1] = delta[s + 1];
+        arr[n * 3 + 2] = delta[s + 2];
+      }
+      prim.addTarget(
+        doc.createPrimitiveTarget(name)
+          .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(arr).setBuffer(buf)),
+      );
+    }
+
+    mesh.addPrimitive(prim);
+    console.log(`  ${groupName.padEnd(7)} ${groupFaces.length} tris, ${gPos.length / 3} verts`);
   }
 
-  const mesh = doc.createMesh('head').addPrimitive(prim);
   mesh.setExtras({ targetNames: Object.keys(derived) });
   const node = doc.createNode('head').setMesh(mesh);
   doc.createScene('scene').addChild(node);
@@ -518,6 +674,24 @@ async function main() {
 
   if (finalTargets === 0) {
     console.error('ABORT: no morph targets survived — the head would be rigid.');
+    process.exit(3);
+  }
+
+  // Every shading group must still have its own material after optimisation.
+  // When dedup collapsed them the file got SMALLER and every other number in
+  // this report stayed healthy, while the face rendered flat white — so this is
+  // a hard failure rather than a warning.
+  const survivingNames = new Set(doc.getRoot().listMaterials().map((m) => m.getName()));
+  const expected = Object.keys(SHADING_GROUPS);
+  const missing = expected.filter((g) => !survivingNames.has(g));
+  if (missing.length) {
+    console.error(
+      `\nABORT: shading groups lost their own materials: ${missing.join(', ')}\n` +
+      `  Found: ${[...survivingNames].join(', ')}\n` +
+      '  Materials with identical properties are merged by dedup(), which leaves\n' +
+      '  the renderer unable to tell skin from eyes. Give each group distinct\n' +
+      '  factors in GROUP_DEFAULTS.',
+    );
     process.exit(3);
   }
   const BUDGET = 3 * 1024 * 1024;

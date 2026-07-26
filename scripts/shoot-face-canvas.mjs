@@ -64,8 +64,10 @@ renderer.setSize(W, H, false);
 renderer.setClearColor(new THREE.Color('#0F172A'), 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// Same 1.45 as FaceRenderer. At 1.1 deep skin tones crushed to near black.
-renderer.toneMappingExposure = 1.45;
+// Matches FaceRenderer's SCANNED-head value. The procedural head needed 1.45 to
+// keep deep skin tones off black; this mesh has real normals, catches far more
+// light, and blows out at that setting.
+renderer.toneMappingExposure = 0.8;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
@@ -93,9 +95,9 @@ panel(0xffffff, 2.2, 0, 2, -5, 7, 5);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(envScene, 0.04).texture;
 
-const key = new THREE.DirectionalLight(0xfff4e8, 1.7); key.position.set(-2.2, 2.6, 3.4);
-const fill = new THREE.DirectionalLight(0xbfd4ff, 0.6); fill.position.set(2.8, -0.4, 2.0);
-const rim = new THREE.DirectionalLight(0xffffff, 0.65); rim.position.set(0.6, 1.2, -3.2);
+const key = new THREE.DirectionalLight(0xfff4e8, 0.85); key.position.set(-2.2, 2.6, 3.4);
+const fill = new THREE.DirectionalLight(0xbfd4ff, 0.3); fill.position.set(2.8, -0.4, 2.0);
+const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0.6, 1.2, -3.2);
 scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.26));
 
 const root = new THREE.Group();
@@ -105,14 +107,60 @@ scene.add(root);
 window.__result = { ok: false };
 
 const gltf = await new GLTFLoader().loadAsync('/assets/models/head_ict.glb');
-let mesh = null;
-gltf.scene.traverse((o) => { if (o.isMesh) mesh = o; });
+
+// The head is one glTF mesh with three primitives, so GLTFLoader hands back
+// three Meshes. Keyed by material name — the build script's contract.
+const parts = {};
+const allMeshes = [];
+gltf.scene.traverse((o) => {
+  if (!o.isMesh) return;
+  allMeshes.push(o);
+  parts[o.material?.name ?? '?'] = o;
+});
+let mesh = parts.skin ?? allMeshes[0];
 if (!mesh) { window.__result = { ok: false, error: 'no mesh' }; throw new Error('no mesh'); }
 
-mesh.material = new THREE.MeshPhysicalMaterial({
-  color: 0xd8a887, roughness: 0.72, metalness: 0,
-  clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.7,
-});
+const tex = new THREE.TextureLoader();
+const load = (p, srgb) => new Promise((res) => tex.load(p, (t) => {
+  t.flipY = false;                   // glTF UV convention, opposite to three's default
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  res(t);
+}, undefined, () => res(null)));
+
+const [albedo, roughMap, normalMap] = await Promise.all([
+  load('/assets/textures/face_albedo.png', true),
+  load('/assets/textures/face_roughness.png', false),
+  load('/assets/textures/face_normal.png', false),
+]);
+
+if (parts.skin) {
+  parts.skin.material = new THREE.MeshPhysicalMaterial({
+    color: 0xd8a887,
+    map: albedo,                     // near-neutral detail; colour multiplies through
+    roughnessMap: roughMap,
+    normalMap,
+    normalScale: new THREE.Vector2(0.6, 0.6),
+    roughness: 1, metalness: 0,      // roughness 1 so the MAP is the value, not a scale-down
+    clearcoat: 0.05, clearcoatRoughness: 0.7,
+    envMapIntensity: 0.45,
+  });
+}
+// Eyes. The wet specular is the cheapest large win in a portrait: a sclera at
+// skin roughness has no catchlight and the face reads dead, however good the
+// geometry underneath it is.
+if (parts.sclera) {
+  parts.sclera.material = new THREE.MeshPhysicalMaterial({
+    color: 0xe9e7e4, roughness: 0.14, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6,
+  });
+}
+if (parts.iris) {
+  parts.iris.material = new THREE.MeshPhysicalMaterial({
+    color: 0x4a6b8a, roughness: 0.08, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4,
+  });
+}
 
 // WORLD-space box via setFromObject, not geometry.boundingBox.
 //
@@ -137,12 +185,16 @@ const names = [];
 for (const [n, i] of Object.entries(dict)) names[i] = n;
 
 window.__apply = (morphName, value) => {
-  const inf = mesh.morphTargetInfluences;
-  inf.fill(0);
-  if (morphName) {
-    const i = dict[morphName];
-    if (i === undefined) return false;
-    inf[i] = value;
+  // Every primitive carries the full morph set, and all of them must be driven.
+  // Driving only the skin would widen the face and leave the eyeballs behind.
+  for (const m of allMeshes) {
+    const inf = m.morphTargetInfluences;
+    if (!inf) continue;
+    inf.fill(0);
+    if (morphName) {
+      const i = (m.morphTargetDictionary || {})[morphName];
+      if (i !== undefined) inf[i] = value;
+    }
   }
   renderer.render(scene, camera);
   return true;
@@ -151,12 +203,22 @@ window.__setYaw = (y) => { root.rotation.y = y; renderer.render(scene, camera); 
 // Lighting sweep seam. The intensities were tuned against the procedural head;
 // a scan-derived mesh has real normals and catches far more light, so they have
 // to be re-derived by looking rather than carried over.
+window.__setMaps = (o) => {
+  const m = parts.skin.material;
+  m.map = o.albedo ? albedo : null;
+  m.roughnessMap = o.rough ? roughMap : null;
+  m.normalMap = o.normal ? normalMap : null;
+  m.roughness = o.rough ? 1 : 0.72;
+  m.needsUpdate = true;
+  renderer.render(scene, camera);
+};
 window.__setLighting = (o) => {
   if (o.exposure !== undefined) renderer.toneMappingExposure = o.exposure;
   if (o.key !== undefined) key.intensity = o.key;
   if (o.fill !== undefined) fill.intensity = o.fill;
   if (o.rim !== undefined) rim.intensity = o.rim;
   if (o.env !== undefined) mesh.material.envMapIntensity = o.env;
+  if (o.normalScale !== undefined && mesh.material.normalScale) mesh.material.normalScale.setScalar(o.normalScale);
   if (o.roughness !== undefined) mesh.material.roughness = o.roughness;
   if (o.color !== undefined) mesh.material.color.set(o.color);
   renderer.render(scene, camera);
@@ -167,7 +229,9 @@ window.__result = {
   ok: true,
   morphCount: mesh.morphTargetInfluences ? mesh.morphTargetInfluences.length : 0,
   names,
-  verts: mesh.geometry.attributes.position.count,
+  verts: allMeshes.reduce((s, m) => s + m.geometry.attributes.position.count, 0),
+  parts: Object.keys(parts),
+  textures: { albedo: !!albedo, rough: !!roughMap, normal: !!normalMap },
   extent,
 };
 </script></body></html>`;
@@ -220,14 +284,24 @@ async function main() {
 
   console.log(`\nthree.js loaded the head: ${result.verts} verts, ${result.morphCount} morph targets`);
   console.log(`  extent ${result.extent.toFixed(2)} units`);
+  console.log(`  primitives by material name: ${JSON.stringify(result.parts)}`);
+  console.log(`  textures: ${JSON.stringify(result.textures)}`);
   console.log(`  morphs: ${result.names.join(', ')}\n`);
 
   // `--sweep` renders one lighting variant per cell instead of one morph per
   // cell, which is how the exposure gets chosen by looking rather than guessed.
   const sweep = process.argv.includes('--sweep');
   const tones = process.argv.includes('--tones');
+  const maps = process.argv.includes('--maps');
   const TUNED = { exposure: 0.8, key: 0.85, fill: 0.3, rim: 0.45, env: 0.45 };
-  const shots = tones
+  const shots = maps
+    ? [
+        ['no maps', { albedo: false, rough: false, normal: false }],
+        ['albedo only', { albedo: true, rough: false, normal: false }],
+        ['+ roughness', { albedo: true, rough: true, normal: false }],
+        ['+ normal', { albedo: true, rough: true, normal: true }],
+      ]
+    : tones
     ? [
         // The palette's extremes at the chosen exposure. Lowering exposure is
         // exactly what crushed deep tones to black on the procedural head, so
@@ -253,7 +327,8 @@ async function main() {
 
   const buffers = [];
   for (const [label, arg] of shots) {
-    if (sweep || tones) await page.evaluate((o) => window.__setLighting(o), arg);
+    if (maps) await page.evaluate((o) => window.__setMaps(o), arg);
+    else if (sweep || tones) await page.evaluate((o) => window.__setLighting(o), arg);
     else await page.evaluate((m) => { window.__apply(m, 1); window.__setYaw(0); }, arg);
     buffers.push({ label, png: await page.locator('canvas').screenshot() });
     console.log(`  shot ${label}`);
