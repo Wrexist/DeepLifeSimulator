@@ -537,6 +537,14 @@ export function buildHairMesh(
     ponytail: { thickness: 0.082, lowY: -0.34, backOnly: false },
     afro: { thickness: 0.190, lowY: 0.06, backOnly: false },
     bun: { thickness: 0.078, lowY: -0.10, backOnly: false },
+    // The longer of the everyday cuts. The rest fall through to `short`, which
+    // is the right shape for them; these four would be visibly wrong at that
+    // length. This path only runs when the scanned head is unavailable, so it
+    // aims at the right silhouette rather than at matching the shell rig.
+    bob: { thickness: 0.086, lowY: -0.26, backOnly: false },
+    layered: { thickness: 0.088, lowY: -0.20, backOnly: false },
+    wavy: { thickness: 0.088, lowY: -0.14, backOnly: false },
+    curtains: { thickness: 0.082, lowY: -0.06, backOnly: false },
   };
   const s = spec[style] ?? spec.short;
 

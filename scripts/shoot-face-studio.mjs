@@ -258,21 +258,27 @@ parts.iris.material = (() => {
   return m;
 })();
 
-// Hair, same shader patch as FaceRenderer.
-const hairU = { uThickness: { value: 0.2 }, uLow: { value: 0.30 } };
+// Hair.
+//
+// A SIMPLIFIED stand-in for FaceRenderer's shell, not a copy of it: this file
+// exists to screenshot the surrounding UI, and the styles harness is where the
+// shell itself is judged. It is kept in step on the things that change the
+// composition — coverage threshold, feather width, thickness, framing — because
+// a portrait that no longer matches the app is worse than no portrait.
+const hairU = { uThickness: { value: 0.2 }, uLow: { value: 0.60 } };
 const hairMat = new THREE.MeshStandardMaterial({
-  color: 0x2C1B12, roughness: 0.86, metalness: 0, transparent: true, depthWrite: true });
+  color: 0x2C1B12, roughness: 0.86, metalness: 0, transparent: true, depthWrite: true,
+  alphaTest: 0.06, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 hairMat.onBeforeCompile = (sh) => {
   sh.uniforms.uThickness = hairU.uThickness; sh.uniforms.uLow = hairU.uLow;
   sh.vertexShader = sh.vertexShader
-    .replace('#include <common>', '#include <common>\\nattribute float _scalp;\\nvarying float vScalp;\\nuniform float uThickness;\\nuniform float uLow;')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvScalp = _scalp;\\ntransformed += normalize(objectNormal) * uThickness * smoothstep(uLow, 1.0, _scalp);');
+    .replace('#include <common>', '#include <common>\\nattribute float _scalp;\\nvarying float vCov;\\nuniform float uThickness;\\nuniform float uLow;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvCov = smoothstep(uLow, uLow + 0.16, _scalp);\\ntransformed += normalize(objectNormal) * uThickness * vCov;');
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\\nvarying float vScalp;\\nuniform float uLow;')
+    .replace('#include <common>', '#include <common>\\nvarying float vCov;')
     .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
-      'float a = smoothstep(uLow, uLow + 0.16, vScalp);\\n' +
-      'diffuseColor.a *= a;\\n' +
-      'diffuseColor.rgb *= 0.72 + 0.42 * a;');
+      'diffuseColor.a *= smoothstep(0.02, 0.55, vCov);\\n' +
+      'diffuseColor.rgb *= 0.62 + 0.52 * smoothstep(0.06, 1.10, vCov);');
 };
 const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
 hair.renderOrder = 1;
@@ -287,14 +293,20 @@ const box = new THREE.Box3()
 const size = box.getSize(new THREE.Vector3());
 const centre = box.getCenter(new THREE.Vector3());
 const extent = Math.max(size.x, size.y, size.z);
-const s = 2.35 / extent;
+const s = 2.45 / extent;
 holder.scale.setScalar(s);
-holder.position.set(-centre.x * s, -centre.y * s + 0.30, -centre.z * s);
+// Crown at a fixed height, not a bias on the centre — see FaceRenderer. The
+// bias put the top of the skull outside the frame and the hair further outside
+// still, so every portrait cropped the haircut in half.
+const CROWN_Y = 1.10;
+holder.position.set(-centre.x * s, CROWN_Y - (box.max.y - centre.y) * s - root.position.y, -centre.z * s);
 root.add(holder);
 
-const gb = parts.skin.geometry.boundingBox;
+// From the position attribute. computeBoundingBox() expands over every morph
+// target, which returned a head 1.8x too big and a hair shell to match.
+const gb = new THREE.Box3().setFromBufferAttribute(parts.skin.geometry.getAttribute('position'));
 const geomExtent = Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z);
-hairU.uThickness.value = 0.038 * geomExtent;
+hairU.uThickness.value = 0.032 * geomExtent;
 
 window.__pose = (morphs, yaw) => {
   for (const m of meshes) {

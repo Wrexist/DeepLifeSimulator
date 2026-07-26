@@ -28,6 +28,7 @@ import {
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
+  styleLabel,
   SKIN_TONES,
   randomizeFace,
   type BodyProfile,
@@ -358,7 +359,7 @@ function Chips({
               ]}
             >
               <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.textSecondary }]}>
-                {option.charAt(0).toUpperCase() + option.slice(1)}
+                {styleLabel(option)}
               </Text>
             </TouchableOpacity>
           );

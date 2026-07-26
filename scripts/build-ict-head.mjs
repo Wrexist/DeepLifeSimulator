@@ -212,6 +212,11 @@ const NOT_DERIVABLE = {
 
 const AXIS_INDEX = { x: 0, y: 1, z: 2 };
 
+/** Linear clamp to [0, 1]. */
+function clamp01(x) {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
 /** smoothstep(edge0, x, edge1) with the value in the middle, for readability. */
 function smooth(edge0, x, edge1) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0 || 1e-6)));
@@ -606,7 +611,7 @@ async function main() {
   }
 
   /**
-   * Per-vertex scalp weight, 1 where hair grows and 0 on the face.
+   * Per-vertex HAIRLINE COORDINATE — not a mask.
    *
    * Baked here rather than derived at runtime because it needs the landmarks,
    * which the GLB does not carry. Shipping it as an attribute lets the renderer
@@ -615,7 +620,27 @@ async function main() {
    * and follows the face automatically as the sliders move it. A separate hair
    * mesh would need its own copy of all 21 morphs.
    *
-   * The hairline is a curve in z, not a flat height: it sits high at the
+   * ## Why a coordinate and not a 0/1 mask
+   *
+   * The previous bake wrote a coverage mask: 1 on the scalp, 0 on the face, with
+   * a fade band 0.34 head-heights wide between them. Measured on the shipped
+   * asset, that came out all but BINARY — 6,916 vertices at 0, 862 at 1, and
+   * only ~260 anywhere in between. The renderer's whole "length is coverage"
+   * scheme thresholds this attribute, so with nothing to threshold every style
+   * from `buzz` to `long` selected within 80 vertices of each other and rendered
+   * as the same cap. Fifteen haircuts, one silhouette, and the parameters all
+   * looked plausible in the table.
+   *
+   * So the attribute is now a monotone field:
+   *
+   *   1.00  crown
+   *   0.60  the natural hairline, everywhere around the skull
+   *   0.00  the lowest hair could ever hang
+   *
+   * Thresholding it at 0.6 gives a crop; at 0.3, hair past the ears; at 0.05,
+   * hair to the collar. Coverage becomes a real, continuous control.
+   *
+   * The hairline itself is a curve in z, not a flat height: it sits high at the
    * forehead and drops to the nape at the back. A single y threshold puts the
    * back of the hairline halfway up the skull and reads as a bathing cap.
    */
@@ -624,8 +649,9 @@ async function main() {
     let browY = 0;
     for (let i = 17; i <= 26; i++) browY += neutral.positions[landmarks[i] * 3 + 1];
     browY /= 10;
-    let minZ = 1e9, maxZ = -1e9, maxY = -1e9, maxX = 0;
+    let minY = 1e9, minZ = 1e9, maxZ = -1e9, maxY = -1e9, maxX = 0;
     for (let v = 0; v < vertCount; v++) {
+      minY = Math.min(minY, neutral.positions[v * 3 + 1]);
       minZ = Math.min(minZ, neutral.positions[v * 3 + 2]);
       maxZ = Math.max(maxZ, neutral.positions[v * 3 + 2]);
       maxY = Math.max(maxY, neutral.positions[v * 3 + 1]);
@@ -634,6 +660,10 @@ async function main() {
     const H = Math.max(1e-6, maxY - browY);
     const depth = Math.max(1e-6, maxZ - minZ);
     const halfWidth = Math.max(1e-6, maxX);
+    // How far below the hairline hair is allowed to reach. Bounded well above
+    // the mesh floor: the model's lowest vertices are the shoulders, and a field
+    // that runs onto them lets a long style grow a cape off the back.
+    const hangY = Math.max(minY, browY - H * 1.15);
     for (let v = 0; v < vertCount; v++) {
       const x = neutral.positions[v * 3];
       const y = neutral.positions[v * 3 + 1];
@@ -646,20 +676,63 @@ async function main() {
       // exactly the bowl-cut rim the first version produced — the shell came
       // down over the temples in a straight line and read as a helmet.
       const temple = sideness * sideness * (1 - backness) * 0.34;
-      const hairline = browY + H * (0.32 - 0.66 * backness + temple);
-      // Wider fade than before (0.10). The narrow band gave a hard shelf where
-      // the shell met bare skin; hair should thin into the hairline.
-      const fade = H * 0.17;
-      const t = (y - (hairline - fade)) / (2 * fade);
-      let w = Math.max(0, Math.min(1, t));
-      // NAPE FLOOR. The back hairline falls to 0.34 head-heights below the brow,
-      // which on the back of the model is the NECK, not the skull. Offsetting
-      // the neck outward turned every style into a collar — a grey sheet
-      // standing off the back of the head, visible on all fifteen at once.
-      // Nothing above the skull is affected; this only cuts the tail.
-      const napeY = browY - H * 0.26;
-      w *= Math.max(0, Math.min(1, (y - napeY) / (H * 0.12)));
-      scalp[v] = w;
+      // 0.45 head-heights above the brow at the front, not 0.32. Rendered
+      // head-on against the bald head, the old line put the fringe on the
+      // eyebrows on every style — a forehead is about a third of a face and the
+      // hair was leaving almost none of it. The back coefficient is 0.79 rather
+      // than 0.66 so raising the front leaves the NAPE where it was: the two
+      // ends of the curve are independent choices and moving both at once is
+      // what turned an earlier hairline fix into a bathing cap.
+      const hairline = browY + H * (0.45 - 0.79 * backness + temple);
+
+      // Above the hairline: 0.60 at the line, 1.0 at the crown.
+      const up = 0.6 + 0.4 * clamp01((y - hairline) / (H * 0.55));
+
+      // Below it: 0.60 down to 0 at `floorY`. On the FACE the floor sits just
+      // under the hairline, so the field collapses within a few millimetres and
+      // no threshold can grow hair on a forehead or a cheek; behind the temples
+      // the floor drops to `hangY` and the field spans the whole side of the
+      // head, which is what makes length work. Both branches meet at 0.60, so
+      // the field is continuous however abruptly the floor moves.
+      const offFace = smooth(0.18, backness, 0.48);
+      const floorY = hairline - H * 0.06 - (hairline - hangY - H * 0.06) * offFace;
+      const down = 0.6 * clamp01((y - floorY) / Math.max(1e-6, hairline - floorY));
+
+      scalp[v] = y >= hairline ? up : down;
+    }
+
+    // SMOOTH ALONG THE MESH, not in space.
+    //
+    // The field is built from `backness`, which changes fast across the temple,
+    // so the isoline any given style thresholds on came out serrated — a visible
+    // sawtooth fringe on every medium-and-longer cut, following the triangle
+    // edges rather than a hairline. Five light Laplacian passes over the vertex
+    // graph flatten that without moving the hairline: the boundary is defined by
+    // where the field crosses a threshold, and averaging a monotone field with
+    // its neighbours barely moves a crossing.
+    {
+      const adj = new Array(vertCount);
+      for (const f of neutral.faces) {
+        for (const a of f.v) (adj[a] ??= new Set());
+        for (const a of f.v) for (const b of f.v) if (a !== b) adj[a].add(b);
+      }
+      for (let pass = 0; pass < 5; pass++) {
+        const next = Float32Array.from(scalp);
+        for (let v = 0; v < vertCount; v++) {
+          const nb = adj[v];
+          if (!nb || nb.size === 0) continue;
+          let sum = 0;
+          for (const w of nb) sum += scalp[w];
+          next[v] = 0.5 * scalp[v] + 0.5 * (sum / nb.size);
+        }
+        scalp.set(next);
+      }
+    }
+
+    if (!process.env.QUIET) {
+      const hist = new Array(10).fill(0);
+      for (let v = 0; v < vertCount; v++) hist[Math.min(9, Math.floor(scalp[v] * 10))]++;
+      console.log(`  scalp field deciles ${hist.join(' ')}`);
     }
   }
 

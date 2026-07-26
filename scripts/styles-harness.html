@@ -9,7 +9,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const W = 420, H = 480;
+// Size and yaw come from the query string so one harness serves both the
+// contact sheet and the close-ups. A silhouette defect that is two pixels wide
+// in a 420px tile is unarguable at 900px, and half the hair problems in this
+// asset only ever showed up head-on or from behind.
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') ?? 420), H = Number(q.get('h') ?? 480);
 const canvas = document.createElement('canvas');
 canvas.width = W; canvas.height = H;
 document.body.appendChild(canvas);
@@ -44,7 +49,8 @@ const fill = new THREE.DirectionalLight(0xbfd4ff, 0.3); fill.position.set(2.8, -
 const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0.6, 1.2, -3.2);
 scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.26));
 
-const root = new THREE.Group(); root.position.y = 0.12; root.rotation.y = -0.62; scene.add(root);
+const root = new THREE.Group(); root.position.y = 0.12;
+root.rotation.y = Number(q.get('rot') ?? -0.62); scene.add(root);
 window.__ok = false;
 
 const gltf = await new GLTFLoader().loadAsync('/assets/models/head_ict.glb');
@@ -81,8 +87,17 @@ parts.skin.material = (() => {
 })();
 
 // Head bounds in the geometry's own (quantized) space, for the region masks.
-parts.skin.geometry.computeBoundingBox();
-const gb = parts.skin.geometry.boundingBox;
+//
+// From the POSITION ATTRIBUTE, not computeBoundingBox(). three expands a
+// computed box over every morph target at full influence, so it returned the
+// widest face the rig can reach — extent 3.64 against the neutral head's 2.00.
+// Every hair thickness is a fraction of that number and every region edge is
+// measured against it, so the whole shell ran 1.8x oversized and the region
+// masks were reading coordinates compressed into the middle of their range:
+// the mushroom silhouette, and the reason `undercut` and the fades did almost
+// nothing. Same trap as the framing box a few dozen lines down.
+const gb = new THREE.Box3()
+  .setFromBufferAttribute(parts.skin.geometry.getAttribute('position'));
 const headMin = new THREE.Vector3().copy(gb.min);
 const headSize = new THREE.Vector3().subVectors(gb.max, gb.min);
 const geomExtent = Math.max(headSize.x, headSize.y, headSize.z) || 1;
@@ -92,39 +107,95 @@ const HU = {
   uThickness: { value: 0.2 }, uLow: { value: 0.3 },
   uBase: { value: 1 }, uFront: { value: 0 }, uSide: { value: 0 }, uBack: { value: 0 },
   uStrip: { value: 0 }, uStripW: { value: 0.2 }, uFrizz: { value: 0 },
+  uFade: { value: 0 }, uFadeY: { value: 0.6 },
+  uPart: { value: 0 }, uPartX: { value: 0 },
+  uWave: { value: 0 }, uRows: { value: 0 },
+  uLift: { value: new THREE.Vector2(0, 0) },
   uHeadMin: { value: headMin }, uHeadSize: { value: headSize },
 };
 
 const HAIR_VERT_HEAD = `
 attribute float _scalp;
 varying float vAmt;
+varying float vCov;
+varying vec3 vHairP;
 uniform float uThickness, uLow, uBase, uFront, uSide, uBack, uStrip, uStripW, uFrizz;
+uniform float uFade, uFadeY, uPart, uPartX, uWave, uRows;
+uniform vec2 uLift;
 uniform vec3 uHeadMin, uHeadSize;
 float hnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 6.1) * sin(p.y * 5.3) * sin(p.z * 4.7); }
 `;
 const HAIR_VERT_BODY = `
+  vHairP = position;
   vec3 f = (position - uHeadMin) / max(uHeadSize, vec3(1e-4));
   float fz = f.z;                              // 0 nape, 1 forehead
+  float fy = f.y;                              // 0 collar, 1 crown
   float fx = abs(f.x - 0.5) * 2.0;             // 0 centre, 1 side
-  float wFront = smoothstep(0.45, 0.88, fz);
-  float wSide  = smoothstep(0.40, 0.95, fx);
-  float wBack  = 1.0 - smoothstep(0.12, 0.55, fz);
-  float amt = smoothstep(uLow, uLow + 0.30, _scalp);
-  amt *= clamp(uBase + uFront * wFront + uSide * wSide + uBack * wBack, 0.0, 2.5);
+  float sx = (f.x - 0.5) * 2.0;                // -1 left .. +1 right
+  // Edges measured against the range the scalp field actually occupies, not
+  // against the head box: hair reaches fx 0.74, fy 0.47, fz 0.02..0.88, so the
+  // old smoothstep(0.40, 0.95, fx) topped out at 0.44 and every side-weighted
+  // style — undercut, fade, flat top — was quietly running at half strength.
+  float wFront = smoothstep(0.45, 0.85, fz);
+  float wSide  = smoothstep(0.20, 0.68, fx);
+  float wBack  = 1.0 - smoothstep(0.10, 0.50, fz);
+  // COVERAGE AND VOLUME ARE SEPARATE.
+  //
+  // They used to be one number: the region weights multiplied the coverage
+  // ramp, so a front weight of 0.5 did not thicken the fringe, it pushed the
+  // whole coverage curve down and dragged the hairline onto the eyebrows. Every
+  // style with any front or side weight — most of them — grew a low mask of a
+  // forehead. Volume now scales thickness only; a region weight BELOW one still
+  // takes hair away, by lifting the coverage threshold, which is what an
+  // undercut or a fade actually does.
+  float region = clamp(uBase + uFront * wFront + uSide * wSide + uBack * wBack, 0.0, 2.5);
+  float lowHere = uLow + 0.30 * (1.0 - min(region, 1.0));
+  // A 0.16-wide ramp, not 0.10: the coverage boundary is where the shell rises
+  // off the skull, and a short ramp turns that rise into a visible overhanging
+  // lip all the way round the cut — the brim of the mushroom.
+  float cov = smoothstep(lowHere, lowHere + 0.16, _scalp);
+
+  // Carving. Everything here REMOVES hair, so it multiplies coverage: thickness
+  // must reach zero wherever the hair does, or the shell keeps a floating rim
+  // where it was cut away.
+  //
+  // TAPER FADE. Short at the bottom of the sides, blending up into the full
+  // length. Confined to the sides by wSide, because a fade that reaches the
+  // front is a receding hairline rather than a barber's cut.
+  cov *= mix(1.0, smoothstep(uFadeY - 0.08, uFadeY + 0.18, fy), uFade * wSide);
+  // PARTING. A narrow valley through the mass, off-centre for a side part and
+  // at zero for curtains. Only forward of the crown — a parting that runs all
+  // the way to the nape looks like a scar.
+  cov *= 1.0 - uPart
+       * (1.0 - smoothstep(0.0, 0.11, abs(sx - uPartX)))
+       * smoothstep(0.30, 0.68, fz);
   // Centre strip for a mohawk: everything outside the strip goes to zero.
-  amt *= mix(1.0, 1.0 - smoothstep(uStripW, uStripW + 0.10, fx), uStrip);
-  // Frizz breaks a smooth shell into something that reads as curl rather than
-  // a moulded cap; deterministic per vertex so it does not shimmer.
+  cov *= mix(1.0, 1.0 - smoothstep(uStripW, uStripW + 0.22, fx), uStrip);
+  // Cornrows: many strips instead of one, running front-to-back.
+  cov *= 1.0 - uRows * 0.55 * (0.5 + 0.5 * cos(sx * 26.0));
+  vCov = cov;
+
+  float amt = cov * region;
+  // Waves ride over the mass rather than replacing it, so a wavy cut keeps the
+  // silhouette of the cut it is a variant of.
+  amt *= 1.0 + uWave * 0.35 * sin(fy * 24.0 + fz * 6.0);
   // GLOBAL BACK TAPER. A uniform offset balloons the occipital region into a
   // smooth featureless dome that extends past the skull and catches the rim
   // light as a pale slab — the single thing that made every style read as a
   // helmet rather than hair. Real hair is thin at the nape and full at the
   // crown, so thickness follows front-to-back rather than being constant.
   amt *= 0.42 + 0.58 * smoothstep(0.05, 0.62, fz);
+  // Frizz breaks a smooth shell into something that reads as curl rather than
+  // a moulded cap; deterministic per vertex so it does not shimmer.
   amt *= 1.0 + uFrizz * (hnoise(position * 2.2) - 0.5);
-  amt = clamp(amt, 0.0, 1.35);
+  amt = clamp(amt, 0.0, 1.6);
   vAmt = amt;
-  transformed += normalize(objectNormal) * uThickness * amt;
+  // Directional lift. A pompadour is not a thicker shell — it is the same mass
+  // pushed up and forward at the front. Offsetting purely along the normal can
+  // only ever inflate the skull, which is why every "voluminous" style used to
+  // come out as a bigger helmet.
+  vec3 dir = normalize(normalize(objectNormal) + vec3(0.0, uLift.y, uLift.x) * wFront * 1.4);
+  transformed += dir * uThickness * amt;
 `;
 
 const hairMat = new THREE.MeshStandardMaterial({
@@ -138,7 +209,17 @@ const hairMat = new THREE.MeshStandardMaterial({
   // just above it — and the band is narrow so only the last few pixels fade.
   color: 0x5A3A22, roughness: 0.80, metalness: 0, side: THREE.FrontSide,
   envMapIntensity: 1.15,
-  transparent: true, alphaTest: 0.14, depthWrite: true,
+  // THE CUTOFF HAS TO LAND WHERE THE OFFSET IS ZERO.
+  //
+  // Offset and alpha are both driven by `amt`, so a cutoff at amt≈0.3 hid the
+  // shell only after it had already lifted a third of its thickness off the
+  // scalp: the hairline ended in a rim floating above the skull with daylight
+  // under it, which is the gap between the hair and the head. Fading out by
+  // amt≈0.04 puts the last visible pixel back on the skin.
+  transparent: true, alphaTest: 0.06, depthWrite: true,
+  // Coincident with the skin at that last pixel, so bias the hair forward
+  // rather than let the depth test speckle along the hairline.
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
 });
 hairMat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, HU);
@@ -146,12 +227,29 @@ hairMat.onBeforeCompile = (sh) => {
     .replace('#include <common>', '#include <common>' + HAIR_VERT_HEAD)
     .replace('#include <begin_vertex>', '#include <begin_vertex>' + HAIR_VERT_BODY);
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+    .replace('#include <common>', '#include <common>\nvarying float vAmt;\nvarying float vCov;\nvarying vec3 vHairP;')
     .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-      'diffuseColor.a *= smoothstep(0.26, 0.44, vAmt);\n' +
+      // A WIDE alpha ramp. Narrow was correct for killing the grey haze and
+      // wrong for the hairline: the whole transition happened inside a coverage
+      // band 0.04 wide, so the visible boundary was effectively a hard isoline
+      // and interpolating it across triangles gave the fringe a sawtooth edge.
+      // Feathering over half the coverage range reads as hair thinning out.
+      'diffuseColor.a *= smoothstep(0.02, 0.55, vCov);\n' +
+      // Strand break-up. A shell lit as one smooth surface is the last thing
+      // that says "moulded plastic"; a fine ripple in tone and roughness gives
+      // the specular something to catch and costs two sines.
+      // Strand break-up lives in ROUGHNESS ONLY — see below. Tinting the diffuse
+      // by the same pattern turned the cap into corduroy: the eye reads a
+      // regular light/dark banding as ribbing in the surface, while the same
+      // pattern in the specular alone reads as separate strands catching light.
+      'float strand = 0.55 * sin(vHairP.x * 233.0)\n' +
+      '             + 0.27 * sin(vHairP.x * 97.0 + vHairP.z * 11.0)\n' +
+      '             + 0.18 * sin(vHairP.x * 61.0 - vHairP.y * 29.0);\n' +
       // Roots darker than tips. A single flat colour is most of what makes an
       // offset shell read as a plastic cap rather than as hair.
-      'diffuseColor.rgb *= 0.72 + 0.42 * smoothstep(0.30, 1.20, vAmt);');
+      'diffuseColor.rgb *= 0.62 + 0.52 * smoothstep(0.06, 1.10, vAmt);')
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
+      'roughnessFactor = clamp(roughnessFactor - 0.16 * strand, 0.05, 1.0);');
 };
 const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
 // Drawn after the skin. The shell is strictly outside it, so back-to-front is
@@ -159,34 +257,56 @@ const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
 hair.renderOrder = 1;
 parts.skin.parent.add(hair);
 
-/** frac is a FRACTION of head size — absolute values tore the shell into spikes. */
+/**
+ * frac is a FRACTION of head size — absolute values tore the shell into spikes.
+ *
+ * LENGTH IS COVERAGE, NOT THICKNESS. The shell is a hollow open-bottomed cap:
+ * while it hugs the skull it reads as hair on a head, and the moment it balloons
+ * past the silhouette you see its rim and unlit interior as a flat grey plate.
+ * So thickness stays small for every style and "longer" means a lower `low`,
+ * which is a threshold on the baked hairline coordinate — 0.60 is the hairline
+ * itself, above it is scalp, below it runs down the sides and back of the head.
+ */
 const HAIR = {
-  // LENGTH IS COVERAGE, NOT THICKNESS.
-  //
-  // The shell is a hollow open-bottomed cap. While it hugs the skull it reads as
-  // hair on a head; the moment it balloons past the silhouette you see its rim
-  // and unlit interior as a flat grey plate. Rendering the shell alone made that
-  // unmistakable — the thick styles were domes with the underside showing.
-  //
-  // So thickness stays small for every style, and "longer" is expressed by
-  // dropping `low` so the hair covers further down the skull, plus the region
-  // weights. This technique does short-to-medium convincingly and cannot do
-  // genuinely long hair; pretending otherwise is what produced the plates.
-  bald:      null,
-  buzz:      { frac: 0.022, low: 0.36, base: 1.0 },
-  crew:      { frac: 0.030, low: 0.34, base: 1.0, front: 0.20, side: -0.30 },
-  short:     { frac: 0.038, low: 0.31, base: 1.0 },
-  fringe:    { frac: 0.042, low: 0.27, base: 1.0, front: 0.50 },
-  medium:    { frac: 0.048, low: 0.24, base: 1.0 },
-  long:      { frac: 0.052, low: 0.12, base: 1.0, back: 0.20 },
-  ponytail:  { frac: 0.045, low: 0.18, base: 1.0, back: 0.30 },
-  bun:       { frac: 0.042, low: 0.22, base: 1.0, back: 0.25 },
-  afro:      { frac: 0.060, low: 0.30, base: 1.20, frizz: 0.20 },
-  curls:     { frac: 0.052, low: 0.28, base: 1.10, frizz: 0.35 },
-  mohawk:    { frac: 0.065, low: 0.26, base: 1.15, strip: 1, stripW: 0.13 },
-  undercut:  { frac: 0.040, low: 0.31, base: 1.0, side: -1.20 },
-  quiff:     { frac: 0.048, low: 0.29, base: 0.90, front: 0.70, side: -0.50 },
-  receding:  { frac: 0.032, low: 0.46, base: 1.0 },
+  bald:         null,
+  buzz:         { frac: 0.020, low: 0.68, base: 1.0 },
+  crew:         { frac: 0.026, low: 0.64, base: 1.0, front: 0.20, side: -0.30 },
+  short:        { frac: 0.032, low: 0.60, base: 1.0 },
+  fringe:       { frac: 0.036, low: 0.56, base: 1.0, front: 0.50 },
+  medium:       { frac: 0.040, low: 0.48, base: 1.0 },
+  long:         { frac: 0.042, low: 0.16, base: 1.0, back: 0.25 },
+  ponytail:     { frac: 0.036, low: 0.30, base: 1.0, back: 0.35, side: -0.45 },
+  bun:          { frac: 0.034, low: 0.42, base: 1.0, back: 0.30, side: -0.35 },
+  afro:         { frac: 0.052, low: 0.58, base: 1.15, frizz: 0.20 },
+  curls:        { frac: 0.044, low: 0.52, base: 1.10, frizz: 0.35 },
+  mohawk:       { frac: 0.058, low: 0.56, base: 1.15, strip: 1, stripW: 0.13 },
+  undercut:     { frac: 0.036, low: 0.58, base: 1.0, side: -1.20 },
+  quiff:        { frac: 0.040, low: 0.60, base: 0.90, front: 0.70, side: -0.50, lift: [0.10, 0.55] },
+  receding:     { frac: 0.028, low: 0.74, base: 1.0 },
+  // The everyday cuts. The first fifteen were shape experiments and several are
+  // things nobody asks a barber for; these are what people actually wear, and
+  // they are separated by PART, FADE and LIFT rather than by thickness — which
+  // is why they no longer read as one haircut at four lengths.
+  sidePart:     { frac: 0.034, low: 0.58, part: 0.60, partX: -0.34, side: -0.25 },
+  combOver:     { frac: 0.038, low: 0.56, part: 0.45, partX: -0.46, side: -0.35, lift: [0.30, 0.10] },
+  slickBack:    { frac: 0.032, low: 0.58, front: -0.10, lift: [-0.55, 0.30] },
+  pompadour:    { frac: 0.044, low: 0.60, front: 0.60, side: -0.60, lift: [0.15, 0.85] },
+  caesar:       { frac: 0.030, low: 0.60, front: 0.35, side: -0.25 },
+  ivyLeague:    { frac: 0.032, low: 0.58, front: 0.30, side: -0.40, fade: 0.6, fadeY: 0.74 },
+  taperFade:    { frac: 0.034, low: 0.54, fade: 1.0, fadeY: 0.78 },
+  highFade:     { frac: 0.038, low: 0.54, fade: 1.0, fadeY: 0.86 },
+  buzzFade:     { frac: 0.022, low: 0.62, fade: 1.0, fadeY: 0.82 },
+  texturedCrop: { frac: 0.038, low: 0.58, front: 0.45, side: -0.55, frizz: 0.30 },
+  messy:        { frac: 0.042, low: 0.52, frizz: 0.50, lift: [0.05, 0.20] },
+  bowl:         { frac: 0.038, low: 0.54, front: 0.55, side: 0.25 },
+  curtains:     { frac: 0.042, low: 0.50, front: 0.55, part: 0.70, partX: 0.0 },
+  layered:      { frac: 0.042, low: 0.34, back: 0.15, wave: 0.30 },
+  bob:          { frac: 0.040, low: 0.30, side: 0.25, back: 0.10 },
+  pixie:        { frac: 0.032, low: 0.56, side: -0.35, frizz: 0.20, part: 0.35, partX: -0.40 },
+  spiky:        { frac: 0.042, low: 0.60, frizz: 0.80, lift: [0.0, 0.50] },
+  flatTop:      { frac: 0.048, low: 0.62, side: -0.90, lift: [0.0, 0.40] },
+  wavy:         { frac: 0.042, low: 0.44, wave: 0.55 },
+  cornrows:     { frac: 0.026, low: 0.58, rows: 1 },
 };
 window.__hairNames = Object.keys(HAIR);
 window.__setHair = (name) => {
@@ -202,6 +322,13 @@ window.__setHair = (name) => {
     HU.uStrip.value = s.strip ?? 0;
     HU.uStripW.value = s.stripW ?? 0.2;
     HU.uFrizz.value = s.frizz ?? 0;
+    HU.uFade.value = s.fade ?? 0;
+    HU.uFadeY.value = s.fadeY ?? 0.6;
+    HU.uPart.value = s.part ?? 0;
+    HU.uPartX.value = s.partX ?? 0;
+    HU.uWave.value = s.wave ?? 0;
+    HU.uRows.value = s.rows ?? 0;
+    HU.uLift.value.set(...(s.lift ?? [0, 0]));
   }
   renderer.render(scene, camera);
 };
@@ -306,10 +433,45 @@ const box = new THREE.Box3()
   .applyMatrix4(parts.skin.matrixWorld);
 const size = box.getSize(new THREE.Vector3());
 const centre = box.getCenter(new THREE.Vector3());
-const s = 2.35 / Math.max(size.x, size.y, size.z);
+// HEADROOM. The frame is 2 * 6.2 * tan(14°) ≈ 3.09 units tall, so its top edge
+// is at y = 1.545. A 2.35-unit head biased up by 0.30 (plus the root's 0.12) put
+// the crown at 1.60 and the hair above that — every render sliced the top of the
+// skull off, and a haircut you only ever see the bottom half of reads as a
+// beret. Place the crown at a fixed height instead of biasing the centre, so the
+// margin is a stated number rather than a leftover.
+const s = 2.45 / Math.max(size.x, size.y, size.z);
 holder.scale.setScalar(s);
-holder.position.set(-centre.x * s, -centre.y * s + 0.30, -centre.z * s);
+const CROWN_Y = 1.10;
+holder.position.set(
+  -centre.x * s,
+  CROWN_Y - (box.max.y - centre.y) * s - root.position.y,
+  -centre.z * s,
+);
 root.add(holder);
+
+// Render the shell WITHOUT the head. The decisive diagnostic for this technique:
+// on a head, a hollow open-bottomed cap and a solid one look the same until they
+// don't, and the difference is what makes a style read as hair or as plastic.
+window.__debugHairOnly = (on) => {
+  for (const p of Object.values(parts)) p.visible = !on;
+  hair.visible = true;
+  renderer.render(scene, camera);
+};
+
+window.__probe = () => {
+  const g = parts.skin.geometry;
+  const a = g.getAttribute('position');
+  const n = parts.skin.matrixWorld.clone();
+  return {
+    attr: `${a.array.constructor.name} normalized=${a.normalized}`,
+    geomBox: [gb.min.toArray(), gb.max.toArray()],
+    geomExtent,
+    thickness: HU.uThickness.value,
+    nodeScale: parts.skin.parent.scale.toArray(),
+    holderScale: holder.scale.toArray(),
+    world: n.elements.slice(0, 3),
+  };
+};
 
 window.__setHair('short');
 window.__setBeard('none');

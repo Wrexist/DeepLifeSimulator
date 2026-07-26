@@ -80,8 +80,48 @@ export const HAIR_STYLES = [
   'undercut',
   'quiff',
   'receding',
+  // APPEND-ONLY. A saved genome stores the style by name, so reordering or
+  // renaming any entry above silently rewrites the hair of every existing
+  // character; `normalizeGenome` falls back for names it does not recognise,
+  // which turns a rename into a mass reset rather than an error.
+  //
+  // The everyday cuts. The first fifteen were shape experiments and several are
+  // things nobody asks a barber for.
+  'sidePart',
+  'combOver',
+  'slickBack',
+  'pompadour',
+  'caesar',
+  'ivyLeague',
+  'taperFade',
+  'highFade',
+  'buzzFade',
+  'texturedCrop',
+  'messy',
+  'bowl',
+  'curtains',
+  'layered',
+  'bob',
+  'pixie',
+  'spiky',
+  'flatTop',
+  'wavy',
+  'cornrows',
 ] as const;
 export type HairStyle = (typeof HAIR_STYLES)[number];
+
+/**
+ * A style id as a human label: `taperFade` -> "Taper fade".
+ *
+ * The ids are camelCase because they are keys in the renderer's spec tables and
+ * in saved genomes. Printing them raw gave the picker chips reading "SidePart"
+ * and "IvyLeague" the moment the everyday cuts were added, so the split lives
+ * here — next to the list — rather than in each of the two screens that show it.
+ */
+export function styleLabel(id: string): string {
+  const spaced = id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 /** Facial hair the renderer knows how to build. */
 export const FACIAL_HAIR_STYLES = ['none', 'stubble', 'moustache', 'goatee', 'full'] as const;

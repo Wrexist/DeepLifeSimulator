@@ -44,6 +44,7 @@ import {
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
+  styleLabel,
   SKIN_TONES,
   randomizeFace,
   type FaceGenome,
@@ -514,7 +515,7 @@ function Chips({
             style={[styles.chip, active ? styles.chipOn : null]}
           >
             <Text style={[styles.chipText, active ? styles.chipTextOn : null]}>
-              {option.charAt(0).toUpperCase() + option.slice(1)}
+              {styleLabel(option)}
             </Text>
           </TouchableOpacity>
         );

@@ -40,12 +40,15 @@ async function main() {
   });
   await new Promise((r) => server.listen(PORT, r));
 
+  // VIEW=w,h,rot renders bigger tiles or a different yaw; the defaults are the
+  // contact sheet's.
+  const [vw, vh, rot] = (process.env.VIEW ?? '420,480,-0.62').split(',').map(Number);
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-  const page = await browser.newPage({ viewport: { width: 420, height: 480 } });
+  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${PORT}/?w=${vw}&h=${vh}&rot=${rot}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 
   if (!(await page.evaluate(() => window.__ok))) {
@@ -53,7 +56,12 @@ async function main() {
     await browser.close(); server.close(); process.exit(1);
   }
 
-  const names = await page.evaluate((b) => (b ? window.__beardNames : window.__hairNames), beards);
+  let names = await page.evaluate((b) => (b ? window.__beardNames : window.__hairNames), beards);
+  // ONLY=a,b,c narrows the sheet to the styles under investigation.
+  if (process.env.ONLY) {
+    const want = new Set(process.env.ONLY.split(','));
+    names = names.filter((n) => want.has(n));
+  }
   console.log(`${names.length} ${beards ? 'facial-hair' : 'hair'} styles`);
 
   if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
@@ -64,9 +72,8 @@ async function main() {
     console.log(`  ${name}`);
   }
 
-  const cols = beards ? 5 : 5;
-  const strip = await page.evaluate(async ([imgs, labels, cols]) => {
-    const W = 420, H = 480;
+  const cols = Math.min(5, names.length);
+  const strip = await page.evaluate(async ([imgs, labels, cols, W, H]) => {
     const rows = Math.ceil(imgs.length / cols);
     const c = document.createElement('canvas');
     c.width = W * cols; c.height = H * rows;
@@ -82,7 +89,7 @@ async function main() {
       ctx.fillText(labels[i], x + 16, y + 34);
     }
     return c.toDataURL('image/png');
-  }, [shots.map((s) => `data:image/png;base64,${s.png.toString('base64')}`), shots.map((s) => s.name), cols]);
+  }, [shots.map((s) => `data:image/png;base64,${s.png.toString('base64')}`), shots.map((s) => s.name), cols, vw, vh]);
 
   writeFileSync(out, Buffer.from(strip.split(',')[1], 'base64'));
   console.log(`\nWrote ${out}`);
