@@ -32,6 +32,8 @@
     "audit:logic": "node scripts/audit/audit-logic.cjs",
     "audit:perf": "node scripts/audit/audit-perf.cjs",
     "audit:weekly": "node scripts/audit/run-weekly-audit.cjs",
+    "head:list": "node scripts/optimize-head-glb.mjs assets/models/head_raw.glb --list",
+    "head:build": "node scripts/optimize-head-glb.mjs assets/models/head_raw.glb assets/models/head.glb --keep assets/models/morph-keep.json --verts 8000",
     "audit:weekly:full": "node scripts/audit/run-weekly-audit.cjs --run-tests",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps",
