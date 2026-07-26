@@ -36,6 +36,7 @@ import {
   type FaceGenome,
   type MeshData,
 } from '@/lib/identity';
+import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironment';
 
 export interface FaceSceneInput {
   genome: FaceGenome;
@@ -121,22 +122,33 @@ export function createFaceScene(
   renderer.setSize(width, height, false);
   renderer.setClearColor(new THREE.Color(options.background ?? '#0F172A'), options.background ? 1 : 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(28, width / height, 0.1, 100);
+
+  // Image-based lighting. Skin is a dielectric with a real specular sheen and
+  // eyes are wet spheres — both need something to reflect. With directional
+  // lights alone the face renders matte and slightly plastic, which is the
+  // single biggest thing separating a "game head" from a rendered one.
+  const studio = createStudioEnvironment(renderer);
+  scene.environment = studio.texture;
   camera.position.set(0, 0.05, 6.2);
   camera.lookAt(0, -0.02, 0);
 
   // Three-point-ish lighting. A single light makes any procedural head look
   // like a clay blob — the fill and rim are what give the cheekbones and jaw an
   // edge to catch, which is most of what makes the morphs legible at all.
-  const key = new THREE.DirectionalLight(0xfff4e8, 2.1);
+  // Softened now that the environment carries the base lighting — the previous
+  // intensities were compensating for its absence and would blow out over it.
+  const key = new THREE.DirectionalLight(0xfff4e8, 1.15);
   key.position.set(-2.2, 2.6, 3.4);
-  const fill = new THREE.DirectionalLight(0xbfd4ff, 0.75);
+  const fill = new THREE.DirectionalLight(0xbfd4ff, 0.35);
   fill.position.set(2.8, -0.4, 2.0);
-  const rim = new THREE.DirectionalLight(0xffffff, 1.15);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.65);
   rim.position.set(0.6, 1.2, -3.2);
-  const ambient = new THREE.AmbientLight(0xffffff, 0.30);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.10);
   scene.add(key, fill, rim, ambient);
 
   const root = new THREE.Group();
@@ -182,10 +194,16 @@ export function createFaceScene(
 
     const head = buildHeadMesh(genome, { age, body });
     const skin = SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.max(0, aged.skinTone))];
-    const headMaterial = track(new THREE.MeshStandardMaterial({
+    const headMaterial = track(new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(skin),
-      roughness: 0.62,
+      roughness: 0.58,
       metalness: 0,
+      // A weak clearcoat is the cheapest convincing skin trick: it adds the
+      // faint oily sheen real skin has, without the cost of subsurface
+      // scattering, which is not viable on a phone.
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.5,
+      envMapIntensity: 0.55,
     }));
     headMesh = new THREE.Mesh(track(toBufferGeometry(head)), headMaterial);
     root.add(headMesh);
@@ -193,9 +211,17 @@ export function createFaceScene(
     // Eyes. Seated against the socket the skin mesh actually carved.
     const eyes = eyePlacement(head, genome, age);
     const iris = EYE_COLORS[Math.min(EYE_COLORS.length - 1, Math.max(0, aged.eyeColor))];
-    const scleraMat = track(new THREE.MeshStandardMaterial({ color: 0xf2f0ec, roughness: 0.22 }));
-    const irisMat = track(new THREE.MeshStandardMaterial({ color: new THREE.Color(iris), roughness: 0.18 }));
-    const pupilMat = track(new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.1 }));
+    // Eyes are wet: low roughness plus a strong environment response is what
+    // produces the catchlight that makes a face look alive rather than dead.
+    const scleraMat = track(new THREE.MeshStandardMaterial({
+      color: 0xf2f0ec, roughness: 0.14, envMapIntensity: 1.6,
+    }));
+    const irisMat = track(new THREE.MeshStandardMaterial({
+      color: new THREE.Color(iris), roughness: 0.10, envMapIntensity: 1.9,
+    }));
+    const pupilMat = track(new THREE.MeshStandardMaterial({
+      color: 0x0a0a0c, roughness: 0.06, envMapIntensity: 2.0,
+    }));
     for (const e of [eyes.left, eyes.right]) {
       const ball = new THREE.Mesh(track(new THREE.SphereGeometry(e.radius, 24, 18)), scleraMat);
       ball.position.set(e.x, e.y, e.z);
@@ -248,6 +274,8 @@ export function createFaceScene(
     if (disposed) return;
     disposed = true;
     clearRoot();
+    studio.dispose();
+    scene.environment = null;
     scene.clear();
     renderer.dispose();
     // forceContextLoss releases the native GL context. Without it the context

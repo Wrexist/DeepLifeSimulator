@@ -17,8 +17,9 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 import { logger } from '@/utils/logger';
+import { useSpinControls } from '@/components/luxury/useSpinControls';
 import type { BodyProfile, FaceGenome } from '@/lib/identity';
 import type { FaceScene } from './gl/FaceRenderer';
 
@@ -68,12 +69,21 @@ function FaceCanvasInner(
   const sceneRef = useRef<FaceScene | null>(null);
   const glContextRef = useRef<unknown>(null);
   const frameRef = useRef<number | null>(null);
-  const yawRef = useRef(0);
-  const pitchRef = useRef(0);
-  const dragStart = useRef({ yaw: 0, pitch: 0 });
   // Written by the render loop, read by nothing else — a ref rather than state
   // so a 60 Hz loop never triggers a React render.
   const dirtyRef = useRef(true);
+
+  // Shared with the luxury viewer so turning a head and turning a trophy feel
+  // identical. Pitch is clamped tighter here: past ~0.5 rad the camera is
+  // looking up the character's nose, and there is no geometry inside the head.
+  const spin = useSpinControls({
+    initialYaw: 0,
+    initialPitch: 0,
+    pitchLimit: 0.5,
+    autoRotate: autoRotate ? 0.005 : 0,
+  });
+  const yawRef = spin.yaw;
+  const pitchRef = spin.pitch;
 
   React.useImperativeHandle(ref, () => ({
     async capture() {
@@ -126,10 +136,9 @@ function FaceCanvasInner(
         const loop = () => {
           const current = sceneRef.current;
           if (!current) return;
-          if (autoRotate) {
-            yawRef.current += 0.006;
-            dirtyRef.current = true;
-          }
+          // Inertia first, then the idle turntable once at rest. Returns false
+          // when nothing moved, so a still head costs no GPU time.
+          if (spin.step()) dirtyRef.current = true;
           if (dirtyRef.current) {
             current.setRotation(yawRef.current, pitchRef.current);
             current.render();
@@ -147,7 +156,7 @@ function FaceCanvasInner(
         setFailed(true);
       }
     },
-    [genome, age, body, autoRotate, onReady],
+    [genome, age, body, spin, onReady],
   );
 
   useEffect(() => () => {
@@ -160,23 +169,6 @@ function FaceCanvasInner(
     glContextRef.current = null;
   }, []);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => interactive,
-        onMoveShouldSetPanResponder: () => interactive,
-        onPanResponderGrant: () => {
-          dragStart.current = { yaw: yawRef.current, pitch: pitchRef.current };
-        },
-        onPanResponderMove: (_evt, gesture) => {
-          yawRef.current = dragStart.current.yaw + gesture.dx * 0.01;
-          pitchRef.current = dragStart.current.pitch + gesture.dy * 0.006;
-          dirtyRef.current = true;
-        },
-      }),
-    [interactive],
-  );
-
   // Web and any environment without the native module get the flat portrait.
   // expo-gl does ship a web build, but this app's web target is a preview
   // surface, and shipping three.js into it for that is not a trade worth making.
@@ -186,7 +178,7 @@ function FaceCanvasInner(
 
   const { GLView } = gl;
   return (
-    <View style={[styles.container, style]} {...(interactive ? panResponder.panHandlers : {})}>
+    <View style={[styles.container, style]} {...(interactive ? spin.panHandlers : {})}>
       <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} />
     </View>
   );

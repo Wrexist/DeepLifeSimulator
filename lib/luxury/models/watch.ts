@@ -92,17 +92,64 @@ export function buildWatchModel(): ProceduralModel {
   });
 
   // Subdials: two recesses at 3 and 9, as in the reference chronograph layout.
-  for (const x of [-0.34, 0.34]) {
+  for (const x of [-0.33, 0.33]) {
     const sub = lathe(
       [
         { r: 0, y: 0.158 },
-        { r: 0.22, y: 0.158 },
-        { r: 0.24, y: 0.150 },
+        { r: 0.165, y: 0.158 },
+        { r: 0.185, y: 0.150 },
       ],
       36,
     );
     translate(sub, x, 0, 0);
     parts.push({ name: `subdial${x}`, mesh: sub, material: { color: '#0E1015', roughness: 0.6, metalness: 0.05 } });
+
+    // Polished ring around each subdial. The recesses alone were nearly
+    // invisible against the dial — a bright rim is what actually defines them.
+    const ring = lathe(
+      [
+        { r: 0.180, y: 0.152 },
+        { r: 0.192, y: 0.160 },
+        { r: 0.172, y: 0.161 },
+      ],
+      28,
+    );
+    translate(ring, x, 0, 0);
+    parts.push({ name: `subring${x}`, mesh: ring, material: { ...STEEL, roughness: 0.14 } });
+  }
+
+  // Chapter ring — the stepped inner flange between dial and crystal. Every real
+  // watch has one, and its absence is why the first render read as a plain disc
+  // with sticks on it: there was no depth between the dial and the case.
+  parts.push({
+    name: 'chapterRing',
+    mesh: lathe(
+      [
+        { r: R * 0.78, y: 0.152 },
+        { r: R * 0.74, y: 0.150 },
+        { r: R * 0.70, y: 0.156 },
+        { r: R * 0.70, y: 0.162 },
+      ],
+      64,
+    ),
+    material: { color: '#2A2F38', roughness: 0.42, metalness: 0.6 },
+  });
+
+  // Minute track — 60 fine ticks on the chapter ring. Individually invisible;
+  // collectively they are most of what reads as "precision instrument".
+  {
+    const ticks: MeshData[] = [];
+    for (let i = 0; i < 60; i++) {
+      const tick = box(0.012, 0.008, i % 5 === 0 ? 0.055 : 0.032);
+      translate(tick, 0, 0.164, -R * 0.735);
+      rotateY(tick, (i / 60) * Math.PI * 2);
+      ticks.push(tick);
+    }
+    parts.push({
+      name: 'minuteTrack',
+      mesh: merge(ticks),
+      material: { color: '#E4E8EE', roughness: 0.28, metalness: 0.9 },
+    });
   }
 
   // Applied hour indices — 12 tapered batons standing on the dial.
@@ -119,10 +166,10 @@ export function buildWatchModel(): ProceduralModel {
   // Hands. Hour and minute offset to a natural ~10:10 display position, which is
   // how every watch is photographed — it frames the logo and reads as "alive".
   const hour = box(0.045, 0.016, 0.44);
-  translate(hour, 0, 0.185, -0.22);
+  translate(hour, 0, 0.196, -0.22);
   rotateY(hour, -Math.PI * 0.33);
   const minute = box(0.038, 0.016, 0.62);
-  translate(minute, 0, 0.196, -0.31);
+  translate(minute, 0, 0.206, -0.31);
   rotateY(minute, Math.PI * 0.28);
   parts.push({
     name: 'hands',
@@ -131,7 +178,7 @@ export function buildWatchModel(): ProceduralModel {
   });
   parts.push({
     name: 'pinion',
-    mesh: lathe([{ r: 0, y: 0.21 }, { r: 0.05, y: 0.21 }, { r: 0.05, y: 0.17 }], 20),
+    mesh: lathe([{ r: 0, y: 0.222 }, { r: 0.05, y: 0.222 }, { r: 0.05, y: 0.18 }], 20),
     material: DARK_STEEL,
   });
 

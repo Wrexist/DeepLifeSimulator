@@ -15,7 +15,8 @@
  *
  * ## What this does NOT reproduce
  *
- *  - No railings, tenders, davits, radar mast detail, or window mullions.
+ *  - No tenders, davits, or window mullions. (Railings and a waterline boot
+ *    stripe ARE modelled — both are silhouette-defining and nearly free.)
  *  - Superstructure is stepped blocks, not the compound-curved glasshouse of a
  *    real modern superyacht.
  *  - No wake, water, or sea — the model is the vessel alone.
@@ -71,6 +72,32 @@ const STATIONS: Station[] = [
 
 /** Vertical samples per station, deck edge down to keel. */
 const RIB = 7;
+
+/**
+ * Interpolate the station table at an arbitrary point along the keel.
+ *
+ * The railings sit at positions that are not stations, and snapping them to the
+ * nearest one would leave them hanging off the deck edge where the hull narrows
+ * fastest — right at the bow, where it is most obvious.
+ */
+function sampleStation(t: number): Station {
+  const clamped = Math.max(-1, Math.min(1, t));
+  for (let i = 0; i < STATIONS.length - 1; i++) {
+    const a = STATIONS[i];
+    const b = STATIONS[i + 1];
+    if (clamped >= a.t && clamped <= b.t) {
+      const f = b.t === a.t ? 0 : (clamped - a.t) / (b.t - a.t);
+      return {
+        t: clamped,
+        beam: a.beam + (b.beam - a.beam) * f,
+        draft: a.draft + (b.draft - a.draft) * f,
+        freeboard: a.freeboard + (b.freeboard - a.freeboard) * f,
+        flare: a.flare + (b.flare - a.flare) * f,
+      };
+    }
+  }
+  return STATIONS[STATIONS.length - 1];
+}
 
 /** Loft the station table into a hull shell. */
 function buildHull(length: number, beamScale: number): MeshData {
@@ -199,6 +226,69 @@ export function buildYachtModel(scaleKind: YachtScale = 'luxury'): ProceduralMod
       name: `glass${d}`,
       mesh: glass,
       material: { color: '#0B1622', roughness: 0.06, metalness: 0.2, opacity: 0.85 },
+    });
+  }
+
+  // Boot stripe — the dark band at the waterline. On a real yacht it is the line
+  // that separates the topsides from the antifouling, and its absence is one of
+  // the loudest "this is a toy boat" cues: without it the hull reads as a single
+  // moulded lump rather than a vessel sitting IN water.
+  {
+    const stripe: MeshData[] = [];
+    const cols = STATIONS.length;
+    for (let i = 0; i < cols - 1; i++) {
+      const a = STATIONS[i];
+      const b = STATIONS[i + 1];
+      for (const side of [1, -1]) {
+        const seg = box(Math.abs(b.t - a.t) * length, 0.055, 0.02);
+        const midBeam = ((a.beam + b.beam) / 2) * beamScale * 0.995;
+        translate(seg, ((a.t + b.t) / 2) * length, 0.012, side * midBeam);
+        stripe.push(seg);
+      }
+    }
+    parts.push({
+      name: 'bootStripe',
+      mesh: merge(stripe),
+      material: { color: '#16233A', roughness: 0.30, metalness: 0.1 },
+    });
+  }
+
+  // Deck railings — thin stanchion posts with a top rail along the foredeck.
+  // Pure silhouette detail: they add almost no triangles but they give the deck
+  // a human scale, which is what makes the vessel read as large.
+  {
+    const rails: MeshData[] = [];
+    const postCount = mega ? 11 : 8;
+    for (let i = 0; i < postCount; i++) {
+      const t = 0.20 + (i / (postCount - 1)) * 0.74;
+      const station = sampleStation(t);
+      for (const side of [1, -1]) {
+        const post = box(0.025, 0.16, 0.025);
+        translate(post, t * length, station.freeboard + 0.08, side * station.beam * beamScale * 0.94);
+        rails.push(post);
+      }
+    }
+    // Top rail, one continuous run per side.
+    for (const side of [1, -1]) {
+      for (let i = 0; i < postCount - 1; i++) {
+        const t0 = 0.20 + (i / (postCount - 1)) * 0.74;
+        const t1 = 0.20 + ((i + 1) / (postCount - 1)) * 0.74;
+        const s0 = sampleStation(t0);
+        const s1 = sampleStation(t1);
+        const seg = box((t1 - t0) * length, 0.02, 0.02);
+        translate(
+          seg,
+          ((t0 + t1) / 2) * length,
+          (s0.freeboard + s1.freeboard) / 2 + 0.16,
+          side * ((s0.beam + s1.beam) / 2) * beamScale * 0.94,
+        );
+        rails.push(seg);
+      }
+    }
+    parts.push({
+      name: 'railings',
+      mesh: merge(rails),
+      material: { color: '#D8DEE6', roughness: 0.18, metalness: 1 },
     });
   }
 

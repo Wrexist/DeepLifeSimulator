@@ -16,8 +16,10 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { logger } from '@/utils/logger';
+import { useSpinControls } from './useSpinControls';
 import { buildLuxuryModel, type ProceduralModel } from '@/lib/luxury/models';
 import type { ModelScene } from './gl/ModelRenderer';
 
@@ -60,11 +62,16 @@ export default function LuxuryModelViewer({
 
   const sceneRef = useRef<ModelScene | null>(null);
   const frameRef = useRef<number | null>(null);
-  const yawRef = useRef(0.6);
-  const pitchRef = useRef(model?.defaultPitch ?? -0.2);
-  const dragStart = useRef({ yaw: 0, pitch: 0 });
-  const draggingRef = useRef(false);
   const dirtyRef = useRef(true);
+
+  const spin = useSpinControls({
+    initialYaw: 0.6,
+    initialPitch: model?.defaultPitch ?? -0.2,
+    pitchLimit: 1.3,
+    autoRotate: autoRotate ? 0.0032 : 0,
+  });
+  const yawRef = spin.yaw;
+  const pitchRef = spin.pitch;
 
   useEffect(() => {
     pitchRef.current = model?.defaultPitch ?? -0.2;
@@ -93,12 +100,10 @@ export default function LuxuryModelViewer({
         const loop = () => {
           const current = sceneRef.current;
           if (!current) return;
-          // Auto-rotate pauses while the player is dragging, or the object
-          // fights the finger.
-          if (autoRotate && !draggingRef.current) {
-            yawRef.current += 0.004;
-            dirtyRef.current = true;
-          }
+          // `step` advances inertia, then the idle turntable once at rest. It
+          // returns false when nothing moved, which lets the loop skip the draw
+          // entirely — a still object costs no GPU time.
+          if (spin.step()) dirtyRef.current = true;
           if (dirtyRef.current) {
             current.setRotation(yawRef.current, pitchRef.current);
             current.render();
@@ -113,7 +118,7 @@ export default function LuxuryModelViewer({
         setFailed(true);
       }
     },
-    [model, autoRotate],
+    [model, spin],
   );
 
   useEffect(() => () => {
@@ -123,26 +128,6 @@ export default function LuxuryModelViewer({
     sceneRef.current = null;
   }, []);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          draggingRef.current = true;
-          dragStart.current = { yaw: yawRef.current, pitch: pitchRef.current };
-        },
-        onPanResponderMove: (_evt, gesture) => {
-          yawRef.current = dragStart.current.yaw + gesture.dx * 0.011;
-          pitchRef.current = dragStart.current.pitch + gesture.dy * 0.007;
-          dirtyRef.current = true;
-        },
-        onPanResponderRelease: () => { draggingRef.current = false; },
-        onPanResponderTerminate: () => { draggingRef.current = false; },
-      }),
-    [],
-  );
-
   // No model for this item, no GL, or GL failed → the screen looks exactly as
   // it did before this component existed.
   if (!model || !gl || failed || Platform.OS === 'web') {
@@ -151,7 +136,17 @@ export default function LuxuryModelViewer({
 
   const { GLView } = gl;
   return (
-    <View style={[styles.container, style]} {...panResponder.panHandlers}>
+    <View style={[styles.container, style]} {...spin.panHandlers}>
+      {/* A soft radial pedestal behind the object. Product photography never
+          shoots against flat black — the gradient gives the trophy a room to
+          sit in, and stops the silhouette from dissolving into the sheet. */}
+      <LinearGradientFallback
+        pointerEvents="none"
+        colors={['#1C2536', '#141A26', '#0B0F17']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} />
     </View>
   );

@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import type { MeshData } from '@/lib/geometry/mesh';
 import type { PartMaterial, ProceduralModel } from '@/lib/luxury/models';
+import { createContactShadow, createStudioEnvironment } from './studioEnvironment';
 
 export interface ModelScene {
   update(model: ProceduralModel): void;
@@ -45,6 +46,9 @@ function toBufferGeometry(mesh: MeshData): THREE.BufferGeometry {
  */
 function toMaterial(spec: PartMaterial): THREE.Material {
   const needsPhysical = spec.transmission !== undefined || spec.clearcoat !== undefined;
+  // Metals lean harder on the environment than dielectrics do — that ratio is
+  // most of what separates "polished steel" from "grey paint".
+  const envIntensity = 0.9 + spec.metalness * 0.7;
   const common = {
     color: new THREE.Color(spec.color),
     roughness: spec.roughness,
@@ -52,6 +56,7 @@ function toMaterial(spec: PartMaterial): THREE.Material {
     transparent: spec.opacity !== undefined && spec.opacity < 1,
     opacity: spec.opacity ?? 1,
     emissive: spec.emissive ? new THREE.Color(spec.emissive) : new THREE.Color(0x000000),
+    envMapIntensity: envIntensity,
   };
   if (!needsPhysical) return new THREE.MeshStandardMaterial(common);
 
@@ -87,28 +92,47 @@ export function createModelScene(
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, width / height, 0.05, 200);
 
+  // The environment map is what makes metal look like metal. Without it,
+  // `metalness: 1` has nothing to reflect and renders as flat grey. Assigned to
+  // scene.environment so EVERY physical material picks it up automatically.
+  const studio = createStudioEnvironment(renderer);
+  scene.environment = studio.texture;
+
   // Bright key + cool fill + strong rim. Luxury product photography is lit hard
   // and from behind — the rim is what puts an edge on chrome and glass, and
   // without it a metal watch case reads as flat grey plastic.
-  const key = new THREE.DirectionalLight(0xfff6ea, 3.0);
+  // Direct lights are now a SUPPLEMENT to the environment, not the whole look,
+  // so they are much softer than before — at the old intensities they blew out
+  // the image-based lighting and flattened exactly the reflections it adds.
+  // They survive to give crisp specular hits the low-res env map cannot.
+  const key = new THREE.DirectionalLight(0xfff6ea, 1.35);
   key.position.set(-3, 4, 4);
-  const fill = new THREE.DirectionalLight(0xc6dcff, 1.0);
+  const fill = new THREE.DirectionalLight(0xc6dcff, 0.45);
   fill.position.set(4, -1, 2);
-  const rim = new THREE.DirectionalLight(0xffffff, 2.2);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.9);
   rim.position.set(1, 2, -5);
-  scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.35));
+  scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.12));
 
   const root = new THREE.Group();
   scene.add(root);
 
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
+  // The shadow is a sibling of `root`, NOT a child: it must stay flat on the
+  // ground while the object spins above it. Parenting it to the rotating group
+  // would swing the shadow through the air with the model.
+  let shadow: { mesh: THREE.Mesh; dispose: () => void } | null = null;
   let disposed = false;
 
   function clearRoot(): void {
     for (const child of [...root.children]) root.remove(child);
     for (const g of geometries.splice(0)) g.dispose();
     for (const m of materials.splice(0)) m.dispose();
+    if (shadow) {
+      scene.remove(shadow.mesh);
+      shadow.dispose();
+      shadow = null;
+    }
   }
 
   function update(model: ProceduralModel): void {
@@ -126,6 +150,21 @@ export function createModelScene(
       mesh.renderOrder = part.material.transmission ? 1 : 0;
       root.add(mesh);
     }
+    // Ground the object. Measured from the model's actual lowest vertex rather
+    // than assumed at y=0, because the diamond sits on a plinth and the yacht's
+    // keel hangs well below the origin — a fixed plane would float under one and
+    // cut through the other.
+    let lowest = Infinity;
+    for (const part of model.parts) {
+      for (let i = 1; i < part.mesh.positions.length; i += 3) {
+        if (part.mesh.positions[i] < lowest) lowest = part.mesh.positions[i];
+      }
+    }
+    if (!isFinite(lowest)) lowest = 0;
+    shadow = createContactShadow(model.radius);
+    shadow.mesh.position.y = lowest - model.radius * 0.012;
+    scene.add(shadow.mesh);
+
     // Frame the camera from the model's own radius, so a watch and a yacht both
     // fill the viewport without per-model camera tuning.
     const dist = Math.max(1.6, model.radius * 3.1);
@@ -155,6 +194,8 @@ export function createModelScene(
     if (disposed) return;
     disposed = true;
     clearRoot();
+    studio.dispose();
+    scene.environment = null;
     scene.clear();
     renderer.dispose();
     try { renderer.forceContextLoss(); } catch { /* not available on every driver */ }
