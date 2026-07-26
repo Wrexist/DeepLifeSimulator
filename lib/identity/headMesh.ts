@@ -347,14 +347,19 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       if (neckT > 0) {
         const radius = Math.hypot(x, z);
         if (radius > 1e-6) {
-          const targetR = (0.30 + neckThickness * 0.12) * (1 + neckT * 0.28);
+          // Narrower, and barely flared. The previous (0.30 + …) * (1 + neckT *
+          // 0.28) widened the column as it descended, which — under a rounded
+          // cranium — produced a lightbulb/chess-pawn silhouette rather than a
+          // head on a neck. A real neck is narrower than the skull and close to
+          // parallel-sided until it reaches the shoulders.
+          const targetR = (0.225 + neckThickness * 0.10) * (1 + neckT * 0.10);
           const blend = neckT;
           const scale = ((1 - blend) * radius + blend * targetR) / radius;
           x *= scale;
           z *= scale;
         }
         // Extend downward into shoulders instead of pinching shut at the pole.
-        y -= neckT * 0.30;
+        y -= neckT * 0.22;
       }
 
       // Sagging with age: everything below the cheekbones descends slightly.
@@ -467,7 +472,9 @@ export function eyePlacement(
   const x = 0.235 + centred(m.eyeSpacing) * 0.10;
   // Must match `eyeY` in buildHeadMesh — the socket is carved at that height.
   const y = 0.13;
-  const radius = 0.082 + centred(m.eyeSize) * 0.030;
+  // 0.082 -> 0.100. At the old size the eyes rendered as two bright pinpricks
+  // with no readable shape, which is most of why the face looked lifeless.
+  const radius = 0.100 + centred(m.eyeSize) * 0.032;
   const tilt = centred(m.eyeTilt) * 0.35;
 
   // Seat the ball against the socket the skin mesh ACTUALLY carved, rather than
@@ -520,13 +527,16 @@ export function buildHairMesh(
 
   // How far the shell stands off the scalp, and how low the hairline sits.
   const spec: Record<string, { thickness: number; lowY: number; backOnly: boolean }> = {
-    buzz: { thickness: 0.012, lowY: 0.10, backOnly: false },
-    short: { thickness: 0.030, lowY: 0.02, backOnly: false },
-    medium: { thickness: 0.048, lowY: -0.22, backOnly: false },
-    long: { thickness: 0.060, lowY: -0.75, backOnly: false },
-    ponytail: { thickness: 0.044, lowY: -0.34, backOnly: false },
-    afro: { thickness: 0.150, lowY: 0.06, backOnly: false },
-    bun: { thickness: 0.040, lowY: -0.10, backOnly: false },
+    // Thicknesses roughly doubled. At the old values the shell hugged the scalp
+    // so tightly it read as PAINT rather than hair — a skull cap with a hard
+    // edge. Hair needs visible volume to separate from the head beneath it.
+    buzz: { thickness: 0.028, lowY: 0.10, backOnly: false },
+    short: { thickness: 0.062, lowY: 0.02, backOnly: false },
+    medium: { thickness: 0.090, lowY: -0.22, backOnly: false },
+    long: { thickness: 0.105, lowY: -0.75, backOnly: false },
+    ponytail: { thickness: 0.082, lowY: -0.34, backOnly: false },
+    afro: { thickness: 0.190, lowY: 0.06, backOnly: false },
+    bun: { thickness: 0.078, lowY: -0.10, backOnly: false },
   };
   const s = spec[style] ?? spec.short;
 
@@ -557,7 +567,7 @@ export function buildHairMesh(
     const frontness = smoothstep(-0.25, 0.65, z);
     const foreheadLine = 0.34 + recession * 0.24;
     const hairlineY = s.lowY + frontness * (foreheadLine - s.lowY);
-    let coverage = smoothstep(hairlineY - 0.05, hairlineY + 0.08, y);
+    let coverage = smoothstep(hairlineY - 0.13, hairlineY + 0.15, y);
 
     if (style === 'ponytail' || style === 'bun') {
       // Pulled back: no volume at the sides, all of it at the back.

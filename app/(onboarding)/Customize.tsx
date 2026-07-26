@@ -24,6 +24,7 @@ import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnaly
 import { listStarterAvatars, avatarSexFromId } from '@/utils/facePool';
 import FaceCreatorModal from '@/components/identity/FaceCreatorModal';
 import { randomizeFace, type FaceGenome } from '@/lib/identity';
+import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 import { haptic } from '@/utils/haptics';
 import {
@@ -314,8 +315,9 @@ export default function Customize() {
                 })}
               </ScrollView>
 
-              {/* 3D creator — opt-in depth. The strip above stays the one-tap
-                  default so a player who wants to start a life immediately can. */}
+              {/* 3D creator — flag-gated OFF while the procedural head is below
+                  shipping quality. See FEATURE_FLAGS.faceCreator3D. */}
+              {FEATURE_FLAGS.faceCreator3D ? (
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="Build your face in 3D"
@@ -332,7 +334,8 @@ export default function Customize() {
                   {faceGenome ? 'Edit your 3D face' : 'Or build your own face in 3D'}
                 </Text>
               </TouchableOpacity>
-              {faceGenome ? (
+              ) : null}
+              {FEATURE_FLAGS.faceCreator3D && faceGenome ? (
                 <Text style={styles.creatorNote}>Using your custom face</Text>
               ) : null}
             </LinearGradient>

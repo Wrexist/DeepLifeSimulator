@@ -201,14 +201,15 @@ export function createFaceScene(
     const skin = SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.max(0, aged.skinTone))];
     const headMaterial = track(new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(skin),
-      roughness: 0.58,
+      roughness: 0.72,
       metalness: 0,
-      // A weak clearcoat is the cheapest convincing skin trick: it adds the
-      // faint oily sheen real skin has, without the cost of subsurface
-      // scattering, which is not viable on a phone.
-      clearcoat: 0.22,
-      clearcoatRoughness: 0.5,
-      envMapIntensity: 0.85,
+      // Clearcoat cut 0.22 -> 0.05. At 0.22 it put a wet lacquered sheen over
+      // the whole head and the skin read as moulded chocolate — the gloss was
+      // the single loudest "this is plastic" cue, worse than any geometry
+      // problem. Skin is mostly diffuse; the sheen has to be a hint, not a coat.
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.7,
+      envMapIntensity: 0.7,
     }));
     headMesh = new THREE.Mesh(track(toBufferGeometry(head)), headMaterial);
     root.add(headMesh);
@@ -219,7 +220,7 @@ export function createFaceScene(
     // Eyes are wet: low roughness plus a strong environment response is what
     // produces the catchlight that makes a face look alive rather than dead.
     const scleraMat = track(new THREE.MeshStandardMaterial({
-      color: 0xf2f0ec, roughness: 0.14, envMapIntensity: 1.6,
+      color: 0xe8e6e2, roughness: 0.18, envMapIntensity: 0.9,
     }));
     const irisMat = track(new THREE.MeshStandardMaterial({
       color: new THREE.Color(iris), roughness: 0.10, envMapIntensity: 1.9,

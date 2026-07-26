@@ -51,6 +51,22 @@ export const FEATURE_FLAGS = {
   // Boot breadcrumbs (always enabled for crash diagnosis)
   bootBreadcrumbs: true,
 
+  // 3D face creator (STATE_VERSION 26). OFF by default.
+  //
+  // The procedural head is not at shipping quality: at full size it reads as a
+  // mannequin — mushy features, pinprick eyes, an egg silhouette. The rest of
+  // the Identity & Body chapter (body simulation, weekly regimen, grooming,
+  // presence and its consequences) does NOT depend on it and is unaffected,
+  // so this flag lets the chapter ship while the head keeps cooking.
+  //
+  // With this off, onboarding shows only the existing starter-portrait strip,
+  // exactly as it did before the chapter. Every character still gets a full
+  // `identity` (face genome included) — the genome is stored and simulated,
+  // it simply is not rendered in 3D or offered for editing.
+  //
+  // Turn on with EXPO_PUBLIC_ENABLE_FACE_CREATOR=true to keep iterating on it.
+  faceCreator3D: process.env.EXPO_PUBLIC_ENABLE_FACE_CREATOR === 'true',
+
   // Weekly event "Heads Up" pop-ups — DISABLED by default. Players reported they
   // interrupted the Next Week flow on nearly every tick. Disabling stops the
   // WeeklyEventModal from ever appearing (random events, story chains, seasonal,
