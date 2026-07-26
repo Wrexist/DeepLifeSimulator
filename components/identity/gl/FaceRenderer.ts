@@ -362,7 +362,10 @@ export function createFaceScene(
         map: textures.albedo ?? null,
         roughnessMap: textures.roughness ?? null,
         normalMap: textures.normal ?? null,
-        normalScale: new THREE.Vector2(0.6, 0.6),
+        // 0.22, not 0.6. Combined with the old pore amplitude the normal map
+        // was reading as pitted skin rather than smooth skin with pores; the
+        // map is now a hint of surface, not a relief.
+        normalScale: new THREE.Vector2(0.22, 0.22),
         // roughness 1 so the MAP is the value rather than a factor scaling it
         // down; with a map absent this falls back to a sane single value below.
         roughness: textures.roughness ? 1 : 0.72,

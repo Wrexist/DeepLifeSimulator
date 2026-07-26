@@ -140,7 +140,7 @@ if (parts.skin) {
     map: albedo,                     // near-neutral detail; colour multiplies through
     roughnessMap: roughMap,
     normalMap,
-    normalScale: new THREE.Vector2(0.6, 0.6),
+    normalScale: new THREE.Vector2(0.22, 0.22),
     roughness: 1, metalness: 0,      // roughness 1 so the MAP is the value, not a scale-down
     clearcoat: 0.05, clearcoatRoughness: 0.7,
     envMapIntensity: 0.45,

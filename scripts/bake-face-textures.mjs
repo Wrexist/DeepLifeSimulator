@@ -335,7 +335,7 @@ function main() {
     const mean = (r + g + b) / 3;
     r += (mean - r) * browDesat; g += (mean - g) * browDesat; b += (mean - b) * browDesat;
 
-    const drift = (broad - 0.5) * 0.09 + (fine - 0.5) * 0.045;
+    const drift = (broad - 0.5) * 0.045 + (fine - 0.5) * 0.018;
     r *= 1 + drift * 1.15; g *= 1 + drift * 0.85; b *= 1 + drift * 0.8;
 
     albedo[o] = Math.max(0, Math.min(255, Math.round(r * 246)));
@@ -346,18 +346,18 @@ function main() {
     // large part of why an untextured head reads as plastic — real skin varies
     // a lot across the face and the highlight shape is what shows it.
     const tzone = Math.max(falloff(dNose, 0.22) * 0.6, falloff(dBrow, 0.20) * 0.45);
-    let rg = 0.80 - lip * 0.34 - tzone * 0.16 + brow * 0.16 + (fine - 0.5) * 0.10;
-    rg = Math.max(0.18, Math.min(0.96, rg));
+    let rg = 0.62 - lip * 0.26 - tzone * 0.14 + brow * 0.14 + (fine - 0.5) * 0.035;
+    rg = Math.max(0.18, Math.min(0.86, rg));
     const rv = Math.round(rg * 255);
     rough[o] = rough[o + 1] = rough[o + 2] = rv;
 
     // Height for the normal map: pores, plus a slight lift on the lips.
-    height[i] = (pore - 0.5) * 0.55 + (fine - 0.5) * 0.25 + lip * 0.10;
+    height[i] = (pore - 0.5) * 0.16 + (fine - 0.5) * 0.07 + lip * 0.08;
   }
 
   // Normal map from the height field. Sobel-ish central difference in UV space.
   const normal = new Uint8Array(SIZE * SIZE * 3);
-  const STRENGTH = 2.2;
+  const STRENGTH = 1.1;
   for (let y = 0; y < SIZE; y++) {
     for (let x = 0; x < SIZE; x++) {
       const i = y * SIZE + x;

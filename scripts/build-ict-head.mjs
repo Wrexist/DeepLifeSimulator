@@ -900,7 +900,10 @@ async function main() {
     weld(),
     // Decimate. Morph targets are per-vertex, so every vertex removed is removed
     // from all 24 targets too — this is the highest-leverage step by far.
-    simplify({ simplifier: MeshoptSimplifier, ratio: 0.35, error: 0.002, lockBorder: true }),
+    // 0.55, not 0.35. At a third of the vertices the jaw and neck silhouette
+    // showed flat facets, which no amount of texture smoothing hides — the
+    // outline is geometry. Still far inside the 3 MB budget.
+    simplify({ simplifier: MeshoptSimplifier, ratio: 0.55, error: 0.002, lockBorder: true }),
     // keepAttributes: TRUE. With false, prune drops any attribute no MATERIAL
     // references — and the materials written here carry only factors, no
     // textures, so it silently deleted TEXCOORD_0 from every primitive. The

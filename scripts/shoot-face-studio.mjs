@@ -209,7 +209,7 @@ const [albedo, roughMap, normalMap] = await Promise.all([
 
 parts.skin.material = new THREE.MeshPhysicalMaterial({
   color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
-  normalScale: new THREE.Vector2(0.6, 0.6), roughness: 1, metalness: 0,
+  normalScale: new THREE.Vector2(0.22, 0.22), roughness: 1, metalness: 0,
   clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.45,
 });
 parts.sclera.material = (() => {
