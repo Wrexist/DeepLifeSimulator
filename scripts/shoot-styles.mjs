@@ -80,6 +80,14 @@ async function main() {
   if (process.env.BLEMISH) query.set('blemish', process.env.BLEMISH);
   if (process.env.EYECOL) query.set('eyecol', process.env.EYECOL);
   if (process.env.SKIN) query.set('skin', process.env.SKIN);
+  // The hair table comes from the app, not from the page. It used to be a
+  // literal in the harness — a third copy of numbers that also live in the
+  // renderer and in the procedural head — which meant this sheet certified the
+  // harness's opinion of a haircut rather than the app's.
+  await page.addInitScript(
+    (spec) => { window.__HAIR_SPEC = spec; },
+    loadTs('lib/identity/hairSpec.ts').HAIR_SPEC,
+  );
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 

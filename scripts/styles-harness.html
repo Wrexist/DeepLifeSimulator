@@ -373,56 +373,27 @@ shareMorphs(parts.skin, hair);
 parts.skin.parent.add(hair);
 
 /**
- * frac is a FRACTION of head size — absolute values tore the shell into spikes.
+ * Hair shape parameters come from `lib/identity/hairSpec.ts`, injected by
+ * `shoot-styles.mjs` before this page loads.
  *
- * LENGTH IS COVERAGE, NOT THICKNESS. The shell is a hollow open-bottomed cap:
- * while it hugs the skull it reads as hair on a head, and the moment it balloons
- * past the silhouette you see its rim and unlit interior as a flat grey plate.
- * So thickness stays small for every style and "longer" means a lower `low`,
- * which is a threshold on the baked hairline coordinate — 0.60 is the hairline
- * itself, above it is scalp, below it runs down the sides and back of the head.
+ * There used to be a literal table here — a THIRD copy of the same numbers,
+ * alongside the renderer's and the procedural head's. That is the worst place
+ * for one, because this page is what CERTIFIES the renderer: a contact sheet
+ * shot from a private copy of the numbers can look perfect while the app draws
+ * something else entirely. The other two copies had already drifted apart badly
+ * enough that twenty-three styles were missing from one of them, and nothing
+ * detected it, because comparing two literals in two files is not something
+ * anything was doing.
+ *
+ * `frac` is a FRACTION of head size — absolute values tore the shell into
+ * spikes. See `hairSpec.ts` for what the rest of the fields mean.
  */
-const HAIR = {
-  bald:         null,
-  buzz:         { frac: 0.020, low: 0.68, base: 1.0 },
-  crew:         { frac: 0.026, low: 0.64, base: 1.0, front: 0.20, side: -0.30 },
-  short:        { frac: 0.032, low: 0.60, base: 1.0 },
-  fringe:       { frac: 0.036, low: 0.56, base: 1.0, front: 0.50 },
-  medium:       { frac: 0.040, low: 0.48, base: 1.0 },
-  long:         { frac: 0.042, low: 0.16, base: 1.0, back: 0.25 },
-  ponytail:     { frac: 0.036, low: 0.30, base: 1.0, back: 0.35, side: -0.45 },
-  bun:          { frac: 0.034, low: 0.42, base: 1.0, back: 0.30, side: -0.35 },
-  afro:         { frac: 0.052, low: 0.58, base: 1.15, frizz: 0.20 },
-  curls:        { frac: 0.044, low: 0.52, base: 1.10, frizz: 0.35 },
-  mohawk:       { frac: 0.058, low: 0.56, base: 1.15, strip: 1, stripW: 0.13 },
-  undercut:     { frac: 0.036, low: 0.58, base: 1.0, side: -1.20 },
-  quiff:        { frac: 0.040, low: 0.60, base: 0.90, front: 0.70, side: -0.50, lift: [0.10, 0.55] },
-  receding:     { frac: 0.028, low: 0.74, base: 1.0 },
-  // The everyday cuts. The first fifteen were shape experiments and several are
-  // things nobody asks a barber for; these are what people actually wear, and
-  // they are separated by PART, FADE and LIFT rather than by thickness — which
-  // is why they no longer read as one haircut at four lengths.
-  sidePart:     { frac: 0.034, low: 0.58, part: 0.60, partX: -0.34, side: -0.25 },
-  combOver:     { frac: 0.038, low: 0.56, part: 0.45, partX: -0.46, side: -0.35, lift: [0.30, 0.10] },
-  slickBack:    { frac: 0.032, low: 0.58, front: -0.10, lift: [-0.55, 0.30] },
-  pompadour:    { frac: 0.044, low: 0.60, front: 0.60, side: -0.60, lift: [0.15, 0.85] },
-  caesar:       { frac: 0.030, low: 0.60, front: 0.35, side: -0.25 },
-  ivyLeague:    { frac: 0.032, low: 0.58, front: 0.30, side: -0.40, fade: 0.6, fadeY: 0.74 },
-  taperFade:    { frac: 0.034, low: 0.54, fade: 1.0, fadeY: 0.78 },
-  highFade:     { frac: 0.038, low: 0.54, fade: 1.0, fadeY: 0.86 },
-  buzzFade:     { frac: 0.022, low: 0.62, fade: 1.0, fadeY: 0.82 },
-  texturedCrop: { frac: 0.038, low: 0.58, front: 0.45, side: -0.55, frizz: 0.30 },
-  messy:        { frac: 0.042, low: 0.52, frizz: 0.50, lift: [0.05, 0.20] },
-  bowl:         { frac: 0.038, low: 0.54, front: 0.55, side: 0.25 },
-  curtains:     { frac: 0.042, low: 0.50, front: 0.55, part: 0.70, partX: 0.0 },
-  layered:      { frac: 0.042, low: 0.34, back: 0.15, wave: 0.30 },
-  bob:          { frac: 0.040, low: 0.30, side: 0.25, back: 0.10 },
-  pixie:        { frac: 0.032, low: 0.56, side: -0.35, frizz: 0.20, part: 0.35, partX: -0.40 },
-  spiky:        { frac: 0.042, low: 0.60, frizz: 0.80, lift: [0.0, 0.50] },
-  flatTop:      { frac: 0.048, low: 0.62, side: -0.90, lift: [0.0, 0.40] },
-  wavy:         { frac: 0.042, low: 0.44, wave: 0.55 },
-  cornrows:     { frac: 0.026, low: 0.58, rows: 1 },
-};
+const HAIR = { bald: null, ...window.__HAIR_SPEC };
+if (!window.__HAIR_SPEC) {
+  // Loud, because the alternative is a sheet of bald heads that looks like a
+  // rendering bug rather than a missing injection.
+  throw new Error('window.__HAIR_SPEC not injected — run this page via scripts/shoot-styles.mjs');
+}
 window.__hairNames = Object.keys(HAIR);
 window.__setHair = (name) => {
   const s = HAIR[name];
