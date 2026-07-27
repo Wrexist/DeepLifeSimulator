@@ -153,9 +153,9 @@ describe('the measure table', () => {
 
   it('fits every morph that is neither a depth axis nor landmark-less', () => {
     expect([...PHOTO_FITTABLE].sort()).toEqual([
-      'browHeight', 'cheekFullness', 'chinLength', 'eyeSize', 'eyeSpacing', 'eyeTilt',
-      'faceLength', 'faceWidth', 'jawAngle', 'jawWidth', 'lipFullness', 'mouthHeight',
-      'mouthWidth', 'noseLength', 'noseWidth',
+      'browHeight', 'cheekFullness', 'cheekboneHeight', 'chinLength', 'eyeSize',
+      'eyeSpacing', 'eyeTilt', 'faceLength', 'faceWidth', 'jawAngle', 'jawWidth',
+      'lipFullness', 'mouthHeight', 'mouthWidth', 'noseLength', 'noseWidth',
     ]);
   });
 });

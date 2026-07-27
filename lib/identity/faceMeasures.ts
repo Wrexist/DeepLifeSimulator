@@ -56,6 +56,11 @@ interface Span {
   axis: 'x' | 'y' | 'z';
   over?: Span;
   /**
+   * Left-right counterpart of `a`. When set, the span is averaged with its
+   * mirror — see the note on `cheekboneHeight` in the build script.
+   */
+  mirror?: number;
+  /**
    * -1 when the landmark pair runs opposite to the slider's name, so
    * "measurement goes up" and "feature gets bigger" agree. See the note on
    * `faceWidth` in the build script: landmark 0 sits at negative x, so a wider
@@ -74,7 +79,7 @@ export const FACE_MEASURES: Partial<Record<FaceMorphKey, Span>> = {
   jawAngle: { a: 6, b: 10, axis: 'x', over: { a: 2, b: 14, axis: 'x' } },
   chinLength: { a: 57, b: 8, axis: 'y', over: FACE_H },
   chinProtrusion: { a: 8, b: 27, axis: 'z' },
-  cheekboneHeight: { a: 1, b: 15, axis: 'y' },
+  cheekboneHeight: { a: 1, b: 33, axis: 'y', over: FACE_H, mirror: 15 },
   cheekFullness: { a: 2, b: 14, axis: 'x', over: FACE_W },
   browHeight: { a: 19, b: 37, axis: 'y' },
   browProtrusion: { a: 19, b: 27, axis: 'z' },
@@ -94,12 +99,13 @@ export const FACE_MEASURES: Partial<Record<FaceMorphKey, Span>> = {
 /**
  * Morphs a single photo cannot supply.
  *
- * The five depth axes need a second view or a depth sensor. `cheekboneHeight`
- * is here for a different reason: it is the height difference between two
- * MIRRORED jaw-contour points, which on a symmetric face is zero by
- * construction — its population spread is 0.5% against 4-9% for every other
- * axis, so what it actually measures in a photo is head roll and landmark
- * noise, not cheekbones.
+ * The five depth axes need a second view or a depth sensor.
+ *
+ * `cheekboneHeight` used to be here, for a different reason: it was defined as
+ * the height difference between two MIRRORED jaw points, which on a symmetric
+ * face is zero by construction, so in a photo it measured head roll and
+ * landmark noise. Redefined against the nose base it is an ordinary vertical
+ * proportion, and a photo reads it as well as it reads jaw width.
  */
 export const PHOTO_UNFITTABLE: readonly FaceMorphKey[] = [
   'chinProtrusion',
@@ -107,7 +113,6 @@ export const PHOTO_UNFITTABLE: readonly FaceMorphKey[] = [
   'eyeDepth',
   'noseBridge',
   'noseTip',
-  'cheekboneHeight',
   // The three the landmark set has no points for at all, per the build script.
   'earSize',
   'foreheadSlope',
@@ -154,7 +159,9 @@ function span(points: readonly Landmark2D[], s: Span): number {
 }
 
 function measured(points: readonly Landmark2D[], s: Span): number {
-  const value = span(points, s);
+  const value = s.mirror === undefined
+    ? span(points, s)
+    : (span(points, s) + span(points, { ...s, a: s.mirror })) / 2;
   // The outer measurement's sense only — flipping the denominator too would
   // flip the ratio back and undo the correction. Same rule as the build script.
   const sense = s.sense ?? 1;

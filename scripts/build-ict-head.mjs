@@ -177,7 +177,20 @@ const MEASURES = {
   jawAngle: { a: 6, b: 10, axis: 'x', over: { a: 2, b: 14, axis: 'x' } },
   chinLength: { a: 57, b: 8, axis: 'y', over: FACE_H },
   chinProtrusion: { a: 8, b: 27, axis: 'z' },
-  cheekboneHeight: { a: 1, b: 15, axis: 'y' },
+  // MIRRORED PAIR, against the nose base — not one jaw point against the other.
+  //
+  // It used to be (y1 - y15): the height difference between two points that are
+  // MIRROR IMAGES of each other, which on a symmetric face is zero by
+  // construction. Its population spread came out at 0.5% where every other axis
+  // sits between 4% and 9%, and rendered at -1 and +1 the face did not visibly
+  // change — a slider the player could drag that did nothing. It scored the
+  // HIGHEST on-axis number in the whole report (56.5), because on-axis is
+  // measured in units of the measurement's own spread and that spread was noise.
+  //
+  // Measured against the nose base instead, and averaged across the mirrored
+  // pair so the derived morph stays symmetric, it is a real quantity: how high
+  // the cheek contour sits in the face.
+  cheekboneHeight: { a: 1, b: 33, axis: 'y', over: FACE_H, mirror: 15 },
   cheekFullness: { a: 2, b: 14, axis: 'x', over: FACE_W },
   browHeight: { a: 19, b: 37, axis: 'y' },
   browProtrusion: { a: 19, b: 27, axis: 'z' },
@@ -443,7 +456,13 @@ function measure(positions, landmarks, spec) {
     const k = AXIS_INDEX[s.axis];
     return positions[landmarks[s.a] * 3 + k] - positions[landmarks[s.b] * 3 + k];
   };
-  const value = span(spec);
+  // `mirror` names the left-right counterpart of `a`, and averages the two
+  // spans. A one-sided measurement lets the solve satisfy it by moving one
+  // cheek, which is a face with a dent in it — technically on-axis, and not a
+  // face anybody would choose.
+  const value = spec.mirror === undefined
+    ? span(spec)
+    : (span(spec) + span({ ...spec, a: spec.mirror })) / 2;
   // The outer measurement's sense only. The `over` denominator keeps its raw
   // direction: flipping it would flip the ratio too and undo the correction.
   const sense = spec.sense ?? 1;
@@ -668,8 +687,11 @@ async function main() {
   {
     const SIZE = { w: FACE_W, h: FACE_H };
     // The normaliser per measure. A measure with `over` is already a ratio.
+    // Only the measures that are NOT already ratios. `cheekboneHeight` used to
+    // be here and is not any more: it carries `over: FACE_H` now, and
+    // normalising a ratio a second time divides by the face height twice.
     const NORM = {
-      faceWidth: 'h', faceLength: 'w', cheekboneHeight: 'h', browHeight: 'h',
+      faceWidth: 'h', faceLength: 'w', browHeight: 'h',
       eyeSize: 'h', eyeTilt: 'h',
       chinProtrusion: 'h', browProtrusion: 'h', eyeDepth: 'w', noseBridge: 'h', noseTip: 'h',
     };

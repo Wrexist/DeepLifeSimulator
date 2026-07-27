@@ -34,9 +34,9 @@
       "norm": "h"
     },
     "cheekboneHeight": {
-      "mean": 0,
-      "sd": 0.005396,
-      "norm": "h"
+      "mean": 0.23827,
+      "sd": 0.016457,
+      "norm": null
     },
     "cheekFullness": {
       "mean": 0.942219,
