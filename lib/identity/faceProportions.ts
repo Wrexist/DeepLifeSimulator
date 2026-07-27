@@ -190,10 +190,16 @@ if (uChildness > 0.0) {
  * it. The width term needs no such care because the head is symmetric about
  * x = 0.
  *
- * Not modelled here, though the procedural head has it: submental fullness, the
- * double chin. It needs a front-facing weight, and the extra uniforms to place
- * one in this space are not worth it for a term that is mostly hidden under the
- * jaw at the angles the character is ever seen from.
+ * Submental fullness — the double chin — is modelled too, and was deferred twice
+ * before it was. The stated blocker was that it needed a front-facing weight and
+ * that the obvious source, the baked `_beard` attribute, could not be declared
+ * here: the beard material already declares `attribute vec3 _beard` in its own
+ * patch, so a second declaration is a redefinition error on exactly one of the
+ * five materials this is installed on.
+ *
+ * That was true and beside the point. The region does not need an attribute —
+ * the frame already says where the chin is, and one more float for the head's
+ * depth is enough to tell front from back. No attribute, no clash.
  */
 export const BODY = {
   /** Lower-face widening per unit of adiposity. */
@@ -202,6 +208,8 @@ export const BODY = {
   fatDepth: 0.045,
   /** Jaw-angle widening per unit of muscle. */
   muscleJaw: 0.055,
+  /** Forward push under the jaw per unit of adiposity — the double chin. */
+  submental: 0.070,
 } as const;
 
 export const BODY_PROPORTION_GLSL = `
@@ -215,6 +223,15 @@ if (uAdiposity != 0.0 || uMuscle != 0.0) {
   transformed.z = uHeadCZ + (transformed.z - uHeadCZ) * (1.0 + fat * ${BODY.fatDepth.toFixed(3)});
   float jaw = exp(-pow((transformed.y - (uChinY + 0.42 * faceH)) / (0.30 * faceH), 2.0));
   transformed.x *= 1.0 + uMuscle * ${BODY.muscleJaw.toFixed(3)} * jaw;
+
+  // Submental fullness. A band under the jaw, weighted to the front half so it
+  // fills the throat rather than inflating the nape, and only for fat gained —
+  // a lean character has no hollow there to carve.
+  float under = exp(-pow((transformed.y - (uChinY - 0.10 * faceH)) / (0.22 * faceH), 2.0));
+  float front = smoothstep(uHeadCZ - 0.10 * uHeadHalfZ, uHeadCZ + 0.55 * uHeadHalfZ, transformed.z);
+  float sub = under * front * max(0.0, uAdiposity);
+  transformed.z += sub * ${BODY.submental.toFixed(3)} * faceH;
+  transformed.y -= sub * ${(BODY.submental * 0.45).toFixed(4)} * faceH;
 }
 #endif
 `;
@@ -223,4 +240,5 @@ if (uAdiposity != 0.0 || uMuscle != 0.0) {
 export const CHILD_PROPORTION_UNIFORMS =
   '#define USE_CHILD_PROPORTIONS\n'
   + 'uniform float uChildness;\nuniform float uBrowY;\nuniform float uChinY;\nuniform float uHeadH;\n'
-  + 'uniform float uAdiposity;\nuniform float uMuscle;\nuniform float uHeadCZ;\n';
+  + 'uniform float uAdiposity;\nuniform float uMuscle;\n'
+  + 'uniform float uHeadCZ;\nuniform float uHeadHalfZ;\n';

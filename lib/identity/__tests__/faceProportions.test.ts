@@ -71,6 +71,27 @@ describe('the shader snippet and the TypeScript agree', () => {
     expect(BODY_PROPORTION_GLSL).toContain(value.toFixed(3));
   });
 
+  it('places the double chin under the jaw and at the front', () => {
+    // Deferred twice on the grounds that it needed the baked `_beard`
+    // attribute, which the beard material already declares — a redefinition
+    // error on one of the five materials this installs on. It does not: the
+    // frame says where the chin is and `uHeadHalfZ` says which way is forward.
+    expect(BODY_PROPORTION_GLSL).toContain('uChinY - 0.10 * faceH');
+    expect(BODY_PROPORTION_GLSL).toContain('uHeadHalfZ');
+    // Fat gained only. A lean character has no hollow under the jaw to carve.
+    expect(BODY_PROPORTION_GLSL).toContain('max(0.0, uAdiposity)');
+  });
+
+  it('declares no attributes, so it cannot clash with a material\'s own patch', () => {
+    // The beard material declares `attribute vec3 _beard` in its own
+    // `onBeforeCompile`. Anything this snippet declares is added to all five
+    // materials, so an attribute here is a redefinition error on exactly one of
+    // them — and the shader that fails is the one nobody re-shoots.
+    expect(CHILD_PROPORTION_UNIFORMS).not.toContain('attribute');
+    expect(BODY_PROPORTION_GLSL).not.toContain('attribute');
+    expect(CHILD_PROPORTION_GLSL).not.toContain('attribute');
+  });
+
   it('scales depth about the head centre, not about zero', () => {
     // The exporter puts a translation on the node, so local z = 0 is not the
     // middle of the head. Scaling about it would push the whole face forward

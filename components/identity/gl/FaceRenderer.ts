@@ -387,6 +387,7 @@ export function createFaceScene(
     uAdiposity: { value: 0 },
     uMuscle: { value: 0 },
     uHeadCZ: { value: 0 },
+    uHeadHalfZ: { value: 1 },
   };
 
   let assetParts: Record<string, THREE.Mesh> | null = null;
@@ -796,6 +797,7 @@ export function createFaceScene(
       // The depth term scales about the head's own centre: the exporter puts a
       // translation on the node, so local z = 0 is not the middle of the head.
       assetChildUniforms.uHeadCZ.value = (gb.min.z + gb.max.z) * 0.5;
+      assetChildUniforms.uHeadHalfZ.value = Math.max(1e-4, (gb.max.z - gb.min.z) * 0.5);
     }
 
     if (asset.parts.skin?.geometry.getAttribute('_scalp')) {
