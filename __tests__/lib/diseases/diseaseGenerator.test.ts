@@ -104,23 +104,28 @@ describe('Disease Generator', () => {
     });
 
     it('should return disease when conditions are met', () => {
-      const state = createTestGameState({ 
-        weeksLived: 10,
-        lastDiseaseWeek: 5,
+      // Week 9, not 10. The generator is SEEDED off `weeksLived` and the year,
+      // not off Math.random, so for a given state it either always returns a
+      // disease or always returns null — and at week 10 this profile always
+      // returned null. Every assertion below used to sit inside `if (disease)`
+      // under a comment claiming the outcome was random, so the test named
+      // "should return disease when conditions are met" ran zero assertions and
+      // passed. Week 9 is the first week this profile actually contracts one.
+      const state = createTestGameState({
+        weeksLived: 9,
+        lastDiseaseWeek: 4,
         stats: { health: 30, fitness: 20, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
         date: { age: 50, year: 2025, month: 'January', week: 1 },
       });
 
       const disease = generateRandomDisease(state);
-      // May or may not generate disease based on random chance
-      if (disease) {
-        expect(disease).toHaveProperty('id');
-        expect(disease).toHaveProperty('name');
-        expect(disease).toHaveProperty('severity');
-        expect(disease).toHaveProperty('effects');
-        expect(disease).toHaveProperty('curable');
-        expect(disease.contractedWeek).toBe(10);
-      }
+      expect(disease).not.toBeNull();
+      expect(disease).toHaveProperty('id');
+      expect(disease).toHaveProperty('name');
+      expect(disease).toHaveProperty('severity');
+      expect(disease).toHaveProperty('effects');
+      expect(disease).toHaveProperty('curable');
+      expect(disease!.contractedWeek).toBe(9);
     });
   });
 
@@ -131,6 +136,7 @@ describe('Disease Generator', () => {
 
     it('never gives an age-gated disease to a young player', () => {
       const gated = new Set(['heart_disease', 'stroke', 'organ_failure', 'kidney_disease', 'dementia', 'arthritis', 'diabetes', 'high_blood_pressure', 'cancer']);
+      let seen = 0;
       for (let week = 0; week < 400; week += 4) {
         const state = createTestGameState({
           weeksLived: week,
@@ -140,9 +146,14 @@ describe('Disease Generator', () => {
         });
         const disease = generateRandomDisease(state);
         if (disease) {
+          seen++;
           expect(gated.has(disease.id)).toBe(false);
         }
       }
+      // "Never gives an age-gated disease" is also satisfied by never giving a
+      // disease. Twenty-seven of these hundred weeks currently contract one;
+      // this only asserts that the gate is being exercised at all.
+      expect(seen).toBeGreaterThan(0);
     });
 
     it('does not produce a disease on every cooldown window (occurrence gate)', () => {
@@ -164,6 +175,7 @@ describe('Disease Generator', () => {
     });
 
     it('never stacks a second terminal illness', () => {
+      let seen = 0;
       for (let week = 0; week < 400; week += 4) {
         const state = createTestGameState({
           weeksLived: week,
@@ -176,12 +188,15 @@ describe('Disease Generator', () => {
         } as any);
         const disease = generateRandomDisease(state);
         if (disease) {
+          seen++;
           expect(disease.weeksUntilDeath).toBeUndefined();
         }
       }
+      expect(seen).toBeGreaterThan(0);
     });
 
     it('only allows mild diseases once two serious conditions are active', () => {
+      let seen = 0;
       for (let week = 0; week < 400; week += 4) {
         const state = createTestGameState({
           weeksLived: week,
@@ -195,12 +210,15 @@ describe('Disease Generator', () => {
         } as any);
         const disease = generateRandomDisease(state);
         if (disease) {
+          seen++;
           expect(disease.severity).toBe('mild');
         }
       }
+      expect(seen).toBeGreaterThan(0);
     });
 
     it('generateEventDisease respects the age gate too', () => {
+      let seen = 0;
       for (let week = 0; week < 200; week += 1) {
         const state = createTestGameState({
           weeksLived: week,
@@ -208,9 +226,11 @@ describe('Disease Generator', () => {
         });
         const disease = generateEventDisease('medical_emergency', state);
         if (disease) {
+          seen++;
           expect(['pneumonia'].includes(disease.id)).toBe(true);
         }
       }
+      expect(seen).toBeGreaterThan(0);
     });
   });
 
@@ -221,11 +241,12 @@ describe('Disease Generator', () => {
       });
 
       const disease = generateEventDisease('medical_emergency', state);
-      if (disease) {
-        expect(disease).toHaveProperty('id');
-        expect(disease).toHaveProperty('name');
-        expect(disease.contractedWeek).toBe(10);
-      }
+      // A medical emergency ALWAYS produces one — the `if` that used to wrap
+      // these turned "should generate disease" into a test of nothing.
+      expect(disease).not.toBeNull();
+      expect(disease).toHaveProperty('id');
+      expect(disease).toHaveProperty('name');
+      expect(disease!.contractedWeek).toBe(10);
     });
 
     it('should return null for unknown event', () => {
