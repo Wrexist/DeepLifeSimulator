@@ -404,6 +404,24 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       z *= 1 + 0.04 * midFace;
 
       // ---- Jaw ----------------------------------------------------------
+      //
+      // A BASELINE MANDIBLE, before any morph touches it. The ellipsoid tapers
+      // smoothly from the cheekbones to a rounded point, and every render this
+      // session came out as an egg — there was no jaw in the neutral head at
+      // all, only morphs that could widen one that did not exist. At
+      // `jawAngle` = 0, which is where a neutral face and most random faces sit,
+      // the silhouette had no corner anywhere.
+      //
+      // Two parts, because a jaw is two things: a ramus running down behind the
+      // cheek, and a body running forward to the chin, meeting at the gonial
+      // angle. The blob sits at that corner and pushes outward and back.
+      const gonion = blobAniso(x, y, z, [x >= 0 ? 0.40 : -0.40, -0.36, 0.18], [0.34, 0.30, 0.60]);
+      x += Math.sign(x || 1) * 0.055 * gonion * headness;
+      // The body of the mandible: keeps width forward of the angle instead of
+      // letting the taper close in, which is what makes a jawline read as a line.
+      const mandible = smoothstep(-0.12, -0.40, y) * smoothstep(-0.72, -0.46, y) * headness;
+      x *= 1 + 0.058 * mandible;
+
       // Below the cheekbones the width is the jaw's, not the skull's.
       const jawMask = smoothstep(0.05, -0.50, y) * headness;
       x *= 1 + jawWidth * 0.26 * jawMask;

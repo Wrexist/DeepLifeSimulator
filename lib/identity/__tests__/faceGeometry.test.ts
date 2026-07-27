@@ -148,6 +148,53 @@ describe('hair placement', () => {
   );
 });
 
+describe('the silhouette has a jaw', () => {
+  // Every render of this head all session came out as an egg: the base
+  // ellipsoid tapers smoothly from the cheekbones to a rounded point, and there
+  // was no mandible in the neutral head at all — only morphs able to widen a jaw
+  // that did not exist. At `jawAngle` = 0, where a neutral face and most random
+  // faces sit, the silhouette had no corner anywhere.
+  //
+  // The test is a width profile down the face. An ellipsoid falls away
+  // continuously; a head holds its width from the cheekbone down to the gonial
+  // angle and only then turns in toward the chin.
+  const head = buildHeadMesh(neutral, { age: 30 });
+  const lm = head.landmarks!;
+  const face = lm.browY - lm.chinY;
+
+  const halfWidthAt = (y: number): number => {
+    let w = 0;
+    for (let i = 0; i < head.positions.length; i += 3) {
+      if (Math.abs(head.positions[i + 1] - y) < 0.03) w = Math.max(w, Math.abs(head.positions[i]));
+    }
+    return w;
+  };
+
+  it('keeps its width from the cheekbone down to the jaw', () => {
+    const cheek = halfWidthAt(lm.chinY + face * 0.55);
+    const jaw = halfWidthAt(lm.chinY + face * 0.22);
+    // Measured at 0.92 with the mandible, and it has to stay well clear of the
+    // smooth taper it replaced.
+    expect(jaw / cheek).toBeGreaterThan(0.85);
+  });
+
+  it('still narrows to a chin rather than staying square', () => {
+    // The other failure mode. A jaw that holds its width all the way down is a
+    // brick, and the fix for an egg is not a box.
+    const jaw = halfWidthAt(lm.chinY + face * 0.22);
+    const chin = halfWidthAt(lm.chinY + face * 0.02);
+    expect(chin / jaw).toBeLessThan(0.85);
+  });
+
+  it('is widest across the cheekbones, not the cranium', () => {
+    // A real head's widest point on the face is the zygomatic arch. If the
+    // cranium wins, the silhouette is an egg however good the jaw is.
+    const cheek = halfWidthAt(lm.chinY + face * 0.6);
+    const upper = halfWidthAt(lm.browY + (lm.crownY - lm.browY) * 0.5);
+    expect(cheek).toBeGreaterThan(upper);
+  });
+});
+
 describe('eyebrows', () => {
   // The procedural head had none. The scanned head has brows painted into its
   // albedo and tinted by hair colour; this one was a flat material with no
