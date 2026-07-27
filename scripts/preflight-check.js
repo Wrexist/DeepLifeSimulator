@@ -353,57 +353,23 @@ try {
         hasErrors = true;
       };
 
-      const tracking = manifest.NSPrivacyTracking === true;
-      const domains = manifest.NSPrivacyTrackingDomains;
-      const hasDomains = Array.isArray(domains) && domains.length > 0;
+      const { validatePrivacyManifest } = require('./lib/privacyManifest');
+      const verdict = validatePrivacyManifest(manifest);
+      const { tracking, domainCount, apiCount } = verdict;
 
-      // ITMS-91064, both directions. Apple's docs: when NSPrivacyTracking is
-      // true "you need to provide a list of internet domains in
-      // NSPrivacyTrackingDomains"; conversely the domain list may only be
-      // present when tracking is declared. An empty array satisfies neither.
-      if (tracking && !hasDomains) {
-        fail('[FAIL] NSPrivacyTracking is true but NSPrivacyTrackingDomains is empty/absent');
-        log('   Apple rejects this at upload with ITMS-91064 (Invalid tracking information)', RED);
-        log('   → Either set NSPrivacyTracking: false and let the AdMob/Firebase SDK', RED);
-        log('     manifests declare tracking (preferred — see app.config.js), or list the', RED);
-        log('     real tracking domains. Note: domains listed here are BLOCKED by iOS when', RED);
-        log('     ATT is denied, which stops ad serving for those users.', RED);
-      } else if (!tracking && Array.isArray(domains) && domains.length > 0) {
-        fail('[FAIL] NSPrivacyTrackingDomains is non-empty but NSPrivacyTracking is not true');
-        log('   Apple rejects this at upload with ITMS-91064 (Invalid tracking information)', RED);
-      } else if (!tracking && Array.isArray(domains)) {
-        // Not a hard reject, but an empty array with tracking false is noise
-        // that reads like a half-applied fix — drop the key instead.
-        log('[WARN] NSPrivacyTrackingDomains is present but empty with NSPrivacyTracking false', YELLOW);
-        log('   Remove the key entirely; an empty array is not a fix for ITMS-91064.', YELLOW);
+      for (const err of verdict.errors) {
+        fail(err.message);
+        for (const line of err.details) log(line, RED);
       }
-
-      // ITMS-91053/91055 guard: every required-reason API entry needs a type
-      // and at least one reason code, or the upload is rejected the same way.
-      const apiTypes = manifest.NSPrivacyAccessedAPITypes;
-      if (apiTypes !== undefined) {
-        if (!Array.isArray(apiTypes)) {
-          fail('[FAIL] NSPrivacyAccessedAPITypes must be an array');
-        } else {
-          apiTypes.forEach((entry, index) => {
-            const type = entry?.NSPrivacyAccessedAPIType;
-            const reasons = entry?.NSPrivacyAccessedAPITypeReasons;
-            if (!type || typeof type !== 'string') {
-              fail(`[FAIL] NSPrivacyAccessedAPITypes[${index}] is missing NSPrivacyAccessedAPIType`);
-            }
-            if (!Array.isArray(reasons) || reasons.length === 0) {
-              fail(`[FAIL] NSPrivacyAccessedAPITypes[${index}] (${type || 'unknown'}) has no reason codes`);
-              log('   Apple rejects an accessed-API entry with an empty NSPrivacyAccessedAPITypeReasons', RED);
-            }
-          });
-        }
+      for (const warn of verdict.warnings) {
+        log(warn.message, YELLOW);
+        for (const line of warn.details) log(line, YELLOW);
       }
 
       if (manifestErrors === 0) {
-        const apiCount = Array.isArray(apiTypes) ? apiTypes.length : 0;
         log(
           tracking
-            ? `[PASS] Privacy manifest valid (tracking true with ${domains.length} declared domain(s), ${apiCount} required-reason API entries)`
+            ? `[PASS] Privacy manifest valid (tracking true with ${domainCount} declared domain(s), ${apiCount} required-reason API entries)`
             : `[PASS] Privacy manifest valid (tracking declared by SDK manifests, ${apiCount} required-reason API entries)`,
           GREEN,
         );
