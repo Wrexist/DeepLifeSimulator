@@ -1,171 +1,198 @@
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-
 /**
- * Integration tests for disease system with week progression
- * These tests verify that diseases work correctly with the nextWeek function
+ * The weekly disease tick, `applyDiseasesForWeek`.
+ *
+ * ## What this file used to be
+ *
+ * Seven tests under a docstring reading "Integration tests for disease system
+ * with week progression — These tests verify that diseases work correctly with
+ * the nextWeek function". It imported `createTestGameState` and NOTHING ELSE:
+ * no disease module, no week reducer. Every test built a state literal and
+ * asserted the literal back —
+ *
+ *     diseases: [{ effects: { health: -2, energy: -3 } }]   // written here
+ *     expect(disease.effects.health).toBeLessThan(0);       // read back here
+ *
+ * — and one of them said so outright, in a comment: "Week progression would
+ * call generateRandomDisease. This is tested indirectly through the generator
+ * tests." No change to the disease system, however total, could have failed any
+ * of them. Meanwhile `applyDiseasesForWeek`, which is where week progression
+ * actually happens, had no test file of its own at all.
+ *
+ * These call it.
  */
+import {
+  applyDiseasesForWeek,
+  type DiseaseHistory,
+  type DiseaseTickInput,
+} from '@/contexts/game/actions/weekly/applyDiseases';
+import type { Disease, GameStats } from '@/contexts/game/types';
+import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 
-describe('Disease System Integration', () => {
-  it('should generate disease during week progression when conditions are met', () => {
-    const initialState = createTestGameState({
-      weeksLived: 10,
-      lastDiseaseWeek: 5, // Cooldown met
-      stats: { health: 30, fitness: 20, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
-      date: { age: 50, year: 2025, month: 'January', week: 10 },
-      diseases: [],
-    });
+function stats(over: Partial<GameStats> = {}): GameStats {
+  return {
+    health: 50, fitness: 50, happiness: 50, energy: 50,
+    money: 1000, reputation: 0, gems: 0,
+    ...over,
+  } as GameStats;
+}
 
-    // Week progression would call generateRandomDisease
-    // This is tested indirectly through the generator tests
-    expect(initialState.diseases).toBeDefined();
-    expect(Array.isArray(initialState.diseases)).toBe(true);
+function ctx(over: Partial<WeekContext> = {}): WeekContext {
+  return {
+    newStats: stats(),
+    notifications: [] as WeekNotification[],
+    // Pre-rolled and HIGH, so the 10%-per-week complication roll never fires:
+    // the reducer indexes these per disease, and an empty stub throws on
+    // `.length`. Deterministic on purpose — a worsening roll landing at random
+    // would make the recovery assertions below flap.
+    preRolls: {
+      diseaseComplication: [0.99],
+      diseaseProgression: [0.99],
+    } as unknown as WeekContext['preRolls'],
+    nextWeeksLived: 10,
+    ...over,
+  } as WeekContext;
+}
+
+function input(over: Partial<DiseaseTickInput> = {}): DiseaseTickInput {
+  return {
+    prevDiseases: [],
+    prevDiseaseHistory: undefined,
+    prevShowSicknessModal: false,
+    prevLastDiseaseWeek: undefined,
+    newDisease: null,
+    ...over,
+  };
+}
+
+function disease(over: Partial<Disease> = {}): Disease {
+  return {
+    id: 'common_cold',
+    name: 'Common Cold',
+    severity: 'mild',
+    effects: { health: -2, energy: -3, happiness: -1 },
+    curable: true,
+    contractedWeek: 9,
+    description: '',
+    ...over,
+  } as Disease;
+}
+
+describe('applyDiseasesForWeek', () => {
+  it('spends the disease effects out of the running stat accumulator', () => {
+    // The reducer mutates `ctx.newStats` in place, so the assertion is on the
+    // accumulator and not on the return value. Asserting the fixture's own
+    // `effects` object — which is what this file used to do — could never have
+    // told the two apart.
+    const c = ctx({ newStats: stats({ health: 50, energy: 50, happiness: 50 }) });
+    applyDiseasesForWeek(input({ prevDiseases: [disease()] }), c);
+
+    expect(c.newStats.health).toBeLessThan(50);
+    expect(c.newStats.energy).toBeLessThan(50);
+    expect(c.newStats.happiness).toBeLessThan(50);
   });
 
-  it('should apply disease effects during week progression', () => {
-    const stateWithDisease = createTestGameState({
-      weeksLived: 10,
-      stats: { health: 50, fitness: 50, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
-      diseases: [
-        {
-          id: 'common_cold',
-          name: 'Common Cold',
-          severity: 'mild',
-          effects: { health: -2, energy: -3, happiness: -1 },
-          curable: true,
-          contractedWeek: 9,
-        },
-      ],
-    });
+  it('leaves the stats alone when there is no disease', () => {
+    const c = ctx({ newStats: stats({ health: 50, energy: 50 }) });
+    const r = applyDiseasesForWeek(input(), c);
 
-    // Disease effects should be negative
-    const disease = stateWithDisease.diseases[0];
-    expect(disease.effects).toBeDefined();
-    if (disease.effects) {
-      expect(disease.effects.health).toBeLessThan(0);
-      expect(disease.effects.energy).toBeLessThan(0);
-    }
+    expect(c.newStats.health).toBe(50);
+    expect(c.newStats.energy).toBe(50);
+    expect(r.diseases).toEqual([]);
+    expect(r.deathTriggered).toBe(false);
   });
 
-  it('should handle death countdown during week progression', () => {
-    const stateWithCriticalDisease = createTestGameState({
-      weeksLived: 10,
-      stats: { health: 50, fitness: 50, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
-      diseases: [
-        {
-          id: 'cancer',
-          name: 'Cancer',
-          severity: 'critical',
-          effects: { health: -10, energy: -12 },
-          curable: true,
-          treatmentRequired: true,
-          weeksUntilDeath: 1,
-          contractedWeek: 9,
-        },
-      ],
-    });
+  it('counts the death countdown down without killing on the way', () => {
+    const r = applyDiseasesForWeek(
+      input({ prevDiseases: [disease({ severity: 'critical', weeksUntilDeath: 3 })] }),
+      ctx(),
+    );
 
-    // Disease should have death countdown
-    const disease = stateWithCriticalDisease.diseases[0];
-    expect('weeksUntilDeath' in disease).toBe(true);
-    if ('weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number') {
-      expect(disease.weeksUntilDeath).toBe(1);
-    }
+    expect(r.deathTriggered).toBe(false);
+    expect(r.deathReason).toBeUndefined();
+    expect(r.diseases[0].weeksUntilDeath).toBe(2);
   });
 
-  it('should handle natural recovery during week progression', () => {
-    const stateWithRecoverableDisease = createTestGameState({
-      weeksLived: 10,
-      stats: { health: 80, fitness: 70, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
-      diseases: [
-        {
-          id: 'common_cold',
-          name: 'Common Cold',
-          severity: 'mild',
-          effects: { health: -2, energy: -3 },
-          curable: true,
-          naturalRecoveryWeeks: 1,
-          contractedWeek: 9,
-        },
-      ],
-    });
+  it('kills when the countdown reaches zero, and records it in the history', () => {
+    const r = applyDiseasesForWeek(
+      input({ prevDiseases: [disease({ severity: 'critical', weeksUntilDeath: 1 })] }),
+      ctx(),
+    );
 
-    // Disease should have natural recovery
-    const disease = stateWithRecoverableDisease.diseases[0];
-    expect('naturalRecoveryWeeks' in disease).toBe(true);
-    if ('naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number') {
-      expect(disease.naturalRecoveryWeeks).toBeGreaterThan(0);
-    }
+    expect(r.deathTriggered).toBe(true);
+    expect(r.deathReason).toBe('health');
+    expect(r.diseaseHistory.deathsFromDisease).toBe(1);
   });
 
-  it('should track disease history correctly', () => {
-    const state = createTestGameState({
-      weeksLived: 10,
-      diseaseHistory: {
-        diseases: [
-          {
-            id: 'common_cold',
-            name: 'Common Cold',
-            contractedWeek: 5,
-            curedWeek: 7,
-            severity: 'mild',
-          },
-        ],
-        totalDiseases: 1,
-        totalCured: 1,
-        deathsFromDisease: 0,
-      },
-    });
+  it('recovers a disease naturally and marks the week it was cured', () => {
+    const history: DiseaseHistory = {
+      diseases: [{ id: 'common_cold', name: 'Common Cold', contractedWeek: 9, severity: 'mild' }],
+      totalDiseases: 1,
+      totalCured: 0,
+      deathsFromDisease: 0,
+    };
+    const r = applyDiseasesForWeek(
+      input({
+        prevDiseases: [disease({ naturalRecoveryWeeks: 1 })],
+        prevDiseaseHistory: history,
+      }),
+      ctx({ nextWeeksLived: 11 }),
+    );
 
-    expect(state.diseaseHistory).toBeDefined();
-    if (state.diseaseHistory) {
-      expect(state.diseaseHistory.totalDiseases).toBe(1);
-      expect(state.diseaseHistory.totalCured).toBe(1);
-      expect(state.diseaseHistory.diseases.length).toBe(1);
-    }
+    expect(r.diseases).toHaveLength(0);
+    expect(r.diseaseHistory.totalCured).toBe(1);
+    expect(r.diseaseHistory.diseases[0].curedWeek).toBe(11);
   });
 
-  it('should handle event-triggered diseases', () => {
-    const state = createTestGameState({
-      weeksLived: 10,
-      diseases: [],
-    });
+  it('recovers faster for a fit, healthy character than for a sick one', () => {
+    // The recovery decrement takes bonuses from health > 70 and fitness > 50,
+    // which is a behaviour of the reducer and not of the fixture.
+    const sick = applyDiseasesForWeek(
+      input({ prevDiseases: [disease({ naturalRecoveryWeeks: 3 })] }),
+      ctx({ newStats: stats({ health: 40, fitness: 20 }) }),
+    );
+    const fit = applyDiseasesForWeek(
+      input({ prevDiseases: [disease({ naturalRecoveryWeeks: 3 })] }),
+      ctx({ newStats: stats({ health: 90, fitness: 80 }) }),
+    );
 
-    // Event-triggered diseases would be added through event resolution
-    // This is tested through the event system
-    expect(state.diseases).toBeDefined();
-    expect(Array.isArray(state.diseases)).toBe(true);
+    expect(sick.diseases[0].naturalRecoveryWeeks)
+      .toBeGreaterThan(fit.diseases[0].naturalRecoveryWeeks!);
   });
 
-  it('should handle multiple diseases simultaneously', () => {
-    const stateWithMultipleDiseases = createTestGameState({
-      weeksLived: 10,
-      stats: { health: 30, fitness: 20, happiness: 30, energy: 30, money: 1000, reputation: 0, gems: 0 },
-      diseases: [
-        {
-          id: 'common_cold',
-          name: 'Common Cold',
-          severity: 'mild',
-          effects: { health: -2, energy: -3 },
-          curable: true,
-          contractedWeek: 8,
-        },
-        {
-          id: 'stress',
-          name: 'High Stress',
-          severity: 'mild',
-          effects: { happiness: -4, energy: -2 },
-          curable: true,
-          contractedWeek: 9,
-        },
-      ],
-    });
+  it('admits a newly generated disease and records the week', () => {
+    const r = applyDiseasesForWeek(
+      input({ newDisease: disease({ id: 'flu', name: 'Flu' }) }),
+      ctx({ nextWeeksLived: 12 }),
+    );
 
-    expect(stateWithMultipleDiseases.diseases.length).toBe(2);
-    // Effects should stack
-    const totalHealthEffect = stateWithMultipleDiseases.diseases
-      .map(d => d.effects?.health || 0)
-      .reduce((sum, val) => sum + val, 0);
-    expect(totalHealthEffect).toBeLessThan(0);
+    expect(r.diseases.map((d) => d.id)).toContain('flu');
+    expect(r.diseaseHistory.totalDiseases).toBe(1);
+    expect(r.lastDiseaseWeek).toBe(12);
+  });
+
+  it('never raises the sickness modal, and clears one that got stuck on', () => {
+    // Deliberate: the popup interrupted the Next Week flow, so the tick forces
+    // the flag false every week, which also self-heals a save where it stuck.
+    // Asserted because "forced false" and "never set" look identical from the
+    // outside until a save arrives with it already true.
+    const admitted = applyDiseasesForWeek(input({ newDisease: disease() }), ctx());
+    expect(admitted.showSicknessModal).toBe(false);
+
+    const stuck = applyDiseasesForWeek(input({ prevShowSicknessModal: true }), ctx());
+    expect(stuck.showSicknessModal).toBe(false);
+  });
+
+  it('survives a history object whose `diseases` array is missing', () => {
+    // The crash guard the reducer documents: a save can carry a diseaseHistory
+    // that has no `.diseases`, and the `||` fallback only catches null.
+    const r = applyDiseasesForWeek(
+      input({
+        prevDiseases: [disease()],
+        prevDiseaseHistory: { totalDiseases: 1, totalCured: 0, deathsFromDisease: 0 } as DiseaseHistory,
+      }),
+      ctx(),
+    );
+
+    expect(Array.isArray(r.diseaseHistory.diseases)).toBe(true);
   });
 });
-
