@@ -326,23 +326,34 @@ export function isDeepLifePlusProduct(productId: string): boolean {
  * OR the one-time lifetime unlock. Every premium gate should use this.
  */
 export function isDeepLifePlusActive(): boolean {
-  // DEV-ONLY testing override, double-gated.
+  // QA-BUILD testing override.
   //
   // The selfie route into the face creator is a DeepLife+ surface, so the only
-  // way to exercise it was to actually buy the subscription — which means one
-  // of the three character-customization systems could not be tested at all.
+  // way to exercise it is to buy the subscription — which means one of the three
+  // character-customization systems cannot be tested at all.
   //
-  // Two independent gates, both required:
+  // ## Why this is not gated on `__DEV__`
   //
-  //   `__DEV__`  is compile-time FALSE in a release build, so the whole branch
-  //              is dead code Metro strips — a production binary cannot reach
-  //              it however the environment is set.
-  //   the env var means it stays off even in dev unless someone asks for it, so
-  //              normal development still sees what a free player sees.
+  // Because it has to work on TESTFLIGHT, and TestFlight is a release build:
+  // `__DEV__` is compile-time false there, so a `__DEV__` guard makes the paid
+  // route untestable on the exact builds testing happens on. That was the first
+  // version of this and it did nothing where it was needed.
+  //
+  // The protection is therefore not the compiler, it is the build profile plus
+  // a check that runs before every build:
+  //
+  //   - `EXPO_PUBLIC_QA_TOOLS` is set by the `testflight` profile in
+  //     `eas.json` and by nothing else. The `production` profile does not
+  //     carry it, so a store build does not have it.
+  //   - `scripts/preflight-check.js` §5d FAILS if the production profile ever
+  //     gains it, or if it is set in the environment of a production build. A
+  //     store binary with this flag cannot get built without the check going
+  //     red first.
   //
   // Deliberately here rather than inside `subscriptionService`: entitlement is
-  // revenue-critical and the service should have exactly one notion of what a
-  // real purchase is. This overrides the QUESTION, not the record.
-  if (__DEV__ && process.env.EXPO_PUBLIC_FORCE_DEEPLIFE_PLUS === 'true') return true;
+  // revenue-critical and the service should keep exactly one notion of what a
+  // real purchase is. This overrides the QUESTION, not the record — nothing is
+  // written, so a QA build cannot leave a fake purchase behind in storage.
+  if (process.env.EXPO_PUBLIC_QA_TOOLS === 'true') return true;
   return subscriptionService.hasPremiumAccess();
 }

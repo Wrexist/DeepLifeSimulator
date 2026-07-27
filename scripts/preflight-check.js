@@ -524,6 +524,40 @@ try {
   hasErrors = true;
 }
 
+// 5d. QA tools must never reach a store build.
+//
+// `EXPO_PUBLIC_QA_TOOLS` grants DeepLife+ so the paid selfie route into the face
+// creator can be tested. That is a paywall bypass, and it deliberately is NOT
+// gated on `__DEV__` — it has to work on TestFlight, which is a release build,
+// or the paid route is untestable on the exact builds testing happens on.
+//
+// So the compiler is not the protection; this is. Two ways it could reach the
+// App Store, and both are checked: the `production` profile gaining the flag in
+// `eas.json`, or the flag being set in the environment of a production build.
+logSection('5d. QA Tools Not In Store Builds');
+try {
+  const easPath = path.join(process.cwd(), 'eas.json');
+  if (!fs.existsSync(easPath)) {
+    log('[SKIP] eas.json not found', YELLOW);
+  } else {
+    const { checkQaTools } = require('./lib/qaTools');
+    const eas = JSON.parse(fs.readFileSync(easPath, 'utf8'));
+    const { errors, carriers } = checkQaTools(eas, process.env);
+    for (const err of errors) {
+      log(err.message, RED);
+      for (const line of err.details) log(line, RED);
+      hasErrors = true;
+    }
+    if (errors.length === 0) {
+      if (carriers.length > 0) log(`[INFO] QA tools enabled on profile(s): ${carriers.join(', ')}`, YELLOW);
+      log('[PASS] QA tools are not enabled for store builds', GREEN);
+    }
+  }
+} catch (error) {
+  log('[FAIL] QA tools check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 // 6. Startup safety guardrails (prevent forced optional service init)
 logSection('6. IAP Native Module Availability');
 try {

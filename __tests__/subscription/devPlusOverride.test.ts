@@ -6,9 +6,12 @@
  * only be exercised by actually buying the subscription, so it never gets
  * tested.
  *
- * That is a paywall bypass, so the thing worth testing is not that it works —
- * it is that it CANNOT work in a release build. Two independent gates, and this
- * asserts both, including the one a test cannot observe at runtime.
+ * That is a paywall bypass. The first version guarded it with `__DEV__` — which
+ * is compile-time false on TestFlight, so it protected the flag right out of
+ * the builds it was for. The guard is now the BUILD PROFILE, checked by
+ * `scripts/lib/qaTools.js` before every build; this file covers the override
+ * itself, and `__tests__/build/qaTools.test.ts` covers what keeps it out of the
+ * store.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -18,21 +21,23 @@ const SOURCE = fs.readFileSync(
   'utf8',
 );
 
-describe('the override cannot reach production', () => {
-  it('is guarded by __DEV__, which Metro strips from a release build', () => {
-    // Asserted on the SOURCE because `__DEV__` is a compile-time constant: a
-    // test running in dev cannot observe the release behaviour by calling the
-    // function. What can be checked is that the guard is present and is the
-    // FIRST condition, so the env var alone never grants anything.
-    expect(SOURCE).toMatch(/if \(__DEV__ && process\.env\.EXPO_PUBLIC_FORCE_DEEPLIFE_PLUS === 'true'\) return true;/);
+describe('the override is opt-in only', () => {
+  it('fires on an exact EXPO_PUBLIC_QA_TOOLS=true and nothing else', () => {
+    // NOT gated on `__DEV__`, deliberately: TestFlight is a release build, so a
+    // `__DEV__` guard makes the paid route untestable on the builds testing
+    // actually happens on. The protection is the build profile plus
+    // `scripts/lib/qaTools.js`, covered in `__tests__/build/qaTools.test.ts`.
+    expect(SOURCE).toMatch(/if \(process\.env\.EXPO_PUBLIC_QA_TOOLS === 'true'\) return true;/);
   });
 
-  it('needs the env var too, so ordinary dev runs still see the paywall', () => {
-    // Without this, every developer would silently be a subscriber and the free
-    // player's path — the one most people are on — would stop being exercised.
-    const line = SOURCE.match(/if \(__DEV__ &&[^\n]*/)?.[0] ?? '';
-    expect(line).toContain('EXPO_PUBLIC_FORCE_DEEPLIFE_PLUS');
-    expect(line).toContain("=== 'true'");
+  it('does not fall back to any looser check', () => {
+    // A truthiness test would fire on 'false', which is how a flag meant to be
+    // off ends up on.
+    const fn = SOURCE.slice(SOURCE.indexOf('export function isDeepLifePlusActive'));
+    const code = fn.slice(0, fn.indexOf('\n}'))
+      .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(code).not.toMatch(/if \(process\.env\.EXPO_PUBLIC_QA_TOOLS\)/);
+    expect(code).not.toMatch(/!==\s*'false'/);
   });
 
   it('does not touch the entitlement record itself', () => {
@@ -57,7 +62,7 @@ describe('the real entitlement is still the default answer', () => {
     // With the env var unset — which is how every test in this suite runs, and
     // how every build that is not explicitly opted in runs — the function is
     // exactly what it was before the override existed.
-    delete process.env.EXPO_PUBLIC_FORCE_DEEPLIFE_PLUS;
+    delete process.env.EXPO_PUBLIC_QA_TOOLS;
     jest.resetModules();
     jest.doMock('@/services/SubscriptionService', () => ({
       subscriptionService: { hasPremiumAccess: () => false },

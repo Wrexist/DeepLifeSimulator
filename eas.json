@@ -21,6 +21,14 @@
         "gradleCommand": ":app:bundleRelease -x lintVitalRelease -x lintVitalAnalyzeRelease"
       }
     },
+    "testflight": {
+      "extends": "production",
+      "channel": "testflight",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_QA_TOOLS": "true"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
