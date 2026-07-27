@@ -48,6 +48,10 @@ import {
   EYE_COLORS,
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
+  HAIR_COLOR_NAMES,
+  SKIN_TONE_NAMES,
+  EYE_COLOR_NAMES,
+  swatchName,
   HAIR_STYLES,
   styleLabel,
   SKIN_TONES,
@@ -410,6 +414,7 @@ export default function FaceStudio({
         <Card title="Skin tone">
           <Swatches
             colors={SKIN_TONES}
+            names={SKIN_TONE_NAMES}
             selected={genome.skinTone}
             onSelect={(i) => { haptic.light(); onChange({ ...genome, skinTone: i }); }}
           />
@@ -426,6 +431,7 @@ export default function FaceStudio({
         <Card title="Hair color">
           <Swatches
             colors={HAIR_COLORS}
+            names={HAIR_COLOR_NAMES}
             selected={genome.hairColor}
             onSelect={(i) => { haptic.light(); onChange({ ...genome, hairColor: i }); }}
           />
@@ -434,6 +440,7 @@ export default function FaceStudio({
         <Card title="Eye color">
           <Swatches
             colors={EYE_COLORS}
+            names={EYE_COLOR_NAMES}
             selected={genome.eyeColor}
             onSelect={(i) => { haptic.light(); onChange({ ...genome, eyeColor: i }); }}
           />
@@ -538,8 +545,14 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function Swatches({
-  colors, selected, onSelect,
-}: { colors: readonly string[]; selected: number; onSelect: (i: number) => void }): React.JSX.Element {
+  colors, names, selected, onSelect,
+}: {
+  colors: readonly string[];
+  /** Index-aligned names — a colour button has no text to announce. */
+  names: readonly string[];
+  selected: number;
+  onSelect: (i: number) => void;
+}): React.JSX.Element {
   return (
     <View style={styles.swatchRow}>
       {colors.map((c, i) => (
@@ -547,6 +560,7 @@ function Swatches({
           key={`${c}-${i}`}
           onPress={() => onSelect(i)}
           accessibilityRole="button"
+          accessibilityLabel={swatchName(names, i)}
           accessibilityState={{ selected: i === selected }}
           style={[styles.swatchRing, i === selected ? styles.swatchRingOn : null]}
         >

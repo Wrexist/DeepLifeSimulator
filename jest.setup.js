@@ -339,6 +339,23 @@ jest.mock('react-native', () => {
       Types: {},
       Properties: {},
     },
+    // Hand-rolled sliders and drag handles build their handlers at render time,
+    // so a component using PanResponder cannot mount at all without this. The
+    // handlers are returned verbatim rather than stubbed, so a test can invoke
+    // one directly and exercise the drag logic without a touch system.
+    PanResponder: {
+      create: (config) => ({
+        panHandlers: {
+          onStartShouldSetResponder: config.onStartShouldSetPanResponder,
+          onMoveShouldSetResponder: config.onMoveShouldSetPanResponder,
+          onResponderGrant: config.onPanResponderGrant,
+          onResponderMove: config.onPanResponderMove,
+          onResponderRelease: config.onPanResponderRelease,
+          onResponderTerminationRequest: config.onPanResponderTerminationRequest,
+        },
+        __config: config,
+      }),
+    },
   };
 
   const AnimatedValue = jest.fn(() => ({

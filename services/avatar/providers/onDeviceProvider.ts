@@ -165,7 +165,7 @@ async function samplePixels(uri: string): Promise<Uint8Array> {
   return pixels;
 }
 
-interface Rgb {
+export interface Rgb {
   r: number;
   g: number;
   b: number;
@@ -216,12 +216,17 @@ function hexToRgb(hex: string): Rgb {
 /**
  * Nearest palette entry, weighted for how the eye actually judges skin.
  *
+ * Exported for tests. It is the only part of this provider that can be checked
+ * without a GPU, and it is where a wrong answer is invisible: matching a deep
+ * skin tone to a pale swatch produces a perfectly valid face that is not the
+ * player's.
+ *
  * Plain RGB distance picks by brightness alone and reads warm mid tones as
  * grey; these are the Rec. 601 luma weights, which is the cheapest thing that
  * respects that green carries most of the perceived lightness and blue almost
  * none.
  */
-function nearestPaletteIndex(palette: readonly string[], c: Rgb): number {
+export function nearestPaletteIndex(palette: readonly string[], c: Rgb): number {
   let best = 0;
   let bestD = Infinity;
   for (let i = 0; i < palette.length; i++) {
@@ -236,7 +241,7 @@ function nearestPaletteIndex(palette: readonly string[], c: Rgb): number {
 }
 
 /** Rough "is this skin" test: warm, not near-black, not near-white. */
-function looksLikeSkin(c: Rgb): boolean {
+export function looksLikeSkin(c: Rgb): boolean {
   const luma = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
   return luma > 26 && luma < 246 && c.r >= c.g && c.g >= c.b - 12;
 }

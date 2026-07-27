@@ -285,6 +285,44 @@ export const EYE_COLORS: readonly string[] = [
   '#3B6BA5', '#5B8FC7', '#8A8F98', '#6B4E8A',
 ];
 
+/**
+ * Names for the palettes, index-aligned with them.
+ *
+ * These exist because a colour swatch is a button with no text in it: a screen
+ * reader announced twenty-four of them as "button, selected" with nothing to
+ * tell them apart, which makes choosing a skin tone impossible rather than
+ * merely awkward. `swatchName` is the accessor every surface should use.
+ *
+ * Kept beside the palettes rather than in a component so the two cannot drift —
+ * `paletteNames.test.ts` fails if a colour is added without a name.
+ */
+export const SKIN_TONE_NAMES: readonly string[] = [
+  'Porcelain', 'Fair', 'Light', 'Light tan', 'Tan',
+  'Golden', 'Bronze', 'Deep bronze', 'Deep', 'Darkest',
+];
+
+export const HAIR_COLOR_NAMES: readonly string[] = [
+  'Black', 'Darkest brown', 'Dark brown', 'Brown', 'Light brown',
+  'Dark blonde', 'Blonde', 'Platinum blonde', 'Auburn', 'Grey',
+  'White', 'Violet', 'Red', 'Blue',
+];
+
+export const EYE_COLOR_NAMES: readonly string[] = [
+  'Dark brown', 'Brown', 'Amber', 'Hazel', 'Teal',
+  'Blue', 'Light blue', 'Grey', 'Violet',
+];
+
+/**
+ * The name of swatch `index` in `names`, with a positional fallback.
+ *
+ * Never returns an empty string: an unnamed swatch is exactly the case this
+ * exists to prevent, so a palette that outgrows its name list degrades to
+ * "Colour 15" rather than back to silence.
+ */
+export function swatchName(names: readonly string[], index: number): string {
+  return names[index] ?? `Colour ${index + 1}`;
+}
+
 /** Wardrobe tiers, cheapest → finest. Index is what a save stores. */
 export const WARDROBE_TIERS: readonly { name: string; cost: number; presence: number }[] = [
   { name: 'Hand-me-downs', cost: 0, presence: -6 },

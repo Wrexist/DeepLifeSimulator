@@ -28,7 +28,11 @@ import {
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
+  HAIR_COLOR_NAMES,
+  SKIN_TONE_NAMES,
+  EYE_COLOR_NAMES,
   styleLabel,
+  swatchName,
   SKIN_TONES,
   randomizeFace,
   type BodyProfile,
@@ -205,6 +209,7 @@ export default function FaceCreator({
         <Swatches
           title="Skin tone"
           colors={SKIN_TONES}
+          names={SKIN_TONE_NAMES}
           selected={genome.skinTone}
           onSelect={(i) => onChange({ ...genome, skinTone: i })}
           darkMode={darkMode}
@@ -212,6 +217,7 @@ export default function FaceCreator({
         <Swatches
           title="Hair colour"
           colors={HAIR_COLORS}
+          names={HAIR_COLOR_NAMES}
           selected={genome.hairColor}
           onSelect={(i) => onChange({ ...genome, hairColor: i })}
           darkMode={darkMode}
@@ -219,6 +225,7 @@ export default function FaceCreator({
         <Swatches
           title="Eye colour"
           colors={EYE_COLORS}
+          names={EYE_COLOR_NAMES}
           selected={genome.eyeColor}
           onSelect={(i) => onChange({ ...genome, eyeColor: i })}
           darkMode={darkMode}
@@ -300,10 +307,13 @@ export default function FaceCreator({
 }
 
 function Swatches({
-  title, colors, selected, onSelect, darkMode,
+  title, colors, names, selected, onSelect, darkMode,
 }: {
   title: string;
   colors: readonly string[];
+  /** Index-aligned names. "Skin tone option 7" tells a screen-reader user
+   *  nothing they can choose with; "Bronze" does. */
+  names: readonly string[];
   selected: number;
   onSelect: (index: number) => void;
   darkMode: boolean;
@@ -318,7 +328,8 @@ function Swatches({
             key={`${title}-${i}`}
             onPress={() => { haptic.light(); onSelect(i); }}
             accessibilityRole="button"
-            accessibilityLabel={`${title} option ${i + 1}`}
+            accessibilityLabel={`${title}: ${swatchName(names, i)}`}
+            accessibilityState={{ selected: i === selected }}
             style={[
               styles.swatch,
               { backgroundColor: c, borderColor: i === selected ? accent.info : 'transparent' },
