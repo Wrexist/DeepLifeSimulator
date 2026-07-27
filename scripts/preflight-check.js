@@ -381,6 +381,149 @@ try {
   hasErrors = true;
 }
 
+// 5c. iOS purpose strings (NS*UsageDescription) — App *Review* rules, not upload
+// validation. Unlike §5b these do not block the upload: the binary processes
+// fine, TestFlight is happy, and the rejection only lands after review with
+// "placeholder or otherwise insufficient purpose strings". That cost a full
+// review cycle once, and it also drags the whole submission down with it —
+// every attached IAP and subscription comes back "Rejected" alongside the app.
+//
+// Apple's own failing examples are "App would like to access your Contacts" and
+// "App needs microphone access": strings that name the resource but never say
+// what the app DOES with the data. A passing string states the use AND gives a
+// concrete example of the result. The heuristics below are deliberately blunt —
+// they cannot judge prose, so they catch the mechanical tells (known SDK
+// boilerplate, no verb, too short to contain an example).
+logSection('5c. iOS Purpose Strings (App Review)');
+try {
+  const appConfigPath = path.join(process.cwd(), 'app.config.js');
+  if (!fs.existsSync(appConfigPath)) {
+    log('[SKIP] app.config.js not found', YELLOW);
+  } else {
+    delete require.cache[require.resolve(appConfigPath)];
+    const loadedConfig = require(appConfigPath);
+    const expoConfig = loadedConfig?.expo || loadedConfig?.default?.expo || null;
+
+    // Purpose strings reach the Info.plist from two places: written directly
+    // under ios.infoPlist, or handed to a config plugin that writes the key at
+    // prebuild. Both have to be checked — this project uses the plugin form
+    // (expo-tracking-transparency owns NSUserTrackingUsageDescription), so a
+    // check that only walked infoPlist would have seen nothing at all and
+    // passed the very build Apple rejected.
+    const purposeStrings = [];
+
+    const infoPlist = expoConfig?.ios?.infoPlist || {};
+    Object.keys(infoPlist).forEach((key) => {
+      if (/UsageDescription$/.test(key) && typeof infoPlist[key] === 'string') {
+        purposeStrings.push({ key, value: infoPlist[key], source: 'ios.infoPlist' });
+      }
+    });
+
+    // Plugin options that become an NS*UsageDescription at prebuild time. Add a
+    // row here whenever a plugin that writes a purpose string is installed
+    // (expo-camera → cameraPermission, expo-media-library → photosPermission, …).
+    const PLUGIN_PURPOSE_OPTIONS = {
+      'expo-tracking-transparency': {
+        userTrackingPermission: 'NSUserTrackingUsageDescription',
+      },
+      'react-native-google-mobile-ads': {
+        userTrackingUsageDescription: 'NSUserTrackingUsageDescription',
+      },
+    };
+
+    (Array.isArray(expoConfig?.plugins) ? expoConfig.plugins : []).forEach((entry) => {
+      if (!Array.isArray(entry)) return; // bare string plugin carries no options
+      const [name, options] = entry;
+      const mapping = PLUGIN_PURPOSE_OPTIONS[name];
+      if (!mapping || !options || typeof options !== 'object') return;
+      Object.keys(mapping).forEach((option) => {
+        if (typeof options[option] === 'string') {
+          purposeStrings.push({
+            key: mapping[option],
+            value: options[option],
+            source: `plugin ${name}.${option}`,
+          });
+        }
+      });
+    });
+
+    if (purposeStrings.length === 0) {
+      // Not an error: an app that requests no protected resources ships no
+      // purpose strings, which is the other action Apple's rejection offers.
+      log('[PASS] No NS*UsageDescription purpose strings declared (nothing for review to reject)', GREEN);
+    } else {
+      let purposeErrors = 0;
+      const failString = (message) => {
+        log(message, RED);
+        purposeErrors += 1;
+        hasErrors = true;
+      };
+
+      // Verbatim boilerplate from SDK docs/templates. These ship in thousands of
+      // apps, so they are the first thing an automated scan can match on.
+      const BOILERPLATE = [
+        'this identifier will be used to deliver personalized ads to you.',
+        'allow this app to collect app-related data that can be used for tracking you or your device.',
+        'this app would like to access your data.',
+        'we need your permission.',
+      ];
+
+      // A purpose string has to say what the app DOES. No verb of use ⇒ it is
+      // describing the resource, not the usage — Apple's failing pattern.
+      const USE_VERBS = /\b(use[sd]?|using|show|shows|display|displays|save|saves|store|stores|share|shares|send|sends|keep|keeps|make|makes|let|lets|so that|so you|to earn|personalize|personalise|recommend|attach|upload|import|export)\b/i;
+
+      purposeStrings.forEach(({ key, value, source }) => {
+        const text = value.trim();
+        const normalized = text.toLowerCase().replace(/\s+/g, ' ');
+
+        if (text.length === 0) {
+          failString(`[FAIL] ${key} is empty (${source})`);
+          return;
+        }
+
+        if (BOILERPLATE.includes(normalized)) {
+          failString(`[FAIL] ${key} is SDK boilerplate — App Review flags this as a placeholder purpose string (${source})`);
+          log(`   "${text}"`, RED);
+          log('   → Rewrite it to say how this app uses the data AND give a concrete example of the result.', RED);
+          return;
+        }
+
+        // Length is a proxy for "contains an example". Apple's own passing
+        // samples all run well past 60 characters; nothing that short has room
+        // for both the use and an example of it.
+        if (text.length < 60) {
+          failString(`[FAIL] ${key} is too short (${text.length} chars) to state a use and an example (${source})`);
+          log(`   "${text}"`, RED);
+          return;
+        }
+
+        if (!USE_VERBS.test(text)) {
+          failString(`[FAIL] ${key} never says what the app does with the data (${source})`);
+          log(`   "${text}"`, RED);
+          log('   → "App needs microphone access" is Apple\'s example of this failure mode.', RED);
+          return;
+        }
+
+        // Soft signal only: an example usually arrives via "for example",
+        // "such as", "like", or a dash. Warn rather than fail — good strings
+        // exist that phrase the example without any of these markers.
+        if (!/(for example|such as|e\.g\.|instead of|like )/i.test(text)) {
+          log(`[WARN] ${key} may lack a concrete example of the data's use (${source})`, YELLOW);
+          log('   Apple asks for "a specific example of how the data will be used".', YELLOW);
+        }
+      });
+
+      if (purposeErrors === 0) {
+        log(`[PASS] ${purposeStrings.length} purpose string(s) state a specific use`, GREEN);
+        purposeStrings.forEach(({ key, source }) => log(`   ${key} (${source})`, GREEN));
+      }
+    }
+  }
+} catch (error) {
+  log('[FAIL] Purpose string check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 // 6. Startup safety guardrails (prevent forced optional service init)
 logSection('6. IAP Native Module Availability');
 try {

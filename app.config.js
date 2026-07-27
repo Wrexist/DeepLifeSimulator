@@ -221,10 +221,27 @@ module.exports = {
       // (utils/trackingTransparency.ts); its config plugin wires the
       // AppTrackingTransparency.framework linkage and NSUserTrackingUsageDescription.
       // Hard Rule #4: never list a package in package.json without its plugin.
+      // PURPOSE STRING — rejected once as "placeholder or otherwise insufficient"
+      // by App Review's automated scan (Guideline 5.1.1 / 5.1.2). The old value was
+      // Expo's documentation boilerplate, "This identifier will be used to deliver
+      // personalized ads to you." — a sentence that names the resource but never
+      // says what the app does with it, which is the exact shape Apple's examples
+      // call out as failing ("App would like to access your Contacts").
+      //
+      // A passing string needs BOTH halves:
+      //   1. how this app uses the data ("to keep the ads in DeepLife relevant"),
+      //   2. a CONCRETE example of the result ("other life-simulation games
+      //      instead of unrelated products"), plus what happens on decline so the
+      //      choice is honest.
+      // Keep both halves if this is ever reworded — dropping the example is what
+      // trips the scan. This is the ONLY NS*UsageDescription in the binary; no
+      // other plugin or SDK in this project contributes one (see preflight §5c,
+      // which fails the build on boilerplate/short strings).
       [
         "expo-tracking-transparency",
         {
-          userTrackingPermission: "This identifier will be used to deliver personalized ads to you."
+          userTrackingPermission:
+            "DeepLife Simulator uses your advertising identifier to keep the ads you watch for in-game rewards relevant — for example, other life-simulation games instead of unrelated products. Declining still shows ads, just not personalized ones."
         }
       ],
       // NOTE (Hard Rule #4 — "package in package.json ⇒ config plugin here"):

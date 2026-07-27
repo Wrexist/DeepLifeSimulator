@@ -20,6 +20,10 @@ they're left as boxes for you.
   `com.android.vending.BILLING` (IAP) (`app.config.js`).
 - **iOS ATT** — `expo-tracking-transparency` plugin provides
   `NSUserTrackingUsageDescription`; `ITSAppUsesNonExemptEncryption:false` set.
+  The purpose string must state how the data is used **and** give a concrete
+  example — Expo's boilerplate ("This identifier will be used to deliver
+  personalized ads to you.") was rejected by App Review's automated scan as a
+  placeholder. `scripts/preflight-check.js` §5c fails the build on that shape.
 - **AdMob** — plugin wired with `iosAppId` / `androidAppId`; Firebase
   (`@react-native-firebase/app`) configured for revenue attribution.
 - **IAP product IDs** — consistent between app and stores (`utils/iapConfig.ts`,
