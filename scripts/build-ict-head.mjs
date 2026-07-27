@@ -956,17 +956,26 @@ async function main() {
     let browY = 0;
     for (let i = 17; i <= 26; i++) browY += neutral.positions[landmarks[i] * 3 + 1];
     browY /= 10;
-    let minY = 1e9, minZ = 1e9, maxZ = -1e9, maxY = -1e9, maxX = 0;
+    let minY = 1e9, minZ = 1e9, maxZ = -1e9, maxY = -1e9, craniumX = 0;
     for (let v = 0; v < vertCount; v++) {
       minY = Math.min(minY, neutral.positions[v * 3 + 1]);
       minZ = Math.min(minZ, neutral.positions[v * 3 + 2]);
       maxZ = Math.max(maxZ, neutral.positions[v * 3 + 2]);
       maxY = Math.max(maxY, neutral.positions[v * 3 + 1]);
-      maxX = Math.max(maxX, Math.abs(neutral.positions[v * 3]));
+      // MEASURED ON THE CRANIUM, not the whole mesh. The model carries neck and
+      // shoulders, and its widest point by a distance is the shoulders: the
+      // half-width came out 12.42 against a head that is 9.20, so `sideness` at
+      // the temple read 0.58 instead of 0.78 and — squared — the temple term ran
+      // at 55% of its intended strength. That is the same mistake as the shader's
+      // old `smoothstep(0.40, 0.95, fx)`, which topped out at 0.44 for the same
+      // reason: a head-relative quantity normalised by a mesh-relative extent.
+      if (neutral.positions[v * 3 + 1] >= browY) {
+        craniumX = Math.max(craniumX, Math.abs(neutral.positions[v * 3]));
+      }
     }
     const H = Math.max(1e-6, maxY - browY);
     const depth = Math.max(1e-6, maxZ - minZ);
-    const halfWidth = Math.max(1e-6, maxX);
+    const halfWidth = Math.max(1e-6, craniumX);
     // How far below the hairline hair is allowed to reach. Bounded well above
     // the mesh floor: the model's lowest vertices are the shoulders, and a field
     // that runs onto them lets a long style grow a cape off the back.
@@ -982,7 +991,16 @@ async function main() {
       // hairline is one constant height all the way round the skull, which is
       // exactly the bowl-cut rim the first version produced — the shell came
       // down over the temples in a straight line and read as a helmet.
-      const temple = sideness * sideness * (1 - backness) * 0.34;
+      //
+      // 0.34 -> 0.58, on top of the normaliser fix above. Measuring the shipped
+      // GLB showed the temple hairline sitting 1.20 units BELOW the midline one
+      // — 5% of head height lower, the opposite of what this term is for. The
+      // backness coefficient drops the line 0.79 per unit of backness, and by
+      // the time the surface has wrapped out to the temple it has picked up
+      // enough backness to swamp a 0.34 lift running at half strength. So the
+      // corners never showed, and every style rendered as the same flat-edged
+      // cap: on a contact sheet of all thirty-four, four were distinguishable.
+      const temple = sideness * sideness * (1 - backness) * 0.58;
       // 0.45 head-heights above the brow at the front, not 0.32. Rendered
       // head-on against the bald head, the old line put the fringe on the
       // eyebrows on every style — a forehead is about a third of a face and the
