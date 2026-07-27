@@ -1,7 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "source": "ICT-FaceKit identity modes (mean face + 100 components)",
   "components": 100,
+  "frame": {
+    "browFrac": 0.745703,
+    "chinFrac": 0.347241
+  },
   "measures": {
     "faceWidth": {
       "mean": 1.302251,

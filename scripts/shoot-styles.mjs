@@ -88,6 +88,25 @@ async function main() {
     (spec) => { window.__HAIR_SPEC = spec; },
     loadTs('lib/identity/hairSpec.ts').HAIR_SPEC,
   );
+  // Childhood proportions: the GLSL and the pivot fraction, from the app and
+  // from the bake. The page keeps no copy of either — see the note in the
+  // harness, and `lib/identity/childProportions.ts`.
+  const child = loadTs('lib/identity/childProportions.ts');
+  const statsFrame = JSON.parse(readFileSync('assets/models/face-measure-stats.json', 'utf8')).frame;
+  await page.addInitScript(
+    (c) => {
+      window.__CHILD_GLSL = c.glsl;
+      window.__CHILD_UNIFORMS = c.uniforms;
+      window.__BROW_FRAC = c.browFrac;
+      window.__CHIN_FRAC = c.chinFrac;
+    },
+    {
+      glsl: child.CHILD_PROPORTION_GLSL,
+      uniforms: child.CHILD_PROPORTION_UNIFORMS,
+      browFrac: statsFrame?.browFrac ?? 0.746,
+      chinFrac: statsFrame?.chinFrac ?? 0.347,
+    },
+  );
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 
@@ -146,6 +165,9 @@ async function main() {
     const shots = [];
     for (const age of process.env.AGE.split(',').map(Number)) {
       const aged = genomeMod.applyAging(base, age);
+      // A child is not a small adult, and the morphs cannot say so. Evaluated
+      // from the app's own curve rather than restated in the page.
+      await page.evaluate((v) => window.__setChildness(v), child.childnessAt(age));
       const { influences } = bindMod.genomeToInfluences(aged, binding, { signed: true });
       await page.evaluate((c) => window.__applyCharacter(c), {
         influences,

@@ -112,6 +112,35 @@ const SU = {
   uBlemish: { value: Number(q.get('blemish') ?? 0.2) },
 };
 
+/**
+ * Childhood proportions. The GLSL, the curve and the magnitudes are injected
+ * from `lib/identity/childProportions.ts` by `shoot-styles.mjs` — this page
+ * keeps no copy, for the same reason it keeps no copy of the hair table.
+ *
+ * Installed on every mesh in the head: skin, hair, beard, sclera and iris. Miss
+ * one and a child's eyeballs sit outside their head.
+ */
+const CHILD_U = { uChildness: { value: 0 }, uBrowY: { value: 0 },
+                  uChinY: { value: 0 }, uHeadH: { value: 1 } };
+function installChild(m) {
+  if (!window.__CHILD_GLSL) throw new Error('window.__CHILD_GLSL not injected');
+  const previous = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    previous && previous.call(m, sh, r);
+    Object.assign(sh.uniforms, CHILD_U);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\n' + window.__CHILD_UNIFORMS)
+      .replace('#include <project_vertex>', window.__CHILD_GLSL + '\n#include <project_vertex>');
+  };
+}
+// The VALUE, not the age: the childness curve lives in `childProportions.ts`
+// and `shoot-styles.mjs` evaluates it there. A copy of the curve here would be
+// a second opinion about what a six-year-old is.
+window.__setChildness = (v) => {
+  CHILD_U.uChildness.value = v;
+  renderer.render(scene, camera);
+};
+
 parts.skin.material = (() => {
   const m = new THREE.MeshPhysicalMaterial({
     color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
@@ -154,6 +183,7 @@ parts.skin.material = (() => {
         'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
         'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
   };
+  installChild(m);
   return m;
 })();
 
@@ -172,6 +202,12 @@ const gb = new THREE.Box3()
 const headMin = new THREE.Vector3().copy(gb.min);
 const headSize = new THREE.Vector3().subVectors(gb.max, gb.min);
 const geomExtent = Math.max(headSize.x, headSize.y, headSize.z) || 1;
+// Pivot for the childhood transform, as a fraction of the head box — the only
+// form that survives the exporter's quantization scale and node translation.
+// Injected from the bake's `face-measure-stats.json`.
+CHILD_U.uBrowY.value = gb.min.y + (window.__BROW_FRAC ?? 0.746) * headSize.y;
+CHILD_U.uChinY.value = gb.min.y + (window.__CHIN_FRAC ?? 0.347) * headSize.y;
+CHILD_U.uHeadH.value = headSize.y;
 
 /**
  * Make a shell mesh move with the head.
@@ -365,6 +401,7 @@ hairMat.onBeforeCompile = (sh) => {
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
       'roughnessFactor = clamp(roughnessFactor - 0.16 * strand, 0.05, 1.0);');
 };
+installChild(hairMat);
 const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
 // Drawn after the skin. The shell is strictly outside it, so back-to-front is
 // simply skin-then-hair and no per-triangle sorting is needed.
@@ -471,6 +508,7 @@ float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin
       'diffuseColor.a *= uDensity;\n' +
       'diffuseColor.rgb *= 0.78 + 0.34 * smoothstep(0.05, 0.9, vAmt);');
 };
+installChild(beardMat);
 const beard = new THREE.Mesh(parts.skin.geometry, beardMat);
 beard.renderOrder = 1;
 shareMorphs(parts.skin, beard);
@@ -534,6 +572,7 @@ parts.sclera.material = (() => {
         'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\n' +
         'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
   };
+  installChild(m);
   return m;
 })();
 parts.iris.material = (() => {
@@ -555,6 +594,7 @@ parts.iris.material = (() => {
         'diffuseColor.rgb *= pupil * limbal * fibre * (1.52 - 0.52 * r);\n' +
         'if (r < 0.33) discard;');
   };
+  installChild(m);
   return m;
 })();
 

@@ -79,6 +79,7 @@ export function normalizeIdentity(
 
   return identity;
 }
+export * from './childProportions';
 export * from './hairSpec';
 export * from './headMesh';
 export * from './morphBinding';

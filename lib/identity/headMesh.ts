@@ -37,6 +37,7 @@
 import { applyAging } from './faceGenome';
 import { normalizeBody } from './body';
 import { hairSpecFor } from './hairSpec';
+import { CHILD, childnessAt, childTransform, childXZ, childY, type HeadFrame } from './childProportions';
 import type { BodyProfile, FaceGenome } from './types';
 
 /** Plain geometry buffers — the renderer's only input. */
@@ -195,15 +196,18 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const m = g.morphs;
   const age = typeof options.age === 'number' ? Math.max(0, Math.min(120, options.age)) : 30;
   // How much of a child this is: 1 at birth, 0 from sixteen. Used by the brow
-  // ridge below and by the proportion transform at the end of the build.
-  const childness = age >= 16 ? 0 : Math.pow((16 - age) / 16, 1.2);
+  // ridge below and by the proportion transform at the end of the build. The
+  // curve lives in `childProportions.ts` because the scanned head applies the
+  // same one in a shader and the two must not drift.
+  const childness = childnessAt(age);
+  let childFrame: HeadFrame | null = null;
   // Applied to every feature whose size is an ABSOLUTE constant rather than a
   // morph. `applyAging` pulls `noseLength`, `browProtrusion` and the rest down
   // for children, but each of those morphs only scales one term in a sum whose
   // other term is a fixed number — so a three-year-old got an adult-sized nose
   // and brow on a face compressed to 70% of adult height, which is a bigger
   // error than the one the morphs were correcting.
-  const childScale = 1 - 0.34 * childness;
+  const childScale = 1 - CHILD.faceY * childness;
   const body = normalizeBody(options.body);
 
   // --- Body-driven facial fullness ---------------------------------------
@@ -525,19 +529,23 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     // The face shortens toward the brow line and narrows; the cranium grows a
     // little in every direction. Blended over a band around the brow so there
     // is no crease where the two regions meet.
-    const faceY = 1 - 0.34 * childness;
-    const faceXZ = 1 - 0.16 * childness;
-    const cranXZ = 1 + 0.06 * childness;
-    const cranY = 1 + 0.04 * childness;
-    for (let i = 0; i < positions.length; i += 3) {
-      const y = positions[i + 1];
-      const below = smoothstep(browY + 0.15, browY - 0.10, y);
-      const sy = below * faceY + (1 - below) * cranY;
-      const sxz = below * faceXZ + (1 - below) * cranXZ;
-      positions[i] *= sxz;
-      positions[i + 1] = browY + (y - browY) * sy;
-      positions[i + 2] *= sxz;
+    // The frame is measured off the finished buffer, so the bands scale with
+    // whatever proportions the morphs produced.
+    let lowY = Infinity, highY = -Infinity;
+    for (let i = 1; i < positions.length; i += 3) {
+      if (positions[i] < lowY) lowY = positions[i];
+      if (positions[i] > highY) highY = positions[i];
     }
+    const frame: HeadFrame = { browY, chinY, headH: highY - lowY };
+    for (let i = 0; i < positions.length; i += 3) {
+      const [nx, ny, nz] = childTransform(
+        positions[i], positions[i + 1], positions[i + 2], frame, childness,
+      );
+      positions[i] = nx;
+      positions[i + 1] = ny;
+      positions[i + 2] = nz;
+    }
+    childFrame = frame;
   }
 
   const indices = buildSphereIndices(RINGS, SEGMENTS);
@@ -557,16 +565,16 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
 
   // The feature heights move with the surface, or the eyeballs and the hair
   // shell would be placed on a face that is no longer where they think it is.
-  const childY = (v: number): number =>
-    childness > 0 ? browY + (v - browY) * (1 - 0.34 * childness) : v;
+  const toChild = (v: number): number =>
+    childFrame ? childY(v, childFrame, childness) : v;
 
   const landmarks: HeadLandmarks = {
     crownY,
-    eyeY: childY(eyeY),
-    eyeX: eyeX * (childness > 0 ? 1 - 0.16 * childness : 1),
+    eyeY: toChild(eyeY),
+    eyeX: eyeX * (childFrame ? childXZ(eyeY, childFrame, childness) : 1),
     browY,
-    mouthY: childY(mouthY),
-    chinY: childY(chinY),
+    mouthY: toChild(mouthY),
+    chinY: toChild(chinY),
     headHalfWidth: halfWidth,
     socketDepth,
   };

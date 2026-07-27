@@ -29,6 +29,9 @@ import {
   buildHairMesh,
   buildHeadMesh,
   eyePlacement,
+  CHILD_PROPORTION_GLSL,
+  CHILD_PROPORTION_UNIFORMS,
+  childnessAt,
   EYE_COLORS,
   EYE_SHELLS,
   HAIR_COLORS,
@@ -43,6 +46,16 @@ import {
 } from '@/lib/identity';
 import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironment';
 import { loadHeadAsset, loadSkinTextures, type HeadAsset, type SkinTextures } from './headAsset';
+import measureStats from '@/assets/models/face-measure-stats.json';
+
+/**
+ * Brow and chin heights as fractions of the head's bounding box, emitted by the
+ * bake. Fractions rather than absolute values because the exporter quantizes
+ * positions and puts a scale and a translation on the node.
+ */
+const STATS_FRAME = (measureStats as { frame?: { browFrac?: number; chinFrac?: number } }).frame;
+const BROW_FRAC = STATS_FRAME?.browFrac ?? 0.746;
+const CHIN_FRAC = STATS_FRAME?.chinFrac ?? 0.347;
 
 export interface FaceSceneInput {
   genome: FaceGenome;
@@ -336,6 +349,39 @@ export function createFaceScene(
   let assetBeard: THREE.Mesh | null = null;
   let assetHair: THREE.Mesh | null = null;
   let assetGeomExtent = 1;
+
+  /**
+   * Childhood proportions for the SCANNED head.
+   *
+   * A morph cannot express this — see `lib/identity/childProportions.ts`. The
+   * procedural head applies the same transform on the CPU; here it has to be a
+   * shader patch, because the morph blend happens on the GPU and the transform
+   * must run on the blended result.
+   *
+   * Every mesh in the head has to get it: skin, hair, beard, sclera and iris.
+   * Miss one and a child's eyeballs sit outside their head.
+   */
+  const assetChildUniforms = {
+    uChildness: { value: 0 },
+    uBrowY: { value: 0 },
+    uChinY: { value: 0 },
+    uHeadH: { value: 1 },
+  };
+
+  function installChildProportions(material: THREE.Material): void {
+    const previous = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      previous?.call(material, shader, renderer);
+      Object.assign(shader.uniforms, assetChildUniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>\n${CHILD_PROPORTION_UNIFORMS}`)
+        // BEFORE `project_vertex`, so it runs after every other patch here has
+        // had its say — the morph blend, the hair shell's outward offset, the
+        // beard's. Hooking an earlier chunk would scale some of those and not
+        // others, depending on which chunk each one happened to attach to.
+        .replace('#include <project_vertex>', `${CHILD_PROPORTION_GLSL}\n#include <project_vertex>`);
+    };
+  }
   let assetParts: Record<string, THREE.Mesh> | null = null;
   let assetMeshes: THREE.Mesh[] = [];
   let assetBinding: RigBinding | null = null;
@@ -394,6 +440,10 @@ export function createFaceScene(
     }
     const irisMat = assetParts.iris?.material as THREE.MeshPhysicalMaterial | undefined;
     if (irisMat) irisMat.color.set(iris);
+
+    // A child is not a small adult. The morphs cannot say this — see
+    // `childProportions.ts` — so the shader does, on all five meshes at once.
+    assetChildUniforms.uChildness.value = childnessAt(input.age);
 
     if (assetHair) {
       // The AGED style, so recession and greying show without touching the
@@ -598,6 +648,7 @@ export function createFaceScene(
               'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;',
           );
       };
+      installChildProportions(asset.parts.skin.material as THREE.Material);
     }
     // Eyes get their own wet materials. This is the cheapest large win in a
     // portrait: sharing the skin's roughness leaves the eyes with no catchlight
@@ -640,6 +691,7 @@ export function createFaceScene(
               'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));',
           );
       };
+      installChildProportions(scleraMat);
       asset.parts.sclera.material = scleraMat;
     }
     if (asset.parts.iris) {
@@ -688,6 +740,7 @@ export function createFaceScene(
               'if (r < 0.33) discard;',
           );
       };
+      installChildProportions(irisMat);
       asset.parts.iris.material = irisMat;
     }
     // Geometry and textures are shared and cached, so they are deliberately NOT
@@ -717,6 +770,14 @@ export function createFaceScene(
       assetHairUniforms.uHeadSize.value.subVectors(gb.max, gb.min);
       gb.getCenter(assetHairUniforms.uHeadCentre.value);
       assetBeardUniforms.uHeadCentre.value.copy(assetHairUniforms.uHeadCentre.value);
+      // Pivot for the childhood proportion transform, as a fraction of the box
+      // rather than an absolute height: the exporter quantizes positions and
+      // puts a scale and a translation on the node, so no absolute value from
+      // the bake survives into this space — a fraction of the bounding box does.
+      const boxH = gb.max.y - gb.min.y;
+      assetChildUniforms.uBrowY.value = gb.min.y + BROW_FRAC * boxH;
+      assetChildUniforms.uChinY.value = gb.min.y + CHIN_FRAC * boxH;
+      assetChildUniforms.uHeadH.value = boxH;
     }
 
     if (asset.parts.skin?.geometry.getAttribute('_scalp')) {
@@ -856,6 +917,7 @@ export function createFaceScene(
           .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
             'roughnessFactor = clamp(roughnessFactor - 0.16 * strand, 0.05, 1.0);');
       };
+      installChildProportions(hairMat);
       assetHair = new THREE.Mesh(asset.parts.skin.geometry, hairMat);
       // Drawn after the skin; the shell is strictly outside it, so back-to-front
       // is simply skin-then-hair and no per-triangle sorting is needed.
@@ -915,6 +977,7 @@ export function createFaceScene(
             // what made this read as ink rather than hair.
             'diffuseColor.rgb *= 0.78 + 0.34 * smoothstep(0.05, 0.9, vAmt);');
       };
+      installChildProportions(beardMat);
       assetBeard = new THREE.Mesh(asset.parts.skin.geometry, beardMat);
       assetBeard.renderOrder = 1;
       shareMorphs(asset.parts.skin, assetBeard);

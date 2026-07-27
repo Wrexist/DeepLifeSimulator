@@ -601,6 +601,26 @@ async function main() {
   const meshExtent = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
   console.log(`  mesh extent ${meshExtent.toFixed(2)} units`);
 
+  // Brow height, from the ten iBUG eyebrow landmarks. Emitted as a FRACTION of
+  // the mesh's vertical extent, because that is the one form of it the renderer
+  // can use: the exporter quantizes positions and puts a scale and translation
+  // on the node, so no absolute value from here survives into the space the
+  // vertex shader sees — but a fraction of the bounding box does, and the
+  // renderer already computes that box for the hair.
+  //
+  // It is the pivot for the childhood proportion transform. See
+  // `lib/identity/childProportions.ts`.
+  let browYSrc = 0;
+  for (let i = 17; i <= 26; i++) browYSrc += neutral.positions[landmarks[i] * 3 + 1];
+  browYSrc /= 10;
+  const browFrac = (browYSrc - lo[1]) / Math.max(1e-6, hi[1] - lo[1]);
+  // Landmark 8 is the bottom of the chin. The transform needs it as well as the
+  // brow: on this model three quarters of the mesh sits BELOW the brow, and
+  // almost all of that is neck and shoulders rather than face. Compressing the
+  // whole of it toward the brow shortens a child's neck into their collarbone.
+  const chinFrac = (neutral.positions[landmarks[8] * 3 + 1] - lo[1]) / Math.max(1e-6, hi[1] - lo[1]);
+  console.log(`  brow at ${(browFrac * 100).toFixed(1)}%, chin at ${(chinFrac * 100).toFixed(1)}% of mesh height`);
+
   console.log('\nDeriving semantic axes from the identity basis:\n');
   console.log('  morph              on-axis   max cross   worst offender');
   console.log('  ' + '-'.repeat(62));
@@ -730,9 +750,12 @@ async function main() {
       // Bumped whenever MEASURES or the normalisers change, so a stale file
       // fitted against different definitions fails loudly instead of producing
       // a plausible wrong face.
-      version: 1,
+      version: 2,
       source: 'ICT-FaceKit identity modes (mean face + 100 components)',
       components: modes.length,
+      // Where the brow sits as a fraction of the mesh's height. The renderer
+      // pivots the childhood proportion transform on it.
+      frame: { browFrac: +browFrac.toFixed(6), chinFrac: +chinFrac.toFixed(6) },
       measures: stats,
     }, null, 2)}\n`);
     console.log(`  wrote ${outFile} (${keys.length} measures over ${modes.length} components)`);
@@ -953,9 +976,7 @@ async function main() {
    */
   const scalp = new Float32Array(vertCount);
   {
-    let browY = 0;
-    for (let i = 17; i <= 26; i++) browY += neutral.positions[landmarks[i] * 3 + 1];
-    browY /= 10;
+    const browY = browYSrc;
     let minY = 1e9, minZ = 1e9, maxZ = -1e9, maxY = -1e9, craniumX = 0;
     for (let v = 0; v < vertCount; v++) {
       minY = Math.min(minY, neutral.positions[v * 3 + 1]);
