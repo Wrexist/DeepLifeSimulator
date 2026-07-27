@@ -191,9 +191,18 @@ export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}):
   // Facial hair is overwhelmingly a male trait, so non-male characters get
   // 'none' outright rather than a low-probability roll that would surprise a
   // player who never asked for it.
-  const facialHair: FacialHairStyle = isMale
-    ? FACIAL_HAIR_STYLES[Math.floor(rng() * FACIAL_HAIR_STYLES.length)] ?? 'none'
-    : 'none';
+  //
+  // The draw happens either way and is DISCARDED for non-male, rather than being
+  // skipped. Skipping it shifted every later draw by one, so the same seed gave
+  // a male and a female character different skin tones, hair colours and eye
+  // colours — `sex` silently reaching three traits it has nothing to do with.
+  // Nothing was visibly broken by it, which is why it survived: a random face is
+  // a random face either way. It showed up the moment two sexes of ONE seed were
+  // rendered side by side to check the face bias, and the two heads differed in
+  // colouring as well, which is exactly the comparison the bias needs to be
+  // judged on.
+  const facialHairRoll = FACIAL_HAIR_STYLES[Math.floor(rng() * FACIAL_HAIR_STYLES.length)];
+  const facialHair: FacialHairStyle = isMale ? facialHairRoll ?? 'none' : 'none';
 
   return {
     morphs,

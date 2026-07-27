@@ -281,6 +281,44 @@ async function main() {
     return;
   }
 
+  // SEXES=male,,female renders ONE seed under each sex bias, hair and beard
+  // held fixed. An empty entry is "unstated", which is the unbiased centre.
+  //
+  // The existing SEX mode rolls a different seed per shot, so it can only ever
+  // answer "do female characters look female" by eye across two different sets
+  // of faces. What `MALE_BIAS` claims is narrower and comparable: that the same
+  // character shifts. That is what this shoots.
+  if (process.env.SEXES) {
+    const genomeMod = loadTs('lib/identity/faceGenome.ts');
+    const bindMod = loadTs('lib/identity/morphBinding.ts');
+    const types = loadTs('lib/identity/types.ts');
+    const names = await page.evaluate(() => window.__morphNames);
+    const binding = bindMod.bindGenomeToRig(names);
+    const shots = [];
+    for (const sex of process.env.SEXES.split(',')) {
+      const g = genomeMod.randomizeFace(process.env.SEED ?? 'sex-sweep', {
+        sex: sex || undefined,
+        spread: Number(process.env.SPREAD ?? 0.7),
+      });
+      const { influences } = bindMod.genomeToInfluences(g, binding, { signed: true });
+      await page.evaluate((c) => window.__applyCharacter(c), {
+        influences,
+        hairColor: types.HAIR_COLORS[g.hairColor],
+        eyeColor: types.EYE_COLORS[g.eyeColor],
+        blemish: g.blemishes,
+        // Held fixed on purpose: hair and a beard are what a viewer reads sex
+        // from first, and letting them vary would hide whether the FACE moved.
+        hairStyle: 'short',
+        facialHair: 'none',
+      });
+      shots.push({ name: sex || 'unstated', png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
   // SWEEP=hex,hex,... renders the same head once per colour. Palettes are
   // where "it looked fine" hides: the default entry is checked constantly and
   // the ends of the range almost never.
@@ -315,6 +353,39 @@ async function main() {
       shots.push({ name: `#${i}`, png: await page.locator('canvas').screenshot() });
     }
     await writeSheet(page, shots, Math.min(4, count), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
+  // MORPH_STATS=1 prints how far each morph target actually moves the scanned
+  // mesh, as a fraction of head height, instead of shooting anything.
+  //
+  // The procedural head has a movement floor asserted for all twenty-four of its
+  // morphs, added after four separate sliders turned out to move the mesh by
+  // less than half a percent of its height — one of them by exactly nothing.
+  // The scanned head had no equivalent, because its morphs live in the GLB and
+  // are applied by the GPU, so nothing on the CPU side could see them. This is
+  // the measurement that closes that gap; it is a script rather than a test
+  // because it needs a browser to decode the quantized morph attributes.
+  if (process.env.MORPH_STATS) {
+    const stats = await page.evaluate(() => {
+      const geom = window.__probeGeometry();
+      const rows = [];
+      for (const [name, index] of Object.entries(geom.dict)) {
+        rows.push({ name, ...geom.magnitude(index) });
+      }
+      return { height: geom.height, rows };
+    });
+    stats.rows.sort((a, b) => a.max - b.max);
+    console.log(`head height ${stats.height.toFixed(4)}, ${stats.rows.length} morphs`);
+    for (const r of stats.rows) {
+      console.log(
+        `  ${r.name.padEnd(22)} max=${(r.max / stats.height * 100).toFixed(2)}%`
+        + ` mean=${(r.mean / stats.height * 100).toFixed(3)}%`
+        + ` moved=${(r.moved * 100).toFixed(1)}% of verts`,
+      );
+    }
     await browser.close();
     server.close();
     return;

@@ -743,6 +743,39 @@ window.__setMorph = (name, value) => {
   renderer.render(scene, camera);
 };
 
+/**
+ * How far each morph target moves the skin, in geometry units.
+ *
+ * Reads the decoded morph attribute rather than rendering and diffing pixels:
+ * the deltas are quantized shorts with a scale on the node, so nothing about
+ * their true magnitude survives into a screenshot, and a morph that moves the
+ * mesh by a tenth of a percent looks exactly like one that moves it by nothing.
+ * Both were shipping on the procedural head before it was measured this way.
+ */
+window.__probeGeometry = () => {
+  const geom = parts.skin.geometry;
+  const targets = geom.morphAttributes.position ?? [];
+  geom.computeBoundingBox();
+  return {
+    dict: parts.skin.morphTargetDictionary ?? {},
+    height: geom.boundingBox.max.y - geom.boundingBox.min.y,
+    magnitude: (index) => {
+      const a = targets[index];
+      if (!a) return { max: 0, mean: 0, moved: 0 };
+      let max = 0, sum = 0, moved = 0;
+      for (let i = 0; i < a.count; i++) {
+        const d = Math.hypot(a.getX(i), a.getY(i), a.getZ(i));
+        if (d > max) max = d;
+        sum += d;
+        // A tenth of a per mille of the head: below this a vertex has not moved
+        // in any sense a viewer could see, whatever the float says.
+        if (d > 0.0001 * (geom.boundingBox.max.y - geom.boundingBox.min.y)) moved++;
+      }
+      return { max, mean: sum / a.count, moved: moved / a.count };
+    },
+  };
+};
+
 window.__probeMorphs = () => ({
   skinDict: Object.keys(parts.skin.morphTargetDictionary ?? {}).slice(0, 4),
   hairDict: Object.keys(hair.morphTargetDictionary ?? {}).slice(0, 4),

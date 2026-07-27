@@ -105,6 +105,26 @@ describe('faceGenome', () => {
         expect(randomizeFace(`f${i}`, { sex: 'female' }).facialHair).toBe('none');
       }
     });
+
+    it('lets sex change the face and the hair, and nothing else', () => {
+      // `sex` is documented as biasing the face morphs and the hair pools. It
+      // was also reaching skin tone, hair colour and eye colour, because the
+      // male branch drew a facial-hair value and the other branch did not — so
+      // every later draw came off a different position in the stream.
+      //
+      // Invisible in isolation, since either roll is a valid random character.
+      // What it broke is COMPARISON: two sexes of one seed differed in colouring
+      // as well as in face, so a side-by-side of the sex bias could not show
+      // what the bias actually does.
+      for (let i = 0; i < 50; i++) {
+        const m = randomizeFace(`s${i}`, { sex: 'male' });
+        const f = randomizeFace(`s${i}`, { sex: 'female' });
+        expect(f.skinTone).toBe(m.skinTone);
+        expect(f.hairColor).toBe(m.hairColor);
+        expect(f.eyeColor).toBe(m.eyeColor);
+        expect(f.blemishes).toBe(m.blemishes);
+      }
+    });
   });
 
   describe('normalizeGenome', () => {
