@@ -67,3 +67,56 @@ describe('the face creator is reachable', () => {
     expect(FLAGS).toMatch(/faceCreator3D:\s*process\.env\.EXPO_PUBLIC_ENABLE_FACE_CREATOR\s*!==\s*'false'/);
   });
 });
+
+describe('Customize.tsx keeps all three systems switchable', () => {
+  const SCREEN = fs.readFileSync(
+    path.join(__dirname, '..', '..', '..', 'app', '(onboarding)', 'Customize.tsx'),
+    'utf8',
+  );
+
+  it('still offers the starter-portrait strip', () => {
+    // System 1 is the fallback for every device that cannot run GL, and the way
+    // back if the 3D creator is turned off again. It must not be replaced by
+    // the creator — both ship.
+    // Anchored on the CALL, not the bare name. `/listStarterAvatars/` still
+    // matches `listStarterAvatarsREMOVED`, so the first version of this
+    // assertion passed with system 1 deleted — found by mutating it, which is
+    // the only way that class of hole ever shows up.
+    expect(SCREEN).toMatch(/listStarterAvatars\(/);
+    expect(SCREEN).toMatch(/setAvatarId\(option\.id\)/);
+  });
+
+  it('still offers the 3D creator and the selfie route', () => {
+    expect(SCREEN).toMatch(/<FaceCreatorModal\s/);
+    expect(SCREEN).toMatch(/setCreatorStart\(/);
+  });
+
+  it('clears the built portrait when a starter portrait is chosen', () => {
+    // THE WAY BACK. The built face wins wherever it exists, so without this a
+    // player who tried the creator was stuck with the result: tapping a starter
+    // portrait highlighted the new choice and changed nothing on screen.
+    const tap = SCREEN.slice(
+      SCREEN.indexOf('setAvatarId(option.id)'),
+      SCREEN.indexOf('setAvatarId(option.id)') + 1200,
+    );
+    expect(tap).toMatch(/setFacePortraitUri\(undefined\)/);
+  });
+
+  it('keeps the genome when reverting, so the creator reopens on the same face', () => {
+    // Only the portrait is cleared. The genome drives grooming, presence and
+    // aging whether or not a face is drawn from it, and discarding it would
+    // throw away work the player can still get back.
+    const tap = SCREEN.slice(
+      SCREEN.indexOf('setAvatarId(option.id)'),
+      SCREEN.indexOf('setAvatarId(option.id)') + 1200,
+    );
+    expect(tap).not.toMatch(/setFaceGenome\(undefined\)/);
+  });
+
+  it('reports which system is in use from the portrait, not the genome', () => {
+    // Every character has a genome, so keying the note off it said "Using your
+    // custom face" to players who had never opened the creator — and kept
+    // saying it after they went back.
+    expect(SCREEN).toMatch(/faceCreator3D && facePortraitUri \?/);
+  });
+});

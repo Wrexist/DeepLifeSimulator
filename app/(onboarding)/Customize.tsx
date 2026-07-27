@@ -307,6 +307,21 @@ export default function Customize() {
                       onPress={() => {
                         haptic.selection();
                         setAvatarId(option.id);
+                        // CHOOSING A STARTER PORTRAIT IS HOW YOU GO BACK.
+                        //
+                        // The built face wins wherever it exists, so without
+                        // this line a player who tried the 3D creator and did
+                        // not like the result was stuck with it: tapping a
+                        // starter portrait highlighted the new choice and
+                        // changed nothing they would ever see.
+                        //
+                        // The GENOME is deliberately kept. It drives grooming,
+                        // presence and aging whether or not a face is rendered
+                        // from it, and throwing it away would reset work the
+                        // player may want back by tapping "Edit your 3D face"
+                        // again. Only the portrait — the thing that decides
+                        // which system is on screen — is cleared.
+                        setFacePortraitUri(undefined);
                       }}
                       style={[styles.avatarChoice, isSelected && styles.avatarChoiceSelected]}
                     >
@@ -341,8 +356,16 @@ export default function Customize() {
                 </Text>
               </TouchableOpacity>
               ) : null}
-              {FEATURE_FLAGS.faceCreator3D && faceGenome ? (
-                <Text style={styles.creatorNote}>Using your custom face</Text>
+              {/* Which of the three systems is actually on screen. The note
+                  used to key off `faceGenome`, which every character has —
+                  so it read "Using your custom face" even for a player who had
+                  never opened the creator, and kept saying it after they went
+                  back to a starter portrait. It keys off the PORTRAIT now,
+                  which is the thing that decides what is drawn. */}
+              {FEATURE_FLAGS.faceCreator3D && facePortraitUri ? (
+                <Text style={styles.creatorNote}>
+                  Using your custom face — tap a portrait above to go back
+                </Text>
               ) : null}
             </LinearGradient>
           </BlurView>
