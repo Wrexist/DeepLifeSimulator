@@ -194,6 +194,16 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const g = typeof options.age === 'number' ? applyAging(genome, options.age) : genome;
   const m = g.morphs;
   const age = typeof options.age === 'number' ? Math.max(0, Math.min(120, options.age)) : 30;
+  // How much of a child this is: 1 at birth, 0 from sixteen. Used by the brow
+  // ridge below and by the proportion transform at the end of the build.
+  const childness = age >= 16 ? 0 : Math.pow((16 - age) / 16, 1.2);
+  // Applied to every feature whose size is an ABSOLUTE constant rather than a
+  // morph. `applyAging` pulls `noseLength`, `browProtrusion` and the rest down
+  // for children, but each of those morphs only scales one term in a sum whose
+  // other term is a fixed number — so a three-year-old got an adult-sized nose
+  // and brow on a face compressed to 70% of adult height, which is a bigger
+  // error than the one the morphs were correcting.
+  const childScale = 1 - 0.34 * childness;
   const body = normalizeBody(options.body);
 
   // --- Body-driven facial fullness ---------------------------------------
@@ -243,7 +253,12 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   // Published in the landmarks: `eyePlacement` has to know how deep the bowl is
   // to seat the ball level with its rim, and re-deriving the expression there
   // would be a copy that drifts the moment either side is tuned.
-  const socketDepth = 0.062 + eyeDepth * 0.045;
+  // Shallower for children, whose orbits are flat. Scaled here rather than left
+  // to `applyAging`, for the same reason the brow ridge is: the morph only moves
+  // the 0.045 term, and an adult-depth socket on a face compressed to 70% is
+  // proportionally half as deep again — it rendered as a dark trench across a
+  // toddler's face.
+  const socketDepth = (0.062 + eyeDepth * 0.045) * (1 - 0.40 * childness);
 
   const vertexCount = (RINGS + 1) * (SEGMENTS + 1);
   const positions = new Float32Array(vertexCount * 3);
@@ -357,7 +372,12 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const browMask =
         blobAniso(x, y, z, [eyeX, browY, 0.72], [0.30, 0.10, 0.42]) +
         blobAniso(x, y, z, [-eyeX, browY, 0.72], [0.30, 0.10, 0.42]);
-      z += (0.050 + browProtrusion * 0.085) * browMask;
+      // Flattened for children. A brow ridge is a male-adult feature that grows
+      // in through adolescence; children have none. The 0.050 base is what made
+      // toddlers render with a heavy shelf over their eyes even though
+      // `applyAging` pulls `browProtrusion` down — the morph only scales the
+      // 0.085 term, and the constant it sits beside was age-independent.
+      z += (0.050 * (1 - 0.8 * childness) + browProtrusion * 0.085) * browMask;
 
       // ---- Eye sockets ----------------------------------------------------
       // Negative displacement. Deeper-set eyes are one of the strongest age
@@ -404,10 +424,10 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
         [0, (noseRootY + noseTipY) / 2, bridgeCenterZ],
         [0.075 + noseWidth * 0.022, Math.abs(noseRootY - noseTipY) / 2 + 0.04, 0.36],
       );
-      z += (0.150 + noseBridge * 0.115) * bridgeMask;
+      z += (0.150 * childScale + noseBridge * 0.115) * bridgeMask;
 
       const tipMask = blobAniso(x, y, z, [0, noseTipY, noseTipZ - 0.06], [0.10, 0.085, 0.22]);
-      z += (0.165 + noseTip * 0.080) * tipMask;
+      z += (0.165 * childScale + noseTip * 0.080) * tipMask;
       y -= noseLength * 0.05 * tipMask;
 
       const wingX = 0.085 + noseWidth * 0.055;
@@ -478,12 +498,55 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     }
   }
 
+  // ---- Childhood proportions ---------------------------------------------
+  //
+  // A child is not a small adult, and until this existed that is exactly what
+  // the game rendered. `applyAging` has a `childness` term and it moves eleven
+  // morphs — a shorter face, a smaller nose, a narrower jaw, bigger eyes — and
+  // rendering ages 4 through 80 side by side showed six faces that were the
+  // same face. Measuring it explained why: the cranium-to-face ratio went from
+  // 0.630 at six to 0.670 at eighty, barely moving and moving the WRONG WAY,
+  // while the mean vertex shifted 0.034 on a head 1.5 tall.
+  //
+  // No morph can fix that, because none of them expresses it. `faceLength`
+  // scales the whole head, cranium included, so it makes a smaller adult rather
+  // than a child. The one thing that actually distinguishes a child's head is a
+  // RATIO: the neurocranium is near adult size by five while the face is around
+  // 60% and keeps growing to eighteen. That is a proportion between two parts
+  // of the head, and it has to be applied as one.
+  //
+  // Applied here, to the finished surface, rather than to the base ellipsoid:
+  // every feature has already been placed in adult coordinates, and a transform
+  // that runs before them would leave the nose and mouth sitting where an
+  // adult's are on a face that is no longer that shape. Scaling the finished
+  // mesh carries the features with the surface they sit on and shrinks them by
+  // the same factor, which is also what growth does.
+  if (childness > 0) {
+    // The face shortens toward the brow line and narrows; the cranium grows a
+    // little in every direction. Blended over a band around the brow so there
+    // is no crease where the two regions meet.
+    const faceY = 1 - 0.34 * childness;
+    const faceXZ = 1 - 0.16 * childness;
+    const cranXZ = 1 + 0.06 * childness;
+    const cranY = 1 + 0.04 * childness;
+    for (let i = 0; i < positions.length; i += 3) {
+      const y = positions[i + 1];
+      const below = smoothstep(browY + 0.15, browY - 0.10, y);
+      const sy = below * faceY + (1 - below) * cranY;
+      const sxz = below * faceXZ + (1 - below) * cranXZ;
+      positions[i] *= sxz;
+      positions[i + 1] = browY + (y - browY) * sy;
+      positions[i + 2] *= sxz;
+    }
+  }
+
   const indices = buildSphereIndices(RINGS, SEGMENTS);
   computeNormals(positions, indices, normals);
 
   // Measured off the finished buffer rather than recomputed from the morphs:
-  // the crown moves with `faceLength`, the facial-plane flattening and the aging
-  // sag, and any second derivation of it would be a copy that drifts.
+  // the crown moves with `faceLength`, the facial-plane flattening, the aging
+  // sag and the childhood transform above, and any second derivation of it
+  // would be a copy that drifts.
   let crownY = -Infinity;
   let halfWidth = 0;
   for (let i = 0; i < positions.length; i += 3) {
@@ -492,13 +555,18 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     if (ax > halfWidth) halfWidth = ax;
   }
 
+  // The feature heights move with the surface, or the eyeballs and the hair
+  // shell would be placed on a face that is no longer where they think it is.
+  const childY = (v: number): number =>
+    childness > 0 ? browY + (v - browY) * (1 - 0.34 * childness) : v;
+
   const landmarks: HeadLandmarks = {
     crownY,
-    eyeY,
-    eyeX,
+    eyeY: childY(eyeY),
+    eyeX: eyeX * (childness > 0 ? 1 - 0.16 * childness : 1),
     browY,
-    mouthY,
-    chinY,
+    mouthY: childY(mouthY),
+    chinY: childY(chinY),
     headHalfWidth: halfWidth,
     socketDepth,
   };

@@ -147,6 +147,53 @@ describe('hair placement', () => {
   );
 });
 
+describe('childhood proportions', () => {
+  // A child is not a small adult, and the game rendered one for as long as
+  // nobody put the ages side by side. `applyAging` moves eleven morphs for
+  // childhood — shorter face, smaller nose, narrower jaw, bigger eyes — and ages
+  // 4 through 80 still rendered as the same face at slightly different sizes.
+  //
+  // The measurement that shows it is the ratio of cranium to face. It read 0.630
+  // at six and 0.670 at eighty: barely moving, and moving the wrong way. No
+  // morph can express it, because `faceLength` scales the whole head, cranium
+  // included — which makes a smaller adult.
+  const ratio = (age: number): number => {
+    const lm = buildHeadMesh(neutral, { age }).landmarks!;
+    return (lm.crownY - lm.browY) / (lm.browY - lm.chinY);
+  };
+
+  it('shrinks the cranium relative to the face as a character grows up', () => {
+    const young = ratio(4);
+    const grown = ratio(25);
+    // A four-year-old's neurocranium is near adult size while the face is around
+    // 60% and still growing, so the ratio has to be substantially higher.
+    expect(young / grown).toBeGreaterThan(1.3);
+  });
+
+  it('changes monotonically through childhood and settles at sixteen', () => {
+    const ages = [2, 4, 6, 8, 10, 12, 14, 16];
+    const values = ages.map(ratio);
+    for (let i = 1; i < values.length; i++) {
+      expect(values[i]).toBeLessThan(values[i - 1]);
+    }
+    // Growth stops, rather than continuing to run past adulthood.
+    expect(ratio(16)).toBeCloseTo(ratio(25), 1);
+  });
+
+  it('moves the mesh enough to be seen', () => {
+    // The original defect was visible only as "these all look the same", so the
+    // guard is on how far the surface actually travels. It used to be 0.034 on a
+    // head 1.5 tall — two percent, across a whole human lifetime.
+    const a = buildHeadMesh(neutral, { age: 6 }).positions;
+    const b = buildHeadMesh(neutral, { age: 80 }).positions;
+    let sum = 0;
+    for (let i = 0; i < a.length; i += 3) {
+      sum += Math.hypot(a[i] - b[i], a[i + 1] - b[i + 1], a[i + 2] - b[i + 2]);
+    }
+    expect(sum / (a.length / 3)).toBeGreaterThan(0.10);
+  });
+});
+
 describe('eye seating', () => {
   // There is no eyelid geometry: the skin is one closed surface, so the lids
   // ARE wherever it passes in front of the globe. That makes the eye's whole
@@ -167,9 +214,20 @@ describe('eye seating', () => {
     ),
   ];
 
-  it.each(cases)('opens as an almond on %s', (_name, g) => {
-    const head = buildHeadMesh(g, { age: 30 });
-    const a = aperture(head, eyePlacement(head, g, 30).left);
+  // Ages as well as genomes. The childhood transform compresses the face toward
+  // the brow, which squashes the carved socket with it — a 34% vertical
+  // compression on an aperture only 0.05 tall is exactly the kind of thing that
+  // closes an eye without anything else noticing.
+  const aged: [string, ReturnType<typeof randomizeFace>, number][] = [
+    ...cases.map(([n, g]) => [n, g, 30] as [string, ReturnType<typeof randomizeFace>, number]),
+    ...[2, 6, 12, 16, 60, 90].map(
+      (age) => [`age-${age}`, neutral, age] as [string, ReturnType<typeof randomizeFace>, number],
+    ),
+  ];
+
+  it.each(aged)('opens as an almond on %s', (_name, g, age) => {
+    const head = buildHeadMesh(g, { age });
+    const a = aperture(head, eyePlacement(head, g, age).left);
 
     expect(a.centre).toBe(true);
     // Open enough to read as an eye rather than a pinhole...

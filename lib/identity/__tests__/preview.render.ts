@@ -237,8 +237,8 @@ const OUT = process.env.PREVIEW_OUT;
   fs.writeFileSync(`${OUT!}/variety.png`, encodePng(t.w, t.h, t.data));
 
   // Sheet 3: one genome aging.
-  const ages = [6, 16, 25, 40, 60, 80].map((a) => renderFace(hero, a, 22, -0.25));
-  t = tile(ages, 6);
+  const ages = [3, 6, 10, 16, 25, 40, 60, 80].map((a) => renderFace(hero, a, 22, -0.25));
+  t = tile(ages, 4);
   fs.writeFileSync(`${OUT!}/aging.png`, encodePng(t.w, t.h, t.data));
 
   // Sheet 4: body fat + neutral reference.
