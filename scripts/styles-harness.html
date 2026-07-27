@@ -125,6 +125,12 @@ const CHILD_U = { uChildness: { value: 0 }, uBrowY: { value: 0 },
 function installChild(m) {
   if (!window.__CHILD_GLSL) throw new Error('window.__CHILD_GLSL not injected');
   const previous = m.onBeforeCompile;
+  // Keep the program cache key distinct — see the note in FaceRenderer. Wrapping
+  // every material in the identical closure below makes three's default key
+  // (`onBeforeCompile.toString()`) identical too, so one compiled program gets
+  // handed to all five and the beard silently disappears.
+  const key = m.uuid + ':' + (previous ? previous.toString() : '');
+  m.customProgramCacheKey = () => 'child:' + key;
   m.onBeforeCompile = (sh, r) => {
     previous && previous.call(m, sh, r);
     Object.assign(sh.uniforms, CHILD_U);
