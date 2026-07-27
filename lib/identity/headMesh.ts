@@ -36,6 +36,7 @@
 
 import { applyAging } from './faceGenome';
 import { normalizeBody } from './body';
+import { hairSpecFor } from './hairSpec';
 import type { BodyProfile, FaceGenome } from './types';
 
 /** Plain geometry buffers — the renderer's only input. */
@@ -56,11 +57,71 @@ export interface MeshData {
    * moves the edge into the shader, where it costs nothing and reads correctly.
    */
   coverage?: Float32Array;
+  /**
+   * Where the features ended up, published by `buildHeadMesh`.
+   *
+   * The hair shell and the eyeballs both need to know where the brow, the crown
+   * and the chin are, and both used to hardcode the answer. `eyePlacement` even
+   * carried the comment "must match `eyeY` in buildHeadMesh" over a duplicated
+   * literal — a comment standing in for a reference. The hair was worse: its
+   * hairline was a bare `0.34`, which put it four hundredths above the brow
+   * ridge, so every character had hair growing out of their eyebrows and no
+   * forehead at all. Nothing detected it because nothing else knew where the
+   * brow was.
+   */
+  landmarks?: HeadLandmarks;
 }
 
-/** Tessellation. 64x48 is ~3k vertices — smooth on a phone, cheap to rebuild. */
-const SEGMENTS = 64;
-const RINGS = 48;
+/** Feature heights in model space, measured after the morphs are applied. */
+export interface HeadLandmarks {
+  /** Highest point of the skull. */
+  crownY: number;
+  /** Centre of the eye, and its distance from the midline. */
+  eyeY: number;
+  eyeX: number;
+  /** Top of the brow ridge. */
+  browY: number;
+  /** Lip seam. */
+  mouthY: number;
+  /** Bottom of the chin. */
+  chinY: number;
+  /** Widest half-width of the skull. */
+  headHalfWidth: number;
+  /** How deep the eye socket was carved, so the eyeball can be seated in it. */
+  socketDepth: number;
+}
+
+/**
+ * Nested-sphere proportions for an eye, as multiples of the globe radius.
+ *
+ * Shared because the eye is assembled in three places — the GL renderer, the
+ * software rasteriser that bakes fallback portraits, and the preview harness —
+ * and each had its own copy. They had already drifted (0.70 against 0.74 for
+ * the iris offset, 0.88 against 0.94 for the pupil), which is small, and is the
+ * same way the hair spec table started drifting before it ended up missing
+ * twenty-three styles.
+ */
+export const EYE_SHELLS = {
+  /** Iris radius, and how far forward of the globe centre it sits. */
+  irisRadius: 0.34,
+  irisOffset: 0.70,
+  /** Pupil radius and offset. */
+  pupilRadius: 0.15,
+  pupilOffset: 0.90,
+} as const;
+
+/**
+ * Tessellation. 96x96 is ~9.4k vertices.
+ *
+ * Raised from 64x48 (~3k) while chasing the eye sockets. At 48 rings the grid
+ * spacing over the head was 0.037 and the eye opening is 0.05 tall, so the lids
+ * were being carved by two rows of vertices — the features were smaller than
+ * the mesh could represent, which is also most of why the nose and lips read as
+ * soft slabs. This path only runs when the scanned GLB is unavailable and 9.4k
+ * vertices is still nothing on a phone.
+ */
+const SEGMENTS = 96;
+const RINGS = 96;
 
 /**
  * Base skull proportions. A head is deeper (z) than it is wide (x).
@@ -84,21 +145,13 @@ function centred(v: number): number {
   return clamp01(v) - 0.5;
 }
 
-/** Smooth radial falloff. 1 at the landmark, 0 beyond `radius`. */
-function blob(px: number, py: number, pz: number, c: Vec3, radius: number): number {
-  const dx = px - c[0];
-  const dy = py - c[1];
-  const dz = pz - c[2];
-  const d2 = dx * dx + dy * dy + dz * dz;
-  const r2 = radius * radius;
-  if (d2 >= r2) return 0;
-  // Smoothstep on the normalized distance — C1 continuous, so no visible
-  // faceting where fields meet.
-  const t = 1 - d2 / r2;
-  return t * t;
-}
-
-/** Anisotropic blob — lets a field be wide and flat (a brow) or tall (a nose). */
+/**
+ * Anisotropic blob — a smooth falloff that can be wide and flat (a brow) or
+ * tall and narrow (a nose bridge). 1 at the landmark, 0 beyond the radii.
+ *
+ * Squared smoothstep on the normalized distance, so it is C1 continuous and no
+ * faceting shows where two fields meet.
+ */
 function blobAniso(px: number, py: number, pz: number, c: Vec3, r: Vec3): number {
   const dx = (px - c[0]) / r[0];
   const dy = (py - c[1]) / r[1];
@@ -186,6 +239,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const noseTipZ = 0.94 + noseTip * 0.10;
   const mouthY = -0.36 + mouthHeight * 0.10;
   const chinY = -0.60 - chinLength * 0.14;
+  const browY = eyeY + 0.17 + browHeight * 0.09;
+  // Published in the landmarks: `eyePlacement` has to know how deep the bowl is
+  // to seat the ball level with its rim, and re-deriving the expression there
+  // would be a copy that drifts the moment either side is tuned.
+  const socketDepth = 0.062 + eyeDepth * 0.045;
 
   const vertexCount = (RINGS + 1) * (SEGMENTS + 1);
   const positions = new Float32Array(vertexCount * 3);
@@ -228,15 +286,29 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       x *= 1 + faceWidth * 0.22 * headness;
       y *= 1 + faceLength * 0.16;
       // A rounder face is also shorter front-to-back; keeps volume plausible.
-      z *= 1 - faceWidth * 0.05 * headness;
+      const depthScale = 1 - faceWidth * 0.05 * headness;
+      z *= depthScale;
+      // The frontmost z this vertex's ring could reach — the depth the facial
+      // plane below is expressed against, so the plane follows `faceWidth`.
+      const depthMax = SKULL.rz * depthScale;
 
       // ---- Facial plane -------------------------------------------------
       // The front of a real skull is comparatively FLAT — the features sit on a
       // plane, not on the side of an egg. Without this the nose and lips are
       // displacing an already-bulging surface and wash out completely, which is
       // exactly how the first render came out.
-      const faceMask = smoothstep(0.25, 0.95, front) * smoothstep(0.85, 0.35, y) * headness;
-      z -= 0.085 * faceMask;
+      //
+      // BLEND TOWARD A PLANE. This used to be `z -= 0.085 * faceMask`, which
+      // does not flatten anything: subtracting a near-constant over a broad mask
+      // TRANSLATES the front of the head backward and leaves its curvature
+      // exactly as round as it was. The face stayed an ellipsoid, and measuring
+      // it showed the surface falling 0.14 in z across the width of a single eye
+      // socket — so an eyeball seated in that socket was buried on the nose side
+      // and hanging in mid-air on the temple side. It rendered as a white ball
+      // stuck to the cheek, and no amount of tuning the socket could fix it,
+      // because the socket was not the thing that was wrong.
+      const faceMask = smoothstep(0.10, 0.75, front) * smoothstep(0.85, 0.35, y) * headness;
+      z += (depthMax * 0.87 - z) * 0.60 * faceMask;
       x *= 1 - 0.06 * faceMask;
 
       // ---- Forehead slope ----------------------------------------------
@@ -282,7 +354,6 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       z += fullness * 0.5 * jowlMask;
 
       // ---- Brow ridge -----------------------------------------------------
-      const browY = eyeY + 0.17 + browHeight * 0.09;
       const browMask =
         blobAniso(x, y, z, [eyeX, browY, 0.72], [0.30, 0.10, 0.42]) +
         blobAniso(x, y, z, [-eyeX, browY, 0.72], [0.30, 0.10, 0.42]);
@@ -291,11 +362,38 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // ---- Eye sockets ----------------------------------------------------
       // Negative displacement. Deeper-set eyes are one of the strongest age
       // cues, which is why `eyeDepth` climbs in `applyAging`.
-      const socketR: Vec3 = [0.20 + eyeSize * 0.05, 0.13 + eyeSize * 0.04, 0.30];
+      // THE SOCKET MUST BE SHORTER THAN THE EYEBALL. That is the whole trick,
+      // and getting it wrong fails in both directions.
+      //
+      // At [0.20, 0.13] and 0.160 deep the sockets were 0.40 wide each on a face
+      // 1.1 across, so they met over the bridge and read as one horizontal bar —
+      // every character looked like they were wearing sunglasses. And 0.16 deep
+      // against a 0.098-radius eyeball is a crater half an eye deep: the ball
+      // seated in it vanished, leaving a speck of iris and no white at all.
+      //
+      // Widening the aperture to fix that produced the opposite failure. There
+      // is no eyelid geometry here — the skin is one closed surface — so the
+      // lids are wherever the skin passes in FRONT of the globe. A bowl as tall
+      // as the ball never crosses it, and the eye renders as a full white circle
+      // stuck to the face. Two googly eyes, which is worse than none.
+      //
+      // A half-height of 0.060 against a radius of 0.098 makes the skin cross
+      // the globe about 0.027 above and below centre while staying clear of it
+      // out to 0.065 either side: an opening roughly 2.4 times wider than it is
+      // tall, which is the proportion of a real palpebral fissure.
+      const socketR: Vec3 = [0.125 + eyeSize * 0.035, 0.060 + eyeSize * 0.020, 0.26];
+      // Carved 0.018 MEDIAL of the eyeball, not concentric with it. The face
+      // still falls away toward the temple — less than it did, but enough that a
+      // symmetric socket opens asymmetrically: the skin wins further out on the
+      // nose side, so the visible aperture sits lateral of the globe and the
+      // iris ends up pinned against its inner corner. Every character read as
+      // having a lazy eye. Biasing the carve inward deepens the side the skin
+      // was winning on and puts the opening back over the middle of the ball.
+      const socketX = eyeX - 0.018;
       const socketMask =
-        blobAniso(x, y, z, [eyeX, eyeY, 0.70], socketR) +
-        blobAniso(x, y, z, [-eyeX, eyeY, 0.70], socketR);
-      z -= (0.160 + eyeDepth * 0.085) * socketMask;
+        blobAniso(x, y, z, [socketX, eyeY, 0.70], socketR) +
+        blobAniso(x, y, z, [-socketX, eyeY, 0.70], socketR);
+      z -= socketDepth * socketMask;
 
       // ---- Nose -----------------------------------------------------------
       // Three fields: the bridge ridge, the tip bulb, and the wings.
@@ -323,11 +421,18 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const lipHalfWidth = 0.115 + mouthWidth * 0.075;
       const upperMask = blobAniso(x, y, z, [0, mouthY + 0.035, 0.80], [lipHalfWidth, 0.045, 0.26]);
       const lowerMask = blobAniso(x, y, z, [0, mouthY - 0.055, 0.80], [lipHalfWidth, 0.055, 0.26]);
-      z += (0.046 + lipFullness * 0.055) * upperMask;
-      z += (0.052 + lipFullness * 0.062) * lowerMask;
+      z += (0.030 + lipFullness * 0.042) * upperMask;
+      z += (0.034 + lipFullness * 0.048) * lowerMask;
       // The seam between the lips — a crease, or the mouth reads as one blob.
+      //
+      // 0.042 deep against lips standing 0.05 proud made a trench 0.09 deep and
+      // 0.03 tall, which does not read as a closed mouth: it renders as a black
+      // letterbox between two flat slabs, and every character looked like their
+      // jaw had dropped. A mouth line is a line. The lips came down with it,
+      // because two shelves either side of a shallower groove would have read
+      // as a beak.
       const seamMask = blobAniso(x, y, z, [0, mouthY - 0.008, 0.83], [lipHalfWidth * 1.05, 0.016, 0.24]);
-      z -= 0.042 * seamMask;
+      z -= 0.017 * seamMask;
 
       // ---- Ears -------------------------------------------------------------
       // Placed at the widest point, behind the eye line. Displaced along X only,
@@ -376,7 +481,29 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const indices = buildSphereIndices(RINGS, SEGMENTS);
   computeNormals(positions, indices, normals);
 
-  return { positions, normals, indices };
+  // Measured off the finished buffer rather than recomputed from the morphs:
+  // the crown moves with `faceLength`, the facial-plane flattening and the aging
+  // sag, and any second derivation of it would be a copy that drifts.
+  let crownY = -Infinity;
+  let halfWidth = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    if (positions[i + 1] > crownY) crownY = positions[i + 1];
+    const ax = Math.abs(positions[i]);
+    if (ax > halfWidth) halfWidth = ax;
+  }
+
+  const landmarks: HeadLandmarks = {
+    crownY,
+    eyeY,
+    eyeX,
+    browY,
+    mouthY,
+    chinY,
+    headHalfWidth: halfWidth,
+    socketDepth,
+  };
+
+  return { positions, normals, indices, landmarks };
 }
 
 /** Triangle list for a UV sphere grid, skipping the degenerate polar quads. */
@@ -469,9 +596,12 @@ export function eyePlacement(
 ): { left: EyePlacement; right: EyePlacement } {
   const g = typeof age === 'number' ? applyAging(genome, age) : genome;
   const m = g.morphs;
-  const x = 0.235 + centred(m.eyeSpacing) * 0.10;
-  // Must match `eyeY` in buildHeadMesh — the socket is carved at that height.
-  const y = 0.13;
+  // Read from the head rather than restated. The comment that used to sit over
+  // the literal `0.13` said "must match `eyeY` in buildHeadMesh" — a comment
+  // doing a reference's job, on a value that four other things also move.
+  const lm = head.landmarks;
+  const x = lm ? lm.eyeX : 0.235 + centred(m.eyeSpacing) * 0.10;
+  const y = lm ? lm.eyeY : 0.13;
   // 0.082 -> 0.100. At the old size the eyes rendered as two bright pinpricks
   // with no readable shape, which is most of why the face looked lifeless.
   const radius = 0.100 + centred(m.eyeSize) * 0.032;
@@ -486,9 +616,24 @@ export function eyePlacement(
   // was right for exactly one configuration and wrong for every other, first
   // protruding the eyes 0.05 in front of the face and then burying them 0.074
   // behind it. Measuring makes it self-correcting for every morph combination.
-  const floor = socketFloorZ(head, x, y);
-  // A hair inside the socket, so the lids always overlap the ball.
-  const z = floor - radius - 0.004;
+  // Fill the bowl: put the front pole of the globe a whisker inside the RIM,
+  // which is the socket floor plus the depth it was carved to. The globe then
+  // shows through the middle of the bowl and is occluded by the skin as that
+  // skin rises back to the rim — which is what an eyelid is.
+  //
+  // It used to be `floor - radius - 0.004`, which put the front pole behind the
+  // skin by construction: at best the eye was flush. And because the
+  // measurement returned the nearest vertex rather than the front-most one, it
+  // sat 0.062 further back again. No sclera was visible on any face; what
+  // showed was a speck of iris poking through the bottom of the crater, which
+  // is why every character had two small coloured dots instead of eyes.
+  const floor = surfaceZAt(head, x, y);
+  const depth = head.landmarks?.socketDepth ?? 0.058;
+  // 0.40 of the socket depth, not all of it. The globe has to stand proud of
+  // the bowl floor to be seen at all, and stay behind the rim so the skin can
+  // close over it top and bottom; bringing it all the way to the rim reopens
+  // the googly-eye failure the socket radii are shaped to prevent.
+  const z = floor + depth * 0.4 - radius;
 
   return {
     left: { x, y, z, radius, tilt },
@@ -496,19 +641,125 @@ export function eyePlacement(
   };
 }
 
-/** Front-most skin z near (x, y) — i.e. how deep the carved socket goes. */
-function socketFloorZ(head: MeshData, x: number, y: number): number {
-  let bestD = Infinity;
-  let z = 0.62;
+/**
+ * The z of the front surface directly above (x, y) — here, the floor of the
+ * carved eye socket.
+ *
+ * ## Why this is a ray cast and not a vertex search
+ *
+ * Every approximation of this was wrong in a way that took a render to see.
+ * Nearest-vertex is a lottery over the tessellation. A windowed MAXIMUM finds
+ * the shallowest carve in the window, which is the socket's rim rather than its
+ * floor, and seating the ball against that pushed its front pole out past the
+ * surrounding skin — a white sphere stuck to the cheek. A windowed MINIMUM then
+ * failed the other way: the face slopes about 0.05 in z across an eye, so on
+ * any window wide enough to be stable the minimum measures that slope instead
+ * of the bowl, and on shallow-set faces it came back deeper than the true floor
+ * and buried the eye entirely.
+ *
+ * There is no window size that fixes this, because the quantity wanted is a
+ * value at a POINT and every window turns it into a value over an area. The
+ * exact answer costs one pass over the triangles — about the same work as a
+ * single vertex's worth of field evaluation in `buildHeadMesh`, twice per head.
+ */
+function surfaceZAt(head: MeshData, x: number, y: number): number {
   const p = head.positions;
-  for (let i = 0; i < p.length; i += 3) {
-    if (p[i + 2] <= 0) continue;
-    const dx = p[i] - x;
-    const dy = p[i + 1] - y;
-    const d = dx * dx + dy * dy;
-    if (d < bestD) { bestD = d; z = p[i + 2]; }
+  const ix = head.indices;
+  let best = -Infinity;
+  for (let t = 0; t < ix.length; t += 3) {
+    const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+    const ax = p[a], ay = p[a + 1];
+    const bx = p[b], by = p[b + 1];
+    const cx = p[c], cy = p[c + 1];
+    const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+    if (d === 0) continue;
+    const w0 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d;
+    if (w0 < 0 || w0 > 1) continue;
+    const w1 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d;
+    if (w1 < 0 || w1 > 1) continue;
+    const w2 = 1 - w0 - w1;
+    if (w2 < 0) continue;
+    // Front-most hit: the ray crosses the head twice and we want the face.
+    const z = w0 * p[a + 2] + w1 * p[b + 2] + w2 * p[c + 2];
+    if (z > best) best = z;
   }
-  return z;
+  return best === -Infinity ? 0.62 : best;
+}
+
+/**
+ * Deterministic value noise on a point. Replaces the shader's `hnoise`.
+ *
+ * A hash rather than a product of sines: sines have a period and the period is
+ * always visible. Every attempt at scattered detail in this project that used
+ * trigonometry came out as a lattice, a corduroy or a herringbone before it was
+ * replaced with a hash.
+ */
+function hashNoise(x: number, y: number, z: number): number {
+  let h = Math.imul(Math.round(x * 8192) | 0, 0x27d4eb2d);
+  h = Math.imul(h ^ (Math.round(y * 8192) | 0), 0x85ebca6b);
+  h = Math.imul(h ^ (Math.round(z * 8192) | 0), 0xc2b2ae35);
+  h ^= h >>> 15;
+  return ((h >>> 0) % 65536) / 65536;
+}
+
+/**
+ * The scalp coordinate: 1.0 at the crown, 0.60 at the natural hairline, 0.0 at
+ * the lowest the hair could hang.
+ *
+ * This is the procedural twin of the `_scalp` attribute baked into the scanned
+ * head's GLB, and it exists so both heads can be driven by the one table in
+ * `hairSpec.ts`. Getting the two to agree is the whole point: while each path
+ * had its own notion of "how far down the head is this", each needed its own
+ * numbers, and the two sets drifted until one of them had twenty-three styles
+ * missing.
+ *
+ * The hairline is a CURVE, not a height. It is high across the forehead and
+ * sweeps down around the back to the nape, which is what a hairline does. An
+ * earlier version multiplied three axis-aligned masks together instead, and
+ * three smooth masks multiplied still bound a rectangle — it rendered a hard
+ * window over the eyes with hair on the chin.
+ */
+function scalpCoordinate(y: number, z: number, lm: HeadLandmarks): number {
+  // Above-brow height of the skull. Everything here is expressed in it, so the
+  // field survives `faceLength`, the aging sag and any future proportion morph.
+  const cranium = Math.max(0.05, lm.crownY - lm.browY);
+  const frontness = smoothstep(-0.30, 0.55, z);
+  const backness = 1 - frontness;
+
+  // Where the field reads 0.60. Not the visible hairline: the coverage ramp in
+  // the caller is one-sided (`smoothstep(low, low + 0.16, scalp)`), so a style
+  // at `low: 0.60` is half-covered at 0.68, and putting 0.60 on the anatomical
+  // hairline pushed every short cut a fifth of the cranium up the skull and
+  // gave the character a forehead half a head tall.
+  //
+  // 0.45 of the cranium above the brow puts the HALF-COVERAGE point of a
+  // `low: 0.60` style at y ≈ 0.62 on the neutral head, against a crown at 0.88
+  // — a forehead about as tall as the brow-to-nose third, which is the
+  // classical proportion. The number this replaces was a bare `0.34`, an
+  // absolute height that landed 0.04 ABOVE the brow ridge.
+  const refY = lm.browY + cranium * (0.45 - 1.60 * backness);
+
+  if (y >= refY) {
+    const t = (y - refY) / Math.max(1e-4, lm.crownY - refY);
+    return 0.6 + 0.4 * Math.min(1, t);
+  }
+
+  // How far below the reference the field takes to reach zero — i.e. how far
+  // hair could hang if a style asked for it.
+  //
+  // This is the term that decides whether hair can appear ON THE FACE, and the
+  // first version got it wrong by making it constant: every style with a low
+  // `low` (long, bob, layered, bowl, the pulled-back cuts) rendered a brown
+  // mask over the eyes and cheeks, because the forehead is below the hairline
+  // and a slow descent left it well inside the covered range.
+  //
+  // At the front the field therefore drops off a cliff — a hairline is an edge,
+  // and no length of hair grows forward of it. Around the sides and back it
+  // descends slowly, past the jaw and onto the shoulders, which is where length
+  // actually goes.
+  const drop = frontness * 0.03 * cranium + backness * (refY - (lm.chinY - 0.55));
+  const t = (y - (refY - Math.max(1e-4, drop))) / Math.max(1e-4, drop);
+  return 0.6 * Math.max(0, t);
 }
 
 /**
@@ -516,40 +767,35 @@ function socketFloorZ(head: MeshData, x: number, y: number): number {
  *
  * Built from the head mesh itself rather than as an independent shape, so it
  * follows every morph for free and can never float off a widened skull. The
- * style only decides WHERE the shell exists and how far down it hangs.
+ * style decides where the shell exists, how far down it hangs, and which way
+ * its mass is pushed.
+ *
+ * The shaping maths deliberately mirrors the hair vertex shader in
+ * `FaceRenderer`, term for term, reading the same `hairSpec.ts` table. Two
+ * implementations of one effect is a cost; two implementations that were also
+ * given different NUMBERS is what produced a fallback where twenty-four of the
+ * thirty-five styles rendered as the same haircut.
  */
 export function buildHairMesh(
   head: MeshData,
   style: FaceGenome['hairStyle'],
   age?: number,
 ): MeshData | null {
-  if (style === 'bald') return null;
+  const s = hairSpecFor(style);
+  if (!s) return null;
 
-  // How far the shell stands off the scalp, and how low the hairline sits.
-  const spec: Record<string, { thickness: number; lowY: number; backOnly: boolean }> = {
-    // Thicknesses roughly doubled. At the old values the shell hugged the scalp
-    // so tightly it read as PAINT rather than hair — a skull cap with a hard
-    // edge. Hair needs visible volume to separate from the head beneath it.
-    buzz: { thickness: 0.028, lowY: 0.10, backOnly: false },
-    short: { thickness: 0.062, lowY: 0.02, backOnly: false },
-    medium: { thickness: 0.090, lowY: -0.22, backOnly: false },
-    long: { thickness: 0.105, lowY: -0.75, backOnly: false },
-    ponytail: { thickness: 0.082, lowY: -0.34, backOnly: false },
-    afro: { thickness: 0.190, lowY: 0.06, backOnly: false },
-    bun: { thickness: 0.078, lowY: -0.10, backOnly: false },
-    // The longer of the everyday cuts. The rest fall through to `short`, which
-    // is the right shape for them; these four would be visibly wrong at that
-    // length. This path only runs when the scanned head is unavailable, so it
-    // aims at the right silhouette rather than at matching the shell rig.
-    bob: { thickness: 0.086, lowY: -0.26, backOnly: false },
-    layered: { thickness: 0.088, lowY: -0.20, backOnly: false },
-    wavy: { thickness: 0.088, lowY: -0.14, backOnly: false },
-    curtains: { thickness: 0.082, lowY: -0.06, backOnly: false },
-  };
-  const s = spec[style] ?? spec.short;
+  const lm = head.landmarks;
+  if (!lm) return null;
 
-  // Recession with age pushes the hairline back on the top-front of the skull.
+  // Recession with age lifts the hairline on the top-front of the skull. Same
+  // 0.12 of the scalp range the scanned path uses.
   const recession = typeof age === 'number' ? Math.max(0, Math.min(1, (age - 45) / 35)) : 0;
+  const low = s.low + recession * 0.12;
+  const base = s.base ?? 1;
+  const fadeY = s.fadeY ?? 0.78;
+  const stripW = s.stripW ?? 0.2;
+  const liftF = s.lift?.[0] ?? 0;
+  const liftU = s.lift?.[1] ?? 0;
 
   const src = head.positions;
   const srcN = head.normals;
@@ -558,39 +804,87 @@ export function buildHairMesh(
   const normals = new Float32Array(src.length);
   const coverageOut = new Float32Array(count);
 
+  // The frame the region weights are measured in. The SKULL's box, not the
+  // mesh's: the mesh runs down to the collar, and including that neck pushed
+  // every `fadeY` threshold a third of the way up the head, so a taper fade cut
+  // above the ears instead of at them.
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < count; i++) {
+    const p = i * 3;
+    if (src[p + 1] < lm.chinY) continue;
+    if (src[p] < minX) minX = src[p];
+    if (src[p] > maxX) maxX = src[p];
+    if (src[p + 2] < minZ) minZ = src[p + 2];
+    if (src[p + 2] > maxZ) maxZ = src[p + 2];
+  }
+  const sizeX = Math.max(1e-4, maxX - minX);
+  const sizeZ = Math.max(1e-4, maxZ - minZ);
+  const sizeY = Math.max(1e-4, lm.crownY - lm.chinY);
+  const extent = Math.max(sizeX, sizeY, sizeZ);
+
   for (let i = 0; i < count; i++) {
     const p = i * 3;
     const x = src[p], y = src[p + 1], z = src[p + 2];
 
-    // Coverage: 1 where hair grows, 0 everywhere else.
-    //
-    // Expressed as a single HAIRLINE CURVE whose height varies front-to-back,
-    // rather than as three independent masks multiplied together. The first
-    // version did the latter and rendered a hard-edged rectangular window over
-    // the eyes with hair on the chin and neck — three smooth masks multiplied
-    // still produce a rectangle, because their boundaries are axis-aligned.
-    //
-    // One curve cannot do that: the hairline is high at the forehead and sweeps
-    // down around the back, which is what a real hairline does.
-    const frontness = smoothstep(-0.25, 0.65, z);
-    const foreheadLine = 0.34 + recession * 0.24;
-    const hairlineY = s.lowY + frontness * (foreheadLine - s.lowY);
-    let coverage = smoothstep(hairlineY - 0.13, hairlineY + 0.15, y);
+    const fz = (z - minZ) / sizeZ;        // 0 nape, 1 forehead
+    const fy = (y - lm.chinY) / sizeY;    // 0 jaw, 1 crown
+    const sx = ((x - minX) / sizeX - 0.5) * 2; // -1 left .. +1 right
+    const fx = Math.abs(sx);
 
-    if (style === 'ponytail' || style === 'bun') {
-      // Pulled back: no volume at the sides, all of it at the back.
-      coverage *= smoothstep(0.55, -0.05, z);
+    const wFront = smoothstep(0.45, 0.85, fz);
+    const wSide = smoothstep(0.20, 0.68, fx);
+    const wBack = 1 - smoothstep(0.10, 0.50, fz);
+
+    // COVERAGE AND VOLUME ARE SEPARATE. A region weight below one still removes
+    // hair, but by lifting the coverage threshold — which is what an undercut
+    // or a fade does — rather than by scaling the coverage ramp, which drags the
+    // whole hairline down onto the eyebrows.
+    const region = Math.max(0, Math.min(2.5,
+      base + (s.front ?? 0) * wFront + (s.side ?? 0) * wSide + (s.back ?? 0) * wBack));
+    const lowHere = low + 0.3 * (1 - Math.min(region, 1));
+
+    let cov = smoothstep(lowHere, lowHere + 0.16, scalpCoordinate(y, z, lm));
+    if (s.fade) {
+      cov *= 1 - s.fade * wSide * (1 - smoothstep(fadeY - 0.08, fadeY + 0.18, fy));
     }
-    // Never on the ears.
-    coverage *= 1 - blobAniso(x, y, z, [0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
-    coverage *= 1 - blobAniso(x, y, z, [-0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
-    coverage = Math.max(0, Math.min(1, coverage));
+    if (s.part) {
+      cov *= 1 - s.part * (1 - smoothstep(0, 0.11, Math.abs(sx - (s.partX ?? 0))))
+        * smoothstep(0.3, 0.68, fz);
+    }
+    if (s.strip) cov *= 1 - s.strip * smoothstep(stripW, stripW + 0.22, fx);
+    if (s.rows) cov *= 1 - s.rows * 0.55 * (0.5 + 0.5 * Math.cos(sx * 26));
 
-    coverageOut[i] = coverage;
-    const offset = s.thickness * coverage;
-    positions[p] = x + srcN[p] * offset;
-    positions[p + 1] = y + srcN[p + 1] * offset;
-    positions[p + 2] = z + srcN[p + 2] * offset;
+    // Never on the ears.
+    cov *= 1 - blobAniso(x, y, z, [0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
+    cov *= 1 - blobAniso(x, y, z, [-0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
+    cov = Math.max(0, Math.min(1, cov));
+
+    let amt = cov * region;
+    if (s.wave) amt *= 1 + s.wave * 0.35 * Math.sin(fy * 24 + fz * 6);
+    // Thin at the nape, full at the crown: a constant offset balloons the
+    // occipital region into a dome.
+    amt *= 0.42 + 0.58 * smoothstep(0.05, 0.62, fz);
+    if (s.frizz) amt *= 1 + s.frizz * (hashNoise(x * 2.2, y * 2.2, z * 2.2) - 0.5);
+    amt = Math.max(0, Math.min(1.6, amt));
+
+    coverageOut[i] = cov;
+
+    // Directional lift. A pompadour is not a thicker shell, it is the same mass
+    // pushed up and forward at the front; offsetting purely along the normal
+    // can only inflate the skull, which is why every "voluminous" style used to
+    // come out as a bigger helmet.
+    let dx = srcN[p], dy = srcN[p + 1], dz = srcN[p + 2];
+    if (liftF !== 0 || liftU !== 0) {
+      dy += liftU * wFront * 1.4;
+      dz += liftF * wFront * 1.4;
+      const dl = Math.hypot(dx, dy, dz) || 1;
+      dx /= dl; dy /= dl; dz /= dl;
+    }
+
+    const offset = s.frac * extent * amt;
+    positions[p] = x + dx * offset;
+    positions[p + 1] = y + dy * offset;
+    positions[p + 2] = z + dz * offset;
     normals[p] = srcN[p];
     normals[p + 1] = srcN[p + 1];
     normals[p + 2] = srcN[p + 2];

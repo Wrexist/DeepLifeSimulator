@@ -11,7 +11,14 @@
  *
  *     PREVIEW_OUT=/tmp/preview npx jest lib/identity/__tests__/preview.render.ts
  *
- * Writes angles.png, variety.png, aging.png and body.png to that directory.
+ * Writes angles.png, variety.png, aging.png, body.png, styles.png and
+ * features.png to that directory.
+ *
+ * The last two are recent and both exist because of what the first four could
+ * not show. Every one of the original sheets uses one or two hair styles, so a
+ * spec table missing twenty-three of them looked exactly like a complete one;
+ * and all four frame the whole head, at which scale an eye is twenty pixels and
+ * a correct almond is indistinguishable from a googly white ball.
  */
 import * as fs from 'fs';
 import * as zlib from 'zlib';
@@ -26,6 +33,8 @@ import {
   SKIN_TONES,
   HAIR_COLORS,
   EYE_COLORS,
+  EYE_SHELLS,
+  HAIR_STYLES,
   type MeshData,
   type FaceGenome,
 } from '@/lib/identity';
@@ -101,13 +110,23 @@ function sphereMesh(cx: number, cy: number, cz: number, r: number, seg = 20): Me
   return { positions, normals, indices };
 }
 
-function render(draws: Draw[], yaw: number): Uint8Array {
+/**
+ * `zoom` frames a detail instead of the whole head: `{ scale, y }` puts model
+ * height `y` in the middle of the cell at `scale` pixels per unit.
+ *
+ * Added for the eyes. At the sheet's normal 150 px/unit an eye is about twenty
+ * pixels across, and at that size a correct almond and a googly white ball are
+ * the same handful of light pixels — which is how the eyes stayed wrong through
+ * several rounds of looking straight at them.
+ */
+function render(draws: Draw[], yaw: number, zoom?: { scale: number; y: number }): Uint8Array {
   const img = new Uint8Array(W * H * 3);
   for (let i = 0; i < img.length; i += 3) { img[i] = 22; img[i + 1] = 27; img[i + 2] = 38; }
   const depth = new Float32Array(W * H).fill(-Infinity);
 
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
-  const scale = 150, ox = W / 2, oy = H / 2 - 20;
+  const scale = zoom ? zoom.scale : 150;
+  const ox = W / 2, oy = zoom ? H / 2 + zoom.y * scale : H / 2 - 20;
   // Key light from upper-front-left, plus fill.
   const L = [-0.45, 0.6, 0.75]; const Ll = Math.hypot(...L as [number, number, number]);
   const lx = L[0] / Ll, ly = L[1] / Ll, lz = L[2] / Ll;
@@ -164,7 +183,8 @@ function render(draws: Draw[], yaw: number): Uint8Array {
   return img;
 }
 
-function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number): Uint8Array {
+function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number,
+  zoom?: { scale: number; y: number }): Uint8Array {
   const body = normalizeBody({ bodyFatPct: bodyFat, muscle: 45 });
   const head = buildHeadMesh(g, { age, body });
   const hair = buildHairMesh(head, g.hairStyle, age);
@@ -177,12 +197,12 @@ function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number): U
   const draws: Draw[] = [{ mesh: head, color: skin, spec: 0.10 }];
   for (const e of [eyes.left, eyes.right]) {
     draws.push({ mesh: sphereMesh(e.x, e.y, e.z, e.radius), color: [242, 242, 240], spec: 0.5 });
-    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * 0.74, e.radius * 0.46), color: eyeC, spec: 0.6 });
-    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * 0.94, e.radius * 0.2), color: [12, 12, 14], spec: 0.7 });
+    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset, e.radius * EYE_SHELLS.irisRadius), color: eyeC, spec: 0.6 });
+    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset, e.radius * EYE_SHELLS.pupilRadius), color: [12, 12, 14], spec: 0.7 });
   }
   if (beard) draws.push({ mesh: beard, color: hairC.map((c) => c * 0.55) as [number, number, number], spec: 0.05, base: skin });
   if (hair) draws.push({ mesh: hair, color: hairC, spec: 0.2, base: skin });
-  return render(draws, yaw);
+  return render(draws, yaw, zoom);
 }
 
 function tile(images: Uint8Array[], cols: number): { data: Uint8Array; w: number; h: number } {
@@ -226,6 +246,31 @@ const OUT = process.env.PREVIEW_OUT;
   const bodies = [8, 18, 28, 40, 55].map((f) => renderFace(neutral, 30, f, -0.25));
   t = tile(bodies, 5);
   fs.writeFileSync(`${OUT!}/body.png`, encodePng(t.w, t.h, t.data));
+
+  // Sheet 5: EVERY hair style, one face.
+  //
+  // The sheet that was missing, and the reason the fallback shipped with
+  // twenty-four styles rendering as the same haircut: the four sheets above all
+  // use one or two styles, so a table with twenty-three entries missing looked
+  // exactly like a table with none missing. `hairSpec.test.ts` now asserts the
+  // table is complete; this shows whether the entries in it do anything.
+  const styleFace = { ...randomizeFace('sty-3', { sex: 'male' }), facialHair: 'none' as const };
+  const styles = HAIR_STYLES.map((s) => renderFace({ ...styleFace, hairStyle: s }, 28, 20, -0.25));
+  t = tile(styles, 6);
+  fs.writeFileSync(`${OUT!}/styles.png`, encodePng(t.w, t.h, t.data));
+
+  // Sheet 6: the features, close enough to see. See `render`'s `zoom`.
+  //
+  // The eye row exists because at the sheets' normal 150 px/unit an eye is
+  // about twenty pixels across, and at that size a correct almond and a googly
+  // white ball are the same handful of light pixels. The mouth row is here for
+  // the same reason.
+  const details = [
+    ...[-0.5, -0.2, 0.1].map((a) => renderFace(hero, 30, 20, a, { scale: 620, y: 0.13 })),
+    ...[-0.5, -0.2, 0.1].map((a) => renderFace(hero, 30, 20, a, { scale: 620, y: -0.36 })),
+  ];
+  t = tile(details, 3);
+  fs.writeFileSync(`${OUT!}/features.png`, encodePng(t.w, t.h, t.data));
 
   expect(fs.existsSync(`${OUT!}/angles.png`)).toBe(true);
 });

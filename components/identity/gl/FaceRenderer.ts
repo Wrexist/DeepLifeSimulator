@@ -30,7 +30,9 @@ import {
   buildHeadMesh,
   eyePlacement,
   EYE_COLORS,
+  EYE_SHELLS,
   HAIR_COLORS,
+  HAIR_SPEC,
   SKIN_TONES,
   bindGenomeToRig,
   genomeToInfluences,
@@ -271,71 +273,10 @@ export function createFaceScene(
   // paths are kept side by side rather than the procedural one being deleted,
   // because expo-asset is a native module: an OTA build on older native code
   // has no way to read the file, and a character must always have a face.
-  /**
-   * Hair thickness per style, as a fraction of head size, and how high up the
-   * scalp the hair mass starts. Mirrors the procedural head's spec table so the
-   * two paths read as the same character, and the values are fractions for the
-   * reason recorded where they are applied.
-   */
-  const HAIR_SPEC: Record<string, {
-    frac: number; low: number; base?: number;
-    front?: number; side?: number; back?: number;
-    strip?: number; stripW?: number; frizz?: number;
-    fade?: number; fadeY?: number; part?: number; partX?: number;
-    wave?: number; rows?: number; lift?: [number, number];
-  }> = {
-    // LENGTH IS COVERAGE, NOT THICKNESS.
-    //
-    // The shell is a hollow open-bottomed cap. While it hugs the skull it reads
-    // as hair on a head; the moment it balloons past the silhouette you see its
-    // rim and unlit interior as a flat grey plate. Rendering the shell without
-    // the head made that unmistakable — the thick styles were domes with the
-    // underside showing, which is what made every one of them look like a helmet.
-    //
-    // So thickness stays small for every style, and `low` is a threshold on the
-    // baked hairline coordinate: 0.60 IS the hairline, above it is scalp, below
-    // it runs down the sides and back of the skull. Lowering it lengthens the
-    // cut. This technique does short-to-medium convincingly and cannot do
-    // genuinely long hair.
-    buzz:         { frac: 0.020, low: 0.68, base: 1.0 },
-    crew:         { frac: 0.026, low: 0.64, base: 1.0, front: 0.20, side: -0.30 },
-    short:        { frac: 0.032, low: 0.60, base: 1.0 },
-    fringe:       { frac: 0.036, low: 0.56, base: 1.0, front: 0.50 },
-    medium:       { frac: 0.040, low: 0.48, base: 1.0 },
-    long:         { frac: 0.042, low: 0.16, base: 1.0, back: 0.25 },
-    ponytail:     { frac: 0.036, low: 0.30, base: 1.0, back: 0.35, side: -0.45 },
-    bun:          { frac: 0.034, low: 0.42, base: 1.0, back: 0.30, side: -0.35 },
-    afro:         { frac: 0.052, low: 0.58, base: 1.15, frizz: 0.20 },
-    curls:        { frac: 0.044, low: 0.52, base: 1.10, frizz: 0.35 },
-    mohawk:       { frac: 0.058, low: 0.56, base: 1.15, strip: 1, stripW: 0.13 },
-    undercut:     { frac: 0.036, low: 0.58, base: 1.0, side: -1.20 },
-    quiff:        { frac: 0.040, low: 0.60, base: 0.90, front: 0.70, side: -0.50, lift: [0.10, 0.55] },
-    receding:     { frac: 0.028, low: 0.74, base: 1.0 },
-    // The everyday cuts. The first fifteen were shape experiments and several are
-    // things nobody asks a barber for; these are what people actually wear, and
-    // they are separated by PART, FADE and LIFT rather than by thickness — which
-    // is why they no longer read as one haircut at four lengths.
-    sidePart:     { frac: 0.034, low: 0.58, part: 0.60, partX: -0.34, side: -0.25 },
-    combOver:     { frac: 0.038, low: 0.56, part: 0.45, partX: -0.46, side: -0.35, lift: [0.30, 0.10] },
-    slickBack:    { frac: 0.032, low: 0.58, front: -0.10, lift: [-0.55, 0.30] },
-    pompadour:    { frac: 0.044, low: 0.60, front: 0.60, side: -0.60, lift: [0.15, 0.85] },
-    caesar:       { frac: 0.030, low: 0.60, front: 0.35, side: -0.25 },
-    ivyLeague:    { frac: 0.032, low: 0.58, front: 0.30, side: -0.40, fade: 0.6, fadeY: 0.74 },
-    taperFade:    { frac: 0.034, low: 0.54, fade: 1.0, fadeY: 0.78 },
-    highFade:     { frac: 0.038, low: 0.54, fade: 1.0, fadeY: 0.86 },
-    buzzFade:     { frac: 0.022, low: 0.62, fade: 1.0, fadeY: 0.82 },
-    texturedCrop: { frac: 0.038, low: 0.58, front: 0.45, side: -0.55, frizz: 0.30 },
-    messy:        { frac: 0.042, low: 0.52, frizz: 0.50, lift: [0.05, 0.20] },
-    bowl:         { frac: 0.038, low: 0.54, front: 0.55, side: 0.25 },
-    curtains:     { frac: 0.042, low: 0.50, front: 0.55, part: 0.70, partX: 0.0 },
-    layered:      { frac: 0.042, low: 0.34, back: 0.15, wave: 0.30 },
-    bob:          { frac: 0.040, low: 0.30, side: 0.25, back: 0.10 },
-    pixie:        { frac: 0.032, low: 0.56, side: -0.35, frizz: 0.20, part: 0.35, partX: -0.40 },
-    spiky:        { frac: 0.042, low: 0.60, frizz: 0.80, lift: [0.0, 0.50] },
-    flatTop:      { frac: 0.048, low: 0.62, side: -0.90, lift: [0.0, 0.40] },
-    wavy:         { frac: 0.042, low: 0.44, wave: 0.55 },
-    cornrows:     { frac: 0.026, low: 0.58, rows: 1 },
-  };
+  // Hair shape comes from `lib/identity/hairSpec.ts`, which the procedural head
+  // reads too. It used to be a literal here, with a comment claiming it mirrored
+  // the procedural table; it did not, and twenty-three styles were missing from
+  // the other copy. See that file.
 
   /**
    * Facial hair, as a mix over the three baked zone weights: moustache, chin,
@@ -1089,10 +1030,12 @@ export function createFaceScene(
     for (const e of [eyes.left, eyes.right]) {
       const ball = new THREE.Mesh(track(new THREE.SphereGeometry(e.radius, 24, 18)), scleraMat);
       ball.position.set(e.x, e.y, e.z);
-      const irisMesh = new THREE.Mesh(track(new THREE.SphereGeometry(e.radius * 0.46, 20, 14)), irisMat);
-      irisMesh.position.set(e.x, e.y, e.z + e.radius * 0.70);
-      const pupil = new THREE.Mesh(track(new THREE.SphereGeometry(e.radius * 0.20, 14, 10)), pupilMat);
-      pupil.position.set(e.x, e.y, e.z + e.radius * 0.88);
+      const irisMesh = new THREE.Mesh(
+        track(new THREE.SphereGeometry(e.radius * EYE_SHELLS.irisRadius, 20, 14)), irisMat);
+      irisMesh.position.set(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset);
+      const pupil = new THREE.Mesh(
+        track(new THREE.SphereGeometry(e.radius * EYE_SHELLS.pupilRadius, 14, 10)), pupilMat);
+      pupil.position.set(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset);
       root.add(ball, irisMesh, pupil);
       eyeMeshes.push(ball, irisMesh, pupil);
     }
