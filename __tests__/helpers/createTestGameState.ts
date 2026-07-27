@@ -31,7 +31,18 @@ export function createTestGameState(overrides: Partial<GameState> = {}): GameSta
   return {
     ...initialGameState,
     ...overrides,
-    // Deep merge for nested objects to avoid losing properties
+    // Deep merge for the nested objects listed BELOW, and only those.
+    //
+    // Ten of the state's thirty-three nested objects are merged here; the other
+    // twenty-three are replaced wholesale by an override, so
+    // `createTestGameState({ socialMedia: { verifiedPro: true } })` yields a
+    // socialMedia with one key and nothing else. That is a fixture the game
+    // never produces, and a test written against it can pass on behaviour that
+    // could not happen.
+    //
+    // Left as it is rather than widened: tests already written against the
+    // wholesale-replacement behaviour would change meaning silently. Stated
+    // here so the next caller knows which of the two they are getting.
     stats: {
       ...initialGameState.stats,
       ...(overrides.stats || {}),

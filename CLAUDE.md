@@ -47,7 +47,7 @@ AdMob/Firebase SDK manifests instead; see the comment in `app.config.js`.
 
 ## Save format
 
-- **Canonical `STATE_VERSION = 25`** — single source of truth in
+- **Canonical `STATE_VERSION = 26`** — single source of truth in
   `contexts/game/initialState.ts` (aliased as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the same change with (a) a

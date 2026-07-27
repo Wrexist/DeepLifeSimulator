@@ -48,8 +48,19 @@ export interface Checkpoint {
  * pipeline, which re-defaults these fields, so dropping them from the frozen
  * snapshot is lossless for gameplay while removing most of its serialized size.
  */
-const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog'] as const;
-const CHECKPOINT_STRIPPED_SOCIAL_KEYS = ['recentPosts', 'notifications', 'commentThreads'] as const;
+/**
+ * Exported so the losslessness claim above can be TESTED rather than asserted.
+ *
+ * "The repair pipeline re-defaults these, so dropping them is lossless" is a
+ * claim about two files that know nothing about each other, and the failure
+ * mode if it stops holding is silent: a restored checkpoint is simply missing
+ * a collection, and whatever reads it gets `undefined` on a screen the player
+ * reached by spending gems. Adding a key here without a matching default in
+ * `repairGameState` is the whole hazard, so the test reads THIS list rather
+ * than a copy of it.
+ */
+export const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog'] as const;
+export const CHECKPOINT_STRIPPED_SOCIAL_KEYS = ['recentPosts', 'notifications', 'commentThreads'] as const;
 
 /**
  * Strip the heavy re-derivable collections from a checkpoint snapshot, in place.
