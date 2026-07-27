@@ -71,6 +71,17 @@ export interface FaceScene {
   renderer: THREE.WebGLRenderer;
   root: THREE.Group;
   update(input: FaceSceneInput): void;
+  /**
+   * Settles once the scanned head has been adopted, or once loading it has
+   * failed. Never rejects.
+   *
+   * The portrait is snapshotted from this canvas when the player taps Done, and
+   * the procedural head is what is on screen until ~1 MB of glTF has parsed. A
+   * player who tapped through quickly got a portrait of the procedural head
+   * stored in their save permanently, while the creator and every later view
+   * showed the scanned one — a character whose portrait is not their face.
+   */
+  ready: Promise<void>;
   setRotation(yaw: number, pitch: number): void;
   render(): void;
   resize(width: number, height: number): void;
@@ -1209,9 +1220,13 @@ export function createFaceScene(
   // swap in the scanned one when it arrives. Loading is ~1 MB of parsing; making
   // the creator wait on it would show an empty frame on every open.
   update(initial);
-  void Promise.all([loadHeadAsset(), loadSkinTextures()]).then(([asset, textures]) => {
+  const ready = Promise.all([loadHeadAsset(), loadSkinTextures()]).then(([asset, textures]) => {
     if (asset && !disposed) adoptAsset(asset, textures);
+  }).catch(() => {
+    // `loadHeadAsset` resolves null on every failure path rather than throwing,
+    // so this is belt and braces — but a rejected `ready` would hang the
+    // portrait capture that awaits it.
   });
 
-  return { scene, camera, renderer, root, update, setRotation, render, resize, dispose };
+  return { scene, camera, renderer, root, update, ready, setRotation, render, resize, dispose };
 }

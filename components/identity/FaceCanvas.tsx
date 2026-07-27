@@ -91,6 +91,19 @@ function FaceCanvasInner(
       const glLib = loadGl();
       if (!context || !glLib || !sceneRef.current) return null;
       try {
+        // WAIT FOR THE SCANNED HEAD, if it is still coming.
+        //
+        // The procedural head is what is on screen until ~1 MB of glTF has
+        // parsed, and this capture is what gets stored in the save. A player who
+        // tapped Done inside that window got a portrait of the procedural head
+        // forever, while the creator and every later view showed the scanned
+        // one. Bounded, because a portrait of the wrong head beats no portrait
+        // and `ready` settling is not something to bet the Done button on.
+        await Promise.race([
+          sceneRef.current.ready,
+          new Promise((resolve) => setTimeout(resolve, 4000)),
+        ]);
+        if (!sceneRef.current) return null;
         // Render once immediately so the snapshot cannot catch a stale frame
         // mid-edit — takeSnapshotAsync reads the current framebuffer.
         sceneRef.current.render();
