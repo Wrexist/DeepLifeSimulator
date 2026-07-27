@@ -416,11 +416,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // cheek, and a body running forward to the chin, meeting at the gonial
       // angle. The blob sits at that corner and pushes outward and back.
       const gonion = blobAniso(x, y, z, [x >= 0 ? 0.40 : -0.40, -0.36, 0.18], [0.34, 0.30, 0.60]);
-      x += Math.sign(x || 1) * 0.055 * gonion * headness;
+      x += Math.sign(x || 1) * 0.026 * gonion * headness;
       // The body of the mandible: keeps width forward of the angle instead of
       // letting the taper close in, which is what makes a jawline read as a line.
       const mandible = smoothstep(-0.12, -0.40, y) * smoothstep(-0.72, -0.46, y) * headness;
-      x *= 1 + 0.058 * mandible;
+      x *= 1 + 0.026 * mandible;
 
       // Below the cheekbones the width is the jaw's, not the skull's.
       const jawMask = smoothstep(0.05, -0.50, y) * headness;

@@ -170,12 +170,31 @@ describe('the silhouette has a jaw', () => {
     return w;
   };
 
-  it('keeps its width from the cheekbone down to the jaw', () => {
+  it('plateaus along the jaw before turning in to the chin', () => {
+    // The SHAPE, not a single ratio.
+    //
+    // A ratio of jaw width to cheekbone width was the first attempt and it is a
+    // weak discriminator: the ellipsoid measures 0.822 and the head with a
+    // mandible 0.866, so any threshold that separates them is a hair's breadth
+    // wide and the test passed on the egg the moment the bound was relaxed.
+    //
+    // What actually distinguishes a jaw is that the width HOLDS along the body
+    // of the mandible and only then turns toward the chin, where an ellipsoid
+    // falls away steadily the whole time. Comparing the two falls measures that
+    // directly: 0.20 with the mandible against 0.48 without.
+    const w = (f: number) => halfWidthAt(lm.chinY + face * f);
+    const alongJaw = w(0.40) - w(0.30);
+    const intoChin = w(0.30) - w(0.20);
+    expect(alongJaw / intoChin).toBeLessThan(0.35);
+  });
+
+  it('keeps the jaw inside the human range rather than squaring off', () => {
+    // Bigonial over bizygomatic is about 0.80 to 0.85 on a real head. The first
+    // pass came out at 0.92 and the adults rendered heavy and blocky, which is
+    // what sent me back to the number.
     const cheek = halfWidthAt(lm.chinY + face * 0.55);
     const jaw = halfWidthAt(lm.chinY + face * 0.22);
-    // Measured at 0.92 with the mandible, and it has to stay well clear of the
-    // smooth taper it replaced.
-    expect(jaw / cheek).toBeGreaterThan(0.85);
+    expect(jaw / cheek).toBeLessThan(0.90);
   });
 
   it('still narrows to a chin rather than staying square', () => {
