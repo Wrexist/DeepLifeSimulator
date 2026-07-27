@@ -180,7 +180,15 @@ export default function AvatarProcessing({
       <View style={styles.copy}>
         <Text style={styles.title}>Creating your digital twin</Text>
         <Text style={styles.subtitle}>
-          {`We’re measuring 68 facial landmarks${providerLabel ? ` — ${providerLabel}` : ''}.`}
+          {/* The claim has to match the provider. "Measuring 68 facial
+              landmarks" is true of the cloud model and false of the on-device
+              match, which reads colour only — and a paid feature that overstates
+              what it did on the ONE screen the player stares at for fifteen
+              seconds is the worst place to do it. `stages` is the provider's own
+              capability list, so this cannot drift from what actually runs. */}
+          {stages.includes('geometry')
+            ? `We’re measuring 68 facial landmarks${providerLabel ? ` — ${providerLabel}` : ''}.`
+            : `We’re reading your colouring from the photo${providerLabel ? ` — ${providerLabel}` : ''}.`}
         </Text>
       </View>
 

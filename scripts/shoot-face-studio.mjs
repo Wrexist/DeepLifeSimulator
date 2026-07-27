@@ -234,7 +234,10 @@ parts.sclera.material = (() => {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\\nvarying float vR;')
       .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
-        'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));');
+        'float r = vR;\\n' +
+      'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\\n' +
+      'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\\n' +
+      'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
   };
   return m;
 })();
@@ -243,7 +246,7 @@ parts.iris.material = (() => {
     color: 0x5b4630, roughness: 0.12, metalness: 0,
     // 0.85, not 2.4: at full strength the environment mirrored as a blown white
     // blob over the whole pupil. A catchlight is a glint, not a headlight.
-    clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85 });
+    clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35 });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\\nattribute float _irisr;\\nvarying float vR;')
@@ -251,9 +254,13 @@ parts.iris.material = (() => {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\\nvarying float vR;')
       .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
-        'float limbal = 1.0 - smoothstep(0.86, 1.0, vR);\\n' +
-        'float fibre = 0.86 + 0.14 * sin(vR * 42.0);\\n' +
-        'diffuseColor.rgb *= limbal * fibre;');
+        'if (vR > 1.02) discard;\\n' +
+      'float r = vR;\\n' +
+      'float pupil = smoothstep(0.34, 0.50, r);\\n' +
+      'float limbal = smoothstep(1.02, 0.86, r);\\n' +
+      'float fibre = 0.88 + 0.12 * sin(r * 34.0);\\n' +
+      'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\\n' +
+      'if (r < 0.36) discard;');
   };
   return m;
 })();

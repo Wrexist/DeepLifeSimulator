@@ -164,7 +164,10 @@ if (parts.sclera) {
       .replace('#include <common>', '#include <common>\\nvarying float vR;')
       .replace('#include <color_fragment>',
         '#include <color_fragment>\\n' +
-        'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));');
+        'float r = vR;\\n' +
+      'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\\n' +
+      'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\\n' +
+      'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
   };
   parts.sclera.material = scleraMat;
 }
@@ -180,7 +183,7 @@ const irisMat = new THREE.MeshPhysicalMaterial({
   // envMapIntensity was 2.4 with clearcoatRoughness 0.02, which mirrored the
   // key panel as a blown white blob covering the whole pupil. A catchlight
   // should be a glint, not a headlight.
-  clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85,
+  clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35,
 });
 irisMat.onBeforeCompile = (sh) => {
   sh.vertexShader = sh.vertexShader

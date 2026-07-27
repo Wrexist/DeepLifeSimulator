@@ -93,7 +93,8 @@ const MORPH_GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string 
     morphs: [
       { key: 'mouthWidth', label: 'Mouth width' },
       { key: 'lipFullness', label: 'Lip fullness' },
-      { key: 'mouthHeight', label: 'Mouth height' },
+      // Nose-base to upper-lip — the philtrum, not the opening.
+      { key: 'mouthHeight', label: 'Upper lip height' },
       { key: 'earSize', label: 'Ears' },
       { key: 'neckThickness', label: 'Neck' },
     ],

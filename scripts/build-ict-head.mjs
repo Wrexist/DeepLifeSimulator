@@ -769,7 +769,7 @@ async function main() {
      * anatomically exact iris fills that slot corner to corner with no white
      * beside it — technically right and, on a face, staring.
      */
-    const IRIS_HALF_ANGLE = (24 * Math.PI) / 180;
+    const IRIS_HALF_ANGLE = (27 * Math.PI) / 180;
 
     /** Unique vertices of a material set on one side of the head. */
     const vertsOf = (mats, side) => {

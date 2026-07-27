@@ -147,7 +147,11 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
     title: 'Mouth',
     morphs: [
       { key: 'mouthWidth', label: 'Width' },
-      { key: 'mouthHeight', label: 'Height' },
+      // Measures nose-base to upper-lip, so it is the PHILTRUM, not the
+      // opening. Labelled for what it moves rather than for the morph's name:
+      // a control called "Mouth height" that shortens the space above the lip
+      // is a control the player fights.
+      { key: 'mouthHeight', label: 'Upper lip height' },
       { key: 'lipFullness', label: 'Lip fullness' },
     ],
   },
