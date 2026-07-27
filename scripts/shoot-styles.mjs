@@ -128,7 +128,10 @@ async function main() {
   );
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
-  {
+  // Guarded on the probe existing: the PROCEDURAL harness has no scanned asset
+  // and no `_irisr` to refit, and running this against it unconditionally broke
+  // every `HARNESS=./procedural-harness.html` shot the moment the refit landed.
+  if (await page.evaluate(() => typeof window.__probeEyes === 'function')) {
     const probe = await page.evaluate(() => window.__probeEyes());
     const d = probe?.sclera;
     const fit = d && typeof d === 'object' ? axisMod.deriveEyeAxes(d.irisR, d.positions) : null;
@@ -175,7 +178,9 @@ async function main() {
       const aged = genomeMod.applyAging(g, age);
       if (blemish !== undefined) aged.blemishes = blemish;
       const mesh = head.buildHeadMesh(g, { age });
-      const hairMesh = head.buildHairMesh(mesh, aged.hairStyle, age);
+      // HAIR=<style> pins the cut, so a style can be looked at on this head
+      // without rerolling seeds until the randomiser hands it over.
+      const hairMesh = head.buildHairMesh(mesh, process.env.HAIR ?? aged.hairStyle, age);
       const eyes = head.eyePlacement(mesh, g, age);
       const lo = [Infinity, Infinity, Infinity];
       const hi = [-Infinity, -Infinity, -Infinity];

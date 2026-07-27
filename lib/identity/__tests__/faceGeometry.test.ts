@@ -149,12 +149,35 @@ describe('hair placement', () => {
       const hair = buildHairMesh(head, style, 28)!;
       const p = head.positions;
       let lowest = Infinity;
+      let onFront = 0;
+      let anywhere = 0;
       for (let i = 0; i < p.length; i += 3) {
-        if (p[i + 2] < 0.6) continue;
         if (hair.coverage![i / 3] < 0.1) continue;
+        anywhere++;
+        if (p[i + 2] < 0.6) continue;
+        onFront++;
         lowest = Math.min(lowest, p[i + 1]);
       }
-      expect((lowest - lm.browY) / (lm.crownY - lm.browY)).toBeGreaterThan(0.3);
+
+      // THE GUARD THE `Infinity` WAS HIDING.
+      //
+      // `lowest` starts at Infinity, so a style with no qualifying vertex left
+      // it there and the ratio below evaluated to `Infinity > 0.3` — a pass. It
+      // was passing that way for `receding`, which puts zero vertices on the
+      // front of this head. A wardrobe test written because a quarter of the
+      // styles were secretly one style would have let a style that renders
+      // NOTHING walk straight through.
+      expect(anywhere).toBeGreaterThan(200);
+
+      // No strand on the front of the head may sit below the hairline band.
+      //
+      // Conditional, and the condition is the finding rather than an escape:
+      // `receding` has nothing on the front at all, which is what a receding
+      // hairline is. That cannot mean "nothing rendered" here, because the count
+      // above has already been asserted.
+      if (onFront > 0) {
+        expect((lowest - lm.browY) / (lm.crownY - lm.browY)).toBeGreaterThan(0.3);
+      }
     },
   );
 });

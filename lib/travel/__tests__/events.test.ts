@@ -36,6 +36,8 @@ describe('rollTripEvents', () => {
   it('filters eligible pool by minTripCost', () => {
     const roll = makeRoller({ 'travel.event.1': 0.1, 'travel.event.1.idx': 0.99 });
     const cheap = rollTripEvents(100, roll);
+    // An empty roll would satisfy `every` without filtering anything.
+    expect(cheap.length).toBeGreaterThan(0);
     // Cheap pool should only include events with minTripCost === 0
     expect(cheap.every((e) => e.minTripCost === 0)).toBe(true);
   });
@@ -80,6 +82,9 @@ describe('eligibleTripEvents (destination-flavored pool)', () => {
 
   it('excludes every curated event when no destinationId is given (generic pool unchanged)', () => {
     const generic = eligibleTripEvents(8000); // high cost, but no destination
+    // "Excludes every curated event" is also satisfied by excluding every
+    // event, which is the opposite of what this is checking.
+    expect(generic.length).toBeGreaterThan(0);
     expect(generic.every((e) => !e.destinationId)).toBe(true);
   });
 

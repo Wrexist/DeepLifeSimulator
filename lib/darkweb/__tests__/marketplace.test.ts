@@ -92,6 +92,10 @@ describe('generateListingsForVendor', () => {
   it('elite tier gates by vendor reputation', () => {
     const lowRepVendor: Vendor = { id: 'lr', handle: 'lr', reputation: 5, reviewCount: 0 };
     const listings = generateListingsForVendor(lowRepVendor, 5, seededRoll, 10);
+    // The count is overridden to ten, so assert ten. `every` is TRUE on an
+    // empty array, and without this the test passes on a generator that
+    // returns nothing at all — verified by making it do exactly that.
+    expect(listings).toHaveLength(10);
     expect(listings.every((l) => l.tier === 'common')).toBe(true);
   });
 });

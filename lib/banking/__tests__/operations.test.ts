@@ -146,6 +146,9 @@ describe('accrueAccountInterest', () => {
     ];
     const { banking, totalInterest } = accrueAccountInterest(base);
     expect(totalInterest).toBe(0);
+    // Three went in, so three must come out: accrual dropping an account
+    // would otherwise satisfy "every balance is unchanged" by having none.
+    expect(banking.accounts).toHaveLength(3);
     expect(banking.accounts.every((a) => a.balance === 1000)).toBe(true);
   });
 

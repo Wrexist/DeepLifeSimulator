@@ -80,6 +80,8 @@ describe('refreshMarketplace', () => {
       ],
     };
     const r = refreshMarketplace(dw, 1, seededRoll);
+    // Or a refresh that seeded nothing would read as "skipped the scammer".
+    expect(r.listings.length).toBeGreaterThan(0);
     expect(r.listings.every((l) => l.vendorId !== 'shady')).toBe(true);
   });
 
