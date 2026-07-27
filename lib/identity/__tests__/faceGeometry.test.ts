@@ -21,6 +21,7 @@ import {
   missingHairSpecs,
   hairSpecFor,
   neutralMorphs,
+  normalizeBody,
   randomizeFace,
   HAIR_STYLES,
   type MeshData,
@@ -191,6 +192,60 @@ describe('childhood proportions', () => {
       sum += Math.hypot(a[i] - b[i], a[i + 1] - b[i + 1], a[i + 2] - b[i + 2]);
     }
     expect(sum / (a.length / 3)).toBeGreaterThan(0.10);
+  });
+});
+
+describe('body composition on the face', () => {
+  // The link that is supposed to make the body simulation visible. It was
+  // measured at a mean vertex movement of 0.006 on a head 1.5 tall across the
+  // entire range from 8% body fat to 55% — four tenths of one percent. A player
+  // could gain thirty kilos and see nothing in the one place they look.
+  //
+  // Body fat reached the face only by adding 0.30 to `cheekFullness`, a value
+  // then multiplied by 0.14. Nothing was wrong with any individual number; the
+  // product of them was the defect, and no test looked at the product.
+  const at = (bodyFatPct: number, muscle = 45) =>
+    buildHeadMesh(neutral, { age: 30, body: normalizeBody({ bodyFatPct, muscle }) });
+
+  const meanMove = (a: MeshData, b: MeshData): number => {
+    let sum = 0;
+    for (let i = 0; i < a.positions.length; i += 3) {
+      sum += Math.hypot(
+        a.positions[i] - b.positions[i],
+        a.positions[i + 1] - b.positions[i + 1],
+        a.positions[i + 2] - b.positions[i + 2],
+      );
+    }
+    return sum / (a.positions.length / 3);
+  };
+
+  const halfWidth = (mesh: MeshData): number => {
+    let w = 0;
+    for (let i = 0; i < mesh.positions.length; i += 3) w = Math.max(w, Math.abs(mesh.positions[i]));
+    return w;
+  };
+
+  it('moves the face visibly between lean and obese', () => {
+    expect(meanMove(at(8), at(55))).toBeGreaterThan(0.02);
+  });
+
+  it('responds to muscle as well as fat', () => {
+    expect(meanMove(at(22, 5), at(22, 95))).toBeGreaterThan(0.01);
+  });
+
+  it('gets wider with fat, not narrower', () => {
+    // A magnitude test alone passes on a sign error. The face has to grow.
+    expect(halfWidth(at(55))).toBeGreaterThan(halfWidth(at(8)));
+  });
+
+  it('changes monotonically across the range', () => {
+    const lean = at(8);
+    let previous = 0;
+    for (const fat of [18, 28, 40, 55]) {
+      const move = meanMove(lean, at(fat));
+      expect(move).toBeGreaterThan(previous);
+      previous = move;
+    }
   });
 });
 

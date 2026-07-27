@@ -184,8 +184,8 @@ function render(draws: Draw[], yaw: number, zoom?: { scale: number; y: number })
 }
 
 function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number,
-  zoom?: { scale: number; y: number }): Uint8Array {
-  const body = normalizeBody({ bodyFatPct: bodyFat, muscle: 45 });
+  zoom?: { scale: number; y: number }, muscle = 45): Uint8Array {
+  const body = normalizeBody({ bodyFatPct: bodyFat, muscle });
   const head = buildHeadMesh(g, { age, body });
   const hair = buildHairMesh(head, g.hairStyle, age);
   const beard = buildFacialHairMesh(head, g.facialHair, g);
@@ -243,7 +243,13 @@ const OUT = process.env.PREVIEW_OUT;
 
   // Sheet 4: body fat + neutral reference.
   const neutral = { ...randomizeFace('neu'), morphs: neutralMorphs(), hairStyle: 'medium' as const, facialHair: 'none' as const };
-  const bodies = [8, 18, 28, 40, 55].map((f) => renderFace(neutral, 30, f, -0.25));
+  // Two rows: body fat across its range, then muscle across its range at a
+  // fixed fat. The second row is new — the sheet only ever swept fat, so the
+  // muscle path had never been looked at at all.
+  const bodies = [
+    ...[8, 18, 28, 40, 55].map((f) => renderFace(neutral, 30, f, -0.25)),
+    ...[5, 30, 55, 75, 95].map((mu) => renderFace(neutral, 30, 22, -0.25, undefined, mu)),
+  ];
   t = tile(bodies, 5);
   fs.writeFileSync(`${OUT!}/body.png`, encodePng(t.w, t.h, t.data));
 

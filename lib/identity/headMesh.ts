@@ -372,6 +372,41 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       x += Math.sign(x || 1) * fullness * (cheekMask * 0.6 + jowlMask);
       z += fullness * 0.5 * jowlMask;
 
+      // ---- Soft tissue from body composition ------------------------------
+      //
+      // THIS IS THE BODY SIMULATION BECOMING VISIBLE, and until now it was not.
+      // Body fat reached the face only by adding 0.30 to `cheekFullness`, which
+      // is then multiplied by 0.14 — so the entire range from 8% body fat to
+      // 55%, lean to obese, moved the mesh by a mean of 0.006 on a head 1.5
+      // tall. Four tenths of one percent. A player could gain thirty kilos and
+      // see nothing in the one place they look.
+      //
+      // It gets its own displacement rather than a bigger push through
+      // `cheekFullness` because they are different things: cheek fullness is a
+      // feature somebody authored on a slider, and this is what the simulation
+      // does to it. Folding the second into the first also meant a heavy
+      // character with the cheek slider already at maximum got no change at all,
+      // since the sum clamps.
+      //
+      // Where fat actually goes on a face: the lower cheeks and jowls first,
+      // then under the jaw, then the neck. Not the forehead or the nose.
+      const lowerFace = smoothstep(0.24, -0.34, y) * headness;
+      x *= 1 + adiposity * 0.115 * lowerFace;
+      z += adiposity * 0.055 * jowlMask * front;
+      y -= Math.max(0, adiposity) * 0.030 * jowlMask;
+
+      // Submental fullness — the double chin. Under the jaw, not on it, so it
+      // reads as slack tissue rather than a longer face.
+      const submental = blobAniso(x, y, z, [0, chinY - 0.06, 0.42], [0.34, 0.20, 0.50]);
+      z += Math.max(0, adiposity) * 0.105 * submental;
+      y -= Math.max(0, adiposity) * 0.045 * submental;
+
+      // Muscle squares the jaw rather than rounding it — the masseter sits at
+      // the back corner, which is why a trained face reads wider at the angle
+      // and not at the cheek.
+      const masseter = blobAniso(x, y, z, [x >= 0 ? 0.44 : -0.44, -0.24, 0.28], [0.30, 0.26, 0.42]);
+      x += Math.sign(x || 1) * musculature * 0.075 * masseter;
+
       // ---- Brow ridge -----------------------------------------------------
       const browMask =
         blobAniso(x, y, z, [eyeX, browY, 0.72], [0.30, 0.10, 0.42]) +
@@ -481,7 +516,13 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
           // cranium — produced a lightbulb/chess-pawn silhouette rather than a
           // head on a neck. A real neck is narrower than the skull and close to
           // parallel-sided until it reaches the shoulders.
-          const targetR = (0.225 + neckThickness * 0.10) * (1 + neckT * 0.10);
+          // 0.10 -> 0.17 on the morph, and adiposity and musculature get their
+          // own terms on top. At 0.10 the whole neck-thickness slider moved the
+          // column by 0.05 across its full range, and the body's contribution to
+          // it — a third of that — was invisible.
+          const targetR = (0.225 + neckThickness * 0.17
+            + Math.max(0, adiposity) * 0.055 + Math.max(0, musculature) * 0.045)
+            * (1 + neckT * 0.10);
           const blend = neckT;
           const scale = ((1 - blend) * radius + blend * targetR) / radius;
           x *= scale;
