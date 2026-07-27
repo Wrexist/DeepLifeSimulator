@@ -183,6 +183,71 @@ export function createFaceScene(
   const eyeMeshes: THREE.Mesh[] = [];
   let disposed = false;
 
+  /**
+   * The backdrop.
+   *
+   * Without one the head floats on a flat fill, which is the single least
+   * premium thing in the frame: a portrait is as much about what is behind the
+   * subject as the subject, and a studio photograph is never shot against a
+   * uniform colour. This is the cheapest version of a lit sweep — a radial
+   * falloff, warm where the key light would spill and cool at the edges, with
+   * the head's own shadow implied by darkening the lower half.
+   *
+   * Drawn FIRST with no depth write, so it never occludes the head however
+   * close the camera gets, and it costs one full-screen quad of arithmetic.
+   *
+   * `background: null` (the default) keeps the canvas transparent instead, for
+   * any surface that wants the app's own background behind the head.
+   */
+  function createBackdrop(): THREE.Mesh {
+    const material = new THREE.ShaderMaterial({
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        uTop: { value: new THREE.Color('#1B2436') },
+        uBottom: { value: new THREE.Color('#070A10') },
+        uGlow: { value: new THREE.Color('#31405C') },
+      },
+      vertexShader: `
+        varying vec2 vXy;
+        void main() {
+          vXy = position.xy;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        varying vec2 vXy;
+        uniform vec3 uTop, uBottom, uGlow;
+        void main() {
+          // Vertical sweep first, then a soft pool of light behind where the
+          // head sits. Centred slightly above the origin because that is where
+          // the face is once the crown is placed — see the framing note.
+          float v = clamp(vXy.y * 0.14 + 0.5, 0.0, 1.0);
+          vec3 base = mix(uBottom, uTop, v);
+          // Centred BEHIND THE FACE, not above it. At this plane's depth the
+          // frame is twice the head's height, so a pool centred on the crown
+          // lights the empty top of the frame and leaves the subject against
+          // the dark part — the opposite of what a portrait backdrop is for.
+          float d = length(vec2(vXy.x * 0.9, vXy.y - 0.35));
+          gl_FragColor = vec4(mix(base, uGlow, 0.72 * exp(-d * d * 0.055)), 1.0);
+        }`,
+    });
+    // Big enough to fill the frustum at its depth from any aspect this canvas
+    // is given; it costs nothing to be generous with two triangles.
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), material);
+    mesh.position.z = -6;
+    mesh.renderOrder = -1;
+    return mesh;
+  }
+
+  // Only when the caller wants an opaque canvas. With a transparent one the
+  // backdrop would cover the app's own surface rather than sit behind the head.
+  //
+  // NOT tracked in `geometries`/`materials`: those are emptied and disposed by
+  // `clearRoot()` on every genome change, and the backdrop outlives the head.
+  // It is freed in `dispose()` with the rest of the scene-level resources.
+  const backdrop = options.background === undefined ? createBackdrop() : null;
+  if (backdrop) scene.add(backdrop);
+
   function track<T extends THREE.BufferGeometry | THREE.Material>(resource: T): T {
     if (resource instanceof THREE.BufferGeometry) geometries.push(resource);
     else materials.push(resource);
@@ -990,6 +1055,8 @@ export function createFaceScene(
     if (disposed) return;
     disposed = true;
     clearRoot();
+    backdrop?.geometry.dispose();
+    (backdrop?.material as THREE.Material | undefined)?.dispose();
     studio.dispose();
     scene.environment = null;
     scene.clear();

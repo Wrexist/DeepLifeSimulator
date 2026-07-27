@@ -190,6 +190,28 @@ const fill = new THREE.DirectionalLight(0xbfd4ff, 0.3); fill.position.set(2.8, -
 const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0.6, 1.2, -3.2);
 scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.26));
 
+// The lit sweep FaceRenderer draws behind the head — see createBackdrop there.
+// Present here because this is the harness that shows the head in its frame,
+// and a backdrop can only be judged in the composition it sits in.
+const backdrop = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.ShaderMaterial({
+    depthWrite: false, depthTest: false,
+    uniforms: {
+      uTop: { value: new THREE.Color('#1B2436') },
+      uBottom: { value: new THREE.Color('#070A10') },
+      uGlow: { value: new THREE.Color('#31405C') },
+    },
+    vertexShader: 'varying vec2 vXy;\\nvoid main(){ vXy = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: 'varying vec2 vXy;\\nuniform vec3 uTop,uBottom,uGlow;\\nvoid main(){\\n'
+      + ' float v = clamp(vXy.y*0.14+0.5,0.0,1.0);\\n'
+      + ' vec3 base = mix(uBottom,uTop,v);\\n'
+      + ' float d = length(vec2(vXy.x*0.9, vXy.y-0.35));\\n'
+      + ' gl_FragColor = vec4(mix(base,uGlow,0.72*exp(-d*d*0.055)),1.0);\\n}',
+  }),
+);
+backdrop.position.z = -6; backdrop.renderOrder = -1; scene.add(backdrop);
+
 const root = new THREE.Group(); root.position.y = 0.12; scene.add(root);
 window.__ok = false;
 
