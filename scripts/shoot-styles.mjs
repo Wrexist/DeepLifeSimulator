@@ -19,6 +19,7 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { Buffer } from 'node:buffer';
 import { chromium } from '@playwright/test';
+import { loadTs } from './lib/loadTs.mjs';
 
 const ROOT = process.cwd();
 const PORT = 8933;
@@ -91,6 +92,37 @@ async function main() {
   // ONLY_PART=sclera|iris|skin isolates one primitive.
   if (process.env.ONLY_PART) {
     await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
+  }
+
+  // AGE=8,25,45,65,85 renders one character across a lifetime, driven by the
+  // app's OWN `applyAging`. It rewrites eleven morphs, greys the hair and lifts
+  // the hairline, it is numerically tested, and until this switch existed
+  // nobody had ever looked at a character at sixty.
+  if (process.env.AGE) {
+    const genomeMod = loadTs('lib/identity/faceGenome.ts');
+    const bindMod = loadTs('lib/identity/morphBinding.ts');
+    const types = loadTs('lib/identity/types.ts');
+    const names = await page.evaluate(() => window.__morphNames);
+    const binding = bindMod.bindGenomeToRig(names);
+    const base = genomeMod.randomizeFace(process.env.SEED ?? 'age-sweep', { spread: 0.7 });
+    const shots = [];
+    for (const age of process.env.AGE.split(',').map(Number)) {
+      const aged = genomeMod.applyAging(base, age);
+      const { influences } = bindMod.genomeToInfluences(aged, binding, { signed: true });
+      await page.evaluate((c) => window.__applyCharacter(c), {
+        influences,
+        hairColor: types.HAIR_COLORS[aged.hairColor],
+        eyeColor: types.EYE_COLORS[aged.eyeColor],
+        blemish: aged.blemishes,
+        hairStyle: aged.hairStyle,
+        facialHair: aged.facialHair,
+      });
+      shots.push({ name: `age ${age}`, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
   }
 
   // SWEEP=hex,hex,... renders the same head once per colour. Palettes are

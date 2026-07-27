@@ -165,7 +165,16 @@ in the build reported as healthy:
 | `SWEEP=hex,hex,...` | one render per palette entry; found brown eyes with no pupil, deep skin crushed to a silhouette, and olive eyebrows on blondes |
 | `ONLY_PART=skin\|sclera\|iris` | one primitive alone; proved the eye's black cap and that the hair shell was whole |
 | `HAIR_ONLY=1` | the hair shell without the head |
+| `AGE=8,25,45,65,85` | one character across a lifetime, through the app's own `applyAging`; found hair growing through the ear |
 | `VIEW=w,h,rot,zoom,ty` | size, yaw and a close-up |
+
+`AGE` runs the app's real aging code in the harness via
+`scripts/lib/loadTs.mjs`, which transpiles a TypeScript module on demand. That
+matters: `applyAging` rewrites eleven morphs, greys the hair and lifts the
+hairline, and a screenshot script that reimplemented any of it would drift from
+the real curve and then quietly certify the wrong face. It works for the app's
+PURE modules — `lib/identity` is pure by design — and a harness reaching into a
+React component would be testing the wrong thing.
 
 **Sweep the palettes after any change to the skin, hair or eye shaders.** The
 default entry of each palette gets looked at constantly and the ends of the

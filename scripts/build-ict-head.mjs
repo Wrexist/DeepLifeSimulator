@@ -1008,6 +1008,41 @@ async function main() {
       scalp[v] = y >= hairline ? up : down;
     }
 
+    // NO HAIR ON THE EAR.
+    //
+    // Hair grows above and behind an ear, never through it — but the field is a
+    // height coordinate and knows nothing about ears, so every style long enough
+    // to reach that far grew straight over them. It is invisible on dark hair,
+    // which is why it survived thirty-five styles of review, and unmistakable
+    // the moment a character greys: rendered at 65 the shell wrapped the ear in
+    // a white mass with the ear poking through it.
+    //
+    // The ear vertex set is the one already found for the `earSize` region
+    // measure. Smoothing the mask before subtracting it feathers the exclusion
+    // over the neighbouring ring, so the hairline curves around the ear instead
+    // of being punched out of it.
+    {
+      const mask = new Float32Array(vertCount);
+      for (const v of regions.ear) mask[v] = 1;
+      const adj = new Array(vertCount);
+      for (const f of neutral.faces) {
+        for (const a of f.v) (adj[a] ??= new Set());
+        for (const a of f.v) for (const b of f.v) if (a !== b) adj[a].add(b);
+      }
+      for (let pass = 0; pass < 3; pass++) {
+        const next = Float32Array.from(mask);
+        for (let v = 0; v < vertCount; v++) {
+          const nb = adj[v];
+          if (!nb || nb.size === 0) continue;
+          let sum = 0;
+          for (const w of nb) sum += mask[w];
+          next[v] = Math.max(mask[v], 0.35 * mask[v] + 0.65 * (sum / nb.size));
+        }
+        mask.set(next);
+      }
+      for (let v = 0; v < vertCount; v++) scalp[v] *= 1 - 0.96 * Math.min(1, mask[v]);
+    }
+
     // SMOOTH ALONG THE MESH, not in space.
     //
     // The field is built from `backness`, which changes fast across the temple,

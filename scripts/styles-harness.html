@@ -651,6 +651,34 @@ window.__randomFace = (seed, spread = 1) => {
   renderer.render(scene, camera);
 };
 
+/**
+ * Apply a whole character: named morph influences plus the colours.
+ *
+ * The influences are computed in Node by the APP'S OWN code — see
+ * scripts/lib/loadTs.mjs — rather than approximated here, so what this renders
+ * is what the app would render. That is the whole point: aging rewrites eleven
+ * morphs, the hair colour and the hairline, and a harness that reimplemented
+ * any of it would certify a face the app never produces.
+ */
+window.__applyCharacter = ({ influences, hairColor, eyeColor, blemish, hairStyle, facialHair }) => {
+  for (const mesh of [parts.skin, parts.sclera, parts.iris, hair, beard]) {
+    const dict = mesh?.morphTargetDictionary;
+    const inf = mesh?.morphTargetInfluences;
+    if (!dict || !inf) continue;
+    inf.fill(0);
+    for (const [name, value] of Object.entries(influences)) {
+      const i = dict[name];
+      if (i !== undefined) inf[i] = value;
+    }
+  }
+  if (hairColor) window.__setHairColor(hairColor);
+  if (eyeColor) window.__setEyeColor(eyeColor);
+  if (blemish !== undefined) SU.uBlemish.value = blemish;
+  if (hairStyle) window.__setHair(hairStyle);
+  if (facialHair) window.__setBeard(facialHair);
+  renderer.render(scene, camera);
+};
+
 window.__morphNames = parts.skin.morphTargetDictionary
   ? Object.keys(parts.skin.morphTargetDictionary)
   : [];
