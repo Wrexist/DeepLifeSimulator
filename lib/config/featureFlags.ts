@@ -51,21 +51,32 @@ export const FEATURE_FLAGS = {
   // Boot breadcrumbs (always enabled for crash diagnosis)
   bootBreadcrumbs: true,
 
-  // 3D face creator (STATE_VERSION 26). OFF by default.
+  // 3D face creator (STATE_VERSION 26). ON by default.
   //
-  // The procedural head is not at shipping quality: at full size it reads as a
-  // mannequin — mushy features, pinprick eyes, an egg silhouette. The rest of
-  // the Identity & Body chapter (body simulation, weekly regimen, grooming,
-  // presence and its consequences) does NOT depend on it and is unaffected,
-  // so this flag lets the chapter ship while the head keeps cooking.
+  // ## Why this flipped, and why the old reason was gating the wrong thing
   //
-  // With this off, onboarding shows only the existing starter-portrait strip,
-  // exactly as it did before the chapter. Every character still gets a full
-  // `identity` (face genome included) — the genome is stored and simulated,
-  // it simply is not rendered in 3D or offered for editing.
+  // It was off because "the procedural head is not at shipping quality: at full
+  // size it reads as a mannequin — mushy features, pinprick eyes, an egg
+  // silhouette". Two of those three are now fixed (the eye is rebuilt around
+  // the globe and opens to human proportions; the mouth and nose have a mouth
+  // line, corners, a philtrum, nostrils and an alar crease) and the third is
+  // improved rather than solved.
   //
-  // Turn on with EXPO_PUBLIC_ENABLE_FACE_CREATOR=true to keep iterating on it.
-  faceCreator3D: process.env.EXPO_PUBLIC_ENABLE_FACE_CREATOR === 'true',
+  // But the procedural head was never the thing to gate on. It is the FALLBACK
+  // — what `FaceRenderer` draws for the fraction of a second while ~1 MB of
+  // glTF parses, and on the rare device where the asset cannot load at all.
+  // The creator normally shows the SCANNED head, which is a different mesh
+  // entirely and has always been the one a player would actually see.
+  //
+  // So the real gate is asset availability, and it already exists lower down:
+  // `FaceCanvas` renders its `fallback` — the starter portrait — whenever the
+  // GL module or the head asset is unavailable, and never throws. A player on
+  // a device that cannot show the good head gets exactly what they got before
+  // this chapter, without a build-time flag having to predict which device
+  // that is.
+  //
+  // Set EXPO_PUBLIC_ENABLE_FACE_CREATOR=false to force it off.
+  faceCreator3D: process.env.EXPO_PUBLIC_ENABLE_FACE_CREATOR !== 'false',
 
   // Weekly event "Heads Up" pop-ups — DISABLED by default. Players reported they
   // interrupted the Next Week flow on nearly every tick. Disabling stops the

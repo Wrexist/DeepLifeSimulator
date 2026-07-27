@@ -604,6 +604,25 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       x *= 1 + 0.05 * midFace;
       z *= 1 + 0.04 * midFace;
 
+      // TEMPORAL NARROWING — the skull draws in above the cheekbones.
+      //
+      // This is what was left of "reads as an egg" after the jaw was built. A
+      // head's widest point in front view is the zygomatic arch, and it narrows
+      // BOTH ways from there: down to the gonial angle, which the jaw section
+      // handles, and up through the temples to the crown, which nothing did.
+      // Widest-at-the-middle with a smooth taper in one direction only is the
+      // definition of an egg, and no amount of feature detail reads as a face
+      // on top of one — which is why the mouth and nose work above moved the
+      // close-up a long way and the full-size portrait barely at all.
+      //
+      // Two bands, because the temple and the crown are different amounts: the
+      // squeeze is strongest just above the brow and eases toward the top,
+      // where the parietal bulge is genuinely wide.
+      const temple = smoothstep(0.16, 0.52, y) * smoothstep(1.05, 0.62, y) * headness;
+      const crown = smoothstep(0.55, 1.00, y) * headness;
+      x *= 1 - 0.085 * temple - 0.055 * crown;
+      z *= 1 - 0.030 * temple - 0.045 * crown;
+
       // ---- Jaw ----------------------------------------------------------
       //
       // A BASELINE MANDIBLE, before any morph touches it. The ellipsoid tapers
@@ -723,6 +742,30 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       z += 0.080 * wingMask;
       x += Math.sign(x || 1) * (0.02 + noseWidth * 0.045) * wingMask;
 
+      // The ALAR CREASE — the curved groove where the wing meets the cheek.
+      //
+      // Without it the wings are two bumps sitting ON the face rather than the
+      // sides of a nose, and the whole feature reads as a blob. It is the
+      // cheapest line on the face: one crease per side turns a mound into a
+      // nose, because it is what gives the wing an edge to end at.
+      const alarX = wingX + 0.030 + noseWidth * 0.012;
+      const alarMask =
+        blobAniso(x, y, z, [alarX, noseTipY - 0.005, 0.80], [0.034, 0.058, 0.20]) +
+        blobAniso(x, y, z, [-alarX, noseTipY - 0.005, 0.80], [0.034, 0.058, 0.20]);
+      z -= (0.026 + noseWidth * 0.008) * alarMask * headness;
+
+      // NOSTRILS. Two indentations under the tip, with the columella left
+      // standing between them because they are separate fields rather than one.
+      //
+      // Set back rather than opened: this is a closed surface with no interior,
+      // so a real hole is not available. What reads from the front is the
+      // shadow under the tip, and a recess casts that shadow.
+      const nostrilX = 0.036 + noseWidth * 0.018;
+      const nostrilMask =
+        blobAniso(x, y, z, [nostrilX, noseTipY - 0.048, 0.88], [0.029, 0.030, 0.15]) +
+        blobAniso(x, y, z, [-nostrilX, noseTipY - 0.048, 0.88], [0.029, 0.030, 0.15]);
+      z -= 0.050 * nostrilMask * headness;
+
       // ---- Lips ------------------------------------------------------------
       const lipHalfWidth = 0.115 + mouthWidth * 0.100;
       const upperMask = blobAniso(x, y, z, [0, mouthY + 0.035, 0.80], [lipHalfWidth, 0.045, 0.26]);
@@ -743,8 +786,47 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // gash was the harness's flat lighting crushing any crease to its ambient
       // floor, not the geometry. The harness now has a wrap term; this is back
       // where looking at the mouth close up said it should be.
-      const seamMask = blobAniso(x, y, z, [0, mouthY - 0.008, 0.83], [lipHalfWidth * 1.05, 0.016, 0.24]);
-      z -= 0.017 * seamMask;
+      //
+      // 0.016 -> 0.024 tall, 0.017 -> 0.030 deep. The reasoning above is still
+      // right and the number was still wrong, for a reason none of it could see:
+      // at 128 rings the grid spacing over the head is 0.0216, and a field 0.032
+      // tall FALLS BETWEEN VERTICES. The mouth line was not shallow, it was
+      // unresolvable — the same failure as the eye fissure, which was two rows
+      // tall and scattered until the tessellation went up. A crease has to be at
+      // least a row tall to exist at all, and once it is, it can be deepened to
+      // where it reads without becoming the letterbox described above.
+      const seamMask = blobAniso(x, y, z, [0, mouthY - 0.008, 0.83], [lipHalfWidth * 1.05, 0.024, 0.24]);
+      z -= 0.030 * seamMask;
+
+      // MOUTH CORNERS. Lips do not fade out sideways, they end — and the
+      // commissure is a small pit, which is what stops the mouth reading as a
+      // sausage laid on the face.
+      const commissureX = lipHalfWidth * 0.94;
+      const commissureMask =
+        blobAniso(x, y, z, [commissureX, mouthY - 0.010, 0.80], [0.040, 0.038, 0.20]) +
+        blobAniso(x, y, z, [-commissureX, mouthY - 0.010, 0.80], [0.040, 0.038, 0.20]);
+      z -= 0.024 * commissureMask * headness;
+
+      // The PHILTRUM — the groove from the nose to the middle of the upper lip.
+      // Small, and one of the strongest cues that a face is a face: it is the
+      // reason the space between nose and mouth reads as anatomy rather than a
+      // gap. Fades out before the lip so it does not cut the vermilion.
+      const philtrumMask = blobAniso(
+        x, y, z,
+        [0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86],
+        [0.028, 0.052, 0.18],
+      );
+      z -= 0.020 * philtrumMask * headness;
+
+      // The MENTOLABIAL SULCUS — the crease under the lower lip, before the
+      // chin rises again. Without it the lower lip melts into the chin and the
+      // whole lower face is one curve.
+      const sulcusMask = blobAniso(
+        x, y, z,
+        [0, mouthY - 0.115, 0.83],
+        [lipHalfWidth * 0.85, 0.032, 0.20],
+      );
+      z -= 0.022 * sulcusMask * headness;
 
       // ---- Ears -------------------------------------------------------------
       // Placed at the widest point, behind the eye line. Displaced along X only,

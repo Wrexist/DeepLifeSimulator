@@ -130,6 +130,11 @@ function IdentityCard() {
       companies: s?.companies,
       realEstate: s?.realEstate,
       userProfile: s?.userProfile,
+      // Carries `portraitUri` — the face the player built. This selector is a
+      // PROJECTION cast to `GameState`, so a field left out of it still
+      // typechecks everywhere below and is `undefined` at runtime. Reading
+      // `identity` without adding it here is a silent no-op, not an error.
+      identity: s?.identity,
       relationships: s?.relationships,
       careers: s?.careers,
       currentJob: s?.currentJob,
@@ -465,7 +470,19 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getAvatarPortrait(userProfile?.avatarId, date?.age ?? 0, name, sex);
+  // The player's OWN face, when they built one, and the starter portrait when
+  // they did not.
+  //
+  // Until this line existed, `identity.portraitUri` was written at onboarding,
+  // persisted, migrated and repaired — and read by nothing. A player could
+  // spend real time in the face creator and then look at a stock portrait for
+  // the rest of the run, which makes the whole feature invisible however good
+  // the head is. This is the one place a character's face is on screen every
+  // week, so it is the one that has to show it.
+  const builtFace = gameState.identity?.portraitUri;
+  const avatar = builtFace && builtFace.startsWith('data:image')
+    ? { uri: builtFace }
+    : getAvatarPortrait(userProfile?.avatarId, date?.age ?? 0, name, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.
