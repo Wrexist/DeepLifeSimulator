@@ -48,6 +48,9 @@ import { loadHeadAsset, loadSkinTextures, type HeadAsset, type SkinTextures } fr
 import measureStats from '@/assets/models/face-measure-stats.json';
 import { installChildProportions, type PatchableMaterial } from './childInstall';
 import { frameHead, type Bounds } from './headFraming';
+import {
+  SKIN_FRAG_BODY, SKIN_FRAG_COMMON, SKIN_VERT_BODY, SKIN_VERT_COMMON,
+} from './proceduralSkinShader';
 
 /**
  * Brow and chin heights as fractions of the head's bounding box, emitted by the
@@ -1103,15 +1106,16 @@ export function createFaceScene(
         browColor.multiplyScalar(target / lum(browColor));
       }
       const uBrowColor = { value: browColor };
+      const uBlemish = { value: Math.max(0, Math.min(1, aged.blemishes)) };
       headMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uBrowColor = uBrowColor;
+        shader.uniforms.uBlemish = uBlemish;
         shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', '#include <common>\nattribute float brow;\nvarying float vBrow;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBrow = brow;');
+          .replace('#include <common>', `#include <common>\n${SKIN_VERT_COMMON}`)
+          .replace('#include <begin_vertex>', `#include <begin_vertex>${SKIN_VERT_BODY}`);
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;\nvarying float vBrow;')
-          .replace('#include <color_fragment>',
-            '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, clamp(vBrow, 0.0, 1.0));');
+          .replace('#include <common>', `#include <common>\n${SKIN_FRAG_COMMON}`)
+          .replace('#include <color_fragment>', `#include <color_fragment>${SKIN_FRAG_BODY}`);
       };
     }
     // A HOLDER, framed the same way the scanned head is. Adding these meshes to

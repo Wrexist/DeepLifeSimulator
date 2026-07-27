@@ -117,6 +117,74 @@ async function main() {
     await browser.close(); server.close(); process.exit(1);
   }
 
+  // PROC=<seed>,<seed>… renders the PROCEDURAL head with the app's own
+  // materials. Everything else in this file shoots the scanned head; that one is
+  // drawn by a software rasteriser in `preview.render.ts` which reimplements the
+  // shading, so the GLSL the app installs on that path had never been compiled.
+  //
+  //   HARNESS=./procedural-harness.html PROC=a,b,c node scripts/shoot-styles.mjs out.png
+  if (process.env.PROC) {
+    const head = loadTs('lib/identity/headMesh.ts');
+    const genomeMod = loadTs('lib/identity/faceGenome.ts');
+    const types = loadTs('lib/identity/types.ts');
+    const shaderSrc = loadTs('components/identity/gl/proceduralSkinShader.ts');
+    const framing = loadTs('components/identity/gl/headFraming.ts');
+    await page.evaluate((src) => {
+      window.__SKIN_VERT_COMMON = src.vc;
+      window.__SKIN_VERT_BODY = src.vb;
+      window.__SKIN_FRAG_COMMON = src.fc;
+      window.__SKIN_FRAG_BODY = src.fb;
+    }, {
+      vc: shaderSrc.SKIN_VERT_COMMON, vb: shaderSrc.SKIN_VERT_BODY,
+      fc: shaderSrc.SKIN_FRAG_COMMON, fb: shaderSrc.SKIN_FRAG_BODY,
+    });
+
+    const age = Number(process.env.AGE ?? 30);
+    const blemish = process.env.BLEMISH === undefined ? undefined : Number(process.env.BLEMISH);
+    const shots = [];
+    for (const seed of process.env.PROC.split(',')) {
+      const g = genomeMod.randomizeFace(seed, { sex: process.env.SEX ?? undefined, spread: 0.7 });
+      const aged = genomeMod.applyAging(g, age);
+      if (blemish !== undefined) aged.blemishes = blemish;
+      const mesh = head.buildHeadMesh(g, { age });
+      const hairMesh = head.buildHairMesh(mesh, aged.hairStyle, age);
+      const eyes = head.eyePlacement(mesh, g, age);
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < mesh.positions.length; i += 3) {
+        for (let k = 0; k < 3; k++) {
+          lo[k] = Math.min(lo[k], mesh.positions[i + k]);
+          hi[k] = Math.max(hi[k], mesh.positions[i + k]);
+        }
+      }
+      const hairHex = types.HAIR_COLORS[aged.hairColor];
+      await page.evaluate((d) => window.__setHead(d), {
+        positions: Array.from(mesh.positions), normals: Array.from(mesh.normals),
+        indices: Array.from(mesh.indices), brow: Array.from(mesh.brow),
+        // Framed by the app's own `frameHead`, evaluated here rather than
+        // shipped as source: injecting a transpiled function is a way to end
+        // up verifying a copy of it.
+        framing: framing.frameHead({ min: lo, max: hi }, 0.12),
+        skin: types.SKIN_TONES[aged.skinTone],
+        hairColor: hairHex,
+        browColor: hairHex,
+        eyeColor: types.EYE_COLORS[aged.eyeColor],
+        blemish: aged.blemishes,
+        shells: { ...head.EYE_SHELLS },
+        eyes: [eyes.left, eyes.right].map((e) => ({ x: e.x, y: e.y, z: e.z, radius: e.radius })),
+        hair: hairMesh ? {
+          positions: Array.from(hairMesh.positions), normals: Array.from(hairMesh.normals),
+          indices: Array.from(hairMesh.indices), coverage: Array.from(hairMesh.coverage),
+        } : null,
+      });
+      shots.push({ name: seed, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
   if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
   // ONLY_PART=sclera|iris|skin isolates one primitive.
   if (process.env.ONLY_PART) {

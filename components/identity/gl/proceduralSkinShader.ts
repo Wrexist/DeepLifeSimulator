@@ -1,0 +1,65 @@
+/**
+ * The procedural head's skin shader patch — eyebrows and freckles.
+ *
+ * ## Why it is not inline in `FaceRenderer`
+ *
+ * Because nothing had ever rendered it. The preview harness draws this head's
+ * GEOMETRY with a hand-written software rasteriser and reimplements the brow
+ * tint in its own shading code, so the app's actual GLSL for this path had never
+ * been through a compiler, let alone looked at. That is the same gap that let
+ * the scanned head's hair table lose twenty-three styles: the thing that
+ * verifies was not the thing that ships.
+ *
+ * Kept as strings with no three import so `scripts/procedural-harness.html` can
+ * be handed exactly what the app installs, the way the hair table and the
+ * proportion transform already are.
+ *
+ * ## Freckles
+ *
+ * `blemishes` is randomised, inherited from both parents and increased with age,
+ * and on this head it did nothing at all — it was read only by the scanned
+ * head's shader. The reason recorded for leaving it that way was that a 9.4k
+ * mesh cannot carry freckle-frequency detail in a per-vertex weight, which is
+ * true and was the wrong conclusion: eyebrows needed a per-vertex weight because
+ * their SHAPE is geometry, and freckles need none because their shape is noise.
+ *
+ * Hashed on position rather than UV — this mesh has none — and cut to the front
+ * of the face, since freckles land on the cheeks and nose rather than the nape.
+ */
+
+/** Declared at `#include <common>` in the vertex shader. */
+export const SKIN_VERT_COMMON =
+  'attribute float brow;\nvarying float vBrow;\nvarying vec3 vSkinPos;\n';
+
+/** Appended to `#include <begin_vertex>`. */
+export const SKIN_VERT_BODY =
+  '\nvBrow = brow;\nvSkinPos = position;\n';
+
+/** Declared at `#include <common>` in the fragment shader. */
+export const SKIN_FRAG_COMMON = [
+  'uniform vec3 uBrowColor;',
+  'uniform float uBlemish;',
+  'varying float vBrow;',
+  'varying vec3 vSkinPos;',
+  // A hash, not a product of sines. Every attempt at scattered detail in this
+  // project that used trigonometry came out as a lattice, a corduroy or a
+  // herringbone before it was replaced with one of these.
+  'float skinHash(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123); }',
+].join('\n') + '\n';
+
+/** Appended to `#include <color_fragment>`. */
+export const SKIN_FRAG_BODY = [
+  '',
+  // Eyebrows: a tint toward the hair colour, weighted by the baked brow field.
+  'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, clamp(vBrow, 0.0, 1.0));',
+  // Freckles. Cell noise: one candidate per cell, most cells empty, so they
+  // scatter instead of forming a texture. Front of the face only, and never on
+  // the brows — a freckle drawn over an eyebrow reads as a gap in it.
+  'vec3 fcell = floor(vSkinPos * 26.0);',
+  'vec3 flocal = fract(vSkinPos * 26.0) - 0.5;',
+  'float fjit = skinHash(fcell) - 0.5;',
+  'float fd = length(flocal - fjit * 0.5);',
+  'float freckle = smoothstep(0.42, 0.12, fd) * step(0.82, skinHash(fcell + 11.0));',
+  'float onFace = smoothstep(-0.1, 0.5, vSkinPos.z) * (1.0 - clamp(vBrow, 0.0, 1.0));',
+  'diffuseColor.rgb *= 1.0 - 0.30 * clamp(uBlemish, 0.0, 1.0) * freckle * onFace;',
+].join('\n') + '\n';

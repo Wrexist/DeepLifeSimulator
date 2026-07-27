@@ -1,0 +1,142 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0B111C}canvas{display:block}</style>
+<script type="importmap">
+{"imports":{"three":"/node_modules/three/build/three.module.js",
+            "three/addons/":"/node_modules/three/examples/jsm/"}}
+</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+
+/*
+ * The PROCEDURAL head, rendered with the app's own materials.
+ *
+ * `preview.render.ts` draws this head's geometry with a hand-written software
+ * rasteriser, which is what found nearly every defect in it — but that
+ * rasteriser reimplements the shading, so the GLSL the app actually installs on
+ * this path had never been compiled, let alone looked at. The eyebrow patch
+ * shipped verified only by a renderer that did not run it.
+ *
+ * Geometry and shader source are injected by `shoot-styles.mjs` from the app's
+ * own modules; this page holds no copy of either. Lighting mirrors
+ * `FaceRenderer`'s procedural branch, which is deliberately NOT the scanned
+ * head's: a scan-derived mesh has real surface normals and catches far more
+ * light, so the two rigs are different on purpose.
+ */
+
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') ?? 420), H = Number(q.get('h') ?? 480);
+const canvas = document.createElement('canvas');
+canvas.width = W; canvas.height = H;
+document.body.appendChild(canvas);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(W, H, false);
+renderer.setClearColor(new THREE.Color('#0B111C'), 1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.45;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+camera.position.set(0, 0.05, 6.2 / Number(q.get('zoom') ?? 1));
+camera.lookAt(0, Number(q.get('ty') ?? -0.02), 0);
+
+const key = new THREE.DirectionalLight(0xfff4e8, 1.7); key.position.set(-2.2, 2.6, 3.4);
+const fill = new THREE.DirectionalLight(0xbfd4ff, 0.6); fill.position.set(2.8, -0.4, 2.0);
+const rim = new THREE.DirectionalLight(0xffffff, 0.65); rim.position.set(0.6, 1.2, -3.2);
+scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.26));
+// A plain room environment stands in for `createStudioEnvironment`, which is an
+// app module with its own dependencies. Skin and eyes need something to reflect
+// or the face renders matte; the exact environment is not what this page is for.
+scene.environment = new THREE.PMREMGenerator(renderer)
+  .fromScene(new THREE.Scene().add(new THREE.Mesh(
+    new THREE.BoxGeometry(10, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x8899aa, side: THREE.BackSide }),
+  ))).texture;
+
+const root = new THREE.Group();
+root.position.y = 0.12;
+root.rotation.y = Number(q.get('rot') ?? -0.35);
+scene.add(root);
+
+let holder = null;
+
+/** Build the head from injected buffers and the app's own shader source. */
+window.__setHead = (d) => {
+  if (holder) { root.remove(holder); holder = null; }
+  holder = new THREE.Group();
+  root.add(holder);
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(d.positions), 3));
+  geom.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(d.normals), 3));
+  geom.setAttribute('brow', new THREE.BufferAttribute(new Float32Array(d.brow), 1));
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(d.indices), 1));
+
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(d.skin), roughness: 0.72, metalness: 0,
+    clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.7,
+  });
+  const uBrowColor = { value: new THREE.Color(d.browColor) };
+  const uBlemish = { value: d.blemish };
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uBrowColor = uBrowColor;
+    sh.uniforms.uBlemish = uBlemish;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\n' + window.__SKIN_VERT_COMMON)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__SKIN_VERT_BODY);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\n' + window.__SKIN_FRAG_COMMON)
+      .replace('#include <color_fragment>', '#include <color_fragment>' + window.__SKIN_FRAG_BODY);
+  };
+  holder.add(new THREE.Mesh(geom, mat));
+
+  // Eyes, with the app's shell proportions.
+  for (const e of d.eyes) {
+    const white = new THREE.MeshStandardMaterial({ color: 0xe8e6e2, roughness: 0.18, envMapIntensity: 0.9 });
+    const irisM = new THREE.MeshStandardMaterial({ color: new THREE.Color(d.eyeColor), roughness: 0.10, envMapIntensity: 1.9 });
+    const pupilM = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.06, envMapIntensity: 2.0 });
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(e.radius, 24, 18), white);
+    ball.position.set(e.x, e.y, e.z);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(e.radius * d.shells.irisRadius, 20, 14), irisM);
+    iris.position.set(e.x, e.y, e.z + e.radius * d.shells.irisOffset);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(e.radius * d.shells.pupilRadius, 14, 10), pupilM);
+    pupil.position.set(e.x, e.y, e.z + e.radius * d.shells.pupilOffset);
+    holder.add(ball, iris, pupil);
+  }
+
+  if (d.hair) {
+    const hg = new THREE.BufferGeometry();
+    hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(d.hair.positions), 3));
+    hg.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(d.hair.normals), 3));
+    hg.setAttribute('coverage', new THREE.BufferAttribute(new Float32Array(d.hair.coverage), 1));
+    hg.setIndex(new THREE.BufferAttribute(new Uint32Array(d.hair.indices), 1));
+    holder.add(new THREE.Mesh(hg, shellMaterial(d.hairColor, 0.78)));
+  }
+
+  // Framing comes from the app's `frameHead`, evaluated by the shoot script.
+  holder.scale.setScalar(d.framing.scale);
+  holder.position.set(d.framing.position[0], d.framing.position[1], d.framing.position[2]);
+
+  renderer.render(scene, camera);
+};
+
+function shellMaterial(color, roughness) {
+  const m = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color), roughness, metalness: 0, transparent: true, depthWrite: true,
+  });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float coverage;\nvarying float vCoverage;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoverage = coverage;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vCoverage;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n'
+        + 'if (vCoverage < 0.06) discard;\ngl_FragColor.a *= smoothstep(0.06, 0.45, vCoverage);');
+  };
+  return m;
+}
+
+window.__ok = true;
+</script></body></html>
