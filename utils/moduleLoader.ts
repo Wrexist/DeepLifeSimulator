@@ -1,8 +1,17 @@
 /**
  * Safe Module Loader
- * 
+ *
  * Provides a centralized, safe way to load modules with iOS version checks,
  * dependency management, and graceful degradation.
+ *
+ * ## Nothing in the app imports this
+ *
+ * Recorded rather than acted on. `turboModuleWrapper`, which this wraps, IS
+ * live — `hooks/useFrameworkReady.ts` uses it — but every export here is
+ * reachable only from `__tests__/startup/moduleLoading.test.ts`. That is worth
+ * knowing before trusting a green suite over this file: for as long as it has
+ * no callers, its tests are the only thing describing what it should do, and
+ * two of them were asserting nothing at all when this note was written.
  */
 
 import { isModuleCompatible, isIOS26Beta, getIOSVersion } from './iosCompatibility';
@@ -121,11 +130,32 @@ export async function loadModuleSafely<T = any>(
       skipCompatibilityCheck,
     });
 
-    if (module) {
+    // A TRUTHY RESULT IS NOT EVIDENCE OF A LOAD.
+    //
+    // `lazyLoadTurboModule` returns the fallback when it cannot load the real
+    // module, so for any caller that passes one — which is the normal way this
+    // is used — every failure arrived here as a truthy module and was reported
+    // as `success: true, skipped: false`, indistinguishable from the real thing.
+    // The `skipped: true` branch below was unreachable for those callers, and
+    // `skipped` exists to mean exactly the case it could not reach.
+    //
+    // Identity, not truthiness: the fallback is the object the caller handed in.
+    const usedFallback = fallback !== undefined && module === fallback;
+
+    if (module && !usedFallback) {
       return {
         success: true,
         module,
         skipped: false,
+      };
+    }
+
+    if (usedFallback) {
+      return {
+        success: false,
+        module,
+        error: new Error(`Failed to load optional module: ${moduleName}`),
+        skipped: true,
       };
     }
 

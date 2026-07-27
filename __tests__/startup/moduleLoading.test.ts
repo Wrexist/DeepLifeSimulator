@@ -88,15 +88,22 @@ describe('Module Loading System', () => {
     }, 5000);
 
     it('should provide error information on failure', async () => {
+      // A real fallback object, not `null`. With `null` the loader reaches the
+      // "returned nothing" branch, which was already correct — the branch that
+      // was wrong is the one a caller with an actual fallback takes, and that is
+      // every real caller.
       const result = await loadModuleSafely('nonexistent-module', {
-        fallback: null,
+        fallback: { stub: true },
         required: false,
       });
-      
-      if (!result.success) {
-        expect(result).toHaveProperty('error');
-        expect(result).toHaveProperty('skipped');
-      }
+
+      // Unconditional. These assertions used to sit inside `if (!result.success)`
+      // on a call that always reported success — the loader handed back the
+      // fallback and called it a load — so the test named "on failure" ran
+      // nothing at all.
+      expect(result.success).toBe(false);
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.skipped).toBe(true);
     }, 5000);
 
     it('should get module loading health', () => {
@@ -132,10 +139,14 @@ describe('Module Loading System', () => {
         fallback,
         required: false,
       });
-      
-      if (!result.success && result.skipped) {
-        expect(result.module).toBe(fallback);
-      }
+
+      expect(result.module).toBe(fallback);
+      // THE INVARIANT THAT WAS BROKEN: holding the fallback is not success.
+      // A caller checking `success` to decide whether the real native module is
+      // present was being told yes while holding a stub, and the double guard
+      // above meant no assertion in this file ever ran to notice.
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
     }, 5000);
   });
 
@@ -157,10 +168,8 @@ describe('Module Loading System', () => {
       });
       
       // Should not throw, should return error result
-      expect(result).toHaveProperty('success');
-      if (!result.success) {
-        expect(result).toHaveProperty('error');
-      }
+      expect(result.success).toBe(false);
+      expect(result.error).toBeInstanceOf(Error);
     }, 5000);
   });
 });
