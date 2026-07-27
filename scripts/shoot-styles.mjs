@@ -78,6 +78,7 @@ async function main() {
   if (process.env.HAIRCOL) query.set('haircol', process.env.HAIRCOL);
   if (process.env.BLEMISH) query.set('blemish', process.env.BLEMISH);
   if (process.env.EYECOL) query.set('eyecol', process.env.EYECOL);
+  if (process.env.SKIN) query.set('skin', process.env.SKIN);
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 
@@ -90,6 +91,27 @@ async function main() {
   // ONLY_PART=sclera|iris|skin isolates one primitive.
   if (process.env.ONLY_PART) {
     await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
+  }
+
+  // SWEEP=hex,hex,... renders the same head once per colour. Palettes are
+  // where "it looked fine" hides: the default entry is checked constantly and
+  // the ends of the range almost never.
+  if (process.env.SWEEP) {
+    const colours = process.env.SWEEP.split(',');
+    const kind = process.env.SWEEP_KIND ?? 'skin';
+    const shots = [];
+    for (const hex of colours) {
+      await page.evaluate(([k, c]) => {
+        if (k === 'skin') window.__setSkin(c);
+        else if (k === 'eye') window.__setEyeColor(c);
+        else window.__setHairColor(c);
+      }, [kind, hex]);
+      shots.push({ name: hex, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, colours.length), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
   }
 
   // RANDOM=n renders n randomised faces. The randomiser spans 24 axes and

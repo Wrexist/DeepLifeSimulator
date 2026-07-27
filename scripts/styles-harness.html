@@ -703,6 +703,21 @@ if (q.get('haircol')) window.__setHairColor(q.get('haircol'));
 window.__setEyeColor = (hex) => { parts.iris.material.color.set(hex); renderer.render(scene, camera); };
 if (q.get('eyecol')) window.__setEyeColor(q.get('eyecol'));
 
+// Skin tone. The palette spans porcelain to darkest, and the exposure that
+// flatters one end can crush the other — which is the failure that forced the
+// scanned head's whole lighting rig to be re-tuned once already.
+window.__setSkin = (hex) => {
+  const m = parts.skin.material;
+  m.color.set(hex);
+  // Environment weight scales with darkness — see FaceRenderer. Diffuse falls
+  // with albedo and specular does not, so a deep tone under a rig tuned for a
+  // pale one loses its form entirely.
+  const lum = 0.3 * m.color.r + 0.59 * m.color.g + 0.11 * m.color.b;
+  m.envMapIntensity = 0.45 + 0.55 * (1 - Math.min(1, lum * 1.6));
+  renderer.render(scene, camera);
+};
+if (q.get('skin')) window.__setSkin(q.get('skin'));
+
 window.__setHair('short');
 window.__setBeard('none');
 renderer.render(scene, camera);

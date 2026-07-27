@@ -274,10 +274,24 @@ export interface Identity {
   portraitWeek?: number;
 }
 
-/** Skin tones, light → deep. Index is what a save stores. */
+/**
+ * Skin tones, light → deep. Index is what a save stores, so entries may be
+ * RE-TONED but never reordered.
+ *
+ * The deep end was lifted after sweeping the whole palette through the
+ * renderer: at #4E2A18 and #3A1F12 the face crushed to a silhouette — nose,
+ * mouth and jaw all gone, with the eyes still bright on top of it, which is
+ * worse than merely dark. Those two values are darker than skin actually
+ * photographs; the darkest human skin sits around 15-20% reflectance, not the
+ * 7% #3A1F12 implies.
+ *
+ * This palette has caused the same failure once before, from the other
+ * direction: it is what forced the procedural head's exposure up to 1.45.
+ * Sweeping it is now part of checking any change to the skin shader.
+ */
 export const SKIN_TONES: readonly string[] = [
   '#F6D9C6', '#F0C8AA', '#E3B08B', '#D2955F', '#C07E4F',
-  '#A5643C', '#8A4F2E', '#6B3A21', '#4E2A18', '#3A1F12',
+  '#A5643C', '#8A4F2E', '#6B3A21', '#57331F', '#452818',
 ];
 
 /** Hair colours. Index is what a save stores. */

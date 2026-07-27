@@ -434,7 +434,20 @@ export function createFaceScene(
     const skin = SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.max(0, aged.skinTone))];
     const iris = EYE_COLORS[Math.min(EYE_COLORS.length - 1, Math.max(0, aged.eyeColor))];
     const skinMat = assetParts.skin?.material as THREE.MeshPhysicalMaterial | undefined;
-    if (skinMat) skinMat.color.set(skin);
+    if (skinMat) {
+      skinMat.color.set(skin);
+      // ENVIRONMENT CONTRIBUTION SCALES WITH DARKNESS.
+      //
+      // Diffuse response falls with albedo but specular does not, so a deep
+      // skin tone lit by a rig tuned for a pale one loses its form entirely —
+      // swept across the palette, the darkest two entries rendered as
+      // silhouettes with bright eyes floating on them. Real deep skin reads as
+      // sheen and reflected light far more than pale skin does, so giving the
+      // environment more weight where the albedo is dark is closer to the
+      // physics than a flat value, not a cheat to rescue the render.
+      const lum = 0.3 * skinMat.color.r + 0.59 * skinMat.color.g + 0.11 * skinMat.color.b;
+      skinMat.envMapIntensity = 0.45 + 0.55 * (1 - Math.min(1, lum * 1.6));
+    }
     const irisMat = assetParts.iris?.material as THREE.MeshPhysicalMaterial | undefined;
     if (irisMat) irisMat.color.set(iris);
 
