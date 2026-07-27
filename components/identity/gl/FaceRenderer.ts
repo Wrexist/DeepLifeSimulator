@@ -376,6 +376,9 @@ export function createFaceScene(
    * painted brow's own darkness still supplies the shape — tinting all the way
    * flattens it into a solid stripe of colour.
    */
+  /** Scratch colour for the brow desaturation; avoids an allocation per frame. */
+  const GREY = new THREE.Color();
+
   const assetSkinUniforms = {
     uBrowColor: { value: new THREE.Color(0x2a1c14) },
     /** `genome.blemishes`, [0, 1] — freckle and mottle density. */
@@ -486,9 +489,18 @@ export function createFaceScene(
     // Brows follow the hair colour even when the character is bald: eyebrows do
     // not fall out with a shaved head, and a bald character with brows painted
     // the default brown is the same mismatch in the other direction.
-    assetSkinUniforms.uBrowColor.value
-      .set(HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))])
-      .multiplyScalar(0.46);
+    // DESATURATED, then darkened.
+    //
+    // Scaling the hair colour alone kept its full saturation, and a dark
+    // saturated orange skews toward yellow-green through ACES: swept across the
+    // palette, every blonde and light-brown character came out with distinctly
+    // OLIVE eyebrows. Pulling a fifth of the way toward the colour's own
+    // luminance removes the skew, and it is truer anyway — brow hair is coarser
+    // and reads less saturated than the hair on the head.
+    const brow = assetSkinUniforms.uBrowColor.value
+      .set(HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))]);
+    const browLum = 0.3 * brow.r + 0.59 * brow.g + 0.11 * brow.b;
+    brow.lerp(GREY.setScalar(browLum), 0.22).multiplyScalar(0.56);
     // The AGED value: `applyAging` drifts this upward, which is what turns
     // freckles into age spots over a lifetime without a second field.
     assetSkinUniforms.uBlemish.value = Math.max(0, Math.min(1, aged.blemishes));

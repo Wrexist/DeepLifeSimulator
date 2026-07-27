@@ -693,8 +693,13 @@ window.__probe = () => {
 window.__setHairColor = (hex) => {
   hairMat.color.set(hex);
   beardMat.color.set(hex).multiplyScalar(0.72);
-  // Brows follow the hair, a shade or two deeper — see FaceRenderer.
-  SU.uBrowColor.value.set(hex).multiplyScalar(0.46);
+  // Brows follow the hair: desaturated a third of the way toward their own
+  // luminance, then darkened. Scaling the hair colour alone keeps its full
+  // saturation, and a dark saturated orange skews yellow-green through ACES —
+  // every blonde character came out with olive eyebrows.
+  const b = SU.uBrowColor.value.set(hex);
+  const bl = 0.3 * b.r + 0.59 * b.g + 0.11 * b.b;
+  b.lerp(new THREE.Color(bl, bl, bl), 0.22).multiplyScalar(0.56);
   renderer.render(scene, camera);
 };
 if (q.get('haircol')) window.__setHairColor(q.get('haircol'));

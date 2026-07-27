@@ -150,6 +150,29 @@ questionnaire before the build ships.
 
 ---
 
+## Checking a change to the head
+
+`scripts/shoot-styles.mjs` renders the real asset through the real three.js
+path. The switches exist because each one has caught a bug that every number
+in the build reported as healthy:
+
+| switch | what it answers |
+|---|---|
+| (none) | all 35 hair styles as a contact sheet |
+| `--beards` | the five facial-hair styles |
+| `MORPH=name` | that morph at -1 / 0 / +1 — does the slider move its own feature, in the right direction |
+| `RANDOM=n SPREAD=s` | n randomised faces; found that the hair shells were never morphed at all |
+| `SWEEP=hex,hex,...` | one render per palette entry; found brown eyes with no pupil, deep skin crushed to a silhouette, and olive eyebrows on blondes |
+| `ONLY_PART=skin\|sclera\|iris` | one primitive alone; proved the eye's black cap and that the hair shell was whole |
+| `HAIR_ONLY=1` | the hair shell without the head |
+| `VIEW=w,h,rot,zoom,ty` | size, yaw and a close-up |
+
+**Sweep the palettes after any change to the skin, hair or eye shaders.** The
+default entry of each palette gets looked at constantly and the ends of the
+range almost never, which is exactly where three separate bugs were sitting.
+
+---
+
 ## Known gaps
 
 - **The cloud adapter is unexercised against a real vendor.** It is written to
