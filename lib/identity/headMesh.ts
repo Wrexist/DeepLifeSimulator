@@ -111,14 +111,21 @@ export interface HeadLandmarks {
   chinY: number;
   /** Widest half-width of the skull. */
   headHalfWidth: number;
-  /** How deep the eye socket was carved, so the eyeball can be seated in it. */
-  socketDepth: number;
-  /** Globe radius. The aperture is cut in multiples of it, and `eyePlacement`
+  /** Globe radius. The socket is carved in multiples of it, and `eyePlacement`
    * builds the ball from it — one value, so the hole and the thing showing
    * through it cannot disagree. */
   eyeRadius: number;
-  /** How far the aperture pushes the skin back behind the globe. */
-  apertureCut: number;
+  /**
+   * Centre of the globe, in z.
+   *
+   * The socket is a spherical cap cut around THIS point, so `eyePlacement` reads
+   * it back rather than measuring the finished surface and guessing. That
+   * measurement is what the seating used to be, and it could not work: the skin
+   * over the eye is a consequence of where the globe is, so deriving the globe
+   * from the skin is a loop, and every constant added to break it was right for
+   * one face.
+   */
+  eyeZ: number;
 }
 
 /**
@@ -130,28 +137,119 @@ export interface HeadLandmarks {
  * the iris offset, 0.88 against 0.94 for the pupil), which is small, and is the
  * same way the hair spec table started drifting before it ended up missing
  * twenty-three styles.
+ *
+ * ## These are CURVATURES, not sizes, and reading them as sizes was a bug
+ *
+ * Each shell is a whole sphere buried inside the one behind it, so what shows is
+ * the cap that pokes through — a disc whose radius is the two spheres'
+ * intersection circle, not the inner sphere's radius. `irisRadius: 0.34` at
+ * offset 0.70 produced a visible iris of 0.19 of the globe, and it took fixing
+ * the eye socket to see it: while the eye showed only 0.07 of head width, every
+ * face had a coloured speck for an iris and the speck was blamed on the socket.
+ *
+ * A human iris is 11.7 mm across on a 12 mm globe, so the disc should be about
+ * 0.49. `IRIS_SILHOUETTE` below computes what these values actually give, and
+ * the tests assert against THAT rather than against `irisRadius`.
+ *
+ * The pair below puts the limbus at 0.47 and the corneal apex 0.06 of a radius
+ * in front of the sclera — a real cornea stands proud by rather more, but the
+ * eyelids have to ride over it (see `carveEyeSockets`) and every unit of bulge
+ * is a unit the lids must clear before any white shows.
+ *
+ * ## The protrusions have to beat the tessellation, not just be positive
+ *
+ * Each shell shows only where it breaks the surface of the one behind it, and
+ * both are drawn as faceted spheres — so a shell that clears the one behind it
+ * by less than that sphere's sagitta is eaten by the facets. The first version
+ * of these numbers cleared the iris by 0.01 of a radius against a 20-segment
+ * sagitta of 0.009, and the pupil rendered as two black slivers with iris
+ * showing between them. `EYE_SEGMENTS` and the 0.03 clearance below are one
+ * decision, not two.
  */
 export const EYE_SHELLS = {
-  /** Iris radius, and how far forward of the globe centre it sits. */
-  irisRadius: 0.34,
-  irisOffset: 0.70,
-  /** Pupil radius and offset. */
-  pupilRadius: 0.15,
-  pupilOffset: 0.90,
+  /** Curvature of the corneal cap, and how far forward its centre sits. */
+  irisRadius: 0.71,
+  irisOffset: 0.35,
+  /** The same for the pupil, which pokes through the iris in its turn. */
+  pupilRadius: 0.20,
+  pupilOffset: 0.89,
 } as const;
 
 /**
- * Tessellation. 96x96 is ~9.4k vertices.
+ * Tessellation for the three eye spheres, as [segments, rings].
+ *
+ * Shared for the same reason the proportions are: the eye is assembled in four
+ * places and each had its own literals. Generous, because the limbus and the
+ * pupil are both edges formed by two spheres intersecting — the crispness of
+ * either is set by the coarser of the two, and this is a few hundred triangles
+ * on primitives that are already the smallest thing on screen.
+ */
+export const EYE_SEGMENTS = {
+  globe: [48, 32],
+  iris: [48, 32],
+  pupil: [32, 20],
+} as const;
+
+/**
+ * Radius of the circle where two spheres on the eye's axis meet — the disc the
+ * inner one shows through the outer.
+ */
+function shellDisc(outerR: number, outerZ: number, innerR: number, innerZ: number): number {
+  const z = (outerR * outerR - innerR * innerR + innerZ * innerZ - outerZ * outerZ)
+    / (2 * (innerZ - outerZ));
+  return Math.sqrt(Math.max(0, outerR * outerR - (z - outerZ) ** 2));
+}
+
+/** Visible iris radius, as a fraction of the globe's. A human eye is near 0.49. */
+export const IRIS_SILHOUETTE = shellDisc(1, 0, EYE_SHELLS.irisRadius, EYE_SHELLS.irisOffset);
+
+/** Visible pupil radius, same units. Around 0.12 is a daylight pupil. */
+export const PUPIL_SILHOUETTE = shellDisc(
+  EYE_SHELLS.irisRadius, EYE_SHELLS.irisOffset, EYE_SHELLS.pupilRadius, EYE_SHELLS.pupilOffset,
+);
+
+/**
+ * How far in front of the globe's centre the eye's surface is, `d` from its axis
+ * — in globe radii, both in and out.
+ *
+ * The eye is not a sphere: the cornea stands in front of the sclera over the
+ * iris. The eyelids ride over WHICHEVER is in front, so `carveEyeSockets` cuts
+ * the socket to this profile and not to the sclera alone. Cutting it to the
+ * sclera puts the lid margin, which lands inside the limbus on a relaxed eye,
+ * behind the cornea — and a slice of iris renders on top of the eyelid.
+ *
+ * Exported so the tests measure the eye against the same profile the mesh was
+ * cut to. Measuring against the sclera instead reports the white disappearing
+ * behind the lid at the limbus, which is not the lid line and is not a defect.
+ */
+export function eyeFrontAt(d: number): number {
+  const sclera = Math.sqrt(Math.max(0, 1 - d * d));
+  const { irisRadius, irisOffset } = EYE_SHELLS;
+  const cornea = d < irisRadius
+    ? irisOffset + Math.sqrt(irisRadius * irisRadius - d * d)
+    : 0;
+  return Math.max(sclera, cornea);
+}
+
+/**
+ * Tessellation. 128x128 is ~16.6k vertices.
  *
  * Raised from 64x48 (~3k) while chasing the eye sockets. At 48 rings the grid
  * spacing over the head was 0.037 and the eye opening is 0.05 tall, so the lids
  * were being carved by two rows of vertices — the features were smaller than
  * the mesh could represent, which is also most of why the nose and lips read as
- * soft slabs. This path only runs when the scanned GLB is unavailable and 9.4k
+ * soft slabs.
+ *
+ * Raised again from 96, and this one was measured rather than argued: sweeping
+ * fifteen faces at 96 gave a lid line scattered over 0.10 of a globe radius and
+ * the same sweep at 128 gave 0.05, which is the scatter of the CONSTRUCTION
+ * rather than of the grid. The fissure is about two and a half rows tall at 96,
+ * so half a row of quantisation was most of the variation being read as morph
+ * response. This path only runs when the scanned GLB is unavailable, and 16.6k
  * vertices is still nothing on a phone.
  */
-const SEGMENTS = 96;
-const RINGS = 96;
+const SEGMENTS = 128;
+const RINGS = 128;
 
 /**
  * Base skull proportions. A head is deeper (z) than it is wide (x).
@@ -165,18 +263,90 @@ const RINGS = 96;
 const SKULL = { rx: 0.58, ry: 0.88, rz: 0.90 };
 
 /**
- * How far behind the bowl floor the globe sits, in radii.
+ * The eye socket, in multiples of the globe radius.
  *
- * Zero is the ideal in the algebra — pole exactly at the floor, aperture decides
- * everything — and measurement says otherwise on the faces where the bowl grows
- * more slowly than the globe, which show most of the eye at zero. 0.20 brings
- * all nine test faces into range while leaving every one of them open.
+ * ## Why every one of these is a multiple of the radius
  *
- * That there IS a workable value across the whole morph range is the point of
- * the aperture: before it, the entire usable span of the seating was 0.4 of a
- * socket depth, bare ball at one end and slit at the other.
+ * Because the previous socket was a blob, and a blob and a sphere cannot be made
+ * to agree. The bowl was carved by the same anisotropic falloff as the brow and
+ * the cheeks, the globe was a sphere seated in it, and the eye showed wherever
+ * the ball came through — so the size of the opening was set by the difference
+ * of two curves with nothing in common. It came out at 7% of head width against
+ * a human 20%, and no constant fixed it: past about nine tenths of a radius the
+ * blob falls away more slowly than the sphere does, so the skin overtakes the
+ * globe there whatever the aperture is doing.
+ *
+ * `carveEyeSockets` cuts the socket AS the sphere instead, offset by
+ * `clearance`. The skin then hugs the globe over the whole orbit and the opening
+ * stops being a coincidence of two shapes: it is exactly where the fissure
+ * pushes the skin back further than the clearance holds it forward, which is a
+ * property of the fissure alone. That is why the numbers below can be read as
+ * anatomy — `apY / apX` IS the shape of the palpebral fissure — and why they
+ * hold across every morph and every age instead of being tuned for one face.
  */
-const SEAT_MARGIN = 0.20;
+const SOCKET = {
+  /**
+   * Half-extent of the region that follows the globe. Wider to the outside than
+   * to the inside, because the orbit is: the medial corner sits against the nose
+   * and the lateral one runs back toward the temple. Symmetric radii here put
+   * the medial wall of a close-set pair of eyes on the bridge of the nose.
+   */
+  capLat: 1.75,
+  capMed: 1.30,
+  capY: 0.95,
+  /**
+   * Inside this fraction of the region the skin follows the globe exactly.
+   *
+   * It has to cover the whole fissure, or the aperture's shape stops being what
+   * decides the opening and the face's own curvature creeps back in — which is
+   * the defect this construction exists to remove. 0.62 of 1.75 is 1.09 radii
+   * laterally against a fissure that reaches 0.90, and 0.81 medially against one
+   * that reaches 0.82; the medial corner is the tighter of the two and reads as
+   * the rounder corner, which is also what a caruncle looks like.
+   */
+  capCore: 0.62,
+  /**
+   * How far in front of the globe the closed skin sits, so the ball is hidden.
+   *
+   * Sizeable, and `cut` is sizeable in the same proportion — the eye opens where
+   * `cut` exceeds this, so the RATIO is what sets the lid line and the magnitude
+   * only sets how fast the surfaces separate as you cross it. Both were two
+   * thirds smaller, and the lid line came out ragged with detached flecks of
+   * white beyond the corner: near the globe's silhouette the skin and the ball
+   * are nearly parallel, so a shallow crossing is decided by whichever way the
+   * tessellation happens to wobble. Deepening both moved nothing about the
+   * shape and made the crossing decisive.
+   *
+   * The extra depth costs nothing to look at: inside the fissure the skin is
+   * behind the eyeball, which is opaque.
+   */
+  clearance: 0.105,
+  /**
+   * The palpebral fissure — the almond the skin is pushed back over.
+   *
+   * It sits slightly BELOW the globe's centre. That is what puts the upper lid
+   * margin over the top of the iris and the lower one level with its bottom,
+   * which is where a relaxed human eye's lids are; centred, the lower lid cuts
+   * across the iris instead and the face reads as squinting at everything.
+   *
+   * The height is set AGAINST `IRIS_SILHOUETTE`, not in the abstract. The skin
+   * opens where the cut exceeds the clearance, which is at 0.783 of the almond,
+   * so these put the upper margin at 0.37 of the globe — just over the top of a
+   * 0.47 iris — and the lower at 0.47, level with its bottom.
+   *
+   * `apX` stops the fissure at 0.90 of the radius rather than at the silhouette.
+   * The last tenth is not worth having: there the globe's surface is nearly
+   * edge-on, so the lid line is decided by fractions of a mesh row and renders as
+   * a torn fringe with flecks of white outside the corner. What is lost is a few
+   * per cent of the opening; what is gained is a clean edge on every face.
+   */
+  apX: 1.15,
+  apY: 0.53,
+  apOffsetY: -0.055,
+  /** How far the fissure pushes the skin back. See `clearance`: it is the ratio
+   * of the two that opens the eye, not either one alone. */
+  cut: 0.70,
+} as const;
 
 /** Eyebrow footprint: wide, shallow, and deep enough to wrap the ridge. */
 const BROW_R: Vec3 = [0.17, 0.038, 0.34];
@@ -324,21 +494,26 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const mouthY = -0.36 + mouthHeight * 0.15;
   const chinY = -0.60 - chinLength * 0.14;
   const browY = eyeY + 0.17 + browHeight * 0.09;
-  // Published in the landmarks: `eyePlacement` has to know how deep the bowl is
-  // to seat the ball level with its rim, and re-deriving the expression there
-  // would be a copy that drifts the moment either side is tuned.
-  // Shallower for children, whose orbits are flat. Scaled here rather than left
-  // to `applyAging`, for the same reason the brow ridge is: the morph only moves
-  // the 0.045 term, and an adult-depth socket on a face compressed to 70% is
-  // proportionally half as deep again — it rendered as a dark trench across a
-  // toddler's face.
-  const socketDepth = (0.062 + eyeDepth * 0.060) * (1 - 0.40 * childness);
   // 0.100 -> 0.122. The globe was close to right in isolation — a real one is
-  // about 8.5% of head width and this was 7.6% — but with the aperture widened
-  // to reach its edges, the opening is what sets the apparent size, and a little
-  // more globe brings it to the human proportion.
-  const eyeRadius = 0.122 + eyeSize * 0.038;
-  const apertureCut = eyeRadius * 0.40;
+  // about 8.5% of head width and this was 7.6% — but the OPENING is what sets
+  // the apparent size, and a little more globe brings it to the human proportion
+  // now that the socket lets the whole silhouette show.
+  //
+  // Not scaled for childhood, deliberately. The eye is the one part of the head
+  // that is close to adult size in a small child, so leaving it alone while the
+  // face shrinks around it is what makes a child read as a child rather than as
+  // a shrunken adult.
+  const eyeRadius = 0.128 + eyeSize * 0.040;
+  // How far behind the surrounding face the globe's front pole sits — the
+  // deep-set/prominent axis. In radii, so it means the same thing on every head.
+  //
+  // It does NOT decide how far the eye opens: inside the socket the skin follows
+  // the globe, so moving the globe carries the skin over it by the same amount.
+  // Under the old bowl this one number set both, which is why the faces with
+  // deep-set eyes were the ones that came out with their eyes shut.
+  //
+  // Shallower for children, whose orbits are flat.
+  const eyeInset = eyeRadius * (0.25 + eyeDepth * 0.30) * (1 - 0.35 * childness);
   // Canthal tilt: ±10 degrees over the slider's range, which is about the human
   // range. Precomputed because it is used on every vertex.
   const canthal = centred(m.eyeTilt) * 0.35;
@@ -522,105 +697,9 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // 0.085 term, and the constant it sits beside was age-independent.
       z += (0.050 * (1 - 0.8 * childness) + browProtrusion * 0.085) * browMask;
 
-      // ---- Eye sockets ----------------------------------------------------
-      // Negative displacement. Deeper-set eyes are one of the strongest age
-      // cues, which is why `eyeDepth` climbs in `applyAging`.
-      // THE SOCKET MUST BE SHORTER THAN THE EYEBALL. That is the whole trick,
-      // and getting it wrong fails in both directions.
-      //
-      // At [0.20, 0.13] and 0.160 deep the sockets were 0.40 wide each on a face
-      // 1.1 across, so they met over the bridge and read as one horizontal bar —
-      // every character looked like they were wearing sunglasses. And 0.16 deep
-      // against a 0.098-radius eyeball is a crater half an eye deep: the ball
-      // seated in it vanished, leaving a speck of iris and no white at all.
-      //
-      // Widening the aperture to fix that produced the opposite failure. There
-      // is no eyelid geometry here — the skin is one closed surface — so the
-      // lids are wherever the skin passes in FRONT of the globe. A bowl as tall
-      // as the ball never crosses it, and the eye renders as a full white circle
-      // stuck to the face. Two googly eyes, which is worse than none.
-      //
-      // A half-height of 0.060 against a radius of 0.098 makes the skin cross
-      // the globe about 0.027 above and below centre while staying clear of it
-      // out to 0.065 either side: an opening roughly 2.4 times wider than it is
-      // tall, which is the proportion of a real palpebral fissure.
-      // 0.035/0.020 -> 0.055/0.030. Sweeping every morph for how far it moves
-      // the mesh put `eyeSize` last of all the live ones, at 0.6% of head
-      // height across its whole range: a player could drag it end to end and
-      // see almost nothing, on one of the features people notice most.
-      // THE SOCKET'S HEIGHT IS THE EYE OPENING. That is not obvious and it cost
-      // a round to see: the lids close where the CARVE ends, so the aperture is
-      // bounded by this radius and not by how deep the bowl goes.
-      //
-      // At 0.060 against a 0.096 globe the opening ran to 0.55 of the radius
-      // above centre and 0.35 below — ninety percent of the globe's height, a
-      // bare ball with lids painted at its edges. It looked acceptable in the
-      // software rasteriser at thumbnail size and was unmistakable the first
-      // time the app's own shaders drew it at 3x.
-      //
-      // The z term eats part of the blob's budget too: the skin sits about 0.10
-      // forward of the socket centre against a z radius of 0.26, so d2 starts at
-      // 0.148 and the field reaches zero at 0.92 of the y radius rather than at
-      // it. A real palpebral fissure shows roughly 0.3 of the globe's radius
-      // either side of centre; 0.036 lands there once that is accounted for.
-      // IN RADII, not in absolute units. The bowl used to be sized by its own
-      // constants next to their own `eyeSize` terms, and once the aperture was
-      // widened the bowl became the thing bounding the opening: beyond its edge
-      // the skin is un-carved and stands in front of the globe, so the eye
-      // stayed small however wide the aperture was cut. Expressing it as
-      // multiples of the globe means the socket, the aperture and the ball
-      // cannot get out of proportion with each other — and it removes one more
-      // pair of absolute constants sitting beside a morph term, which is the
-      // shape of half the defects found in this file.
-      const socketR: Vec3 = [eyeRadius * 1.45, eyeRadius * 0.42, 0.26];
-      // Carved 0.018 MEDIAL of the eyeball, not concentric with it. The face
-      // still falls away toward the temple — less than it did, but enough that a
-      // symmetric socket opens asymmetrically: the skin wins further out on the
-      // nose side, so the visible aperture sits lateral of the globe and the
-      // iris ends up pinned against its inner corner. Every character read as
-      // having a lazy eye. Biasing the carve inward deepens the side the skin
-      // was winning on and puts the opening back over the middle of the ball.
-      const socketX = eyeX - 0.018;
-      // Tilted about the eye centre, outer corner up for a positive value. The
-      // sign flips per side so the two eyes mirror rather than both leaning the
-      // same way, which reads as a tilted head.
-      const socketMask =
-        blobRot(x, y, z, [socketX, eyeY, 0.70], socketR, canthalSin, canthalCos) +
-        blobRot(x, y, z, [-socketX, eyeY, 0.70], socketR, -canthalSin, canthalCos);
-      z -= socketDepth * socketMask;
-
-      // ---- Eye APERTURE ---------------------------------------------------
-      //
-      // The socket above is a bowl. A bowl alone cannot make an eye, and that is
-      // what took several rounds to see: the bowl and the globe have nearly the
-      // same curvature, so where the skin crosses the ball depends on the two
-      // matching to within a hair. Measured, the whole usable range of the
-      // seating was 0.4 of the socket depth wide — a bare white ball at one end
-      // and a slit at the other, with no stable regime between. The eye was a
-      // point in parameter space rather than a shape.
-      //
-      // So the lid boundary is now a SHAPE, cut deliberately. The bowl buries
-      // the globe; this pushes the skin back behind it over an almond, and the
-      // edge of that almond is where the lids close. It is 0.32 of a radius tall
-      // against a palpebral fissure of about 0.3, and it tilts with the canthal
-      // angle because the opening is what tilts — a rotated eyeball shows
-      // nothing.
-      //
-      // Curvature no longer enters into it: the cut only has to be deeper than
-      // the globe's drop across the aperture, which is 6% of a radius, and it is
-      // seven times that.
-      // 1.30 radii wide, not 0.95. A palpebral fissure is about 30mm across a
-      // globe 24mm through, so the opening is WIDER than the globe's silhouette
-      // — the corners run onto the skin past it. At 0.95 the aperture stopped
-      // short of the globe's own edge and the eye came out at 6% of head width
-      // against a human 20%: correct in every ratio the tests measure, because
-      // every one of them normalises by the globe's radius, and three times too
-      // small in the only ratio that decides whether it looks like an eye.
-      const apertureR: Vec3 = [eyeRadius * 1.30, eyeRadius * 0.32, 0.30];
-      const aperture =
-        blobRot(x, y, z, [eyeX, eyeY, 0.70], apertureR, canthalSin, canthalCos) +
-        blobRot(x, y, z, [-eyeX, eyeY, 0.70], apertureR, -canthalSin, canthalCos);
-      z -= apertureCut * aperture;
+      // The eye socket is NOT carved here. It is a spherical cap around the
+      // globe, and the globe's depth is measured from the finished face — see
+      // `carveEyeSockets`, which runs over the buffer once this loop is done.
 
       // ---- Nose -----------------------------------------------------------
       // Three fields: the bridge ridge, the tip bulb, and the wings.
@@ -786,6 +865,25 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   }
 
   const indices = buildSphereIndices(RINGS, SEGMENTS);
+
+  // The feature heights move with the surface, or the eyeballs and the hair
+  // shell would be placed on a face that is no longer where they think it is.
+  const toChild = (v: number): number =>
+    childFrame ? childY(v, childFrame, childness) : v;
+
+  // ---- Eye sockets ---------------------------------------------------------
+  // AFTER the childhood transform, not before, so the cap is cut as a true
+  // sphere in the space the eyeball is finally drawn in. Carving first and
+  // scaling after would squash the socket vertically by up to a third — the
+  // face shortens and the globe does not — and a fissure 0.05 tall does not
+  // survive that. It is the only feature here that has to be built in final
+  // coordinates, because it is the only one paired with a rigid body.
+  const eyeXFinal = eyeX * (childFrame ? childXZ(eyeY, childFrame, childness) : 1);
+  const eyeYFinal = toChild(eyeY);
+  const eyeZ = carveEyeSockets(
+    positions, indices, eyeXFinal, eyeYFinal, eyeRadius, eyeInset, canthalSin, canthalCos,
+  );
+
   computeNormals(positions, indices, normals);
 
   // Measured off the finished buffer rather than recomputed from the morphs:
@@ -800,25 +898,123 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     if (ax > halfWidth) halfWidth = ax;
   }
 
-  // The feature heights move with the surface, or the eyeballs and the hair
-  // shell would be placed on a face that is no longer where they think it is.
-  const toChild = (v: number): number =>
-    childFrame ? childY(v, childFrame, childness) : v;
-
   const landmarks: HeadLandmarks = {
     crownY,
-    eyeY: toChild(eyeY),
-    eyeX: eyeX * (childFrame ? childXZ(eyeY, childFrame, childness) : 1),
+    eyeY: eyeYFinal,
+    eyeX: eyeXFinal,
     browY,
     mouthY: toChild(mouthY),
     chinY: toChild(chinY),
     headHalfWidth: halfWidth,
-    socketDepth,
     eyeRadius,
-    apertureCut,
+    eyeZ,
   };
 
   return { positions, normals, indices, landmarks, brow };
+}
+
+/**
+ * Cut both eye sockets into the finished surface, and return the globe's z.
+ *
+ * ## Why this is a second pass and not another field in the vertex loop
+ *
+ * Because the socket has to be cut around the globe, and the globe is placed
+ * against the face. Every other feature here is a displacement of the base
+ * ellipsoid and can be evaluated from the vertex alone; this one needs a
+ * quantity — where the front of the face is at the eye — that does not exist
+ * until every other field has been summed. The old code broke that loop the
+ * other way round, by carving a blob bowl with no knowledge of the globe and
+ * then hunting for a seating depth that made a sphere show through it. There is
+ * no such depth: the bowl and the ball are different curves, and past about nine
+ * tenths of a radius the bowl is always in front.
+ *
+ * ## What it cuts
+ *
+ * Two operations, in this order:
+ *
+ *  1. The CAP. Inside the orbit the skin is moved onto an offset copy of the
+ *     globe — `clearance` in front of it, so the ball is hidden — and released
+ *     back to the face over the rim. There are no eyelids in this mesh; the lid
+ *     IS this surface, and giving it the globe's own curvature is what lets it
+ *     close over the ball at any radius instead of at whatever radius two
+ *     unrelated curves happened to cross.
+ *
+ *  2. The FISSURE. An almond that pushes the skin back past the globe. Where it
+ *     pushes further than `clearance` holds forward, the eye is open; everywhere
+ *     else the skin is in front and the ball is hidden. So the shape of the
+ *     opening is the shape of the almond, clipped by the globe's silhouette —
+ *     and nothing about the face's own curvature is left in it.
+ */
+function carveEyeSockets(
+  positions: Float32Array,
+  indices: Uint32Array,
+  eyeX: number,
+  eyeY: number,
+  radius: number,
+  inset: number,
+  canthalSin: number,
+  canthalCos: number,
+): number {
+  // The one measurement, taken once: where the un-carved face is at the eye.
+  const cz = surfaceZAt(positions, indices, eyeX, eyeY) - inset - radius;
+
+  const clearance = radius * SOCKET.clearance;
+  const capLat = radius * SOCKET.capLat;
+  const capMed = radius * SOCKET.capMed;
+  const capY = radius * SOCKET.capY;
+  const apX = radius * SOCKET.apX;
+  const apY = radius * SOCKET.apY;
+  const apOffsetY = radius * SOCKET.apOffsetY;
+  const cut = radius * SOCKET.cut;
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const z0 = positions[i + 2];
+    // The socket fields are two-dimensional — a sphere is the same from every
+    // direction, so making them 3-D would only tie the carve to the very
+    // surface depth it is setting. This gate is what keeps them off the back of
+    // the skull, which shares the eyes' x and y.
+    const front = smoothstep(0.10, 0.40, z0);
+    if (front <= 0) continue;
+
+    const px = positions[i];
+    const side = px >= 0 ? 1 : -1;
+    const ox = px - side * eyeX;
+    const oy = positions[i + 1] - eyeY;
+    // The canthal tilt mirrors across the midline, so the pair tilts outward
+    // together rather than both leaning the same way.
+    const sin = side * canthalSin;
+    const rx = ox * canthalCos - oy * sin;
+    const ry = ox * sin + oy * canthalCos;
+
+    // Never reach across the midline. At the closest eye spacing the medial wall
+    // would otherwise land on the bridge of the nose and gouge it.
+    const gate = front * smoothstep(0.015, 0.055, Math.abs(px));
+    if (gate <= 0) continue;
+
+    // ---- The cap ---------------------------------------------------------
+    const capX = rx * side >= 0 ? capLat : capMed;
+    const cu = rx / capX;
+    const cv = ry / capY;
+    const cq = cu * cu + cv * cv;
+    if (cq < 1) {
+      const w = smoothstep(1, SOCKET.capCore, Math.sqrt(cq)) * gate;
+      // Unrotated distance: the eye is a solid of revolution, so the tilt does
+      // not reach it. Zero outside the silhouette, where the skin closes behind
+      // the ball.
+      const dome = radius * eyeFrontAt(Math.sqrt(ox * ox + oy * oy) / radius);
+      positions[i + 2] = z0 + (cz + dome + clearance - z0) * w;
+    }
+
+    // ---- The fissure -----------------------------------------------------
+    const au = rx / apX;
+    const av = (ry - apOffsetY) / apY;
+    const aq = au * au + av * av;
+    if (aq < 1) {
+      positions[i + 2] -= cut * (1 - aq) * (1 - aq) * gate;
+    }
+  }
+
+  return cz;
 }
 
 /** Triangle list for a UV sphere grid, skipping the degenerate polar quads. */
@@ -922,44 +1118,21 @@ export function eyePlacement(
   const radius = lm ? lm.eyeRadius : 0.100 + centred(m.eyeSize) * 0.032;
   const tilt = centred(m.eyeTilt) * 0.35;
 
-  // Seat the ball against the socket the skin mesh ACTUALLY carved, rather than
-  // against a hardcoded z.
+  // The globe's depth is READ BACK, not re-derived. `carveEyeSockets` cut the
+  // socket as a sphere around this exact point, so any second computation here
+  // would put the ball somewhere other than the hole made for it.
   //
-  // Two rounds of hand-tuning failed here for the same reason each time: the
-  // socket floor moves whenever anything upstream changes — a skull proportion,
-  // the facial-plane flattening, an eyeDepth morph, an aging pass. A constant
-  // was right for exactly one configuration and wrong for every other, first
-  // protruding the eyes 0.05 in front of the face and then burying them 0.074
-  // behind it. Measuring makes it self-correcting for every morph combination.
-  // Fill the bowl: put the front pole of the globe a whisker inside the RIM,
-  // which is the socket floor plus the depth it was carved to. The globe then
-  // shows through the middle of the bowl and is occluded by the skin as that
-  // skin rises back to the rim — which is what an eyelid is.
-  //
-  // It used to be `floor - radius - 0.004`, which put the front pole behind the
-  // skin by construction: at best the eye was flush. And because the
-  // measurement returned the nearest vertex rather than the front-most one, it
-  // sat 0.062 further back again. No sclera was visible on any face; what
-  // showed was a speck of iris poking through the bottom of the crater, which
-  // is why every character had two small coloured dots instead of eyes.
-  const floor = surfaceZAt(head, x, y);
-  // THE POLE SITS AT THE BOWL FLOOR, and the aperture decides what shows.
-  //
-  // `floor` is the finished surface at the eye centre, which is the un-carved
-  // face less the bowl depth AND less the aperture cut. Adding the cut back puts
-  // the globe's front pole exactly at the bowl's floor level — so outside the
-  // aperture, where the skin is at that level or rising toward the rim, the
-  // globe is always behind it, and inside the aperture, where the skin has been
-  // pushed back, it always shows.
-  //
-  // That is the whole point of cutting an aperture instead of tuning a seating.
-  // The lid boundary is where the cut stops exceeding the globe's drop, which is
-  // a property of the aperture's SHAPE. Seating it against the bowl floor
-  // instead — the previous version — left the boundary to the bowl being deeper
-  // than the globe's curvature, which it was, so the eye showed out to three
-  // quarters of its radius.
-  const cut = head.landmarks?.apertureCut ?? radius * 0.4;
-  const z = floor + cut - radius - radius * SEAT_MARGIN;
+  // This line has been wrong in every other form it has taken. A constant was
+  // right for one face and buried the eyes on the rest. Measuring the finished
+  // surface and stepping back from it was circular — the surface over the eye is
+  // a consequence of where the globe is — and the three approximations of that
+  // measurement (nearest vertex, windowed maximum, windowed minimum) returned
+  // the crater floor, the socket rim and the cheek's slope respectively. The
+  // fallback below is the only case left where nothing measured the head, and it
+  // is only reached if a caller builds a `MeshData` by hand.
+  const z = lm
+    ? lm.eyeZ
+    : surfaceZAt(head.positions, head.indices, x, y) - radius * (1 + SOCKET.cut);
 
   return {
     left: { x, y, z, radius, tilt },
@@ -968,8 +1141,8 @@ export function eyePlacement(
 }
 
 /**
- * The z of the front surface directly above (x, y) — here, the floor of the
- * carved eye socket.
+ * The z of the front surface directly above (x, y) — here, the face at the eye,
+ * measured before the socket is cut into it.
  *
  * ## Why this is a ray cast and not a vertex search
  *
@@ -986,11 +1159,12 @@ export function eyePlacement(
  * There is no window size that fixes this, because the quantity wanted is a
  * value at a POINT and every window turns it into a value over an area. The
  * exact answer costs one pass over the triangles — about the same work as a
- * single vertex's worth of field evaluation in `buildHeadMesh`, twice per head.
+ * single vertex's worth of field evaluation in `buildHeadMesh`, once per head.
+ *
+ * Takes the buffers rather than a `MeshData` because its one real caller runs
+ * mid-build, when there are no landmarks to put in one yet.
  */
-function surfaceZAt(head: MeshData, x: number, y: number): number {
-  const p = head.positions;
-  const ix = head.indices;
+function surfaceZAt(p: Float32Array, ix: Uint32Array, x: number, y: number): number {
   let best = -Infinity;
   for (let t = 0; t < ix.length; t += 3) {
     const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;

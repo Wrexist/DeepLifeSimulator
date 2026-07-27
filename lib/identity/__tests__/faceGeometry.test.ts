@@ -18,6 +18,10 @@ import {
   buildHairMesh,
   buildHeadMesh,
   eyePlacement,
+  eyeFrontAt,
+  EYE_SHELLS,
+  IRIS_SILHOUETTE,
+  PUPIL_SILHOUETTE,
   missingHairSpecs,
   hairSpecFor,
   neutralMorphs,
@@ -60,12 +64,19 @@ function surfaceZAt(mesh: MeshData, x: number, y: number): number {
 /** How far the eyeball shows before the skin closes over it, in radii. */
 function aperture(mesh: MeshData, e: { x: number; y: number; z: number; radius: number }) {
   const visible = (dx: number, dy: number): boolean => {
-    const rr = e.radius ** 2 - dx * dx - dy * dy;
-    return rr > 0 && e.z + Math.sqrt(rr) > surfaceZAt(mesh, e.x + dx, e.y + dy);
+    const d = Math.sqrt(dx * dx + dy * dy);
+    // Against `eyeFrontAt` and not against the sclera alone. The sclera vanishes
+    // behind the cornea at the limbus, which is inside the lid margin on a
+    // relaxed eye — measuring it reports the eye closing where the white ends.
+    return d < e.radius
+      && e.z + e.radius * eyeFrontAt(d / e.radius) > surfaceZAt(mesh, e.x + dx, e.y + dy);
   };
+  // 0.02 rather than 0.05. The lid line is compared against the iris below, and
+  // the two are a twentieth of a radius apart on a relaxed eye — a fifth-of-a-
+  // radius ruler cannot see that at all.
   const edge = (ux: number, uy: number): number => {
     let last = 0;
-    for (let k = 0.05; k <= 1; k += 0.05) {
+    for (let k = 0.02; k < 1; k += 0.02) {
       if (!visible(e.radius * k * ux, e.radius * k * uy)) break;
       last = k;
     }
@@ -162,10 +173,28 @@ describe('the silhouette has a jaw', () => {
   const lm = head.landmarks!;
   const face = lm.browY - lm.chinY;
 
+  /**
+   * Widest half-width where the plane y = `y` cuts the SURFACE, by intersecting
+   * the edges — not the widest vertex within a band of it.
+   *
+   * The band version measured the grid. Its answer moved with the band (0.37 at
+   * ±0.03, 0.24 at ±0.015, 0.42 at ±0.008 for the ratio below) and with the
+   * tessellation, because a max over a band is the widest point ANYWHERE in
+   * that band and where the rows fall inside it decides which point that is.
+   * Raising the mesh from 96 rings to 128 moved this test from passing to
+   * failing without the head changing shape at all.
+   */
   const halfWidthAt = (y: number): number => {
+    const p = head.positions, ix = head.indices;
     let w = 0;
-    for (let i = 0; i < head.positions.length; i += 3) {
-      if (Math.abs(head.positions[i + 1] - y) < 0.03) w = Math.max(w, Math.abs(head.positions[i]));
+    for (let t = 0; t < ix.length; t += 3) {
+      for (let k = 0; k < 3; k++) {
+        const a = ix[t + k] * 3, b = ix[t + ((k + 1) % 3)] * 3;
+        const ya = p[a + 1], yb = p[b + 1];
+        if ((ya < y) === (yb < y)) continue;
+        const s = (y - ya) / (yb - ya);
+        w = Math.max(w, Math.abs(p[a] + (p[b] - p[a]) * s));
+      }
     }
     return w;
   };
@@ -426,6 +455,13 @@ describe('eye seating', () => {
   // as the ball, and nothing ever crosses it: a white sphere stuck to a cheek.
   //
   // Both look fine in the numbers. The aperture is the thing to assert.
+  //
+  // The socket is now cut as a copy of the globe rather than as a blob bowl, so
+  // there is a third thing to assert and it is the one that makes the other two
+  // stable: that the closed skin HUGS the ball. While it bridged over it, the
+  // opening was where two unrelated curves crossed, every bound below was
+  // satisfiable by a face nobody would recognise, and the size test failed at
+  // three times over.
   const cases: [string, ReturnType<typeof randomizeFace>][] = [
     ['neutral', neutral],
     ...[0, 1, 2, 3, 4, 5].map(
@@ -457,8 +493,9 @@ describe('eye seating', () => {
     const head = buildHeadMesh(g, { age: 30 });
     const e = eyePlacement(head, g, 30).left;
     const visible = (dx: number): boolean => {
-      const rr = e.radius ** 2 - dx * dx;
-      return rr > 0 && e.z + Math.sqrt(rr) > surfaceZAt(head, e.x + dx, e.y);
+      const d = Math.abs(dx);
+      return d < e.radius
+        && e.z + e.radius * eyeFrontAt(d / e.radius) > surfaceZAt(head, e.x + dx, e.y);
     };
     const edge = (u: number): number => {
       let last = 0;
@@ -473,7 +510,73 @@ describe('eye seating', () => {
       halfWidth = Math.max(halfWidth, Math.abs(head.positions[i]));
     }
     const opening = (edge(1) + edge(-1)) * e.radius;
-    expect(opening / (halfWidth * 2)).toBeGreaterThan(0.068);
+    // Bounded on BOTH sides. A human eye opening is about 0.20 of head width;
+    // this was 0.073 with a floor of 0.068 under it, which is a floor placed
+    // under the defect rather than above it. A ceiling matters just as much:
+    // the failure at the other end is a lidless stare, and it is the one the
+    // aperture bounds below cannot see because they are all in radii.
+    expect(opening / (halfWidth * 2)).toBeGreaterThan(0.150);
+    expect(opening / (halfWidth * 2)).toBeLessThan(0.240);
+  });
+
+  it('closes the skin onto the globe rather than across it', () => {
+    // THE CONSTRUCTION, asserted directly.
+    //
+    // Above and below the fissure the skin has to lie just in FRONT of the ball
+    // — following it, not bridging over it. That is what makes the opening a
+    // property of the fissure's shape alone, and therefore the same on every
+    // face; while the socket was a blob the skin stood a third of a radius
+    // proud of the globe at the edges of the orbit, so the lid line was wherever
+    // a bowl and a sphere happened to cross and no aperture could move it.
+    const head = buildHeadMesh(neutral, { age: 30 });
+    const e = eyePlacement(head, neutral, 30).left;
+    // A sunflower spiral over the eye's disc, so the samples are spread evenly
+    // rather than sitting on a ring chosen to miss the fissure. Which of them
+    // are lid and which are opening is decided by MEASURING, not by a band
+    // written to match the constants under test.
+    //
+    // Out to 0.72 of a radius and no further, which is a claim about anatomy
+    // and not a fudge: past there the surface is climbing to the orbital rim,
+    // and the top of the globe genuinely does sit deep behind the brow. What
+    // has to hug the ball is the lid, and the lid runs from the margin — 0.36
+    // above the axis and 0.48 below — out to about here.
+    const N = 240;
+    const closed: number[] = [];
+    for (let i = 0; i < N; i++) {
+      const a = i * 2.39996;
+      const d = e.radius * 0.72 * Math.sqrt((i + 0.5) / N);
+      const front = e.z + e.radius * eyeFrontAt(d / e.radius);
+      const skin = surfaceZAt(head, e.x + d * Math.cos(a), e.y + d * Math.sin(a));
+      if (front > skin) continue; // open here: this sample is the fissure
+      closed.push(skin - front);
+    }
+    // A third of the samples are lid, which is enough to be worth asserting.
+    expect(closed.length).toBeGreaterThan(60);
+    // Closed ON the ball rather than bridged over it. The blob bowl stood a
+    // third of a radius proud of the globe at the edges of the orbit, which is
+    // what made the lid line a coincidence of two curves.
+    for (const gap of closed) expect(gap).toBeLessThan(e.radius * 0.40);
+  });
+
+  it('shows an iris and a pupil of human size', () => {
+    // The shells are CURVATURES: each is a whole sphere buried in the one behind
+    // it, so what shows is the cap that pokes through. Read as sizes they gave
+    // an iris of 0.19 of the globe against a human 0.49, and every rendered face
+    // had a coloured speck in a field of white.
+    //
+    // Pure geometry, so this needs no mesh — which is the point. Nothing else
+    // here could have caught it: the socket tests measure where the skin closes,
+    // and the skin closed in exactly the right place over a dot.
+    expect(IRIS_SILHOUETTE).toBeGreaterThan(0.44);
+    expect(IRIS_SILHOUETTE).toBeLessThan(0.54);
+    // A daylight pupil is 3-4 mm across on a 24 mm globe.
+    expect(PUPIL_SILHOUETTE).toBeGreaterThan(0.08);
+    expect(PUPIL_SILHOUETTE).toBeLessThan(0.20);
+    // And each shell has to actually break the surface of the one behind it, or
+    // it is invisible however well proportioned it is.
+    expect(eyeFrontAt(0)).toBeGreaterThan(1);
+    expect(EYE_SHELLS.pupilOffset + EYE_SHELLS.pupilRadius)
+      .toBeGreaterThan(EYE_SHELLS.irisOffset + EYE_SHELLS.irisRadius);
   });
 
   it.each(aged)('opens as an almond on %s', (_name, g, age) => {
@@ -481,19 +584,48 @@ describe('eye seating', () => {
     const a = aperture(head, eyePlacement(head, g, age).left);
 
     expect(a.centre).toBe(true);
-    // Open enough to read as an eye rather than a pinhole...
-    expect(a.up + a.down).toBeGreaterThan(0.12);
-    // ...and closed by the skin well inside the globe, or it is a bare ball.
+    // Closed by the skin well inside the globe, or it is a bare ball.
     //
     // These were 0.7, which is not a bound at all: 0.7 of the radius either side
     // of centre is most of the sphere. The test passed on an eyeball standing
     // proud of the face with lids only at its edges, and it took rendering the
     // head with the app's OWN shaders to see that — at thumbnail size in the
-    // software rasteriser it looked fine. A palpebral fissure shows roughly 0.3
-    // of the globe's radius above centre and rather less below.
-    expect(a.up).toBeLessThan(0.42);
-    expect(a.down).toBeLessThan(0.30);
+    // software rasteriser it looked fine.
+    expect(a.up).toBeLessThan(0.46);
+    expect(a.down).toBeLessThan(0.58);
+    // And bounded below one lid at a time rather than as a sum, which a squint
+    // that opens on one lid only can satisfy.
+    expect(a.up).toBeGreaterThan(0.28);
+    expect(a.down).toBeGreaterThan(0.38);
+
+    // WHERE THE LIDS SIT AGAINST THE IRIS, which is the arrangement that makes
+    // an eye read as relaxed. The upper lid rests over the top of the iris and
+    // the lower one sits level with its bottom; a fissure centred on the globe
+    // instead puts the lower lid across the iris and every face squints.
+    //
+    // Both bounds carry a mesh row of tolerance, deliberately stated: at this
+    // tessellation the lid line resolves to about 0.03 of a radius, and a
+    // tighter claim would be asserting precision the surface does not have.
+    expect(a.up).toBeLessThan(IRIS_SILHOUETTE);
+    expect(a.down).toBeGreaterThan(IRIS_SILHOUETTE - 0.06);
+    expect(a.down).toBeGreaterThan(a.up);
+
+    // Out to most of the globe's silhouette sideways: the fissure is what should
+    // stop the eye, and sideways it should not stop before the ball ends.
+    expect(a.lateral).toBeGreaterThan(0.80);
+    expect(a.medial).toBeGreaterThan(0.72);
     // Wider than tall, which is what makes it an eye shape and not a circle.
-    expect((a.lateral + a.medial) / (a.up + a.down)).toBeGreaterThan(1.15);
+    // This was bounded at 1.15, which admits a keyhole.
+    //
+    // A human palpebral fissure is about 3:1, and this cannot reach that: the
+    // 30 mm figure is measured canthus to canthus, and the canthi are on the
+    // FACE, lateral to a globe only 24 mm across. What is measured here is the
+    // eyeball's exposed disc, which the silhouette caps at 2:1 by width and the
+    // lids cut to about 0.85 by height. The corners past the globe are carved
+    // — the orbit runs out to 1.75 radii — but there is no eye behind them to
+    // measure, so they are seen and not counted.
+    const ratio = (a.lateral + a.medial) / (a.up + a.down);
+    expect(ratio).toBeGreaterThan(1.85);
+    expect(ratio).toBeLessThan(2.6);
   });
 });

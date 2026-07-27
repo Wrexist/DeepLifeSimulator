@@ -34,6 +34,7 @@ import {
   HAIR_COLORS,
   EYE_COLORS,
   EYE_SHELLS,
+  EYE_SEGMENTS,
   HAIR_STYLES,
   type MeshData,
   type FaceGenome,
@@ -240,8 +241,8 @@ function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number,
   const draws: Draw[] = [{ mesh: head, color: skin, spec: 0.10, brow: browC }];
   for (const e of [eyes.left, eyes.right]) {
     draws.push({ mesh: sphereMesh(e.x, e.y, e.z, e.radius), color: [242, 242, 240], spec: 0.5 });
-    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset, e.radius * EYE_SHELLS.irisRadius), color: eyeC, spec: 0.6 });
-    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset, e.radius * EYE_SHELLS.pupilRadius), color: [12, 12, 14], spec: 0.7 });
+    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset, e.radius * EYE_SHELLS.irisRadius, EYE_SEGMENTS.iris[0]), color: eyeC, spec: 0.6 });
+    draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset, e.radius * EYE_SHELLS.pupilRadius, EYE_SEGMENTS.pupil[0]), color: [12, 12, 14], spec: 0.7 });
   }
   if (beard) draws.push({ mesh: beard, color: hairC.map((c) => c * 0.55) as [number, number, number], spec: 0.05, base: skin });
   if (hair) draws.push({ mesh: hair, color: hairC, spec: 0.2, base: skin });

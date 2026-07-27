@@ -32,6 +32,7 @@ import {
   childnessAt,
   EYE_COLORS,
   EYE_SHELLS,
+  EYE_SEGMENTS,
   HAIR_COLORS,
   HAIR_SPEC,
   SKIN_TONES,
@@ -1143,13 +1144,16 @@ export function createFaceScene(
       color: 0x0a0a0c, roughness: 0.06, envMapIntensity: 2.0,
     }));
     for (const e of [eyes.left, eyes.right]) {
-      const ball = new THREE.Mesh(track(new THREE.SphereGeometry(e.radius, 24, 18)), scleraMat);
+      const ball = new THREE.Mesh(
+        track(new THREE.SphereGeometry(e.radius, ...EYE_SEGMENTS.globe)), scleraMat);
       ball.position.set(e.x, e.y, e.z);
       const irisMesh = new THREE.Mesh(
-        track(new THREE.SphereGeometry(e.radius * EYE_SHELLS.irisRadius, 20, 14)), irisMat);
+        track(new THREE.SphereGeometry(
+          e.radius * EYE_SHELLS.irisRadius, ...EYE_SEGMENTS.iris)), irisMat);
       irisMesh.position.set(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset);
       const pupil = new THREE.Mesh(
-        track(new THREE.SphereGeometry(e.radius * EYE_SHELLS.pupilRadius, 14, 10)), pupilMat);
+        track(new THREE.SphereGeometry(
+          e.radius * EYE_SHELLS.pupilRadius, ...EYE_SEGMENTS.pupil)), pupilMat);
       pupil.position.set(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset);
       holder.add(ball, irisMesh, pupil);
       eyeMeshes.push(ball, irisMesh, pupil);

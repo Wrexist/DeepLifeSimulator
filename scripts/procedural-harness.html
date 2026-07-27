@@ -97,11 +97,13 @@ window.__setHead = (d) => {
     const white = new THREE.MeshStandardMaterial({ color: 0xe8e6e2, roughness: 0.18, envMapIntensity: 0.9 });
     const irisM = new THREE.MeshStandardMaterial({ color: new THREE.Color(d.eyeColor), roughness: 0.10, envMapIntensity: 1.9 });
     const pupilM = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.06, envMapIntensity: 2.0 });
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(e.radius, 24, 18), white);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(e.radius, ...d.segments.globe), white);
     ball.position.set(e.x, e.y, e.z);
-    const iris = new THREE.Mesh(new THREE.SphereGeometry(e.radius * d.shells.irisRadius, 20, 14), irisM);
+    const iris = new THREE.Mesh(
+      new THREE.SphereGeometry(e.radius * d.shells.irisRadius, ...d.segments.iris), irisM);
     iris.position.set(e.x, e.y, e.z + e.radius * d.shells.irisOffset);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(e.radius * d.shells.pupilRadius, 14, 10), pupilM);
+    const pupil = new THREE.Mesh(
+      new THREE.SphereGeometry(e.radius * d.shells.pupilRadius, ...d.segments.pupil), pupilM);
     pupil.position.set(e.x, e.y, e.z + e.radius * d.shells.pupilOffset);
     holder.add(ball, iris, pupil);
   }

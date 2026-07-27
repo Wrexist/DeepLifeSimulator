@@ -171,6 +171,7 @@ async function main() {
         eyeColor: types.EYE_COLORS[aged.eyeColor],
         blemish: aged.blemishes,
         shells: { ...head.EYE_SHELLS },
+        segments: { ...head.EYE_SEGMENTS },
         eyes: [eyes.left, eyes.right].map((e) => ({ x: e.x, y: e.y, z: e.z, radius: e.radius })),
         hair: hairMesh ? {
           positions: Array.from(hairMesh.positions), normals: Array.from(hairMesh.normals),
