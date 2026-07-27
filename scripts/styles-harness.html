@@ -108,9 +108,27 @@ const headMin = new THREE.Vector3().copy(gb.min);
 const headSize = new THREE.Vector3().subVectors(gb.max, gb.min);
 const geomExtent = Math.max(headSize.x, headSize.y, headSize.z) || 1;
 
+/**
+ * Make a shell mesh move with the head.
+ *
+ * three builds a fresh `morphTargetDictionary` for every mesh out of the
+ * geometry's morph attributes, and those carry no names — so a hand-built mesh
+ * over shared geometry gets the keys '0', '1', '2'. Every lookup by morph name
+ * returns undefined and the shell sits frozen in the neutral pose while the
+ * face moves under it. Sharing the influences ARRAY leaves nothing to keep in
+ * sync; the same geometry means the same target order by construction.
+ */
+function shareMorphs(source, shell) {
+  shell.morphTargetDictionary = source.morphTargetDictionary;
+  shell.morphTargetInfluences = source.morphTargetInfluences;
+}
+
 // ---------------------------------------------------------------- hair -----
+const headCentre = new THREE.Vector3().addVectors(gb.min, gb.max).multiplyScalar(0.5);
+
 const HU = {
   uThickness: { value: 0.2 }, uLow: { value: 0.3 },
+  uHeadCentre: { value: headCentre },
   uBase: { value: 1 }, uFront: { value: 0 }, uSide: { value: 0 }, uBack: { value: 0 },
   uStrip: { value: 0 }, uStripW: { value: 0.2 }, uFrizz: { value: 0 },
   uFade: { value: 0 }, uFadeY: { value: 0.6 },
@@ -128,7 +146,9 @@ varying vec3 vHairP;
 uniform float uThickness, uLow, uBase, uFront, uSide, uBack, uStrip, uStripW, uFrizz;
 uniform float uFade, uFadeY, uPart, uPartX, uWave, uRows;
 uniform vec2 uLift;
-uniform vec3 uHeadMin, uHeadSize;
+uniform vec3 uHeadMin, uHeadSize, uHeadCentre;
+vec3 vHairDir;
+float vHairAmt;
 float hnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 6.1) * sin(p.y * 5.3) * sin(p.z * 4.7); }
 `;
 const HAIR_VERT_BODY = `
@@ -200,8 +220,30 @@ const HAIR_VERT_BODY = `
   // pushed up and forward at the front. Offsetting purely along the normal can
   // only ever inflate the skull, which is why every "voluminous" style used to
   // come out as a bigger helmet.
-  vec3 dir = normalize(normalize(objectNormal) + vec3(0.0, uLift.y, uLift.x) * wFront * 1.4);
-  transformed += dir * uThickness * amt;
+  //
+  // The offset itself is applied AFTER the morphs — see HAIR_VERT_OFFSET.
+  vHairDir = normalize(normalize(objectNormal) + vec3(0.0, uLift.y, uLift.x) * wFront * 1.4);
+  vHairAmt = amt;
+`;
+
+/**
+ * The offset, applied after `morphtarget_vertex`.
+ *
+ * `begin_vertex` runs BEFORE the morphs, and the NORMAL attribute carries no
+ * morph deltas, so pushing the shell out there offsets it along the neutral
+ * pose's normal and lets the morph rotate the surface out from under it. Rail
+ * a few sliders and the skin punches through the hair in patches — rendering
+ * the shell on its own showed it whole, which is what proves it is penetration
+ * and not a hole in the coverage.
+ *
+ * A radial direction from the head centre is computed from the MORPHED position
+ * and therefore follows the head. On a skull, convex nearly everywhere hair
+ * grows, radial closely approximates the normal; keeping 40% of the real normal
+ * preserves the silhouette detail that radial alone would flatten.
+ */
+const HAIR_VERT_OFFSET = `
+  vec3 hRadial = normalize(transformed - uHeadCentre);
+  transformed += normalize(mix(vHairDir, hRadial, 0.6)) * uThickness * vHairAmt;
 `;
 
 const hairMat = new THREE.MeshStandardMaterial({
@@ -231,7 +273,8 @@ hairMat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, HU);
   sh.vertexShader = sh.vertexShader
     .replace('#include <common>', '#include <common>' + HAIR_VERT_HEAD)
-    .replace('#include <begin_vertex>', '#include <begin_vertex>' + HAIR_VERT_BODY);
+    .replace('#include <begin_vertex>', '#include <begin_vertex>' + HAIR_VERT_BODY)
+    .replace('#include <morphtarget_vertex>', '#include <morphtarget_vertex>' + HAIR_VERT_OFFSET);
   sh.fragmentShader = sh.fragmentShader
     .replace('#include <common>', '#include <common>\nvarying float vAmt;\nvarying float vCov;\nvarying vec3 vHairP;')
     .replace('#include <color_fragment>', '#include <color_fragment>\n' +
@@ -261,6 +304,7 @@ const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
 // Drawn after the skin. The shell is strictly outside it, so back-to-front is
 // simply skin-then-hair and no per-triangle sorting is needed.
 hair.renderOrder = 1;
+shareMorphs(parts.skin, hair);
 parts.skin.parent.add(hair);
 
 /**
@@ -342,6 +386,7 @@ window.__setHair = (name) => {
 // -------------------------------------------------------------- beard ------
 const BU = {
   uThickness: { value: 0.02 },
+  uHeadCentre: { value: headCentre },
   uMix: { value: new THREE.Vector3(1, 1, 1) },
   uFrizz: { value: 0.2 },
 };
@@ -357,7 +402,9 @@ beardMat.onBeforeCompile = (sh) => {
 attribute vec3 _beard;
 varying float vAmt;
 uniform float uThickness, uFrizz;
-uniform vec3 uMix;
+uniform vec3 uMix, uHeadCentre;
+vec3 vBeardDir;
+float vBeardAmt;
 float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin(p.z * 11.0); }`)
     .replace('#include <begin_vertex>', `#include <begin_vertex>
   // Three baked weights — moustache, chin, jaw — selected by uMix. The five
@@ -365,7 +412,12 @@ float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin
   float amt = clamp(dot(_beard, uMix), 0.0, 1.0);
   amt *= 1.0 + uFrizz * (bnoise(position * 3.0) - 0.5);
   vAmt = amt;
-  transformed += normalize(objectNormal) * uThickness * amt;`);
+  vBeardDir = normalize(objectNormal);
+  vBeardAmt = amt;`)
+    // After the morphs, for the reason given on the hair shell.
+    .replace('#include <morphtarget_vertex>', `#include <morphtarget_vertex>
+  vec3 bRadial = normalize(transformed - uHeadCentre);
+  transformed += normalize(mix(vBeardDir, bRadial, 0.45)) * uThickness * vBeardAmt;`);
   sh.fragmentShader = sh.fragmentShader
     .replace('#include <common>', '#include <common>\nvarying float vAmt;')
     .replace('#include <color_fragment>', '#include <color_fragment>\n' +
@@ -375,6 +427,7 @@ float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin
 };
 const beard = new THREE.Mesh(parts.skin.geometry, beardMat);
 beard.renderOrder = 1;
+shareMorphs(parts.skin, beard);
 parts.skin.parent.add(beard);
 
 const BEARD = {
@@ -487,6 +540,40 @@ window.__onlyPart = (name) => {
   renderer.render(scene, camera);
 };
 
+/**
+ * A randomised face, driven exactly as the app drives one.
+ *
+ * Deterministic per seed, so a face worth arguing about can be looked at twice.
+ * The distribution is normal-ish rather than uniform: this is a PCA space, and
+ * uniform coefficients spend most of their time in its corners — faces a real
+ * skull could produce, but not ones anybody would call ordinary.
+ *
+ * The values are drawn ONCE and then written to every primitive, because
+ * drawing per mesh would give the skin one face, the eyes another and the hair
+ * a third.
+ */
+window.__randomFace = (seed, spread = 1) => {
+  let state = ((seed + 1) * 2654435761) % 4294967296;
+  const rnd = () => { state = (state * 1103515245 + 12345) % 2147483648; return state / 2147483648; };
+  // Sum of three uniforms: approximately normal, and bounded, so no draw ever
+  // lands outside the rails and gets silently clamped into a duplicate face.
+  const gauss = () => ((rnd() + rnd() + rnd() - 1.5) / 1.5) * spread;
+
+  const names = window.__morphNames ?? [];
+  const values = new Map(names.map((n) => [n, Math.max(-1, Math.min(1, gauss()))]));
+  for (const mesh of [parts.skin, parts.sclera, parts.iris, hair, beard]) {
+    const dict = mesh?.morphTargetDictionary;
+    const inf = mesh?.morphTargetInfluences;
+    if (!dict || !inf) continue;
+    inf.fill(0);
+    for (const [name, value] of values) {
+      const i = dict[name];
+      if (i !== undefined) inf[i] = value;
+    }
+  }
+  renderer.render(scene, camera);
+};
+
 window.__morphNames = parts.skin.morphTargetDictionary
   ? Object.keys(parts.skin.morphTargetDictionary)
   : [];
@@ -501,6 +588,13 @@ window.__setMorph = (name, value) => {
   }
   renderer.render(scene, camera);
 };
+
+window.__probeMorphs = () => ({
+  skinDict: Object.keys(parts.skin.morphTargetDictionary ?? {}).slice(0, 4),
+  hairDict: Object.keys(hair.morphTargetDictionary ?? {}).slice(0, 4),
+  hairInfluences: hair.morphTargetInfluences?.length ?? null,
+  skinInfluences: parts.skin.morphTargetInfluences?.length ?? null,
+});
 
 window.__probe = () => {
   const g = parts.skin.geometry;

@@ -231,7 +231,13 @@ if (parts.skin && parts.skin.geometry.getAttribute('_scalp')) {
         // fade the rest so the hairline is soft rather than a hard cap edge.
         'if (vScalp < uLow) discard;\\ngl_FragColor.a *= smoothstep(uLow, uLow + 0.22, vScalp);');
   };
+  // Shells share the skin's influences ARRAY. three keys a fresh mesh's
+  // morphTargetDictionary by index ('0','1',...) because geometry morph
+  // attributes carry no names, so every lookup by morph name misses and the
+  // shell freezes in the neutral pose while the face moves under it.
   hairMesh = new THREE.Mesh(parts.skin.geometry, hairMat);
+  hairMesh.morphTargetDictionary = parts.skin.morphTargetDictionary;
+  hairMesh.morphTargetInfluences = parts.skin.morphTargetInfluences;
   parts.skin.parent.add(hairMesh);
   allMeshes.push(hairMesh);
 }

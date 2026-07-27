@@ -82,6 +82,30 @@ async function main() {
     await browser.close(); server.close(); process.exit(1);
   }
 
+  if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
+  // ONLY_PART=sclera|iris|skin isolates one primitive.
+  if (process.env.ONLY_PART) {
+    await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
+  }
+
+  // RANDOM=n renders n randomised faces. The randomiser spans 24 axes and
+  // "still looks like a person" is not a property any assertion can check — the
+  // basis guarantees every face is ON the manifold, not that every corner of it
+  // is one you would want to be handed.
+  if (process.env.RANDOM) {
+    const count = Number(process.env.RANDOM) || 8;
+    const spread = Number(process.env.SPREAD ?? 1);
+    const shots = [];
+    for (let i = 0; i < count; i++) {
+      await page.evaluate(([seed, sp]) => window.__randomFace(seed, sp), [i, spread]);
+      shots.push({ name: `#${i}`, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(4, count), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
   // MORPH=name renders that morph at -1 / 0 / +1 instead of the style sheet.
   // Numbers say a derived axis moved its own measurement; only a picture says it
   // moved the right part of the face, which is the whole reason this exists.
@@ -109,11 +133,6 @@ async function main() {
   }
   console.log(`${names.length} ${beards ? 'facial-hair' : 'hair'} styles`);
 
-  if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
-  // ONLY_PART=sclera|iris|skin isolates one primitive.
-  if (process.env.ONLY_PART) {
-    await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
-  }
   const shots = [];
   for (const name of names) {
     await page.evaluate(([n, b]) => (b ? window.__setBeard(n) : window.__setHair(n)), [name, beards]);

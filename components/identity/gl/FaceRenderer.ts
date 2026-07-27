@@ -293,11 +293,13 @@ export function createFaceScene(
     uLift: { value: new THREE.Vector2(0, 0) },
     uHeadMin: { value: new THREE.Vector3() },
     uHeadSize: { value: new THREE.Vector3(1, 1, 1) },
+    uHeadCentre: { value: new THREE.Vector3() },
   };
   const assetBeardUniforms = {
     uThickness: { value: 0.02 },
     uMix: { value: new THREE.Vector3(1, 1, 1) },
     uFrizz: { value: 0.2 },
+    uHeadCentre: { value: new THREE.Vector3() },
   };
   let assetBeard: THREE.Mesh | null = null;
   let assetHair: THREE.Mesh | null = null;
@@ -395,6 +397,33 @@ export function createFaceScene(
           .set(hairHex).multiplyScalar(0.72);
       }
     }
+  }
+
+  /**
+   * Make a shell mesh move with the head.
+   *
+   * THIS IS NOT OPTIONAL AND IT IS NOT OBVIOUS. The hair and beard are separate
+   * `THREE.Mesh`es over the SAME geometry, and three builds a fresh
+   * `morphTargetDictionary` for every mesh from the geometry's morph attributes
+   * — which carry no names, so the keys come out `'0'`, `'1'`, `'2'`. Every
+   * caller here looks a morph up by NAME, every lookup returned `undefined`, and
+   * the shells sat frozen in the neutral pose while the face moved underneath
+   * them. Rail a few sliders and the skin punches out through the hair in
+   * patches; the shell rendered on its own is whole, which is what proves the
+   * hole is not in the coverage.
+   *
+   * Nothing failed. The comment two paragraphs up said the shells "inherit all
+   * the morph targets and follow the face", the meshes had the right number of
+   * influences, and the numbers were all zero.
+   *
+   * Sharing the ARRAY, rather than copying the dictionary, is what makes the
+   * desync impossible rather than merely fixed: there is no second place to
+   * write, so there is nothing left to keep in sync. Same geometry means the
+   * same target order by construction.
+   */
+  function shareMorphs(source: THREE.Mesh, shell: THREE.Mesh): void {
+    shell.morphTargetDictionary = source.morphTargetDictionary;
+    shell.morphTargetInfluences = source.morphTargetInfluences;
   }
 
   function adoptAsset(asset: HeadAsset, textures: SkinTextures): void {
@@ -553,6 +582,8 @@ export function createFaceScene(
       assetGeomExtent = Math.max(gb.max.x - gb.min.x, gb.max.y - gb.min.y, gb.max.z - gb.min.z) || 1;
       assetHairUniforms.uHeadMin.value.copy(gb.min);
       assetHairUniforms.uHeadSize.value.subVectors(gb.max, gb.min);
+      gb.getCenter(assetHairUniforms.uHeadCentre.value);
+      assetBeardUniforms.uHeadCentre.value.copy(assetHairUniforms.uHeadCentre.value);
     }
 
     if (asset.parts.skin?.geometry.getAttribute('_scalp')) {
@@ -584,10 +615,11 @@ export function createFaceScene(
           .replace('#include <common>', '#include <common>\n' +
             'attribute float _scalp;\nvarying float vAmt;\nvarying float vCov;\n' +
             'varying vec3 vHairP;\n' +
+            'vec3 vHairDir;\nfloat vHairAmt;\n' +
             'uniform float uThickness, uLow, uBase, uFront, uSide, uBack, uStrip, uStripW, uFrizz;\n' +
             'uniform float uFade, uFadeY, uPart, uPartX, uWave, uRows;\n' +
             'uniform vec2 uLift;\n' +
-            'uniform vec3 uHeadMin, uHeadSize;\n' +
+            'uniform vec3 uHeadMin, uHeadSize, uHeadCentre;\n' +
             // Smooth in SPACE. A per-vertex hash makes neighbours diverge, which
             // tears the shell into shards at any real thickness.
             'float hnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x*6.1) * sin(p.y*5.3) * sin(p.z*4.7); }')
@@ -647,9 +679,27 @@ export function createFaceScene(
             // same mass pushed up and forward at the front; offsetting purely
             // along the normal can only inflate the skull, which is why every
             // "voluminous" style used to come out as a bigger helmet.
-            'vec3 hdir = normalize(normalize(objectNormal)\n' +
-            '          + vec3(0.0, uLift.y, uLift.x) * wFront * 1.4);\n' +
-            'transformed += hdir * uThickness * amt;');
+            'vHairDir = normalize(normalize(objectNormal)\n' +
+            '         + vec3(0.0, uLift.y, uLift.x) * wFront * 1.4);\n' +
+            'vHairAmt = amt;')
+          // THE OFFSET GOES ON AFTER THE MORPHS, NOT BEFORE.
+          //
+          // `begin_vertex` runs before `morphtarget_vertex`, and the NORMAL
+          // attribute carries no morph deltas — so pushing the shell out there
+          // offsets along the neutral pose's normal and lets the morph rotate
+          // the surface out from under it. Rail a few sliders and the skin
+          // punches through the hair in patches: rendering the shell alone
+          // showed it whole, which is what proves it is penetration and not a
+          // hole in the coverage.
+          //
+          // Blending in a RADIAL direction from the head centre fixes the
+          // direction, because it is computed from the morphed position and so
+          // follows the head. On a skull — convex almost everywhere hair grows —
+          // radial is a good approximation of the normal, and keeping 40% of the
+          // real normal preserves the silhouette detail radial alone would flatten.
+          .replace('#include <morphtarget_vertex>', '#include <morphtarget_vertex>\n' +
+            'vec3 hRadial = normalize(transformed - uHeadCentre);\n' +
+            'transformed += normalize(mix(vHairDir, hRadial, 0.6)) * uThickness * vHairAmt;');
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', '#include <common>\n' +
             'varying float vAmt;\nvarying float vCov;\nvarying vec3 vHairP;')
@@ -677,8 +727,8 @@ export function createFaceScene(
       // Drawn after the skin; the shell is strictly outside it, so back-to-front
       // is simply skin-then-hair and no per-triangle sorting is needed.
       assetHair.renderOrder = 1;
+      shareMorphs(asset.parts.skin, assetHair);
       asset.parts.skin.parent?.add(assetHair);
-      assetMeshes = [...assetMeshes, assetHair];
     }
 
     if (asset.parts.skin?.geometry.getAttribute('_beard')) {
@@ -692,13 +742,18 @@ export function createFaceScene(
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', '#include <common>\n' +
             'attribute vec3 _beard;\nvarying float vAmt;\n' +
-            'uniform float uThickness, uFrizz;\nuniform vec3 uMix;\n' +
+            'uniform float uThickness, uFrizz;\nuniform vec3 uMix, uHeadCentre;\n' +
+            'vec3 vBeardDir;\nfloat vBeardAmt;\n' +
             'float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x*15.0) * sin(p.y*13.0) * sin(p.z*11.0); }')
           .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
             'float amt = clamp(dot(_beard, uMix), 0.0, 1.0);\n' +
             'amt *= 1.0 + uFrizz * (bnoise(position * 3.0) - 0.5);\n' +
             'vAmt = amt;\n' +
-            'transformed += normalize(objectNormal) * uThickness * amt;');
+            'vBeardDir = normalize(objectNormal);\nvBeardAmt = amt;')
+          // After the morphs, for the reason given on the hair shell.
+          .replace('#include <morphtarget_vertex>', '#include <morphtarget_vertex>\n' +
+            'vec3 bRadial = normalize(transformed - uHeadCentre);\n' +
+            'transformed += normalize(mix(vBeardDir, bRadial, 0.45)) * uThickness * vBeardAmt;');
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying float vAmt;')
           // Wider feather than the hair: a beard has no edge in reality, it
@@ -708,8 +763,8 @@ export function createFaceScene(
       };
       assetBeard = new THREE.Mesh(asset.parts.skin.geometry, beardMat);
       assetBeard.renderOrder = 1;
+      shareMorphs(asset.parts.skin, assetBeard);
       asset.parts.skin.parent?.add(assetBeard);
-      assetMeshes = [...assetMeshes, assetBeard];
     }
 
     // Frame on the SKIN, not the whole scene. The hair shell stands off the

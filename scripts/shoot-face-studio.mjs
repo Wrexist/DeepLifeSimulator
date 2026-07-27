@@ -287,7 +287,13 @@ hairMat.onBeforeCompile = (sh) => {
       'diffuseColor.a *= smoothstep(0.02, 0.55, vCov);\\n' +
       'diffuseColor.rgb *= 0.62 + 0.52 * smoothstep(0.06, 1.10, vCov);');
 };
+// Shells share the skin's influences ARRAY. three keys a fresh mesh's
+// morphTargetDictionary by index ('0','1',...) because geometry morph
+// attributes carry no names, so every lookup by morph name misses and the
+// shell freezes in the neutral pose while the face moves under it.
 const hair = new THREE.Mesh(parts.skin.geometry, hairMat);
+hair.morphTargetDictionary = parts.skin.morphTargetDictionary;
+hair.morphTargetInfluences = parts.skin.morphTargetInfluences;
 hair.renderOrder = 1;
 parts.skin.parent.add(hair); meshes.push(hair);
 

@@ -32,7 +32,7 @@ function mount(value: number, onChange: (v: number) => void) {
   });
   // The adjustable node is the track wrapper, the only node carrying the role.
   const node = renderer.root.findAll(
-    (n) => (n.props as SliderProps)?.accessibilityRole === 'adjustable',
+    (instance: { props: SliderProps }) => instance.props?.accessibilityRole === 'adjustable',
   )[0];
   return { renderer, props: node?.props as SliderProps | undefined };
 }
