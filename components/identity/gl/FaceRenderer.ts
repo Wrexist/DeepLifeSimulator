@@ -47,6 +47,7 @@ import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironmen
 import { loadHeadAsset, loadSkinTextures, type HeadAsset, type SkinTextures } from './headAsset';
 import measureStats from '@/assets/models/face-measure-stats.json';
 import { installChildProportions, type PatchableMaterial } from './childInstall';
+import { frameHead, type Bounds } from './headFraming';
 
 /**
  * Brow and chin heights as fractions of the head's bounding box, emitted by the
@@ -133,6 +134,13 @@ function makeShellMaterial(color: THREE.ColorRepresentation, roughness: number):
  * a `WebGLRenderingContext` — it is a native-backed lookalike — and three only
  * needs it to satisfy the context interface at runtime.
  */
+/** Adapter from the pure framing maths to a three group. */
+function applyFramingTo(holder: THREE.Group, box: Bounds, rootY: number): void {
+  const f = frameHead(box, rootY);
+  holder.scale.setScalar(f.scale);
+  holder.position.set(f.position[0], f.position[1], f.position[2]);
+}
+
 export function createFaceScene(
   gl: WebGLRenderingContext & { drawingBufferWidth: number; drawingBufferHeight: number },
   initial: FaceSceneInput,
@@ -1005,10 +1013,6 @@ export function createFaceScene(
     const box = new THREE.Box3()
       .setFromBufferAttribute(framedOn.geometry.getAttribute('position') as THREE.BufferAttribute)
       .applyMatrix4(framedOn.matrixWorld);
-    const size = box.getSize(new THREE.Vector3());
-    const centre = box.getCenter(new THREE.Vector3());
-    const scale = 2.45 / (Math.max(size.x, size.y, size.z) || 1);
-    holder.scale.setScalar(scale);
     // HEADROOM, stated rather than left over.
     //
     // At fov 28 and z 6.2 the frame is ~3.09 units tall, so its top edge is at
@@ -1017,12 +1021,8 @@ export function createFaceScene(
     // the skull off, and a haircut whose upper half is never visible reads as a
     // beret. Placing the crown at a fixed height instead of biasing the centre
     // keeps the face high in frame AND leaves room for the tallest style.
-    const CROWN_Y = 1.10;
-    holder.position.set(
-      -centre.x * scale,
-      CROWN_Y - (box.max.y - centre.y) * scale - root.position.y,
-      -centre.z * scale,
-    );
+    applyFramingTo(holder, { min: box.min.toArray() as [number, number, number],
+      max: box.max.toArray() as [number, number, number] }, root.position.y);
     root.add(holder);
 
     // Relight for the scanned head. These are NOT the procedural head's values
@@ -1101,8 +1101,15 @@ export function createFaceScene(
             '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, clamp(vBrow, 0.0, 1.0));');
       };
     }
+    // A HOLDER, framed the same way the scanned head is. Adding these meshes to
+    // the root raw is what made the swap pop: see `frameHead`.
+    // `clearRoot()` removes every child of the root, so the holder needs no
+    // separate bookkeeping.
+    const holder = new THREE.Group();
+    root.add(holder);
+
     headMesh = new THREE.Mesh(track(toBufferGeometry(head)), headMaterial);
-    root.add(headMesh);
+    holder.add(headMesh);
 
     // Eyes. Seated against the socket the skin mesh actually carved.
     const eyes = eyePlacement(head, genome, age);
@@ -1127,7 +1134,7 @@ export function createFaceScene(
       const pupil = new THREE.Mesh(
         track(new THREE.SphereGeometry(e.radius * EYE_SHELLS.pupilRadius, 14, 10)), pupilMat);
       pupil.position.set(e.x, e.y, e.z + e.radius * EYE_SHELLS.pupilOffset);
-      root.add(ball, irisMesh, pupil);
+      holder.add(ball, irisMesh, pupil);
       eyeMeshes.push(ball, irisMesh, pupil);
     }
 
@@ -1137,7 +1144,7 @@ export function createFaceScene(
     if (beard) {
       const beardColor = new THREE.Color(hairHex).multiplyScalar(0.72);
       beardMesh = new THREE.Mesh(track(toBufferGeometry(beard)), track(makeShellMaterial(beardColor, 0.92)));
-      root.add(beardMesh);
+      holder.add(beardMesh);
     }
 
     // Hair uses the AGED style so recession and greying show without touching
@@ -1145,8 +1152,21 @@ export function createFaceScene(
     const hair = buildHairMesh(head, aged.hairStyle, age);
     if (hair) {
       hairMesh = new THREE.Mesh(track(toBufferGeometry(hair)), track(makeShellMaterial(hairHex, 0.78)));
-      root.add(hairMesh);
+      holder.add(hairMesh);
     }
+
+    // Framed on the SKIN's bounds, so the hairstyle cannot change how big the
+    // head renders — and from the positions rather than a computed box, which
+    // on this mesh are the same thing since it carries no morph targets.
+    const lo: [number, number, number] = [Infinity, Infinity, Infinity];
+    const hi: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < head.positions.length; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        if (head.positions[i + k] < lo[k]) lo[k] = head.positions[i + k];
+        if (head.positions[i + k] > hi[k]) hi[k] = head.positions[i + k];
+      }
+    }
+    applyFramingTo(holder, { min: lo, max: hi }, root.position.y);
   }
 
   function setRotation(yaw: number, pitch: number): void {
