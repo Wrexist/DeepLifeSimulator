@@ -145,9 +145,17 @@ export interface FaceGenome {
   hairStyle: HairStyle;
   facialHair: FacialHairStyle;
   /**
-   * Freckles / moles / scars density, [0, 1]. Purely cosmetic — it does not
-   * feed presence, because "has freckles" is not a beauty axis and scoring it
-   * would quietly punish a valid aesthetic choice.
+   * Freckle density, [0, 1]. Purely cosmetic — it does not feed presence,
+   * because "has freckles" is not a beauty axis and scoring it would quietly
+   * punish a valid aesthetic choice.
+   *
+   * Rendered in the skin shader, gated to skin by the roughness map so freckles
+   * never land on lips or eyebrows. `applyAging` drifts it upward, which is
+   * what turns freckles into age spots over a lifetime without a second field.
+   *
+   * This was stored, randomised, inherited by children and aged for months
+   * while NOTHING read it — a field the game maintains and never shows is the
+   * same defect as a slider that moves nothing.
    */
   blemishes: number;
 }

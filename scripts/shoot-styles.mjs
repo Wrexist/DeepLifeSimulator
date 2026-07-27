@@ -76,6 +76,7 @@ async function main() {
     zoom: String(zoom || 1), ty: String(Number.isFinite(ty) ? ty : -0.02),
   });
   if (process.env.HAIRCOL) query.set('haircol', process.env.HAIRCOL);
+  if (process.env.BLEMISH) query.set('blemish', process.env.BLEMISH);
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 

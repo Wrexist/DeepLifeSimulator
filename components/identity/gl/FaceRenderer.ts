@@ -376,7 +376,11 @@ export function createFaceScene(
    * painted brow's own darkness still supplies the shape — tinting all the way
    * flattens it into a solid stripe of colour.
    */
-  const assetSkinUniforms = { uBrowColor: { value: new THREE.Color(0x2a1c14) } };
+  const assetSkinUniforms = {
+    uBrowColor: { value: new THREE.Color(0x2a1c14) },
+    /** `genome.blemishes`, [0, 1] — freckle and mottle density. */
+    uBlemish: { value: 0.2 },
+  };
 
   const assetBeardUniforms = {
     uThickness: { value: 0.02 },
@@ -472,6 +476,9 @@ export function createFaceScene(
     assetSkinUniforms.uBrowColor.value
       .set(HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))])
       .multiplyScalar(0.46);
+    // The AGED value: `applyAging` drifts this upward, which is what turns
+    // freckles into age spots over a lifetime without a second field.
+    assetSkinUniforms.uBlemish.value = Math.max(0, Math.min(1, aged.blemishes));
     if (assetBeard) {
       const spec = BEARD_SPEC[aged.facialHair];
       assetBeard.visible = aged.facialHair !== 'none' && !!spec;
@@ -564,14 +571,46 @@ export function createFaceScene(
       (asset.parts.skin.material as THREE.MeshPhysicalMaterial).onBeforeCompile = (shader) => {
         Object.assign(shader.uniforms, assetSkinUniforms);
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;')
+          .replace('#include <common>', '#include <common>\n' +
+            'uniform vec3 uBrowColor;\nuniform float uBlemish;\n' +
+            'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }')
           .replace('#include <color_fragment>', '#include <color_fragment>\n' +
             (textures.roughness
               // Sampled with the same uv the roughness map uses. Mixing rather
               // than multiplying, because the painted brow is already dark: a
               // multiply would only ever make a blonde brow darker.
-              ? 'float brow = texture2D(roughnessMap, vRoughnessMapUv).b;\n'
-                + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow * 0.76);\n'
+              ? 'vec2 skinRg = texture2D(roughnessMap, vRoughnessMapUv).gb;\n'
+                + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, skinRg.y * 0.76);\n'
+                // FRECKLES. `genome.blemishes` is stored in every save, drifts
+                // upward with age and is inherited by children — and until now
+                // nothing rendered it. A field the game maintains and never
+                // shows is the same defect as a slider that moves nothing.
+                //
+                // The region comes from data already on the head: the roughness
+                // map is matte on skin and glossy on lips, so thresholding it
+                // gives "is this skin" for free, and the brow mask in blue
+                // keeps them off the eyebrows. No new texture, no new bake.
+                + 'float skinness = smoothstep(0.44, 0.60, skinRg.x) * (1.0 - skinRg.y);\n'
+                // A HASH, not sines. This is the third time in this file that
+                // a handful of sine waves has been tried for something meant to
+                // look scattered — hair strands, beard stipple, and now
+                // freckles — and the third time it has come out as a visible
+                // lattice. Any small set of periodic functions has a period and
+                // the eye finds it.
+                //
+                // Cells decide WHICH points carry a freckle and jitter decides
+                // where inside the cell it sits, so the grid that generates them
+                // never shows in the result.
+                // vRoughnessMapUv, not vMapUv: this whole block is guarded on
+                // the ROUGHNESS map existing, and if the albedo failed to load
+                // on its own the albedo varying would not be declared and the
+                // shader would fail to compile — taking the face with it.
+                + 'vec2 uvF = vRoughnessMapUv * 380.0;\n'
+                + 'vec2 cell = floor(uvF);\n'
+                + 'vec2 jit = vec2(hash21(cell + 3.1), hash21(cell + 7.7)) - 0.5;\n'
+                + 'float d = length(fract(uvF) - 0.5 - jit * 0.6);\n'
+                + 'float freckle = smoothstep(0.34, 0.10, d) * step(0.86, hash21(cell));\n'
+                + 'diffuseColor.rgb *= 1.0 - 0.34 * uBlemish * freckle * skinness;\n'
               : ''))
           .replace(
             '#include <dithering_fragment>',

@@ -107,7 +107,10 @@ const [albedo, roughMap, normalMap] = await Promise.all([
   load('/assets/textures/face_normal.png', false),
 ]);
 
-const SU = { uBrowColor: { value: new THREE.Color(0x2a1c14) } };
+const SU = {
+  uBrowColor: { value: new THREE.Color(0x2a1c14) },
+  uBlemish: { value: Number(q.get('blemish') ?? 0.2) },
+};
 
 parts.skin.material = (() => {
   const m = new THREE.MeshPhysicalMaterial({
@@ -122,14 +125,30 @@ parts.skin.material = (() => {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, SU);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;')
+      .replace('#include <common>', '#include <common>\n' +
+        'uniform vec3 uBrowColor;\nuniform float uBlemish;\n' +
+        'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }')
       // Eyebrows are PAINTED into the albedo, so without this they are the same
       // near-black on every character — platinum hair over black brows. The
       // roughness map's blue channel is a brow mask baked from the same
       // landmark polylines that painted them.
       .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-        (roughMap ? 'float brow = texture2D(roughnessMap, vRoughnessMapUv).b;\n'
-          + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow * 0.76);\n' : ''))
+        (roughMap ? 'vec2 skinRg = texture2D(roughnessMap, vRoughnessMapUv).gb;\n'
+          + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, skinRg.y * 0.76);\n'
+          // Freckles from `genome.blemishes` — see FaceRenderer. The region is
+          // read off data already on the head: matte roughness means skin, and
+          // the brow mask in blue keeps them off the eyebrows.
+          + 'float skinness = smoothstep(0.44, 0.60, skinRg.x) * (1.0 - skinRg.y);\n'
+          // A hash, not sines: cells decide which points carry a freckle and
+          // jitter decides where in the cell, so no lattice shows. See the note
+          // in FaceRenderer — sines were tried three times and failed the same
+          // way each time.
+          + 'vec2 uvF = vRoughnessMapUv * 380.0;\n'
+          + 'vec2 cell = floor(uvF);\n'
+          + 'vec2 jit = vec2(hash21(cell + 3.1), hash21(cell + 7.7)) - 0.5;\n'
+          + 'float d = length(fract(uvF) - 0.5 - jit * 0.6);\n'
+          + 'float freckle = smoothstep(0.34, 0.10, d) * step(0.86, hash21(cell));\n'
+          + 'diffuseColor.rgb *= 1.0 - 0.34 * uBlemish * freckle * skinness;\n' : ''))
       .replace('#include <dithering_fragment>',
         '#include <dithering_fragment>\n' +
         'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
