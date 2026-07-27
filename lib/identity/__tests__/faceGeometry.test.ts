@@ -148,6 +148,50 @@ describe('hair placement', () => {
   );
 });
 
+describe('every slider does something', () => {
+  // A floor on how much each morph is allowed to matter.
+  //
+  // This is the generalisation of three separate defects — childhood aging, body
+  // composition, and the fallback's hair table — that were each written,
+  // reviewed, unit-tested and invisible. The shape was always the same: the code
+  // existed and did its job, and the product of its coefficients came out to
+  // nothing. No test looked at the product.
+  //
+  // Sweeping all twenty-four morphs found a fourth: `eyeTilt` moved exactly zero
+  // vertices. `eyePlacement` computed a `tilt` and returned it, and neither
+  // renderer read the value. The scanned rig HAS an `eyeTilt` target, so the
+  // slider worked there and did nothing here — worse than not working, because
+  // it looks fixed.
+  //
+  // MAX displacement, not mean. Mean is right for a whole-head morph and useless
+  // for a local one: a nose morph moves 26 vertices out of 9409, so its mean is
+  // indistinguishable from zero however strong it is where it acts.
+  const sweep = (key: string): { max: number; moved: number } => {
+    const lo = buildHeadMesh({ ...neutral, morphs: { ...neutral.morphs, [key]: 0 } }, { age: 30 });
+    const hi = buildHeadMesh({ ...neutral, morphs: { ...neutral.morphs, [key]: 1 } }, { age: 30 });
+    let max = 0;
+    let moved = 0;
+    for (let i = 0; i < lo.positions.length; i += 3) {
+      const d = Math.hypot(
+        lo.positions[i] - hi.positions[i],
+        lo.positions[i + 1] - hi.positions[i + 1],
+        lo.positions[i + 2] - hi.positions[i + 2],
+      );
+      if (d > 1e-6) moved++;
+      if (d > max) max = d;
+    }
+    return { max, moved };
+  };
+
+  it.each(Object.keys(neutral.morphs))('%s moves the mesh across its range', (key) => {
+    const { max, moved } = sweep(key);
+    expect(moved).toBeGreaterThan(20);
+    // 0.005 on a head 1.9 tall. Deliberately a low bar: this is here to catch a
+    // slider that does NOTHING, not to police how strong each one should be.
+    expect(max).toBeGreaterThan(0.005);
+  });
+});
+
 describe('childhood proportions', () => {
   // A child is not a small adult, and the game rendered one for as long as
   // nobody put the ages side by side. `applyAging` moves eleven morphs for

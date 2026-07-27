@@ -9,8 +9,13 @@
  *
  *   1. **The head is unit-testable.** Symmetry, watertightness, morph
  *      responsiveness and the absence of NaN are all asserted on CI with no GPU.
- *   2. **A device that cannot create a GL context still has a face.** The same
- *      arrays feed the software rasterizer used to bake fallback portraits.
+ *   2. **The geometry can be LOOKED AT without a device.** The same arrays feed
+ *      the software rasteriser in `__tests__/preview.render.ts`, which is what
+ *      found every visual defect in this file. (Production portraits are
+ *      snapshotted from the GL canvas — see `FaceCanvas` — not rasterised here.
+ *      An earlier version of this note said otherwise, which mattered: it is
+ *      why a dark mouth in that harness was briefly treated as a shipping
+ *      defect and the geometry tuned to suit one tool's flat lighting.)
  *   3. **The renderer stays swappable.** If three.js is ever replaced, this
  *      file — the part with the actual design in it — does not move.
  *
@@ -96,7 +101,7 @@ export interface HeadLandmarks {
  * Nested-sphere proportions for an eye, as multiples of the globe radius.
  *
  * Shared because the eye is assembled in three places — the GL renderer, the
- * software rasteriser that bakes fallback portraits, and the preview harness —
+ * preview harness and the shot harness —
  * and each had its own copy. They had already drifted (0.70 against 0.74 for
  * the iris offset, 0.88 against 0.94 for the pupil), which is small, and is the
  * same way the hair spec table started drifting before it ended up missing
@@ -156,6 +161,30 @@ function centred(v: number): number {
 function blobAniso(px: number, py: number, pz: number, c: Vec3, r: Vec3): number {
   const dx = (px - c[0]) / r[0];
   const dy = (py - c[1]) / r[1];
+  const dz = (pz - c[2]) / r[2];
+  const d2 = dx * dx + dy * dy + dz * dz;
+  if (d2 >= 1) return 0;
+  const t = 1 - d2;
+  return t * t;
+}
+
+/**
+ * The same blob with its x-y frame rotated — for the eye socket, which is the
+ * one field here that has to tilt.
+ *
+ * `eyeTilt` was a slider that did nothing on this head. `eyePlacement` computed
+ * a `tilt` and returned it, and neither renderer read the value; measuring every
+ * morph's effect on the mesh showed it moving exactly zero vertices. The scanned
+ * rig has a real `eyeTilt` morph target, so the slider worked there and not
+ * here — which is worse than not working at all, because it looks fixed.
+ */
+function blobRot(
+  px: number, py: number, pz: number, c: Vec3, r: Vec3, sin: number, cos: number,
+): number {
+  const ox = px - c[0];
+  const oy = py - c[1];
+  const dx = (ox * cos - oy * sin) / r[0];
+  const dy = (ox * sin + oy * cos) / r[1];
   const dz = (pz - c[2]) / r[2];
   const d2 = dx * dx + dy * dy + dz * dz;
   if (d2 >= 1) return 0;
@@ -251,7 +280,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const noseRootY = eyeY + 0.09;
   const noseTipY = noseRootY - 0.32 - noseLength * 0.20;
   const noseTipZ = 0.94 + noseTip * 0.10;
-  const mouthY = -0.36 + mouthHeight * 0.10;
+  const mouthY = -0.36 + mouthHeight * 0.15;
   const chinY = -0.60 - chinLength * 0.14;
   const browY = eyeY + 0.17 + browHeight * 0.09;
   // Published in the landmarks: `eyePlacement` has to know how deep the bowl is
@@ -262,7 +291,12 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   // the 0.045 term, and an adult-depth socket on a face compressed to 70% is
   // proportionally half as deep again — it rendered as a dark trench across a
   // toddler's face.
-  const socketDepth = (0.062 + eyeDepth * 0.045) * (1 - 0.40 * childness);
+  const socketDepth = (0.062 + eyeDepth * 0.060) * (1 - 0.40 * childness);
+  // Canthal tilt: ±10 degrees over the slider's range, which is about the human
+  // range. Precomputed because it is used on every vertex.
+  const canthal = centred(m.eyeTilt) * 0.35;
+  const canthalSin = Math.sin(canthal);
+  const canthalCos = Math.cos(canthal);
 
   const vertexCount = (RINGS + 1) * (SEGMENTS + 1);
   const positions = new Float32Array(vertexCount * 3);
@@ -440,7 +474,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // the globe about 0.027 above and below centre while staying clear of it
       // out to 0.065 either side: an opening roughly 2.4 times wider than it is
       // tall, which is the proportion of a real palpebral fissure.
-      const socketR: Vec3 = [0.125 + eyeSize * 0.035, 0.060 + eyeSize * 0.020, 0.26];
+      // 0.035/0.020 -> 0.055/0.030. Sweeping every morph for how far it moves
+      // the mesh put `eyeSize` last of all the live ones, at 0.6% of head
+      // height across its whole range: a player could drag it end to end and
+      // see almost nothing, on one of the features people notice most.
+      const socketR: Vec3 = [0.125 + eyeSize * 0.055, 0.060 + eyeSize * 0.030, 0.26];
       // Carved 0.018 MEDIAL of the eyeball, not concentric with it. The face
       // still falls away toward the temple — less than it did, but enough that a
       // symmetric socket opens asymmetrically: the skin wins further out on the
@@ -449,9 +487,12 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // having a lazy eye. Biasing the carve inward deepens the side the skin
       // was winning on and puts the opening back over the middle of the ball.
       const socketX = eyeX - 0.018;
+      // Tilted about the eye centre, outer corner up for a positive value. The
+      // sign flips per side so the two eyes mirror rather than both leaning the
+      // same way, which reads as a tilted head.
       const socketMask =
-        blobAniso(x, y, z, [socketX, eyeY, 0.70], socketR) +
-        blobAniso(x, y, z, [-socketX, eyeY, 0.70], socketR);
+        blobRot(x, y, z, [socketX, eyeY, 0.70], socketR, canthalSin, canthalCos) +
+        blobRot(x, y, z, [-socketX, eyeY, 0.70], socketR, -canthalSin, canthalCos);
       z -= socketDepth * socketMask;
 
       // ---- Nose -----------------------------------------------------------
@@ -477,19 +518,25 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       x += Math.sign(x || 1) * (0.02 + noseWidth * 0.045) * wingMask;
 
       // ---- Lips ------------------------------------------------------------
-      const lipHalfWidth = 0.115 + mouthWidth * 0.075;
+      const lipHalfWidth = 0.115 + mouthWidth * 0.100;
       const upperMask = blobAniso(x, y, z, [0, mouthY + 0.035, 0.80], [lipHalfWidth, 0.045, 0.26]);
       const lowerMask = blobAniso(x, y, z, [0, mouthY - 0.055, 0.80], [lipHalfWidth, 0.055, 0.26]);
       z += (0.030 + lipFullness * 0.042) * upperMask;
       z += (0.034 + lipFullness * 0.048) * lowerMask;
       // The seam between the lips — a crease, or the mouth reads as one blob.
       //
-      // 0.042 deep against lips standing 0.05 proud made a trench 0.09 deep and
-      // 0.03 tall, which does not read as a closed mouth: it renders as a black
-      // letterbox between two flat slabs, and every character looked like their
-      // jaw had dropped. A mouth line is a line. The lips came down with it,
-      // because two shelves either side of a shallower groove would have read
-      // as a beak.
+      // 0.042 -> 0.017. At 0.042, against lips standing 0.05 proud, this was a
+      // trench 0.09 deep and 0.03 tall: not a closed mouth but a black
+      // letterbox between two slabs, and every character looked like their jaw
+      // had dropped. A mouth line is a line. The lips came down with it,
+      // because two shelves either side of a shallower groove would read as a
+      // beak.
+      //
+      // It went to 0.009 briefly, chasing a dark gash that showed on every face
+      // in the preview sheets — and that was fitting the model to the tool. The
+      // gash was the harness's flat lighting crushing any crease to its ambient
+      // floor, not the geometry. The harness now has a wrap term; this is back
+      // where looking at the mouth close up said it should be.
       const seamMask = blobAniso(x, y, z, [0, mouthY - 0.008, 0.83], [lipHalfWidth * 1.05, 0.016, 0.24]);
       z -= 0.017 * seamMask;
 

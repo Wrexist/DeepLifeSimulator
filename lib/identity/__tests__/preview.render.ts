@@ -164,7 +164,17 @@ function render(draws: Draw[], yaw: number, zoom?: { scale: number; y: number })
         const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
         if (nz < 0) continue;
         depth[di] = z;
-        const diff = Math.max(0, nx * lx + ny * ly + nz * lz);
+        // WRAP DIFFUSE, not plain Lambert. Skin scatters, so its terminator is
+        // soft and a crease never reaches black — and the app's renderer lights
+        // the head with an environment map, where a crease picks up bounce.
+        //
+        // Plain Lambert here crushed every concave feature to the 0.26 ambient
+        // floor, which made the mouth read as a black gash on every face in
+        // every sheet. That was the instrument lying: the seam was chased from
+        // 0.042 down to 0.009 before it was clear that the geometry was fine
+        // and the lighting model was not.
+        const ndotl = nx * lx + ny * ly + nz * lz;
+        const diff = Math.max(0, (ndotl + 0.38) / 1.38);
         const rim = Math.pow(1 - Math.max(0, nz), 3) * 0.35;
         const half = [lx, ly, lz + 1];
         const hl = Math.hypot(...half as [number, number, number]);
@@ -277,6 +287,27 @@ const OUT = process.env.PREVIEW_OUT;
   ];
   t = tile(details, 3);
   fs.writeFileSync(`${OUT!}/features.png`, encodePng(t.w, t.h, t.data));
+
+  // Sheet 7: EVERY morph at both ends of its range, in pairs.
+  //
+  // The sheet that was missing. Sweeping the morphs numerically says how far
+  // each one moves the mesh, and that number is honest for a whole-head morph
+  // and misleading for a local one — a nose morph moves 26 vertices out of
+  // 9409, so its mean is indistinguishable from zero however strong it is. And
+  // for a morph that TRANSLATES a feature rather than growing it, the furthest
+  // vertex barely moves however far the mouth travels. Only looking settles it.
+  const morphFace = { ...randomizeFace('morph-2', { sex: 'male' }), morphs: neutralMorphs(), hairStyle: 'short' as const, facialHair: 'none' as const };
+  const morphShots: Uint8Array[] = [];
+  for (const key of Object.keys(morphFace.morphs).sort()) {
+    for (const v of [0, 1]) {
+      morphShots.push(renderFace(
+        { ...morphFace, morphs: { ...morphFace.morphs, [key]: v } },
+        30, 20, -0.18,
+      ));
+    }
+  }
+  t = tile(morphShots, 8);
+  fs.writeFileSync(`${OUT!}/morphs.png`, encodePng(t.w, t.h, t.data));
 
   expect(fs.existsSync(`${OUT!}/angles.png`)).toBe(true);
 });
