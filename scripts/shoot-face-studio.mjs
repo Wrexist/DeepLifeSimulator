@@ -26,6 +26,7 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { Buffer } from 'node:buffer';
 import { chromium } from '@playwright/test';
+import { loadTs } from './lib/loadTs.mjs';
 
 const ROOT = process.cwd();
 const PORT = 8932;
@@ -251,6 +252,37 @@ parts.skin.material = (() => {
   };
   return m;
 })();
+// Iris coordinate uniforms — the app's own eyeAxis.ts fit, injected by the
+// driver below. Without this the harness draws the iris from the raw per-vertex
+// attribute, which is the twelve-sided polygon the app no longer ships: the
+// screen used to JUDGE the creator would be showing a head the creator does not
+// produce.
+const IRIS_U = {
+  uEyeCentreL: { value: new THREE.Vector3(0, 0, 0) },
+  uEyeCentreR: { value: new THREE.Vector3(0, 0, 0) },
+  uGazeL: { value: new THREE.Vector3(0, 0, 1) },
+  uGazeR: { value: new THREE.Vector3(0, 0, 1) },
+  uIrisFit: { value: new THREE.Vector3(1, 0, 0) },
+};
+window.__probeSclera = () => {
+  const g = parts.sclera.geometry;
+  const a = g.getAttribute('_irisr'); const pos = g.getAttribute('position');
+  if (!a || !pos) return null;
+  return {
+    irisR: Array.from({ length: a.count }, (_, i) => a.getX(i)),
+    positions: Array.from({ length: pos.count * 3 }, (_, i) =>
+      [pos.getX, pos.getY, pos.getZ][i % 3].call(pos, (i / 3) | 0)),
+  };
+};
+window.__setEyeAxes = (fit) => {
+  IRIS_U.uEyeCentreL.value.fromArray(fit.centreLeft);
+  IRIS_U.uEyeCentreR.value.fromArray(fit.centreRight);
+  IRIS_U.uGazeL.value.fromArray(fit.gazeLeft);
+  IRIS_U.uGazeR.value.fromArray(fit.gazeRight);
+  IRIS_U.uIrisFit.value.set(fit.halfAngle, fit.midX, 1);
+  renderer.render(scene, camera);
+};
+
 parts.sclera.material = (() => {
   // The pupil is drawn on the SCLERA, not the iris: ICT's iris is an annulus
   // with a hole where the pupil belongs, so a bright sclera showed through it.
@@ -258,13 +290,14 @@ parts.sclera.material = (() => {
     color: 0xdedbd6, roughness: 0.18, metalness: 0,
     clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75 });
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, IRIS_U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\\nattribute float _irisr;\\nvarying float vR;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvR = _irisr;');
+      .replace('#include <common>', '#include <common>\\n' + window.__IRIS_VERT_COMMON)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__IRIS_VERT_BODY);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\\nvarying float vR;')
+      .replace('#include <common>', '#include <common>\\n' + window.__IRIS_FRAG_COMMON)
       .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
-        'float r = vR;\\n' +
+        'float r = irisCoord();\\n' +
       'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\\n' +
       'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\\n' +
       'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
@@ -278,19 +311,20 @@ parts.iris.material = (() => {
     // blob over the whole pupil. A catchlight is a glint, not a headlight.
     clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35 });
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, IRIS_U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\\nattribute float _irisr;\\nvarying float vR;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvR = _irisr;');
+      .replace('#include <common>', '#include <common>\\n' + window.__IRIS_VERT_COMMON)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__IRIS_VERT_BODY);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\\nvarying float vR;')
+      .replace('#include <common>', '#include <common>\\n' + window.__IRIS_FRAG_COMMON)
       .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
-        'if (vR > 1.02) discard;\\n' +
-      'float r = vR;\\n' +
+        'float r = irisCoord();\\n' +
+        'if (r > 1.02) discard;\\n' +
       'float pupil = smoothstep(0.34, 0.50, r);\\n' +
       'float limbal = smoothstep(1.02, 0.86, r);\\n' +
       'float fibre = 0.88 + 0.12 * sin(r * 34.0);\\n' +
-      'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\\n' +
-      'if (r < 0.36) discard;');
+      'diffuseColor.rgb *= pupil * limbal * fibre * (1.52 - 0.52 * r);\\n' +
+      'if (r < 0.33) discard;');
   };
   return m;
 })();
@@ -396,8 +430,31 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 430, height: 1200 }, deviceScaleFactor: 2 });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
+  const axisMod = loadTs('components/identity/gl/eyeAxis.ts');
+  await page.addInitScript((g) => {
+    window.__IRIS_VERT_COMMON = g.vc;
+    window.__IRIS_VERT_BODY = g.vb;
+    window.__IRIS_FRAG_COMMON = g.fc;
+  }, {
+    vc: axisMod.IRIS_COORD_VERT_COMMON,
+    vb: axisMod.IRIS_COORD_VERT_BODY,
+    fc: axisMod.IRIS_COORD_FRAG_COMMON,
+  });
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
+
+  // The iris coordinate: the app's GLSL and the app's own fit, so this screen
+  // shows the eye the app actually draws rather than the baked attribute's
+  // twelve-sided approximation of it.
+  {
+    const probe = await page.evaluate(() => window.__probeSclera?.());
+    const fit = probe ? axisMod.deriveEyeAxes(probe.irisR, probe.positions) : null;
+    if (fit && fit.residual <= axisMod.IRIS_FIT_TOLERANCE) {
+      await page.evaluate((a) => window.__setEyeAxes(a), fit);
+    } else {
+      console.warn(`iris refit unusable (residual ${fit ? fit.residual.toFixed(4) : 'none'})`);
+    }
+  }
 
   const ok = await page.evaluate(() => window.__ok);
   if (!ok) {
