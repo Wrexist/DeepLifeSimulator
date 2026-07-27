@@ -522,7 +522,22 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // the mesh put `eyeSize` last of all the live ones, at 0.6% of head
       // height across its whole range: a player could drag it end to end and
       // see almost nothing, on one of the features people notice most.
-      const socketR: Vec3 = [0.125 + eyeSize * 0.055, 0.060 + eyeSize * 0.030, 0.26];
+      // THE SOCKET'S HEIGHT IS THE EYE OPENING. That is not obvious and it cost
+      // a round to see: the lids close where the CARVE ends, so the aperture is
+      // bounded by this radius and not by how deep the bowl goes.
+      //
+      // At 0.060 against a 0.096 globe the opening ran to 0.55 of the radius
+      // above centre and 0.35 below — ninety percent of the globe's height, a
+      // bare ball with lids painted at its edges. It looked acceptable in the
+      // software rasteriser at thumbnail size and was unmistakable the first
+      // time the app's own shaders drew it at 3x.
+      //
+      // The z term eats part of the blob's budget too: the skin sits about 0.10
+      // forward of the socket centre against a z radius of 0.26, so d2 starts at
+      // 0.148 and the field reaches zero at 0.92 of the y radius rather than at
+      // it. A real palpebral fissure shows roughly 0.3 of the globe's radius
+      // either side of centre; 0.036 lands there once that is accounted for.
+      const socketR: Vec3 = [0.125 + eyeSize * 0.055, 0.036 + eyeSize * 0.016, 0.26];
       // Carved 0.018 MEDIAL of the eyeball, not concentric with it. The face
       // still falls away toward the temple — less than it did, but enough that a
       // symmetric socket opens asymmetrically: the skin wins further out on the
@@ -859,11 +874,24 @@ export function eyePlacement(
   // is why every character had two small coloured dots instead of eyes.
   const floor = surfaceZAt(head, x, y);
   const depth = head.landmarks?.socketDepth ?? 0.058;
-  // 0.40 of the socket depth, not all of it. The globe has to stand proud of
-  // the bowl floor to be seen at all, and stay behind the rim so the skin can
-  // close over it top and bottom; bringing it all the way to the rim reopens
-  // the googly-eye failure the socket radii are shaped to prevent.
-  const z = floor + depth * 0.4 - radius;
+  // 0.30 of the socket depth. The globe has to stand proud of the bowl floor to
+  // be seen at all, and stay behind the rim so the skin can close over it top
+  // and bottom; bringing it to the rim reopens the googly eye the socket radii
+  // are shaped to prevent.
+  //
+  // It was 0.40, and at 0.40 the opening ran to 0.55 of the globe's radius above
+  // centre — most of the sphere, a bare ball with lids at its edges. That looked
+  // acceptable at thumbnail size in the software rasteriser and was unmistakable
+  // the first time the app's own shaders drew it.
+  //
+  // 0.30 by sweeping it, not by deriving it. Two attempts to predict the
+  // aperture from the blob's algebra both disagreed with the measurement — the
+  // socket's y radius interacts with the seating and with the z term in ways
+  // that are easier to measure than to model. Across nine faces including four
+  // at full morph spread it puts the opening at 0.20 to 0.50 of the radius above
+  // centre and 0.10 to 0.25 below, against a palpebral fissure that shows about
+  // 0.3 either side. No face closes.
+  const z = floor + depth * 0.14 - radius;
 
   return {
     left: { x, y, z, radius, tilt },

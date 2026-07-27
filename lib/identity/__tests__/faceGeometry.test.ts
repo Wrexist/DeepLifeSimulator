@@ -451,10 +451,17 @@ describe('eye seating', () => {
 
     expect(a.centre).toBe(true);
     // Open enough to read as an eye rather than a pinhole...
-    expect(a.up + a.down).toBeGreaterThan(0.3);
+    expect(a.up + a.down).toBeGreaterThan(0.12);
     // ...and closed by the skin well inside the globe, or it is a bare ball.
-    expect(a.up).toBeLessThan(0.7);
-    expect(a.down).toBeLessThan(0.7);
+    //
+    // These were 0.7, which is not a bound at all: 0.7 of the radius either side
+    // of centre is most of the sphere. The test passed on an eyeball standing
+    // proud of the face with lids only at its edges, and it took rendering the
+    // head with the app's OWN shaders to see that — at thumbnail size in the
+    // software rasteriser it looked fine. A palpebral fissure shows roughly 0.3
+    // of the globe's radius above centre and rather less below.
+    expect(a.up).toBeLessThan(0.42);
+    expect(a.down).toBeLessThan(0.30);
     // Wider than tall, which is what makes it an eye shape and not a circle.
     expect((a.lateral + a.medial) / (a.up + a.down)).toBeGreaterThan(1.15);
   });
