@@ -37,7 +37,7 @@
 import { applyAging } from './faceGenome';
 import { normalizeBody } from './body';
 import { hairSpecFor } from './hairSpec';
-import { CHILD, childnessAt, childTransform, childXZ, childY, type HeadFrame } from './childProportions';
+import { CHILD, childnessAt, childTransform, childXZ, childY, type HeadFrame } from './faceProportions';
 import type { BodyProfile, FaceGenome } from './types';
 
 /** Plain geometry buffers — the renderer's only input. */
@@ -197,7 +197,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const age = typeof options.age === 'number' ? Math.max(0, Math.min(120, options.age)) : 30;
   // How much of a child this is: 1 at birth, 0 from sixteen. Used by the brow
   // ridge below and by the proportion transform at the end of the build. The
-  // curve lives in `childProportions.ts` because the scanned head applies the
+  // curve lives in `faceProportions.ts` because the scanned head applies the
   // same one in a shader and the two must not drift.
   const childness = childnessAt(age);
   let childFrame: HeadFrame | null = null;

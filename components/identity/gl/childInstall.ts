@@ -7,7 +7,7 @@
  * `GLTFLoader`, which jest cannot parse, and the test would not run — and this
  * is precisely a defect that a not-running test would have let through.
  */
-import { CHILD_PROPORTION_GLSL, CHILD_PROPORTION_UNIFORMS } from '@/lib/identity';
+import { BODY_PROPORTION_GLSL, CHILD_PROPORTION_GLSL, CHILD_PROPORTION_UNIFORMS } from '@/lib/identity';
 
 /**
  * The part of a three.js material this installer touches.
@@ -62,6 +62,9 @@ export function installChildProportions(
       // its say — the morph blend, the hair shell's outward offset, the beard's.
       // Hooking an earlier chunk would scale some of those and not others,
       // depending on which chunk each one happened to attach to.
-      .replace('#include <project_vertex>', `${CHILD_PROPORTION_GLSL}\n#include <project_vertex>`);
+      .replace(
+        '#include <project_vertex>',
+        `${CHILD_PROPORTION_GLSL}\n${BODY_PROPORTION_GLSL}\n#include <project_vertex>`,
+      );
   };
 }

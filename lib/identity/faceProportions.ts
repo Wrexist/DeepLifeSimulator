@@ -1,5 +1,10 @@
 /**
- * Childhood head proportions — shared by both heads and by the harness.
+ * Head proportions the MORPHS CANNOT EXPRESS — shared by both heads and by the
+ * screenshot harness.
+ *
+ * Two things live here, and they are here together because they are the same
+ * kind of thing and would otherwise each need their own copy of the same
+ * plumbing: childhood growth, and what body composition does to a face.
  *
  * ## The defect this exists to fix
  *
@@ -157,7 +162,65 @@ if (uChildness > 0.0) {
 #endif
 `;
 
+/**
+ * Body composition, in the same snippet.
+ *
+ * ## Why this is not morphs either
+ *
+ * `jawWidth` and `cheekFullness` exist as sliders, and routing body fat through
+ * them was the original approach. It failed twice over. The magnitudes came out
+ * invisible — the whole range from 8% body fat to 55% moved the procedural head
+ * by four tenths of one percent — and a character whose cheek slider was already
+ * at maximum got no change at all, because the sum clamps. Authored features and
+ * simulated ones have to be separate terms.
+ *
+ * The scanned head could not use them at all: `body` reached `buildHeadMesh` and
+ * nothing else, so on the path that runs whenever the GLB loads the body
+ * simulation had no effect on the face whatsoever.
+ *
+ * ## What it does
+ *
+ * Fat lands on the lower face and the neck, not the forehead or the nose, so the
+ * widening ramps in below the brow. Muscle squares the jaw at the masseter,
+ * which is why a trained face reads wider at the angle rather than at the cheek.
+ *
+ * The depth term scales about `uHeadCZ` rather than about zero: the exporter
+ * puts a translation on the node, so local z = 0 is not the middle of the head,
+ * and scaling about it would push the whole face forward instead of thickening
+ * it. The width term needs no such care because the head is symmetric about
+ * x = 0.
+ *
+ * Not modelled here, though the procedural head has it: submental fullness, the
+ * double chin. It needs a front-facing weight, and the extra uniforms to place
+ * one in this space are not worth it for a term that is mostly hidden under the
+ * jaw at the angles the character is ever seen from.
+ */
+export const BODY = {
+  /** Lower-face widening per unit of adiposity. */
+  fatWidth: 0.095,
+  /** Lower-face deepening per unit of adiposity. */
+  fatDepth: 0.045,
+  /** Jaw-angle widening per unit of muscle. */
+  muscleJaw: 0.055,
+} as const;
+
+export const BODY_PROPORTION_GLSL = `
+#ifdef USE_CHILD_PROPORTIONS
+if (uAdiposity != 0.0 || uMuscle != 0.0) {
+  float faceH = max(1e-4, uBrowY - uChinY);
+  // 0 at the brow, 1 at the chin and everywhere below it.
+  float lower = 1.0 - smoothstep(uChinY, uBrowY, transformed.y);
+  float fat = uAdiposity * lower;
+  transformed.x *= 1.0 + fat * ${BODY.fatWidth.toFixed(3)};
+  transformed.z = uHeadCZ + (transformed.z - uHeadCZ) * (1.0 + fat * ${BODY.fatDepth.toFixed(3)});
+  float jaw = exp(-pow((transformed.y - (uChinY + 0.42 * faceH)) / (0.30 * faceH), 2.0));
+  transformed.x *= 1.0 + uMuscle * ${BODY.muscleJaw.toFixed(3)} * jaw;
+}
+#endif
+`;
+
 /** Declarations the snippet needs, inserted at `#include <common>`. */
 export const CHILD_PROPORTION_UNIFORMS =
   '#define USE_CHILD_PROPORTIONS\n'
-  + 'uniform float uChildness;\nuniform float uBrowY;\nuniform float uChinY;\nuniform float uHeadH;\n';
+  + 'uniform float uChildness;\nuniform float uBrowY;\nuniform float uChinY;\nuniform float uHeadH;\n'
+  + 'uniform float uAdiposity;\nuniform float uMuscle;\nuniform float uHeadCZ;\n';

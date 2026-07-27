@@ -609,7 +609,7 @@ async function main() {
   // renderer already computes that box for the hair.
   //
   // It is the pivot for the childhood proportion transform. See
-  // `lib/identity/childProportions.ts`.
+  // `lib/identity/faceProportions.ts`.
   let browYSrc = 0;
   for (let i = 17; i <= 26; i++) browYSrc += neutral.positions[landmarks[i] * 3 + 1];
   browYSrc /= 10;

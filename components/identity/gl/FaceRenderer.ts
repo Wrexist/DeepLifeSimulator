@@ -37,6 +37,7 @@ import {
   SKIN_TONES,
   bindGenomeToRig,
   genomeToInfluences,
+  normalizeBody,
   type BodyProfile,
   type FaceGenome,
   type MeshData,
@@ -351,7 +352,7 @@ export function createFaceScene(
 
   /**
    * Childhood proportions for the SCANNED head. A morph cannot express this —
-   * see `lib/identity/childProportions.ts`. The procedural head applies the same
+   * see `lib/identity/faceProportions.ts`. The procedural head applies the same
    * transform on the CPU; here it has to be a shader patch, because the morph
    * blend happens on the GPU and the transform must run on the blended result.
    */
@@ -360,6 +361,9 @@ export function createFaceScene(
     uBrowY: { value: 0 },
     uChinY: { value: 0 },
     uHeadH: { value: 1 },
+    uAdiposity: { value: 0 },
+    uMuscle: { value: 0 },
+    uHeadCZ: { value: 0 },
   };
 
   let assetParts: Record<string, THREE.Mesh> | null = null;
@@ -422,8 +426,16 @@ export function createFaceScene(
     if (irisMat) irisMat.color.set(iris);
 
     // A child is not a small adult. The morphs cannot say this — see
-    // `childProportions.ts` — so the shader does, on all five meshes at once.
+    // `faceProportions.ts` — so the shader does, on all five meshes at once.
     assetChildUniforms.uChildness.value = childnessAt(input.age);
+    // Body composition. `body` used to reach `buildHeadMesh` and nothing else,
+    // so on the scanned path — which runs whenever the GLB loads, i.e. nearly
+    // always — gaining thirty kilos changed the face not at all.
+    const bodyNow = normalizeBody(input.body);
+    assetChildUniforms.uAdiposity.value =
+      Math.max(-1, Math.min(1, (bodyNow.bodyFatPct - 22) / 22));
+    assetChildUniforms.uMuscle.value =
+      Math.max(-1, Math.min(1, (bodyNow.muscle - 35) / 55));
 
     if (assetHair) {
       // The AGED style, so recession and greying show without touching the
@@ -758,6 +770,9 @@ export function createFaceScene(
       assetChildUniforms.uBrowY.value = gb.min.y + BROW_FRAC * boxH;
       assetChildUniforms.uChinY.value = gb.min.y + CHIN_FRAC * boxH;
       assetChildUniforms.uHeadH.value = boxH;
+      // The depth term scales about the head's own centre: the exporter puts a
+      // translation on the node, so local z = 0 is not the middle of the head.
+      assetChildUniforms.uHeadCZ.value = (gb.min.z + gb.max.z) * 0.5;
     }
 
     if (asset.parts.skin?.geometry.getAttribute('_scalp')) {

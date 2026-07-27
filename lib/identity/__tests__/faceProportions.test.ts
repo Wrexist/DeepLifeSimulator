@@ -7,6 +7,8 @@
  * ill-formed.
  */
 import {
+  BODY,
+  BODY_PROPORTION_GLSL,
   CHILD,
   CHILD_PROPORTION_GLSL,
   CHILD_PROPORTION_UNIFORMS,
@@ -54,11 +56,26 @@ describe('the shader snippet and the TypeScript agree', () => {
     expect(asGlsl.some((v) => CHILD_PROPORTION_GLSL.includes(v))).toBe(true);
   });
 
-  it('declares every uniform the snippet reads', () => {
+  it('declares every uniform either snippet reads', () => {
     for (const name of ['uChildness', 'uBrowY', 'uChinY', 'uHeadH']) {
       expect(CHILD_PROPORTION_GLSL).toContain(name);
       expect(CHILD_PROPORTION_UNIFORMS).toContain(`uniform float ${name}`);
     }
+    for (const name of ['uAdiposity', 'uMuscle', 'uHeadCZ']) {
+      expect(BODY_PROPORTION_GLSL).toContain(name);
+      expect(CHILD_PROPORTION_UNIFORMS).toContain(`uniform float ${name}`);
+    }
+  });
+
+  it.each(Object.entries(BODY))('carries the same %s into the body snippet', (_n, value) => {
+    expect(BODY_PROPORTION_GLSL).toContain(value.toFixed(3));
+  });
+
+  it('scales depth about the head centre, not about zero', () => {
+    // The exporter puts a translation on the node, so local z = 0 is not the
+    // middle of the head. Scaling about it would push the whole face forward
+    // instead of thickening it.
+    expect(BODY_PROPORTION_GLSL).toContain('uHeadCZ + (transformed.z - uHeadCZ)');
   });
 
   it('is guarded so it compiles out when not installed', () => {

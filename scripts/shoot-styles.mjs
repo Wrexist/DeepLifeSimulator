@@ -90,18 +90,20 @@ async function main() {
   );
   // Childhood proportions: the GLSL and the pivot fraction, from the app and
   // from the bake. The page keeps no copy of either — see the note in the
-  // harness, and `lib/identity/childProportions.ts`.
-  const child = loadTs('lib/identity/childProportions.ts');
+  // harness, and `lib/identity/faceProportions.ts`.
+  const child = loadTs('lib/identity/faceProportions.ts');
   const statsFrame = JSON.parse(readFileSync('assets/models/face-measure-stats.json', 'utf8')).frame;
   await page.addInitScript(
     (c) => {
       window.__CHILD_GLSL = c.glsl;
+      window.__BODY_GLSL = c.body;
       window.__CHILD_UNIFORMS = c.uniforms;
       window.__BROW_FRAC = c.browFrac;
       window.__CHIN_FRAC = c.chinFrac;
     },
     {
       glsl: child.CHILD_PROPORTION_GLSL,
+      body: child.BODY_PROPORTION_GLSL,
       uniforms: child.CHILD_PROPORTION_UNIFORMS,
       browFrac: statsFrame?.browFrac ?? 0.746,
       chinFrac: statsFrame?.chinFrac ?? 0.347,
@@ -146,6 +148,31 @@ async function main() {
       shots.push({ name: `${g.hairStyle}`, png: await page.locator('canvas').screenshot() });
     }
     await writeSheet(page, shots, Math.min(6, count), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
+  // BODY=8,18,28,40,55 sweeps body fat, or BODY=fat:muscle pairs. The body
+  // simulation's whole point is to be visible on the face, and until this switch
+  // existed the scanned head ignored `body` entirely — it reached the procedural
+  // builder and nowhere else.
+  if (process.env.BODY) {
+    const bodyMod = loadTs('lib/identity/body.ts');
+    const shots = [];
+    for (const spec of process.env.BODY.split(',')) {
+      const [fat, muscle] = spec.split(':').map(Number);
+      const b = bodyMod.normalizeBody({ bodyFatPct: fat, muscle: Number.isFinite(muscle) ? muscle : 45 });
+      await page.evaluate(
+        ([a, mu]) => window.__setBody(a, mu),
+        [
+          Math.max(-1, Math.min(1, (b.bodyFatPct - 22) / 22)),
+          Math.max(-1, Math.min(1, (b.muscle - 35) / 55)),
+        ],
+      );
+      shots.push({ name: spec, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
     await browser.close();
     server.close();
     return;
