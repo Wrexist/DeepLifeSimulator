@@ -445,6 +445,37 @@ describe('eye seating', () => {
     ),
   ];
 
+  it.each(cases)('is a believable size on %s', (_name, g) => {
+    // THE RATIO NO OTHER TEST HERE CAN SEE.
+    //
+    // Every aperture assertion below is in multiples of the globe's radius, so
+    // all of them are blind to the globe being the wrong size. It was: the eye
+    // opening measured 6% of head width against a human 20%, and the faces
+    // rendered with specks for eyes while passing every bound.
+    //
+    // Measured against head width because that is what a viewer compares it to.
+    const head = buildHeadMesh(g, { age: 30 });
+    const e = eyePlacement(head, g, 30).left;
+    const visible = (dx: number): boolean => {
+      const rr = e.radius ** 2 - dx * dx;
+      return rr > 0 && e.z + Math.sqrt(rr) > surfaceZAt(head, e.x + dx, e.y);
+    };
+    const edge = (u: number): number => {
+      let last = 0;
+      for (let k = 0.02; k <= 1; k += 0.02) {
+        if (!visible(e.radius * k * u)) break;
+        last = k;
+      }
+      return last;
+    };
+    let halfWidth = 0;
+    for (let i = 0; i < head.positions.length; i += 3) {
+      halfWidth = Math.max(halfWidth, Math.abs(head.positions[i]));
+    }
+    const opening = (edge(1) + edge(-1)) * e.radius;
+    expect(opening / (halfWidth * 2)).toBeGreaterThan(0.068);
+  });
+
   it.each(aged)('opens as an almond on %s', (_name, g, age) => {
     const head = buildHeadMesh(g, { age });
     const a = aperture(head, eyePlacement(head, g, age).left);

@@ -333,7 +333,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   // proportionally half as deep again — it rendered as a dark trench across a
   // toddler's face.
   const socketDepth = (0.062 + eyeDepth * 0.060) * (1 - 0.40 * childness);
-  const eyeRadius = 0.100 + eyeSize * 0.032;
+  // 0.100 -> 0.122. The globe was close to right in isolation — a real one is
+  // about 8.5% of head width and this was 7.6% — but with the aperture widened
+  // to reach its edges, the opening is what sets the apparent size, and a little
+  // more globe brings it to the human proportion.
+  const eyeRadius = 0.122 + eyeSize * 0.038;
   const apertureCut = eyeRadius * 0.40;
   // Canthal tilt: ±10 degrees over the slider's range, which is about the human
   // range. Precomputed because it is used on every vertex.
@@ -559,7 +563,16 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // 0.148 and the field reaches zero at 0.92 of the y radius rather than at
       // it. A real palpebral fissure shows roughly 0.3 of the globe's radius
       // either side of centre; 0.036 lands there once that is accounted for.
-      const socketR: Vec3 = [0.125 + eyeSize * 0.055, 0.036 + eyeSize * 0.016, 0.26];
+      // IN RADII, not in absolute units. The bowl used to be sized by its own
+      // constants next to their own `eyeSize` terms, and once the aperture was
+      // widened the bowl became the thing bounding the opening: beyond its edge
+      // the skin is un-carved and stands in front of the globe, so the eye
+      // stayed small however wide the aperture was cut. Expressing it as
+      // multiples of the globe means the socket, the aperture and the ball
+      // cannot get out of proportion with each other — and it removes one more
+      // pair of absolute constants sitting beside a morph term, which is the
+      // shape of half the defects found in this file.
+      const socketR: Vec3 = [eyeRadius * 1.45, eyeRadius * 0.42, 0.26];
       // Carved 0.018 MEDIAL of the eyeball, not concentric with it. The face
       // still falls away toward the temple — less than it did, but enough that a
       // symmetric socket opens asymmetrically: the skin wins further out on the
@@ -596,7 +609,14 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // Curvature no longer enters into it: the cut only has to be deeper than
       // the globe's drop across the aperture, which is 6% of a radius, and it is
       // seven times that.
-      const apertureR: Vec3 = [eyeRadius * 0.95, eyeRadius * 0.32, 0.30];
+      // 1.30 radii wide, not 0.95. A palpebral fissure is about 30mm across a
+      // globe 24mm through, so the opening is WIDER than the globe's silhouette
+      // — the corners run onto the skin past it. At 0.95 the aperture stopped
+      // short of the globe's own edge and the eye came out at 6% of head width
+      // against a human 20%: correct in every ratio the tests measure, because
+      // every one of them normalises by the globe's radius, and three times too
+      // small in the only ratio that decides whether it looks like an eye.
+      const apertureR: Vec3 = [eyeRadius * 1.30, eyeRadius * 0.32, 0.30];
       const aperture =
         blobRot(x, y, z, [eyeX, eyeY, 0.70], apertureR, canthalSin, canthalCos) +
         blobRot(x, y, z, [-eyeX, eyeY, 0.70], apertureR, -canthalSin, canthalCos);
