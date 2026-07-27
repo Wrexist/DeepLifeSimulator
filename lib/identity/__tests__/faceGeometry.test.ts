@@ -148,6 +148,61 @@ describe('hair placement', () => {
   );
 });
 
+describe('eyebrows', () => {
+  // The procedural head had none. The scanned head has brows painted into its
+  // albedo and tinted by hair colour; this one was a flat material with no
+  // shader patch at all, so every fallback face rendered with a bare brow ridge.
+  // Eyebrows carry more identity than almost anything else on a face, and their
+  // absence is most of why these heads read as unfinished rather than simple.
+  const head = buildHeadMesh(neutral, { age: 30 });
+  const lm = head.landmarks!;
+  const brow = head.brow!;
+
+  it('exists, one weight per vertex', () => {
+    expect(brow).toBeDefined();
+    expect(brow.length).toBe(head.positions.length / 3);
+    expect(Math.max(...brow)).toBeGreaterThan(0.6);
+  });
+
+  it('leaves a gap at the glabella', () => {
+    // Two brows, not a bar. The first version multiplied by a term that rose
+    // toward the midline, meaning to thicken each brow at its inner end; what it
+    // did was boost the overlap between the two blobs, fusing them into one
+    // unbroken band. Every character had a monobrow.
+    // Out to 0.11 either side of the midline, measured: the brow currently
+    // reaches 0.03 at 0.09-0.12 and 0.28 by 0.12-0.15, so this has margin and
+    // still fails on the parameters that produced the bar. A threshold tight
+    // against the midline passes on a monobrow, because the blobs never reach
+    // x = 0 even when they meet.
+    let onMidline = 0;
+    for (let i = 0; i < brow.length; i++) {
+      if (Math.abs(head.positions[i * 3]) < 0.11) onMidline = Math.max(onMidline, brow[i]);
+    }
+    expect(onMidline).toBeLessThan(0.10);
+  });
+
+  it('sits between the eye and the crown, on the front of the head', () => {
+    for (let i = 0; i < brow.length; i++) {
+      if (brow[i] < 0.2) continue;
+      const y = head.positions[i * 3 + 1];
+      const z = head.positions[i * 3 + 2];
+      expect(y).toBeGreaterThan(lm.eyeY);
+      expect(y).toBeLessThan(lm.crownY);
+      expect(z).toBeGreaterThan(0);
+    }
+  });
+
+  it('is symmetric', () => {
+    let left = 0;
+    let right = 0;
+    for (let i = 0; i < brow.length; i++) {
+      if (head.positions[i * 3] > 0) left += brow[i];
+      else if (head.positions[i * 3] < 0) right += brow[i];
+    }
+    expect(left).toBeCloseTo(right, 3);
+  });
+});
+
 describe('every slider does something', () => {
   // A floor on how much each morph is allowed to matter.
   //

@@ -76,6 +76,24 @@ export interface MeshData {
    * brow was.
    */
   landmarks?: HeadLandmarks;
+  /**
+   * Per-vertex eyebrow weight in [0, 1], on the head mesh. The renderer tints
+   * toward the hair colour by it.
+   *
+   * THE PROCEDURAL HEAD HAD NO EYEBROWS. The scanned head has them painted into
+   * its albedo and tinted by hair colour; this one is a flat colour with no
+   * shader patch at all, so every fallback face rendered with a bare brow ridge.
+   * Eyebrows carry more identity than almost anything else on a face, and their
+   * absence is most of why these heads read as unfinished rather than merely
+   * simple.
+   *
+   * A per-vertex weight rather than a texture because this mesh has no UVs, and
+   * because it is the same shape as `coverage`: the geometry decides where, the
+   * renderer decides what colour. It cannot do freckles — at 9.4k vertices the
+   * mesh is far too coarse for that frequency — which is why `blemishes` still
+   * only shows on the scanned path.
+   */
+  brow?: Float32Array;
 }
 
 /** Feature heights in model space, measured after the morphs are applied. */
@@ -139,6 +157,9 @@ const RINGS = 96;
  * small face stuck on the front.
  */
 const SKULL = { rx: 0.58, ry: 0.88, rz: 0.90 };
+
+/** Eyebrow footprint: wide, shallow, and deep enough to wrap the ridge. */
+const BROW_R: Vec3 = [0.17, 0.038, 0.34];
 
 type Vec3 = [number, number, number];
 
@@ -297,10 +318,15 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const canthal = centred(m.eyeTilt) * 0.35;
   const canthalSin = Math.sin(canthal);
   const canthalCos = Math.cos(canthal);
+  // The brow arches with the eye it sits over, but less: a canthal tilt moves
+  // the whole eye and the brow only follows part of the way.
+  const browSin = Math.sin(canthal * 0.6 + 0.09);
+  const browCos = Math.cos(canthal * 0.6 + 0.09);
 
   const vertexCount = (RINGS + 1) * (SEGMENTS + 1);
   const positions = new Float32Array(vertexCount * 3);
   const normals = new Float32Array(vertexCount * 3);
+  const brow = new Float32Array(vertexCount);
 
   // Neck/shoulder blend: below this the surface stops being a head and becomes a
   // neck, so the skull morphs must fade out or the jaw drags the throat with it.
@@ -583,6 +609,28 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const sag = Math.max(0, (age - 40) / 60) * 0.05;
       y -= sag * smoothstep(0.15, -0.55, y) * headness;
 
+      // ---- Eyebrow weight ---------------------------------------------------
+      // Sampled at the FINAL position, so the brow lands on the ridge wherever
+      // the morphs and the childhood transform have put it.
+      //
+      // Arched by rotating the frame outward-up, mirrored per side, and thicker
+      // toward the midline — a brow that is one even bar reads as a drawn-on
+      // line rather than hair.
+      {
+        // A GAP AT THE GLABELLA. Two brows, not a bar.
+        //
+        // The first version multiplied by a term that rose toward the midline,
+        // meaning to thicken each brow at its inner end. What it actually did
+        // was boost the overlap between the two blobs, so the pair fused into
+        // one unbroken band across the face — a monobrow on every character.
+        // The thickening is gone and a gap mask took its place.
+        const gap = smoothstep(0.055, 0.115, Math.abs(x));
+        const w =
+          blobRot(x, y, z, [eyeX * 1.06, browY - 0.005, 0.74], BROW_R, browSin, browCos) +
+          blobRot(x, y, z, [-eyeX * 1.06, browY - 0.005, 0.74], BROW_R, -browSin, browCos);
+        brow[vi / 3] = Math.max(0, Math.min(1, w * gap * 1.5));
+      }
+
       positions[vi] = x;
       positions[vi + 1] = y;
       positions[vi + 2] = z;
@@ -667,7 +715,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     socketDepth,
   };
 
-  return { positions, normals, indices, landmarks };
+  return { positions, normals, indices, landmarks, brow };
 }
 
 /** Triangle list for a UV sphere grid, skipping the degenerate polar quads. */

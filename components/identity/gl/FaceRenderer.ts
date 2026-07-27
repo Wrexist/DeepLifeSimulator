@@ -84,6 +84,10 @@ function toBufferGeometry(mesh: MeshData): THREE.BufferGeometry {
     // Feeds the hair/beard alpha so the hairline is soft rather than stepped.
     geometry.setAttribute('coverage', new THREE.BufferAttribute(mesh.coverage, 1));
   }
+  if (mesh.brow) {
+    // Per-vertex eyebrow weight; the skin material tints toward hair colour.
+    geometry.setAttribute('brow', new THREE.BufferAttribute(mesh.brow, 1));
+  }
   geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
   geometry.computeBoundingSphere();
   return geometry;
@@ -1068,6 +1072,35 @@ export function createFaceScene(
       clearcoatRoughness: 0.7,
       envMapIntensity: 0.7,
     }));
+    // EYEBROWS. The procedural head had none: this material was a flat colour
+    // with no shader patch, while the scanned head has brows painted into its
+    // albedo and tinted by hair colour. `buildHeadMesh` now emits a per-vertex
+    // brow weight; this tints by it. Brows survive a shaved head, so the colour
+    // comes from the hair palette rather than from whether there is any hair.
+    {
+      const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
+      const browColor = new THREE.Color(hairHex).multiplyScalar(0.62);
+      const skinColor = new THREE.Color(skin);
+      // Contrast floor against the skin — black hair on the darkest tone put the
+      // brow within a few units of the face and it vanished. Loose enough that a
+      // blond stays faint-browed, as blonds are.
+      const lum = (c: THREE.Color) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+      const target = lum(skinColor) * 0.55;
+      if (lum(browColor) > target && lum(browColor) > 1e-4) {
+        browColor.multiplyScalar(target / lum(browColor));
+      }
+      const uBrowColor = { value: browColor };
+      headMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uBrowColor = uBrowColor;
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float brow;\nvarying float vBrow;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBrow = brow;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;\nvarying float vBrow;')
+          .replace('#include <color_fragment>',
+            '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, clamp(vBrow, 0.0, 1.0));');
+      };
+    }
     headMesh = new THREE.Mesh(track(toBufferGeometry(head)), headMaterial);
     root.add(headMesh);
 

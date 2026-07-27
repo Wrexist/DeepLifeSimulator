@@ -85,7 +85,8 @@ function crc32(buf: Buffer): number {
   return c ^ 0xffffffff;
 }
 
-interface Draw { mesh: MeshData; color: [number, number, number]; spec: number; base?: [number, number, number] }
+interface Draw { mesh: MeshData; color: [number, number, number]; spec: number;
+  base?: [number, number, number]; brow?: [number, number, number] }
 
 function sphereMesh(cx: number, cy: number, cz: number, r: number, seg = 20): MeshData {
   const pos: number[] = [], idx: number[] = [];
@@ -131,13 +132,15 @@ function render(draws: Draw[], yaw: number, zoom?: { scale: number; y: number })
   const L = [-0.45, 0.6, 0.75]; const Ll = Math.hypot(...L as [number, number, number]);
   const lx = L[0] / Ll, ly = L[1] / Ll, lz = L[2] / Ll;
 
-  for (const { mesh, color, spec, base } of draws) {
+  for (const { mesh, color, spec, base, brow } of draws) {
     const { positions, normals, indices } = mesh;
     for (let t = 0; t < indices.length; t += 3) {
       const p: number[][] = [], n: number[][] = []; const cov: number[] = [];
+      const brw: number[] = [];
       for (let k = 0; k < 3; k++) {
         const i = indices[t + k] * 3;
         cov.push(mesh.coverage ? mesh.coverage[indices[t + k]] : 1);
+        brw.push(mesh.brow ? mesh.brow[indices[t + k]] : 0);
         const x = positions[i], y = positions[i + 1], z = positions[i + 2];
         const rx = x * cy + z * sy, rz = -x * sy + z * cy;
         p.push([ox + rx * scale, oy - y * scale, rz]);
@@ -183,14 +186,35 @@ function render(draws: Draw[], yaw: number, zoom?: { scale: number; y: number })
         // Blend toward the underlying skin by coverage — this is what turns the
         // stair-stepped hairline into a soft one.
         const a = Math.max(0, Math.min(1, w0 * cov[0] + w1 * cov[1] + w2 * cov[2]));
+        // Eyebrows: a tint on the skin, not a mesh of their own.
+        const eb = brow ? Math.max(0, Math.min(1, w0 * brw[0] + w1 * brw[1] + w2 * brw[2])) : 0;
         for (let c = 0; c < 3; c++) {
-          const src = color[c] * a + (base ? base[c] : color[c]) * (1 - a);
-          img[di * 3 + c] = Math.min(255, src * light + specV * 255 * a + rim * 120);
+          let src = color[c] * a + (base ? base[c] : color[c]) * (1 - a);
+          if (eb > 0 && brow) src = src * (1 - eb) + brow[c] * eb;
+          img[di * 3 + c] = Math.min(255, src * light + specV * 255 * a * (1 - eb) + rim * 120);
         }
       }
     }
   }
   return img;
+}
+
+/**
+ * Eyebrow colour: the hair colour darkened, then floored so it always reads
+ * against the skin it sits on.
+ */
+function browColour(
+  hair: [number, number, number], skin: [number, number, number],
+): [number, number, number] {
+  const lum = (c: [number, number, number]) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+  const out = hair.map((c) => c * 0.62) as [number, number, number];
+  const target = lum(skin) * 0.55;
+  const have = lum(out);
+  if (have > target && have > 1) {
+    const k = target / have;
+    return [out[0] * k, out[1] * k, out[2] * k];
+  }
+  return out;
 }
 
 function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number,
@@ -204,7 +228,16 @@ function renderFace(g: FaceGenome, age: number, bodyFat: number, yaw: number,
   const hairC = hexToRgb(HAIR_COLORS[g.hairColor]);
   const eyeC = hexToRgb(EYE_COLORS[g.eyeColor]);
 
-  const draws: Draw[] = [{ mesh: head, color: skin, spec: 0.10 }];
+  // Brows follow the hair colour, darkened — the same rule the scanned head
+  // uses. A bald character keeps their brows: eyebrows do not fall out with a
+  // shaved head.
+  //
+  // With a contrast floor against the skin, because hair colour alone is not
+  // enough: black hair on the darkest skin tone put the brow within a few units
+  // of the face and it disappeared, which is how it first rendered. The floor is
+  // loose (72% of skin luminance) so a blond stays faint-browed, as blonds are.
+  const browC = browColour(hairC, skin);
+  const draws: Draw[] = [{ mesh: head, color: skin, spec: 0.10, brow: browC }];
   for (const e of [eyes.left, eyes.right]) {
     draws.push({ mesh: sphereMesh(e.x, e.y, e.z, e.radius), color: [242, 242, 240], spec: 0.5 });
     draws.push({ mesh: sphereMesh(e.x, e.y, e.z + e.radius * EYE_SHELLS.irisOffset, e.radius * EYE_SHELLS.irisRadius), color: eyeC, spec: 0.6 });
