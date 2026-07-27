@@ -326,5 +326,23 @@ export function isDeepLifePlusProduct(productId: string): boolean {
  * OR the one-time lifetime unlock. Every premium gate should use this.
  */
 export function isDeepLifePlusActive(): boolean {
+  // DEV-ONLY testing override, double-gated.
+  //
+  // The selfie route into the face creator is a DeepLife+ surface, so the only
+  // way to exercise it was to actually buy the subscription — which means one
+  // of the three character-customization systems could not be tested at all.
+  //
+  // Two independent gates, both required:
+  //
+  //   `__DEV__`  is compile-time FALSE in a release build, so the whole branch
+  //              is dead code Metro strips — a production binary cannot reach
+  //              it however the environment is set.
+  //   the env var means it stays off even in dev unless someone asks for it, so
+  //              normal development still sees what a free player sees.
+  //
+  // Deliberately here rather than inside `subscriptionService`: entitlement is
+  // revenue-critical and the service should have exactly one notion of what a
+  // real purchase is. This overrides the QUESTION, not the record.
+  if (__DEV__ && process.env.EXPO_PUBLIC_FORCE_DEEPLIFE_PLUS === 'true') return true;
   return subscriptionService.hasPremiumAccess();
 }
