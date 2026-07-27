@@ -41,3 +41,55 @@ describe('style catalogues', () => {
     }
   });
 });
+
+describe('the randomiser reaches its own content', () => {
+  it('can roll every hair style that is not deliberately excluded', () => {
+    // `randomizeFace` picks from pools that name styles LITERALLY, so a style
+    // added to HAIR_STYLES and not added to a pool can never be rolled — it
+    // ships, and no NPC or first-roll character ever wears it. Twenty of the
+    // thirty-five were in exactly that position.
+    const rolled = new Set<string>();
+    for (const sex of ['male', 'female']) {
+      for (let i = 0; i < 400; i++) {
+        rolled.add(randomizeFace(`reach-${sex}-${i}`, { sex }).hairStyle);
+      }
+    }
+    // `bald` is male-only and `receding` is an aging outcome; everything else
+    // should be reachable by somebody.
+    const unreachable = HAIR_STYLES.filter((s) => !rolled.has(s));
+    expect(unreachable).toEqual([]);
+  });
+
+  it('never gives a newborn grey or white hair', () => {
+    // Indexes 9 and 10 are the AGE colours — `applyAging` moves a character
+    // onto them from 40 — and 11-13 are dyes, which are a choice. A birth roll
+    // that included them handed one character in six white hair at twenty.
+    for (let i = 0; i < 400; i++) {
+      expect(randomizeFace(`birth-${i}`).hairColor).toBeLessThan(9);
+    }
+  });
+
+  it('biases the face by sex without partitioning it', () => {
+    // A tendency, not two fixed faces: the MEANS must separate while the ranges
+    // still overlap. If every male jaw were wider than every female one this
+    // would be a partition, which is the thing the design explicitly avoids.
+    const jawOf = (sex: string, i: number) => randomizeFace(`dim-${i}`, { sex, spread: 0.6 }).morphs.jawWidth;
+    const males = Array.from({ length: 200 }, (_, i) => jawOf('male', i));
+    const females = Array.from({ length: 200 }, (_, i) => jawOf('female', i));
+    const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+    expect(mean(males)).toBeGreaterThan(mean(females) + 0.15);
+    expect(Math.max(...females)).toBeGreaterThan(Math.min(...males));
+  });
+
+  it('keeps every biased morph in range', () => {
+    for (const sex of ['male', 'female']) {
+      for (let i = 0; i < 200; i++) {
+        const g = randomizeFace(`range-${sex}-${i}`, { sex, spread: 1 });
+        for (const v of Object.values(g.morphs)) {
+          expect(v).toBeGreaterThanOrEqual(0);
+          expect(v).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+});

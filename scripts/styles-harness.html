@@ -506,6 +506,25 @@ shareMorphs(parts.skin, beard);
 parts.skin.parent.add(beard);
 
 /** DENSITY IS NOT THICKNESS — see the note in FaceRenderer's BEARD_SPEC. */
+/**
+ * Density is the STYLE's density scaled by how pale the beard is.
+ *
+ * In one function because it depends on two things set independently — the
+ * style and the hair colour — and whichever ran second used to clobber the
+ * other. Rendered characters kept coming out with the un-adjusted value
+ * because `__setBeard` happened to run last.
+ *
+ * A pale beard has to be thinner: an opaque light beard reads as a bandage
+ * across the lower face, and grey hair is genuinely more translucent than
+ * pigmented hair. See FaceRenderer, which computes the same thing in one place
+ * for the same reason.
+ */
+function applyBeardDensity() {
+  const c = beardMat.color;
+  const lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+  BU.uDensity.value = (BU.__style ?? 1) * (1 - 0.68 * Math.min(1, lum * 2.0));
+}
+
 const BEARD = {
   none:       null,
   stubble:    { frac: 0.005, mix: [1, 1, 1], frizz: 0.5, density: 0.40 },
@@ -521,7 +540,8 @@ window.__setBeard = (name) => {
     BU.uThickness.value = s.frac * geomExtent;
     BU.uMix.value.set(...s.mix);
     BU.uFrizz.value = s.frizz;
-    BU.uDensity.value = s.density ?? 1;
+    BU.__style = s.density ?? 1;
+    applyBeardDensity();
   }
   renderer.render(scene, camera);
 };
@@ -720,7 +740,12 @@ window.__probe = () => {
 // against the one brown everything defaults to.
 window.__setHairColor = (hex) => {
   hairMat.color.set(hex);
-  beardMat.color.set(hex).multiplyScalar(0.72);
+  // Desaturated first, like the brows: a dark saturated orange skews
+  // yellow-green through ACES and a blond beard comes out khaki.
+  const bc = beardMat.color.set(hex);
+  const rawLum = 0.3 * bc.r + 0.59 * bc.g + 0.11 * bc.b;
+  bc.lerp(new THREE.Color(rawLum, rawLum, rawLum), 0.20).multiplyScalar(0.72);
+  applyBeardDensity();
   // Brows follow the hair: desaturated a third of the way toward their own
   // luminance, then darkened. Scaling the hair colour alone keeps its full
   // saturation, and a dark saturated orange skews yellow-green through ACES —

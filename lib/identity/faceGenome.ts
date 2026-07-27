@@ -112,29 +112,80 @@ export interface RandomizeFaceOptions {
 }
 
 /**
+ * Per-morph mean shift applied to a MALE character, in slider units.
+ *
+ * Facial dimorphism is a soft statistical tendency, not a partition, so this
+ * moves the CENTRE of the distribution and leaves its spread alone. Every value
+ * remains reachable for every character; a narrow-jawed male and a heavy-browed
+ * female are both still rolled, just less often, which is what "tendency"
+ * means. Non-male characters get the same shifts negated.
+ *
+ * Without it, `sex` biased nothing but the hairstyle: a player who chose female
+ * got the same head with longer hair, which in a game about living a life is
+ * not a small thing to get wrong.
+ *
+ * The signs are the uncontroversial ones — wider and squarer jaw, heavier brow
+ * ridge, lower-set brows, longer nose, thinner lips. Deliberately SMALL, around
+ * a third of a slider at most: pushed further it stops being a tendency and
+ * starts being two fixed faces, which is the failure the previous note here
+ * warned about and was right to.
+ */
+const MALE_BIAS: Partial<Record<FaceMorphKey, number>> = {
+  jawWidth: 0.16,
+  jawAngle: 0.14,
+  chinProtrusion: 0.10,
+  browProtrusion: 0.18,
+  browHeight: -0.12,
+  cheekboneHeight: -0.06,
+  noseLength: 0.10,
+  noseWidth: 0.10,
+  lipFullness: -0.12,
+  faceWidth: 0.08,
+  neckThickness: 0.20,
+};
+
+/**
  * A complete random face from a stable seed.
  *
- * Morphs are NOT split by sex. Real facial dimorphism is a soft statistical
- * tendency, not a partition, and hard-coding "male jaws are wide" would make
- * every male character look identical along the axis players most want control
- * of. Sex only biases hair and facial hair, which are choices rather than
- * anatomy — and the player can override both in the creator.
+ * Morphs are not PARTITIONED by sex — see `MALE_BIAS` for what is and is not
+ * done, and why the difference matters.
  */
 export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}): FaceGenome {
   const rng = makeGenomeRng(seed);
   const spread = clampRange(options.spread ?? 0.55, 0.1, 1);
   const isMale = String(options.sex || '').toLowerCase() === 'male';
 
+  // A sex was only supplied for some callers; an unspecified one gets the
+  // unbiased centre rather than being treated as female.
+  const stated = String(options.sex || '').toLowerCase();
+  const bias = stated === 'male' ? 1 : stated === 'female' ? -1 : 0;
+
   const morphs = {} as FaceMorphs;
   for (const key of FACE_MORPH_KEYS) {
-    morphs[key] = sampleMorph(rng, spread);
+    morphs[key] = clamp01(sampleMorph(rng, spread) + bias * (MALE_BIAS[key] ?? 0));
   }
 
-  // Hair: the tail of the list (ponytail/bun) reads feminine, so bias the pick
-  // rather than forbidding anything — a male character can still have long hair.
+  // Hair: biased, never forbidden — a male character can still have long hair
+  // and a female one a buzz cut. Repetition is the weighting.
+  //
+  // These pools list the styles by NAME, so a style added to HAIR_STYLES and
+  // not added here can never be rolled. Twenty of the thirty-five were in
+  // exactly that position — every everyday cut in the set, unreachable by the
+  // randomiser and therefore never seen on an NPC or a first-roll character.
   const hairPool: HairStyle[] = isMale
-    ? ['bald', 'buzz', 'short', 'short', 'medium', 'medium', 'long', 'afro']
-    : ['buzz', 'short', 'medium', 'medium', 'long', 'long', 'ponytail', 'bun', 'afro'];
+    ? [
+      'bald', 'buzz', 'buzzFade', 'crew', 'short', 'short', 'caesar',
+      'taperFade', 'taperFade', 'highFade', 'ivyLeague', 'sidePart',
+      'combOver', 'slickBack', 'pompadour', 'quiff', 'texturedCrop',
+      'messy', 'spiky', 'flatTop', 'undercut', 'mohawk', 'cornrows',
+      'afro', 'curls', 'medium', 'long', 'receding', 'fringe', 'bowl',
+    ]
+    : [
+      'pixie', 'bob', 'bob', 'short', 'medium', 'medium', 'layered',
+      'layered', 'wavy', 'wavy', 'curtains', 'long', 'long', 'ponytail',
+      'bun', 'afro', 'curls', 'sidePart', 'messy', 'cornrows', 'buzz',
+      'fringe', 'bowl', 'pixie',
+    ];
   const hairStyle = hairPool[Math.floor(rng() * hairPool.length)] ?? 'short';
 
   // Facial hair is overwhelmingly a male trait, so non-male characters get
@@ -147,9 +198,13 @@ export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}):
   return {
     morphs,
     skinTone: Math.floor(rng() * SKIN_TONES.length),
-    // Natural hair colours occupy the first 11 entries; the last three are dyes.
-    // Random people are not born purple, so sample the natural range only.
-    hairColor: Math.floor(rng() * 11),
+    // Indices 0-8 are the colours people are BORN with.
+    //
+    // 9 and 10 are grey and white, which this used to sample: it handed newborns
+    // and twenty-year-olds white hair at a rate of one in six. They are AGE
+    // colours — `applyAging` moves a character onto them from 40 — and 11-13 are
+    // dyes, which are a choice. Neither belongs in a birth roll.
+    hairColor: Math.floor(rng() * 9),
     eyeColor: Math.floor(rng() * EYE_COLORS.length),
     hairStyle,
     facialHair,

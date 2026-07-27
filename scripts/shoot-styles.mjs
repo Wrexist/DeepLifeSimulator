@@ -94,6 +94,36 @@ async function main() {
     await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
   }
 
+  // SEX=male|female renders n randomised characters of that sex through the
+  // app's own randomiser, hair pool and all. `randomizeFace` lists its styles
+  // by name, so this is also the check that a newly added style is reachable.
+  if (process.env.SEX) {
+    const genomeMod = loadTs('lib/identity/faceGenome.ts');
+    const bindMod = loadTs('lib/identity/morphBinding.ts');
+    const types = loadTs('lib/identity/types.ts');
+    const names = await page.evaluate(() => window.__morphNames);
+    const binding = bindMod.bindGenomeToRig(names);
+    const count = Number(process.env.COUNT ?? 6);
+    const shots = [];
+    for (let i = 0; i < count; i++) {
+      const g = genomeMod.randomizeFace(`${process.env.SEX}-${i}`, { sex: process.env.SEX, spread: 0.6 });
+      const { influences } = bindMod.genomeToInfluences(g, binding, { signed: true });
+      await page.evaluate((c) => window.__applyCharacter(c), {
+        influences,
+        hairColor: types.HAIR_COLORS[g.hairColor],
+        eyeColor: types.EYE_COLORS[g.eyeColor],
+        blemish: g.blemishes,
+        hairStyle: g.hairStyle,
+        facialHair: g.facialHair,
+      });
+      shots.push({ name: `${g.hairStyle}`, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(6, count), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
   // AGE=8,25,45,65,85 renders one character across a lifetime, driven by the
   // app's OWN `applyAging`. It rewrites eleven morphs, greys the hair and lifts
   // the hairline, it is numerically tested, and until this switch existed

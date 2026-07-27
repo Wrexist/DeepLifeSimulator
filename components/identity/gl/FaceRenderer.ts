@@ -511,13 +511,26 @@ export function createFaceScene(
         assetBeardUniforms.uThickness.value = spec.frac * assetGeomExtent;
         assetBeardUniforms.uMix.value.set(...spec.mix);
         assetBeardUniforms.uFrizz.value = spec.frizz;
-        assetBeardUniforms.uDensity.value = spec.density;
         // Facial hair reads darker than scalp hair on the same head, so it is
         // the hair colour knocked down rather than a second palette to keep in
         // sync — a beard that does not match the hair looks like a costume.
         const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
-        (assetBeard.material as THREE.MeshStandardMaterial).color
-          .set(hairHex).multiplyScalar(0.72);
+        // Desaturated first, for the reason the eyebrows are — a dark saturated
+        // orange skews toward yellow-green through ACES, and a blond beard came
+        // out khaki.
+        const beardColor = (assetBeard.material as THREE.MeshStandardMaterial).color.set(hairHex);
+        const rawLum = 0.3 * beardColor.r + 0.59 * beardColor.g + 0.11 * beardColor.b;
+        beardColor.lerp(GREY.setScalar(rawLum), 0.20).multiplyScalar(0.72);
+        // A PALE BEARD HAS TO BE THINNER.
+        //
+        // Rendered on a grey-haired character the beard came out as a solid
+        // light mask across the lower face — it read as a bandage, not hair.
+        // A dark beard hides that it is an opaque shell because it also reads
+        // as shadow; a pale one has nothing to hide behind. Grey and white hair
+        // is genuinely more translucent than pigmented hair, so letting more
+        // skin through at the light end is both the fix and the truth.
+        const beardLum = 0.3 * beardColor.r + 0.59 * beardColor.g + 0.11 * beardColor.b;
+        assetBeardUniforms.uDensity.value = spec.density * (1 - 0.68 * Math.min(1, beardLum * 2.0));
       }
     }
   }
