@@ -419,6 +419,32 @@ async function main() {
     return;
   }
 
+  if (process.env.VISIBLE_AIM) {
+    const probe = await page.evaluate(() => window.__probeEyes());
+    const fit = axisMod.deriveEyeAxes(probe.sclera.irisR, probe.sclera.positions);
+    const seen = await page.evaluate(() => window.__measureVisibleEyes());
+    for (let i = 0; i < 2; i++) {
+      const s = seen[i];
+      if (!s) { console.log(`${i ? 'R' : 'L'}: nothing visible`); continue; }
+      // With no yaw, +x is screen-right, so the RIGHT half of the frame holds the
+      // character's right eye. Getting this backwards asks for the gaze toward
+      // the other eye's screen position, and the ray simply misses the eyeball —
+      // which is the only reason it was caught.
+      const right = i === 1;
+      const want = await page.evaluate(
+        ([a, n, r]) => window.__gazeToward(a, n, r), [fit, s.ndc, right],
+      );
+      console.log(
+        `${right ? 'R' : 'L'}: ${s.pixels} px  centre=[${s.ndc.map((v) => v.toFixed(4)).join(', ')}]`
+        + `  wantGaze=[${want ? want.map((v) => v.toFixed(4)).join(', ') : 'miss'}]`
+        + `  have=[${(right ? fit.gazeRight : fit.gazeLeft).map((v) => v.toFixed(4)).join(', ')}]`,
+      );
+    }
+    await browser.close();
+    server.close();
+    return;
+  }
+
   if (process.env.EYE_STATS) {
     const eyes = await page.evaluate(() => window.__probeEyes());
     const axisMod = loadTs('components/identity/gl/eyeAxis.ts');
@@ -436,22 +462,6 @@ async function main() {
       );
       console.log(`  gazeR=[${fit.gazeRight.map((v) => v.toFixed(4))}] centreR=[${fit.centreRight.map((v) => v.toFixed(4))}]`);
       console.log(`  gazeL=[${fit.gazeLeft.map((v) => v.toFixed(4))}] centreL=[${fit.centreLeft.map((v) => v.toFixed(4))}]`);
-      if (process.env.EYE_STATS === 'profile') {
-        const g = fit.gazeRight, ce = fit.centreRight;
-        const pts = [];
-        for (let i = 0; i < d.irisR.length; i++) {
-          if (d.positions[i * 3] <= fit.midX) continue;
-          const nx = d.positions[i * 3] - ce[0], ny = d.positions[i * 3 + 1] - ce[1],
-            nz = d.positions[i * 3 + 2] - ce[2];
-          const l = Math.hypot(nx, ny, nz) || 1;
-          const c = Math.max(-1, Math.min(1, (nx * g[0] + ny * g[1] + nz * g[2]) / l));
-          pts.push([d.irisR[i], Math.acos(c)]);
-        }
-        pts.sort((a, b) => a[0] - b[0]);
-        for (const [r, ang] of pts.filter((p) => p[0] < 2.2)) {
-          console.log(`    r=${r.toFixed(3)} angle=${(ang * 57.2958).toFixed(2)}deg ratio=${(ang / r * 57.2958).toFixed(2)}`);
-        }
-      }
     }
     await browser.close();
     server.close();

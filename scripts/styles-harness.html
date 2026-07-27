@@ -837,6 +837,114 @@ window.__probeEyes = () => {
   return out;
 };
 
+/**
+ * Is the character looking at you? Measured, in the plane the question lives in.
+ *
+ * The pupil reads as centred when it projects to the centre of the OPENING ON
+ * SCREEN. That is not the same as the 3-D centroid of the aperture ring, and the
+ * difference is not small: the lateral canthus wraps backward around the
+ * eyeball, so the ring's centroid is pulled outward by a wrap that projection
+ * foreshortens away. Aiming at it drove the irises further out than the bake
+ * already had.
+ *
+ * So this projects the ring, takes the 2-D centroid, and inverts: it returns the
+ * gaze direction whose pupil would land exactly there — the near intersection of
+ * the camera ray through that point with the eyeball.
+ */
+/** The gaze that would put the pupil at `ndc`, for the eye on the given side. */
+window.__gazeToward = (axes, ndc, right) => {
+  parts.sclera.updateWorldMatrix(true, false);
+  const world = parts.sclera.matrixWorld;
+  const centreLocal = new THREE.Vector3(...(right ? axes.centreRight : axes.centreLeft));
+  const centre = centreLocal.clone().applyMatrix4(world);
+  const sp = parts.sclera.geometry.getAttribute('position');
+  const ds = [];
+  for (let i = 0; i < sp.count; i++) {
+    const q = new THREE.Vector3(sp.getX(i), sp.getY(i), sp.getZ(i));
+    if ((q.x > 0) !== right) continue;
+    ds.push(q.distanceTo(centreLocal));
+  }
+  ds.sort((a, b) => a - b);
+  const rLocal = ds[ds.length >> 1];
+  const R = rLocal * new THREE.Vector3().setFromMatrixScale(world).x;
+  const near = new THREE.Vector3(ndc[0], ndc[1], -1).unproject(camera);
+  const far = new THREE.Vector3(ndc[0], ndc[1], 1).unproject(camera);
+  const dir = far.sub(near).normalize();
+  const oc = near.clone().sub(centre);
+  const b = 2 * oc.dot(dir);
+  const c = oc.lengthSq() - R * R;
+  const disc = b * b - 4 * c;
+  if (disc < 0) return null;
+  const hit = near.clone().add(dir.clone().multiplyScalar((-b - Math.sqrt(disc)) / 2));
+  const inv = new THREE.Matrix3().setFromMatrix4(world).invert();
+  return hit.sub(centre).normalize().applyMatrix3(inv).normalize().toArray();
+};
+
+/**
+ * Where the palpebral opening actually is on screen, by rendering the eyeball
+ * with the lids in place and looking at which pixels it covers.
+ *
+ * The question this answers is "is the character looking at you", and three
+ * closed-form proxies for it were tried first. All three were wrong, and none
+ * of them looked wrong in the numbers:
+ *
+ *  - the aperture ring's 3-D centroid, which the lateral canthus drags outward
+ *    by wrapping backward around the eyeball — a wrap projection foreshortens
+ *    away. Aiming at it drove the irises further out than the bake already had.
+ *  - the ring's SCREEN centroid, which sits above the visible opening because
+ *    the lid margins have thickness and the hole in the skin is their outer
+ *    edge. Aiming at it put the pupil under the upper lid.
+ *  - the ring projected onto the eyeball and averaged as DIRECTIONS, which
+ *    fixes the first bias and still lands twice as far out as the truth.
+ *
+ * This is not a proxy: it is the covered area. Keeping the skin visible is the
+ * whole point — hiding it removes the eyelids, and what is left is the whole
+ * eyeball rather than the opening, from which the recovered gaze is just
+ * "toward the camera". That version returned a confident, symmetric, wrong
+ * answer.
+ *
+ * Flat flag colours rather than a brightness threshold on the real shading: the
+ * sclera has a clearcoat and the skin has a specular, and the two overlap
+ * enough that any threshold is a guess.
+ */
+window.__measureVisibleEyes = () => {
+  const swapped = [];
+  const flag = (m, hex) => {
+    if (!m) return;
+    swapped.push([m, m.material]);
+    m.material = new THREE.MeshBasicMaterial({ color: hex });
+  };
+  flag(parts.sclera, 0xff0000);
+  flag(parts.iris, 0xff0000);
+  flag(parts.skin, 0x000000);
+  flag(hair, 0x000000);
+  flag(beard, 0x000000);
+  const bg = backdrop.visible;
+  backdrop.visible = false;
+  renderer.render(scene, camera);
+  const gl = renderer.getContext();
+  const px = new Uint8Array(W * H * 4);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  for (const [m, mat] of swapped) { m.material.dispose(); m.material = mat; }
+  backdrop.visible = bg;
+  renderer.render(scene, camera);
+
+  const sums = [{ n: 0, x: 0, y: 0 }, { n: 0, x: 0, y: 0 }];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      if (px[i] < 128 || px[i + 1] > 64 || px[i + 2] > 64) continue;
+      const s = sums[x < W / 2 ? 0 : 1];
+      s.n++; s.x += x; s.y += y;
+    }
+  }
+  // readPixels is bottom-up and so is NDC y, so no flip is needed.
+  return sums.map((s) => (s.n < 20 ? null : {
+    pixels: s.n,
+    ndc: [(s.x / s.n) / W * 2 - 1, (s.y / s.n) / H * 2 - 1],
+  }));
+};
+
 window.__probeMorphs = () => ({
   skinDict: Object.keys(parts.skin.morphTargetDictionary ?? {}).slice(0, 4),
   hairDict: Object.keys(hair.morphTargetDictionary ?? {}).slice(0, 4),
