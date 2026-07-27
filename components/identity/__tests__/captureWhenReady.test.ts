@@ -15,11 +15,24 @@
  */
 import { captureWhenReady } from '../gl/captureWhenReady';
 
-/** A promise plus its resolver, so a test can decide when the head arrives. */
+/**
+ * A promise plus its resolver, so a test can decide when the head arrives.
+ *
+ * The `catch` is not decoration. Without it, the rejection case below relies on
+ * the code under test attaching a handler — and if a refactor ever removes that
+ * handler, node sees an unhandled rejection and kills the whole jest worker
+ * rather than failing one assertion. Mutation-testing the `await` found exactly
+ * that: the mutation was detected, but as a crash that took the process down and
+ * reported nothing about which behaviour had broken.
+ *
+ * Attaching a handler here marks the promise handled without changing what the
+ * function under test receives.
+ */
 function deferred(): { promise: Promise<void>; resolve: () => void; reject: (e: unknown) => void } {
   let resolve!: () => void;
   let reject!: (e: unknown) => void;
   const promise = new Promise<void>((res, rej) => { resolve = res; reject = rej; });
+  promise.catch(() => undefined);
   return { promise, resolve, reject };
 }
 
