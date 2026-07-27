@@ -14,24 +14,46 @@
 
 import { bindGenomeToRig, genomeToInfluences, randomizeFace, neutralMorphs } from '@/lib/identity';
 import type { FaceGenome } from '@/lib/identity';
+import { primitiveFor, readHeadGlb } from './helpers/readHeadGlb';
 
-/** Material names the build script writes; the renderer looks these up. */
-const SHADING_GROUPS = ['skin', 'sclera', 'iris'];
+/**
+ * Read from the shipped GLB, not restated here.
+ *
+ * The renderer finds each primitive by its glTF MATERIAL NAME and drives every
+ * primitive with the same morph set, so both facts belong to the artifact. A
+ * copy in this file is a copy that keeps passing after the artifact moves.
+ */
+const head = readHeadGlb();
+const SHADING_GROUPS = head?.materials ?? [];
+const MORPHS = head?.morphNames ?? [];
 
-/** Morph names, identical on every primitive. */
-const MORPHS = [
-  'faceWidth', 'faceLength', 'jawWidth', 'jawAngle', 'chinLength', 'chinProtrusion',
-  'cheekboneHeight', 'cheekFullness', 'browHeight', 'browProtrusion',
-  'eyeSize', 'eyeSpacing', 'eyeDepth', 'eyeTilt',
-  'noseLength', 'noseWidth', 'noseBridge', 'noseTip',
-  'mouthWidth', 'lipFullness', 'mouthHeight',
-];
+const withAsset = MORPHS.length > 0 ? describe : describe.skip;
 
-describe('ICT head shading groups', () => {
+withAsset('ICT head shading groups', () => {
   it('names the three groups the renderer looks up', () => {
     // Guards the build-script -> renderer contract. These strings are matched
     // literally in FaceRenderer.adoptAsset.
-    expect(SHADING_GROUPS).toEqual(['skin', 'sclera', 'iris']);
+    expect([...SHADING_GROUPS].sort()).toEqual(['iris', 'sclera', 'skin']);
+  });
+
+  it('carries the SAME morph set on every primitive', () => {
+    // Driving only the skin widens the face and leaves the eyeballs behind in
+    // the old sockets. Each primitive needs its own targets for the renderer's
+    // "drive them all" loop to have anything to drive.
+    for (const material of SHADING_GROUPS) {
+      const prim = primitiveFor(head!, material);
+      expect(prim?.targets?.length).toBe(MORPHS.length);
+    }
+  });
+
+  it('carries the attributes the renderer reads off the skin', () => {
+    // GLTFLoader lowercases custom attributes, so the shader sees `_scalp`,
+    // `_beard`, `_irisr`. A rename in the build script un-styles hair, facial
+    // hair or the pupil with no error anywhere.
+    const skin = primitiveFor(head!, 'skin');
+    for (const attr of ['_SCALP', '_BEARD', '_IRISR', 'POSITION', 'NORMAL', 'TEXCOORD_0']) {
+      expect(Object.keys(skin?.attributes ?? {})).toContain(attr);
+    }
   });
 
   it('produces influences addressable on every primitive', () => {

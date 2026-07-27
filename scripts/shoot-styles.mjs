@@ -26,53 +26,8 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gl
 
 const PAGE = readFileSync(new URL(process.env.HARNESS ?? './styles-harness.html', import.meta.url), 'utf8');
 
-async function main() {
-  const out = process.argv[2] ?? 'styles.png';
-  const beards = process.argv.includes('--beards');
-
-  const server = createServer((req, res) => {
-    const url = (req.url ?? '/').split('?')[0];
-    if (url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(PAGE); return; }
-    const path = join(ROOT, normalize(url).replace(/^(\.\.[/\\])+/, ''));
-    if (!path.startsWith(ROOT) || !existsSync(path)) { res.writeHead(404); res.end(); return; }
-    res.writeHead(200, { 'Content-Type': MIME[extname(path)] ?? 'application/octet-stream' });
-    res.end(readFileSync(path));
-  });
-  await new Promise((r) => server.listen(PORT, r));
-
-  // VIEW=w,h,rot renders bigger tiles or a different yaw; the defaults are the
-  // contact sheet's.
-  const [vw, vh, rot] = (process.env.VIEW ?? '420,480,-0.62').split(',').map(Number);
-  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e)));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:${PORT}/?w=${vw}&h=${vh}&rot=${rot}`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
-
-  if (!(await page.evaluate(() => window.__ok))) {
-    console.error('FAILED'); for (const e of errors) console.error('  ' + e);
-    await browser.close(); server.close(); process.exit(1);
-  }
-
-  let names = await page.evaluate((b) => (b ? window.__beardNames : window.__hairNames), beards);
-  // ONLY=a,b,c narrows the sheet to the styles under investigation.
-  if (process.env.ONLY) {
-    const want = new Set(process.env.ONLY.split(','));
-    names = names.filter((n) => want.has(n));
-  }
-  console.log(`${names.length} ${beards ? 'facial-hair' : 'hair'} styles`);
-
-  if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
-  const shots = [];
-  for (const name of names) {
-    await page.evaluate(([n, b]) => (b ? window.__setBeard(n) : window.__setHair(n)), [name, beards]);
-    shots.push({ name, png: await page.locator('canvas').screenshot() });
-    console.log(`  ${name}`);
-  }
-
-  const cols = Math.min(5, names.length);
+/** Composite the shots into a labelled contact sheet and write it out. */
+async function writeSheet(page, shots, cols, W, H, out) {
   const strip = await page.evaluate(async ([imgs, labels, cols, W, H]) => {
     const rows = Math.ceil(imgs.length / cols);
     const c = document.createElement('canvas');
@@ -89,10 +44,84 @@ async function main() {
       ctx.fillText(labels[i], x + 16, y + 34);
     }
     return c.toDataURL('image/png');
-  }, [shots.map((s) => `data:image/png;base64,${s.png.toString('base64')}`), shots.map((s) => s.name), cols, vw, vh]);
-
+  }, [shots.map((s) => `data:image/png;base64,${s.png.toString('base64')}`), shots.map((s) => s.name), cols, W, H]);
   writeFileSync(out, Buffer.from(strip.split(',')[1], 'base64'));
   console.log(`\nWrote ${out}`);
+}
+
+async function main() {
+  const out = process.argv[2] ?? 'styles.png';
+  const beards = process.argv.includes('--beards');
+
+  const server = createServer((req, res) => {
+    const url = (req.url ?? '/').split('?')[0];
+    if (url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(PAGE); return; }
+    const path = join(ROOT, normalize(url).replace(/^(\.\.[/\\])+/, ''));
+    if (!path.startsWith(ROOT) || !existsSync(path)) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': MIME[extname(path)] ?? 'application/octet-stream' });
+    res.end(readFileSync(path));
+  });
+  await new Promise((r) => server.listen(PORT, r));
+
+  // VIEW=w,h,rot renders bigger tiles or a different yaw; the defaults are the
+  // contact sheet's.
+  const [vw, vh, rot, zoom, ty] = (process.env.VIEW ?? '420,480,-0.62,1,-0.02').split(',').map(Number);
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto(
+    `http://127.0.0.1:${PORT}/?w=${vw}&h=${vh}&rot=${rot}&zoom=${zoom || 1}&ty=${Number.isFinite(ty) ? ty : -0.02}`,
+    { waitUntil: 'load' },
+  );
+  await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
+
+  if (!(await page.evaluate(() => window.__ok))) {
+    console.error('FAILED'); for (const e of errors) console.error('  ' + e);
+    await browser.close(); server.close(); process.exit(1);
+  }
+
+  // MORPH=name renders that morph at -1 / 0 / +1 instead of the style sheet.
+  // Numbers say a derived axis moved its own measurement; only a picture says it
+  // moved the right part of the face, which is the whole reason this exists.
+  if (process.env.MORPH) {
+    const morphs = process.env.MORPH.split(',');
+    const shots = [];
+    for (const m of morphs) {
+      for (const v of [-1, 0, 1]) {
+        await page.evaluate(([n, val]) => window.__setMorph(n, val), [m, v]);
+        shots.push({ name: `${m} ${v > 0 ? '+1' : v < 0 ? '-1' : '0'}`, png: await page.locator('canvas').screenshot() });
+      }
+    }
+    await writeSheet(page, shots, 3, vw, vh, out);
+    if (errors.length) { console.error('Console errors:'); for (const e of errors) console.error('  ' + e); }
+    await browser.close();
+    server.close();
+    return;
+  }
+
+  let names = await page.evaluate((b) => (b ? window.__beardNames : window.__hairNames), beards);
+  // ONLY=a,b,c narrows the sheet to the styles under investigation.
+  if (process.env.ONLY) {
+    const want = new Set(process.env.ONLY.split(','));
+    names = names.filter((n) => want.has(n));
+  }
+  console.log(`${names.length} ${beards ? 'facial-hair' : 'hair'} styles`);
+
+  if (process.env.HAIR_ONLY) await page.evaluate(() => window.__debugHairOnly(true));
+  // ONLY_PART=sclera|iris|skin isolates one primitive.
+  if (process.env.ONLY_PART) {
+    await page.evaluate((p) => window.__onlyPart(p), process.env.ONLY_PART);
+  }
+  const shots = [];
+  for (const name of names) {
+    await page.evaluate(([n, b]) => (b ? window.__setBeard(n) : window.__setHair(n)), [name, beards]);
+    shots.push({ name, png: await page.locator('canvas').screenshot() });
+    console.log(`  ${name}`);
+  }
+
+  await writeSheet(page, shots, Math.min(5, names.length), vw, vh, out);
   if (errors.length) { console.error('Console errors:'); for (const e of errors) console.error('  ' + e); }
   await browser.close();
   server.close();

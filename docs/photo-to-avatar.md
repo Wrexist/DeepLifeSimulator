@@ -101,10 +101,13 @@ left at neutral rather than guessed:
 - `cheekboneHeight` — the height difference between two *mirrored* jaw points,
   which on a symmetric face is zero by construction. In a photo it measures head
   roll and landmark noise.
-- `earSize`, `foreheadSlope`, `neckThickness` — no landmarks exist for them at
-  all; the build script already reports these as underivable.
+`earSize`, `foreheadSlope` and `neckThickness` used to be on this list, and are
+not any more: they are derived from VERTEX-REGION measurements rather than
+landmark spans, so the rig drives all 24. A photo still cannot fit them — an ear
+seen face-on gives no depth and the neck is usually out of frame — so they stay
+at whatever the player set.
 
-Fifteen of twenty-one morphs are fitted. Guessing the other six would produce a
+Fifteen of twenty-four morphs are fitted. Guessing the other six would produce a
 control that moves something plausible in the wrong place, which reads as a
 modelling bug rather than a missing feature.
 

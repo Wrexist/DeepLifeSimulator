@@ -23,7 +23,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import FaceStudio from './FaceStudio';
@@ -33,7 +33,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { isPhotoAvatarSupported } from '@/services/avatar/AvatarService';
 import type { BodyProfile, FaceGenome } from '@/lib/identity';
-import { getThemeColors, radii, spacing } from '@/lib/config/theme';
+import { getThemeColors, spacing } from '@/lib/config/theme';
 import { fontScale, scale } from '@/utils/scaling';
 
 export interface FaceCreatorModalProps {
@@ -151,6 +151,8 @@ export default function FaceCreatorModal({
                 totalSteps={4}
                 title={title}
                 doneLabel={doneLabel}
+                body={body}
+                fallback={fallback}
               />
             )}
           </View>

@@ -69,10 +69,10 @@ export default function AvatarReveal({
   onStartOver,
   busy = false,
 }: AvatarRevealProps): React.JSX.Element {
-  const [frameWidth, setFrameWidth] = useState(0);
+  const [frame, setFrame] = useState({ width: 0, pageX: 0 });
   // Fraction of the frame showing the PHOTO, from the left edge.
   const [split, setSplit] = useState(0.5);
-  const splitRef = useRef(0.5);
+  const frameRef = useRef<View>(null);
 
   /**
    * The claim this run can support.
@@ -102,17 +102,20 @@ export default function AvatarReveal({
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: () => haptic.light(),
         onPanResponderMove: (e) => {
-          if (frameWidth <= 0) return;
-          // `locationX` — the touch's position INSIDE this view — not the
-          // gesture's accumulated dx. Integrating a running delta drifts away
-          // from the finger over a long drag, which is exactly the bug the
-          // morph sliders had before they were anchored to the touch instead.
-          const next = Math.max(0, Math.min(1, e.nativeEvent.locationX / frameWidth));
-          splitRef.current = next;
-          setSplit(next);
+          if (frame.width <= 0) return;
+          // pageX minus the frame's own page offset — NOT `locationX`, and not
+          // the gesture's accumulated dx.
+          //
+          // `locationX` is relative to the touch TARGET, which inside this frame
+          // is the GL canvas or the photo, not the frame itself: the handle
+          // jumps the moment the finger crosses from one child to another.
+          // Integrating dx drifts away from the finger over a long drag, which
+          // is the bug the morph sliders had before they were anchored.
+          const x = e.nativeEvent.pageX - frame.pageX;
+          setSplit(Math.max(0, Math.min(1, x / frame.width)));
         },
       }),
-    [frameWidth],
+    [frame],
   );
 
   return (
@@ -126,18 +129,23 @@ export default function AvatarReveal({
       <Text style={styles.blurb}>{blurb}</Text>
 
       <View
+        ref={frameRef}
         style={styles.frame}
-        onLayout={(e) => setFrameWidth(e.nativeEvent.layout.width)}
+        // measureInWindow, because the drag needs the frame's PAGE position and
+        // onLayout only reports its position within its parent.
+        onLayout={() =>
+          frameRef.current?.measureInWindow((pageX, _y, width) => setFrame({ width, pageX }))
+        }
         {...pan.panHandlers}
       >
         <FaceCanvas genome={result.genome} age={age} body={body} style={StyleSheet.absoluteFillObject} />
 
         {/* The photo, clipped to the left of the handle. */}
         <View style={[StyleSheet.absoluteFill, { width: `${split * 100}%`, overflow: 'hidden' }]}>
-          {frameWidth > 0 ? (
+          {frame.width > 0 ? (
             <Image
               source={{ uri: photoUri }}
-              style={{ width: frameWidth, height: '100%' }}
+              style={{ width: frame.width, height: '100%' }}
               resizeMode="cover"
               accessibilityLabel="Your photo"
             />

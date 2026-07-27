@@ -468,7 +468,20 @@ export function createFaceScene(
           .replace(
             '#include <color_fragment>',
             '#include <color_fragment>\n' +
-              'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));',
+        'float r = vR;\n' +
+              // THE PUPIL LIVES HERE. It has to: the iris shell is a sphere, and
+              // its own specular sits on top of whatever colour it is given, so a
+              // pupil painted on the iris comes out as a bright reflected disc
+              // rather than a dark hole. Drawn on the sclera behind it, the
+              // highlight passes over it as a glint instead of replacing it.
+              // Concentric with the iris by construction — both read the same
+              // angular coordinate about the same gaze axis.
+              'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\n' +
+              // White, dimming where the eyeball turns away into the socket.
+              'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\n' +
+              // A soft shadow just outside the rim, where the limbus meets the
+              // white. Real eyes are never a clean colour boundary there.
+              'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));',
           );
       };
       asset.parts.sclera.material = scleraMat;
@@ -476,10 +489,13 @@ export function createFaceScene(
     if (asset.parts.iris) {
       const irisMat = track(new THREE.MeshPhysicalMaterial({
         color: 0x4a6b8a, roughness: 0.12, metalness: 0,
-        // 0.85, not 2.4, and clearcoatRoughness 0.10, not 0.02. At full strength
-        // the environment mirrored as a blown white blob covering the entire
-        // pupil — a catchlight should be a glint, not a headlight.
-        clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85,
+        // 0.35, not 0.85, and clearcoatRoughness 0.16, not 0.10.
+        //
+        // At 0.85 the environment still mirrored as a pale DISC centred on the
+        // pupil — visible only at close range, where it read as a white pupil
+        // and made the eye look blind. A catchlight should be a glint riding
+        // over the iris, and a glint is what a rougher, dimmer coat gives.
+        clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35,
       }));
       irisMat.onBeforeCompile = (shader) => {
         shader.vertexShader = shader.vertexShader
@@ -490,11 +506,24 @@ export function createFaceScene(
           .replace(
             '#include <color_fragment>',
             '#include <color_fragment>\n' +
-              // Limbal ring and radial fibres. Cheap, and the difference between
-              // an eye and a coloured disc.
-              'float limbal = 1.0 - smoothstep(0.86, 1.0, vR);\n' +
-              'float fibre = 0.86 + 0.14 * sin(vR * 42.0);\n' +
-              'diffuseColor.rgb *= limbal * fibre;',
+                      // OUTSIDE THE RIM IS NOT IRIS. The shell is a full sphere, so without
+              // this it covers the whole eyeball and no white can ever show.
+              'if (vR > 1.02) discard;\n' +
+              'float r = vR;\n' +
+              // The pupil is drawn on the SCLERA behind this shell — see there.
+              // What this must do is get out of its way: the iris fades to
+              // nothing over the pupil rather than painting it.
+              'float pupil = smoothstep(0.34, 0.50, r);\n' +
+              // Limbal ring: the dark rim that separates iris from white. Its
+              // absence is most of what makes a game eye look printed on.
+              'float limbal = smoothstep(1.02, 0.86, r);\n' +
+              // Radial fibres, brighter toward the pupil, plus a subtle
+              // brightening at the centre so the iris is not a flat disc.
+              'float fibre = 0.88 + 0.12 * sin(r * 34.0);\n' +
+              'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\n' +
+              // Cut the shell away over the pupil so the dark disc behind shows
+              // through, rather than tinting it and keeping the shell's specular.
+              'if (r < 0.36) discard;',
           );
       };
       asset.parts.iris.material = irisMat;

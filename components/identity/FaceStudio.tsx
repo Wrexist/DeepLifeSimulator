@@ -1,29 +1,34 @@
 /**
- * Face studio — the character creation screen, rebuilt to the approved design.
+ * Face studio — the character creation screen.
  *
- * ## What this screen is, and what it is waiting for
+ * ## The preview is live
  *
- * The layout, controls and chrome here are final. The PORTRAIT is not: it
- * currently renders from the existing `assets/images/Face/pool` artwork, and is
- * designed to be swapped for the layered portrait pipeline (a base portrait per
- * skin-tone x sex x age band, plus tinted hair/beard layers composited on top)
- * without this file changing shape. `renderPortrait` is the single seam.
+ * `FaceCanvas` renders the scan-derived head from the genome, so every slider
+ * moves the face while the player drags it. This was NOT always true: the screen
+ * shipped for a while with a static pool portrait, which meant the player worked
+ * 21 real controls while watching an image that could not respond to any of
+ * them. The pool artwork survives as the FALLBACK only, for devices that cannot
+ * open a GL context — a face beats an empty frame.
  *
- * That pipeline is the only route to the reference design's quality. Real-time
- * procedural geometry cannot produce a photoreal head on a phone — the earlier
- * three.js head is a different category of object, not a worse version of one —
- * so the visual target is met with pre-rendered art, exactly as
- * `docs/avatar-redesign-proposal.md` recommended in Direction 1.
+ * An earlier note here argued that real-time geometry could not reach the
+ * reference design's quality and that pre-rendered layered art was the only
+ * route. That call was reversed: the head is now ICT-FaceKit geometry with baked
+ * albedo, roughness and normal maps, driven by 21 morphs derived from the scan
+ * basis. It is not photoreal and does not claim to be, but it is a real face
+ * that answers the controls, which pre-rendered layers never could.
  *
- * ## Why the sliders are live even though the portrait does not react yet
+ * ## The sliders drive more than the picture
  *
- * They are not decoration. Every control writes to the stored `FaceGenome`, and
- * `facialHarmony` reads that genome to produce the `looks` term in
- * `computePresence` — which already feeds dating match odds and interview
- * callbacks. So shaping the face changes how the character is treated today;
- * the portrait simply is not drawn from it yet.
+ * Every control writes to the stored `FaceGenome`, and `facialHarmony` reads
+ * that genome to produce the `looks` term in `computePresence` — which feeds
+ * dating match odds and interview callbacks. Shaping the face changes how the
+ * character is treated, not just how they look.
  *
- * The screen sits behind `FEATURE_FLAGS.faceCreator3D` until the art lands.
+ * Sliders whose morph the loaded rig cannot drive are HIDDEN rather than shown
+ * dead: `binding.unbound` is what makes that possible, and a control that moves
+ * nothing is worse than a control that is absent.
+ *
+ * The screen sits behind `FEATURE_FLAGS.faceCreator3D` until the head ships.
  */
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -49,6 +54,7 @@ import {
   randomizeFace,
   type FaceGenome,
   type FaceMorphKey,
+  type BodyProfile,
   type FacialHairStyle,
   type HairStyle,
 } from '@/lib/identity';
@@ -83,18 +89,49 @@ const C = {
 
 /**
  * Slider groups. The first is always open, matching the reference where
- * "Facial structure" is expanded and Nose/Eyes are collapsed — the point being
- * that the screen must not open as a wall of twenty sliders.
+ * "Facial structure" is expanded and the rest are collapsed — the point being
+ * that the screen must not open as a wall of twenty-four sliders.
+ *
+ * EVERY morph the rig drives has a home here. Six of them did not: `faceLength`,
+ * `chinProtrusion`, `cheekFullness`, `browProtrusion`, `mouthHeight` and
+ * `neckThickness` were bound, baked into the asset and reachable by the
+ * randomiser and the photo fitter, but had no control — so a player could be
+ * handed a face they were unable to adjust. `covers every morph` in
+ * sliderGroups.test.ts fails if that happens again.
+ *
+ * Groups are anatomical rather than balanced by size. "Mouth & more" — a
+ * catch-all holding ears and forehead next to lip fullness — is what let the
+ * gap hide: a bucket named "more" absorbs anything, including nothing.
  */
 const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[] = [
   {
-    title: 'Facial structure',
+    title: 'Face shape',
     morphs: [
+      { key: 'faceWidth', label: 'Width' },
+      { key: 'faceLength', label: 'Length' },
       { key: 'jawWidth', label: 'Jaw width' },
-      { key: 'jawAngle', label: 'Jaw angle' },
+      { key: 'jawAngle', label: 'Jaw taper' },
       { key: 'chinLength', label: 'Chin length' },
-      { key: 'faceWidth', label: 'Face width' },
-      { key: 'cheekboneHeight', label: 'Cheekbones' },
+      { key: 'chinProtrusion', label: 'Chin projection' },
+    ],
+  },
+  {
+    title: 'Cheeks & brow',
+    morphs: [
+      { key: 'cheekboneHeight', label: 'Cheekbone height' },
+      { key: 'cheekFullness', label: 'Cheek fullness' },
+      { key: 'browHeight', label: 'Brow height' },
+      { key: 'browProtrusion', label: 'Brow ridge' },
+      { key: 'foreheadSlope', label: 'Forehead slope' },
+    ],
+  },
+  {
+    title: 'Eyes',
+    morphs: [
+      { key: 'eyeSize', label: 'Size' },
+      { key: 'eyeSpacing', label: 'Spacing' },
+      { key: 'eyeDepth', label: 'Depth' },
+      { key: 'eyeTilt', label: 'Tilt' },
     ],
   },
   {
@@ -107,25 +144,22 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
     ],
   },
   {
-    title: 'Eyes',
+    title: 'Mouth',
     morphs: [
-      { key: 'eyeSize', label: 'Size' },
-      { key: 'eyeSpacing', label: 'Spacing' },
-      { key: 'eyeDepth', label: 'Depth' },
-      { key: 'eyeTilt', label: 'Tilt' },
-      { key: 'browHeight', label: 'Brow height' },
+      { key: 'mouthWidth', label: 'Width' },
+      { key: 'mouthHeight', label: 'Height' },
+      { key: 'lipFullness', label: 'Lip fullness' },
     ],
   },
   {
-    title: 'Mouth & more',
+    title: 'Ears & neck',
     morphs: [
-      { key: 'mouthWidth', label: 'Mouth width' },
-      { key: 'lipFullness', label: 'Lip fullness' },
-      { key: 'earSize', label: 'Ears' },
-      { key: 'foreheadSlope', label: 'Forehead' },
+      { key: 'earSize', label: 'Ear size' },
+      { key: 'neckThickness', label: 'Neck thickness' },
     ],
   },
 ];
+
 
 export interface FaceStudioProps {
   genome: FaceGenome;
@@ -133,6 +167,14 @@ export interface FaceStudioProps {
   onDone?: () => void;
   sex?: string;
   age?: number;
+  /**
+   * Body composition, which the head shader reads for facial fullness.
+   *
+   * Threaded through because the same character rendered here and rendered in
+   * the game should be the same character: without it the creator shows a face
+   * at neutral weight and the profile screen shows one that is not.
+   */
+  body?: BodyProfile;
   /**
    * The rig this creator is driving, from `bindGenomeToRig`.
    *
@@ -156,6 +198,15 @@ export interface FaceStudioProps {
   title?: string;
   subtitle?: string;
   doneLabel?: string;
+  /**
+   * Rendered inside the preview frame when GL is unavailable.
+   *
+   * Callers that already have a portrait for this character should pass it —
+   * `FaceCreatorModal` accepted a `fallback` for months and dropped it on the
+   * floor, so a device without GL fell back to a random pool face instead of
+   * the avatar the player had picked two screens earlier.
+   */
+  fallback?: React.ReactNode;
 }
 
 export default function FaceStudio({
@@ -164,6 +215,7 @@ export default function FaceStudio({
   onDone,
   sex = 'random',
   age = 18,
+  body,
   binding,
   presets,
   selectedPresetId,
@@ -173,6 +225,7 @@ export default function FaceStudio({
   title = 'Build your face',
   subtitle = "Create a face that's uniquely yours.",
   doneLabel = 'Use this face',
+  fallback,
 }: FaceStudioProps): React.JSX.Element {
   // Only offer sliders the rig can actually move. A group whose every morph is
   // unbound is dropped entirely rather than rendered with dead controls — an
@@ -296,14 +349,15 @@ export default function FaceStudio({
           <FaceCanvas
             genome={comparing ? baselineRef.current : genome}
             age={age ?? 22}
+            body={body}
             interactive
             style={styles.portrait}
             fallback={
-              portrait ? (
+              fallback ?? (portrait ? (
                 <Image source={portrait} style={styles.portrait} resizeMode="contain" />
               ) : (
                 <View style={styles.portrait} />
-              )
+              ))
             }
           />
           <View style={styles.actions}>

@@ -27,9 +27,15 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.8;
 
 const scene = new THREE.Scene();
+// `zoom` and `ty` frame a close-up without moving the head: dolly in and raise
+// the target. Judging an eye or a nostril from a 420px bust is guesswork, and
+// guesswork about small features is what shipped an iris covering its own
+// sclera.
+const ZOOM = Number(q.get('zoom') ?? 1);
+const TY = Number(q.get('ty') ?? -0.02);
 const camera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-camera.position.set(0, 0.05, 6.2);
-camera.lookAt(0, -0.02, 0);
+camera.position.set(0, 0.05 + TY, 6.2 / ZOOM);
+camera.lookAt(0, TY, 0);
 
 const envScene = new THREE.Scene();
 envScene.background = new THREE.Color(0x101521);
@@ -402,14 +408,17 @@ parts.sclera.material = (() => {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vR;')
       .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-        'diffuseColor.rgb = mix(vec3(0.015), diffuseColor.rgb, smoothstep(0.60, 0.74, vR));');
+        'float r = vR;\n' +
+        'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\n' +
+        'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\n' +
+        'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
   };
   return m;
 })();
 parts.iris.material = (() => {
   const m = new THREE.MeshPhysicalMaterial({
     color: 0x4a6b8a, roughness: 0.12, metalness: 0,
-    clearcoat: 1, clearcoatRoughness: 0.10, envMapIntensity: 0.85 });
+    clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35 });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
@@ -417,9 +426,13 @@ parts.iris.material = (() => {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vR;')
       .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-        'float limbal = 1.0 - smoothstep(0.86, 1.0, vR);\n' +
-        'float fibre = 0.86 + 0.14 * sin(vR * 42.0);\n' +
-        'diffuseColor.rgb *= limbal * fibre;');
+        'if (vR > 1.02) discard;\n' +
+        'float r = vR;\n' +
+        'float pupil = smoothstep(0.34, 0.50, r);\n' +
+        'float limbal = smoothstep(1.02, 0.86, r);\n' +
+        'float fibre = 0.88 + 0.12 * sin(r * 34.0);\n' +
+        'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\n' +
+        'if (r < 0.36) discard;');
   };
   return m;
 })();
@@ -455,6 +468,37 @@ root.add(holder);
 window.__debugHairOnly = (on) => {
   for (const p of Object.values(parts)) p.visible = !on;
   hair.visible = true;
+  renderer.render(scene, camera);
+};
+
+/**
+ * Drive one morph, on every primitive.
+ *
+ * Every primitive carries the full morph set, and driving only the skin widens
+ * the face while leaving the eyeballs behind in the old sockets. Signed, because
+ * these targets are linear combinations of a PCA basis: -1 is as real a face as
+ * +1, and rendering only the positive half hides half of every axis.
+ */
+/** Show one primitive at a time. Which surface is actually visible where is a
+ *  question about depth order, and no amount of measuring answers it. */
+window.__onlyPart = (name) => {
+  for (const [k, m] of Object.entries(parts)) m.visible = !name || k === name;
+  if (name) { hair.visible = false; beard.visible = false; }
+  renderer.render(scene, camera);
+};
+
+window.__morphNames = parts.skin.morphTargetDictionary
+  ? Object.keys(parts.skin.morphTargetDictionary)
+  : [];
+window.__setMorph = (name, value) => {
+  for (const m of [parts.skin, parts.sclera, parts.iris, hair, beard]) {
+    const dict = m?.morphTargetDictionary;
+    const inf = m?.morphTargetInfluences;
+    if (!dict || !inf) continue;
+    inf.fill(0);
+    const i = dict[name];
+    if (i !== undefined) inf[i] = value;
+  }
   renderer.render(scene, camera);
 };
 

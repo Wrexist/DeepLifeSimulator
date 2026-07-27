@@ -16,7 +16,7 @@
  * blank: a character always has a face.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 import { logger } from '@/utils/logger';
 import { useSpinControls } from '@/components/luxury/useSpinControls';

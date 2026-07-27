@@ -20,58 +20,20 @@
  *   0.60  the natural hairline
  *   0.00  the lowest hair could hang, and everywhere on the face
  *
- * The parser is hand-rolled because the build's glTF tooling is not a runtime
- * dependency of the app, and a test that needs an ad-hoc install is a test that
- * stops running.
+ * The reader is hand-rolled — see `helpers/readHeadGlb.ts` — because the build's
+ * glTF tooling is not a runtime dependency of the app, and a test that needs an
+ * ad-hoc install is a test that stops running.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { primitiveFor, readHeadGlb, readScalarAccessor } from './helpers/readHeadGlb';
 
-const GLB = join(__dirname, '../../../assets/models/head_ict.glb');
-
-/**
- * The skin primitive's `_SCALP` values.
- *
- * The build writes it SPARSE — most of the head is face, so most values are
- * zero — which means there is no base bufferView and the zeros are implied.
- */
+/** The skin primitive's `_SCALP` values, or null when the asset is not built. */
 function readScalp(): Float32Array | null {
-  if (!existsSync(GLB)) return null;
-  const buf = readFileSync(GLB);
-  const jsonLength = buf.readUInt32LE(12);
-  const json = JSON.parse(buf.subarray(20, 20 + jsonLength).toString('utf8'));
-  // Chunk 1 is the binary payload: 12-byte header, then each chunk is an
-  // 8-byte header plus its (4-byte aligned) data.
-  const binStart = 20 + jsonLength + 8;
-
-  const skin = json.meshes[0].primitives.find(
-    (p: { material: number }) => json.materials[p.material].name === 'skin',
-  );
-  const accessor = json.accessors[skin.attributes._SCALP];
-  const out = new Float32Array(accessor.count);
-
-  const view = (index: number, byteOffset = 0) => {
-    const bv = json.bufferViews[index];
-    return binStart + (bv.byteOffset ?? 0) + byteOffset;
-  };
-
-  if (accessor.bufferView !== undefined) {
-    const at = view(accessor.bufferView, accessor.byteOffset ?? 0);
-    for (let i = 0; i < accessor.count; i++) out[i] = buf.readFloatLE(at + i * 4);
-  }
-  if (accessor.sparse) {
-    const { count, indices, values } = accessor.sparse;
-    const iAt = view(indices.bufferView, indices.byteOffset ?? 0);
-    const vAt = view(values.bufferView, values.byteOffset ?? 0);
-    // 5123 = UNSIGNED_SHORT, 5125 = UNSIGNED_INT.
-    const wide = indices.componentType === 5125;
-    for (let i = 0; i < count; i++) {
-      const index = wide ? buf.readUInt32LE(iAt + i * 4) : buf.readUInt16LE(iAt + i * 2);
-      out[index] = buf.readFloatLE(vAt + i * 4);
-    }
-  }
-  return out;
+  const head = readHeadGlb();
+  if (!head) return null;
+  const skin = primitiveFor(head, 'skin');
+  const index = skin?.attributes._SCALP;
+  return index === undefined ? null : readScalarAccessor(head, index);
 }
 
 const scalp = readScalp();

@@ -104,6 +104,16 @@ const GROUP_DEFAULTS = {
   iris: { color: [0.29, 0.42, 0.54, 1], roughness: 0.08 },
 };
 
+/**
+ * How far the iris shell is pushed out past the sclera, as a fraction of the
+ * eyeball radius. Enough to win the depth test at any viewing angle, small
+ * enough to be well under a pixel at portrait size.
+ */
+const IRIS_PUSH = 0.045;
+
+const scleraMatsOf = () => SHADING_GROUPS.sclera;
+const irisMatsOf = () => SHADING_GROUPS.iris;
+
 const KEEP_MATERIALS = new Set(process.env.ICT_MATERIALS?.split(',') ?? [
   'M_Face',
   'M_BackHead',
@@ -217,11 +227,140 @@ const MEASURES = {
  * vertex sets on the mesh and measure their extent) rather than landmarks.
  * That is a real follow-up, not a blocker.
  */
-const NOT_DERIVABLE = {
-  earSize: 'no ear landmarks in the 68-point set',
-  neckThickness: 'no neck landmarks in the 68-point set',
-  foreheadSlope: 'no landmarks above the brow line',
+/**
+ * Nothing, now.
+ *
+ * These three used to live here. The 68-point set genuinely has no ear, neck or
+ * above-brow landmarks, and deriving them from the nearest available points
+ * produced axes that scored respectably while measuring the wrong feature — a
+ * slider that moves *something*, plausibly, in the wrong place.
+ *
+ * The fix was never better landmarks; it was a different KIND of measurement.
+ * `REGION_SPECS` below measures over vertex SETS identified once on the neutral
+ * mesh, which is what the note left here originally called for. Kept as an empty
+ * object rather than deleted so the report still has a place to list anything
+ * that becomes underivable in future.
+ */
+const NOT_DERIVABLE = {};
+
+/**
+ * Region measurements — features no pair of landmarks can express.
+ *
+ * Each entry finds its vertices ONCE on the neutral mesh and then measures that
+ * fixed set on every mode. That is the whole trick: the modes are
+ * vertex-aligned, so a set chosen on the mean face is the same anatomy on all
+ * one hundred of them, and any smooth statistic over it becomes a measurement
+ * the solve can target exactly like a landmark span.
+ *
+ * Every statistic here is SMOOTH in the vertex positions — means and ratios, not
+ * min/max. A measurement built from extremes jumps as the extreme moves from one
+ * vertex to its neighbour, and that discontinuity lands straight in the
+ * sensitivity matrix as noise.
+ *
+ * And every one is a RATIO of two lengths on the same head, so it says something
+ * about shape rather than size. Measured absolutely they would each be most
+ * strongly a restatement of "this head is bigger", and the solve would spend its
+ * effort separating them from `faceWidth`.
+ */
+const REGION_SPECS = {
+  /**
+   * How far the ears stand off the skull.
+   *
+   * Mean |x| over the ear surface divided by mean |x| over the skull BEHIND it
+   * at the same heights. Dividing by the skull rather than by the face width is
+   * what keeps this orthogonal to `faceWidth`: the ear set is by construction
+   * the widest part of the head, so measured against the face it would mostly
+   * restate head width and the two sliders would fight.
+   */
+  earSize: (P, R) => mean(R.ear, (v) => Math.abs(P[v * 3])) / Math.max(1e-6, mean(R.skull, (v) => Math.abs(P[v * 3]))),
+
+  /** Neck half-width against face width — thickness as a proportion, not a size. */
+  neckThickness: (P, R, landmarks, faceW) => mean(R.neck, (v) => Math.abs(P[v * 3])) / Math.max(1e-6, faceW),
+
+  /**
+   * How far the forehead slopes back, as dz/dy up the midline.
+   *
+   * Least squares over the midline strip rather than two sampled points: two
+   * points make the measurement depend on which two vertices happen to be
+   * nearest the sample heights, and a mode that moves one of them dominates.
+   * Negated so that MORE slope is a larger number — the raw gradient is
+   * negative (a forehead recedes as it rises) and a slider named "forehead
+   * slope" that goes down as the slope increases is the inversion this build
+   * already had to fix once, on faceWidth.
+   */
+  foreheadSlope: (P, R) => -lineSlope(R.foreheadMid, (v) => P[v * 3 + 1], (v) => P[v * 3 + 2]),
 };
+
+/** Mean of `f` over a vertex index list. */
+function mean(verts, f) {
+  if (verts.length === 0) return 0;
+  let s = 0;
+  for (const v of verts) s += f(v);
+  return s / verts.length;
+}
+
+/** Least-squares gradient dy/dx over a vertex set. */
+function lineSlope(verts, xOf, yOf) {
+  const n = verts.length;
+  if (n < 2) return 0;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const v of verts) {
+    const x = xOf(v), y = yOf(v);
+    sx += x; sy += y; sxx += x * x; sxy += x * y;
+  }
+  const denom = n * sxx - sx * sx;
+  return Math.abs(denom) < 1e-9 ? 0 : (n * sxy - sx * sy) / denom;
+}
+
+/**
+ * Pick the vertex sets, once, on the neutral mesh.
+ *
+ * The thresholds are all RELATIVE to measurements of this mesh — head
+ * half-width, brow height, chin height — rather than absolute coordinates, so
+ * the same code works if the source mesh is ever re-exported at a different
+ * scale.
+ *
+ * The head half-width is measured on the HEAD, deliberately. The mesh's overall
+ * widest point is the shoulders, which are 35% wider than the skull: a
+ * threshold taken from the whole mesh selects nothing at all on the head, which
+ * is exactly what the first attempt did.
+ */
+function buildRegions(neutral, landmarks) {
+  const P = neutral.positions;
+  const n = P.length / 3;
+  let browY = 0;
+  for (let i = 17; i <= 26; i++) browY += P[landmarks[i] * 3 + 1];
+  browY /= 10;
+  const chinY = P[landmarks[8] * 3 + 1];
+
+  let maxY = -1e9, minZ = 1e9, maxZ = -1e9;
+  for (let v = 0; v < n; v++) {
+    maxY = Math.max(maxY, P[v * 3 + 1]);
+    minZ = Math.min(minZ, P[v * 3 + 2]);
+    maxZ = Math.max(maxZ, P[v * 3 + 2]);
+  }
+  const H = Math.max(1e-6, maxY - browY);
+  const D = Math.max(1e-6, maxZ - minZ);
+
+  let headX = 0;
+  for (let v = 0; v < n; v++) {
+    if (P[v * 3 + 1] < chinY) continue;
+    headX = Math.max(headX, Math.abs(P[v * 3]));
+  }
+
+  const ear = [], skull = [], neck = [], foreheadMid = [];
+  for (let v = 0; v < n; v++) {
+    const x = Math.abs(P[v * 3]), y = P[v * 3 + 1], z = P[v * 3 + 2];
+    const earHeight = y >= chinY + 0.15 * H && y <= browY + 0.12 * H;
+    if (earHeight && x >= 0.88 * headX && z <= maxZ - 0.35 * D) ear.push(v);
+    // The reference: same heights, but the back of the skull, well behind the
+    // ear. This is the thing the ear protrudes FROM.
+    if (earHeight && z <= maxZ - 0.68 * D && x >= 0.45 * headX) skull.push(v);
+    if (y <= chinY - 0.02 * H && y >= chinY - 0.28 * H) neck.push(v);
+    if (x <= 0.07 * headX && y >= browY && y <= browY + 0.62 * H) foreheadMid.push(v);
+  }
+  return { ear, skull, neck, foreheadMid };
+}
 
 const AXIS_INDEX = { x: 0, y: 1, z: 2 };
 
@@ -316,6 +455,25 @@ function measure(positions, landmarks, spec) {
 }
 
 /**
+ * Measure `key` on a position array, whichever kind of measurement it is.
+ *
+ * The solve, the report and the statistics emitter all go through here, so a
+ * region measure is indistinguishable from a landmark span everywhere
+ * downstream — which is the point. Adding a third kind later is one branch.
+ */
+function measureNamed(positions, landmarks, regions, key) {
+  const region = REGION_SPECS[key];
+  if (region) {
+    // Face width, for the region measures that express themselves as a
+    // proportion of it. Computed here rather than passed in so a region spec
+    // never has to know how the landmark side of the file works.
+    const faceW = Math.abs(measure(positions, landmarks, FACE_W));
+    return region(positions, regions, landmarks, faceW);
+  }
+  return measure(positions, landmarks, MEASURES[key]);
+}
+
+/**
  * Solve `(A + lambda I) x = b` by Gaussian elimination with partial pivoting.
  *
  * A is the small (numMeasures x numMeasures) Gram matrix, not the 100x100 one —
@@ -377,13 +535,20 @@ async function main() {
   });
 
   // ---- measurement sensitivity matrix ------------------------------------
-  const keys = Object.keys(MEASURES);
-  const base = keys.map((k) => measure(neutral.positions, landmarks, MEASURES[k]));
+  // Landmark spans first, then the region measures. Order only decides how the
+  // report reads; the solve treats them identically.
+  const regions = buildRegions(neutral, landmarks);
+  if (!process.env.QUIET) {
+    console.log('  Region vertex sets: '
+      + Object.entries(regions).map(([k, v]) => `${k}=${v.length}`).join(' '));
+  }
+  const keys = [...Object.keys(MEASURES), ...Object.keys(REGION_SPECS)];
+  const base = keys.map((k) => measureNamed(neutral.positions, landmarks, regions, k));
   // M[j][i] = change in measurement j per unit of mode i.
   const M = keys.map(() => new Array(modes.length).fill(0));
   for (let i = 0; i < modes.length; i++) {
     for (let j = 0; j < keys.length; j++) {
-      M[j][i] = measure(modes[i], landmarks, MEASURES[keys[j]]) - base[j];
+      M[j][i] = measureNamed(modes[i], landmarks, regions, keys[j]) - base[j];
     }
   }
   // Scale each measurement to unit std across modes, so the solve is not
@@ -461,12 +626,12 @@ async function main() {
     // Verify by re-measuring the deformed mesh.
     const moved = new Float32Array(neutral.positions.length);
     for (let v = 0; v < moved.length; v++) moved[v] = neutral.positions[v] + delta[v];
-    const onAxis = (measure(moved, landmarks, MEASURES[keys[j]]) - base[j]) / scale[j];
+    const onAxis = (measureNamed(moved, landmarks, regions, keys[j]) - base[j]) / scale[j];
     let cross = 0;
     let offender = '-';
     for (let k = 0; k < keys.length; k++) {
       if (k === j) continue;
-      const d = Math.abs((measure(moved, landmarks, MEASURES[keys[k]]) - base[k]) / scale[k]);
+      const d = Math.abs((measureNamed(moved, landmarks, regions, keys[k]) - base[k]) / scale[k]);
       if (d > cross) { cross = d; offender = keys[k]; }
     }
     const ratio = Math.abs(onAxis) > 1e-9 ? cross / Math.abs(onAxis) : Infinity;
@@ -508,8 +673,8 @@ async function main() {
       eyeSize: 'h', eyeTilt: 'h',
       chinProtrusion: 'h', browProtrusion: 'h', eyeDepth: 'w', noseBridge: 'h', noseTip: 'h',
     };
-    const normalised = (positions, spec, norm) => {
-      const v = measure(positions, landmarks, spec);
+    const normalised = (positions, key, norm) => {
+      const v = measureNamed(positions, landmarks, regions, key);
       if (!norm) return v;
       // ABSOLUTE normaliser. The face-width span is negative (landmark 0 is at
       // negative x), so dividing by it signed flips the sense of every measure
@@ -521,9 +686,8 @@ async function main() {
 
     const stats = {};
     for (const k of keys) {
-      const spec = MEASURES[k];
       const norm = NORM[k] ?? null;
-      const mean = normalised(neutral.positions, spec, norm);
+      const mean = normalised(neutral.positions, k, norm);
       // POPULATION sd, which is the ROOT-SUM-SQUARE of the per-mode deltas —
       // not their standard deviation.
       //
@@ -535,7 +699,7 @@ async function main() {
       // put a perfectly ordinary jaw four standard deviations from the mean and
       // peg every slider from every photo.
       let ss = 0;
-      for (const m of modes) ss += (normalised(m, spec, norm) - mean) ** 2;
+      for (const m of modes) ss += (normalised(m, k, norm) - mean) ** 2;
       const sd = Math.sqrt(ss);
       stats[k] = { mean: +mean.toFixed(6), sd: +(sd || 1e-6).toFixed(6), norm };
     }
@@ -558,136 +722,176 @@ async function main() {
   console.log('Building GLB…');
 
   /**
-   * Push the iris out in front of the sclera.
+   * The eye, as an ANGULAR radius about the gaze axis.
    *
-   * Anatomically the iris sits BEHIND the cornea — measured on this mesh, the
-   * iris front is at z 9.512 and the sclera front at 9.648 — so a film renderer
-   * shows it through a transparent corneal bulge. We shade the sclera opaque,
-   * because transparency needs sorting and a mask we do not have, and the result
-   * was eyes that rendered as blank white slits with no colour at all.
+   * ## What was wrong
    *
-   * Moving the iris fractionally outward along the eyeball radius puts it in
-   * front instead. At portrait size the displacement is well under a pixel, and
-   * it is what most real-time characters do rather than pay for refraction.
+   * ICT's eye is two nested spheres: `M_Sclera*` is the whole eyeball and
+   * `M_Iris*` is a second sphere just inside it. Neither is a flat disc. The
+   * previous bake wrote, for both, the 3D distance from the IRIS CENTROID
+   * normalised by the iris's own extent — and the centroid of a full sphere is
+   * its centre, so that distance is not a radius across the eye at all. It is a
+   * front-to-back coordinate.
+   *
+   * The renderer then drew the pupil where that coordinate was small, which on a
+   * sphere means THE ENTIRE FRONT HEMISPHERE. Rendering the sclera on its own
+   * shows it plainly: a white ball with a black cap covering everything you
+   * would ever see. Every face in the app had eyes that were an iris-coloured
+   * almond with a black smear in it and no white anywhere, and the numbers all
+   * looked reasonable — 0.573 to 1.086 is a perfectly healthy-looking range.
+   *
+   * ## What it is now
+   *
+   * A real polar coordinate. Fit the eyeball sphere, take the angle between each
+   * vertex and the gaze axis, and divide by the half-angle we want the iris rim
+   * to sit at. So:
+   *
+   *   0.0        pupil centre        1.0   iris rim
+   *   0.0-0.42   pupil               >1.0  white
+   *
+   * That makes the rendered iris size a NUMBER HERE rather than a property of
+   * whatever size ICT happened to model the disc, and it makes the pupil
+   * concentric with the iris by construction.
+   *
+   * The gaze axis comes from the EYELID APERTURE, not from the iris geometry:
+   * the centre of the opening between the lids is where a person's iris sits,
+   * and taking it from the mesh means the eye keeps looking forward as the
+   * morphs move the sockets around.
    */
   const irisRadius = new Float32Array(vertCount);
   {
-    const irisMats = SHADING_GROUPS.iris;
-    const scleraMats = SHADING_GROUPS.sclera;
-    const centroidOf = (mats, side) => {
-      let sx = 0, sy = 0, sz = 0, n = 0;
-      const seen = new Set();
+    /**
+     * Half-angle of the iris rim on the eyeball.
+     *
+     * A human iris is ~12mm across on a ~24mm eyeball, which is a half-angle of
+     * about 30 degrees; 21 is deliberately smaller. The eyelids cover the top
+     * and bottom of the ball, so the aperture shows a horizontal slot, and an
+     * anatomically exact iris fills that slot corner to corner with no white
+     * beside it — technically right and, on a face, staring.
+     */
+    const IRIS_HALF_ANGLE = (24 * Math.PI) / 180;
+
+    /** Unique vertices of a material set on one side of the head. */
+    const vertsOf = (mats, side) => {
+      const out = new Set();
       for (const f of neutral.faces) {
         if (!mats.has(f.material)) continue;
-        for (const v of f.v) {
-          if (seen.has(v)) continue;
-          const x = neutral.positions[v * 3];
-          if (Math.sign(x) !== side) continue;
-          seen.add(v);
-          sx += x; sy += neutral.positions[v * 3 + 1]; sz += neutral.positions[v * 3 + 2];
-          n++;
-        }
+        for (const v of f.v) if (Math.sign(neutral.positions[v * 3]) === side) out.add(v);
       }
-      return n ? [sx / n, sy / n, sz / n] : null;
+      return [...out];
     };
-    const centres = { 1: centroidOf(scleraMats, 1), '-1': centroidOf(scleraMats, -1) };
-    const irisCentres = { 1: centroidOf(irisMats, 1), '-1': centroidOf(irisMats, -1) };
-    const moved = new Set();
-    for (const f of neutral.faces) {
-      if (!irisMats.has(f.material)) continue;
-      for (const v of f.v) {
-        if (moved.has(v)) continue;
-        moved.add(v);
-        const c = centres[Math.sign(neutral.positions[v * 3])];
-        if (!c) continue;
-        // TRANSLATE along the outward radius, do not scale about the centre.
-        //
-        // Scaling by 1.06 moved the iris forward but also made it 6% larger, and
-        // it was already close to the size of the eyelid aperture: the iris then
-        // filled the whole visible eye with no sclera at the corners, which
-        // reads as an animal's eye rather than a person's.
-        // Shrink ON THE SPHERE, then push out along the radius.
-        //
-        // A plain scale toward the iris centroid was tried first and broke the
-        // eye: the centroid sits ON the eyeball surface, so scaling toward it
-        // moves vertices INWARD through the sclera and the iris vanished behind
-        // it. The angular size is what needs to change, so the direction from
-        // the EYEBALL centre is rotated toward the iris axis while its length is
-        // preserved — the disc stays seated on the sphere and just covers less
-        // of it, which is what exposes white sclera at the corners.
-        const ic = irisCentres[Math.sign(neutral.positions[v * 3])];
-        let dx = neutral.positions[v * 3] - c[0];
-        let dy = neutral.positions[v * 3 + 1] - c[1];
-        let dz = neutral.positions[v * 3 + 2] - c[2];
-        let len = Math.hypot(dx, dy, dz) || 1;
-        if (ic) {
-          const ax = ic[0] - c[0], ay = ic[1] - c[1], az = ic[2] - c[2];
-          const alen = Math.hypot(ax, ay, az) || 1;
-          const SHRINK = 0.78; // angular radius kept, as a fraction
-          let nx = (ax / alen) * (1 - SHRINK) + (dx / len) * SHRINK;
-          let ny = (ay / alen) * (1 - SHRINK) + (dy / len) * SHRINK;
-          let nz = (az / alen) * (1 - SHRINK) + (dz / len) * SHRINK;
-          const nlen = Math.hypot(nx, ny, nz) || 1;
-          dx = (nx / nlen) * len; dy = (ny / nlen) * len; dz = (nz / nlen) * len;
-        }
-        const push = len * 0.045;
-        neutral.positions[v * 3] = c[0] + dx + (dx / len) * push;
-        neutral.positions[v * 3 + 1] = c[1] + dy + (dy / len) * push;
-        neutral.positions[v * 3 + 2] = c[2] + dz + (dz / len) * push;
-      }
-    }
-    console.log(`  nudged ${moved.size} iris verts in front of the sclera`);
 
     /**
-     * Radial coordinate across the iris: 0 at the pupil centre, 1 at the rim.
+     * Least-squares sphere through a vertex set.
      *
-     * ICT's iris is a bare disc that expects a texture we do not have, so
-     * without this it renders as flat colour with NO PUPIL — a solid coloured
-     * eye, which is the single most alien thing a face can do. Baking the radius
-     * lets the shader draw the pupil, iris and limbal ring procedurally, with no
-     * texture and no dependency on how the iris happens to be UV-mapped.
+     * Fitted to the SCLERA alone. Fitting both shells at once splits the
+     * difference between two concentric spheres of different radii and lands the
+     * centre off the eye's own axis, which tilts the whole coordinate — the eyes
+     * come out subtly cross-eyed, which is worse than obviously wrong.
      */
-    // Computed for the SCLERA as well as the iris, and that is the important
-    // part. ICT's iris is an annulus — the pupil is a HOLE in the geometry —
-    // so the plain white sclera showed through it and every eye had a bright
-    // white disc where its pupil belongs. No shading of the iris can fix that;
-    // the surface behind the hole is what has to go dark.
-    // Sets, NOT arrays. A vertex appears once per face-corner, so an array
-    // holds ~6 copies of each and the normalisation below divided the same
-    // vertex by maxR six times — every radius collapsed toward zero, the whole
-    // sclera read as pupil, and both eyes rendered solid black.
-    const radialSets = [
-      { mats: irisMats, out: new Set() },
-      { mats: scleraMats, out: new Set() },
-    ];
-    for (const set of radialSets) {
-      for (const f of neutral.faces) {
-        if (!set.mats.has(f.material)) continue;
-        for (const v of f.v) {
-          const c = irisCentres[Math.sign(neutral.positions[v * 3])];
-          if (!c) continue;
-          irisRadius[v] = Math.hypot(
-            neutral.positions[v * 3] - c[0],
-            neutral.positions[v * 3 + 1] - c[1],
-            neutral.positions[v * 3 + 2] - c[2],
-          );
-          set.out.add(v);
+    const fitSphere = (verts) => {
+      const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+      const b = [0, 0, 0, 0];
+      for (const v of verts) {
+        const x = neutral.positions[v * 3];
+        const y = neutral.positions[v * 3 + 1];
+        const z = neutral.positions[v * 3 + 2];
+        const row = [2 * x, 2 * y, 2 * z, 1];
+        const rhs = x * x + y * y + z * z;
+        for (let i = 0; i < 4; i++) {
+          for (let j = 0; j < 4; j++) A[i][j] += row[i] * row[j];
+          b[i] += row[i] * rhs;
         }
       }
-    }
-    // Normalised by the IRIS radius for both, so the two surfaces share one
-    // scale and the pupil drawn on the sclera lines up with the iris hole.
-    let maxR = 0;
-    for (const v of radialSets[0].out) maxR = Math.max(maxR, irisRadius[v]);
-    if (maxR > 0) {
-      for (const set of radialSets) {
-        for (const v of set.out) irisRadius[v] = Math.min(2, irisRadius[v] / maxR);
+      for (let i = 0; i < 4; i++) {
+        let piv = i;
+        for (let r = i + 1; r < 4; r++) if (Math.abs(A[r][i]) > Math.abs(A[piv][i])) piv = r;
+        [A[i], A[piv]] = [A[piv], A[i]];
+        [b[i], b[piv]] = [b[piv], b[i]];
+        if (Math.abs(A[i][i]) < 1e-12) return null;
+        for (let r = i + 1; r < 4; r++) {
+          const f = A[r][i] / A[i][i];
+          for (let cc = i; cc < 4; cc++) A[r][cc] -= f * A[i][cc];
+          b[r] -= f * b[i];
+        }
       }
+      const x = [0, 0, 0, 0];
+      for (let i = 3; i >= 0; i--) {
+        let sum = b[i];
+        for (let j = i + 1; j < 4; j++) sum -= A[i][j] * x[j];
+        x[i] = sum / A[i][i];
+      }
+      return [x[0], x[1], x[2]];
+    };
+
+    /** iBUG eye-outline landmarks, per side of the head. */
+    const LID_POINTS = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+
+    let report = [];
+    for (const side of [-1, 1]) {
+      const sclera = vertsOf(scleraMatsOf(), side);
+      const iris = vertsOf(irisMatsOf(), side);
+      if (sclera.length < 8 || iris.length === 0) continue;
+
+      const centre = fitSphere(sclera);
+      if (!centre) continue;
+
+      // Aperture centre: the eye-outline landmarks that lie on THIS side.
+      let ax = 0, ay = 0, az = 0, an = 0;
+      for (const i of LID_POINTS) {
+        const v = landmarks[i];
+        if (Math.sign(neutral.positions[v * 3]) !== side) continue;
+        ax += neutral.positions[v * 3];
+        ay += neutral.positions[v * 3 + 1];
+        az += neutral.positions[v * 3 + 2];
+        an++;
+      }
+      if (an === 0) continue;
+      let gx = ax / an - centre[0], gy = ay / an - centre[1], gz = az / an - centre[2];
+      const glen = Math.hypot(gx, gy, gz) || 1;
+      gx /= glen; gy /= glen; gz /= glen;
+
+      // Push the iris out so it sits in FRONT of the opaque sclera. The two
+      // shells are concentric and the iris is the inner one, so without this it
+      // is simply inside an opaque ball and the eye renders blank.
+      for (const v of iris) {
+        const dx = neutral.positions[v * 3] - centre[0];
+        const dy = neutral.positions[v * 3 + 1] - centre[1];
+        const dz = neutral.positions[v * 3 + 2] - centre[2];
+        const len = Math.hypot(dx, dy, dz) || 1;
+        const push = 1 + IRIS_PUSH;
+        neutral.positions[v * 3] = centre[0] + dx * push;
+        neutral.positions[v * 3 + 1] = centre[1] + dy * push;
+        neutral.positions[v * 3 + 2] = centre[2] + dz * push;
+      }
+
+      for (const v of [...sclera, ...iris]) {
+        const dx = neutral.positions[v * 3] - centre[0];
+        const dy = neutral.positions[v * 3 + 1] - centre[1];
+        const dz = neutral.positions[v * 3 + 2] - centre[2];
+        const len = Math.hypot(dx, dy, dz) || 1;
+        const cos = Math.max(-1, Math.min(1, (dx * gx + dy * gy + dz * gz) / len));
+        // Clamped: the back of the eyeball is at 8.5 iris-radii and nothing
+        // downstream cares how far past the rim it is, but a quantised
+        // attribute does care about the range it has to cover.
+        irisRadius[v] = Math.min(4, Math.acos(cos) / IRIS_HALF_ANGLE);
+      }
+      report.push(`side ${side > 0 ? 'R' : 'L'}: sclera ${sclera.length} iris ${iris.length}`);
     }
-    for (const [i, set] of radialSets.entries()) {
-      let lo = 9e9, hi = -9e9;
-      for (const v of set.out) { lo = Math.min(lo, irisRadius[v]); hi = Math.max(hi, irisRadius[v]); }
-      console.log(`  radial ${i === 0 ? 'iris  ' : 'sclera'} ${set.out.size} verts, r ${lo.toFixed(3)}..${hi.toFixed(3)}`);
+    if (!process.env.QUIET) {
+      for (const line of report) console.log(`  eye ${line}`);
+      // The iris shell is an ANNULUS — ICT models the pupil as a hole — so the
+      // inner rim is reported: the pupil has to be drawn on the sclera behind
+      // it, and it can only be drawn where there is sclera to draw it on.
+      let inIris = 0, holeR = 9;
+      const irisSet = new Set();
+      for (const f of neutral.faces) {
+        if (!SHADING_GROUPS.iris.has(f.material)) continue;
+        for (const v of f.v) irisSet.add(v);
+      }
+      for (const v of irisSet) holeR = Math.min(holeR, irisRadius[v]);
+      for (let v = 0; v < vertCount; v++) if (irisRadius[v] > 0 && irisRadius[v] <= 1) inIris++;
+      console.log(`  eye verts inside the iris rim: ${inIris}, iris hole at r=${holeR.toFixed(3)}`);
     }
   }
 

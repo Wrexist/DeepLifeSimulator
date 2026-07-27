@@ -107,6 +107,21 @@
       "mean": -0.113121,
       "sd": 0.012873,
       "norm": null
+    },
+    "earSize": {
+      "mean": 1.504995,
+      "sd": 0.052662,
+      "norm": null
+    },
+    "neckThickness": {
+      "mean": 0.178965,
+      "sd": 0.013869,
+      "norm": null
+    },
+    "foreheadSlope": {
+      "mean": 0.88753,
+      "sd": 0.424014,
+      "norm": null
     }
   }
 }
