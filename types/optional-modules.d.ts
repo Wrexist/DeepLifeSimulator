@@ -48,3 +48,29 @@ declare module 'expo-localization' {
   export function getCalendars(): string[];
   export function getCurrencies(): string[];
 }
+
+/**
+ * `react-test-renderer` ships no types and `@types/react-test-renderer` is not
+ * installed, so importing it is an implicit-any error under `noImplicitAny`.
+ *
+ * Declared here rather than added as a dependency: React 19 deprecates this
+ * renderer, so pulling in types for it would be committing to a package the
+ * ecosystem is moving off. Only `create` is used, by the morph-slider
+ * accessibility test, and it is used for its tree output alone.
+ */
+declare module 'react-test-renderer' {
+  export interface ReactTestInstance {
+    props: Record<string, unknown>;
+    type: unknown;
+    children: (ReactTestInstance | string)[];
+    findAll(predicate: (node: ReactTestInstance) => boolean): ReactTestInstance[];
+    find(predicate: (node: ReactTestInstance) => boolean): ReactTestInstance;
+  }
+  export interface ReactTestRenderer {
+    root: ReactTestInstance;
+    toJSON(): unknown;
+    unmount(): void;
+  }
+  export function create(element: unknown): ReactTestRenderer;
+  export function act(callback: () => void | Promise<void>): Promise<void>;
+}
