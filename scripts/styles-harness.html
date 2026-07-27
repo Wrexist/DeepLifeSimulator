@@ -73,6 +73,8 @@ const [albedo, roughMap, normalMap] = await Promise.all([
   load('/assets/textures/face_normal.png', false),
 ]);
 
+const SU = { uBrowColor: { value: new THREE.Color(0x2a1c14) } };
+
 parts.skin.material = (() => {
   const m = new THREE.MeshPhysicalMaterial({
     color: 0xC07E4F, map: albedo, roughnessMap: roughMap, normalMap,
@@ -84,10 +86,20 @@ parts.skin.material = (() => {
   // mannequin, which is exactly what smoothing the pores made it look like.
   // Real SSS needs a second pass; this is a fresnel term and costs nothing.
   m.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
-      '#include <dithering_fragment>\n' +
-      'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
-      'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
+    Object.assign(sh.uniforms, SU);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;')
+      // Eyebrows are PAINTED into the albedo, so without this they are the same
+      // near-black on every character — platinum hair over black brows. The
+      // roughness map's blue channel is a brow mask baked from the same
+      // landmark polylines that painted them.
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+        (roughMap ? 'float brow = texture2D(roughnessMap, vRoughnessMapUv).b;\n'
+          + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow * 0.76);\n' : ''))
+      .replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\n' +
+        'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
+        'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
   };
   return m;
 })();
@@ -622,6 +634,17 @@ window.__probe = () => {
     world: n.elements.slice(0, 3),
   };
 };
+
+// Hair colour, for checking the face against the whole palette rather than
+// against the one brown everything defaults to.
+window.__setHairColor = (hex) => {
+  hairMat.color.set(hex);
+  beardMat.color.set(hex).multiplyScalar(0.72);
+  // Brows follow the hair, a shade or two deeper — see FaceRenderer.
+  SU.uBrowColor.value.set(hex).multiplyScalar(0.46);
+  renderer.render(scene, camera);
+};
+if (q.get('haircol')) window.__setHairColor(q.get('haircol'));
 
 window.__setHair('short');
 window.__setBeard('none');

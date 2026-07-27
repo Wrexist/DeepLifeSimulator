@@ -214,10 +214,18 @@ parts.skin.material = (() => {
     clearcoat: 0.05, clearcoatRoughness: 0.7, envMapIntensity: 0.45,
   });
   m.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
-      '#include <dithering_fragment>\\n' +
-      'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\\n' +
-      'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
+    sh.uniforms.uBrowColor = { value: new THREE.Color(0x2C1B12).multiplyScalar(0.46) };
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\\nuniform vec3 uBrowColor;')
+      // Brows are painted into the albedo; the roughness map's blue channel is
+      // a mask over them so they can take the character's hair colour.
+      .replace('#include <color_fragment>', '#include <color_fragment>\\n' +
+        'float brow = texture2D(roughnessMap, vRoughnessMapUv).b;\\n' +
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow * 0.76);')
+      .replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\\n' +
+        'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\\n' +
+        'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;');
   };
   return m;
 })();

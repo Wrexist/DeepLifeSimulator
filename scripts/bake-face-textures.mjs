@@ -29,7 +29,8 @@
  * ## Outputs
  *
  *   assets/textures/face_albedo.png     detail/variation, multiplied by tone
- *   assets/textures/face_roughness.png  glossy lips and T-zone, matte cheeks
+ *   assets/textures/face_roughness.png  R,G glossy lips and T-zone, matte cheeks;
+ *                                       B   the eyebrow mask (see below)
  *   assets/textures/face_normal.png     pore-scale surface break-up
  */
 
@@ -270,7 +271,9 @@ function main() {
       // pass below. Leaving them black would bleed dark fringes along every seam
       // once the GPU filters the texture.
       albedo[o] = albedo[o + 1] = albedo[o + 2] = 235;
-      rough[o] = rough[o + 1] = rough[o + 2] = 180;
+      rough[o] = rough[o + 1] = 180;
+      // Blue is the brow mask: unmapped texels have no brow on them.
+      rough[o + 2] = 0;
       continue;
     }
     const pt = [world[o], world[o + 1], world[o + 2]];
@@ -349,7 +352,20 @@ function main() {
     let rg = 0.62 - lip * 0.26 - tzone * 0.14 + brow * 0.14 + (fine - 0.5) * 0.035;
     rg = Math.max(0.18, Math.min(0.86, rg));
     const rv = Math.round(rg * 255);
-    rough[o] = rough[o + 1] = rough[o + 2] = rv;
+    // R and G carry roughness — three samples the GREEN channel — and BLUE
+    // carries the EYEBROW MASK.
+    //
+    // The brows are painted into the albedo, so they were a fixed dark colour
+    // on every character: platinum-blonde hair over black eyebrows, which reads
+    // as a mistake rather than as a choice. The renderer needs to know where
+    // they are to tint them, and this is the one place that already knows —
+    // computed from the same landmark polylines, in the same UV space, so the
+    // mask lines up with the paint by construction rather than by agreement.
+    //
+    // A free channel of an existing texture, rather than a fourth map or a new
+    // vertex attribute: no extra bytes, no extra fetch, nothing to keep in sync.
+    rough[o] = rough[o + 1] = rv;
+    rough[o + 2] = Math.round(Math.max(0, Math.min(1, brow)) * 255);
 
     // Height for the normal map: pores, plus a slight lift on the lips.
     height[i] = (pore - 0.5) * 0.16 + (fine - 0.5) * 0.07 + lip * 0.08;

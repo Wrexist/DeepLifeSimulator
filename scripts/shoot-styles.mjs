@@ -71,10 +71,12 @@ async function main() {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(
-    `http://127.0.0.1:${PORT}/?w=${vw}&h=${vh}&rot=${rot}&zoom=${zoom || 1}&ty=${Number.isFinite(ty) ? ty : -0.02}`,
-    { waitUntil: 'load' },
-  );
+  const query = new URLSearchParams({
+    w: String(vw), h: String(vh), rot: String(rot),
+    zoom: String(zoom || 1), ty: String(Number.isFinite(ty) ? ty : -0.02),
+  });
+  if (process.env.HAIRCOL) query.set('haircol', process.env.HAIRCOL);
+  await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 
   if (!(await page.evaluate(() => window.__ok))) {

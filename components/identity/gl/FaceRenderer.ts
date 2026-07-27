@@ -302,6 +302,17 @@ export function createFaceScene(
     uHeadSize: { value: new THREE.Vector3(1, 1, 1) },
     uHeadCentre: { value: new THREE.Vector3() },
   };
+  /**
+   * Brow colour, driven from the hair colour.
+   *
+   * Darker than the hair (0.46): brows are almost always a shade or two deeper
+   * than the hair on the head, and a brow that exactly matches blonde hair
+   * disappears into the forehead. The mix is 0.76 rather than full, so the
+   * painted brow's own darkness still supplies the shape — tinting all the way
+   * flattens it into a solid stripe of colour.
+   */
+  const assetSkinUniforms = { uBrowColor: { value: new THREE.Color(0x2a1c14) } };
+
   const assetBeardUniforms = {
     uThickness: { value: 0.02 },
     uMix: { value: new THREE.Vector3(1, 1, 1) },
@@ -390,6 +401,12 @@ export function createFaceScene(
         (assetHair.material as THREE.MeshStandardMaterial).color.set(hairHex);
       }
     }
+    // Brows follow the hair colour even when the character is bald: eyebrows do
+    // not fall out with a shaved head, and a bald character with brows painted
+    // the default brown is the same mismatch in the other direction.
+    assetSkinUniforms.uBrowColor.value
+      .set(HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))])
+      .multiplyScalar(0.46);
     if (assetBeard) {
       const spec = BEARD_SPEC[aged.facialHair];
       assetBeard.visible = aged.facialHair !== 'none' && !!spec;
@@ -472,13 +489,31 @@ export function createFaceScene(
       // ear rims, nostrils, the edge of the jaw. Without it a smoothed head
       // reads as a mannequin, which is exactly what softening the pores made it
       // look like. Real SSS needs a second pass; a fresnel term costs nothing.
+      //
+      // And the EYEBROWS, which are painted into the albedo and were therefore
+      // the same near-black on every character — platinum-blonde hair over
+      // black brows, which reads as a mistake rather than as a choice. The
+      // roughness map's blue channel carries a brow mask baked from the same
+      // landmark polylines that painted them, so the two line up by
+      // construction; here it just says where to tint.
       (asset.parts.skin.material as THREE.MeshPhysicalMaterial).onBeforeCompile = (shader) => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <dithering_fragment>',
-          '#include <dithering_fragment>\n' +
-            'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
-            'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;',
-        );
+        Object.assign(shader.uniforms, assetSkinUniforms);
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 uBrowColor;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+            (textures.roughness
+              // Sampled with the same uv the roughness map uses. Mixing rather
+              // than multiplying, because the painted brow is already dark: a
+              // multiply would only ever make a blonde brow darker.
+              ? 'float brow = texture2D(roughnessMap, vRoughnessMapUv).b;\n'
+                + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow * 0.76);\n'
+              : ''))
+          .replace(
+            '#include <dithering_fragment>',
+            '#include <dithering_fragment>\n' +
+              'float sss = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);\n' +
+              'gl_FragColor.rgb += vec3(0.15, 0.045, 0.022) * sss;',
+          );
       };
     }
     // Eyes get their own wet materials. This is the cheapest large win in a
