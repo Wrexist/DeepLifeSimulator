@@ -490,7 +490,7 @@ float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin
     .replace('#include <color_fragment>', '#include <color_fragment>\n' +
       // Wider feather than the hair: a beard has no edge in reality, it thins
       // out, and a hard boundary along the jaw looks painted on.
-      'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);\n' +
+      'diffuseColor.a *= smoothstep(0.04, 0.52, vAmt);\n' +
       // Stipple rather than a uniform fade: lowering alpha evenly gives a grey
       // beard, dropping individual specks gives a sparse one, and sparse is
       // what stubble is.
@@ -561,8 +561,8 @@ parts.iris.material = (() => {
         'float pupil = smoothstep(0.34, 0.50, r);\n' +
         'float limbal = smoothstep(1.02, 0.86, r);\n' +
         'float fibre = 0.88 + 0.12 * sin(r * 34.0);\n' +
-        'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\n' +
-        'if (r < 0.36) discard;');
+        'diffuseColor.rgb *= pupil * limbal * fibre * (1.52 - 0.52 * r);\n' +
+        'if (r < 0.33) discard;');
   };
   return m;
 })();
@@ -698,6 +698,10 @@ window.__setHairColor = (hex) => {
   renderer.render(scene, camera);
 };
 if (q.get('haircol')) window.__setHairColor(q.get('haircol'));
+
+// Iris colour, to check the palette actually reads on the new eye shader.
+window.__setEyeColor = (hex) => { parts.iris.material.color.set(hex); renderer.render(scene, camera); };
+if (q.get('eyecol')) window.__setEyeColor(q.get('eyecol'));
 
 window.__setHair('short');
 window.__setBeard('none');

@@ -694,13 +694,19 @@ export function createFaceScene(
               // Limbal ring: the dark rim that separates iris from white. Its
               // absence is most of what makes a game eye look printed on.
               'float limbal = smoothstep(1.02, 0.86, r);\n' +
-              // Radial fibres, brighter toward the pupil, plus a subtle
-              // brightening at the centre so the iris is not a flat disc.
+              // Radial fibres, and a strong lift toward the pupil.
+              //
+              // 1.52 at the centre rather than 1.25: the darkest eye colour in
+              // the palette is #3B2415, and shaded flat it sits close enough to
+              // the pupil that a brown-eyed character reads as having no pupil
+              // at all — one dark mass with a catchlight on it. The contrast has
+              // to come from lifting the IRIS, because the pupil is already as
+              // dark as it can be.
               'float fibre = 0.88 + 0.12 * sin(r * 34.0);\n' +
-              'diffuseColor.rgb *= pupil * limbal * fibre * (1.25 - 0.25 * r);\n' +
+              'diffuseColor.rgb *= pupil * limbal * fibre * (1.52 - 0.52 * r);\n' +
               // Cut the shell away over the pupil so the dark disc behind shows
               // through, rather than tinting it and keeping the shell's specular.
-              'if (r < 0.36) discard;',
+              'if (r < 0.33) discard;',
           );
       };
       asset.parts.iris.material = irisMat;
@@ -908,7 +914,7 @@ export function createFaceScene(
           // Wider feather than the hair: a beard has no edge in reality, it
           // thins out, and a hard boundary along the jaw looks painted on.
           .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-            'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);\n' +
+            'diffuseColor.a *= smoothstep(0.04, 0.52, vAmt);\n' +
             // STIPPLE, not a uniform fade. Lowering alpha evenly makes a grey
             // beard; dropping individual specks makes a sparse one, and sparse
             // is what stubble is. High frequency so the specks read as follicles

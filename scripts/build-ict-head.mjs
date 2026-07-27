@@ -1064,10 +1064,15 @@ async function main() {
     // Distance to the mouth opening, to keep hair off the lips themselves.
     const lipPts = [];
     for (let i = 48; i <= 59; i++) lipPts.push(L(i));
-    // Sideburn ceiling: the jaw contour beside the ear, which is roughly
-    // cheekbone height. A fraction of face height guesses at this and put the
-    // top of the beard wherever the face happened to be proportioned.
-    const jawTopY = (L(1)[1] + L(2)[1] + L(14)[1] + L(15)[1]) / 4;
+    // Sideburn ceiling.
+    //
+    // Landmarks 1/2/14/15 sit at roughly CHEEKBONE height, and a beard that
+    // reaches there covers the cheeks up to the eye sockets — rendered close
+    // up, `full` came within a few millimetres of the lower lids. A real beard
+    // stops around the middle of the cheek, so the ceiling is pulled down a
+    // third of the way from that contour toward the nose base.
+    const jawContourY = (L(1)[1] + L(2)[1] + L(14)[1] + L(15)[1]) / 4;
+    const jawTopY = jawContourY - (jawContourY - noseBase[1]) * 0.34;
 
     for (let v = 0; v < vertCount; v++) {
       const x = neutral.positions[v * 3];
@@ -1101,6 +1106,35 @@ async function main() {
       beard[v * 3] = Math.max(0, Math.min(1, mBand)) * offLips;
       beard[v * 3 + 1] = Math.max(0, Math.min(1, cBand)) * offLips;
       beard[v * 3 + 2] = Math.max(0, Math.min(1, jBand)) * offLips;
+    }
+
+    // SMOOTH ALONG THE MESH, exactly as the scalp field is.
+    //
+    // The bands are built from landmark distances, which change fast across the
+    // cheek, so the isoline the shader fades on came out TORN — a razor-sharp
+    // ragged edge following triangle boundaries, most visible as a diagonal
+    // slash across the cheekbone on `stubble`. Real facial hair has no edge at
+    // all; it thins out. Averaging a band with its neighbours barely moves
+    // where it crosses a threshold and removes the tearing entirely.
+    {
+      const adj = new Array(vertCount);
+      for (const f of neutral.faces) {
+        for (const a of f.v) (adj[a] ??= new Set());
+        for (const a of f.v) for (const b of f.v) if (a !== b) adj[a].add(b);
+      }
+      for (let pass = 0; pass < 4; pass++) {
+        const next = Float32Array.from(beard);
+        for (let v = 0; v < vertCount; v++) {
+          const nb = adj[v];
+          if (!nb || nb.size === 0) continue;
+          for (let k = 0; k < 3; k++) {
+            let sum = 0;
+            for (const w of nb) sum += beard[w * 3 + k];
+            next[v * 3 + k] = 0.5 * beard[v * 3 + k] + 0.5 * (sum / nb.size);
+          }
+        }
+        beard.set(next);
+      }
     }
   }
 

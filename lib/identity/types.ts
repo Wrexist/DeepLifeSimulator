@@ -287,10 +287,25 @@ export const HAIR_COLORS: readonly string[] = [
   '#E5E7EB', '#7C3AED', '#DC2626', '#2563EB',
 ];
 
-/** Eye colours. Index is what a save stores. */
+/**
+ * Eye colours. Index is what a save stores, so entries may be RE-TONED but
+ * never reordered.
+ *
+ * The dark end was lifted after rendering the palette against the new eye
+ * shader: at the old values a brown-eyed character had no visible pupil. The
+ * iris sat close enough to the pupil's black that the whole aperture read as
+ * one dark mass with a catchlight on it — and brown is the most common eye
+ * colour there is, so that was most players.
+ *
+ * Lifting the PALETTE rather than brightening the shader is the right lever:
+ * the pupil is already as dark as it can be, so the contrast has to come from
+ * the iris, and a real dark-brown iris under light photographs far closer to
+ * #54341C than to #3B2415. Shading it up instead would have washed out the
+ * pale colours at the same time.
+ */
 export const EYE_COLORS: readonly string[] = [
-  '#3B2415', '#5C3A1E', '#7A5230', '#4E6B3F', '#3F6B5C',
-  '#3B6BA5', '#5B8FC7', '#8A8F98', '#6B4E8A',
+  '#54341C', '#6F4826', '#8F6134', '#5E7A4A', '#4A7C6C',
+  '#3B6BA5', '#5B8FC7', '#8A8F98', '#7A5A9C',
 ];
 
 /**
