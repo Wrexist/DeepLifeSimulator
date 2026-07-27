@@ -45,6 +45,26 @@ Google's ad domains silently zeroes out ad revenue. Tracking is declared by the
 AdMob/Firebase SDK manifests instead; see the comment in `app.config.js`.
 `scripts/preflight-check.js` §5b enforces this before a build starts.
 
+### Purpose strings (iOS) — pass upload, fail review, take the IAPs down with them
+
+Every `NS*UsageDescription` is scanned by App Review *after* the build is
+accepted, so a weak one costs a full review cycle instead of failing at upload.
+It also returns the whole submission: each attached IAP and subscription comes
+back marked "Rejected" even though nothing is wrong with them — resubmit them
+with the next build.
+
+The one purpose string this app ships is `NSUserTrackingUsageDescription`,
+written by the `expo-tracking-transparency` plugin in `app.config.js`. Expo's
+documentation boilerplate ("This identifier will be used to deliver personalized
+ads to you.") was rejected as a placeholder: it names the resource but never says
+what the app does with it, which is the same shape as Apple's own failing
+examples ("App needs microphone access"). A passing string needs both halves —
+the use, and a **concrete example** of the result. `scripts/preflight-check.js`
+§5c fails the build on known boilerplate, strings under 60 characters, and
+strings with no verb of use; it reads both `ios.infoPlist` and the plugin options
+that become purpose strings at prebuild time, so add a row to its
+`PLUGIN_PURPOSE_OPTIONS` table whenever a plugin that writes one is installed.
+
 ## Save format
 
 - **Canonical `STATE_VERSION = 25`** — single source of truth in
