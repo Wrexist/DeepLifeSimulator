@@ -574,18 +574,44 @@ window.__setBeard = (name) => {
 };
 
 // eyes
+/**
+ * Iris coordinate uniforms, refitted from the sclera by the app's own
+ * `eyeAxis.ts` and injected by `shoot-styles.mjs`. The page keeps no copy of
+ * the fit or the GLSL, for the same reason it keeps no copy of the hair table.
+ */
+const IRIS_U = {
+  uEyeCentreL: { value: new THREE.Vector3(0, 0, 0) },
+  uEyeCentreR: { value: new THREE.Vector3(0, 0, 0) },
+  uGazeL: { value: new THREE.Vector3(0, 0, 1) },
+  uGazeR: { value: new THREE.Vector3(0, 0, 1) },
+  uIrisFit: { value: new THREE.Vector3(1, 0, 0) },
+};
+// Set after load by `shoot-styles.mjs`, which runs the app's `deriveEyeAxes`
+// over the attributes this page hands it. Until then `uIrisFit.z` is 0 and the
+// shaders read the baked per-vertex attribute, which is the same fallback the
+// app takes when the refit does not reproduce the bake.
+window.__setEyeAxes = (a) => {
+  IRIS_U.uEyeCentreL.value.fromArray(a.centreLeft);
+  IRIS_U.uEyeCentreR.value.fromArray(a.centreRight);
+  IRIS_U.uGazeL.value.fromArray(a.gazeLeft);
+  IRIS_U.uGazeR.value.fromArray(a.gazeRight);
+  IRIS_U.uIrisFit.value.set(a.halfAngle, a.midX, 1);
+  renderer.render(scene, camera);
+};
+
 parts.sclera.material = (() => {
   const m = new THREE.MeshPhysicalMaterial({
     color: 0xdedbd6, roughness: 0.18, metalness: 0,
     clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75 });
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, IRIS_U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+      .replace('#include <common>', '#include <common>\n' + window.__IRIS_VERT_COMMON)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__IRIS_VERT_BODY);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vR;')
+      .replace('#include <common>', '#include <common>\n' + window.__IRIS_FRAG_COMMON)
       .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-        'float r = vR;\n' +
+        'float r = irisCoord();\n' +
         'diffuseColor.rgb = mix(vec3(0.010), diffuseColor.rgb, smoothstep(0.40, 0.50, r));\n' +
         'diffuseColor.rgb *= 0.90 + 0.10 * smoothstep(3.2, 1.2, r);\n' +
         'diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(1.0, 1.55, r));');
@@ -598,14 +624,15 @@ parts.iris.material = (() => {
     color: 0x4a6b8a, roughness: 0.12, metalness: 0,
     clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35 });
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, IRIS_U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+      .replace('#include <common>', '#include <common>\n' + window.__IRIS_VERT_COMMON)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__IRIS_VERT_BODY);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vR;')
+      .replace('#include <common>', '#include <common>\n' + window.__IRIS_FRAG_COMMON)
       .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-        'if (vR > 1.02) discard;\n' +
-        'float r = vR;\n' +
+        'float r = irisCoord();\n' +
+        'if (r > 1.02) discard;\n' +
         'float pupil = smoothstep(0.34, 0.50, r);\n' +
         'float limbal = smoothstep(1.02, 0.86, r);\n' +
         'float fibre = 0.88 + 0.12 * sin(r * 34.0);\n' +
@@ -774,6 +801,40 @@ window.__probeGeometry = () => {
       return { max, mean: sum / a.count, moved: moved / a.count };
     },
   };
+};
+
+window.__probeEyes = () => {
+  const out = {};
+  for (const [name, m] of Object.entries({ sclera: parts.sclera, iris: parts.iris })) {
+    if (!m) { out[name] = null; continue; }
+    const g = m.geometry;
+    const a = g.getAttribute('_irisr');
+    const pos = g.getAttribute('position');
+    if (!a) { out[name] = 'no _irisr'; continue; }
+    let inIris = 0, inPupil = 0, min = 9, max = -9;
+    const ring = [];
+    for (let i = 0; i < a.count; i++) {
+      const r = a.getX(i);
+      if (r < min) min = r;
+      if (r > max) max = r;
+      if (r <= 1.02) inIris++;
+      if (r <= 0.45) inPupil++;
+      if (r > 0.85 && r < 1.2) ring.push(i);
+    }
+    out[name] = {
+      verts: a.count, min, max, inIris, inPupil, nearRim: ring.length,
+      sample: ring.slice(0, 6).map((i) => [pos.getX(i).toFixed(3), pos.getY(i).toFixed(3)]),
+      irisR: Array.from({ length: a.count }, (_, i) => a.getX(i)),
+      normals: (() => {
+        const nr = g.getAttribute('normal');
+        return nr ? Array.from({ length: nr.count * 3 }, (_, i) =>
+          [nr.getX, nr.getY, nr.getZ][i % 3].call(nr, (i / 3) | 0)) : null;
+      })(),
+      positions: Array.from({ length: pos.count * 3 }, (_, i) =>
+        [pos.getX, pos.getY, pos.getZ][i % 3].call(pos, (i / 3) | 0)),
+    };
+  }
+  return out;
 };
 
 window.__probeMorphs = () => ({

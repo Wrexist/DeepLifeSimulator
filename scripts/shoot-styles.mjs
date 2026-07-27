@@ -109,7 +109,35 @@ async function main() {
       chinFrac: statsFrame?.chinFrac ?? 0.347,
     },
   );
+  // The iris coordinate: the app's GLSL, and the fit produced by the app's own
+  // `deriveEyeAxes`. The fit needs the asset's attributes, which live in the
+  // browser, so it is injected after a first load and the page is reloaded — a
+  // page that computed the fit itself would be certifying its own arithmetic.
+  const axisMod = loadTs('components/identity/gl/eyeAxis.ts');
+  await page.addInitScript(
+    (g) => {
+      window.__IRIS_VERT_COMMON = g.vc;
+      window.__IRIS_VERT_BODY = g.vb;
+      window.__IRIS_FRAG_COMMON = g.fc;
+    },
+    {
+      vc: axisMod.IRIS_COORD_VERT_COMMON,
+      vb: axisMod.IRIS_COORD_VERT_BODY,
+      fc: axisMod.IRIS_COORD_FRAG_COMMON,
+    },
+  );
   await page.goto(`http://127.0.0.1:${PORT}/?${query}`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
+  {
+    const probe = await page.evaluate(() => window.__probeEyes());
+    const d = probe?.sclera;
+    const fit = d && typeof d === 'object' ? axisMod.deriveEyeAxes(d.irisR, d.positions) : null;
+    if (fit && fit.residual <= axisMod.IRIS_FIT_TOLERANCE) {
+      await page.evaluate((a) => window.__setEyeAxes(a), fit);
+    } else {
+      console.warn(`iris refit unusable (residual ${fit ? fit.residual.toFixed(4) : 'none'})`);
+    }
+  }
   await page.waitForFunction(() => window.__ok, { timeout: 60000 }).catch(() => {});
 
   if (!(await page.evaluate(() => window.__ok))) {
@@ -385,6 +413,45 @@ async function main() {
         + ` mean=${(r.mean / stats.height * 100).toFixed(3)}%`
         + ` moved=${(r.moved * 100).toFixed(1)}% of verts`,
       );
+    }
+    await browser.close();
+    server.close();
+    return;
+  }
+
+  if (process.env.EYE_STATS) {
+    const eyes = await page.evaluate(() => window.__probeEyes());
+    const axisMod = loadTs('components/identity/gl/eyeAxis.ts');
+    for (const [name, d] of Object.entries(eyes)) {
+      if (!d || typeof d !== 'object') { console.log(`${name}: ${d}`); continue; }
+      console.log(
+        `${name}: ${d.verts} verts, ${d.inIris} inside the rim, ${d.inPupil} inside the pupil`,
+      );
+      if (!d.normals) { console.log('  no normals'); continue; }
+      const fit = axisMod.deriveEyeAxes(d.irisR, d.positions);
+      if (!fit) { console.log('  no fit'); continue; }
+      console.log(
+        `  halfAngle=${fit.halfAngle.toFixed(5)} rad (${(fit.halfAngle * 57.2958).toFixed(2)} deg)`
+        + ` midX=${fit.midX.toFixed(4)} residual=${fit.residual.toFixed(4)}`,
+      );
+      console.log(`  gazeR=[${fit.gazeRight.map((v) => v.toFixed(4))}] centreR=[${fit.centreRight.map((v) => v.toFixed(4))}]`);
+      console.log(`  gazeL=[${fit.gazeLeft.map((v) => v.toFixed(4))}] centreL=[${fit.centreLeft.map((v) => v.toFixed(4))}]`);
+      if (process.env.EYE_STATS === 'profile') {
+        const g = fit.gazeRight, ce = fit.centreRight;
+        const pts = [];
+        for (let i = 0; i < d.irisR.length; i++) {
+          if (d.positions[i * 3] <= fit.midX) continue;
+          const nx = d.positions[i * 3] - ce[0], ny = d.positions[i * 3 + 1] - ce[1],
+            nz = d.positions[i * 3 + 2] - ce[2];
+          const l = Math.hypot(nx, ny, nz) || 1;
+          const c = Math.max(-1, Math.min(1, (nx * g[0] + ny * g[1] + nz * g[2]) / l));
+          pts.push([d.irisR[i], Math.acos(c)]);
+        }
+        pts.sort((a, b) => a[0] - b[0]);
+        for (const [r, ang] of pts.filter((p) => p[0] < 2.2)) {
+          console.log(`    r=${r.toFixed(3)} angle=${(ang * 57.2958).toFixed(2)}deg ratio=${(ang / r * 57.2958).toFixed(2)}`);
+        }
+      }
     }
     await browser.close();
     server.close();

@@ -25,6 +25,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { logger } from '@/utils/logger';
+import { deriveEyeAxes, IRIS_FIT_TOLERANCE, type EyeAxes } from './eyeAxis';
 
 export interface HeadAsset {
   /**
@@ -54,6 +55,15 @@ export interface HeadAsset {
   parts: Record<string, THREE.Mesh>;
   /** Morph target names, in the index order `morphTargetInfluences` uses. */
   morphNames: string[];
+  /**
+   * Eye centres, gaze axes and angular scale, refitted from the sclera.
+   *
+   * Null when the asset carries no `_irisr`, or when the refit failed to
+   * reproduce it — in which case the eye shaders keep using the per-vertex
+   * attribute. See `eyeAxis.ts` for why the reconstruction exists and what it
+   * replaces.
+   */
+  eyeAxes: EyeAxes | null;
 }
 
 let cached: HeadAsset | null | undefined;
@@ -127,7 +137,46 @@ function extractGeometry(gltf: { scene: THREE.Object3D }): HeadAsset | null {
   const morphNames: string[] = [];
   for (const [name, index] of Object.entries(dict)) morphNames[index] = name;
 
-  return { scene: gltf.scene, mesh, meshes, parts, morphNames };
+  return { scene: gltf.scene, mesh, meshes, parts, morphNames, eyeAxes: fitEyeAxes(parts.sclera) };
+}
+
+/**
+ * Refit the iris coordinate from the SCLERA, once, at load.
+ *
+ * The sclera and not the iris: the build script fits one sphere per eye to the
+ * sclera and uses that one centre for both surfaces, and the iris shell is then
+ * pushed outward along the same radii — so refitting a sphere to the iris finds
+ * the pushed radius from an annulus, which is a badly conditioned fit. Measured
+ * on the shipped asset it lands 0.005 further forward and triples the residual,
+ * for a surface that shares the sclera's axis by construction.
+ */
+function fitEyeAxes(sclera: THREE.Mesh | undefined): EyeAxes | null {
+  const attr = sclera?.geometry?.getAttribute('_irisr');
+  const pos = sclera?.geometry?.getAttribute('position');
+  if (!attr || !pos || attr.count !== pos.count) return null;
+  // Through the accessors rather than off `.array`: the asset is quantized, so
+  // the raw buffer is normalized integers and reading it directly would fit a
+  // sphere to the wrong numbers.
+  const irisR = new Float32Array(attr.count);
+  const positions = new Float32Array(pos.count * 3);
+  for (let i = 0; i < attr.count; i++) {
+    irisR[i] = attr.getX(i);
+    positions[i * 3] = pos.getX(i);
+    positions[i * 3 + 1] = pos.getY(i);
+    positions[i * 3 + 2] = pos.getZ(i);
+  }
+  const axes = deriveEyeAxes(irisR, positions);
+  if (!axes) {
+    logger.warn('[headAsset] could not refit the iris axes — using the baked attribute');
+    return null;
+  }
+  if (axes.residual > IRIS_FIT_TOLERANCE) {
+    logger.warn('[headAsset] iris refit does not reproduce the bake — using the baked attribute', {
+      residual: axes.residual,
+    });
+    return null;
+  }
+  return axes;
 }
 
 /**

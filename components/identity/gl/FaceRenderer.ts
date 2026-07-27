@@ -47,6 +47,11 @@ import {
 import { createStudioEnvironment } from '@/components/luxury/gl/studioEnvironment';
 import { loadHeadAsset, loadSkinTextures, type HeadAsset, type SkinTextures } from './headAsset';
 import measureStats from '@/assets/models/face-measure-stats.json';
+import {
+  IRIS_COORD_FRAG_COMMON,
+  IRIS_COORD_VERT_BODY,
+  IRIS_COORD_VERT_COMMON,
+} from './eyeAxis';
 import { installChildProportions, type PatchableMaterial } from './childInstall';
 import { frameHead, type Bounds } from './headFraming';
 import {
@@ -673,6 +678,17 @@ export function createFaceScene(
     // Eyes get their own wet materials. This is the cheapest large win in a
     // portrait: sharing the skin's roughness leaves the eyes with no catchlight
     // and the whole face reads dead, however good the geometry is.
+    // One set of uniforms for both eye surfaces: the pupil is drawn on the
+    // sclera and the iris on the shell in front of it, and they are concentric
+    // only for as long as they read the same coordinate from the same numbers.
+    const axes = asset.eyeAxes;
+    const irisFitUniforms = {
+      uEyeCentreL: { value: new THREE.Vector3(...(axes?.centreLeft ?? [0, 0, 0])) },
+      uEyeCentreR: { value: new THREE.Vector3(...(axes?.centreRight ?? [0, 0, 0])) },
+      uGazeL: { value: new THREE.Vector3(...(axes?.gazeLeft ?? [0, 0, 1])) },
+      uGazeR: { value: new THREE.Vector3(...(axes?.gazeRight ?? [0, 0, 1])) },
+      uIrisFit: { value: new THREE.Vector3(axes?.halfAngle ?? 1, axes?.midX ?? 0, axes ? 1 : 0) },
+    };
     if (asset.parts.sclera) {
       // The pupil is drawn on the SCLERA, not the iris.
       //
@@ -687,15 +703,16 @@ export function createFaceScene(
         clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.75,
       }));
       scleraMat.onBeforeCompile = (shader) => {
+        Object.assign(shader.uniforms, irisFitUniforms);
         shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+          .replace('#include <common>', `#include <common>\n${IRIS_COORD_VERT_COMMON}`)
+          .replace('#include <begin_vertex>', `#include <begin_vertex>${IRIS_COORD_VERT_BODY}`);
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vR;')
+          .replace('#include <common>', `#include <common>\n${IRIS_COORD_FRAG_COMMON}`)
           .replace(
             '#include <color_fragment>',
             '#include <color_fragment>\n' +
-        'float r = vR;\n' +
+        'float r = irisCoord();\n' +
               // THE PUPIL LIVES HERE. It has to: the iris shell is a sphere, and
               // its own specular sits on top of whatever colour it is given, so a
               // pupil painted on the iris comes out as a bright reflected disc
@@ -726,18 +743,19 @@ export function createFaceScene(
         clearcoat: 0.9, clearcoatRoughness: 0.16, envMapIntensity: 0.35,
       }));
       irisMat.onBeforeCompile = (shader) => {
+        Object.assign(shader.uniforms, irisFitUniforms);
         shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', '#include <common>\nattribute float _irisr;\nvarying float vR;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvR = _irisr;');
+          .replace('#include <common>', `#include <common>\n${IRIS_COORD_VERT_COMMON}`)
+          .replace('#include <begin_vertex>', `#include <begin_vertex>${IRIS_COORD_VERT_BODY}`);
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vR;')
+          .replace('#include <common>', `#include <common>\n${IRIS_COORD_FRAG_COMMON}`)
           .replace(
             '#include <color_fragment>',
             '#include <color_fragment>\n' +
-                      // OUTSIDE THE RIM IS NOT IRIS. The shell is a full sphere, so without
+              'float r = irisCoord();\n' +
+              // OUTSIDE THE RIM IS NOT IRIS. The shell is a full sphere, so without
               // this it covers the whole eyeball and no white can ever show.
-              'if (vR > 1.02) discard;\n' +
-              'float r = vR;\n' +
+              'if (r > 1.02) discard;\n' +
               // The pupil is drawn on the SCLERA behind this shell — see there.
               // What this must do is get out of its way: the iris fades to
               // nothing over the pupil rather than painting it.
