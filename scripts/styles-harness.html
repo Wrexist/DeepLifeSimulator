@@ -386,6 +386,7 @@ window.__setHair = (name) => {
 // -------------------------------------------------------------- beard ------
 const BU = {
   uThickness: { value: 0.02 },
+  uDensity: { value: 1 },
   uHeadCentre: { value: headCentre },
   uMix: { value: new THREE.Vector3(1, 1, 1) },
   uFrizz: { value: 0.2 },
@@ -401,7 +402,7 @@ beardMat.onBeforeCompile = (sh) => {
     .replace('#include <common>', `#include <common>
 attribute vec3 _beard;
 varying float vAmt;
-uniform float uThickness, uFrizz;
+uniform float uThickness, uFrizz, uDensity;
 uniform vec3 uMix, uHeadCentre;
 vec3 vBeardDir;
 float vBeardAmt;
@@ -419,23 +420,33 @@ float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x * 15.0) * sin(p.y * 13.0) * sin
   vec3 bRadial = normalize(transformed - uHeadCentre);
   transformed += normalize(mix(vBeardDir, bRadial, 0.45)) * uThickness * vBeardAmt;`);
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+    .replace('#include <common>', '#include <common>\n' +
+      'varying float vAmt;\nuniform float uDensity;')
     .replace('#include <color_fragment>', '#include <color_fragment>\n' +
       // Wider feather than the hair: a beard has no edge in reality, it thins
       // out, and a hard boundary along the jaw looks painted on.
-      'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);');
+      'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);\n' +
+      // Stipple rather than a uniform fade: lowering alpha evenly gives a grey
+      // beard, dropping individual specks gives a sparse one, and sparse is
+      // what stubble is.
+      // A FLAT alpha, not a stipple — see the note in FaceRenderer. Every
+      // periodic function the eye can find the period of reads as fabric, and
+      // a five-o'clock shadow is a tint rather than visible follicles anyway.
+      'diffuseColor.a *= uDensity;\n' +
+      'diffuseColor.rgb *= 0.78 + 0.34 * smoothstep(0.05, 0.9, vAmt);');
 };
 const beard = new THREE.Mesh(parts.skin.geometry, beardMat);
 beard.renderOrder = 1;
 shareMorphs(parts.skin, beard);
 parts.skin.parent.add(beard);
 
+/** DENSITY IS NOT THICKNESS — see the note in FaceRenderer's BEARD_SPEC. */
 const BEARD = {
   none:       null,
-  stubble:    { frac: 0.006, mix: [1, 1, 1], frizz: 0.5 },
-  moustache:  { frac: 0.016, mix: [1, 0, 0], frizz: 0.2 },
-  goatee:     { frac: 0.018, mix: [1, 1, 0], frizz: 0.25 },
-  full:       { frac: 0.024, mix: [1, 1, 1], frizz: 0.3 },
+  stubble:    { frac: 0.005, mix: [1, 1, 1], frizz: 0.5, density: 0.40 },
+  moustache:  { frac: 0.016, mix: [1, 0, 0], frizz: 0.2, density: 0.94 },
+  goatee:     { frac: 0.018, mix: [1, 1, 0], frizz: 0.25, density: 0.94 },
+  full:       { frac: 0.024, mix: [1, 1, 1], frizz: 0.3, density: 1.0 },
 };
 window.__beardNames = Object.keys(BEARD);
 window.__setBeard = (name) => {
@@ -445,6 +456,7 @@ window.__setBeard = (name) => {
     BU.uThickness.value = s.frac * geomExtent;
     BU.uMix.value.set(...s.mix);
     BU.uFrizz.value = s.frizz;
+    BU.uDensity.value = s.density ?? 1;
   }
   renderer.render(scene, camera);
 };

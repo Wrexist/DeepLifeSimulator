@@ -276,11 +276,18 @@ export function createFaceScene(
    * Facial hair, as a mix over the three baked zone weights: moustache, chin,
    * jaw. The five styles are subsets of one region, so one bake serves them all.
    */
-  const BEARD_SPEC: Record<string, { frac: number; mix: [number, number, number]; frizz: number }> = {
-    stubble:   { frac: 0.006, mix: [1, 1, 1], frizz: 0.5 },
-    moustache: { frac: 0.016, mix: [1, 0, 0], frizz: 0.2 },
-    goatee:    { frac: 0.018, mix: [1, 1, 0], frizz: 0.25 },
-    full:      { frac: 0.024, mix: [1, 1, 1], frizz: 0.3 },
+  const BEARD_SPEC: Record<string, {
+    frac: number; mix: [number, number, number]; frizz: number; density: number;
+  }> = {
+    // DENSITY IS NOT THICKNESS. Stubble was a thin shell — 0.006 against a full
+    // beard's 0.024 — painted in the same opaque near-black, so it rendered as
+    // a full beard that happened to sit closer to the jaw. What separates
+    // stubble from a beard is that you can see skin THROUGH it, which is a
+    // coverage property and has nothing to do with how far the hair stands off.
+    stubble:   { frac: 0.005, mix: [1, 1, 1], frizz: 0.5, density: 0.40 },
+    moustache: { frac: 0.016, mix: [1, 0, 0], frizz: 0.2, density: 0.94 },
+    goatee:    { frac: 0.018, mix: [1, 1, 0], frizz: 0.25, density: 0.94 },
+    full:      { frac: 0.024, mix: [1, 1, 1], frizz: 0.3, density: 1.0 },
   };
 
   const assetHairUniforms = {
@@ -299,6 +306,7 @@ export function createFaceScene(
     uThickness: { value: 0.02 },
     uMix: { value: new THREE.Vector3(1, 1, 1) },
     uFrizz: { value: 0.2 },
+    uDensity: { value: 1 },
     uHeadCentre: { value: new THREE.Vector3() },
   };
   let assetBeard: THREE.Mesh | null = null;
@@ -389,6 +397,7 @@ export function createFaceScene(
         assetBeardUniforms.uThickness.value = spec.frac * assetGeomExtent;
         assetBeardUniforms.uMix.value.set(...spec.mix);
         assetBeardUniforms.uFrizz.value = spec.frizz;
+        assetBeardUniforms.uDensity.value = spec.density;
         // Facial hair reads darker than scalp hair on the same head, so it is
         // the hair colour knocked down rather than a second palette to keep in
         // sync — a beard that does not match the hair looks like a costume.
@@ -742,7 +751,7 @@ export function createFaceScene(
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', '#include <common>\n' +
             'attribute vec3 _beard;\nvarying float vAmt;\n' +
-            'uniform float uThickness, uFrizz;\nuniform vec3 uMix, uHeadCentre;\n' +
+            'uniform float uThickness, uFrizz, uDensity;\nuniform vec3 uMix, uHeadCentre;\n' +
             'vec3 vBeardDir;\nfloat vBeardAmt;\n' +
             'float bnoise(vec3 p){ return 0.5 + 0.5 * sin(p.x*15.0) * sin(p.y*13.0) * sin(p.z*11.0); }')
           .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
@@ -755,11 +764,32 @@ export function createFaceScene(
             'vec3 bRadial = normalize(transformed - uHeadCentre);\n' +
             'transformed += normalize(mix(vBeardDir, bRadial, 0.45)) * uThickness * vBeardAmt;');
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vAmt;')
+          .replace('#include <common>', '#include <common>\n' +
+            'varying float vAmt;\nuniform float uDensity;')
           // Wider feather than the hair: a beard has no edge in reality, it
           // thins out, and a hard boundary along the jaw looks painted on.
           .replace('#include <color_fragment>', '#include <color_fragment>\n' +
-            'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);');
+            'diffuseColor.a *= smoothstep(0.10, 0.38, vAmt);\n' +
+            // STIPPLE, not a uniform fade. Lowering alpha evenly makes a grey
+            // beard; dropping individual specks makes a sparse one, and sparse
+            // is what stubble is. High frequency so the specks read as follicles
+            // rather than as a pattern.
+            // A FLAT alpha, not a stipple.
+            //
+            // Two attempts at drawing individual follicles both failed the same
+            // way: a product of sines laid a lattice over the jaw and read as
+            // netting, and a sum of them at incommensurate frequencies read as
+            // herringbone. Any small set of sines is periodic, and the eye finds
+            // the period every time.
+            //
+            // A five-o'clock shadow does not resolve into hairs at the size a
+            // portrait is ever viewed — it is a TINT. Lowering the alpha and
+            // letting the skin come through gives exactly that, costs one
+            // multiply, and cannot alias into a pattern at any distance.
+            'diffuseColor.a *= uDensity;\n' +
+            // Tonal variation, as on the scalp. One flat near-black is most of
+            // what made this read as ink rather than hair.
+            'diffuseColor.rgb *= 0.78 + 0.34 * smoothstep(0.05, 0.9, vAmt);');
       };
       assetBeard = new THREE.Mesh(asset.parts.skin.geometry, beardMat);
       assetBeard.renderOrder = 1;
