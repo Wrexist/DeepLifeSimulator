@@ -126,9 +126,11 @@ describe('Loan eligibility — NaN safety', () => {
       weeklyIncome: 2000,
       existingLoans: [],
     });
-    if (r.maxNewLoanAmount > 0) {
-      expect(r.weeklyPaymentAtMax).toBeGreaterThan(0);
-    }
+    // Unconditional: this profile — half a million in net worth, $2k a week,
+    // no existing loans — must qualify for something. Guarded, the test also
+    // passed on a lender that offered nobody anything.
+    expect(r.maxNewLoanAmount).toBeGreaterThan(0);
+    expect(r.weeklyPaymentAtMax).toBeGreaterThan(0);
   });
 
   it('fuzz: 200 random inputs always produce finite output', () => {

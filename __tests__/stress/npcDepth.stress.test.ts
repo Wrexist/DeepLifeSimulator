@@ -384,8 +384,10 @@ describe('NPC depth audit', () => {
     expect(issues).toEqual([]);
 
     // Every NPC's opinion stays in range.
+    let withOpinion = 0;
     for (const r of rels) {
       if (r.npcOpinion) {
+        withOpinion++;
         expect(r.npcOpinion.trust).toBeGreaterThanOrEqual(0);
         expect(r.npcOpinion.trust).toBeLessThanOrEqual(100);
         expect(r.npcOpinion.attraction).toBeGreaterThanOrEqual(0);
@@ -396,6 +398,9 @@ describe('NPC depth audit', () => {
       expect(r.relationshipScore).toBeGreaterThanOrEqual(0);
       expect(r.relationshipScore).toBeLessThanOrEqual(100);
     }
+    // "Every NPC's opinion stays in range" is also satisfied by no NPC having
+    // an opinion, which is what a broken opinion writer would look like.
+    expect(withOpinion).toBeGreaterThan(0);
   });
 
   // ── MOOD HELPERS ───────────────────────────────────────────────────────

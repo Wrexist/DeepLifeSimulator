@@ -81,9 +81,13 @@ function roundTripAndAssert(state: GameState, atWeek: number) {
   expect(calculateChecksum(envelope.data)).toBe(envelope.checksum);
 
   // 2. HMAC must verify.
-  if (envelope.hmac) {
-    expect(calculateHmacSignature(envelope.data)).toBe(envelope.hmac);
-  }
+  //
+  // Unconditional. Behind `if (envelope.hmac)` this check vanishes silently the
+  // day `createSaveData` stops signing — which is the one change that most needs
+  // a test to notice, and the `verifySaveData` line below would go on passing
+  // with an undefined signature.
+  expect(envelope.hmac).toBeTruthy();
+  expect(calculateHmacSignature(envelope.data)).toBe(envelope.hmac);
   expect(verifySaveData(envelope.data, envelope.checksum, envelope.signature, envelope.hmac)).toBe(true);
 
   // 3. parseSaveData → reconstructed state.
