@@ -7,8 +7,14 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { frameHeightFor, railLayout } from '../studioLayout';
 
 const STUDIO = fs.readFileSync(path.join(__dirname, '..', 'FaceStudio.tsx'), 'utf8');
+
+/** iPhone SE / 8 — the shortest screen this app is expected to run on. */
+const SE = 667;
+/** iPhone 15 Pro Max, the other end. */
+const MAX = 932;
 
 describe('the preview is sized against screen HEIGHT', () => {
   it('derives the frame height from the window, not from scale()', () => {
@@ -18,16 +24,22 @@ describe('the preview is sized against screen HEIGHT', () => {
     // 330pt preview left under 90pt of controls visible: the player saw a head
     // and had to scroll before discovering there were sliders at all.
     expect(STUDIO).toMatch(/useWindowDimensions\(\)/);
-    expect(STUDIO).toMatch(/frameHeight/);
+    expect(STUDIO).toMatch(/frameHeightFor\(windowHeight\)/);
     expect(STUDIO).not.toMatch(/height: scale\(330\)/);
   });
 
   it('clamps at both ends', () => {
     // Unclamped, a tall phone gets a preview that pushes every control off
     // screen and a short one gets a thumbnail. Both bounds are load-bearing.
-    const line = STUDIO.match(/const frameHeight = [^\n]*/)?.[0] ?? '';
-    expect(line).toMatch(/Math\.min/);
-    expect(line).toMatch(/Math\.max/);
+    expect(frameHeightFor(4000)).toBe(360);
+    expect(frameHeightFor(200)).toBe(230);
+  });
+
+  it('leaves room for controls on the shortest phone', () => {
+    // The point of the whole rule: the head must not eat the screen. ~417pt of
+    // usable height on an SE, so a frame over about 280 puts the first slider
+    // below the fold.
+    expect(frameHeightFor(SE)).toBeLessThan(280);
   });
 
   it('applies the computed height over the static style', () => {
@@ -61,29 +73,102 @@ describe('the control list stays short enough to navigate', () => {
 });
 
 describe('the action rail fits inside the frame it lives in', () => {
-  it('tightens when the frame is short', () => {
-    // A REGRESSION THE HEIGHT FIX ITSELF INTRODUCED. The rail is absolutely
-    // positioned inside the preview frame and was sized for a 330pt one. When
-    // the frame started shrinking on short phones, the fourth control — Reset,
-    // the one you reach for after a slider goes wrong — was clipped off the
-    // bottom. Found by re-rendering the harness at 667pt, which is the whole
-    // reason the harness was taught the new sizing rule in the same change.
-    expect(STUDIO).toMatch(/const railTight = frameHeight < \d+;/);
-    expect(STUDIO).toMatch(/\[styles\.actions, railStyle\]/);
+  // THE REGRESSION THE HEIGHT FIX ITSELF INTRODUCED, TWICE.
+  //
+  // The rail is absolutely positioned inside the preview frame, so shrinking the
+  // frame clips its last control — Reset, the one a player reaches for after a
+  // slider goes wrong.
+  //
+  // The first fix was a guessed threshold (`frameHeight < 300`) with a guessed
+  // compact size, verified against a screenshot harness whose labels were plain
+  // 9px text. The app's labels are pills with padding, about twice as tall. The
+  // harness said it fit; on an SE it needed 289pt inside a 253pt frame and
+  // Reset was still clipped. That is why the rule is now measured height
+  // against available height, and why these assert the fit rather than the
+  // numbers someone chose.
+
+  it('fits on the shortest phone', () => {
+    const frame = frameHeightFor(SE);
+    expect(railLayout(frame).height).toBeLessThanOrEqual(frame);
   });
 
-  it('shrinks every control, not just the container', () => {
-    // Tightening only the gap leaves four full-size buttons in a shorter space,
-    // which clips just as well. All four take the compact size.
-    const rail = STUDIO.slice(STUDIO.indexOf('styles.actions, railStyle'));
-    const block = rail.slice(0, rail.indexOf('</View>', rail.indexOf('Reset')));
-    expect((block.match(/compact=\{btnStyle\}/g) ?? []).length).toBe(4);
+  it('fits on the tallest phone', () => {
+    const frame = frameHeightFor(MAX);
+    expect(railLayout(frame).height).toBeLessThanOrEqual(frame);
   });
 
-  it('leaves the rail alone on a tall frame', () => {
-    // The compact size is a concession to small screens, not the default — a
-    // large phone should keep the full-size controls.
-    expect(STUDIO).toMatch(/railTight \? \{ gap: scale\(7\) \} : null/);
-    expect(STUDIO).toMatch(/railTight\s*\n?\s*\? \{ width: scale\(38\)/);
+  it('fits at every height in between', () => {
+    for (let h = 480; h <= 1100; h += 1) {
+      const frame = frameHeightFor(h);
+      expect(railLayout(frame).height).toBeLessThanOrEqual(frame);
+    }
+  });
+
+  it('fits on every device the app actually runs on', () => {
+    // Width and height are NOT independent — the app is portrait-locked
+    // (`orientation: "portrait"` in app.config.js) — so sweeping the scale
+    // factor against an unrelated height posits devices that cannot exist. The
+    // real constraint is that `scale()` is width-based and clamped (1.3 on
+    // phones, 1.8 on tablets) while the frame is height-based and capped at 360,
+    // which pulls hardest on a tablet: a rail 1.8x larger inside a frame that
+    // stopped growing.
+    const devices: [string, number, number][] = [
+      ['iPhone SE', 375, 667],
+      ['iPhone 13 mini', 375, 812],
+      ['iPhone 15', 393, 852],
+      ['iPhone 15 Pro Max', 430, 932],
+      ['iPad mini', 744, 1133],
+      ['iPad Pro 12.9', 1024, 1366],
+    ];
+    for (const [name, width, height] of devices) {
+      // Mirrors `scale()` in utils/scaling.ts.
+      const tablet = Math.min(width, height) >= 744;
+      const factor = Math.min(Math.max(width / 375, 0.7), tablet ? 1.8 : 1.3);
+      const frame = frameHeightFor(height);
+      const fit = railLayout(frame, factor).height * factor;
+      expect({ name, fits: fit <= frame }).toEqual({ name, fits: true });
+    }
+  });
+
+  it('gives up size before labels, and labels before a control', () => {
+    // Ordering matters: an unlabelled dice is usable, a clipped Reset is not.
+    expect(railLayout(400).labels).toBe(true);
+    expect(railLayout(400).button).toBeGreaterThan(railLayout(300).button);
+    expect(railLayout(250).labels).toBe(false);
+  });
+
+  it('keeps the full-size rail where there is room for it', () => {
+    // The compact size is a concession to small screens, not the default.
+    expect(railLayout(frameHeightFor(MAX)).button).toBe(46);
+  });
+
+  it('never drops a control', () => {
+    // Even below the smallest tier. Four buttons overflowing by a few points
+    // beats three buttons and a missing recovery path.
+    for (const frame of [360, 300, 253, 230, 120]) {
+      expect(railLayout(frame).button).toBeGreaterThan(0);
+    }
+  });
+
+  it('is the rule the screen actually uses', () => {
+    // The rail is styled from `railLayout`'s output, not from a copy of it.
+    expect(STUDIO).toMatch(/const rail = railLayout\(frameHeight, scale\(100\) \/ 100\)/);
+    expect(STUDIO).toMatch(/width: scale\(rail\.button\)/);
+    const block = STUDIO.slice(
+      STUDIO.indexOf('styles.actions, railStyle'),
+      STUDIO.indexOf('</View>', STUDIO.indexOf('Reset')),
+    );
+    expect((block.match(/size=\{btnStyle\}/g) ?? []).length).toBe(4);
+    expect((block.match(/showLabel=\{rail\.labels\}/g) ?? []).length).toBe(4);
+  });
+});
+
+describe('the head announces that it turns', () => {
+  it('says so on the frame', () => {
+    // A 3D preview that looks like a picture gets treated like one, and the
+    // player never finds the profile view — which is where chin projection,
+    // nose bridge and brow ridge actually show what they do.
+    expect(STUDIO).toMatch(/styles\.spinHint/);
+    expect(STUDIO).toMatch(/Drag . to turn/);
   });
 });

@@ -81,13 +81,20 @@ const slider = ([label, v]) => {
 // proportions the app no longer produces: the instrument drifting from the
 // thing it exists to judge, which is the failure this whole harness was built
 // to catch in the first place.
+// IMPORTED, not restated. Mirroring the rule by hand is what let this page draw
+// a rail that fit while the app's clipped: the app's labels are pills with
+// vertical padding and this page's were plain 9px text, so the harness measured
+// a rail about 20% shorter than the real one and pronounced it fine.
+const { frameHeightFor, railLayout } = loadTs('components/identity/studioLayout.ts');
 const PAGE_H = Number(process.env.PAGE_H ?? 2400);
-const FRAME_H = Math.round(Math.min(Math.max(PAGE_H * 0.38, 230), 360));
-// The rail lives inside the frame and tightens when the frame is short, or its
-// last control — Reset — is clipped. Mirrors `railTight` in `FaceStudio`.
-const RAIL_TIGHT = FRAME_H < 300;
-const RAIL_GAP = RAIL_TIGHT ? 7 : 14;
-const RAIL_BTN = RAIL_TIGHT ? 38 : 46;
+const FRAME_H = frameHeightFor(PAGE_H);
+// Scale factor 1: this page is drawn at the 375pt design baseline.
+const RAIL = railLayout(FRAME_H, 1);
+const RAIL_GAP = RAIL.gap;
+const RAIL_BTN = RAIL.button;
+// The shortest frames drop the labels rather than clip a control — see the tier
+// ordering in studioLayout.ts.
+const LBL = (text) => (RAIL.labels ? `<div class="actlbl">${text}</div>` : '');
 
 const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <style>
@@ -113,7 +120,10 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
   .btn.gold{border-color:rgba(255,215,107,0.5)}
   .btn.on{border-color:${C.accent};background:${C.accentSoft}}
   .btn.off{opacity:0.4}
-  .actlbl{font-size:9px;color:${C.muted}}
+  .actlbl{font-size:9px;color:#DCE4F0;font-weight:700;background:rgba(7,10,16,0.85);
+          padding:2px 7px;border-radius:99px}
+  .spinhint{position:absolute;left:12px;bottom:12px;font-size:9.5px;font-weight:700;
+            color:#DCE4F0;background:rgba(7,10,16,0.85);padding:4px 9px;border-radius:99px}
   .card{margin-top:14px;background:${C.card};border-radius:18px;
         border:1px solid rgba(255,255,255,0.05);padding:14px 14px 6px}
   .cardhead{display:flex;justify-content:space-between;align-items:center;
@@ -142,17 +152,22 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 {"imports":{"three":"/node_modules/three/build/three.module.js",
             "three/addons/":"/node_modules/three/examples/jsm/"}}
 </script></head><body>
-  <div class="dashes"><div class="dash on"></div><div class="dash on"></div><div class="dash"></div></div>
-  <div class="steptext">Step 2 of 3</div>
+  <!-- Four dashes, two filled: FaceCreatorModal passes step=2 totalSteps=4.
+       This said "Step 2 of 3" with three dashes, which is the harness showing a
+       screen the app does not render — the same drift that had it drawing an
+       eyebrow patch and an old iris coordinate. -->
+  <div class="dashes"><div class="dash on"></div><div class="dash on"></div><div class="dash"></div><div class="dash"></div></div>
+  <div class="steptext">Step 2 of 4</div>
   <h1>Build your face</h1>
   <div class="sub">Create a face that's uniquely yours.</div>
   <div class="frame"><canvas id="gl"></canvas>
     <div class="actions">
-      <div class="act"><div class="btn gold">&#9860;</div><div class="actlbl">Randomize</div></div>
-      <div class="act"><div class="btn">&#8630;</div><div class="actlbl">Undo</div></div>
-      <div class="act"><div class="btn on">&#128065;</div><div class="actlbl">Compare</div></div>
-      <div class="act"><div class="btn">&#8635;</div><div class="actlbl">Reset</div></div>
+      <div class="act"><div class="btn gold">&#9860;</div>${LBL('Randomize')}</div>
+      <div class="act"><div class="btn">&#8630;</div>${LBL('Undo')}</div>
+      <div class="act"><div class="btn on">&#128065;</div>${LBL('Compare')}</div>
+      <div class="act"><div class="btn">&#8635;</div>${LBL('Reset')}</div>
     </div>
+    <div class="spinhint">Drag &#8596; to turn</div>
   </div>
   <div class="card">
     <div class="cardhead"><span>Skin &amp; colour</span></div>

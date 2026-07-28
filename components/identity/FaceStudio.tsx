@@ -65,6 +65,7 @@ import {
   type HairStyle,
 } from '@/lib/identity';
 import { listStarterAvatars } from '@/utils/facePool';
+import { frameHeightFor, railLayout } from './studioLayout';
 import type { RigBinding } from '@/lib/identity';
 import { haptic } from '@/utils/haptics';
 import { fontScale, scale } from '@/utils/scaling';
@@ -336,29 +337,24 @@ export default function FaceStudio({
     [genome, onChange],
   );
 
-  // THE PREVIEW IS SIZED OFF SCREEN HEIGHT, NOT WIDTH.
-  //
-  // It was `scale(330)`, and `scale()` is WIDTH-based — so the frame competed
-  // for vertical space using a number derived from a horizontal measurement. On
-  // a short phone (an SE is 667pt tall) the sticky footer, the header and the
-  // safe areas leave about 417pt, and a 330pt preview left under 90pt of
-  // controls on screen: the player saw a head and had to scroll before
-  // discovering there were sliders at all.
-  //
-  // 38% of the window, clamped, keeps roughly two control rows visible under
-  // the head on every size — enough to show the screen is editable without
-  // shrinking the head to a thumbnail on a large phone.
+  // THE PREVIEW IS SIZED OFF SCREEN HEIGHT, NOT WIDTH, and the rail inside it is
+  // sized off the frame. Both rules live in `studioLayout.ts` — see the file for
+  // why they are arithmetic rather than the two guessed thresholds they replaced,
+  // and why the screenshot harness imports them instead of copying them.
   const { height: windowHeight } = useWindowDimensions();
-  const frameHeight = Math.round(Math.min(Math.max(windowHeight * 0.38, 230), 360));
-  // The action rail lives INSIDE the frame, so shrinking the frame can clip it.
-  // Four buttons at 46 plus their labels and gaps need about 290; below that the
-  // rail tightens rather than losing its last control, which on this screen is
-  // Reset — the one a player reaches for after a slider goes wrong.
-  const railTight = frameHeight < 300;
-  const railStyle = railTight ? { gap: scale(7) } : null;
-  const btnStyle = railTight
-    ? { width: scale(38), height: scale(38), borderRadius: scale(19) }
-    : null;
+  const frameHeight = frameHeightFor(windowHeight);
+  // `scale()` is width-based and the frame is height-based, so the rail's own
+  // scaling has to enter the comparison or a wide short screen breaks it.
+  const rail = railLayout(frameHeight, scale(100) / 100);
+  const railStyle = { gap: scale(rail.gap) };
+  const btnStyle = {
+    width: scale(rail.button),
+    height: scale(rail.button),
+    borderRadius: scale(rail.button / 2),
+  };
+  // Glyph inside the circle, kept at the proportion the full-size button uses
+  // (19 of 46) so a compact control reads as the same button, smaller.
+  const iconSize = scale(Math.round(rail.button * 0.42));
 
   return (
     <View style={styles.root}>
@@ -407,8 +403,8 @@ export default function FaceStudio({
             }
           />
           <View style={[styles.actions, railStyle]}>
-            <RoundAction icon={Dices} label="Randomize" onPress={randomize} accent compact={btnStyle} />
-            <RoundAction icon={Undo2} label="Undo" onPress={undo} disabled={undoDepth === 0} compact={btnStyle} />
+            <RoundAction icon={Dices} label="Randomize" onPress={randomize} accent size={btnStyle} iconSize={iconSize} showLabel={rail.labels} />
+            <RoundAction icon={Undo2} label="Undo" onPress={undo} disabled={undoDepth === 0} size={btnStyle} iconSize={iconSize} showLabel={rail.labels} />
             {/* Press and HOLD. A toggle would need two taps to answer the one
                 question it exists for — "is this better than what I started
                 with?" — and the answer is only legible while both are in mind. */}
@@ -418,10 +414,23 @@ export default function FaceStudio({
               onPressIn={() => { haptic.light(); setComparing(true); }}
               onPressOut={() => setComparing(false)}
               active={comparing}
-              compact={btnStyle}
+              size={btnStyle}
+              iconSize={iconSize}
+              showLabel={rail.labels}
             />
-            <RoundAction icon={RotateCcw} label="Reset" onPress={reset} compact={btnStyle} />
+            <RoundAction icon={RotateCcw} label="Reset" onPress={reset} size={btnStyle} iconSize={iconSize} showLabel={rail.labels} />
           </View>
+          {/* The head turns, and nothing said so. A 3D preview that looks like a
+              picture gets treated like one — the player never finds the profile
+              view, which is where half the sliders (chin projection, nose
+              bridge, brow ridge) actually show what they do.
+
+              It also teaches the direction, which is now load-bearing: a
+              sideways drag turns the head, a vertical one scrolls the page. It
+              is permanent rather than dismiss-on-first-drag for the same reason
+              the action buttons keep their labels — and it costs nothing in the
+              portrait, since `capture()` snapshots the GL buffer, not this. */}
+          <Text style={styles.spinHint}>Drag ↔ to turn</Text>
         </View>
 
         {presets && presets.length > 0 ? (
@@ -538,7 +547,7 @@ export default function FaceStudio({
 }
 
 function RoundAction({
-  icon: Icon, label, onPress, onPressIn, onPressOut, accent, disabled, active, compact,
+  icon: Icon, label, onPress, onPressIn, onPressOut, accent, disabled, active, size, iconSize, showLabel,
 }: {
   icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
@@ -548,8 +557,17 @@ function RoundAction({
   accent?: boolean;
   disabled?: boolean;
   active?: boolean;
-  /** Smaller, for a short frame where the full-size rail would clip. */
-  compact?: ViewStyle | null;
+  /** Diameter for this frame, from `railLayout`. */
+  size: ViewStyle;
+  /** Glyph size, already scaled. */
+  iconSize: number;
+  /**
+   * False on the shortest frames, where four labelled controls do not fit.
+   *
+   * The button keeps its `accessibilityLabel` either way, so this costs a
+   * sighted player a word and costs a screen-reader user nothing.
+   */
+  showLabel: boolean;
 }): React.JSX.Element {
   const tint = disabled ? C.muted : active ? C.accent : accent ? C.gold : C.sub;
   return (
@@ -567,12 +585,14 @@ function RoundAction({
           accent ? styles.roundBtnAccent : null,
           active ? styles.roundBtnActive : null,
           disabled ? styles.roundBtnDisabled : null,
-          compact,
+          size,
         ]}
       >
-        <Icon size={compact ? scale(16) : scale(19)} color={tint} />
+        <Icon size={iconSize} color={tint} />
       </TouchableOpacity>
-      <Text style={[styles.actionLabel, disabled ? { color: C.muted } : null]}>{label}</Text>
+      {showLabel ? (
+        <Text style={[styles.actionLabel, disabled ? { color: C.muted } : null]}>{label}</Text>
+      ) : null}
     </View>
   );
 }
@@ -686,6 +706,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 10, 16, 0.85)',
     paddingHorizontal: scale(7),
     paddingVertical: scale(2.5),
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
+  // Bottom-LEFT: the action rail owns the right edge, and the chin sits centre.
+  spinHint: {
+    position: 'absolute',
+    left: scale(12),
+    bottom: scale(12),
+    color: '#DCE4F0',
+    fontSize: fontScale(10.5),
+    fontWeight: '700',
+    backgroundColor: 'rgba(7, 10, 16, 0.85)',
+    paddingHorizontal: scale(9),
+    paddingVertical: scale(4),
     borderRadius: 99,
     overflow: 'hidden',
   },
