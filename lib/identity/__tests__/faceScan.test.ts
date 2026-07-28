@@ -31,6 +31,7 @@ import {
   scanFaceLandmarks,
 } from '@/lib/identity/faceScan';
 import { landmarksToMorphs } from '@/lib/identity/faceMeasures';
+import MEAN_SHAPE from '@/assets/models/mean-face-landmarks.json';
 
 interface FaceSpec {
   /** Face ellipse. */
@@ -199,7 +200,9 @@ describe('it declines rather than inventing a face', () => {
 });
 
 describe('the fit produces a usable landmark set', () => {
-  const scan = scanFaceLandmarks(render(BASE), W, H)!;
+  // Direct, for the same reason `morphsOf` is: the shipped entry point gates on
+  // population plausibility and a synthetic ellipse does not pass it.
+  const scan = { landmarks: fitLandmarksToAnchors(detectFaceAnchors(render(BASE), W, H)!) };
 
   it('produces all 68 points, all finite', () => {
     expect(scan.landmarks).toHaveLength(68);
@@ -234,10 +237,15 @@ describe('THE PROPERTY THAT MATTERS — different faces produce different morphs
   // the fit is anisotropic and per-region, which is the only reason the feature
   // does anything at all.
 
+  // Fits DIRECTLY rather than through `scanFaceLandmarks`, which gates on the
+  // population plausibility of the result — and a crude ellipse with disc eyes
+  // is not a plausible human face, so the gate rejects every fixture in this
+  // file. That is the gate behaving correctly (see its own tests below); it
+  // just means the directional property has to be measured on the fit itself.
   const morphsOf = (spec: FaceSpec) => {
-    const scan = scanFaceLandmarks(render(spec), W, H);
-    expect(scan).toBeTruthy();
-    return landmarksToMorphs(scan!.landmarks).morphs;
+    const anchors = detectFaceAnchors(render(spec), W, H);
+    expect(anchors).toBeTruthy();
+    return landmarksToMorphs(fitLandmarksToAnchors(anchors!)).morphs;
   };
 
   const base = morphsOf(BASE);
@@ -288,18 +296,56 @@ describe('THE PROPERTY THAT MATTERS — different faces produce different morphs
 
 describe('it works on faces that are not centred or not average', () => {
   it('finds an off-centre face', () => {
-    const off = scanFaceLandmarks(render({ ...BASE, cx: 96 }), W, H);
-    expect(off).toBeTruthy();
-    const a = detectFaceAnchors(render({ ...BASE, cx: 96 }), W, H)!;
-    expect(Math.abs(a.axisX - 96)).toBeLessThan(5);
+    const a = detectFaceAnchors(render({ ...BASE, cx: 96 }), W, H);
+    expect(a).toBeTruthy();
+    expect(Math.abs(a!.axisX - 96)).toBeLessThan(5);
   });
 
   it('finds a dark-skinned face', () => {
     // The mask, the eye detector and the brow detector all threshold RELATIVE
     // to the face's own skin level for this reason. An absolute cut finds a
     // pupil on a pale face and the whole cheek on a dark one.
-    const dark = scanFaceLandmarks(render({ ...BASE, skin: [92, 60, 46] }), W, H);
-    expect(dark).toBeTruthy();
-    expect(dark!.confidence).toBeGreaterThan(0.5);
+    const a = detectFaceAnchors(render({ ...BASE, skin: [92, 60, 46] }), W, H);
+    expect(a).toBeTruthy();
+    expect(a!.quality).toBeGreaterThan(0.5);
+  });
+});
+
+describe('the fit is checked against the population before it is accepted', () => {
+  /**
+   * THE GATE A REAL PHOTOGRAPH FORCED.
+   *
+   * `anchors.quality` asks whether what was found is SHAPED like a face. On a
+   * sunlit portrait with hair framing the face it answered 0.93 — confidently
+   * consistent — while `landmarksToMorphs` scored the resulting fit at 0.00,
+   * having put fifteen of sixteen morphs on their rails. The anchors agreed
+   * with each other and disagreed with every face in the reference population.
+   *
+   * Only the statistics can catch that, so the fit is now measured against them
+   * before it is accepted.
+   */
+  const MEAN: { x: number; y: number }[] = MEAN_SHAPE.points;
+
+  it('accepts a fit that sits near the population it was measured from', () => {
+    // The mean face is, by construction, the most ordinary face there is.
+    const fit = landmarksToMorphs(MEAN);
+    expect(fit.confidence).toBeGreaterThan(0.25);
+  });
+
+  it('rejects a landmark set that describes no real face', () => {
+    // Every measurement far out at once is what a bad detection looks like, and
+    // what a real face — however unusual — does not.
+    const scrambled = MEAN.map((p, i) => ({
+      x: p.x * (i % 2 ? 0.35 : 1.9),
+      y: p.y * (i % 3 ? 1.7 : 0.4),
+    }));
+    expect(landmarksToMorphs(scrambled).confidence).toBeLessThan(0.25);
+  });
+
+  it('declines the synthetic fixtures, which are not plausible faces either', () => {
+    // Stated rather than hidden: an ellipse with disc eyes measures nothing like
+    // a human, so the shipped entry point refuses it. The fixtures exercise the
+    // MEASUREMENT, which is what they are for; they cannot exercise the gate.
+    expect(scanFaceLandmarks(render(BASE), W, H)).toBeNull();
   });
 });

@@ -47,7 +47,7 @@
  */
 
 import MEAN_SHAPE from '@/assets/models/mean-face-landmarks.json';
-import type { Landmark2D } from './faceMeasures';
+import { landmarksToMorphs, type Landmark2D } from './faceMeasures';
 
 /** The mean face's 68 points, in its own ~512px frame. */
 const MEAN: readonly Landmark2D[] = MEAN_SHAPE.points;
@@ -735,7 +735,38 @@ export interface FaceScanResult {
   confidence: number;
 }
 
-/** Whole pipeline: pixels in, 68 landmarks out, or null when there is no face. */
+/**
+ * How implausible the fitted face may be before the scan is thrown away.
+ *
+ * `landmarksToMorphs` reports how far the measured face sits from the reference
+ * population, averaged over every axis it fitted. A real face — even an unusual
+ * one — does not sit three standard deviations out on EVERY measurement at
+ * once; a bad detection does exactly that, and its confidence collapses to 0.
+ */
+const MIN_FIT_CONFIDENCE = 0.25;
+
+/**
+ * Whole pipeline: pixels in, 68 landmarks out, or null when there is no face.
+ *
+ * ## Two gates, because the first one is not enough
+ *
+ * `anchors.quality` asks whether what was found is SHAPED like a face — two
+ * eyes, level, symmetric, the right distance apart. That is necessary and it is
+ * nowhere near sufficient, which a real photograph showed plainly: on a
+ * sunlit portrait with hair framing the face, the anchors scored 0.93 —
+ * confidently consistent — while `landmarksToMorphs` scored the resulting fit
+ * at 0.00, because it put fifteen of sixteen morphs on their rails. The anchors
+ * agreed with each other and disagreed with every real human face ever scanned.
+ *
+ * So the fit is now measured against the POPULATION before it is accepted. That
+ * is a check the anchor quality structurally cannot make: it knows what a pair
+ * of eyes looks like, and only the statistics know what a face looks like.
+ *
+ * Rejecting costs the player nothing they had: the colour match still runs, and
+ * `AvatarReveal` already has copy for "the photo was a little hard to read, so
+ * some features are closer to average than others". Accepting a bad fit costs
+ * them a character that looks like nobody.
+ */
 export function scanFaceLandmarks(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
@@ -743,9 +774,12 @@ export function scanFaceLandmarks(
 ): FaceScanResult | null {
   const anchors = detectFaceAnchors(rgba, width, height);
   if (!anchors) return null;
-  // Below this the anchors contradict each other badly enough that the fit
-  // would be confidently wrong, which is worse than declining: the reveal has
-  // copy for "couldn't measure your face shape" and the colour match still runs.
   if (anchors.quality < 0.35) return null;
-  return { landmarks: fitLandmarksToAnchors(anchors), confidence: anchors.quality };
+
+  const landmarks = fitLandmarksToAnchors(anchors);
+  const fit = landmarksToMorphs(landmarks);
+  if (fit.confidence < MIN_FIT_CONFIDENCE) return null;
+
+  // The weaker of the two, because either being wrong makes the result wrong.
+  return { landmarks, confidence: Math.min(anchors.quality, fit.confidence) };
 }
