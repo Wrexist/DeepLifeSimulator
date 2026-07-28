@@ -11,7 +11,7 @@
 
 import { AvatarError, type AvatarProvider, type PhotoAnalysis } from '../types';
 import { neutralMorphs, randomizeFace, type FaceGenome } from '@/lib/identity';
-import fixture from '@/lib/identity/__tests__/fixtures/meanFaceLandmarks.json';
+import fixture from '@/assets/models/mean-face-landmarks.json';
 
 jest.mock('@/lib/analytics', () => ({ track: jest.fn() }));
 

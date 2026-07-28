@@ -10,7 +10,7 @@
  * unit test to notice.
  */
 
-import fixture from './fixtures/meanFaceLandmarks.json';
+import fixture from '@/assets/models/mean-face-landmarks.json';
 import {
   FACE_MEASURES,
   PHOTO_FITTABLE,

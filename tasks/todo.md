@@ -1344,3 +1344,42 @@ procedural one, off one shared number.
       DELIBERATELY degenerate, which the factory cannot express by design.
       Converting two of them turned them green for the wrong reason.
 - [x] `npm run audit:weekly` — all five domains green, zero warnings
+
+---
+
+## 📸 Make the photo scan actually measure the face (2026-07-28)
+
+The selfie route reads COLOUR ONLY. `onDeviceProvider` averages two fixed
+rectangles for skin and hair, reports `confidence: 0.35`, and its own comment
+says "it did not look at anyone's face". So a scan of any two people with the
+same colouring produces the same head.
+
+Everything downstream already exists and is population-calibrated:
+`landmarksToMorphs` maps iBUG-68 landmarks to morphs against statistics from
+ICT Light Stage scans, and `AvatarService` already applies them when a provider
+returns `landmarks`. Its docstring: "ANY provider that can find 68 landmarks in
+a photo produces a genuine likeness through this one function."
+
+So the whole fix is: produce 68 landmarks on-device.
+
+- [x] Promoted the mean 68-point shape to `assets/models/mean-face-landmarks.json`
+- [x] `lib/identity/faceScan.ts` — PURE, no GL/RN, testable headless:
+      - skin mask (illumination-robust, not a fixed RGB box)
+      - face blob + per-row width profile + symmetry axis
+      - anchors: eyes, brows, nose base/width, mouth corners/extent, jaw
+        widths at several heights, chin
+      - warp the mean shape so the MEASURED RATIOS hold — a similarity
+        transform alone reproduces the mean face's morphs exactly (all 0.5),
+        which is why per-region fitting is the entire point
+- [x] Sample resolution 64 -> 256 — at 64 a whole eye is ~3 px across
+- [x] Returns real landmarks + confidence from anchor consistency; still 0.35
+      when the scan fails, so the reveal never says "This looks like you" about
+      a colour match
+- [x] 24 tests on synthetic faces with known geometry, incl. the property that
+      actually protects the feature: two DIFFERENT faces produce different
+      morphs, in the direction the difference went
+- [x] Three real bugs found by those tests: the eyebrow dragged the eye
+      centroid 18 px high; the right eye's inner/outer corners were swapped
+      (iBUG-68 is not mirror-indexed); and the nose-width clamp was the
+      population's FULL-width range applied to a HALF width, which saturated
+      every face at `noseWidth = 1`.

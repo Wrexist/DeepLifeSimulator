@@ -184,3 +184,47 @@ describe('cloud provider responses', () => {
     expect(seen.some((v) => v > 0.4 && v < 0.7)).toBe(true);
   }, 15000);
 });
+
+/**
+ * The on-device provider has to actually USE the face scan.
+ *
+ * `analyse` needs a GL context, so it cannot run headless — which is exactly
+ * the shape of gap this branch has already hit four times: code that is
+ * written, reviewed, unit-tested and wired to nothing. `faceScan` is covered
+ * thoroughly in `lib/identity/__tests__/faceScan.test.ts`; what is asserted
+ * here is that its output reaches `PhotoAnalysis.landmarks`, which is the one
+ * field `AvatarService` keys the whole geometry fit off.
+ */
+describe('the on-device provider reports geometry, not just colour', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const SRC: string = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'providers', 'onDeviceProvider.ts'), 'utf8',
+  );
+
+  it('runs the scan and returns its landmarks', () => {
+    expect(SRC).toMatch(/scanFaceLandmarks\(pixels, SAMPLE, SAMPLE\)/);
+    expect(SRC).toMatch(/landmarks:\s*scan\?\.landmarks/);
+  });
+
+  it('samples at a resolution that can resolve an eye corner', () => {
+    // At 64 an entire eye is about three pixels across, so the corners
+    // `eyeSpacing` and `eyeTilt` are measured between land in the same pixel.
+    const m = SRC.match(/const SAMPLE = (\d+);/);
+    expect(m).toBeTruthy();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(192);
+  });
+
+  it('advertises the geometry stage only because it now performs it', () => {
+    // The processing screen renders exactly this list, so a stage here that
+    // does not run is a progress step the player watches never tick.
+    expect(SRC).toMatch(/STAGES: readonly AvatarStage\[\] = \[[^\]]*'geometry'/);
+    expect(SRC).toMatch(/stage: 'geometry'/);
+  });
+
+  it('does not claim a geometry-grade confidence for a colour-only match', () => {
+    // The old value was a flat 0.35 with a comment admitting it had not looked
+    // at anyone's face. It must still be 0.35 when the scan fails, or the
+    // reveal tells a player "This looks like you" about a skin-tone guess.
+    expect(SRC).toMatch(/confidence: scan \? Math\.max\(0\.5,[\s\S]*?\) : 0\.35,/);
+  });
+});

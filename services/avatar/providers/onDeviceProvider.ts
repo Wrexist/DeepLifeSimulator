@@ -38,6 +38,7 @@ import {
   type PhotoAnalysis,
   type PhotoInput,
 } from '../types';
+import { scanFaceLandmarks } from '@/lib/identity/faceScan';
 
 /**
  * Lazy native-module load, cached so the try/catch runs at most once.
@@ -61,9 +62,22 @@ function loadGl(): typeof import('expo-gl') | null {
 }
 
 /** Framebuffer edge. Big enough to separate hair from face, small to read back. */
-const SAMPLE = 64;
+/**
+ * Framebuffer edge for the readback.
+ *
+ * 64 was enough for the two region averages this provider used to do and is
+ * nowhere near enough to find an eye: at 64 a whole eye is about three pixels
+ * across, so its corners — which is what `eyeSpacing` and `eyeTilt` are measured
+ * between — are quantised into the same pixel. 256 puts an eye at ~12 px and a
+ * mouth at ~45, which is the coarsest the landmark fit stays stable at, and it
+ * is still a single 256 KB readback.
+ */
+const SAMPLE = 256;
 
-const STAGES: readonly AvatarStage[] = ['detecting', 'skinTone', 'hair', 'finishing'];
+// `geometry` is real now. It used to be absent from this list on purpose,
+// because the processing screen renders exactly these stages and a player must
+// never watch a "mapping facial geometry" step that will not tick.
+const STAGES: readonly AvatarStage[] = ['detecting', 'geometry', 'skinTone', 'hair', 'finishing'];
 
 const VERT = `
 attribute vec2 aPos;
@@ -270,6 +284,13 @@ export const onDeviceProvider: AvatarProvider = {
     }
     if (signal?.aborted) throw new AvatarError('Cancelled', 'cancelled', false);
 
+    // MEASURE THE FACE. Everything downstream — `landmarksToMorphs`, and through
+    // it every facial-structure slider — is driven from these 68 points. Colour
+    // matching still runs when this fails, which is what the whole route did
+    // before it existed.
+    onProgress?.({ stage: 'geometry', progress: 0.35 });
+    const scan = scanFaceLandmarks(pixels, SAMPLE, SAMPLE);
+
     onProgress?.({ stage: 'skinTone', progress: 0.55 });
 
     // A selfie puts the face in the middle. These are generous regions rather
@@ -298,9 +319,14 @@ export const onDeviceProvider: AvatarProvider = {
     return {
       skinTone,
       hairColor,
-      // Deliberately low, and it drives the reveal copy. This matched colouring
-      // from region averages; it did not look at anyone's face.
-      confidence: 0.35,
+      landmarks: scan?.landmarks,
+      // Honest, and it drives the reveal copy. With geometry the confidence is
+      // the anchors' own internal consistency, floored well above the old value
+      // because the fit measured a real face. Without it this is still only a
+      // colour match, and 0.35 is what that is worth — `AvatarReveal` has copy
+      // for both and a player should not be told "this looks like you" about a
+      // skin-tone guess.
+      confidence: scan ? Math.max(0.5, Math.min(0.95, scan.confidence)) : 0.35,
     };
   },
 };
