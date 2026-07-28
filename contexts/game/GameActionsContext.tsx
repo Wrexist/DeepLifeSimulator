@@ -1344,19 +1344,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
  let luxuryCharged = 0;
+ // Declared out here so the catch below leaves them at 0 — a failed luxury tick
+ // must not report phantom income or costs in the recap.
+ let luxuryYield = 0;
+ let luxuryRiskCost = 0;
  let nextLuxuryHoldings: typeof prevState.luxuryHoldings = prevState.luxuryHoldings;
  let updatedAchievements: typeof prevState.achievements = prevState.achievements;
  try {
  const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  const luxuryWeek = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx, prevState.luxuryHoldings);
- const luxuryUpkeep = luxuryWeek.upkeep;
+ luxuryYield = luxuryWeek.yield;
+ luxuryRiskCost = luxuryWeek.riskCost;
  // Appreciation moves net worth, not cash. Same reference when nothing drifted,
  // so a collection of pure trophies causes no state churn.
  nextLuxuryHoldings = luxuryWeek.holdings;
- // The helper floors the deduction at $0, so on a broke week it charges LESS than
- // the sticker upkeep. Report what actually left the wallet in the recap, not the
- // nominal (= nominal whenever the player could afford it).
- luxuryCharged = Math.min(luxuryUpkeep, moneyBeforeLuxury);
+ // What upkeep ACTUALLY took out of the wallet, read from the money on both
+ // sides of the call rather than inferred. The helper credits yield BEFORE
+ // charging upkeep (crediting second would make going broke profitable), so the
+ // old `Math.min(upkeep, moneyBefore)` under-reported a low-cash week: $10k cash
+ // + $85k yield - $150k upkeep really charges $95k but was reported as $10k,
+ // which also mis-sized the lifestyle budget row. 2026-07-28 audit recap-1.
+ const moneyAfterLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
+ luxuryCharged = Math.max(0, moneyBeforeLuxury + luxuryYield - moneyAfterLuxury - luxuryRiskCost);
  // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
  // screen but never completed in normal play). Luxury ownership only changes via
  // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
@@ -1543,15 +1552,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // week the nominal overstates what was really paid); every other component is
  // already the real figure (loan autopay tracks its actual payment). Equals the
  // old nominal sum on any week the player could afford these upkeeps.
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged;
+ // luxuryRiskCost (insurance premiums + uninsured incident losses) is real cash
+ // the luxury tick already took out of the wallet, and had no reader anywhere —
+ // so the recap under-reported expenses by it. recap-1.
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged + luxuryRiskCost;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
  luckyTier,
  streakBonus: streakBonusAmount > 0 ? streakBonusAmount: undefined,
- incomeEarned: totalIncome + luckyBonus + streakBonusAmount,
+ // Luxury yield (charter fees, dividends, museum loan fees — up to six figures
+ // a week late-game) is credited to the wallet by the luxury tick but was
+ // missing from the recap entirely, so netChange never matched the money the
+ // player actually gained. Added to the DISPLAY fields only: `totalIncome` is
+ // computed far earlier and feeds calculateIncomeTax, so folding it in there
+ // would retroactively tax the yield — a balance change, not a reporting fix.
+ incomeEarned: totalIncome + luckyBonus + streakBonusAmount + luxuryYield,
  expensesPaid: Math.round(totalExpenses),
- netChange: Math.round(totalIncome + luckyBonus + streakBonusAmount - totalExpenses),
+ netChange: Math.round(totalIncome + luckyBonus + streakBonusAmount + luxuryYield - totalExpenses),
  careerProgressPercent: (() => {
  const activeCareer = (updatedCareers || []).find((c: any) => c?.id === newCurrentJob && c?.accepted);
  return activeCareer?.progress || 0;

@@ -48,6 +48,7 @@ import {
   Info,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import type { LuxuryHolding } from '@/contexts/game/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -71,11 +72,16 @@ import {
   LUXURY_CATALOG,
   type LuxuryItem,
   getOwnedLuxuryItems,
-  getTotalLuxuryResaleValue,
+  getTotalLuxuryMarketValue,
   getTotalLuxuryUpkeep,
   getTotalLuxuryValue,
   getTotalLuxuryPrestige,
-  getLuxuryResaleValue,
+  getLuxuryHoldingValue,
+  getCondition,
+  getItemPremium,
+  getExpectedWeeklyLoss,
+  getRestoreCost,
+  CONDITION_POOR,
   isLuxuryLifeComplete,
   LUXURY_LIFE_MIN_ITEMS,
   LUXURY_LIFE_VALUE_THRESHOLD,
@@ -87,7 +93,14 @@ import {
   quoteEvent,
   EVENT_TIERS,
 } from '@/lib/luxury';
-import { hostLuxuryEvent, performLuxuryVerb, purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
+import {
+  hostLuxuryEvent,
+  performLuxuryVerb,
+  purchaseLuxuryItem,
+  restoreLuxuryItem,
+  sellLuxuryItem,
+  setLuxuryInsurance,
+} from '@/contexts/game/actions/LuxuryActions';
 import { luxuryArtFor, luxuryTierVisual, LUXURY_ART_BASE } from '@/components/computer/luxury/luxuryArt';
 
 const LinearGradient = LinearGradientFallback;
@@ -236,6 +249,7 @@ function LuxuryCard({
   darkMode,
   theme,
   cash,
+  holding,
   onOpen,
   onBuy,
   onSell,
@@ -247,12 +261,14 @@ function LuxuryCard({
   darkMode: boolean;
   theme: ThemeColors;
   cash: number;
+  /** This player's holding for the item, so the card quotes the real resale. */
+  holding?: LuxuryHolding;
   onOpen: (item: LuxuryItem) => void;
   onBuy: (item: LuxuryItem) => void;
   onSell: (item: LuxuryItem) => void;
 }) {
   const tv = luxuryTierVisual(item.tier);
-  const resale = getLuxuryResaleValue(item);
+  const resale = getLuxuryHoldingValue(item, holding);
   const affordable = cash >= item.price;
   const press = usePressableScale({ scale: 0.97, haptic: false });
 
@@ -381,7 +397,12 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const ownedIdSet = useMemo(() => new Set(owned.map((i) => i.id)), [owned]);
   const browseList = useMemo(() => LUXURY_CATALOG.filter((i) => !ownedIdSet.has(i.id)), [ownedIdSet]);
 
-  const collectionValue = useMemo(() => getTotalLuxuryResaleValue(ownedIds), [ownedIds]);
+  // Holdings-aware: the headline collection value must match what the items
+  // would actually sell for, and what net worth counts them at.
+  const collectionValue = useMemo(
+    () => getTotalLuxuryMarketValue(ownedIds, gameState.luxuryHoldings),
+    [ownedIds, gameState.luxuryHoldings],
+  );
   const stickerValue = useMemo(() => getTotalLuxuryValue(ownedIds), [ownedIds]);
   const weeklyUpkeep = useMemo(() => getTotalLuxuryUpkeep(ownedIds), [ownedIds]);
   const totalPrestige = useMemo(() => getTotalLuxuryPrestige(ownedIds), [ownedIds]);
@@ -487,6 +508,31 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     [gameState, setGameState, queueSave, showToast],
   );
 
+  /**
+   * Insure / un-insure, and restore. These actions shipped with the Phase-5 risk
+   * system and had ZERO call sites anywhere in the app, so the weekly incident
+   * roll was one-way value destruction with no counterplay — the player could
+   * watch a collection degrade and had no button to do anything about it.
+   * 2026-07-28 audit reach-2.
+   */
+  const runInsure = useCallback(
+    (itemId: string, insured: boolean) => {
+      const result = setLuxuryInsurance(gameState, setGameState, itemId, insured);
+      showToast(result.message);
+      if (result.success) queueSave();
+    },
+    [gameState, setGameState, queueSave, showToast],
+  );
+
+  const runRestore = useCallback(
+    (itemId: string) => {
+      const result = restoreLuxuryItem(gameState, setGameState, itemId);
+      showToast(result.message);
+      if (result.success) queueSave();
+    },
+    [gameState, setGameState, queueSave, showToast],
+  );
+
   /** Throw something at a venue you own. */
   const runHost = useCallback(
     (itemId: string, tier: string) => {
@@ -505,7 +551,9 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     if (result.success) {
       queueSave();
       setSheetItem(null);
-      showToast(`Sold the ${item.name} for ${formatMoney(getLuxuryResaleValue(item))}.`);
+      // The action returns the amount it actually paid (re-priced inside its
+      // updater), so quote that instead of recomputing a second answer here.
+      showToast(result.message);
     } else {
       showToast(result.message);
     }
@@ -632,7 +680,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     if (!sheetItem) return null;
     const item = sheetItem;
     const isOwned = ownedIdSet.has(item.id);
-    const resale = getLuxuryResaleValue(item);
+    const resale = getLuxuryHoldingValue(item, gameState.luxuryHoldings?.[item.id]);
     const affordable = cash >= item.price;
     const tv = luxuryTierVisual(item.tier);
 
@@ -765,6 +813,76 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   })}
                 </View>
               ) : null}
+
+              {/* CARE — condition, insurance and restoration. The weekly risk
+                  roll can damage or destroy an item; this is where the player
+                  answers it. Without these controls the risk system was pure
+                  loss with no decision attached (reach-2). */}
+              {isOwned ? (() => {
+                const holding = gameState.luxuryHoldings?.[item.id];
+                const condition = getCondition(holding);
+                const insured = holding?.insured === true;
+                const premium = getItemPremium(item, holding);
+                const expectedLoss = getExpectedWeeklyLoss(item, holding);
+                const restoreCost = getRestoreCost(item, holding);
+                const conditionColor =
+                  condition < CONDITION_POOR ? AMBER : condition < 90 ? theme.text : EMERALD;
+                return (
+                  <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                    <View style={styles.ownershipRow}>
+                      <Text style={[styles.ownershipLabel, { color: theme.textMuted }]}>Condition</Text>
+                      <Text style={[styles.ownershipValue, { color: conditionColor }]}>
+                        {Math.round(condition)}%
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => runInsure(item.id, !insured)}
+                      style={styles.verbRow}
+                      accessibilityRole="button"
+                      accessibilityLabel={insured ? `Cancel insurance on ${item.name}` : `Insure ${item.name}`}
+                    >
+                      <View style={styles.verbInfo}>
+                        <Text style={[styles.verbLabel, { color: theme.text }]}>
+                          {insured ? 'Cancel insurance' : 'Insure it'}
+                        </Text>
+                        <Text style={[styles.verbDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                          {insured
+                            ? `Costing ${formatMoney(premium)}/wk. Claims cover all but the deductible.`
+                            : `${formatMoney(premium)}/wk against an average ${formatMoney(expectedLoss)}/wk of risk.`}
+                        </Text>
+                      </View>
+                      <Text style={[styles.verbCta, { color: insured ? AMBER : EMERALD }]}>
+                        {insured ? 'Stop' : formatMoney(premium)}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={restoreCost > 0 ? 0.85 : 1}
+                      disabled={restoreCost <= 0}
+                      onPress={() => runRestore(item.id)}
+                      style={[styles.verbRow, restoreCost <= 0 && styles.verbRowDisabled]}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        restoreCost > 0 ? `Restore ${item.name} for ${formatMoney(restoreCost)}` : `${item.name} needs no restoration`
+                      }
+                    >
+                      <View style={styles.verbInfo}>
+                        <Text style={[styles.verbLabel, { color: theme.text }]}>Restore it</Text>
+                        <Text style={[styles.verbDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                          {restoreCost > 0
+                            ? 'Bring it back to pristine. Condition is part of what it sells for.'
+                            : 'Already in perfect condition.'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.verbCta, { color: restoreCost > 0 ? EMERALD : theme.textMuted }]}>
+                        {restoreCost > 0 ? formatMoney(restoreCost) : '—'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })() : null}
 
               {isOwned && verbsForItem(item.id).length > 0 ? (
                 <View style={[styles.ownershipCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
@@ -916,6 +1034,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   darkMode={darkMode}
                   theme={theme}
                   cash={cash}
+                  holding={gameState.luxuryHoldings?.[item.id]}
                   onOpen={setSheetItem}
                   onBuy={requestBuy}
                   onSell={setPendingSell}
@@ -948,6 +1067,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 darkMode={darkMode}
                 theme={theme}
                 cash={cash}
+                holding={gameState.luxuryHoldings?.[item.id]}
                 onOpen={setSheetItem}
                 onBuy={requestBuy}
                 onSell={setPendingSell}
@@ -1017,7 +1137,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         title={pendingSell ? `Sell the ${pendingSell.name}?` : ''}
         message={
           pendingSell
-            ? `You'll get ${formatMoney(getLuxuryResaleValue(pendingSell))} back — ${Math.round((getLuxuryResaleValue(pendingSell) / pendingSell.price) * 100)}% of the ${formatMoney(pendingSell.price)} you paid.`
+            ? `You'll get ${formatMoney(getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]))} back — ${Math.round((getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]) / pendingSell.price) * 100)}% of the ${formatMoney(pendingSell.price)} you paid.`
             : ''
         }
         confirmText="Sell"
