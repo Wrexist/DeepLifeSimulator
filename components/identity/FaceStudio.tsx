@@ -35,6 +35,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Image,
   ScrollView,
+  useWindowDimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -334,6 +335,21 @@ export default function FaceStudio({
     [genome, onChange],
   );
 
+  // THE PREVIEW IS SIZED OFF SCREEN HEIGHT, NOT WIDTH.
+  //
+  // It was `scale(330)`, and `scale()` is WIDTH-based — so the frame competed
+  // for vertical space using a number derived from a horizontal measurement. On
+  // a short phone (an SE is 667pt tall) the sticky footer, the header and the
+  // safe areas leave about 417pt, and a 330pt preview left under 90pt of
+  // controls on screen: the player saw a head and had to scroll before
+  // discovering there were sliders at all.
+  //
+  // 38% of the window, clamped, keeps roughly two control rows visible under
+  // the head on every size — enough to show the screen is editable without
+  // shrinking the head to a thumbnail on a large phone.
+  const { height: windowHeight } = useWindowDimensions();
+  const frameHeight = Math.round(Math.min(Math.max(windowHeight * 0.38, 230), 360));
+
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -358,7 +374,7 @@ export default function FaceStudio({
 
         {/* Portrait frame with the actions floated over it, as in the design —
             this keeps Randomize reachable without pushing the face down. */}
-        <View style={styles.frame}>
+        <View style={[styles.frame, { height: frameHeight }]}>
           {/* THE LIVE HEAD.
               This was a static pool portrait, which meant the player dragged
               21 sliders while watching an image that could not respond to any
@@ -619,7 +635,9 @@ const styles = StyleSheet.create({
   subtitle: { color: C.sub, fontSize: fontScale(14), marginTop: scale(5) },
   frame: {
     marginTop: scale(15),
-    height: scale(330),
+    // Overridden per-render from the window height — see `frameHeight`. This
+    // stays as a floor for the one frame before layout settles.
+    height: scale(280),
     borderRadius: scale(18),
     backgroundColor: C.frame,
     borderWidth: 1,
