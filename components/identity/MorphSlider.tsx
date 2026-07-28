@@ -29,6 +29,7 @@ import { PanResponder, StyleSheet, Text, View, type LayoutChangeEvent } from 're
 import { getThemeColors, radii, spacing } from '@/lib/config/theme';
 import { haptic } from '@/utils/haptics';
 import { fontScale, scale } from '@/utils/scaling';
+import { claimsHorizontalDrag } from '@/utils/gestures';
 
 export interface MorphSliderProps {
   label: string;
@@ -70,6 +71,8 @@ export default function MorphSlider({
   const widthRef = useRef(0);
   /** Value at the moment the drag began; `gesture.dx` is relative to it. */
   const dragStartRef = useRef(value);
+  /** Gesture offset when the drag was claimed — see `onPanResponderGrant`. */
+  const grabDxRef = useRef(0);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -80,19 +83,39 @@ export default function MorphSlider({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        // Claim the gesture so the parent ScrollView does not steal a horizontal
-        // drag — without this the slider is unusable inside a scrolling sheet.
+        // NOT ON TOUCH DOWN — see `utils/gestures.ts`.
+        //
+        // This claimed every gesture that began on the track and refused to
+        // release it, and `onPanResponderGrant` wrote a value immediately. Six
+        // of these span most of the width under the head, so a player who put a
+        // thumb on the list and swiped up to see more controls instead rewrote
+        // whichever morph they happened to touch, to whatever value they
+        // happened to touch it at, and the page did not move. Both halves are
+        // bad and the silent edit is the worse one: the face changed and nothing
+        // said which slider did it.
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_evt, gesture) => claimsHorizontalDrag(gesture.dx, gesture.dy),
+        // Once a horizontal drag IS ours, keep it: without this the parent
+        // ScrollView takes it back mid-drag and the slider is unusable inside a
+        // scrolling sheet.
         onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (evt) => {
+        onPanResponderGrant: (evt, gesture) => {
           const w = widthRef.current;
           if (w <= 0) return;
           onEditStart?.();
+          // The value still jumps to the finger — dragging anywhere on the track
+          // works exactly as before. What is gone is doing that on a TAP, which
+          // is a fair trade: an accidental edit from a touch meant as a scroll
+          // costs the player a face they cannot easily restore, and a deliberate
+          // one costs them four points of movement.
           const next = clamp01(evt.nativeEvent.locationX / w);
           // Anchor the drag. `gesture.dx` is measured from where the gesture
           // STARTED, so every move must be applied to the value at that moment.
           dragStartRef.current = next;
+          // ...and the grant now arrives PART-WAY through the gesture, after it
+          // travelled far enough to declare itself horizontal. Without this the
+          // travel before the claim would be counted twice.
+          grabDxRef.current = gesture.dx;
           onChange(next);
         },
         onPanResponderMove: (_evt, gesture) => {
@@ -103,7 +126,7 @@ export default function MorphSlider({
           // the LIVE value integrated a growing quantity and the thumb ran away
           // quadratically; and the 0.02 factor meant dragging the entire track
           // moved the value by two percent.
-          onChange(clamp01(dragStartRef.current + gesture.dx / w));
+          onChange(clamp01(dragStartRef.current + (gesture.dx - grabDxRef.current) / w));
         },
         // Spec §8: haptic on RELEASE, not during the drag. Firing per-move
         // would buzz continuously for the whole gesture, which reads as a fault

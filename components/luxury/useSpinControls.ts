@@ -31,30 +31,17 @@
  * nothing. Nobody would file that as "the 3D viewer steals scrolls"; they would
  * say the screen is broken.
  *
- * So a gesture has to DECLARE ITSELF horizontal before it is taken. Pitch is not
- * lost: once a drag is claimed, vertical movement inside that same gesture still
- * tilts, so turn-then-tilt works in one stroke. Only a pure vertical drag from
- * rest belongs to the page — which is the convention every horizontal carousel
- * inside a vertical list already teaches.
+ * So a gesture has to DECLARE ITSELF horizontal before it is taken — the shared
+ * rule in `utils/gestures.ts`, which the morph sliders had the same problem with
+ * and now use too. Pitch is not lost: once a drag is claimed, vertical movement
+ * inside that same gesture still tilts, so turn-then-tilt works in one stroke.
+ * Only a pure vertical drag from rest belongs to the page.
  */
 
 import { useMemo, useRef } from 'react';
 import { PanResponder, type PanResponderInstance } from 'react-native';
+import { claimsHorizontalDrag } from '@/utils/gestures';
 
-/** Horizontal dominance required to take a drag from a scrolling parent. */
-const CLAIM_BIAS = 1.15;
-/** Ignore jitter — a stationary finger has a dx of one or two points. */
-const CLAIM_MIN_DX = 4;
-
-/**
- * Should this drag turn the object, or scroll the page behind it?
- *
- * Exported to be tested directly: the alternative is asserting on a
- * `PanResponder`'s internals, which tests React Native rather than this rule.
- */
-export function claimsGesture(dx: number, dy: number): boolean {
-  return Math.abs(dx) > CLAIM_MIN_DX && Math.abs(dx) > Math.abs(dy) * CLAIM_BIAS;
-}
 
 /** Per-frame velocity decay. 0.94 ≈ coasts for ~1s after a firm flick. */
 const FRICTION = 0.94;
@@ -105,7 +92,7 @@ export function useSpinControls(options: SpinOptions = {}): SpinState {
         // the object, including the vertical swipe the player meant for the
         // page — and a tap does nothing here anyway, so nothing is given up.
         onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_evt, gesture) => claimsGesture(gesture.dx, gesture.dy),
+        onMoveShouldSetPanResponder: (_evt, gesture) => claimsHorizontalDrag(gesture.dx, gesture.dy),
         // Once a horizontal drag IS ours, keep it: without this the parent
         // ScrollView takes it back mid-turn and the object is unturnable inside
         // a scrolling sheet.
