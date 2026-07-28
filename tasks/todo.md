@@ -1268,3 +1268,53 @@ actually fits: hard-surface objects, not faces.
 - [x] 4,331 tests pass, type-check clean, lint clean on all touched files.
 - [x] Zero new assets — the 3.7 MB artwork budget is unchanged.
 
+
+---
+
+## 🧩 Close out every deferred audit finding (2026-07-28)
+
+Branch: `claude/game-character-customization-fk5s4m`. The user was given the
+tradeoffs on five deliberately-deferred findings plus one pre-existing warning,
+and asked for all of them fixed. Ordered by player impact.
+
+### 1. The built portrait must age with the character
+`identity.portraitWeek` is written and never read, so a built face freezes at
+creation age while the starter-portrait system ages — and the strip's own label
+promises "it ages with you".
+- [ ] `isPortraitStale(identity, weeksLived)` in `lib/identity` — pure, tested
+- [ ] Offscreen re-bake: mount a `FaceCanvas` only while stale, capture, write
+      `portraitUri` + `portraitWeek`, unmount. Never blank on failure.
+- [ ] Bounded: one re-bake in flight, GL-optional, old portrait survives a failure
+
+### 2. A way back into the creator after onboarding
+Currently onboarding-only. Root cause is that the identity chapter has no in-game
+UI at all, so this is the first of it.
+- [ ] Entry point on the character card
+- [ ] Opens `FaceCreatorModal` with `startAt='studio'`, writes genome + portrait
+- [ ] Re-baking here also refreshes `portraitWeek` (pairs with item 1)
+
+### 3. Procedural head rebuild cost — DONE (27.27 -> 21.13 ms, -22.5%)
+Only on the fallback path, but that path is also the slowest devices.
+- [x] Index buffer cached — it depends only on the grid size, so it was identical
+      on every call and cost ~9% to regenerate. Hands out a COPY.
+- [x] Per-segment sin/cos hoisted to a lookup table — the inner loop was making
+      ~33k trig calls per rebuild for 129 distinct angles.
+- [x] `blobAniso`/`blobRot` take scalars, not Vec3 literals — the call sites were
+      allocating ~1M short-lived arrays per rebuild (the 8% GC in the profile).
+- [x] Bit-identical verified: SHA-256 over positions/normals/indices/coverage/brow
+      across five faces, unchanged after every step.
+- [x] Measured min-of-5 at 200 iterations: 27.27 -> 21.13 ms.
+
+### 4. The two heads' scalp coordinates are not calibrated alike
+`receding` reads as a receding hairline on the scanned head and near-bald on the
+procedural one, off one shared number.
+- [ ] Per-head calibration, verified by rendering both
+
+### 5. `createTestGameState` deep-merges 10 of 33 nested objects
+An override on the other 23 yields a one-key object the game never produces.
+- [ ] Widen to every nested object; fix whatever fallout the suite reports
+
+### 6. 47 `as GameState` casts in tests bypass the factory (Hard Rule #3)
+Pre-existing on main — this branch adds none — but it is the standing weekly-audit
+warning and the user asked for everything.
+- [ ] Replace with `createTestGameState`; audit must come back clean

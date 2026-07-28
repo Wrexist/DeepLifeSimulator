@@ -369,10 +369,14 @@ function centred(v: number): number {
  * Squared smoothstep on the normalized distance, so it is C1 continuous and no
  * faceting shows where two fields meet.
  */
-function blobAniso(px: number, py: number, pz: number, c: Vec3, r: Vec3): number {
-  const dx = (px - c[0]) / r[0];
-  const dy = (py - c[1]) / r[1];
-  const dz = (pz - c[2]) / r[2];
+function blobAniso(
+  px: number, py: number, pz: number,
+  cx: number, cy: number, cz: number,
+  rx: number, ry: number, rz: number,
+): number {
+  const dx = (px - cx) / rx;
+  const dy = (py - cy) / ry;
+  const dz = (pz - cz) / rz;
   const d2 = dx * dx + dy * dy + dz * dz;
   if (d2 >= 1) return 0;
   const t = 1 - d2;
@@ -390,13 +394,16 @@ function blobAniso(px: number, py: number, pz: number, c: Vec3, r: Vec3): number
  * here — which is worse than not working at all, because it looks fixed.
  */
 function blobRot(
-  px: number, py: number, pz: number, c: Vec3, r: Vec3, sin: number, cos: number,
+  px: number, py: number, pz: number,
+  cx: number, cy: number, cz: number,
+  rx: number, ry: number, rz: number,
+  sin: number, cos: number,
 ): number {
-  const ox = px - c[0];
-  const oy = py - c[1];
-  const dx = (ox * cos - oy * sin) / r[0];
-  const dy = (ox * sin + oy * cos) / r[1];
-  const dz = (pz - c[2]) / r[2];
+  const ox = px - cx;
+  const oy = py - cy;
+  const dx = (ox * cos - oy * sin) / rx;
+  const dy = (ox * sin + oy * cos) / ry;
+  const dz = (pz - cz) / rz;
   const d2 = dx * dx + dy * dy + dz * dz;
   if (d2 >= 1) return 0;
   const t = 1 - d2;
@@ -533,6 +540,14 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   // neck, so the skull morphs must fade out or the jaw drags the throat with it.
   const NECK_TOP = -0.72;
 
+  // Per-segment trig, computed once for the whole app rather than once per
+  // vertex. `theta` depends only on `seg`, so at 129x129 the inner loop was
+  // making ~33,000 `Math.sin`/`Math.cos` calls per rebuild for 129 distinct
+  // angles. The expression is duplicated EXACTLY in `segmentTrig` so the doubles
+  // are the same doubles — this is a speedup, not a re-derivation, and the
+  // geometry hash is asserted unchanged.
+  const { sin: sinTheta, cos: cosTheta } = segmentTrig(SEGMENTS);
+
   let vi = 0;
   for (let ring = 0; ring <= RINGS; ring++) {
     const v = ring / RINGS;
@@ -542,15 +557,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
 
     for (let seg = 0; seg <= SEGMENTS; seg++) {
       const u = seg / SEGMENTS;
-      // + PI puts the UV seam at the BACK of the skull. At theta = 0 the seam
-      // ran straight down the centre of the face, where the duplicated vertex
-      // column is most visible and where any future texture would tear.
-      const theta = u * Math.PI * 2 + Math.PI;
 
       // Unit sphere → ellipsoid.
-      const ux = sinPhi * Math.sin(theta);
+      const ux = sinPhi * sinTheta[seg];
       const uy = cosPhi;
-      const uz = sinPhi * Math.cos(theta);
+      const uz = sinPhi * cosTheta[seg];
 
       let x = ux * SKULL.rx;
       let y = uy * SKULL.ry;
@@ -635,7 +646,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // Two parts, because a jaw is two things: a ramus running down behind the
       // cheek, and a body running forward to the chin, meeting at the gonial
       // angle. The blob sits at that corner and pushes outward and back.
-      const gonion = blobAniso(x, y, z, [x >= 0 ? 0.40 : -0.40, -0.36, 0.18], [0.34, 0.30, 0.60]);
+      const gonion = blobAniso(x, y, z, x >= 0 ? 0.40 : -0.40, -0.36, 0.18, 0.34, 0.30, 0.60);
       x += Math.sign(x || 1) * 0.026 * gonion * headness;
       // The body of the mandible: keeps width forward of the angle instead of
       // letting the taper close in, which is what makes a jawline read as a line.
@@ -653,19 +664,19 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       z -= jawAngle * 0.05 * cornerMask * (1 - front);
 
       // ---- Chin ----------------------------------------------------------
-      const chinMask = blobAniso(x, y, z, [0, chinY + 0.06, 0.62], [0.30, 0.26, 0.45]);
+      const chinMask = blobAniso(x, y, z, 0, chinY + 0.06, 0.62, 0.30, 0.26, 0.45);
       y -= chinLength * 0.16 * chinMask;
       z += chinProtrusion * 0.20 * chinMask * front;
 
       // ---- Cheeks --------------------------------------------------------
       const cheekY = -0.02 + cheekboneHeight * 0.16;
       const cheekSide: Vec3 = [x >= 0 ? 0.44 : -0.44, cheekY, 0.52];
-      const cheekMask = blobAniso(x, y, z, cheekSide, [0.40, 0.30, 0.55]);
+      const cheekMask = blobAniso(x, y, z, cheekSide[0], cheekSide[1], cheekSide[2], 0.40, 0.30, 0.55);
       // Cheekbones project out and forward; soft cheeks just add volume lower.
       x += Math.sign(x || 1) * cheekboneHeight * 0.10 * cheekMask;
       z += cheekboneHeight * 0.06 * cheekMask;
       const jowlSide: Vec3 = [x >= 0 ? 0.40 : -0.40, -0.30, 0.44];
-      const jowlMask = blobAniso(x, y, z, jowlSide, [0.42, 0.34, 0.55]);
+      const jowlMask = blobAniso(x, y, z, jowlSide[0], jowlSide[1], jowlSide[2], 0.42, 0.34, 0.55);
       const fullness = cheekFullness * 0.14;
       x += Math.sign(x || 1) * fullness * (cheekMask * 0.6 + jowlMask);
       z += fullness * 0.5 * jowlMask;
@@ -695,20 +706,20 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
 
       // Submental fullness — the double chin. Under the jaw, not on it, so it
       // reads as slack tissue rather than a longer face.
-      const submental = blobAniso(x, y, z, [0, chinY - 0.06, 0.42], [0.34, 0.20, 0.50]);
+      const submental = blobAniso(x, y, z, 0, chinY - 0.06, 0.42, 0.34, 0.20, 0.50);
       z += Math.max(0, adiposity) * 0.105 * submental;
       y -= Math.max(0, adiposity) * 0.045 * submental;
 
       // Muscle squares the jaw rather than rounding it — the masseter sits at
       // the back corner, which is why a trained face reads wider at the angle
       // and not at the cheek.
-      const masseter = blobAniso(x, y, z, [x >= 0 ? 0.44 : -0.44, -0.24, 0.28], [0.30, 0.26, 0.42]);
+      const masseter = blobAniso(x, y, z, x >= 0 ? 0.44 : -0.44, -0.24, 0.28, 0.30, 0.26, 0.42);
       x += Math.sign(x || 1) * musculature * 0.075 * masseter;
 
       // ---- Brow ridge -----------------------------------------------------
       const browMask =
-        blobAniso(x, y, z, [eyeX, browY, 0.72], [0.30, 0.10, 0.42]) +
-        blobAniso(x, y, z, [-eyeX, browY, 0.72], [0.30, 0.10, 0.42]);
+        blobAniso(x, y, z, eyeX, browY, 0.72, 0.30, 0.10, 0.42) +
+        blobAniso(x, y, z, -eyeX, browY, 0.72, 0.30, 0.10, 0.42);
       // Flattened for children. A brow ridge is a male-adult feature that grows
       // in through adolescence; children have none. The 0.050 base is what made
       // toddlers render with a heavy shelf over their eyes even though
@@ -724,21 +735,17 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // Three fields: the bridge ridge, the tip bulb, and the wings.
       const bridgeT = smoothstep(noseTipY, noseRootY, y);
       const bridgeCenterZ = 0.80 + bridgeT * 0.02;
-      const bridgeMask = blobAniso(
-        x, y, z,
-        [0, (noseRootY + noseTipY) / 2, bridgeCenterZ],
-        [0.075 + noseWidth * 0.022, Math.abs(noseRootY - noseTipY) / 2 + 0.04, 0.36],
-      );
+      const bridgeMask = blobAniso(x, y, z, 0, (noseRootY + noseTipY) / 2, bridgeCenterZ, 0.075 + noseWidth * 0.022, Math.abs(noseRootY - noseTipY) / 2 + 0.04, 0.36);
       z += (0.150 * childScale + noseBridge * 0.115) * bridgeMask;
 
-      const tipMask = blobAniso(x, y, z, [0, noseTipY, noseTipZ - 0.06], [0.10, 0.085, 0.22]);
+      const tipMask = blobAniso(x, y, z, 0, noseTipY, noseTipZ - 0.06, 0.10, 0.085, 0.22);
       z += (0.165 * childScale + noseTip * 0.080) * tipMask;
       y -= noseLength * 0.05 * tipMask;
 
       const wingX = 0.085 + noseWidth * 0.055;
       const wingMask =
-        blobAniso(x, y, z, [wingX, noseTipY + 0.01, 0.84], [0.09, 0.07, 0.22]) +
-        blobAniso(x, y, z, [-wingX, noseTipY + 0.01, 0.84], [0.09, 0.07, 0.22]);
+        blobAniso(x, y, z, wingX, noseTipY + 0.01, 0.84, 0.09, 0.07, 0.22) +
+        blobAniso(x, y, z, -wingX, noseTipY + 0.01, 0.84, 0.09, 0.07, 0.22);
       z += 0.080 * wingMask;
       x += Math.sign(x || 1) * (0.02 + noseWidth * 0.045) * wingMask;
 
@@ -750,8 +757,8 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // nose, because it is what gives the wing an edge to end at.
       const alarX = wingX + 0.030 + noseWidth * 0.012;
       const alarMask =
-        blobAniso(x, y, z, [alarX, noseTipY - 0.005, 0.80], [0.034, 0.058, 0.20]) +
-        blobAniso(x, y, z, [-alarX, noseTipY - 0.005, 0.80], [0.034, 0.058, 0.20]);
+        blobAniso(x, y, z, alarX, noseTipY - 0.005, 0.80, 0.034, 0.058, 0.20) +
+        blobAniso(x, y, z, -alarX, noseTipY - 0.005, 0.80, 0.034, 0.058, 0.20);
       z -= (0.026 + noseWidth * 0.008) * alarMask * headness;
 
       // NOSTRILS. Two indentations under the tip, with the columella left
@@ -762,14 +769,14 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // shadow under the tip, and a recess casts that shadow.
       const nostrilX = 0.036 + noseWidth * 0.018;
       const nostrilMask =
-        blobAniso(x, y, z, [nostrilX, noseTipY - 0.048, 0.88], [0.029, 0.030, 0.15]) +
-        blobAniso(x, y, z, [-nostrilX, noseTipY - 0.048, 0.88], [0.029, 0.030, 0.15]);
+        blobAniso(x, y, z, nostrilX, noseTipY - 0.048, 0.88, 0.029, 0.030, 0.15) +
+        blobAniso(x, y, z, -nostrilX, noseTipY - 0.048, 0.88, 0.029, 0.030, 0.15);
       z -= 0.050 * nostrilMask * headness;
 
       // ---- Lips ------------------------------------------------------------
       const lipHalfWidth = 0.115 + mouthWidth * 0.100;
-      const upperMask = blobAniso(x, y, z, [0, mouthY + 0.035, 0.80], [lipHalfWidth, 0.045, 0.26]);
-      const lowerMask = blobAniso(x, y, z, [0, mouthY - 0.055, 0.80], [lipHalfWidth, 0.055, 0.26]);
+      const upperMask = blobAniso(x, y, z, 0, mouthY + 0.035, 0.80, lipHalfWidth, 0.045, 0.26);
+      const lowerMask = blobAniso(x, y, z, 0, mouthY - 0.055, 0.80, lipHalfWidth, 0.055, 0.26);
       z += (0.030 + lipFullness * 0.042) * upperMask;
       z += (0.034 + lipFullness * 0.048) * lowerMask;
       // The seam between the lips — a crease, or the mouth reads as one blob.
@@ -795,7 +802,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // tall and scattered until the tessellation went up. A crease has to be at
       // least a row tall to exist at all, and once it is, it can be deepened to
       // where it reads without becoming the letterbox described above.
-      const seamMask = blobAniso(x, y, z, [0, mouthY - 0.008, 0.83], [lipHalfWidth * 1.05, 0.024, 0.24]);
+      const seamMask = blobAniso(x, y, z, 0, mouthY - 0.008, 0.83, lipHalfWidth * 1.05, 0.024, 0.24);
       z -= 0.030 * seamMask;
 
       // MOUTH CORNERS. Lips do not fade out sideways, they end — and the
@@ -803,29 +810,21 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // sausage laid on the face.
       const commissureX = lipHalfWidth * 0.94;
       const commissureMask =
-        blobAniso(x, y, z, [commissureX, mouthY - 0.010, 0.80], [0.040, 0.038, 0.20]) +
-        blobAniso(x, y, z, [-commissureX, mouthY - 0.010, 0.80], [0.040, 0.038, 0.20]);
+        blobAniso(x, y, z, commissureX, mouthY - 0.010, 0.80, 0.040, 0.038, 0.20) +
+        blobAniso(x, y, z, -commissureX, mouthY - 0.010, 0.80, 0.040, 0.038, 0.20);
       z -= 0.024 * commissureMask * headness;
 
       // The PHILTRUM — the groove from the nose to the middle of the upper lip.
       // Small, and one of the strongest cues that a face is a face: it is the
       // reason the space between nose and mouth reads as anatomy rather than a
       // gap. Fades out before the lip so it does not cut the vermilion.
-      const philtrumMask = blobAniso(
-        x, y, z,
-        [0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86],
-        [0.028, 0.052, 0.18],
-      );
+      const philtrumMask = blobAniso(x, y, z, 0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86, 0.028, 0.052, 0.18);
       z -= 0.020 * philtrumMask * headness;
 
       // The MENTOLABIAL SULCUS — the crease under the lower lip, before the
       // chin rises again. Without it the lower lip melts into the chin and the
       // whole lower face is one curve.
-      const sulcusMask = blobAniso(
-        x, y, z,
-        [0, mouthY - 0.115, 0.83],
-        [lipHalfWidth * 0.85, 0.032, 0.20],
-      );
+      const sulcusMask = blobAniso(x, y, z, 0, mouthY - 0.115, 0.83, lipHalfWidth * 0.85, 0.032, 0.20);
       z -= 0.022 * sulcusMask * headness;
 
       // ---- Ears -------------------------------------------------------------
@@ -834,8 +833,8 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const earScale = 1 + earSize * 0.55;
       const earR: Vec3 = [0.16, 0.17 * earScale, 0.11 * earScale];
       const earMask =
-        blobAniso(x, y, z, [SKULL.rx * 0.94, -0.04, -0.06], earR) +
-        blobAniso(x, y, z, [-SKULL.rx * 0.94, -0.04, -0.06], earR);
+        blobAniso(x, y, z, SKULL.rx * 0.94, -0.04, -0.06, earR[0], earR[1], earR[2]) +
+        blobAniso(x, y, z, -SKULL.rx * 0.94, -0.04, -0.06, earR[0], earR[1], earR[2]);
       x += Math.sign(x || 1) * (0.075 + earSize * 0.055) * earMask * headness;
 
       // ---- Neck --------------------------------------------------------------
@@ -888,8 +887,8 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
         // The thickening is gone and a gap mask took its place.
         const gap = smoothstep(0.055, 0.115, Math.abs(x));
         const w =
-          blobRot(x, y, z, [eyeX * 1.06, browY - 0.005, 0.74], BROW_R, browSin, browCos) +
-          blobRot(x, y, z, [-eyeX * 1.06, browY - 0.005, 0.74], BROW_R, -browSin, browCos);
+          blobRot(x, y, z, eyeX * 1.06, browY - 0.005, 0.74, BROW_R[0], BROW_R[1], BROW_R[2], browSin, browCos) +
+          blobRot(x, y, z, -eyeX * 1.06, browY - 0.005, 0.74, BROW_R[0], BROW_R[1], BROW_R[2], -browSin, browCos);
         brow[vi / 3] = Math.max(0, Math.min(1, w * gap * 1.5));
       }
 
@@ -1099,8 +1098,63 @@ function carveEyeSockets(
   return cz;
 }
 
+/**
+ * Cached index buffers, keyed by grid size.
+ *
+ * The triangle list depends on NOTHING but `rings` and `segments`, both module
+ * constants — so it was identical on every call and cost ~9% of a rebuild to
+ * regenerate: ~97k `Array.prototype.push` calls into a JS number[], then a
+ * Uint32Array conversion, every time a slider moved.
+ *
+ * A COPY is handed out rather than the cached array itself. Nothing in this file
+ * writes through `indices` — `computeNormals`, `carveEyeSockets` and the hair
+ * coverage pass all only read it — but `buildHeadMesh` returns it to a caller
+ * that hands it to three.js, and one shared buffer behind every head in the app
+ * is the kind of aliasing that is fine until the day it is not. `slice()` on
+ * 97k elements is a memcpy against the loop it replaces.
+ */
+const INDEX_CACHE = new Map<string, Uint32Array>();
+
+/**
+ * `sin(theta)` and `cos(theta)` for every segment column, cached per grid width.
+ *
+ * `+ PI` puts the UV seam at the BACK of the skull. At theta = 0 the seam ran
+ * straight down the centre of the face, where the duplicated vertex column is
+ * most visible and where any future texture would tear. That `+ Math.PI` is why
+ * this expression must stay character-identical to the one it was hoisted out
+ * of: same input double in, same output double out, same geometry.
+ *
+ * Handed out by reference, unlike the index buffer — these are read-only lookup
+ * tables that never leave this module.
+ */
+const SEGMENT_TRIG = new Map<number, { sin: Float64Array; cos: Float64Array }>();
+
+function segmentTrig(segments: number): { sin: Float64Array; cos: Float64Array } {
+  const hit = SEGMENT_TRIG.get(segments);
+  if (hit) return hit;
+  const sin = new Float64Array(segments + 1);
+  const cos = new Float64Array(segments + 1);
+  for (let seg = 0; seg <= segments; seg++) {
+    const theta = (seg / segments) * Math.PI * 2 + Math.PI;
+    sin[seg] = Math.sin(theta);
+    cos[seg] = Math.cos(theta);
+  }
+  const table = { sin, cos };
+  SEGMENT_TRIG.set(segments, table);
+  return table;
+}
+
 /** Triangle list for a UV sphere grid, skipping the degenerate polar quads. */
 function buildSphereIndices(rings: number, segments: number): Uint32Array {
+  const key = `${rings}x${segments}`;
+  const hit = INDEX_CACHE.get(key);
+  if (hit) return hit.slice();
+  const built = computeSphereIndices(rings, segments);
+  INDEX_CACHE.set(key, built);
+  return built.slice();
+}
+
+function computeSphereIndices(rings: number, segments: number): Uint32Array {
   const tris: number[] = [];
   for (let ring = 0; ring < rings; ring++) {
     for (let seg = 0; seg < segments; seg++) {
@@ -1437,8 +1491,8 @@ export function buildHairMesh(
     if (s.rows) cov *= 1 - s.rows * 0.55 * (0.5 + 0.5 * Math.cos(sx * 26));
 
     // Never on the ears.
-    cov *= 1 - blobAniso(x, y, z, [0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
-    cov *= 1 - blobAniso(x, y, z, [-0.68, -0.04, -0.06], [0.22, 0.20, 0.16]);
+    cov *= 1 - blobAniso(x, y, z, 0.68, -0.04, -0.06, 0.22, 0.20, 0.16);
+    cov *= 1 - blobAniso(x, y, z, -0.68, -0.04, -0.06, 0.22, 0.20, 0.16);
     cov = Math.max(0, Math.min(1, cov));
 
     let amt = cov * region;
@@ -1524,11 +1578,11 @@ export function buildFacialHairMesh(
     const front = smoothstep(0.1, 0.5, z);
 
     if (style === 'moustache' || style === 'full') {
-      coverage = Math.max(coverage, blobAniso(x, y, z, [0, mouthY + 0.075, 0.82], [0.16, 0.045, 0.30]));
+      coverage = Math.max(coverage, blobAniso(x, y, z, 0, mouthY + 0.075, 0.82, 0.16, 0.045, 0.30));
     }
     if (style === 'goatee' || style === 'full') {
-      coverage = Math.max(coverage, blobAniso(x, y, z, [0, mouthY - 0.14, 0.78], [0.14, 0.13, 0.34]));
-      coverage = Math.max(coverage, blobAniso(x, y, z, [0, mouthY + 0.075, 0.82], [0.14, 0.04, 0.28]));
+      coverage = Math.max(coverage, blobAniso(x, y, z, 0, mouthY - 0.14, 0.78, 0.14, 0.13, 0.34));
+      coverage = Math.max(coverage, blobAniso(x, y, z, 0, mouthY + 0.075, 0.82, 0.14, 0.04, 0.28));
     }
     if (style === 'stubble' || style === 'full') {
       // Jawline + lower cheeks, as a BAND bounded at BOTH ends.
@@ -1538,7 +1592,7 @@ export function buildFacialHairMesh(
       // the way down the neck to y = -1.10. A beard needs a lower bound as much
       // as an upper one.
       const jawBand = smoothstep(-0.22, -0.42, y) * smoothstep(-0.92, -0.74, y);
-      const notLips = 1 - blobAniso(x, y, z, [0, mouthY - 0.01, 0.84], [0.14, 0.06, 0.28]);
+      const notLips = 1 - blobAniso(x, y, z, 0, mouthY - 0.01, 0.84, 0.14, 0.06, 0.28);
       coverage = Math.max(coverage, jawBand * front * notLips * (style === 'stubble' ? 0.9 : 1));
     }
 

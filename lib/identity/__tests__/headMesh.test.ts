@@ -308,3 +308,58 @@ describe('headMesh', () => {
     });
   });
 });
+
+describe('the rebuild is fast without being different', () => {
+  /**
+   * The head build was cut from ~27 ms to ~21 ms by two changes that must not
+   * be able to alter a single vertex:
+   *
+   *   - the triangle list is cached, because it depends only on the grid size;
+   *   - `sin`/`cos` of the segment angle are a lookup table, because they
+   *     depend only on the segment.
+   *
+   * Both were verified against a SHA-256 of positions/normals/indices/coverage/
+   * brow across five faces before and after. That hash is not pinned here — it
+   * would fail on every intentional geometry change, which is most of them —
+   * so what is pinned instead is the two properties that make the caches safe.
+   */
+
+  it('is deterministic — same input, same vertices', () => {
+    const g = randomizeFace('perf-determinism');
+    const a = buildHeadMesh(g, { age: 32 });
+    const b = buildHeadMesh(g, { age: 32 });
+    expect(a.positions).toEqual(b.positions);
+    expect(a.normals).toEqual(b.normals);
+    expect(a.indices).toEqual(b.indices);
+  });
+
+  it('does not hand out the SAME index buffer twice', () => {
+    // THE RISK THE CACHE INTRODUCES. Returning the cached array itself would
+    // put one buffer behind every head in the app: a caller that wrote through
+    // `indices` — or a future three.js path that did — would corrupt every
+    // other head, including ones already rendered. The cache hands out a copy.
+    const g = randomizeFace('perf-aliasing');
+    const a = buildHeadMesh(g, { age: 20 });
+    const b = buildHeadMesh(g, { age: 20 });
+    expect(a.indices).not.toBe(b.indices);
+
+    const sentinel = a.indices[10];
+    a.indices[10] = 999999;
+    const c = buildHeadMesh(g, { age: 20 });
+    expect(c.indices[10]).toBe(sentinel);
+  });
+
+  it('gives every age and sex the same grid, so the cache never misses', () => {
+    // A cache keyed on grid size is only a win if the grid size is constant.
+    const sizes = new Set<number>();
+    for (const age of [3, 15, 30, 70]) {
+      for (const sex of ['male', 'female']) {
+        const m = buildHeadMesh(randomizeFace(`grid-${age}-${sex}`, { sex }), { age });
+        sizes.add(m.indices.length);
+        sizes.add(m.positions.length);
+      }
+    }
+    // Two entries: one positions length, one indices length.
+    expect(sizes.size).toBe(2);
+  });
+});
