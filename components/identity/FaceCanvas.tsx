@@ -32,6 +32,24 @@ export interface FaceCanvasHandle {
   capture(): Promise<string | null>;
 }
 
+/**
+ * Longest edge of the stored portrait, and the hard ceiling on its size.
+ *
+ * The portrait ends up in an 80-point circular frame — 240 px on a 3x screen —
+ * so 448 on the long edge is generous, and it turns a capture from hundreds of
+ * kilobytes into tens. Applied as a SCALE FACTOR on both edges rather than a
+ * fixed shape, because `FaceRenderer.resize` updates the camera aspect: a fixed
+ * shape would reframe the head away from what the player was looking at.
+ *
+ * The byte cap is the part that matters. `identity.portraitUri` is written into
+ * every save, saves are capped at 4 MB, and `pruneSaveData` only trims arrays —
+ * so an oversized portrait is unprunable, survives both prune passes, and makes
+ * `saveQueue` throw "Save data too large" forever after. 512 KB leaves the
+ * portrait a rounding error against that cap even with five backups per slot.
+ */
+const PORTRAIT_MAX_EDGE = 448;
+export const PORTRAIT_MAX_BYTES = 512 * 1024;
+
 export interface FaceCanvasProps {
   genome: FaceGenome;
   age: number;
@@ -91,7 +109,39 @@ function FaceCanvasInner(
       const context = glContextRef.current;
       const glLib = loadGl();
       if (!context || !glLib || !sceneRef.current) return null;
+      // BOUND THE PIXELS BEFORE READING THEM.
+      //
+      // `takeSnapshotAsync` captures the drawing buffer at its real size, which
+      // on a 3x-density phone is around 1100x1300 — a PNG measured in hundreds
+      // of kilobytes, base64'd into `identity.portraitUri`, and then written
+      // into EVERY save.
+      //
+      // That is not a size annoyance, it is a way to brick a save file. Saves
+      // are capped at `MAX_SAVE_SIZE` (4 MB) and `pruneSaveData` only trims
+      // arrays — a portrait is unprunable — so a big enough one pushes the save
+      // over the cap, survives both prune passes, and `saveQueue` throws
+      // "Save data too large". The player then cannot save again. Backups make
+      // it worse: five per slot against a 10 MB budget, all carrying the same
+      // picture.
+      //
+      // The scene already knows how to resize, so the capture renders into a
+      // portrait-sized buffer and restores the on-screen size straight after.
+      // It costs one frame at a smaller resolution, at the moment the player
+      // taps Done and the modal closes over it.
+      const scene = sceneRef.current;
+      const prevWidth = (context as { drawingBufferWidth?: number }).drawingBufferWidth ?? 0;
+      const prevHeight = (context as { drawingBufferHeight?: number }).drawingBufferHeight ?? 0;
       try {
+        // Scale BOTH edges by one factor rather than resizing to a fixed shape.
+        // `resize` updates `camera.aspect`, so a fixed 384x448 would reframe the
+        // head to a different aspect than the player was just looking at — and
+        // on a narrower one it could clip the ears. Same aspect, fewer pixels,
+        // identical framing.
+        const longest = Math.max(prevWidth, prevHeight);
+        if (longest > PORTRAIT_MAX_EDGE) {
+          const k = PORTRAIT_MAX_EDGE / longest;
+          scene.resize(Math.max(1, Math.round(prevWidth * k)), Math.max(1, Math.round(prevHeight * k)));
+        }
         // Waits for the scanned head before drawing — see `captureWhenReady`.
         const snapshot = await captureWhenReady(
           sceneRef.current,
@@ -103,10 +153,34 @@ function FaceCanvasInner(
         // app reinstall, and a dead path renders as a permanently blank circle
         // with no way to recover. `normalizeIdentity` drops non-data URIs for
         // exactly this reason.
-        return uri && uri.startsWith('data:image') ? uri : null;
+        if (!uri || !uri.startsWith('data:image')) return null;
+        // Independent backstop. The resize above should keep this far under the
+        // cap, but this runs on devices and drivers that cannot be tested here,
+        // and the failure it guards against is unsaveable-forever. Dropping the
+        // portrait costs the player their custom face on the card; keeping an
+        // oversized one can cost them the run.
+        if (uri.length > PORTRAIT_MAX_BYTES) {
+          logger.warn('[FaceCanvas] portrait too large to store, keeping starter portrait', {
+            bytes: uri.length,
+            limit: PORTRAIT_MAX_BYTES,
+          });
+          return null;
+        }
+        return uri;
       } catch (err) {
         logger.warn('[FaceCanvas] portrait capture failed', { error: String(err) });
         return null;
+      } finally {
+        // Restore the on-screen size whatever happened, or the head stays
+        // rendered at portrait resolution in a modal the player may reopen.
+        if (prevWidth > 0 && prevHeight > 0 && sceneRef.current === scene) {
+          try {
+            scene.resize(prevWidth, prevHeight);
+            scene.render();
+          } catch {
+            // A scene torn down mid-capture is the normal case here, not a fault.
+          }
+        }
       }
     },
   }), []);

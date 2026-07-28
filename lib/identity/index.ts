@@ -35,6 +35,16 @@ export function createIdentity(seed: string, sex: string, age: number): Identity
 }
 
 /**
+ * Largest stored portrait, in characters of its data URI.
+ *
+ * Mirrors `PORTRAIT_MAX_BYTES` in `FaceCanvas`, deliberately as a separate
+ * constant rather than an import: this module is the SAVE path and must not
+ * depend on a React component to decide whether a save is loadable. Capture
+ * bounds what this app writes; this bounds what it will accept from anywhere.
+ */
+export const MAX_PORTRAIT_BYTES = 512 * 1024;
+
+/**
  * Force anything into a valid `Identity`.
  *
  * The single entry point used by the save migration, `repairGameState` and the
@@ -70,7 +80,19 @@ export function normalizeIdentity(
   // file:// path from a reinstalled app points at nothing, and rendering it
   // yields a blank circle with no way to recover — dropping it falls back to the
   // portrait pool, which always renders something.
-  if (typeof input.portraitUri === 'string' && input.portraitUri.startsWith('data:image')) {
+  //
+  // And only when it is a SANE SIZE. The capture bounds its own resolution, but
+  // this function is also the door for saves written by an older build, restored
+  // from a backup, or edited by hand — and an oversized portrait is the one field
+  // that can make a save unwritable forever. `pruneSaveData` trims arrays only,
+  // so it cannot shrink this; the save exceeds `MAX_SAVE_SIZE`, survives both
+  // prune passes, and `saveQueue` throws. Dropping it here costs a custom face
+  // and rescues the run.
+  if (
+    typeof input.portraitUri === 'string'
+    && input.portraitUri.startsWith('data:image')
+    && input.portraitUri.length <= MAX_PORTRAIT_BYTES
+  ) {
     identity.portraitUri = input.portraitUri;
     if (typeof input.portraitWeek === 'number' && isFinite(input.portraitWeek)) {
       identity.portraitWeek = input.portraitWeek;
