@@ -413,16 +413,25 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
 }
 
 /**
- * Create a backup of a save slot
+ * Create a backup of a save slot.
+ *
+ * `data` is a PERSISTED save payload — a v2 envelope, or a legacy raw payload
+ * on builds that still accept those. Callers holding a live GameState must use
+ * `createBackupFromState`, which wraps it first: handing a raw state string in
+ * here is rejected by the envelope decode on every signed build (see the
+ * comment on that function).
+ *
+ * `preparsed` lets a caller that already holds both the state object and the
+ * canonical envelope skip the decode + re-encode round trip entirely.
  */
 export async function createBackup(
-  slot: number, 
-  data: string, 
-  _checksum: string, 
-  reason: BackupReason | string = 'auto_save'
+  slot: number,
+  data: string,
+  reason: BackupReason | string = 'auto_save',
+  preparsed?: NormalizedBackupPayload,
 ): Promise<string | null> {
   try {
-    const { state, canonicalSaveData } = normalizeBackupPayload(data);
+    const { state, canonicalSaveData } = preparsed ?? normalizeBackupPayload(data);
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
     const canonicalHmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
@@ -559,7 +568,24 @@ export async function createBackup(
 }
 
 /**
- * Helper to create a backup directly from a state object
+ * Create a backup directly from a live GameState object.
+ *
+ * This used to stringify the RAW state and hand it to `createBackup`, whose
+ * first step is `normalizeBackupPayload` → `decodePersistedSaveEnvelope`. A raw
+ * state has no `v: 2`, so on any build where unsigned legacy saves are refused
+ * — which is EVERY shipped build (`shouldAllowUnsignedLegacySaves()` is true
+ * only under __DEV__ or an env flag that `scripts/preflightSaveSigning.js`
+ * hard-errors on for production) — the decode returned "Unsigned legacy save
+ * format is not accepted", `normalizeBackupPayload` threw, and `createBackup`'s
+ * catch swallowed it into `return null`. Because it never rejected, the
+ * `.catch()` at the call site never fired and the save path reported success:
+ * no shipped build has ever written a backup, while dev worked fine. Wrapping
+ * the state in a canonical envelope here is the fix (2026-07-28 audit PERF-1).
+ *
+ * The state object and the envelope are both passed through, so `createBackup`
+ * does not decode and re-encode what we just built (PERF-1's sibling PERF-3);
+ * the stringify is also deferred by one macrotask so a large save does not
+ * block the frame that triggered it.
  */
 export async function createBackupFromState(
   slot: number,
@@ -567,9 +593,13 @@ export async function createBackupFromState(
   reason: string
 ): Promise<string | null> {
   try {
-    const data = JSON.stringify(state);
-    const checksum = calculateChecksum(data);
-    return createBackup(slot, data, checksum, reason);
+    // Yield first: the caller (auto-save, onboarding) is on the JS thread and
+    // does not await the result, so the stringify below should not run in the
+    // same frame. Same idiom as the save queue's pre-serialize yield.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const stateJson = JSON.stringify(state);
+    const canonicalSaveData = createSaveEnvelope(stateJson);
+    return createBackup(slot, canonicalSaveData, reason, { state, canonicalSaveData });
   } catch (error) {
     logger.error('Failed to create backup from state', error);
     return null;
