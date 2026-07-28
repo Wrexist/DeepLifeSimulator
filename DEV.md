@@ -1,5 +1,10 @@
 # CLAUDE.md — DeepLife Simulator
 
+> **This file is a mirror.** The canonical, up-to-date project context lives in
+> [`CLAUDE.md`](CLAUDE.md) at the repo root — it covers everything below plus the
+> repo map, commands, testing, save-format rules and release/App Store gotchas.
+> Where the two disagree, `CLAUDE.md` wins. Kept here for tools that read `DEV.md`.
+
 ## Project Overview
 
 - **Stack:** React Native 0.81.5 / Expo SDK 54 / React 19.1.0

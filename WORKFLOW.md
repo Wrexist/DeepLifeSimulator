@@ -1,5 +1,10 @@
 # AGENTS.md — DeepLife Simulator
 
+> **This file is a mirror.** The canonical, up-to-date project context lives in
+> [`CLAUDE.md`](CLAUDE.md) at the repo root. Where the two disagree, `CLAUDE.md`
+> wins. Note the `.Codex/agents/`, `.Codex/prompts/` and hook entries below do
+> **not** exist in this repo — project skills live in `.agents/skills/`.
+
 ## Project Overview
 
 - **Stack:** React Native 0.81.5 / Expo SDK 54 / React 19.1.0
