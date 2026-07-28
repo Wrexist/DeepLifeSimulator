@@ -1305,10 +1305,20 @@ Only on the fallback path, but that path is also the slowest devices.
       across five faces, unchanged after every step.
 - [x] Measured min-of-5 at 200 iterations: 27.27 -> 21.13 ms.
 
-### 4. The two heads' scalp coordinates are not calibrated alike
-`receding` reads as a receding hairline on the scanned head and near-bald on the
+### 4. Scalp coordinates calibrated alike — DONE
+`receding` read as a receding hairline on the scanned head and near-bald on the
 procedural one, off one shared number.
-- [ ] Per-head calibration, verified by rendering both
+- [x] `scalpCoordinate` now mirrors the GLB bake term for term: linear backness
+      (was a smoothstep), 0.79 backness coefficient (was 1.60), the temple lift
+      (was absent), a fixed `H * 0.55` ramp (was a varying one), and the
+      offFace/hangY floor.
+- [x] The scanned head is the reference because it is the path that ships —
+      changing `low: 0.74` instead would have moved it, where it looks right.
+- [x] Verified by RENDER: before has the flat bowl-cut rim running straight
+      across the forehead and down the temple; after has a real temple corner
+      with the forehead corners showing.
+- [x] `receding`'s front-most hair 0.509 -> 0.641 against `short` at 0.740 —
+      it now reads as receding rather than bald.
 
 ### 5. `createTestGameState` deep-merges 10 of 33 nested objects
 An override on the other 23 yields a one-key object the game never produces.

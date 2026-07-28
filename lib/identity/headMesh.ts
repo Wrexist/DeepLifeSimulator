@@ -1349,53 +1349,100 @@ function hashNoise(x: number, y: number, z: number): number {
  * numbers, and the two sets drifted until one of them had twenty-three styles
  * missing.
  *
- * The hairline is a CURVE, not a height. It is high across the forehead and
- * sweeps down around the back to the nape, which is what a hairline does. An
- * earlier version multiplied three axis-aligned masks together instead, and
- * three smooth masks multiplied still bound a rectangle — it rendered a hard
- * window over the eyes with hair on the chin.
+ * ## Sharing a table is not the same as sharing a scale
+ *
+ * The two were unified on WHICH styles exist and left disagreeing on what a
+ * number MEANS, which is the subtler half of the same bug. Term by term, the
+ * bake in `scripts/build-ict-head.mjs` and this function had:
+ *
+ *   backness           linear (maxZ - z) / depth   vs  smoothstep(-0.30, 0.55, z)
+ *   backness coeff     0.79                        vs  1.60
+ *   temple lift        sideness^2 * (1-back) * .58 vs  absent
+ *   ramp above line    fixed H * 0.55              vs  crownY - refY (varies)
+ *   floor below line   offFace / hangY             vs  a different drop
+ *
+ * At the front they happened to agree — both put the line 0.45 of the cranium
+ * above the brow — so head-on renders looked fine and the drift hid at the back
+ * and sides. `receding` is where it surfaced: `low: 0.74` is a receding
+ * hairline on the scanned head and reads as bald on this one.
+ *
+ * So this now mirrors the bake term for term, and the scanned head is the
+ * reference because it is the path that ships. Changing `low: 0.74` instead
+ * would have moved the scanned head, where it already looks right.
  */
-function scalpCoordinate(y: number, z: number, lm: HeadLandmarks): number {
+function scalpCoordinate(
+  y: number, z: number, x: number, lm: HeadLandmarks, frame: ScalpFrame,
+): number {
   // Above-brow height of the skull. Everything here is expressed in it, so the
   // field survives `faceLength`, the aging sag and any future proportion morph.
-  const cranium = Math.max(0.05, lm.crownY - lm.browY);
-  const frontness = smoothstep(-0.30, 0.55, z);
-  const backness = 1 - frontness;
+  const H = Math.max(0.05, lm.crownY - lm.browY);
+  // LINEAR in depth, as the bake is. A smoothstep here saturated to 1 well
+  // before the nape, which is half of why the back of this head sat so much
+  // lower than the scanned one.
+  const backness = Math.max(0, Math.min(1, (frame.maxZ - z) / frame.depth));
+  const sideness = Math.min(1, Math.abs(x) / frame.halfWidth);
 
-  // Where the field reads 0.60. Not the visible hairline: the coverage ramp in
-  // the caller is one-sided (`smoothstep(low, low + 0.16, scalp)`), so a style
-  // at `low: 0.60` is half-covered at 0.68, and putting 0.60 on the anatomical
-  // hairline pushed every short cut a fifth of the cranium up the skull and
-  // gave the character a forehead half a head tall.
-  //
-  // 0.45 of the cranium above the brow puts the HALF-COVERAGE point of a
-  // `low: 0.60` style at y ≈ 0.62 on the neutral head, against a crown at 0.88
-  // — a forehead about as tall as the brow-to-nose third, which is the
-  // classical proportion. The number this replaces was a bare `0.34`, an
-  // absolute height that landed 0.04 ABOVE the brow ridge.
-  const refY = lm.browY + cranium * (0.45 - 1.60 * backness);
+  // TEMPLES. The hairline rises toward the sides of the front half, so the hair
+  // clears the ears and the forehead corners show. Absent here entirely, which
+  // is the bowl-cut rim the scanned head's bake was fixed to avoid.
+  const temple = sideness * sideness * (1 - backness) * 0.58;
+  const hairline = lm.browY + H * (0.45 - 0.79 * backness + temple);
 
-  if (y >= refY) {
-    const t = (y - refY) / Math.max(1e-4, lm.crownY - refY);
-    return 0.6 + 0.4 * Math.min(1, t);
+  // Above the hairline: 0.60 at the line, 1.0 at the crown.
+  if (y >= hairline) {
+    return 0.6 + 0.4 * Math.max(0, Math.min(1, (y - hairline) / (H * 0.55)));
   }
 
-  // How far below the reference the field takes to reach zero — i.e. how far
-  // hair could hang if a style asked for it.
-  //
-  // This is the term that decides whether hair can appear ON THE FACE, and the
-  // first version got it wrong by making it constant: every style with a low
-  // `low` (long, bob, layered, bowl, the pulled-back cuts) rendered a brown
-  // mask over the eyes and cheeks, because the forehead is below the hairline
-  // and a slow descent left it well inside the covered range.
-  //
-  // At the front the field therefore drops off a cliff — a hairline is an edge,
-  // and no length of hair grows forward of it. Around the sides and back it
-  // descends slowly, past the jaw and onto the shoulders, which is where length
-  // actually goes.
-  const drop = frontness * 0.03 * cranium + backness * (refY - (lm.chinY - 0.55));
-  const t = (y - (refY - Math.max(1e-4, drop))) / Math.max(1e-4, drop);
-  return 0.6 * Math.max(0, t);
+  // Below it: 0.60 down to 0 at `floorY`. On the FACE the floor sits just under
+  // the hairline, so the field collapses within a few millimetres and no
+  // threshold can grow hair on a forehead or a cheek; behind the temples the
+  // floor drops to `hangY` and the field spans the whole side of the head,
+  // which is what makes length work. Both branches meet at 0.60, so the field
+  // is continuous however abruptly the floor moves.
+  const offFace = smoothstep(0.18, 0.48, backness);
+  const floorY = hairline - H * 0.06 - (hairline - frame.hangY - H * 0.06) * offFace;
+  return 0.6 * Math.max(0, Math.min(1, (y - floorY) / Math.max(1e-6, hairline - floorY)));
+}
+
+/**
+ * The head-relative extents the scalp field is measured against.
+ *
+ * Separate from `HeadLandmarks` because these are whole-mesh measurements the
+ * bake takes over its own vertex set, and they have to be taken the same way
+ * here or the two fields disagree again. `halfWidth` in particular is measured
+ * on the CRANIUM (above the brow), not the mesh: this mesh carries a neck and
+ * collar whose widest point is not the head, and normalising a head-relative
+ * quantity by a mesh-relative extent is the exact mistake the bake's own
+ * comment records making.
+ */
+interface ScalpFrame {
+  maxZ: number;
+  depth: number;
+  halfWidth: number;
+  hangY: number;
+}
+
+function scalpFrame(positions: Float32Array, lm: HeadLandmarks): ScalpFrame {
+  let minY = Infinity, minZ = Infinity, maxZ = -Infinity, craniumX = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    const px = positions[i];
+    const py = positions[i + 1];
+    const pz = positions[i + 2];
+    if (py < minY) minY = py;
+    if (pz < minZ) minZ = pz;
+    if (pz > maxZ) maxZ = pz;
+    if (py >= lm.browY) craniumX = Math.max(craniumX, Math.abs(px));
+  }
+  const H = Math.max(0.05, lm.crownY - lm.browY);
+  return {
+    maxZ,
+    depth: Math.max(1e-6, maxZ - minZ),
+    halfWidth: Math.max(1e-6, craniumX),
+    // How far below the hairline hair is allowed to reach. Bounded well above
+    // the mesh floor: the lowest vertices are the collar, and a field that runs
+    // onto them lets a long style grow a cape off the back.
+    hangY: Math.max(minY, lm.browY - H * 1.15),
+  };
 }
 
 /**
@@ -1440,6 +1487,10 @@ export function buildHairMesh(
   const normals = new Float32Array(src.length);
   const coverageOut = new Float32Array(count);
 
+  // Whole-mesh extents for the scalp field, measured the way the GLB bake
+  // measures them. Taken once per style rather than per vertex.
+  const frame = scalpFrame(src, lm);
+
   // The frame the region weights are measured in. The SKULL's box, not the
   // mesh's: the mesh runs down to the collar, and including that neck pushed
   // every `fadeY` threshold a third of the way up the head, so a taper fade cut
@@ -1479,7 +1530,7 @@ export function buildHairMesh(
       base + (s.front ?? 0) * wFront + (s.side ?? 0) * wSide + (s.back ?? 0) * wBack));
     const lowHere = low + 0.3 * (1 - Math.min(region, 1));
 
-    let cov = smoothstep(lowHere, lowHere + 0.16, scalpCoordinate(y, z, lm));
+    let cov = smoothstep(lowHere, lowHere + 0.16, scalpCoordinate(y, z, x, lm, frame));
     if (s.fade) {
       cov *= 1 - s.fade * wSide * (1 - smoothstep(fadeY - 0.08, fadeY + 0.18, fy));
     }
