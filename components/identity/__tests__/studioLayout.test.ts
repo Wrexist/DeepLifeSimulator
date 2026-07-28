@@ -59,3 +59,31 @@ describe('the control list stays short enough to navigate', () => {
     expect(STUDIO).toMatch(/useState<string \| null>\(GROUPS\[0\]\.title\)/);
   });
 });
+
+describe('the action rail fits inside the frame it lives in', () => {
+  it('tightens when the frame is short', () => {
+    // A REGRESSION THE HEIGHT FIX ITSELF INTRODUCED. The rail is absolutely
+    // positioned inside the preview frame and was sized for a 330pt one. When
+    // the frame started shrinking on short phones, the fourth control — Reset,
+    // the one you reach for after a slider goes wrong — was clipped off the
+    // bottom. Found by re-rendering the harness at 667pt, which is the whole
+    // reason the harness was taught the new sizing rule in the same change.
+    expect(STUDIO).toMatch(/const railTight = frameHeight < \d+;/);
+    expect(STUDIO).toMatch(/\[styles\.actions, railStyle\]/);
+  });
+
+  it('shrinks every control, not just the container', () => {
+    // Tightening only the gap leaves four full-size buttons in a shorter space,
+    // which clips just as well. All four take the compact size.
+    const rail = STUDIO.slice(STUDIO.indexOf('styles.actions, railStyle'));
+    const block = rail.slice(0, rail.indexOf('</View>', rail.indexOf('Reset')));
+    expect((block.match(/compact=\{btnStyle\}/g) ?? []).length).toBe(4);
+  });
+
+  it('leaves the rail alone on a tall frame', () => {
+    // The compact size is a concession to small screens, not the default — a
+    // large phone should keep the full-size controls.
+    expect(STUDIO).toMatch(/railTight \? \{ gap: scale\(7\) \} : null/);
+    expect(STUDIO).toMatch(/railTight\s*\n?\s*\? \{ width: scale\(38\)/);
+  });
+});

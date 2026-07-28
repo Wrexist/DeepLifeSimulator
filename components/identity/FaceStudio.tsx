@@ -36,6 +36,7 @@ import {
   Image,
   ScrollView,
   useWindowDimensions,
+  type ViewStyle,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -349,6 +350,15 @@ export default function FaceStudio({
   // shrinking the head to a thumbnail on a large phone.
   const { height: windowHeight } = useWindowDimensions();
   const frameHeight = Math.round(Math.min(Math.max(windowHeight * 0.38, 230), 360));
+  // The action rail lives INSIDE the frame, so shrinking the frame can clip it.
+  // Four buttons at 46 plus their labels and gaps need about 290; below that the
+  // rail tightens rather than losing its last control, which on this screen is
+  // Reset — the one a player reaches for after a slider goes wrong.
+  const railTight = frameHeight < 300;
+  const railStyle = railTight ? { gap: scale(7) } : null;
+  const btnStyle = railTight
+    ? { width: scale(38), height: scale(38), borderRadius: scale(19) }
+    : null;
 
   return (
     <View style={styles.root}>
@@ -396,9 +406,9 @@ export default function FaceStudio({
               ))
             }
           />
-          <View style={styles.actions}>
-            <RoundAction icon={Dices} label="Randomize" onPress={randomize} accent />
-            <RoundAction icon={Undo2} label="Undo" onPress={undo} disabled={undoDepth === 0} />
+          <View style={[styles.actions, railStyle]}>
+            <RoundAction icon={Dices} label="Randomize" onPress={randomize} accent compact={btnStyle} />
+            <RoundAction icon={Undo2} label="Undo" onPress={undo} disabled={undoDepth === 0} compact={btnStyle} />
             {/* Press and HOLD. A toggle would need two taps to answer the one
                 question it exists for — "is this better than what I started
                 with?" — and the answer is only legible while both are in mind. */}
@@ -408,8 +418,9 @@ export default function FaceStudio({
               onPressIn={() => { haptic.light(); setComparing(true); }}
               onPressOut={() => setComparing(false)}
               active={comparing}
+              compact={btnStyle}
             />
-            <RoundAction icon={RotateCcw} label="Reset" onPress={reset} />
+            <RoundAction icon={RotateCcw} label="Reset" onPress={reset} compact={btnStyle} />
           </View>
         </View>
 
@@ -527,7 +538,7 @@ export default function FaceStudio({
 }
 
 function RoundAction({
-  icon: Icon, label, onPress, onPressIn, onPressOut, accent, disabled, active,
+  icon: Icon, label, onPress, onPressIn, onPressOut, accent, disabled, active, compact,
 }: {
   icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
@@ -537,6 +548,8 @@ function RoundAction({
   accent?: boolean;
   disabled?: boolean;
   active?: boolean;
+  /** Smaller, for a short frame where the full-size rail would clip. */
+  compact?: ViewStyle | null;
 }): React.JSX.Element {
   const tint = disabled ? C.muted : active ? C.accent : accent ? C.gold : C.sub;
   return (
@@ -554,9 +567,10 @@ function RoundAction({
           accent ? styles.roundBtnAccent : null,
           active ? styles.roundBtnActive : null,
           disabled ? styles.roundBtnDisabled : null,
+          compact,
         ]}
       >
-        <Icon size={scale(19)} color={tint} />
+        <Icon size={compact ? scale(16) : scale(19)} color={tint} />
       </TouchableOpacity>
       <Text style={[styles.actionLabel, disabled ? { color: C.muted } : null]}>{label}</Text>
     </View>

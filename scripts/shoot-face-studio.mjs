@@ -73,6 +73,22 @@ const slider = ([label, v]) => {
   </div>`;
 };
 
+// The preview frame, computed the way `FaceStudio` computes it.
+//
+// The app sizes this from the WINDOW HEIGHT — clamped 230-360 — because a
+// width-derived height left almost no controls visible on a short phone. This
+// page is a restatement of that layout, so a hardcoded 330 here would show
+// proportions the app no longer produces: the instrument drifting from the
+// thing it exists to judge, which is the failure this whole harness was built
+// to catch in the first place.
+const PAGE_H = Number(process.env.PAGE_H ?? 2400);
+const FRAME_H = Math.round(Math.min(Math.max(PAGE_H * 0.38, 230), 360));
+// The rail lives inside the frame and tightens when the frame is short, or its
+// last control — Reset — is clipped. Mirrors `railTight` in `FaceStudio`.
+const RAIL_TIGHT = FRAME_H < 300;
+const RAIL_GAP = RAIL_TIGHT ? 7 : 14;
+const RAIL_BTN = RAIL_TIGHT ? 38 : 46;
+
 const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -86,12 +102,12 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
   h1{font-size:25px;font-weight:800;letter-spacing:-0.4px}
   .sub{font-size:13px;color:${C.sub};margin-top:5px}
   .frame{margin-top:15px;background:${C.frame};border-radius:22px;
-         border:1px solid rgba(255,255,255,0.06);height:330px;position:relative;
+         border:1px solid rgba(255,255,255,0.06);height:${FRAME_H}px;position:relative;
          overflow:hidden;display:flex;align-items:center;justify-content:center}
   #gl{display:block}
-  .actions{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:12px}
+  .actions{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:${RAIL_GAP}px}
   .act{display:flex;flex-direction:column;align-items:center;gap:4px}
-  .btn{width:42px;height:42px;border-radius:21px;background:${C.chip};
+  .btn{width:${RAIL_BTN}px;height:${RAIL_BTN}px;border-radius:${RAIL_BTN/2}px;background:${C.chip};
        border:1px solid rgba(255,255,255,0.09);display:flex;align-items:center;
        justify-content:center;font-size:17px}
   .btn.gold{border-color:rgba(255,215,107,0.5)}
