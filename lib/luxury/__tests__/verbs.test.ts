@@ -117,10 +117,27 @@ describe('racing', () => {
     expect(outcome.holdingPatch).toEqual({ runs: 1, wins: 0 });
   });
 
-  it('places in the middle — the prize covers the entry', () => {
+  it('places in the middle — the prize softens the entry but does not cover it', () => {
+    // A place must return LESS than the entry. If it returns more (the old $30k
+    // place vs $25k entry), then win AND place both profit — 2 of 3 outcomes —
+    // and racing is a money printer (weekly audit 2026-07-28).
     const outcome = resolveRace(0.4, undefined);
-    expect(outcome.money).toBeGreaterThanOrEqual(RACE.cost);
-    expect(outcome.money).toBeLessThan(90_000);
+    expect(outcome.good).toBe(true);
+    expect(outcome.money).toBeGreaterThan(0);
+    expect(outcome.money).toBeLessThan(RACE.cost);
+  });
+
+  it('is negative-EV at base form — racing is a cost, not an income stream', () => {
+    // The whole verb must not be a printer. Over the base outcome distribution
+    // (25% win, 25% place, 50% unplaced), the expected NET return after the
+    // entry must be <= 0, so an unproven horse loses money on average. resolveRace
+    // returns the purse EXCLUDING the entry, so subtract it in each band.
+    const entry = RACE.cost;
+    const win = resolveRace(0.0, undefined).money; // pct 0  -> win
+    const place = resolveRace(0.4, undefined).money; // pct 40 -> place
+    const unplaced = resolveRace(0.99, undefined).money; // pct 99 -> unplaced
+    const ev = 0.25 * (win - entry) + 0.25 * (place - entry) + 0.5 * (unplaced - entry);
+    expect(ev).toBeLessThanOrEqual(0);
   });
 
   it('a campaigned horse wins more often than an unraced one', () => {
@@ -202,5 +219,15 @@ describe('museum loan', () => {
   it('costs nothing to arrange, unlike the other verbs', () => {
     expect(LOAN.cost).toBe(0);
     expect(LOAN.energyCost).toBe(0);
+  });
+
+  it('never out-earns the diamond it belongs to (no printer)', () => {
+    // The loan is free to arrange and its cooldown equals its term, so it is
+    // continuously re-armable. Its fee is the diamond's only income, so — like
+    // every catalog yield — it must stay below the item's own weekly upkeep, or
+    // it is an uncapped weekly money printer (weekly audit 2026-07-28: the old
+    // $4,000 fee netted +$3,800/wk over the $200 upkeep).
+    const diamond = getLuxuryItem('museum_diamond')!;
+    expect(MUSEUM_LOAN_WEEKLY_FEE).toBeLessThan(diamond.weeklyUpkeep);
   });
 });
