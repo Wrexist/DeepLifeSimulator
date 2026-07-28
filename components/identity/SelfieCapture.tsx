@@ -36,12 +36,20 @@ const C = {
   danger: '#F87171',
 };
 
+/**
+ * Each line says what it is for, because "face the camera" reads as fussy until
+ * you know why. Two of them are load-bearing for the cut-out rather than
+ * cosmetic: it separates the subject from the background by colour, so it needs
+ * background to separate FROM, and it cannot tell hair from a wall of the same
+ * shade. Tested on a real photograph — a crop tight on the face came back with
+ * the hair shaved off, because at that framing even the corners are hair.
+ */
 const REQUIREMENTS: readonly { text: string; why: string }[] = [
-  { text: 'Face the camera', why: 'a turned head shortens one side of the face' },
-  { text: 'Even lighting', why: 'hard shadows hide the jawline' },
-  { text: 'No sunglasses', why: 'the eye corners set eye size and spacing' },
+  { text: 'Leave space around your head', why: 'we cut you out from the background, so we need to see some' },
+  { text: 'Face the camera', why: 'a turned head crops oddly in a round frame' },
+  { text: 'Even lighting', why: 'hard shadows get cut away with the background' },
+  { text: 'Plain-ish background', why: 'a wall the colour of your hair is one we cannot separate' },
   { text: 'Hair visible', why: 'we read your hair colour from the crown' },
-  { text: 'Relaxed expression', why: 'a smile widens the mouth measurement' },
 ];
 
 export interface SelfieCaptureProps {
