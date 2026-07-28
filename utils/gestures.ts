@@ -23,6 +23,21 @@
  * the page. It is the convention every horizontal carousel inside a vertical
  * list already teaches, and it costs the control nothing, because both controls
  * that use it are driven horizontally anyway.
+ *
+ * ## Not every PanResponder wants this
+ *
+ * The app has four. The two that needed the rule use it; the other two claim on
+ * touch down and are RIGHT to, because neither sits in a scrolling parent:
+ *
+ *   - `AvatarReveal` — the before/after split handle on the selfie reveal. It
+ *     is in a fixed frame with no ScrollView anywhere above it, and a
+ *     comparison handle that waits four points before moving reads as broken.
+ *   - `SwipeScreen` — the Spark card deck. Already conditional on movement in
+ *     EITHER axis, which is what a card that throws in four directions needs.
+ *
+ * Recorded because the obvious next move for someone reading the fix is to
+ * apply it everywhere the old pattern appears. The pattern is not the defect —
+ * the pattern inside a ScrollView is.
  */
 
 /** Horizontal dominance required to take a drag from a scrolling parent. */

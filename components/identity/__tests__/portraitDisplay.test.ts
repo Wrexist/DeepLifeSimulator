@@ -54,6 +54,64 @@ describe('IdentityCard shows the face the player built', () => {
   });
 });
 
+describe('the built face reaches the player\'s dating profile too', () => {
+  const SPARK = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'mobile', 'Spark', 'SparkApp.tsx'),
+    'utf8',
+  );
+
+  it('prefers the built portrait over the stock pool', () => {
+    // Spark's ProfileTab renders `gameState.userProfile` — it is the PLAYER'S
+    // own profile, not a match's. Fixing `IdentityCard` alone left a player
+    // looking at their own face on the character card and a stranger from the
+    // stock pool on their dating profile, which is the more personal of the two.
+    //
+    // Anchored on the RENDER BRANCH, not on `identity?.portraitUri`. The first
+    // version of this compared where the const is declared, which is above the
+    // JSX either way — so it passed with the built-face branch deleted. Caught
+    // by mutating it, which is the only way that shape of hole ever shows up.
+    expect(SPARK).toMatch(/identity\?\.portraitUri/);
+    const builtAt = SPARK.search(/hasBuiltFace \?/);
+    const stockAt = SPARK.search(/getAvatarPortrait\(/);
+    expect(builtAt).toBeGreaterThan(-1);
+    expect(stockAt).toBeGreaterThan(-1);
+    expect(builtAt).toBeLessThan(stockAt);
+  });
+
+  it('still lets an explicitly-set Spark photo win', () => {
+    // `profilePhoto` is a photo the player chose FOR THIS APP. A built face is
+    // a default worth having, not an override of a deliberate choice.
+    const photoAt = SPARK.search(/profile\.profilePhoto && !sparkProfileAvatarErrored/);
+    const builtAt = SPARK.search(/\) : hasBuiltFace \?/);
+    expect(photoAt).toBeGreaterThan(-1);
+    expect(builtAt).toBeGreaterThan(photoAt);
+  });
+
+  it('only trusts a data: URI', () => {
+    expect(SPARK).toMatch(/startsWith\('data:image'\)/);
+  });
+});
+
+describe('PrestigeModal is deliberately NOT changed', () => {
+  const PRESTIGE = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'PrestigeModal.tsx'),
+    'utf8',
+  );
+
+  it('keeps the stock portrait on the reset path', () => {
+    // The third call site, and the one that should stay. Its copy reads "Start
+    // fresh with a NEW CHARACTER at age 18" — the image illustrates who you are
+    // about to become, not who you are. Showing the face the player built there
+    // would promise that a full reset keeps it, which is the opposite of what
+    // the button does.
+    //
+    // Asserted rather than left implicit, because the obvious next move for
+    // anyone reading the other two fixes is to make this one "consistent".
+    expect(PRESTIGE).toMatch(/getAvatarPortrait\(/);
+    expect(PRESTIGE).not.toMatch(/identity\?\.portraitUri/);
+  });
+});
+
 describe('the face creator is reachable', () => {
   const FLAGS = fs.readFileSync(
     path.join(__dirname, '..', '..', '..', 'lib', 'config', 'featureFlags.ts'),

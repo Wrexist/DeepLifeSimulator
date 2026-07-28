@@ -280,6 +280,15 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
   const profileScore = scorePlayerProfile(gameState);
   // R6-A: track image load failure separately from missing-uri.
   const [sparkProfileAvatarErrored, setSparkProfileAvatarErrored] = useState(false);
+  // THIS TAB IS THE PLAYER'S OWN PROFILE — `profile` is `gameState.userProfile`.
+  //
+  // So the face they built in the creator belongs here. `IdentityCard` was
+  // fixed to prefer it and this was not, which left a player looking at their
+  // own face on the character card and a stranger from the stock pool on their
+  // dating profile. Only a `data:` URI is trusted: `<Image>` with a dead path
+  // renders nothing, and a blank circle is worse than a stock portrait.
+  const builtFace = gameState.identity?.portraitUri;
+  const hasBuiltFace = !!builtFace && builtFace.startsWith('data:image');
 
   return (
     <View style={styles.profileWrap}>
@@ -314,6 +323,10 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
                 style={styles.profileAvatarImg}
                 onError={() => setSparkProfileAvatarErrored(true)}
               />
+            ) : hasBuiltFace ? (
+              /* Below an explicitly-set Spark photo — that is a deliberate
+                 choice for this app — and above the stock pool. */
+              <Image source={{ uri: builtFace }} style={styles.profileAvatarImg} />
             ) : profile.gender ? (
               <Image source={getAvatarPortrait(profile.avatarId, gameState.date?.age ?? 25, profile.name ?? profile.displayName, profile.gender)} style={styles.profileAvatarImg} />
             ) : (
