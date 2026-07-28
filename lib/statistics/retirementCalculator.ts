@@ -1,5 +1,8 @@
 import type { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+// Shared planning basis (income-producing / liquidatable assets only) — see
+// planningNetWorth.ts for why this is deliberately NOT the canonical netWorth().
+import { calculatePlanningNetWorth as calculateNetWorth } from './planningNetWorth';
 
 /**
  * Retirement planning result
@@ -79,33 +82,4 @@ export function calculateRetirementPlanning(
   };
 }
 
-/**
- * Calculate net worth
- */
-function calculateNetWorth(state: GameState): number {
-  const money = state.stats.money || 0;
-  const bankSavings = state.bankSavings || 0;
-  
-  const stockValue = state.stocks?.holdings?.reduce((sum, holding) => {
-    return sum + (holding.shares * holding.currentPrice);
-  }, 0) || 0;
-  
-  const realEstateValue = state.realEstate?.reduce((sum, property) => {
-    return sum + (property.owned ? (property.currentValue ?? property.price) : 0);
-  }, 0) || 0;
-
-  // D-2: NaN guard on company valuation (annual income, per codebase convention)
-  const companyValue = state.companies?.reduce((sum, company) => {
-    const val = (company.weeklyIncome || 0) * WEEKS_PER_YEAR;
-    return sum + (isFinite(val) ? val : 0);
-  }, 0) || 0;
-
-  const totalDebt = state.loans?.reduce((sum, loan) => {
-    const bal = loan.remaining || 0;
-    return sum + (isFinite(bal) ? bal : 0);
-  }, 0) || 0;
-
-  const result = money + bankSavings + stockValue + realEstateValue + companyValue - totalDebt;
-  return isFinite(result) ? result : 0;
-}
 

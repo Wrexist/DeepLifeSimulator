@@ -7,6 +7,7 @@
  */
 import { applySubscriptionsForWeek } from '@/contexts/game/actions/weekly/applySubscriptions';
 import { perksForTier } from '@/lib/dating/sparkLogic';
+import { BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
 import type { PulseVerifiedPro, SparkPremium } from '@/contexts/game/types';
 
 function activeVerifiedPro(overrides: Partial<PulseVerifiedPro> = {}): PulseVerifiedPro {
@@ -166,16 +167,43 @@ describe('applySubscriptionsForWeek', () => {
   });
 
   it('bills the first sub, then lapses the second when cash runs out mid-tick', () => {
-    // $30 covers Pulse ($20) but not the remaining $10 vs Spark's $24 → Spark lapses.
+    // $530 covers Pulse ($20 → $510 left, still above the floor) but Spark's $24
+    // would drop the player to $486, under BANKRUPTCY_FLOOR → Spark lapses.
     const r = applySubscriptionsForWeek({
       verifiedPro: activeVerifiedPro(), // 20, affordable
       sparkPremium: activeSparkPremium(), // 24, unaffordable after Pulse
-      moneyAvailable: 30,
+      moneyAvailable: BANKRUPTCY_FLOOR + 30,
       nextWeeksLived: 5,
     });
     expect(r.totalCharged).toBe(20);
     expect(r.verifiedPro!.active).toBe(true);
     expect(r.sparkPremium!.active).toBe(false);
     expect(r.sparkPremium!.tier).toBe('free');
+  });
+
+  // ── Bankruptcy floor (2026-07-16 audit LOW: billing drained to $0) ────────
+  it('lapses rather than billing a player down through the bankruptcy floor', () => {
+    const r = applySubscriptionsForWeek({
+      verifiedPro: activeVerifiedPro(), // 20
+      sparkPremium: undefined,
+      moneyAvailable: BANKRUPTCY_FLOOR + 10, // can pay, but would land under the floor
+      nextWeeksLived: 5,
+    });
+    expect(r.totalCharged).toBe(0);
+    expect(r.verifiedProChanged).toBe(true);
+    expect(r.verifiedPro!.active).toBe(false);
+    expect(r.notifications.some((n) => /under \$/.test(n))).toBe(true);
+  });
+
+  it('still bills when the renewal lands exactly on the bankruptcy floor', () => {
+    const r = applySubscriptionsForWeek({
+      verifiedPro: activeVerifiedPro(), // 20
+      sparkPremium: undefined,
+      moneyAvailable: BANKRUPTCY_FLOOR + 20,
+      nextWeeksLived: 5,
+    });
+    expect(r.totalCharged).toBe(20);
+    expect(r.verifiedProChanged).toBe(false);
+    expect(r.verifiedPro!.active).toBe(true);
   });
 });

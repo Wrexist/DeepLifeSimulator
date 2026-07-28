@@ -539,6 +539,90 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // ── Older migration/repair parity gaps (same rule (b) asymmetry) ─────────
+  // Surfaced by the new audit-save V8 static check, which cross-references every
+  // migration-backfilled CONCRETE default against repairGameState.
+  //
+  // `wantedLevel` is the one with a live crash-class consumer: JobActions does
+  // `prev.wantedLevel + (job.wantedIncrease || 1)` with no `?? 0`, so a partial
+  // save missing the key turns it into NaN, and every downstream success-chance
+  // that reads it (`Math.min(25, wantedLevel * 3)`) goes NaN with it.
+  if (typeof s.wantedLevel !== 'number' || !isFinite(s.wantedLevel)) {
+    s.wantedLevel = 0;
+    repairs.push('Backfilled missing wantedLevel from defaults');
+    repaired = true;
+  }
+  // IAP dedupe ledger (v2 migration): the list that stops a replayed store
+  // transaction from granting twice. It must exist as an array.
+  if (!Array.isArray(s.processedIAPTransactions)) {
+    s.processedIAPTransactions = [];
+    repairs.push('Backfilled missing processedIAPTransactions from defaults');
+    repaired = true;
+  }
+  // Hobby Mastery maps (migration 21).
+  if (!s.pursuits || typeof s.pursuits !== 'object' || Array.isArray(s.pursuits)) {
+    s.pursuits = {};
+    repairs.push('Backfilled missing pursuits map from defaults');
+    repaired = true;
+  }
+  if (
+    !s.weeklyPursuitPractice ||
+    typeof s.weeklyPursuitPractice !== 'object' ||
+    Array.isArray(s.weeklyPursuitPractice)
+  ) {
+    s.weeklyPursuitPractice = {};
+    repairs.push('Backfilled missing weeklyPursuitPractice map from defaults');
+    repaired = true;
+  }
+  // Legacy Pass cosmetics (migration 20) — parent-guarded, mirroring the
+  // migration's own `else if` branch for a partially-shaped legacyPass.
+  if (
+    s.legacyPass &&
+    typeof s.legacyPass === 'object' &&
+    !Array.isArray(s.legacyPass.ownedCosmetics)
+  ) {
+    s.legacyPass.ownedCosmetics = [];
+    repairs.push('Backfilled missing legacyPass.ownedCosmetics from defaults');
+    repaired = true;
+  }
+
+  // ── v22 Wave-A NESTED concrete defaults (migration/repair parity) ─────────
+  // Migration 22 backfills these on the version ladder, but repair also runs on
+  // partial saves already stamped at a later version (CloudSync merge /
+  // hand-edit) that the wholesale ladder skips — the same asymmetry
+  // `realEstateActivity` had (CLAUDE.md save-format rule (b)). Every consumer
+  // guards its read, so these are healing-not-crash repairs; they are mirrored
+  // here so the rule holds for NESTED fields too, not just top-level ones.
+  //
+  // Parent-guarded exactly like the migration: a missing subsystem is rebuilt by
+  // its own repair block (or its `ensure*` helper), never invented here.
+  if (s.banking && typeof s.banking === 'object') {
+    if (!s.banking.rateEnvironment || typeof s.banking.rateEnvironment !== 'object') {
+      s.banking.rateEnvironment = { depositMult: 1, loanDelta: 0 };
+      repairs.push('Backfilled missing banking.rateEnvironment from defaults');
+      repaired = true;
+    }
+    if (!s.banking.budgetTargets || typeof s.banking.budgetTargets !== 'object') {
+      s.banking.budgetTargets = {};
+      repairs.push('Backfilled missing banking.budgetTargets from defaults');
+      repaired = true;
+    }
+  }
+  if (s.gamingStreaming && typeof s.gamingStreaming === 'object') {
+    for (const field of ['perkTier', 'lastMemberWeek', 'hypeStreak'] as const) {
+      if (typeof s.gamingStreaming[field] !== 'number' || !isFinite(s.gamingStreaming[field])) {
+        s.gamingStreaming[field] = 0;
+        repairs.push(`Backfilled missing gamingStreaming.${field} from defaults`);
+        repaired = true;
+      }
+    }
+  }
+  if (s.travel && typeof s.travel === 'object' && !Array.isArray(s.travel.passportMilestones)) {
+    s.travel.passportMilestones = [];
+    repairs.push('Backfilled missing travel.passportMilestones from defaults');
+    repaired = true;
+  }
+
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
   // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
   // consumers that fall back only on nullish (`favorLedger ?? emptyLedger()`,
@@ -1026,6 +1110,29 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.lastViralBoostBySkill === undefined || typeof sm.lastViralBoostBySkill !== 'object') {
     sm.lastViralBoostBySkill = {};
+  }
+  // v22 Wave-A concrete defaults — mirrored from migration 22 so a partial save
+  // already stamped past v22 is healed here too (save-format rule (b)). The
+  // history is anchored with the current follower count, exactly like the
+  // migration, so charts always have a datum; the 52-point cap is re-applied.
+  if (!Array.isArray(sm.followerHistory)) {
+    sm.followerHistory = [
+      {
+        week: typeof s.weeksLived === 'number' && isFinite(s.weeksLived) ? Math.max(0, Math.floor(s.weeksLived)) : 0,
+        followers: typeof sm.followers === 'number' && isFinite(sm.followers) ? sm.followers : 0,
+      },
+    ];
+    repairs.push('Backfilled missing socialMedia.followerHistory from defaults');
+    repaired = true;
+  } else if (sm.followerHistory.length > 52) {
+    sm.followerHistory = sm.followerHistory.slice(-52);
+    repairs.push('Trimmed socialMedia.followerHistory to the 52-point cap');
+    repaired = true;
+  }
+  if (typeof sm.scandalRiskScore !== 'number' || !isFinite(sm.scandalRiskScore)) {
+    sm.scandalRiskScore = 0;
+    repairs.push('Backfilled missing socialMedia.scandalRiskScore from defaults');
+    repaired = true;
   }
 
   // ── v15+ Spark dating app defaults ───────────────────────────

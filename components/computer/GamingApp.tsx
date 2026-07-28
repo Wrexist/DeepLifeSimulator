@@ -84,7 +84,6 @@ import {
   PC_BASE_PRICES,
   MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -362,7 +361,6 @@ export default function GamingApp({ onBack }: Props) {
         game: selectedGame,
         trendBonus: trendBonusForTopic(selectedGame, week, GAME_OPTIONS),
       },
-      { updateMoney },
       week
     );
     if (r.success) {
@@ -376,7 +374,7 @@ export default function GamingApp({ onBack }: Props) {
 
   const handleAccessory = useCallback(
     (id: keyof GamingStreamingState['equipment']) => {
-      const r = buyAccessory(gameState, setGameState, id, ACCESSORY_PRICES[id], { updateMoney });
+      const r = buyAccessory(gameState, setGameState, id, ACCESSORY_PRICES[id]);
       if (r.success) saveGame();
       flash(r.message);
     },
@@ -385,7 +383,7 @@ export default function GamingApp({ onBack }: Props) {
 
   const handlePCUpgrade = useCallback(
     (id: keyof GamingStreamingState['pcUpgradeLevels']) => {
-      const r = upgradePCComponent(gameState, setGameState, id, PC_BASE_PRICES[id], { updateMoney });
+      const r = upgradePCComponent(gameState, setGameState, id, PC_BASE_PRICES[id]);
       if (r.success) saveGame();
       flash(r.message);
     },

@@ -13,6 +13,8 @@
  *   V5  Checksum + tamper verification primitives exist in saveValidation.ts.
  *   V6  Tests don't construct GameState manually (`as GameState`) — must use the factory.
  *   V7  createTestGameState factory exists.
+ *   V8  Migration/repair parity: every field a migration backfills with a CONCRETE
+ *       default is also mirrored in repairGameState (CLAUDE.md save-format rule (b)).
  */
 'use strict';
 
@@ -137,6 +139,30 @@ function build() {
     drift.slice(0, 5).map((d) => `${d.file}:${d.line}`).join(', ') + (drift.length > 5 ? ' …' : ''),
     'No GameState Drift (Hard Rule #3)');
 
+  // --- V8: migration ↔ repair parity --------------------------------------
+  // The asymmetry the 2026-07-22 weekly audit found by hand: a field can be
+  // migration-covered, factory-covered (createTestGameState spreads
+  // initialGameState, so (c) is auto-satisfied) and STILL never mirrored into
+  // repairGameState. A partial save already stamped at the current version
+  // (CloudSync merge / hand-edit) is then healed by neither path — the ladder
+  // skips it and repair has no branch. Only fields the migration assigns a
+  // CONCRETE default are owed a mirror; an `= undefined` assignment means the
+  // absent key already equals the default (CLAUDE.md rule (b), `ambitionId`).
+  if (mig != null && sv != null) {
+    const backfilled = concreteBackfillPaths(mig)
+      // initialState is the authority on what "the default" IS. A field the
+      // migration derives or converts (legacy fixups like `challengeStreak`,
+      // `lastEventWeeksLived`) but that carries no concrete default there owes
+      // no mirror — repair's job is restoring defaults, not re-deriving history.
+      .filter((p) => hasConcreteDefault(initial, p.split('.').pop()));
+    const unmirrored = backfilled.filter((p) => !mentionsField(sv, p.split('.').pop()));
+    a.assert(unmirrored.length === 0, 'medium',
+      `All ${backfilled.length} migration-backfilled concrete defaults are mirrored in repairGameState`,
+      `${unmirrored.length} migration-backfilled field(s) have no repairGameState mirror`,
+      unmirrored.join(', ') + ' — a partial save stamped at the current version is healed by neither path (save-format rule (b)).',
+      'utils/saveValidation.ts');
+  }
+
   return a;
 }
 
@@ -168,6 +194,44 @@ function parseMigrationKeys(src) {
   let m;
   while ((m = re.exec(body))) keys.add(Number(m[1]));
   return [...keys];
+}
+
+/**
+ * Every `state.<path> = <concrete value>` a migration performs, as dotted paths.
+ * Assignments of `undefined` are skipped: an absent key already equals that
+ * default, so no repair mirror is owed. Comments/strings are stripped first so a
+ * documented example can't register as a real backfill.
+ */
+function concreteBackfillPaths(src) {
+  const clean = L.stripNoise(src);
+  const re = /\bstate\.((?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*)\s*=\s*([^=;\n]*)/g;
+  const paths = new Set();
+  let m;
+  while ((m = re.exec(clean))) {
+    const [, path, rhs] = m;
+    if (rhs.trim().startsWith('=')) continue; // `==` / `===` comparison, not an assignment
+    if (/^\s*undefined\s*$/.test(rhs)) continue; // undefined default → no mirror owed
+    if (path === 'version') continue; // the version stamp itself is not a data field
+    paths.add(path);
+  }
+  return [...paths].sort();
+}
+
+/** Does `src` reference this field name at all (property read, key, or index)? */
+function mentionsField(src, leaf) {
+  return new RegExp(`\\b${leaf}\\b`).test(src);
+}
+
+/**
+ * True when `initialState.ts` declares `leaf:` with a CONCRETE stored default.
+ * `leaf: undefined` (and an absent key) means the default is "no key", which
+ * needs no migration backfill and no repair mirror.
+ */
+function hasConcreteDefault(initialSrc, leaf) {
+  if (initialSrc == null) return false;
+  const m = L.stripNoise(initialSrc).match(new RegExp(`^\\s*${leaf}\\s*:\\s*([^,\\n]*)`, 'm'));
+  if (!m) return false;
+  return !/^\s*undefined\s*$/.test(m[1]);
 }
 
 function parseNoOpVersions(src) {

@@ -18,9 +18,18 @@
  * Money rule (CLAUDE.md): mirror-safe. The caller deducts `totalCharged` from
  * `newStats.money` ONLY; `banking.accounts` mirrors are overwritten later in the
  * same tick and must never be debited here.
+ *
+ * Bankruptcy floor: a renewal is only charged when it leaves the player at or
+ * above `BANKRUPTCY_FLOOR`, the same soft-lock protection `applyLoanAutopay`
+ * applies (`cashAfter - paymentDue >= BANKRUPTCY_FLOOR`). Autopay can SKIP a
+ * payment and let it accrue; a subscription cannot (skipping would be a free
+ * week of perks), so the sub lapses instead — the player keeps their floor and
+ * can resubscribe when they can carry the cost. Filed as a non-blocking LOW by
+ * the 2026-07-16 weekly audit ("drains to $0, unlike loan autopay").
  */
 import type { PulseVerifiedPro, SparkPremium } from '@/contexts/game/types';
 import { perksForTier } from '@/lib/dating/sparkLogic';
+import { BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
 
 export interface SubscriptionBillingInput {
   verifiedPro: PulseVerifiedPro | undefined;
@@ -67,6 +76,22 @@ function isPrepaidThisWeek(
     typeof sub.paidThroughWeek === 'number' &&
     nextWeeksLived < sub.paidThroughWeek
   );
+}
+
+/**
+ * A renewal is affordable only when it leaves the player at or above the
+ * bankruptcy floor — the same bar `applyLoanAutopay` uses. Charging down to $0
+ * for a cosmetic subscription is the anti-player drain the audit flagged.
+ */
+function canAfford(money: number, price: number): boolean {
+  return money - price >= BANKRUPTCY_FLOOR;
+}
+
+/** Lapse copy that distinguishes "no cash" from "would breach the floor". */
+function lapseMessage(label: string, money: number, price: number): string {
+  return money >= price
+    ? `Your ${label} lapsed — renewing would have left you under $${BANKRUPTCY_FLOOR.toLocaleString()}.`
+    : `Your ${label} lapsed — not enough cash to renew.`;
 }
 
 function lapsedVerifiedPro(vp: PulseVerifiedPro): PulseVerifiedPro {
@@ -117,7 +142,7 @@ export function applySubscriptionsForWeek(
     const vp = verifiedPro as PulseVerifiedPro;
     if (!isPrepaidThisWeek(vp, nextWeeksLived)) {
       const price = vp.weeklyPrice as number;
-      if (money >= price) {
+      if (canAfford(money, price)) {
         money -= price;
         totalCharged += price;
         // Annual prepay term just ended → fall back to plain weekly auto-renew.
@@ -128,7 +153,7 @@ export function applySubscriptionsForWeek(
       } else {
         nextVerifiedPro = lapsedVerifiedPro(vp);
         verifiedProChanged = true;
-        notifications.push('Your Pulse Verified Pro lapsed — not enough cash to renew.');
+        notifications.push(lapseMessage('Pulse Verified Pro', money, price));
       }
     }
   }
@@ -138,7 +163,7 @@ export function applySubscriptionsForWeek(
     const sp = sparkPremium as SparkPremium;
     if (!isPrepaidThisWeek(sp, nextWeeksLived)) {
       const price = sp.weeklyPrice as number;
-      if (money >= price) {
+      if (canAfford(money, price)) {
         money -= price;
         totalCharged += price;
         if (sp.plan === 'annual') {
@@ -148,7 +173,7 @@ export function applySubscriptionsForWeek(
       } else {
         nextSparkPremium = lapsedSparkPremium(sp);
         sparkPremiumChanged = true;
-        notifications.push('Your Spark Premium lapsed — not enough cash to renew.');
+        notifications.push(lapseMessage('Spark Premium', money, price));
       }
     }
   }

@@ -26,6 +26,7 @@ import {
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { Heart, Share2, Copy, Check } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -77,17 +78,15 @@ function generateTagline(gameState: GameState): string {
 }
 
 /**
- * Calculate total net worth including cash, property, stocks, etc.
+ * Total net worth — the CANONICAL figure (`lib/progress/achievements.netWorth`),
+ * the same one prestige, the leaderboard, ambitions, bail cost and the stats
+ * screen read. This card previously carried its own copy that summed only cash +
+ * bank + real estate at PURCHASE price — no stocks, companies, vehicles, loans
+ * or luxury — so a player's shareable card contradicted every other net-worth
+ * surface in the game (2026-07-28 weekly audit: 5-way net-worth duplication).
  */
 function calculateNetWorth(gameState: GameState): number {
- let netWorth = gameState.stats?.money || 0;
- netWorth += gameState.bankSavings || 0;
-
- if (gameState.realEstate && Array.isArray(gameState.realEstate)) {
- netWorth += gameState.realEstate.reduce((sum, property) => sum + (property.price || 0), 0);
- }
-
- return netWorth;
+ return canonicalNetWorth(gameState);
 }
 
 /**

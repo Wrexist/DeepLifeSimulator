@@ -642,6 +642,17 @@ export const subscribeSparkPremium = (
 ): { success: boolean; message: string } => {
   const price = plan === 'annual' ? SPARK_TIER_PRICING[tier].annual : SPARK_TIER_PRICING[tier].weekly;
   const tierLabel = tier === 'ultra' ? 'Ultra' : 'Plus';
+  // Re-entry guard: buying the tier+plan you ALREADY hold re-charges the full
+  // price and (for annual) resets paidThroughWeek to now+52 rather than extending
+  // it — a pure loss. Changing tier (Plus ⇄ Ultra) or plan stays allowed. Filed
+  // as a non-blocking LOW by the 2026-07-16 weekly audit.
+  const activePremium = gameState.sparkApp?.premium;
+  if (activePremium?.active === true && activePremium.tier === tier && (activePremium.plan ?? 'weekly') === plan) {
+    return {
+      success: false,
+      message: `Spark ${tierLabel} is already active — no need to buy it again.`,
+    };
+  }
   // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
   // setGameState is a plain (wrapped) React useState setter that may defer the
   // updater, so reading a value the updater assigns is unreliable. The atomic
@@ -654,6 +665,17 @@ export const subscribeSparkPremium = (
     };
   }
   setGameState((prev) => {
+    // Same re-entry guard re-checked against `prev` — two taps in one React batch
+    // both read the pre-dispatch snapshot, so only this in-updater check stops the
+    // second from paying twice.
+    const prevPremium = prev.sparkApp?.premium;
+    if (
+      prevPremium?.active === true &&
+      prevPremium.tier === tier &&
+      (prevPremium.plan ?? 'weekly') === plan
+    ) {
+      return prev;
+    }
     // Charge in-game cash atomically (overdraft-reject) in the same updater that
     // grants the perks.
     const spend = applyMoneyDelta(prev, -price, `Spark ${tier} (${plan})`);
