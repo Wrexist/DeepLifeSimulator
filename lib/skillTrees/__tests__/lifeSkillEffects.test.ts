@@ -27,7 +27,7 @@ describe('getLifeSkillModifiers — accessor', () => {
   it('is null/undefined safe (old saves without unlockedLifeSkills)', () => {
     expect(getLifeSkillModifiers(undefined)).toEqual(NEUTRAL_LIFE_SKILL_MODIFIERS);
     expect(getLifeSkillModifiers(null)).toEqual(NEUTRAL_LIFE_SKILL_MODIFIERS);
-    expect(getLifeSkillModifiers({} as GameState)).toEqual(NEUTRAL_LIFE_SKILL_MODIFIERS);
+    expect(getLifeSkillModifiers(createTestGameState({}))).toEqual(NEUTRAL_LIFE_SKILL_MODIFIERS);
   });
 
   it('maps each representative node to its documented modifier', () => {
@@ -85,8 +85,8 @@ describe('getLifeSkillModifiers — accessor', () => {
 
 describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
   const base = () => createTestGameState({
-    stats: { money: 5000 } as GameState['stats'],
-    date: { age: 40 } as GameState['date'],
+    stats: { money: 5000 },
+    date: { age: 40 },
     unlockedLifeSkills: [],
   });
 
@@ -100,7 +100,7 @@ describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
   });
 
   it('rejects an unaffordable purchase without mutating state', () => {
-    const s = createTestGameState({ stats: { money: 100 } as GameState['stats'], date: { age: 40 } as GameState['date'] });
+    const s = createTestGameState({ stats: { money: 100 }, date: { age: 40 } });
     const res = purchaseLifeSkill(s, { id: 'wealth_master', cost: 10000, levelRequired: 40 });
     expect(res.purchased).toBe(false);
     expect(res.reason).toBe('insufficient-funds');
@@ -109,8 +109,8 @@ describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
 
   it('rejects a double-buy of an already-unlocked skill', () => {
     const s = createTestGameState({
-      stats: { money: 5000 } as GameState['stats'],
-      date: { age: 40 } as GameState['date'],
+      stats: { money: 5000 },
+      date: { age: 40 },
       unlockedLifeSkills: ['charisma'],
     });
     const res = purchaseLifeSkill(s, { id: 'charisma', cost: 300, levelRequired: 16 });
@@ -120,7 +120,7 @@ describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
   });
 
   it('rejects when under the age requirement', () => {
-    const s = createTestGameState({ stats: { money: 5000 } as GameState['stats'], date: { age: 15 } as GameState['date'] });
+    const s = createTestGameState({ stats: { money: 5000 }, date: { age: 15 } });
     const res = purchaseLifeSkill(s, { id: 'leadership', cost: 1500, levelRequired: 25 });
     expect(res.purchased).toBe(false);
     expect(res.reason).toBe('too-young');
@@ -133,7 +133,7 @@ describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
   });
 
   it('migrates an old save with no unlockedLifeSkills array on first purchase', () => {
-    const s = createTestGameState({ stats: { money: 5000 } as GameState['stats'], date: { age: 40 } as GameState['date'] });
+    const s = createTestGameState({ stats: { money: 5000 }, date: { age: 40 } });
     delete (s as { unlockedLifeSkills?: string[] }).unlockedLifeSkills;
     const res = purchaseLifeSkill(s, { id: 'budgeting', cost: 500, levelRequired: 18 });
     expect(res.purchased).toBe(true);

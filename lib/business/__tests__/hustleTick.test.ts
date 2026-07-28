@@ -30,7 +30,7 @@ function company(id: string, weeklyIncome: number, type: Company['type'] = 'fact
 
 function stateWith(companies: Company[], overlays: Record<string, HustleCompanyOverlay>): GameState {
   return createTestGameState({
-    stats: { money: 1_000_000 } as GameState['stats'],
+    stats: { money: 1_000_000 },
     companies,
     hustleApp: {
       companies: overlays,

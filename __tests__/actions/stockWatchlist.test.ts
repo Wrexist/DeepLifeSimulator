@@ -6,6 +6,7 @@
  */
 import { toggleStockWatchlist } from '@/contexts/game/actions/StockActions';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 function makeSetState(initial: GameState) {
   let state = initial;
@@ -16,9 +17,9 @@ function makeSetState(initial: GameState) {
 }
 
 function baseState(): GameState {
-  return {
+  return createTestGameState({
     stocks: { holdings: [], watchlist: [], realizedGains: 0 },
-  } as unknown as GameState;
+  });
 }
 
 describe('toggleStockWatchlist', () => {
@@ -49,7 +50,7 @@ describe('toggleStockWatchlist', () => {
   });
 
   it('initializes the stocks slice when absent (no crash on a fresh save)', () => {
-    const store = makeSetState({} as unknown as GameState);
+    const store = makeSetState(createTestGameState({}));
     toggleStockWatchlist(store.setState, 'MSFT');
     expect(store.get().stocks?.watchlist).toEqual(['MSFT']);
   });

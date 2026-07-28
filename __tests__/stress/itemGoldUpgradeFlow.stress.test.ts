@@ -39,6 +39,7 @@ import {
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -402,7 +403,7 @@ describe('Item + Gold Upgrade interactions', () => {
     const { IAP_PRODUCTS } = await import('@/utils/iapConfig');
 
     // GEMS_MEGA carries everythingUnlocked: true (verified in iapConfig.ts).
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = createTestGameState();
     iapService.applyProductToState(state, IAP_PRODUCTS.GEMS_MEGA);
 
     // All individual upgrades should be flipped via the everythingUnlocked branch.

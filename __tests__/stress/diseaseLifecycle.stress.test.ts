@@ -53,6 +53,7 @@ import {
 } from '@/lib/diseases/immunitySystem';
 import { DISEASE_DEFINITIONS, getDiseaseTemplate, createDiseaseFromTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -84,7 +85,7 @@ function mountGame() {
 }
 
 function freshState(over: Partial<GameState> = {}): GameState {
-  const base = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  const base = createTestGameState();
   return { ...base, ...over };
 }
 

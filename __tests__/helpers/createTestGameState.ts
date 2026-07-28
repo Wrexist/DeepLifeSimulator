@@ -25,115 +25,111 @@ import { initialGameState } from '@/contexts/game/initialState';
  * });
  * ```
  */
-export function createTestGameState(overrides: Partial<GameState> = {}): GameState {
-  // Start with actual initial state to ensure all required properties exist
-  // This guarantees type safety - if GameState changes, tests will fail at compile time
-  return {
-    ...initialGameState,
-    ...overrides,
-    // Deep merge for the nested objects listed BELOW, and only those.
-    //
-    // Ten of the state's thirty-three nested objects are merged here; the other
-    // twenty-three are replaced wholesale by an override, so
-    // `createTestGameState({ socialMedia: { verifiedPro: true } })` yields a
-    // socialMedia with one key and nothing else. That is a fixture the game
-    // never produces, and a test written against it can pass on behaviour that
-    // could not happen.
-    //
-    // Left as it is rather than widened: tests already written against the
-    // wholesale-replacement behaviour would change meaning silently. Stated
-    // here so the next caller knows which of the two they are getting.
-    stats: {
-      ...initialGameState.stats,
-      ...(overrides.stats || {}),
-    },
-    date: {
-      ...initialGameState.date,
-      ...(overrides.date || {}),
-    },
-    settings: {
-      ...initialGameState.settings,
-      ...(overrides.settings || {}),
-    },
-    social: {
-      ...initialGameState.social,
-      ...(overrides.social || {}),
-    },
-    economy: {
-      ...initialGameState.economy,
-      ...(overrides.economy || {}),
-    },
-    family: {
-      ...initialGameState.family,
-      ...(overrides.family || {}),
-    },
-    banking: overrides.banking
-      ? {
-          ...(initialGameState.banking ?? {}),
-          ...overrides.banking,
-          creditScore: {
-            ...(initialGameState.banking?.creditScore ?? {}),
-            ...(overrides.banking?.creditScore ?? {}),
-            componentBreakdown: {
-              ...(initialGameState.banking?.creditScore?.componentBreakdown ?? {}),
-              ...(overrides.banking?.creditScore?.componentBreakdown ?? {}),
-            },
-          },
-        }
-      : initialGameState.banking,
-    cryptoMarket: overrides.cryptoMarket
-      ? {
-          ...(initialGameState.cryptoMarket ?? {}),
-          ...overrides.cryptoMarket,
-          coinMarkets: {
-            ...(initialGameState.cryptoMarket?.coinMarkets ?? {}),
-            ...(overrides.cryptoMarket?.coinMarkets ?? {}),
-          },
-          costBasis: {
-            ...(initialGameState.cryptoMarket?.costBasis ?? {}),
-            ...(overrides.cryptoMarket?.costBasis ?? {}),
-          },
-        }
-      : initialGameState.cryptoMarket,
-    darkWeb: overrides.darkWeb
-      ? {
-          ...(initialGameState.darkWeb ?? {}),
-          ...overrides.darkWeb,
-          skills: {
-            ...(initialGameState.darkWeb?.skills ?? {}),
-            ...(overrides.darkWeb?.skills ?? {}),
-          },
-        }
-      : initialGameState.darkWeb,
-    // Identity & Body (v26). Deep-merged per branch so a test can override just
-    // `body.weightKg` without having to hand-build a face genome — and, more
-    // importantly, so overriding one branch cannot silently drop the others and
-    // hand the weekly tick an undefined body.
-    identity: overrides.identity
-      ? {
-          ...(initialGameState.identity ?? {}),
-          ...overrides.identity,
-          face: {
-            ...(initialGameState.identity?.face ?? {}),
-            ...(overrides.identity?.face ?? {}),
-            morphs: {
-              ...(initialGameState.identity?.face?.morphs ?? {}),
-              ...(overrides.identity?.face?.morphs ?? {}),
-            },
-          },
-          body: {
-            ...(initialGameState.identity?.body ?? {}),
-            ...(overrides.identity?.body ?? {}),
-          },
-          style: {
-            ...(initialGameState.identity?.style ?? {}),
-            ...(overrides.identity?.style ?? {}),
-          },
-          procedures: overrides.identity?.procedures ?? initialGameState.identity?.procedures ?? [],
-        }
-      : initialGameState.identity,
-  };
+/**
+ * True for a mergeable object: a plain `{}`, not an array, null, Date or class.
+ *
+ * Arrays are deliberately NOT mergeable. A test writing `{ loans: [loan] }`
+ * means "these loans and no others"; merging index-wise would leave initial
+ * entries hanging off the end and produce a state the game never builds.
+ */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return (
+    typeof v === 'object'
+    && v !== null
+    && !Array.isArray(v)
+    && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null)
+  );
 }
+
+/**
+ * Deep clone, so a fixture never aliases `initialGameState`.
+ *
+ * This is not tidiness. `deepMerge(initialGameState, {})` used to return a
+ * SHALLOW copy, so every nested object and array was the module-level initial
+ * state's own — and a test that pushed to `state.relationships` or bumped a
+ * counter in place was editing the initial state for every test that ran after
+ * it, in every file. The long-run save stress test caught it: its serialized
+ * payload came out at 121 KB against a 100 KB bound, because five thousand
+ * simulated weeks had been accumulating into the shared object.
+ *
+ * The enumerated version hid this by rebuilding its ten listed branches on every
+ * call. Generalising the merge without generalising the copy turned a partial
+ * safety into none.
+ */
+function cloneDeep<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(cloneDeep) as unknown as T;
+  if (!isPlainObject(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) out[key] = cloneDeep(value[key]);
+  return out as T;
+}
+
+function deepMerge<T>(base: T, over: Partial<T> | undefined): T {
+  if (!isPlainObject(base) || !over) return cloneDeep((over ?? base) as T);
+  const out: Record<string, unknown> = cloneDeep(base as Record<string, unknown>);
+  for (const key of Object.keys(over)) {
+    const nextValue = (over as Record<string, unknown>)[key];
+    const baseValue = (base as Record<string, unknown>)[key];
+    out[key] = isPlainObject(baseValue) && isPlainObject(nextValue)
+      ? deepMerge(baseValue, nextValue)
+      : nextValue;
+  }
+  return out as T;
+}
+
+/**
+ * Build a complete `GameState` with the given fields overridden.
+ *
+ * ## Every nested object is merged, not ten of them
+ *
+ * This used to deep-merge an ENUMERATED LIST — `stats`, `date`, `settings`,
+ * `social`, `economy`, `family`, `banking`, `cryptoMarket`, `darkWeb`,
+ * `identity` — and replace the other twenty-three wholesale. So
+ * `createTestGameState({ socialMedia: { verifiedPro: true } })` produced a
+ * `socialMedia` with exactly one key: a fixture the game never builds, handed to
+ * code that reads the other fields and gets `undefined`. A test written against
+ * that can pass on behaviour that cannot happen, and every field added to a
+ * nested object silently widened the gap.
+ *
+ * The list was left alone once before on the grounds that widening it would
+ * change the meaning of tests already written against wholesale replacement.
+ * That is true, and it is the reason to do it deliberately with the suite green
+ * rather than to leave a factory that lies about what state looks like — Hard
+ * Rule #3 exists to keep tests on states the game can actually produce.
+ *
+ * Arrays still replace wholesale. `{ loans: [loan] }` means those loans and no
+ * others, and merging index-wise would leave initial entries on the end.
+ *
+ * ## The overrides are DEEP-partial, and that is what unblocked the rule
+ *
+ * The signature was `Partial<GameState>`, which only makes TOP-LEVEL keys
+ * optional — every nested object still had to be complete. So
+ * `createTestGameState({ stats: { gems: 10 } })` did not type-check, and the
+ * only way to write it was to hand-build a state and cast:
+ *
+ *   { stats: { gems: 10 }, weeksLived: 5 } as unknown as GameState
+ *
+ * Which is exactly what Hard Rule #3 bans, and exactly what 67 tests did. They
+ * were not carelessness; they were the only thing the type allowed. A rule whose
+ * sanctioned path cannot express the common case gets routed around, and the
+ * weekly audit has been reporting the symptom rather than the cause.
+ */
+export function createTestGameState(overrides: DeepPartial<GameState> = {}): GameState {
+  return deepMerge(initialGameState, overrides as Partial<GameState>);
+}
+
+/**
+ * Every key optional, all the way down — with arrays left alone.
+ *
+ * Arrays stay whole because the merge replaces them: allowing a partial element
+ * type would let a test write half a loan and get a `Loan` back that the game
+ * could never build, which is the failure this whole file exists to prevent.
+ */
+export type DeepPartial<T> = T extends readonly unknown[]
+  ? T
+  : T extends object
+    ? { [K in keyof T]?: DeepPartial<T[K]> }
+    : T;
 
 /**
  * Type guard to verify GameState is complete

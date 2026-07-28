@@ -20,19 +20,20 @@ import {
 } from '../hosting';
 import { getLuxuryBrandPull } from '@/lib/social/brandPartnerships';
 import type { GameState, Relationship } from '@/contexts/game/types';
+import { createTestGameState } from '../../../__tests__/helpers/createTestGameState';
 
 const rel = (id: string, score: number, type: Relationship['type'] = 'friend'): Relationship =>
   ({ id, name: id, type, relationshipScore: score }) as unknown as Relationship;
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+  return createTestGameState({
     weeksLived: 600,
     stats: { money: 100_000_000, happiness: 50, reputation: 30 },
     luxuryItems: ['private_island'],
     luxuryHoldings: {},
     relationships: [rel('a', 80), rel('b', 60), rel('c', 40)],
     ...overrides,
-  } as unknown as GameState;
+  });
 }
 
 describe('venues', () => {

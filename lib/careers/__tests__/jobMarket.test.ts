@@ -22,16 +22,17 @@ import {
 } from '../jobMarket';
 import { INITIAL_CAREERS } from '../careerData';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../../../__tests__/helpers/createTestGameState';
 
 /** A freshly created character: fitness 10, reputation 0 (see initialState). */
 function freshState(overrides: Partial<GameState['stats']> = {}): GameState {
-  return {
+  return createTestGameState({
     weeksLived: 0,
     rngCommitLog: { seed: 12345, sequence: 0, entries: {}, order: [] },
     userProfile: { firstName: 'Test' },
     date: { year: 2000, month: 'January', week: 1, age: 18 },
     stats: { health: 100, happiness: 100, energy: 100, fitness: 10, money: 200, reputation: 0, gems: 0, ...overrides },
-  } as unknown as GameState;
+  });
 }
 
 describe('entry job profiles', () => {
@@ -127,23 +128,23 @@ describe('getJobBoard', () => {
     const b = getJobBoard(freshState()).map((o) => o.careerId);
     expect(a).toEqual(b);
 
-    const sameBlock = { ...freshState(), weeksLived: BOARD_ROTATION_WEEKS - 1 } as GameState;
+    const sameBlock = createTestGameState({ ...freshState(), weeksLived: BOARD_ROTATION_WEEKS - 1 });
     expect(getJobBoard(sameBlock).map((o) => o.careerId)).toEqual(a);
   });
 
   it('turns over when the block advances', () => {
     const week0 = getJobBoard(freshState()).map((o) => o.careerId);
-    const later = getJobBoard({ ...freshState(), weeksLived: BOARD_ROTATION_WEEKS * 5 } as GameState);
+    const later = getJobBoard(createTestGameState({ ...freshState(), weeksLived: BOARD_ROTATION_WEEKS * 5 }));
     expect(later.map((o) => o.careerId)).not.toEqual(week0);
   });
 
   it('gives different lives different markets', () => {
     const a = getJobBoard(freshState()).map((o) => o.careerId);
-    const other = {
+    const other = createTestGameState({
       ...freshState(),
       rngCommitLog: { seed: 987654, sequence: 0, entries: {}, order: [] },
       userProfile: { firstName: 'Someone Else' },
-    } as unknown as GameState;
+    });
     const b = getJobBoard(other).map((o) => o.careerId);
     expect(a).not.toEqual(b);
   });
@@ -159,7 +160,7 @@ describe('getJobBoard', () => {
     ];
     for (const stats of profiles) {
       for (let week = 0; week < BOARD_ROTATION_WEEKS * 12; week += 3) {
-        const state = { ...freshState(stats), weeksLived: week } as GameState;
+        const state = createTestGameState({ ...freshState(stats), weeksLived: week });
         const board = getJobBoard(state);
         expect(board.some((o) => o.verdict.eligible)).toBe(true);
       }
@@ -168,7 +169,7 @@ describe('getJobBoard', () => {
 
   it('never lists the same opening twice', () => {
     for (let week = 0; week < 60; week += 4) {
-      const board = getJobBoard({ ...freshState(), weeksLived: week } as GameState);
+      const board = getJobBoard(createTestGameState({ ...freshState(), weeksLived: week }));
       expect(new Set(board.map((o) => o.careerId)).size).toBe(board.length);
     }
   });
@@ -182,7 +183,7 @@ describe('getJobBoard', () => {
 describe('board rotation countdown', () => {
   it('counts down to the turnover and never reads zero', () => {
     for (let week = 0; week < BOARD_ROTATION_WEEKS * 3; week += 1) {
-      const left = weeksUntilBoardRefresh({ ...freshState(), weeksLived: week } as GameState);
+      const left = weeksUntilBoardRefresh(createTestGameState({ ...freshState(), weeksLived: week }));
       expect(left).toBeGreaterThan(0);
       expect(left).toBeLessThanOrEqual(BOARD_ROTATION_WEEKS);
     }

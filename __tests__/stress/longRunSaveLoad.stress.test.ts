@@ -29,12 +29,13 @@ import {
 } from '@/utils/saveValidation';
 import { advanceWeeks } from './helpers/timeHelpers';
 import { expectNoNaN, expectNoInfinity } from './helpers/assertions';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 // ───────────────────── Helpers ────────────────────────────────────────────
 
 function freshState(): GameState {
   // Deep clone so mutations during one test do not bleed into another.
-  return JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  return createTestGameState();
 }
 
 /** Recursively check for JSON-unsafe values (undefined inside objects is OK,

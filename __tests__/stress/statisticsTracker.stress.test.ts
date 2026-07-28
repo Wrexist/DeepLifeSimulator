@@ -61,6 +61,7 @@ import {
   calculateNetWorth,
 } from '@/lib/statistics/statisticsTracker';
 import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -400,7 +401,7 @@ describe('Statistics Tracker audit', () => {
   it('Round-trip: lifetimeStatistics preserved through save/parse', async () => {
     const { createSaveData, parseSaveData } = await import('@/utils/saveValidation');
     const { STATE_VERSION } = await import('@/contexts/game/initialState');
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = createTestGameState();
     state.lifetimeStatistics = {
       ...(state.lifetimeStatistics || getDefaultStatistics()),
       totalMoneyEarned: 1_234_567,

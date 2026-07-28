@@ -34,12 +34,12 @@ function captureUpdater() {
 
 function foundableState(overrides: Partial<GameState> = {}): GameState {
   return createTestGameState({
-    stats: { money: 500_000 } as GameState['stats'],
+    stats: { money: 500_000 },
     companies: [],
     educations: [
       { id: 'entrepreneurship', name: 'Entrepreneurship', description: '', cost: 0, duration: 0, completed: true },
     ],
-    economy: { priceIndex: 1 } as GameState['economy'],
+    economy: { priceIndex: 1 },
     ...overrides,
   });
 }

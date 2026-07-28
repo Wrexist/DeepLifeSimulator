@@ -8,6 +8,7 @@
 
 import { promoteCareer } from '@/contexts/game/actions/JobActions';
 import type { Career, GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const LEVELS = [
   { name: 'Junior Developer', salary: 800 },
@@ -33,12 +34,12 @@ function makeCareer(overrides: Partial<Career> = {}): Career {
 }
 
 function makeState(career: Career): GameState {
-  return {
+  return createTestGameState({
     weeksLived: 300,
     careers: [career],
     currentJob: career.id,
     stats: { money: 5000 },
-  } as unknown as GameState;
+  });
 }
 
 /** promoteCareer writes through setGameState; tests only read the return value. */

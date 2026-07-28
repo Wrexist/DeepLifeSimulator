@@ -7,6 +7,7 @@ import {
   DISCORD_CLAIM_KEY,
 } from '@/utils/discordRewardClaim';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 // Mock AsyncStorage (safeStorage lazily require()s it — see storageWrapper.test.ts).
 jest.mock('@react-native-async-storage/async-storage', () => {
@@ -29,11 +30,11 @@ const mockSetItem = AsyncStorage.setItem as jest.Mock;
 // Minimal GameState stub — applyDiscordRewardGrant only touches stats.money,
 // dailySummary and the discordRewardGranted flag (via applyMoneyDelta).
 function stubState(money = 1000, granted?: boolean): GameState {
-  return {
+  return createTestGameState({
     stats: { health: 50, happiness: 50, energy: 50, fitness: 50, money, reputation: 50, gems: 0 },
     dailySummary: {},
     discordRewardGranted: granted,
-  } as unknown as GameState;
+  });
 }
 
 describe('discordRewardClaim — exactly-once claim protocol', () => {

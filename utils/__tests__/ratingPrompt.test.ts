@@ -18,6 +18,7 @@ import {
 import type { GameState } from '@/contexts/game/types';
 import AsyncStorageImport from '@react-native-async-storage/async-storage';
 import * as StoreReviewImport from 'expo-store-review';
+import { createTestGameState } from '../../__tests__/helpers/createTestGameState';
 
 // Both modules are jest.mock'd in jest.setup.js; cast to the mock shape so the
 // per-test `mockResolvedValue` / `mockImplementation` calls typecheck.
@@ -237,7 +238,7 @@ describe('maybeRequestReview', () => {
       reason: 'invalid-state',
     });
     await expect(
-      maybeRequestReview('promotion', { weeksLived: NaN } as unknown as GameState)
+      maybeRequestReview('promotion', createTestGameState({ weeksLived: NaN }))
     ).resolves.toEqual({ requested: false, reason: 'invalid-state' });
   });
 

@@ -6,17 +6,18 @@
  */
 import { computeWeeklyIncome } from '../applyIncome';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../../../../../__tests__/helpers/createTestGameState';
 
 function baseState(): GameState {
   // Minimal state: no partners, no perks, no prestige, past the beginner-luck
   // window so the only thing moving totalIncome is the economy modifier.
-  return {
+  return createTestGameState({
     weeksLived: 100,
     relationships: [],
     perks: {},
     goldUpgrades: {},
     prestige: { unlockedBonuses: [] },
-  } as unknown as GameState;
+  });
 }
 
 function totalFor(economyIncomeMultiplier?: number): number {

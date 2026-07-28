@@ -201,7 +201,12 @@ describe('Checkpoint snapshot pruning', () => {
 // ---------------------------------------------------------------------------
 describe('Leaderboard scoring nil-safety', () => {
   it('calculateLeaderboardScore: returns 0 for every category when state is empty shell', () => {
-    const empty = {} as GameState;
+    // NIL-SAFETY FIXTURE — deliberately degenerate, which `createTestGameState`
+    // cannot express: it exists to build states the game can produce, and the
+    // whole point here is one it cannot. Converting this to the factory was
+    // tried and turned the test green-for-the-wrong-reason: the empty shell
+    // stopped being empty and the branch under test stopped being reached.
+    const empty = {} as GameState; // NIL-SAFETY FIXTURE
     expect(calculateLeaderboardScore(empty, 'wealth')).toBe(0);
     expect(calculateLeaderboardScore(empty, 'netWorth')).toBe(0);
     expect(calculateLeaderboardScore(empty, 'career')).toBe(0);
@@ -211,13 +216,15 @@ describe('Leaderboard scoring nil-safety', () => {
   });
 
   it('calculateLeaderboardScore: tolerates undefined nested fields without crashing', () => {
+    // NIL-SAFETY FIXTURE — every nested field explicitly undefined, which is a
+    // state the game cannot produce and the factory therefore will not build.
     const partial = {
       stats: undefined as any,
       careers: undefined as any,
       hobbies: undefined as any,
       date: undefined as any,
       achievements: undefined as any,
-    } as GameState;
+    } as GameState; // NIL-SAFETY FIXTURE
     expect(() => calculateLeaderboardScore(partial, 'wealth')).not.toThrow();
     expect(() => calculateLeaderboardScore(partial, 'career')).not.toThrow();
     expect(() => calculateLeaderboardScore(partial, 'skills')).not.toThrow();
@@ -225,13 +232,15 @@ describe('Leaderboard scoring nil-safety', () => {
   });
 
   it('calculateLeaderboardScore: never returns NaN for any category', () => {
+    // NIL-SAFETY FIXTURE — NaN in every numeric field. The factory builds valid
+    // states; proving the scorer never returns NaN needs an invalid one.
     const broken = {
       stats: { money: NaN } as any,
       careers: [{ level: NaN }, { level: NaN }] as any,
       hobbies: [{ skill: NaN }] as any,
       date: { age: NaN } as any,
       achievements: [] as any,
-    } as GameState;
+    } as GameState; // NIL-SAFETY FIXTURE
     for (const cat of ['wealth', 'netWorth', 'career', 'skills', 'age', 'achievements'] as const) {
       const v = calculateLeaderboardScore(broken, cat);
       expect(Number.isFinite(v)).toBe(true);

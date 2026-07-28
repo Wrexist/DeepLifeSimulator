@@ -28,6 +28,7 @@ import {
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { calculateChildStats, calculateChildInheritance } from '@/lib/prestige/childStats';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
+import { createTestGameState } from '../../../__tests__/helpers/createTestGameState';
 
 // ── factories ─────────────────────────────────────────────────────────────
 function makeChild(overrides: Partial<ChildInfo> = {}): ChildInfo {
@@ -44,14 +45,14 @@ function makeChild(overrides: Partial<ChildInfo> = {}): ChildInfo {
 }
 
 function makeParent(overrides: Partial<GameState> = {}): GameState {
-  return {
+  return createTestGameState({
     stats: { health: 60, happiness: 60, energy: 60, fitness: 60, money: 200_000, reputation: 60, gems: 0 },
     bankSavings: 0,
     weeksLived: 100,
     lineageId: 'test-lineage',
     generationNumber: 1,
     ...overrides,
-  } as unknown as GameState;
+  });
 }
 
 const VALID_BANDS: ParentingAgeBand[] = ['baby', 'toddler', 'child', 'teen'];

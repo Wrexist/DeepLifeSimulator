@@ -51,6 +51,7 @@ import {
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, Relationship } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -613,13 +614,13 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     const { promoteMatchToRelationship } = await import('@/contexts/game/actions/SparkActions');
     // The exclusivity guard fires before the profile lookup, so a minimal
     // match stub is enough — state is never mutated on the refusal path.
-    const stateWithMatch = {
+    const stateWithMatch = createTestGameState({
       ...captured!.state,
       sparkApp: {
         ...(captured!.state.sparkApp ?? {}),
         matches: [{ id: 'match_1', profileId: 'profile_x', promoted: false }],
       },
-    } as unknown as GameState;
+    });
 
     const relCountBefore = captured!.state.relationships?.length ?? 0;
     let promote: { success: boolean; message: string; relationshipId?: string } | undefined;

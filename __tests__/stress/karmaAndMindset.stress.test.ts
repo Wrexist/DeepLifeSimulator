@@ -35,9 +35,10 @@ import {
 } from '@/lib/mindset/config';
 import type { GameState } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 function makeState(over: Partial<GameState> = {}): GameState {
-  return { ...JSON.parse(JSON.stringify(initialGameState)), ...over } as GameState;
+  return createTestGameState({ ...JSON.parse(JSON.stringify(initialGameState)), ...over });
 }
 
 function deepCheck(state: unknown): string[] {

@@ -42,6 +42,7 @@ import {
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, Relationship } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -466,7 +467,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
     const { initialGameState } = await import('@/contexts/game/initialState');
     const { IAP_PRODUCTS } = await import('@/utils/iapConfig');
 
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = createTestGameState();
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);
