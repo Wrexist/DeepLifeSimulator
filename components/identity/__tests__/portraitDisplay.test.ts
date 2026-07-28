@@ -216,3 +216,48 @@ describe('the creator actually captures the face it renders', () => {
     expect(MODAL).toMatch(/capturingRef\.current/);
   });
 });
+
+describe('the creator is reachable AFTER onboarding, and the portrait ages', () => {
+  // Both of these are features whose logic is tested in
+  // `__tests__/actions/identityActions.test.ts`. What is asserted here is that
+  // they are REACHED — the defect this branch has now hit four times is code
+  // that is written, reviewed, unit-tested and wired to nothing.
+  const CARD = fs.readFileSync(path.join(__dirname, '..', '..', 'IdentityCard.tsx'), 'utf8');
+  const EDIT = fs.readFileSync(path.join(__dirname, '..', 'EditFaceButton.tsx'), 'utf8');
+  const REBAKE = fs.readFileSync(path.join(__dirname, '..', 'PortraitRebaker.tsx'), 'utf8');
+
+  it('mounts both on the character card', () => {
+    expect(CARD).toMatch(/<EditFaceButton\s*\/>/);
+    expect(CARD).toMatch(/<PortraitRebaker\s*\/>/);
+  });
+
+  it('opens the editor at the studio, not the entry screen', () => {
+    // Re-opening a face should not ask "photo or manual?" again — that question
+    // belongs to the first run, and the selfie route REPLACES the genome rather
+    // than editing it.
+    expect(EDIT).toMatch(/startAt="studio"/);
+  });
+
+  it('commits against prev, not a captured snapshot', () => {
+    // A week can tick while the modal is open. Writing back the `gameState`
+    // this closure captured would roll it back — the gate-then-grant shape.
+    expect(EDIT).toMatch(/setGameState\(\(prev\) =>/);
+    expect(REBAKE).toMatch(/setGameState\(\(prev\) =>/);
+  });
+
+  it('re-bakes at the character CURRENT age', () => {
+    // The entire point. Passing the bake-time age would re-render the same face
+    // it is replacing.
+    expect(REBAKE).toMatch(/age=\{age\}/);
+  });
+
+  it('only mounts a GL context when there is something to re-bake', () => {
+    // A character on a starter portrait must never get one for this.
+    expect(REBAKE).toMatch(/isPortraitStale\(/);
+    expect(REBAKE).toMatch(/if \(!FEATURE_FLAGS\.faceCreator3D \|\| !baking/);
+  });
+
+  it('tries once per mount, so a device that cannot capture does not spin', () => {
+    expect(REBAKE).toMatch(/attemptedRef\.current/);
+  });
+});

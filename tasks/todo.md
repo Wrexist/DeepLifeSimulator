@@ -1277,21 +1277,22 @@ Branch: `claude/game-character-customization-fk5s4m`. The user was given the
 tradeoffs on five deliberately-deferred findings plus one pre-existing warning,
 and asked for all of them fixed. Ordered by player impact.
 
-### 1. The built portrait must age with the character
-`identity.portraitWeek` is written and never read, so a built face freezes at
-creation age while the starter-portrait system ages — and the strip's own label
-promises "it ages with you".
-- [ ] `isPortraitStale(identity, weeksLived)` in `lib/identity` — pure, tested
-- [ ] Offscreen re-bake: mount a `FaceCanvas` only while stale, capture, write
-      `portraitUri` + `portraitWeek`, unmount. Never blank on failure.
-- [ ] Bounded: one re-bake in flight, GL-optional, old portrait survives a failure
+### 1. The built portrait ages with the character — DONE
+- [x] `isPortraitStale` + `applyFaceEdit` in `contexts/game/actions/IdentityActions.ts`
+- [x] `PortraitRebaker` mounts a FaceCanvas off-screen ONLY while a built
+      portrait is stale, captures at the character's current age, writes
+      `portraitUri` + `portraitWeek`, unmounts (disposing the GL context)
+- [x] Fails harmlessly: one attempt per mount, a null capture keeps the old
+      portrait, nothing written unless a real `data:` URI came back
 
-### 2. A way back into the creator after onboarding
-Currently onboarding-only. Root cause is that the identity chapter has no in-game
-UI at all, so this is the first of it.
-- [ ] Entry point on the character card
-- [ ] Opens `FaceCreatorModal` with `startAt='studio'`, writes genome + portrait
-- [ ] Re-baking here also refreshes `portraitWeek` (pairs with item 1)
+### 2. A way back into the creator after onboarding — DONE
+- [x] `EditFaceButton` on the character card — its own leaf component, because
+      `useGameState()` re-subscribes its caller to the whole state and
+      IdentityCard uses a narrow projection specifically to avoid that
+- [x] Opens at `startAt='studio'`, holds the genome as a local draft so a slider
+      drag does not write to the save sixty times a second, commits on Done
+- [x] Commits against `prev`, not the captured snapshot — a week can tick while
+      the modal is open
 
 ### 3. Procedural head rebuild cost — DONE (27.27 -> 21.13 ms, -22.5%)
 Only on the fallback path, but that path is also the slowest devices.

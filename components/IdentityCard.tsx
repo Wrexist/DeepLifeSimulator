@@ -33,6 +33,8 @@ import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getAvatarPortrait } from '@/utils/facePool';
 import AutoSaveIndicator from './AutoSaveIndicator';
+import EditFaceButton from '@/components/identity/EditFaceButton';
+import PortraitRebaker from '@/components/identity/PortraitRebaker';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
@@ -506,6 +508,13 @@ function IdentityCard() {
             source={avatar}
             style={[styles.avatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
           />
+          {/* THE WAY BACK INTO THE CREATOR. Onboarding was the only place a
+              face could be built, so a player who disliked theirs was stuck
+              with it for the whole run. */}
+          <EditFaceButton />
+          {/* Keeps the baked portrait the character's current age. Renders
+              nothing unless a BUILT portrait exists and has gone stale. */}
+          <PortraitRebaker />
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
