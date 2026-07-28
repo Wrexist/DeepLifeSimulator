@@ -1,5 +1,10 @@
 # CLAUDE.md — DeepLife Simulator
 
+> **This file is a mirror.** The canonical, up-to-date project context lives in
+> [`CLAUDE.md`](CLAUDE.md) at the repo root — it covers everything below plus the
+> repo map, commands, testing, save-format rules and release/App Store gotchas.
+> Where the two disagree, `CLAUDE.md` wins. Kept here for tools that read `DEV.md`.
+
 ## Project Overview
 
 - **Stack:** React Native 0.81.5 / Expo SDK 54 / React 19.1.0
@@ -179,36 +184,17 @@ Custom slash commands for this project. **Use these proactively:**
 
 ---
 
-## Project Subagents
+## Review focus areas
 
-Specialized reviewers in `.claude/agents/`. **Launch these during code reviews and after changes:**
+There are no committed reviewer subagent definitions, prompt templates, or hooks in
+this repo — `.claude/settings.json` holds only `customInstructions`, and
+`.claude/agents/` / `.claude/prompts/` do not exist. Use these as review checklists:
 
-| Agent | File | When to Use |
-|-------|------|-------------|
-| Game State Reviewer | `.claude/agents/game-state-reviewer.md` | After any change to contexts/, actions, or state logic — catches mutation bugs, signature mismatches, and the `week` vs `weeksLived` trap |
-| Save System Auditor | `.claude/agents/save-system-auditor.md` | After any change to types.ts, initialState.ts, saveValidation.ts, or save-related code — catches schema drift and corruption vectors |
+| After a change to | Check for |
+|---|---|
+| `contexts/`, action modules, state logic | direct mutation, the `week` vs `weeksLived` trap, non-atomic gate → grant grants, `DatingActions` signature mismatches |
+| `types.ts`, `initialState.ts`, `saveValidation.ts`, `saveMigrations.ts` | schema drift (new field without a version bump), migration ↔ `repairGameState` parity, `repaired = true` on every backfill |
+| `contexts/game/actions/weekly/` | every `apply*` subsystem inside the try/catch; no unguarded helper in a per-tick loop |
 
----
-
-## Prompt Templates
-
-Reusable audit prompts stored in `.claude/prompts/`:
-
-| Template | File | Use Case |
-|----------|------|----------|
-| Crash Audit | `.claude/prompts/crash-audit.md` | Crash investigation, stability analysis |
-| Exploit Audit | `.claude/prompts/exploit-audit.md` | Exploit, balance, and failure analysis |
-
-Both produce output in a structured Section A–G format.
-
----
-
-## Hooks (Automatic)
-
-These run automatically via `.claude/settings.json`:
-
-| Hook | Trigger | Effect |
-|------|---------|--------|
-| Prettier auto-format | After every file edit | Keeps code style consistent |
-| Block .env edits | Before editing .env files | Prevents secret leaks |
-| Block lock file edits | Before editing lock files | Forces `npm install` instead |
+The standing five-domain health check is the `weekly-audit` skill in
+`.agents/skills/` (`npm run audit:weekly` for the automated layer).
