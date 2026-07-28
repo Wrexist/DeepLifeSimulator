@@ -2,8 +2,7 @@
 
 > **This file is a mirror.** The canonical, up-to-date project context lives in
 > [`CLAUDE.md`](CLAUDE.md) at the repo root. Where the two disagree, `CLAUDE.md`
-> wins. Note the `.Codex/agents/`, `.Codex/prompts/` and hook entries below do
-> **not** exist in this repo — project skills live in `.agents/skills/`.
+> wins. Project skills live in `.agents/skills/`.
 
 ## Project Overview
 
@@ -161,36 +160,16 @@ Custom slash commands for this project. **Use these proactively:**
 
 ---
 
-## Project Subagents
+## Review focus areas
 
-Specialized reviewers in `.Codex/agents/`. **Launch these during code reviews and after changes:**
+There are no committed reviewer subagent definitions, prompt templates, or hooks in
+this repo (`.Codex/` does not exist). Use these as review checklists instead:
 
-| Agent | File | When to Use |
-|-------|------|-------------|
-| Game State Reviewer | `.Codex/agents/game-state-reviewer.md` | After any change to contexts/, actions, or state logic — catches mutation bugs, signature mismatches, and the `week` vs `weeksLived` trap |
-| Save System Auditor | `.Codex/agents/save-system-auditor.md` | After any change to types.ts, initialState.ts, saveValidation.ts, or save-related code — catches schema drift and corruption vectors |
+| After a change to | Check for |
+|---|---|
+| `contexts/`, action modules, state logic | direct mutation, the `week` vs `weeksLived` trap, non-atomic gate → grant grants, `DatingActions` signature mismatches |
+| `types.ts`, `initialState.ts`, `saveValidation.ts`, `saveMigrations.ts` | schema drift (new field without a version bump), migration ↔ `repairGameState` parity, `repaired = true` on every backfill |
+| `contexts/game/actions/weekly/` | every `apply*` subsystem inside the try/catch; no unguarded helper in a per-tick loop |
 
----
-
-## Prompt Templates
-
-Reusable audit prompts stored in `.Codex/prompts/`:
-
-| Template | File | Use Case |
-|----------|------|----------|
-| Crash Audit | `.Codex/prompts/crash-audit.md` | Crash investigation, stability analysis |
-| Exploit Audit | `.Codex/prompts/exploit-audit.md` | Exploit, balance, and failure analysis |
-
-Both produce output in a structured Section A–G format.
-
----
-
-## Hooks (Automatic)
-
-These run automatically via `.Codex/settings.json`:
-
-| Hook | Trigger | Effect |
-|------|---------|--------|
-| Prettier auto-format | After every file edit | Keeps code style consistent |
-| Block .env edits | Before editing .env files | Prevents secret leaks |
-| Block lock file edits | Before editing lock files | Forces `npm install` instead |
+The standing five-domain health check is the `weekly-audit` skill in
+`.agents/skills/` (`npm run audit:weekly` for the automated layer).

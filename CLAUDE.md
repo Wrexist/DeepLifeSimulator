@@ -51,7 +51,7 @@ Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 
 ## 3. Repository Map
 
-```
+```text
 app/                 expo-router routes only
   entry.ts           17 lines — app init ONLY (Hard Rule #1)
   _layout.tsx        root layout: providers, boot sequence, error boundaries
@@ -167,8 +167,16 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   stripped and `index` maps to its parent, so `app/index.tsx` and `app/(tabs)/index.tsx`
   collide — expo-router silently drops one **in production only**. That shipped the
   v2.5.0 launch crash; `npm run check:routes` now guards it.
-- **No `React.lazy()` / dynamic `import()` inside a screen file** — reverted once for
-  crashing production iOS under Hermes minification.
+- **`React.lazy()` in a screen file is narrow, not banned.** Converting a screen's
+  sub-app map (`apps[activeApp]`) to `lazy(() => import(…))` shipped an "Element type
+  is invalid" launch crash in the production Hermes bundle and was reverted, so
+  `app/(tabs)/computer.tsx` and `app/(tabs)/mobile.tsx` must stay eager —
+  `__tests__/startup/screenImports.test.ts` blocks a regression there. Lazy-loading a
+  heavy *modal leaf* rendered directly is the established pattern and is used on
+  purpose (`MainMenu.tsx` lazies `SettingsModal` precisely to keep its heavy graph out
+  of MainMenu's module init; `_layout.tsx`, `home.tsx` and `(tabs)/_layout.tsx` do the
+  same). Don't add a new one without a production smoke test, and never for a component
+  the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
   - `as any` → warn app-wide, **error in `lib/travel/**`** (the first fully clean
@@ -184,7 +192,9 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
 
 **1. `app/entry.ts` stays dumb.** App initialization only — no imports from
 `@/lib`, `@/contexts`, `@/components`, no complex functions, under 200 lines
-(it is currently 17). Logic belongs in `app/_layout.tsx`. Enforced by preflight §3.
+(it is currently 17). Logic belongs in `app/_layout.tsx`. Preflight §3 reports
+violations but only **warns** — it fails the build solely when `entry.ts` is
+missing, so a green preflight is not proof this rule held. Check it by eye.
 
 **2. No unions without guards.** Access union members via
 `'property' in object && object.property`. No direct access, no `as any`.
@@ -406,8 +416,9 @@ Skills live in `.agents/skills/`:
 | `weekly-audit [domain]` | The standing weekly health check — Economy, Crash/Stability, Save/State, Game Logic, Week-Loop Performance. Automated layer `npm run audit:weekly` (static analyzers in `scripts/audit/`); deep layer is a guided qualitative pass. Run as a Claude Routine |
 
 `.claude/settings.json` holds only `customInstructions` — there are currently **no
-hooks, no `.claude/agents/`, and no `.claude/prompts/`** in this repo, despite older
-mentions in `DEV.md` / `WORKFLOW.md`.
+hooks, no `.claude/agents/`, and no `.claude/prompts/`** in this repo. Older
+revisions of `DEV.md` / `WORKFLOW.md` described all three; those sections have been
+replaced with review checklists.
 
 ---
 
