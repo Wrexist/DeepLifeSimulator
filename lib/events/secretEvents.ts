@@ -201,8 +201,17 @@ const unluckyThirteen: EventTemplate = {
  condition: (s) => {
  const age = getAge(s);
  const week = s.week ?? 1;
- // Age 13, week 1 of month (approximately Friday the 13th)
- return age === 13 && week === 1;
+ // Week 1 of the cycle (approximately Friday the 13th), during the earliest
+ // years a life can actually be lived.
+ //
+ // This was `age === 13`, which no player could ever reach — the youngest
+ // start in the catalog is 16 ("Athlete's Journey"), everything else begins at
+ // 18+, so the condition was never true and the event was dead content
+ // (2026-07-28 audit GL-6). A bare `age === 16` would have been nearly as dead:
+ // it would fire only for that one scenario. Banding it to 16-18 keeps the
+ // "unlucky thirteen" omen an early-life beat while making it reachable from
+ // every start.
+ return age >= 16 && age <= 18 && week === 1;
  },
  generate: () => ({
  id: 'secret_unlucky_13',

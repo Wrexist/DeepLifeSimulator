@@ -16,7 +16,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements } from '@/lib/progress/achievements';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
-import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
@@ -61,7 +61,7 @@ import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/d
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
-import { getEventChainStageCount } from '@/lib/events/engine';
+import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import {
@@ -129,6 +129,7 @@ import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealt
 import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
+import { resolveFamilySpouse } from './actions/weekly/resolveFamilySpouse';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
@@ -1156,6 +1157,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let updatedPendingEvents = weeklyEventsResult.updatedPendingEvents;
  const newEventCount = weeklyEventsResult.newEventCount;
 
+ // GL-1: clear an activeEventChain that can never advance again (see
+ // healLatchedEventChain). Returns null — and changes nothing — unless the
+ // save is actually latched.
+ let healedEventChain: ReturnType<typeof healLatchedEventChain> = null;
+ try {
+   healedEventChain = healLatchedEventChain(prevState);
+ } catch (chainErr) {
+   logger.warn('[EVENT CHAIN] heal check failed', { error: String(chainErr) });
+ }
+
  // R7 Phase 2 step 2.7-C: cliffhanger resolution extracted into
  // ./actions/weekly/applyCliffhangerResolution.ts. Same lookup, same
  // append with stamping, same try/catch swallow on missing/malformed
@@ -2126,6 +2137,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevState,
    newBornChildrenCount: newBornChildren.length,
    careerSalary,
+   // Political office pay is owned by passiveIncome, so `careerSalary` is 0
+   // while in office — without this the work accumulators (and therefore the
+   // pension) never moved for a career politician. GL-3.
+   politicalWeeklySalary: getPoliticalWeeklySalary(prevState),
    safeNetWorth,
    totalIncome,
    nextWeeksLived,
@@ -2192,7 +2207,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  return {
 ...prevState.family,
-...(newWeddingSpouse ? { spouse: newWeddingSpouse }: {}),
+ // Re-derived, not carried: the health pass can end a marriage mid-tick and
+ // this denormalized copy used to survive it (2026-07-28 audit GL-5).
+ spouse: resolveFamilySpouse({
+ prevSpouse: prevState.family?.spouse,
+ relationships: processedRelationships,
+ newWeddingSpouse: newWeddingSpouse ?? undefined,
+ }),
  children,
  };
  })(),
@@ -2227,6 +2248,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  pendingEvents: updatedPendingEvents,
  // #16: persist the dequeued follow-up chain queue (due ones surfaced above).
  pendingChainedEvents: updatedPendingChainedEvents,
+ // GL-1 self-heal: a save latched by the old off-by-one carries an
+ // activeEventChain the engine can never advance, which also blocks every
+ // future chain. `healedEventChain` is null on an ordinary tick, so this
+ // spreads nothing and the output stays byte-identical.
+...(healedEventChain ?? {}),
  // Update economy state
  economy: updatedEconomy,
  // Update last event week for pity system
@@ -2884,45 +2910,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Failed to check for chained events:', { error: e });
  }
 
- // Update activeEventChain if this is part of a chain
- let updatedActiveEventChain = prevState.activeEventChain;
- let updatedEventChains = prevState.eventChains || [];
- if (event.chainId) {
- const currentChain = prevState.activeEventChain;
- if (currentChain && currentChain.chainId === event.chainId) {
- // Existing chain — advance or complete
- if (currentChain.currentStage < currentChain.totalStages - 1) {
- updatedActiveEventChain = {
-...currentChain,
- eventId: eventId,
- currentStage: currentChain.currentStage + 1,
- };
- } else {
- // Chain complete — mark in history.
- // R2-B: cap to 50 — was unbounded.
- updatedActiveEventChain = undefined;
- updatedEventChains = [
-...updatedEventChains,
- {
- chainId: event.chainId,
- currentStage: currentChain.totalStages - 1,
- stages: [],
- completed: true,
- },
- ].slice(-50);
- }
- } else if (!currentChain && event.chainStage === 0) {
- // Starting a NEW chain from stage 0
- updatedActiveEventChain = {
- chainId: event.chainId,
- eventId: eventId,
- currentStage: 0,
- // Use the chain's real stage count so the final payout stage isn't dropped
- // (a hardcoded 3 force-completed the 4-stage business_opportunity chain).
- totalStages: getEventChainStageCount(event.chainId) ?? 3,
- };
- }
- }
+ // Chain bookkeeping (advance / complete / start) lives in the pure
+ // `advanceEventChain` helper so it is unit-testable — the GL-1 off-by-one
+ // survived precisely because this decision was inline in a React callback
+ // that no test could drive.
+ const chainUpdate = advanceEventChain(
+   { activeEventChain: prevState.activeEventChain, eventChains: prevState.eventChains },
+   event,
+   eventId,
+ );
+ const updatedActiveEventChain = chainUpdate.activeEventChain;
+ const updatedEventChains = chainUpdate.eventChains;
 
  // Apply karma change if the choice has a karma effect
  let updatedKarma = prevState.karma;

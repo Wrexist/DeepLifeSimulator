@@ -36,6 +36,40 @@ interface PassiveIncomeBreakdown {
   gamingStreaming: number;
 }
 
+/**
+ * Weekly pay from holding political office — 0 when not in office.
+ *
+ * Exported because TWO subsystems need this number and must not disagree about
+ * it: `calcWeeklyPassiveIncome` below (which OWNS paying it — political money
+ * deliberately does not flow through the generic career-salary path) and
+ * `applyLifetimeStatistics` (which must count the work so a career politician
+ * accrues a pension, 2026-07-28 audit GL-3). `POLITICAL_CAREER.levels[].salary`
+ * is ANNUAL, and a second copy of this conversion that forgot the division would
+ * produce a 52x pension — so there is exactly one copy.
+ */
+export function getPoliticalWeeklySalary(state: GameState): number {
+  if (!state.politics || !(state.politics.careerLevel > 0)) return 0;
+  // CRITICAL: Validate careers array exists before using find
+  const careers = Array.isArray(state.careers) ? state.careers : [];
+  const politicalCareer = careers.find(c => c && c.id === 'political');
+  if (
+    !politicalCareer ||
+    typeof politicalCareer.level !== 'number' ||
+    isNaN(politicalCareer.level) ||
+    politicalCareer.level < 0 ||
+    politicalCareer.level >= POLITICAL_CAREER.levels.length
+  ) {
+    return 0;
+  }
+  const level = POLITICAL_CAREER.levels[politicalCareer.level];
+  if (!level || typeof level.salary !== 'number' || !isFinite(level.salary) || level.salary <= 0) {
+    return 0;
+  }
+  // Convert annual salary to weekly (salary is annual in POLITICAL_CAREER)
+  const weeklySalary = level.salary / WEEKS_PER_YEAR;
+  return isFinite(weeklySalary) && weeklySalary > 0 ? Math.round(weeklySalary) : 0;
+}
+
 export function calcWeeklyPassiveIncome(
   state: GameState,
   // ANTI-EXPLOIT (rent double-count): when the weekly tick computes spendable
@@ -461,24 +495,8 @@ export function calcWeeklyPassiveIncome(
   if (!isFinite(socialMediaIncome) || socialMediaIncome < 0) socialMediaIncome = 0;
 
   // Political career salary (weekly income from political office)
-  let politicalIncome = 0;
-  if (state.politics && state.politics.careerLevel > 0) {
-    // CRITICAL: Validate careers array exists before using find
-    const careers = Array.isArray(state.careers) ? state.careers : [];
-    const politicalCareer = careers.find(c => c && c.id === 'political');
-    if (politicalCareer && typeof politicalCareer.level === 'number' && !isNaN(politicalCareer.level) && politicalCareer.level >= 0 && politicalCareer.level < POLITICAL_CAREER.levels.length) {
-      const level = POLITICAL_CAREER.levels[politicalCareer.level];
-      if (level && typeof level.salary === 'number' && isFinite(level.salary) && level.salary > 0) {
-        // Convert annual salary to weekly (salary is annual in POLITICAL_CAREER)
-        const weeklySalary = level.salary / WEEKS_PER_YEAR;
-        if (isFinite(weeklySalary) && weeklySalary > 0) {
-          politicalIncome = Math.round(weeklySalary);
-        }
-      }
-    }
-  }
-  // Final validation
-  if (!isFinite(politicalIncome) || politicalIncome < 0) politicalIncome = 0;
+  // (getPoliticalWeeklySalary already guarantees a finite, non-negative number.)
+  const politicalIncome = getPoliticalWeeklySalary(state);
 
   // Crypto mining income (Bitcoin mining from companies and warehouse)
   let cryptoMiningIncome = 0;
