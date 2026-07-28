@@ -16,6 +16,49 @@ import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental
 /** Street-job requirement ids that any transport tier can satisfy. */
 const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
 
+/**
+ * The street jobs the transport system actually governs.
+ *
+ * The transport rules used to key on the REQUIREMENT id `bike` alone, but three
+ * jobs list that requirement — `delivery`, `food_delivery`, and the illegal
+ * `smuggling`. So owning a car both bypassed smuggling's requirement (it is
+ * meant to gate on actually having a bike) and multiplied its $1,000 base pay by
+ * the car tier's 1.8x, on an untaxed payout, three times a week. Scoping to the
+ * delivery gigs is strictly narrowing: a player who owns the bike ITEM still
+ * qualifies for smuggling exactly as before the rental wave.
+ * 2026-07-28 audit econ-2.
+ */
+const TRANSPORT_GOVERNED_JOB_IDS = new Set(['delivery', 'food_delivery']);
+
+/**
+ * Energy a street job costs THIS player — the transport tier's figure for a
+ * delivery gig, the job's flat cost otherwise.
+ *
+ * Exported so the Work screen charges, gates and LABELS from one number.
+ * `getDeliveryTerms().energyCost` previously had no consumer at all: the tier
+ * gradient was advertised on the Transport card and never charged, which also
+ * made the scooter tier strictly dominated (lower pay, no energy saving).
+ * 2026-07-28 audit econ-3.
+ */
+export function getStreetJobEnergyCost(
+  gameState: GameState,
+  job: { id?: string; energyCost: number; requirements?: string[] },
+): number {
+  const terms = getTransportTermsForJob(gameState, job, 0);
+  return terms ? terms.energyCost : job.energyCost;
+}
+
+/** Transport terms for a job, or null when transport does not govern it. */
+function getTransportTermsForJob(
+  gameState: GameState,
+  job: { id?: string; requirements?: string[] },
+  basePay: number,
+): ReturnType<typeof getDeliveryTerms> {
+  if (!job.id || !TRANSPORT_GOVERNED_JOB_IDS.has(job.id)) return null;
+  if (!job.requirements?.some(r => TRANSPORT_REQUIREMENT_ITEMS.has(r))) return null;
+  return getDeliveryTerms(gameState, basePay);
+}
+
 const log = logger.scope('JobActions');
 
 /**
@@ -102,10 +145,14 @@ export const performStreetJob = (
     };
   }
 
-  if (gameState.stats.energy < job.energyCost) {
+  // Transport-aware: a delivery run on a car costs less energy than on foot.
+  // The same helper backs the Work screen's gate and label, so the button, the
+  // message and the charge can never disagree (econ-3).
+  const energyCost = getStreetJobEnergyCost(gameState, job);
+  if (gameState.stats.energy < energyCost) {
     return {
       success: false,
-      message: `This job needs ${job.energyCost} energy — you have ${gameState.stats.energy}. Rest up or eat something first.`,
+      message: `This job needs ${energyCost} energy — you have ${gameState.stats.energy}. Rest up or eat something first.`,
     };
   }
 
@@ -117,8 +164,12 @@ export const performStreetJob = (
     // valid (if slower and lower-paid) way to run deliveries, which is the
     // whole point of the rental being reachable on a $200 starting wallet.
     const transportTier = getTransportTier(gameState);
+    // Scoped to the delivery gigs — see TRANSPORT_GOVERNED_JOB_IDS. Without the
+    // job-id check this also unlocked the illegal `smuggling` job (which lists
+    // `bike` as a requirement) off a $5 scooter rental.
+    const transportGovernsThisJob = !!job.id && TRANSPORT_GOVERNED_JOB_IDS.has(job.id);
     const satisfiedByTransport = (req: string) =>
-      TRANSPORT_REQUIREMENT_ITEMS.has(req) && transportTier !== 'none';
+      transportGovernsThisJob && TRANSPORT_REQUIREMENT_ITEMS.has(req) && transportTier !== 'none';
     const missingItems = job.requirements.filter(
       req => !satisfiedByTransport(req) && !items.find(item => item.id === req)?.owned
     );
@@ -231,9 +282,7 @@ export const performStreetJob = (
   // 1.35x, a car 1.8x. That gradient is the progression — the rental unlocks
   // the work, and every upgrade you buy out of it pays you more for the
   // same run.
-  const transportTerms = job.requirements?.some(r => TRANSPORT_REQUIREMENT_ITEMS.has(r))
-    ? getDeliveryTerms(gameState, basePay)
-    : null;
+  const transportTerms = getTransportTermsForJob(gameState, job, basePay);
   const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
 
   const moneyGained = success ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus) : 0;
@@ -289,7 +338,10 @@ export const performStreetJob = (
       // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
       // render snapshot, so without this a same-batch double-tap runs two jobs on one
       // job's worth of energy. A 2nd same-batch tap now no-ops here.
-      if (prev.stats.energy < job.energyCost) return prev;
+      // Recomputed from `prev`: the transport tier is part of state, so the
+      // re-check and the deduction below must read the same snapshot.
+      const freshEnergyCost = getStreetJobEnergyCost(prev, job);
+      if (prev.stats.energy < freshEnergyCost) return prev;
       // Recalculate money lost from fresh prev state to avoid stale-closure race
       const prevMoney = prev.stats.money;
       const freshMoneyLost = caught ? Math.min(prevMoney, Math.round(prevMoney * 0.1)) : 0;
@@ -320,7 +372,7 @@ export const performStreetJob = (
         stats: {
           ...prev.stats,
           money: finalMoney, // Use calculated value from snapshot
-          energy: Math.max(0, prev.stats.energy - job.energyCost),
+          energy: Math.max(0, prev.stats.energy - freshEnergyCost),
           happiness: Math.max(0, Math.min(100, prev.stats.happiness + happinessPenalty)),
           health: Math.max(0, Math.min(100, prev.stats.health + healthPenalty)),
         },
@@ -350,7 +402,10 @@ export const performStreetJob = (
       // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
       // render snapshot, so without this a same-batch double-tap runs two jobs on one
       // job's worth of energy. The cap re-checks below only catch it once the cap is hit.
-      if (prev.stats.energy < job.energyCost) return prev;
+      // Recomputed from `prev`: the transport tier is part of state, so the
+      // re-check and the deduction below must read the same snapshot.
+      const freshEnergyCost = getStreetJobEnergyCost(prev, job);
+      if (prev.stats.energy < freshEnergyCost) return prev;
       // ANTI-EXPLOIT: Re-check the per-job and global weekly caps INSIDE the
       // prev callback so two rapid same-batch street-job clicks don't both
       // pass the outer cap gate above and bypass the cap.
@@ -464,7 +519,7 @@ export const performStreetJob = (
         stats: {
           ...prev.stats,
           money: newMoney,
-          energy: Math.max(0, prev.stats.energy - job.energyCost),
+          energy: Math.max(0, prev.stats.energy - freshEnergyCost),
           happiness: Math.max(0, Math.min(100, prev.stats.happiness + happinessPenalty)),
           health: Math.max(0, Math.min(100, prev.stats.health + healthPenalty)),
         },

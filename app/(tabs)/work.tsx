@@ -28,6 +28,7 @@ import {
     growthLabel,
 } from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
+import { getStreetJobEnergyCost } from '@/contexts/game/actions/JobActions';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
@@ -348,12 +349,15 @@ function WorkScreenContent() {
         const lowReward = Math.floor(job.basePayment * 0.7);
         const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
         const reward = `$${lowReward}–${highReward}`;
-        const lacksEnergy = (gameState?.stats?.energy ?? 0) < job.energyCost;
+        // Same helper the reducer charges with, so the gate, the label and the
+        // charge cannot disagree about a transport-discounted delivery run.
+        const jobEnergyCost = getStreetJobEnergyCost(gameState, job);
+        const lacksEnergy = (gameState?.stats?.energy ?? 0) < jobEnergyCost;
         const inJail = gameState.jailWeeks > 0;
         const { happinessPenalty, healthPenalty } = getJobPenalties(job);
 
         const metadata: JobCardMetadata[] = [
-            { icon: <Zap size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${job.energyCost} energy` },
+            { icon: <Zap size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${jobEnergyCost} energy` },
             { icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `Rank ${job.rank}` },
         ];
         if (job.skill) {
@@ -409,7 +413,7 @@ function WorkScreenContent() {
             } else if (inJail) {
                 lockReason = 'Unavailable while in jail.';
             } else if (lacksEnergy) {
-                lockReason = `Needs ${job.energyCost} energy.`;
+                lockReason = `Needs ${getStreetJobEnergyCost(gameState, job)} energy.`;
             }
 
             const buttonText = atLimit
@@ -462,7 +466,7 @@ function WorkScreenContent() {
                 : inJail
                     ? 'Unavailable while in jail.'
                     : lacksEnergy
-                        ? `Needs ${job.energyCost} energy.`
+                        ? `Needs ${getStreetJobEnergyCost(gameState, job)} energy.`
                         : undefined;
 
         const streetMetadata: JobCardMetadata[] = [...metadata];
