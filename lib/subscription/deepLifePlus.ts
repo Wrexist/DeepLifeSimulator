@@ -345,8 +345,10 @@ export function isDeepLifePlusActive(): boolean {
   //   - `EXPO_PUBLIC_QA_TOOLS` is set by the `testflight` profile in
   //     `eas.json` and by nothing else. The `production` profile does not
   //     carry it, so a store build does not have it.
-  //   - `scripts/preflight-check.js` §5d FAILS if the production profile ever
-  //     gains it, or if it is set in the environment of a production build. A
+  //   - `scripts/preflight-check.js` §5d FAILS if any profile that can reach
+  //     the store carries it, or if it is set in the environment of a
+  //     production build. `testflight` is the one allowed exception, by name;
+  //     an explicitly `internal` profile is fine because it never ships. A
   //     store binary with this flag cannot get built without the check going
   //     red first.
   //
