@@ -43,7 +43,7 @@ import {
 } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Dices, Eye, RotateCcw, Undo2 } from 'lucide-react-native';
 import MorphSlider from './MorphSlider';
-import FaceCanvas from './FaceCanvas';
+import FaceCanvas, { type FaceCanvasHandle } from './FaceCanvas';
 import {
   EYE_COLORS,
   FACIAL_HAIR_STYLES,
@@ -215,6 +215,16 @@ export interface FaceStudioProps {
    * the avatar the player had picked two screens earlier.
    */
   fallback?: React.ReactNode;
+  /**
+   * Handle on the live preview, so the caller can snapshot the head the player
+   * actually built.
+   *
+   * The studio owns the canvas but not the decision about what gets persisted —
+   * `FaceCreatorModal` does. Without this the modal had no way to reach the
+   * framebuffer, and it passed `null` unconditionally: the preview was live, the
+   * sliders worked, and the portrait was never captured.
+   */
+  canvasRef?: React.Ref<FaceCanvasHandle>;
 }
 
 export default function FaceStudio({
@@ -229,6 +239,7 @@ export default function FaceStudio({
   selectedPresetId,
   onSelectPreset,
   step,
+  canvasRef,
   totalSteps = 4,
   title = 'Build your face',
   subtitle = "Create a face that's uniquely yours.",
@@ -355,6 +366,7 @@ export default function FaceStudio({
               pool image survives as the fallback, so a device that cannot open
               a GL context still shows a face rather than an empty frame. */}
           <FaceCanvas
+            ref={canvasRef}
             genome={comparing ? baselineRef.current : genome}
             age={age ?? 22}
             body={body}

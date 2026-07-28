@@ -22,11 +22,12 @@
  * belongs to the first run.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import FaceStudio from './FaceStudio';
+import type { FaceCanvasHandle } from './FaceCanvas';
 import BecomeYourself from './BecomeYourself';
 import SelfieFlow from './SelfieFlow';
 import SubscriptionModal from '@/components/SubscriptionModal';
@@ -84,12 +85,38 @@ export default function FaceCreatorModal({
     if (visible) setRoute(startAt);
   }, [visible, startAt]);
 
-  const handleDone = useCallback(() => {
-    // No baked portrait yet: the studio renders pre-rendered art rather than a
-    // live GL head, so there is no framebuffer to snapshot. The layered
-    // portrait pipeline will supply the stored image instead, and this stays
-    // the single place that decides what gets persisted.
-    onDone?.(null);
+  const canvasRef = useRef<FaceCanvasHandle>(null);
+  // Done is asynchronous now, so a second tap before the first resolves would
+  // capture twice and close twice. Invisible when the snapshot is fast, which
+  // is the normal case; the guard is for when it is not.
+  const capturingRef = useRef(false);
+
+  const handleDone = useCallback(async () => {
+    // SNAPSHOT THE HEAD THE PLAYER BUILT.
+    //
+    // This passed `null` unconditionally, under a comment saying the studio
+    // "renders pre-rendered art rather than a live GL head". That stopped being
+    // true when the preview went live — `FaceStudio`'s own docstring now opens
+    // with "The preview is live" — and nothing updated this. So every slider
+    // worked, the head responded, the player tapped Use this face, and the
+    // portrait was thrown away. `identity.portraitUri` could never be set by
+    // the shipping path at all.
+    //
+    // Capture failure is not an error case worth blocking on: `capture()`
+    // resolves null when GL is unavailable or the snapshot is unusable, and
+    // null simply means the character keeps the starter portrait, which always
+    // renders. The creator still closes either way.
+    if (capturingRef.current) return;
+    capturingRef.current = true;
+    let uri: string | null = null;
+    try {
+      uri = (await canvasRef.current?.capture()) ?? null;
+    } catch {
+      uri = null;
+    } finally {
+      capturingRef.current = false;
+    }
+    onDone?.(uri);
     onClose();
   }, [onDone, onClose]);
 
@@ -142,6 +169,7 @@ export default function FaceCreatorModal({
               />
             ) : (
               <FaceStudio
+                canvasRef={canvasRef}
                 genome={genome}
                 onChange={onChange}
                 onDone={handleDone}

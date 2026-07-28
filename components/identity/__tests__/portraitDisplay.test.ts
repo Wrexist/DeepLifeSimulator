@@ -120,3 +120,41 @@ describe('Customize.tsx keeps all three systems switchable', () => {
     expect(SCREEN).toMatch(/faceCreator3D && facePortraitUri \?/);
   });
 });
+
+describe('the creator actually captures the face it renders', () => {
+  const MODAL = fs.readFileSync(
+    path.join(__dirname, '..', 'FaceCreatorModal.tsx'),
+    'utf8',
+  );
+  const STUDIO = fs.readFileSync(
+    path.join(__dirname, '..', 'FaceStudio.tsx'),
+    'utf8',
+  );
+
+  it('snapshots the live canvas on Done', () => {
+    // THE DEFECT THAT MADE EVERY OTHER TEST HERE UNREACHABLE.
+    //
+    // `handleDone` passed `null` unconditionally, under a comment saying the
+    // studio "renders pre-rendered art rather than a live GL head". That
+    // stopped being true when the preview went live and nothing updated it, so
+    // the sliders worked, the head responded, and the portrait was discarded —
+    // `identity.portraitUri` could never be set by the shipping path.
+    expect(MODAL).toMatch(/canvasRef\.current\?\.capture\(\)/);
+  });
+
+  it('does not hardcode a null portrait', () => {
+    // The specific shape of the bug: a literal null where a capture belongs.
+    expect(MODAL).not.toMatch(/onDone\?\.\(null\);/);
+  });
+
+  it('passes the handle down to the studio, which owns the canvas', () => {
+    expect(MODAL).toMatch(/canvasRef=\{canvasRef\}/);
+    expect(STUDIO).toMatch(/ref=\{canvasRef\}/);
+  });
+
+  it('guards against a second Done tap while the first is capturing', () => {
+    // Done is asynchronous now, so without this a double tap captures twice and
+    // closes twice.
+    expect(MODAL).toMatch(/capturingRef\.current/);
+  });
+});
