@@ -272,7 +272,7 @@ function WorkScreenContent() {
         // Calculate risk the same way as in JobActions.ts
         // Risk = (100 - successChance) / 2
         const baseSuccess = job.baseSuccessRate || 50;
-        const skillBonus = job.skill ? (gameState.crimeSkills[job.skill]?.level || 0) * 5 : 0;
+        const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
         const successChance = Math.min(95, baseSuccess + skillBonus);
         const caughtChance = (100 - successChance) / 2;
 

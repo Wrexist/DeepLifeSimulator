@@ -457,6 +457,36 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // `crimeSkills` is a concrete-default object that repair never backfilled, and
+  // the Work tab reads it BARE in render — `gameState.crimeSkills[job.skill].level`
+  // (app/(tabs)/work.tsx) — so a save missing it (CloudSync merge / hand-edit)
+  // white-screens the tab. Restore the whole container when it is missing, and
+  // fill individual skills when it is present-but-partial (the likelier shape as
+  // the skill list grows). 2026-07-28 audit crash-1.
+  {
+    const seedSkills = initialFields.crimeSkills as Record<string, unknown> | undefined;
+    if (seedSkills && typeof seedSkills === 'object') {
+      if (!s.crimeSkills || typeof s.crimeSkills !== 'object' || Array.isArray(s.crimeSkills)) {
+        s.crimeSkills = JSON.parse(JSON.stringify(seedSkills));
+        repairs.push('Restored missing crimeSkills from defaults');
+        repaired = true;
+      } else {
+        let addedSkills = 0;
+        for (const [skillId, seed] of Object.entries(seedSkills)) {
+          const current = s.crimeSkills[skillId];
+          if (!current || typeof current !== 'object' || typeof current.level !== 'number') {
+            s.crimeSkills[skillId] = JSON.parse(JSON.stringify(seed));
+            addedSkills += 1;
+          }
+        }
+        if (addedSkills > 0) {
+          repairs.push(`Backfilled ${addedSkills} missing crimeSkills entries`);
+          repaired = true;
+        }
+      }
+    }
+  }
+
   // Additive optional fields that post-date their subsystem's last migration
   // (Luxury catalog + Life Ambitions). Migration 23 fills them on a version
   // ladder, but repair also runs on partial saves (CloudSync merge / hand-edit)
@@ -1025,6 +1055,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.activeScandal === undefined) {
     sm.activeScandal = null;
+    repairs.push('Normalized missing socialMedia.activeScandal');
+    repaired = true;
   }
   if (!Array.isArray(sm.scandalHistory)) {
     sm.scandalHistory = [];
@@ -1081,6 +1113,15 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing socialMedia.notifications');
     repaired = true;
   }
+  // `activeBrandDeals` is a concrete-default `[]` in initialState with neither a
+  // migration backfill nor a repair mirror — it predates both (2026-07-28 audit
+  // save-5). The static parity check in audit-save.cjs only sees fields a
+  // migration touches, so a field that never got one is invisible to it.
+  if (!Array.isArray(sm.activeBrandDeals)) {
+    sm.activeBrandDeals = [];
+    repairs.push('Created missing socialMedia.activeBrandDeals');
+    repaired = true;
+  }
   // Checkpoint snapshots strip recentPosts (see slimCheckpointSnapshot); the
   // rewind path relies on this default to restore a valid empty feed cache.
   if (!Array.isArray(sm.recentPosts)) {
@@ -1090,6 +1131,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.liveSession === undefined) {
     sm.liveSession = null;
+    repairs.push('Normalized missing socialMedia.liveSession');
+    repaired = true;
   }
   if (!Array.isArray(sm.pendingBoosts)) {
     sm.pendingBoosts = [];
@@ -1110,6 +1153,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.lastViralBoostBySkill === undefined || typeof sm.lastViralBoostBySkill !== 'object') {
     sm.lastViralBoostBySkill = {};
+    repairs.push('Created missing socialMedia.lastViralBoostBySkill');
+    repaired = true;
   }
   // v22 Wave-A concrete defaults — mirrored from migration 22 so a partial save
   // already stamped past v22 is healed here too (save-format rule (b)). The
@@ -1155,10 +1200,13 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing sparkApp.messages');
     repaired = true;
   }
-  if (typeof sp.swipeQuota !== 'number') sp.swipeQuota = 30;
-  if (typeof sp.swipesUsedThisWeek !== 'number') sp.swipesUsedThisWeek = 0;
-  if (typeof sp.lastQuotaResetWeek !== 'number') sp.lastQuotaResetWeek = s.weeksLived ?? 0;
-  if (typeof sp.superLikesUsedThisWeek !== 'number') sp.superLikesUsedThisWeek = 0;
+  // Every branch below MUST set `repaired` — the repaired clone is only written
+  // back onto the caller's object when that flag is true, so a backfill without
+  // it is computed and silently discarded (CLAUDE.md; 2026-07-28 audit save-3).
+  if (typeof sp.swipeQuota !== 'number') { sp.swipeQuota = 30; repairs.push('Created missing sparkApp.swipeQuota'); repaired = true; }
+  if (typeof sp.swipesUsedThisWeek !== 'number') { sp.swipesUsedThisWeek = 0; repairs.push('Created missing sparkApp.swipesUsedThisWeek'); repaired = true; }
+  if (typeof sp.lastQuotaResetWeek !== 'number') { sp.lastQuotaResetWeek = s.weeksLived ?? 0; repairs.push('Created missing sparkApp.lastQuotaResetWeek'); repaired = true; }
+  if (typeof sp.superLikesUsedThisWeek !== 'number') { sp.superLikesUsedThisWeek = 0; repairs.push('Created missing sparkApp.superLikesUsedThisWeek'); repaired = true; }
   if (!sp.premium || typeof sp.premium !== 'object') {
     sp.premium = {
       active: false,
@@ -1199,13 +1247,16 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Expired legacy Spark Premium IAP grant past its term');
     repaired = true;
   }
-  if (!Array.isArray(sp.likedYou)) sp.likedYou = [];
-  if (!Array.isArray(sp.catfishRecords)) sp.catfishRecords = [];
-  if (sp.activeJealousy === undefined) sp.activeJealousy = null;
-  if (!Array.isArray(sp.jealousyHistory)) sp.jealousyHistory = [];
-  if (sp.boost === undefined) sp.boost = null;
-  if (!Array.isArray(sp.dismissedCatfishIds)) sp.dismissedCatfishIds = [];
-  if (!Array.isArray(sp.reportedIds)) sp.reportedIds = [];
+  // Same rule (b) flag discipline as above. `likedYou` is the one with a live
+  // crash consumer: likeBackFromLikedYou reads the RAW sparkApp, so a save
+  // missing it threw — and the repair that fixed it was being thrown away.
+  if (!Array.isArray(sp.likedYou)) { sp.likedYou = []; repairs.push('Created missing sparkApp.likedYou'); repaired = true; }
+  if (!Array.isArray(sp.catfishRecords)) { sp.catfishRecords = []; repairs.push('Created missing sparkApp.catfishRecords'); repaired = true; }
+  if (sp.activeJealousy === undefined) { sp.activeJealousy = null; repairs.push('Normalized missing sparkApp.activeJealousy'); repaired = true; }
+  if (!Array.isArray(sp.jealousyHistory)) { sp.jealousyHistory = []; repairs.push('Created missing sparkApp.jealousyHistory'); repaired = true; }
+  if (sp.boost === undefined) { sp.boost = null; repairs.push('Normalized missing sparkApp.boost'); repaired = true; }
+  if (!Array.isArray(sp.dismissedCatfishIds)) { sp.dismissedCatfishIds = []; repairs.push('Created missing sparkApp.dismissedCatfishIds'); repaired = true; }
+  if (!Array.isArray(sp.reportedIds)) { sp.reportedIds = []; repairs.push('Created missing sparkApp.reportedIds'); repaired = true; }
   if (!sp.lifetimeStats || typeof sp.lifetimeStats !== 'object') {
     sp.lifetimeStats = {
       totalSwipes: 0, totalMatches: 0, totalSuperLikes: 0,

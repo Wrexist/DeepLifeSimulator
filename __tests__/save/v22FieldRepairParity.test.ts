@@ -166,3 +166,112 @@ describe('repairGameState mirrors the v22 nested concrete defaults', () => {
     })).toBe(before);
   });
 });
+
+/**
+ * The repaired clone is written back onto the caller's object ONLY when
+ * `repaired` is true. A backfill that sets a field but leaves the flag alone is
+ * therefore computed and thrown away — the save reaches gameplay still missing
+ * the field. Fourteen Spark/Pulse backfills had that shape (2026-07-28 audit
+ * save-3), so a save missing e.g. `sparkApp.likedYou` was "repaired" on every
+ * load and still crashed on every load.
+ */
+describe('repairGameState never discards a backfill it computed', () => {
+  it.each([
+    ['likedYou', []],
+    ['catfishRecords', []],
+    ['jealousyHistory', []],
+    ['dismissedCatfishIds', []],
+    ['reportedIds', []],
+    ['swipeQuota', 30],
+    ['swipesUsedThisWeek', 0],
+    ['superLikesUsedThisWeek', 0],
+  ])('flags the repair when sparkApp.%s is missing, so it survives write-back', (field, expected) => {
+    const state = partialSave();
+    delete state.sparkApp[field as string];
+
+    const result = repairGameState(state);
+    // The flag is the whole point: without it the caller keeps the broken object.
+    expect(result.repaired).toBe(true);
+    expect(state.sparkApp[field as string]).toEqual(expected);
+  });
+
+  it.each([
+    ['activeJealousy'],
+    ['boost'],
+  ])('normalizes sparkApp.%s to null AND flags it', (field) => {
+    const state = partialSave();
+    delete state.sparkApp[field];
+
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(state.sparkApp[field]).toBeNull();
+  });
+
+  it.each([
+    ['liveSession', null],
+    ['lastViralBoostBySkill', {}],
+    ['activeScandal', null],
+  ])('flags the repair when socialMedia.%s is missing', (field, expected) => {
+    const state = partialSave();
+    delete state.socialMedia[field as string];
+
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(state.socialMedia[field as string]).toEqual(expected);
+  });
+});
+
+describe('repairGameState backfills the fields that had no mirror at all', () => {
+  it('restores socialMedia.activeBrandDeals (no migration, no repair before)', () => {
+    const state = partialSave();
+    delete state.socialMedia.activeBrandDeals;
+
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(state.socialMedia.activeBrandDeals).toEqual([]);
+  });
+
+  it('restores a missing crimeSkills container (the Work tab reads it bare)', () => {
+    const state = partialSave();
+    delete state.crimeSkills;
+
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    // The shape the render path indexes into must be back.
+    expect(state.crimeSkills.stealth.level).toBe(1);
+    expect(state.crimeSkills.hacking.level).toBe(1);
+    expect(state.crimeSkills.lockpicking.level).toBe(1);
+  });
+
+  it('fills individual missing skills without discarding the ones the player levelled', () => {
+    const state = partialSave();
+    state.crimeSkills = { stealth: { xp: 900, level: 7, upgrades: ['x'] } };
+
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(state.crimeSkills.stealth).toEqual({ xp: 900, level: 7, upgrades: ['x'] });
+    expect(state.crimeSkills.hacking.level).toBe(1);
+    expect(state.crimeSkills.lockpicking.level).toBe(1);
+  });
+
+  it('leaves a healthy save alone (none of these branches fire)', () => {
+    const state = partialSave();
+    const before = JSON.stringify({
+      spark: state.sparkApp,
+      social: state.socialMedia,
+      crime: state.crimeSkills,
+    });
+
+    const result = repairGameState(state);
+
+    expect(JSON.stringify({
+      spark: state.sparkApp,
+      social: state.socialMedia,
+      crime: state.crimeSkills,
+    })).toBe(before);
+    // A healthy save must not trip any of the branches added here. (`repaired`
+    // itself can still be true — the factory state has always been missing
+    // `loans`, which an older repair backfills.)
+    expect(result.repairs.filter((r) => /sparkApp|socialMedia|crimeSkills/.test(r))).toEqual([]);
+  });
+});

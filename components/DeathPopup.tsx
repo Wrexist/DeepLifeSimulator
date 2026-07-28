@@ -187,7 +187,12 @@ function DeathPopup() {
       }));
       setSelectedHeirId(null);
 
-      await saveGame();
+      // Same reason as the rewind path: without the yield this persists the
+      // state as it was BEFORE the heir transition — showDeathPopup still true,
+      // so the next load reopens the death screen on an already-continued
+      // legacy. 2026-07-28 audit save-1.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await saveGame(true);
     } catch (error) {
       logger.error('Failed to start new life from legacy:', error);
       Alert.alert('Error', 'Failed to continue legacy. Please try again.');
@@ -285,11 +290,18 @@ function DeathPopup() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Rewind',
-            onPress: () => {
+            onPress: async () => {
               const restored = rewindToCheckpoint(gameState, checkpointId);
               if (restored) {
                 setGameState(() => restored);
-                saveGame();
+                // saveGame reads gameStateRef, which is only synced by a
+                // post-commit effect — calling it in this same synchronous
+                // segment persists the PRE-rewind (dead) state, and the gems
+                // were already spent. Yield one macrotask so React commits and
+                // the ref catches up first (the 2026-07-14 stale-save-after-
+                // commit lesson; 2026-07-28 audit save-1).
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+                await saveGame(true);
               } else {
                 Alert.alert('Error', 'Failed to rewind. Checkpoint may be corrupted.');
               }

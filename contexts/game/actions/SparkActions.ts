@@ -61,9 +61,10 @@ export const REWIND_GEM_COST = 20;
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────
 
-function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
+/** Every field of a fresh sparkApp slice, as its own object per call. */
+function sparkDefaults(): NonNullable<GameState['sparkApp']> {
   return (
-    prev.sparkApp ?? {
+    {
       profile: { bio: '', photos: [], interests: [], showAge: true, showJob: true, showWealth: false },
       swipes: [],
       matches: [],
@@ -93,6 +94,39 @@ function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
       },
     }
   );
+}
+
+/** Drop explicitly-undefined keys so a spread can't punch holes in the defaults. */
+function definedOnly<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
+
+/**
+ * The sparkApp slice, guaranteed complete.
+ *
+ * This used to be `prev.sparkApp ?? defaults` — all-or-nothing, so a
+ * PRESENT-but-partial slice (CloudSync merge, hand-edit, a save written before a
+ * field existed) passed straight through with its holes intact, and every
+ * consumer that read a sub-field without a guard threw. repairGameState backfills
+ * the same fields on load, but repair only runs at the load boundary; the fix
+ * belongs in the helper every action already calls (2026-07-07 lesson), so a
+ * partial slice reaching an action mid-session is healed too.
+ */
+function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
+  const defaults = sparkDefaults();
+  const sp = prev.sparkApp;
+  if (!sp) return defaults;
+  return {
+    ...defaults,
+    ...definedOnly(sp),
+    profile: { ...defaults.profile, ...definedOnly(sp.profile ?? {}) },
+    premium: sp.premium
+      ? { ...defaults.premium, ...definedOnly(sp.premium), perks: sp.premium.perks ?? perksForTier(sp.premium.tier ?? 'free') }
+      : defaults.premium,
+    lifetimeStats: { ...defaults.lifetimeStats, ...definedOnly(sp.lifetimeStats ?? {}) },
+  };
 }
 
 function genId(prefix: string): string {
