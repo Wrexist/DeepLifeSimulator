@@ -28,7 +28,7 @@ import {
     growthLabel,
 } from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
-import { getStreetJobEnergyCost } from '@/contexts/game/actions/JobActions';
+import { getStreetJobEnergyCost, MAX_TOTAL_STREET_JOBS_PER_WEEK } from '@/contexts/game/actions/JobActions';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
@@ -99,6 +99,7 @@ function WorkScreenContent() {
     // one-shot presentation concern — nothing about it needs to survive a save.
     const [promotionCelebration, setPromotionCelebration] = useState<PromotionDetails | null>(null);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
+
 
     const {
         gameState,
@@ -397,11 +398,17 @@ function WorkScreenContent() {
             const timesDoneThisWeek = weeklyJobs[job.id] || 0;
             const maxPerWeek = 3;
             const atLimit = timesDoneThisWeek >= maxPerWeek;
-            const locked = lacksEnergy || inJail || atLimit || !meetsCriminalLevel || missingItems.length > 0 || missingDark.length > 0;
+            // The GLOBAL weekly cap the reducer enforces. It used to be invisible
+            // here, so at 8/8 every card stayed enabled and every tap bounced off
+            // a rejection message. UX-4.
+            const atGlobalLimit = streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
+            const locked = lacksEnergy || inJail || atLimit || atGlobalLimit || !meetsCriminalLevel || missingItems.length > 0 || missingDark.length > 0;
 
             let lockReason: string | undefined;
             if (atLimit) {
                 lockReason = `Used ${timesDoneThisWeek}/${maxPerWeek} this week — wait for next week.`;
+            } else if (atGlobalLimit) {
+                lockReason = `Street-job limit reached (${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week).`;
             } else if (!meetsCriminalLevel) {
                 lockReason = `Requires Criminal Lv ${job.criminalLevelReq}`;
             } else if (missingItems.length > 0) {
@@ -458,9 +465,12 @@ function WorkScreenContent() {
         const streetDoneThisWeek = streetWeekly[job.id] || 0;
         const streetMaxPerWeek = 3;
         const streetAtLimit = streetDoneThisWeek >= streetMaxPerWeek;
-        const locked = lacksEnergy || inJail || missing.length > 0 || streetAtLimit;
+        const atGlobalLimit = streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
+        const locked = lacksEnergy || inJail || missing.length > 0 || streetAtLimit || atGlobalLimit;
         const lockReason = streetAtLimit
             ? `Used ${streetDoneThisWeek}/${streetMaxPerWeek} this week — wait for next week.`
+            : atGlobalLimit
+            ? `Street-job limit reached (${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week).`
             : missing.length > 0
                 ? `Need ${missing.join(', ')}`
                 : inJail
@@ -535,7 +545,11 @@ function WorkScreenContent() {
             meetsHiringBar &&
             !career.applied &&
             !gameState.currentJob &&
-            !pendingApplication
+            !pendingApplication &&
+            // Retirement is a one-way latch in applyForJob — without this the
+            // button stayed enabled and every tap was silently rejected.
+            // 2026-07-28 audit UX-2.
+            !gameState.isRetired
         );
     };
 
@@ -691,10 +705,19 @@ function WorkScreenContent() {
         } else if (!canApplyForCareer(career)) {
             buttonText = 'Unavailable';
             locked = true;
-            lockReason = gameState.currentJob ? 'Quit your current job to apply.' : 'Another application is pending.';
+            lockReason = gameState.isRetired
+                ? "You've retired — your pension is your income now."
+                : gameState.currentJob
+                    ? 'Quit your current job to apply.'
+                    : 'Another application is pending.';
         } else {
             buttonText = t('work.apply');
-            onPress = () => applyForJob(career.id);
+            onPress = () => {
+                const r = applyForJob(career.id);
+                // A rejection used to be silent — the reducer's message was
+                // discarded and the tap just buzzed. UX-2.
+                if (r && !r.success) showWarning(r.message);
+            };
         }
 
         // Footer: progress bar when employed and not yet promoting; max-level note; quit link when promoting
@@ -849,6 +872,13 @@ function WorkScreenContent() {
     const openingsCount = visibleBasicCareers.filter(
         c => isEntryTierCareer(c.id) && !c.accepted && !c.applied
     ).length;
+    // Street jobs done across ALL job types this week. The reducer caps this
+    // globally; the screen needs the same number so the cards can lock (and say
+    // so) instead of bouncing the player off a rejection. UX-4.
+    const streetJobsThisWeek = Object.values(gameState?.weeklyStreetJobs || {}).reduce(
+        (sum: number, n) => sum + (typeof n === 'number' ? n : 0),
+        0,
+    );
 
     // Persistent "Current Job" summary so employment state is always visible,
     // not buried inside the Career tab.
@@ -942,6 +972,13 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
+                                    {/* The global weekly cap, stated up front. It is
+                                        enforced by the reducer either way; showing it
+                                        is what stops the player discovering it by
+                                        being refused. UX-4. */}
+                                    <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
+                                        Street work this week: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK}
+                                    </Text>
                                     {/* Transport gates delivery work, so it belongs
                                         above the gig list rather than buried in a
                                         vehicles screen the player has no money for. */}

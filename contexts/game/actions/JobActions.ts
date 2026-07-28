@@ -31,6 +31,15 @@ const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
 const TRANSPORT_GOVERNED_JOB_IDS = new Set(['delivery', 'food_delivery']);
 
 /**
+ * Global weekly cap across ALL street jobs (anti-farm).
+ *
+ * Exported so the Work screen can show the count and lock the cards at the
+ * limit instead of letting the player tap into a rejection — the cap was
+ * enforced only here, so it was invisible until it fired. 2026-07-28 audit UX-4.
+ */
+export const MAX_TOTAL_STREET_JOBS_PER_WEEK = 8;
+
+/**
  * Energy a street job costs THIS player — the transport tier's figure for a
  * delivery gig, the job's flat cost otherwise.
  *
@@ -136,7 +145,6 @@ export const performStreetJob = (
   }
 
   // ANTI-EXPLOIT: Global weekly street job cap (prevent farming 30+ jobs/week across all job types)
-  const MAX_TOTAL_STREET_JOBS_PER_WEEK = 8;
   const totalStreetJobsThisWeek = Object.values(weeklyJobs).reduce((sum: number, count) => sum + (typeof count === 'number' ? count : 0), 0);
   if (totalStreetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK) {
     return {
