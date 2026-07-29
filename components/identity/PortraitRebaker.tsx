@@ -104,7 +104,7 @@ export default function PortraitRebaker(): React.JSX.Element | null {
 
 const styles = StyleSheet.create({
   // Off to the side rather than `opacity: 0` or `display: none`: the drawing
-  // buffer has to be real for `takeSnapshotAsync` to read pixels out of it, and
+  // buffer has to be real for `readPixels` to get anything out of it, and
   // a zero-sized or undisplayed GLView has nothing to read.
   offscreen: {
     position: 'absolute',

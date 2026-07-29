@@ -86,6 +86,19 @@ export default function FaceCreatorModal({
   }, [visible, startAt]);
 
   const canvasRef = useRef<FaceCanvasHandle>(null);
+  /**
+   * The portrait cut out of the player's photo, when they came in that way.
+   *
+   * Kept here rather than pushed straight out because the selfie route lands in
+   * the STUDIO, not out of the creator — so the photo portrait has to survive
+   * until the player taps Done, and it has to WIN over the GL snapshot taken
+   * then. A player who chose a photo and is then given a render of a 3D head
+   * did not get what they asked for.
+   */
+  const photoPortraitRef = useRef<string | null>(null);
+  // Cleared on every open, or a second visit through the manual route would
+  // silently re-apply the previous run's photo.
+  useEffect(() => { if (visible) photoPortraitRef.current = null; }, [visible]);
   // Done is asynchronous now, so a second tap before the first resolves would
   // capture twice and close twice. Invisible when the snapshot is fast, which
   // is the normal case; the guard is for when it is not.
@@ -108,9 +121,12 @@ export default function FaceCreatorModal({
     // renders. The creator still closes either way.
     if (capturingRef.current) return;
     capturingRef.current = true;
-    let uri: string | null = null;
+    let uri: string | null = photoPortraitRef.current;
     try {
-      uri = (await canvasRef.current?.capture()) ?? null;
+      // The photo portrait wins, and the canvas is not even asked when there is
+      // one — the snapshot costs a frame and a resize for a result that would
+      // be discarded.
+      if (!uri) uri = (await canvasRef.current?.capture()) ?? null;
     } catch {
       uri = null;
     } finally {
@@ -156,7 +172,8 @@ export default function FaceCreatorModal({
                 base={genome}
                 age={age}
                 body={body}
-                onKeep={(next) => {
+                onKeep={(next, portraitUri) => {
+                  photoPortraitRef.current = portraitUri;
                   // Write the scan through and land in the STUDIO, not straight
                   // out of the creator. The scan is a starting point; dropping
                   // the player back to the menu with a face they have not been

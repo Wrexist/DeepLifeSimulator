@@ -47,6 +47,10 @@ export type AnalyticsEventName =
   | 'avatar_entry_viewed'
   | 'avatar_photo_started'
   | 'avatar_photo_generated'
+  // Whether the background cut-out produced a usable portrait. Separate from
+  // `avatar_photo_generated` because they fail independently: the analysis can
+  // succeed on a photo the matte cannot separate, and vice versa.
+  | 'avatar_photo_portrait'
   | 'avatar_photo_provider_failed'
   | 'avatar_photo_failed'
   | 'avatar_photo_kept'
@@ -91,6 +95,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'avatar_entry_viewed',
   'avatar_photo_started',
   'avatar_photo_generated',
+  'avatar_photo_portrait',
   'avatar_photo_provider_failed',
   'avatar_photo_failed',
   'avatar_photo_kept',

@@ -49,6 +49,15 @@ const C = {
 
 export interface AvatarRevealProps {
   photoUri: string;
+  /**
+   * The portrait cut out of the photo, or null when one could not be made.
+   *
+   * Shown because it is what the player actually gets on their card — the 3D
+   * head in the wipe is the model, not the picture. A reveal that shows only
+   * the model and then puts something else on the card is the kind of surprise
+   * that reads as a bug.
+   */
+  portraitUri?: string | null;
   result: AvatarResult;
   age: number;
   body?: BodyProfile;
@@ -61,6 +70,7 @@ export interface AvatarRevealProps {
 
 export default function AvatarReveal({
   photoUri,
+  portraitUri = null,
   result,
   age,
   body,
@@ -83,17 +93,24 @@ export default function AvatarReveal({
   const measuredFace = result.performed.includes('geometry');
   const strong = measuredFace && result.confidence >= 0.55;
 
-  const headline = strong
-    ? 'This looks like you'
-    : measuredFace
-      ? 'Here’s your character'
-      : 'We matched your colouring';
+  // A cut-out is not a claim about likeness — it IS the player. So when there is
+  // one the headline can say so outright, and the caveats below it are only
+  // about the 3D character, which is a separate promise.
+  const headline = portraitUri
+    ? 'That’s you'
+    : strong
+      ? 'This looks like you'
+      : measuredFace
+        ? 'Here’s your character'
+        : 'We matched your colouring';
 
-  const blurb = strong
-    ? 'We measured your face and built your character to match. Every detail is yours to change.'
-    : measuredFace
-      ? 'The photo was a little hard to read, so some features are closer to average than others. Adjust anything below, or try another photo.'
-      : 'This device matched your skin and hair from the photo, but couldn’t measure your face shape. Everything below is yours to shape by hand.';
+  const blurb = portraitUri
+    ? 'Your portrait is your own photo with the background removed — that’s what shows on your character card. The 3D character below is matched to your colouring and is yours to shape.'
+    : strong
+      ? 'We measured your face and built your character to match. Every detail is yours to change.'
+      : measuredFace
+        ? 'The photo was a little hard to read, so some features are closer to average than others. Adjust anything below, or try another photo.'
+        : 'This device matched your skin and hair from the photo, but couldn’t measure your face shape. Everything below is yours to shape by hand.';
 
   const pan = useMemo(
     () =>
@@ -160,6 +177,21 @@ export default function AvatarReveal({
         <Text style={[styles.frameLabel, styles.frameLabelRight]}>CHARACTER</Text>
       </View>
 
+      {portraitUri ? (
+        <View style={styles.portraitRow}>
+          <Image
+            source={{ uri: portraitUri }}
+            style={styles.portrait}
+            resizeMode="cover"
+            accessibilityLabel="Your portrait, cut out of your photo"
+          />
+          <View style={styles.portraitCopy}>
+            <Text style={styles.portraitTitle}>Your portrait</Text>
+            <Text style={styles.portraitBody}>This is what appears on your character card.</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Text style={styles.hint}>Drag to compare</Text>
 
       <View style={styles.actions}>
@@ -206,6 +238,26 @@ export default function AvatarReveal({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg, padding: scale(20) },
+  portraitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
+    marginTop: scale(12),
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    borderRadius: scale(14),
+    padding: scale(10),
+  },
+  portrait: {
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
+    backgroundColor: C.frame,
+  },
+  portraitCopy: { flex: 1 },
+  portraitTitle: { color: C.text, fontSize: fontScale(14), fontWeight: '700' },
+  portraitBody: { color: C.sub, fontSize: fontScale(12), marginTop: scale(2) },
   badge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

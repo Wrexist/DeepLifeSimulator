@@ -23,6 +23,7 @@ import { useSpinControls } from '@/components/luxury/useSpinControls';
 import type { BodyProfile, FaceGenome } from '@/lib/identity';
 import type { FaceScene } from './gl/FaceRenderer';
 import { captureWhenReady } from './gl/captureWhenReady';
+import { encodePngDataUri } from '@/lib/identity/png';
 
 export interface FaceCanvasHandle {
   /**
@@ -107,14 +108,13 @@ function FaceCanvasInner(
   React.useImperativeHandle(ref, () => ({
     async capture() {
       const context = glContextRef.current;
-      const glLib = loadGl();
-      if (!context || !glLib || !sceneRef.current) return null;
+      if (!context || !sceneRef.current) return null;
       // BOUND THE PIXELS BEFORE READING THEM.
       //
-      // `takeSnapshotAsync` captures the drawing buffer at its real size, which
-      // on a 3x-density phone is around 1100x1300 — a PNG measured in hundreds
-      // of kilobytes, base64'd into `identity.portraitUri`, and then written
-      // into EVERY save.
+      // The drawing buffer is at its real size, which on a 3x-density phone is
+      // around 1100x1300 — a PNG measured in hundreds of kilobytes, base64'd
+      // into `identity.portraitUri`, and then written into EVERY save. It is
+      // also the cost of the encode, which happens on the JS thread.
       //
       // That is not a size annoyance, it is a way to brick a save file. Saves
       // are capped at `MAX_SAVE_SIZE` (4 MB) and `pruneSaveData` only trims
@@ -143,16 +143,46 @@ function FaceCanvasInner(
           scene.resize(Math.max(1, Math.round(prevWidth * k)), Math.max(1, Math.round(prevHeight * k)));
         }
         // Waits for the scanned head before drawing — see `captureWhenReady`.
-        const snapshot = await captureWhenReady(
+        //
+        // READ THE PIXELS AND ENCODE THEM HERE, rather than calling
+        // `GLView.takeSnapshotAsync`.
+        //
+        // That is not a preference. `takeSnapshotAsync` writes the image to a
+        // file and resolves a `file://` URI — `[imageData writeToFile:]` plus
+        // `[[NSURL fileURLWithPath:] absoluteString]` on iOS, a
+        // `FileOutputStream` plus `Uri.fromFile(...)` on Android — on every
+        // platform and in every format. There is no option that returns bytes.
+        // Only a data URI is worth storing, because a file path does not
+        // survive an app reinstall and a dead path renders as a permanently
+        // blank circle with no way to recover, so `normalizeIdentity` drops
+        // one. The two facts together meant this function returned null on
+        // every device: the player built a face, tapped Use this face, and the
+        // portrait was silently discarded. `identity.portraitUri` could not be
+        // set by the shipping path at all.
+        const uri = await captureWhenReady(
           sceneRef.current,
-          () => glLib.GLView.takeSnapshotAsync(context as never, { format: 'png' }),
+          async () => {
+            const gl = context as unknown as WebGLRenderingContext;
+            // The VIEWPORT, not the drawing buffer. `scene.resize` changes what
+            // three renders into; the GL surface stays the size of the view, so
+            // reading the whole buffer would capture the rendered head plus a
+            // band of whatever was left in the rest of it.
+            const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array | number[];
+            const vw = Math.max(0, Math.round(viewport?.[2] ?? 0));
+            const vh = Math.max(0, Math.round(viewport?.[3] ?? 0));
+            if (vw < 8 || vh < 8) return null;
+            const raw = new Uint8Array(vw * vh * 4);
+            gl.readPixels(0, 0, vw, vh, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+            // `readPixels` counts rows from the bottom of the buffer up.
+            const flipped = new Uint8ClampedArray(raw.length);
+            const stride = vw * 4;
+            for (let y = 0; y < vh; y++) {
+              flipped.set(raw.subarray((vh - 1 - y) * stride, (vh - y) * stride), y * stride);
+            }
+            return encodePngDataUri({ data: flipped, width: vw, height: vh });
+          },
           { stillAlive: () => sceneRef.current !== null },
         );
-        const uri = typeof snapshot?.uri === 'string' ? snapshot.uri : null;
-        // Only a data URI is worth storing: a file:// path does not survive an
-        // app reinstall, and a dead path renders as a permanently blank circle
-        // with no way to recover. `normalizeIdentity` drops non-data URIs for
-        // exactly this reason.
         if (!uri || !uri.startsWith('data:image')) return null;
         // Independent backstop. The resize above should keep this far under the
         // cap, but this runs on devices and drivers that cannot be tested here,

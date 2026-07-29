@@ -59,7 +59,7 @@ describe('captureWhenReady', () => {
   });
 
   it('draws before snapshotting, so the frame is not stale', async () => {
-    // `takeSnapshotAsync` reads the current framebuffer, so a snapshot taken
+    // The snapshot reads the current framebuffer, so one taken
     // before the draw returns whatever was on screen before the last edit.
     const order: string[] = [];
     await captureWhenReady(

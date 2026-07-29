@@ -25,6 +25,23 @@
  *     model that hair is background.
  *
  * Both are encoded below.
+ *
+ * ## One fix here is deliberately NOT covered by a test
+ *
+ * The shape prior — the second classification pass in `buildPortraitCutout`,
+ * weighted by `SHAPE_WEIGHT` — was added because a distant shoreline ran level
+ * with the subject's crown, touched her hair, and came through into the
+ * portrait as scenery growing out of her head. It was verified by sweeping the
+ * weight against that photograph: below about 6 the shoreline survives as a
+ * smear, above about 14 her raised hand starts to go, and 9 is clean.
+ *
+ * Several attempts to reproduce that synthetically all passed with the prior
+ * switched off — a painted bar is either rejected on colour anyway, or falls
+ * outside the crop, or is close enough to the hair that the measurement counts
+ * the hair instead. Rather than keep a test that asserts nothing, the gap is
+ * recorded here: this suite proves the prior does not damage the ordinary
+ * cases, and nothing more. The photograph is the evidence for the rest, and it
+ * is not in the repository because it is a real person's.
  */
 import { buildPortraitCutout, type Bitmap } from '@/lib/identity/portraitCutout';
 
@@ -232,10 +249,12 @@ describe('it declines rather than returning a broken portrait', () => {
   });
 });
 
-describe('the framing is driven by the face, not by the matte', () => {
+describe('the framing is driven by the head, not by the face detector', () => {
   it('centres the head even when the subject is off to one side', () => {
     // The matte's bounding box includes shoulders and hair and moves with every
-    // matting error. The face anchors do not.
+    // matting error, and the face detector is the part that reported a 309-pixel
+    // face inside a 384-pixel frame on a real photo. The head band's medians
+    // survive both.
     const off = buildPortraitCutout(render({ ...BASE, cx: 110 }))!;
     expect(off).toBeTruthy();
     expect(alphaAt(off.portrait, 0.5, 0.5)).toBeGreaterThan(0.9);
@@ -253,5 +272,29 @@ describe('the framing is driven by the face, not by the matte', () => {
       return n / (p.width * p.height);
     };
     expect(Math.abs(share(near.portrait) - share(far.portrait))).toBeLessThan(0.22);
+  });
+
+  it('keeps the crop inside the photograph instead of framing empty space', () => {
+    // A crop window centred on the head runs off the edge whenever the subject
+    // is near one — which a phone photo does every time. The part that is
+    // outside fills with nothing, so the subject ends up against the opposite
+    // side with a dead band beside them. On the real photograph that band was a
+    // quarter of the frame.
+    //
+    // Measured on OUT-OF-BOUNDS pixels specifically, not on how centred the
+    // subject looks. Those two come apart: an unclamped window is centred on
+    // the head by construction and still wastes a quarter of the portrait, so
+    // an assertion about centring passes exactly when the bug is present. A
+    // pixel the window never sampled keeps its initial zeroes, and no
+    // background in this scene is black, so the two are distinguishable.
+    const out = buildPortraitCutout(render({ ...BASE, cx: 70 }));
+    expect(out).toBeTruthy();
+    const p = out!.portrait;
+    let unsampled = 0;
+    for (let i = 0; i < p.width * p.height; i++) {
+      if (p.data[i * 4] === 0 && p.data[i * 4 + 1] === 0 && p.data[i * 4 + 2] === 0
+        && p.data[i * 4 + 3] === 0) unsampled++;
+    }
+    expect(unsampled / (p.width * p.height)).toBeLessThan(0.01);
   });
 });

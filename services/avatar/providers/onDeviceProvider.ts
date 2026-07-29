@@ -18,10 +18,9 @@
  * ## Getting at the pixels
  *
  * React Native has no image decoder reachable from JS — no canvas, no
- * `getImageData`. The GPU does have one, so this opens a HEADLESS GL context,
- * uploads the photo as a texture, draws it into a small framebuffer and reads
- * that back. 64x64 is plenty: we want the average colour of a region, and
- * downsampling on the GPU is exactly the box filter we would otherwise write.
+ * `getImageData`. `services/avatar/glPixels` does it on the GPU instead, and
+ * lives outside this file because the portrait cut-out needs the same thing and
+ * decoding the photo twice would be two native contexts for one photograph.
  *
  * Every step is inside one try/catch that reports the provider unavailable
  * rather than throwing, because this path is the fallback — if it fails there
@@ -39,29 +38,8 @@ import {
   type PhotoInput,
 } from '../types';
 import { scanFaceLandmarks } from '@/lib/identity/faceScan';
+import { canReadPixels, readPhotoPixels } from '../glPixels';
 
-/**
- * Lazy native-module load, cached so the try/catch runs at most once.
- *
- * The same shape `FaceCanvas` uses, and for the same reason: expo-gl is a
- * native module. Importing it at the top of the file makes every consumer —
- * including the screens that merely render a button pointing here — fail to
- * load wherever it is absent, which is a blank screen instead of a missing
- * feature. `isAvailable()` is then a real question with a real answer.
- */
-let glModule: typeof import('expo-gl') | null | undefined;
-function loadGl(): typeof import('expo-gl') | null {
-  if (glModule !== undefined) return glModule;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    glModule = require('expo-gl') as typeof import('expo-gl');
-  } catch {
-    glModule = null;
-  }
-  return glModule;
-}
-
-/** Framebuffer edge. Big enough to separate hair from face, small to read back. */
 /**
  * Framebuffer edge for the readback.
  *
@@ -79,106 +57,6 @@ const SAMPLE = 256;
 // never watch a "mapping facial geometry" step that will not tick.
 const STAGES: readonly AvatarStage[] = ['detecting', 'geometry', 'skinTone', 'hair', 'finishing'];
 
-const VERT = `
-attribute vec2 aPos;
-varying vec2 vUv;
-void main() {
-  // The texture arrives with its origin at the top-left and GL samples from the
-  // bottom-left, so v is flipped here. Getting it wrong swaps the hair band for
-  // the chin, which produces a confident, completely wrong answer.
-  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);
-  gl_Position = vec4(aPos, 0.0, 1.0);
-}`;
-
-const FRAG = `
-precision mediump float;
-varying vec2 vUv;
-uniform sampler2D uTex;
-void main() { gl_FragColor = texture2D(uTex, vUv); }`;
-
-function compile(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
-  const shader = gl.createShader(type);
-  if (!shader) throw new Error('createShader failed');
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(gl.getShaderInfoLog(shader) ?? 'shader compile failed');
-  }
-  return shader;
-}
-
-/** Draw the photo into an offscreen buffer and read it back as RGBA bytes. */
-async function samplePixels(uri: string): Promise<Uint8Array> {
-  const glLib = loadGl();
-  if (!glLib) throw new Error('expo-gl unavailable');
-  const gl = (await glLib.GLView.createContextAsync()) as unknown as WebGLRenderingContext;
-
-  const program = gl.createProgram();
-  if (!program) throw new Error('createProgram failed');
-  gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERT));
-  gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, FRAG));
-  gl.linkProgram(program);
-  gl.useProgram(program);
-
-  const quad = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW,
-  );
-  const aPos = gl.getAttribLocation(program, 'aPos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  // expo-gl accepts an object with `localUri` here and decodes natively. Linear
-  // filtering plus CLAMP_TO_EDGE because the photo is not a power of two and
-  // mipmapping a NPOT texture renders black on GLES 2.
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    { localUri: uri } as unknown as TexImageSource,
-  );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  const target = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, target);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SAMPLE, SAMPLE, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-  const fbo = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target, 0);
-  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-    throw new Error('framebuffer incomplete');
-  }
-
-  gl.viewport(0, 0, SAMPLE, SAMPLE);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.uniform1i(gl.getUniformLocation(program, 'uTex'), 0);
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-  const pixels = new Uint8Array(SAMPLE * SAMPLE * 4);
-  gl.readPixels(0, 0, SAMPLE, SAMPLE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-  gl.deleteFramebuffer(fbo);
-  gl.deleteTexture(texture);
-  gl.deleteTexture(target);
-  gl.deleteBuffer(quad);
-  gl.deleteProgram(program);
-  return pixels;
-}
-
 export interface Rgb {
   r: number;
   g: number;
@@ -188,8 +66,11 @@ export interface Rgb {
 /**
  * Average colour over a rectangle of the sample, given in 0..1 of the image.
  *
- * `readPixels` returns rows bottom-up, so the y range is flipped back here —
- * the caller gets to think in image coordinates like everyone else.
+ * `readPhotoPixels` returns rows in image order, so y needs no flipping. It did
+ * not always: the old private readback returned the buffer upside down and
+ * flipped it back HERE, which meant the colour regions were right and
+ * `scanFaceLandmarks` — which got the same buffer unflipped — was reading an
+ * inverted face, with the mouth above the eyes.
  */
 function regionAverage(
   pixels: Uint8Array,
@@ -205,8 +86,8 @@ function regionAverage(
   let n = 0;
   const px0 = Math.floor(x0 * SAMPLE);
   const px1 = Math.ceil(x1 * SAMPLE);
-  const py0 = Math.floor((1 - y1) * SAMPLE);
-  const py1 = Math.ceil((1 - y0) * SAMPLE);
+  const py0 = Math.floor(y0 * SAMPLE);
+  const py1 = Math.ceil(y1 * SAMPLE);
   for (let y = py0; y < py1; y++) {
     for (let x = px0; x < px1; x++) {
       if (x < 0 || y < 0 || x >= SAMPLE || y >= SAMPLE) continue;
@@ -269,7 +150,7 @@ export const onDeviceProvider: AvatarProvider = {
 
   isAvailable(): boolean {
     // Absent in a test runner and on any platform without the native module.
-    return typeof loadGl()?.GLView?.createContextAsync === 'function';
+    return canReadPixels();
   },
 
   async analyse(photo: PhotoInput, options: GenerateOptions): Promise<PhotoAnalysis> {
@@ -278,7 +159,7 @@ export const onDeviceProvider: AvatarProvider = {
 
     let pixels: Uint8Array;
     try {
-      pixels = await samplePixels(photo.uri);
+      pixels = await readPhotoPixels(photo.uri, SAMPLE, SAMPLE);
     } catch {
       throw new AvatarError('Could not read the photo on this device', 'unsupported', false);
     }

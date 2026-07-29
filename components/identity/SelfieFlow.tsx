@@ -21,6 +21,7 @@ import SelfieCapture from './SelfieCapture';
 import AvatarProcessing from './AvatarProcessing';
 import AvatarReveal from './AvatarReveal';
 import { availableProviders, generateFromPhoto, plannedStages } from '@/services/avatar/AvatarService';
+import { buildPhotoPortrait } from '@/services/avatar/photoPortrait';
 import { AvatarError, type AvatarResult, type AvatarStage, type PhotoInput } from '@/services/avatar/types';
 import { track } from '@/lib/analytics';
 import { haptic } from '@/utils/haptics';
@@ -61,7 +62,7 @@ const MESSAGE: Record<AvatarError['code'], string> = {
 type Phase =
   | { name: 'capture' }
   | { name: 'processing'; photo: PhotoInput }
-  | { name: 'reveal'; photo: PhotoInput; result: AvatarResult }
+  | { name: 'reveal'; photo: PhotoInput; result: AvatarResult; portraitUri: string | null }
   | { name: 'error'; code: AvatarError['code'] };
 
 export interface SelfieFlowProps {
@@ -69,7 +70,11 @@ export interface SelfieFlowProps {
   base: FaceGenome;
   age: number;
   body?: BodyProfile;
-  onKeep: (genome: FaceGenome) => void;
+  /**
+   * The face, and the portrait cut out of the photo — null when the cut-out
+   * could not be made, which means "keep whatever portrait they already have".
+   */
+  onKeep: (genome: FaceGenome, portraitUri: string | null) => void;
   onExit: () => void;
 }
 
@@ -117,9 +122,20 @@ export default function SelfieFlow({
         // Everything the run actually did, so a stage a provider finished
         // without announcing still ticks before the screen changes.
         setDone(result.performed);
+
+        // THE PORTRAIT ITSELF, cut out of the photo. Deliberately after the
+        // analysis rather than inside a provider: whichever provider ran, the
+        // portrait is the player's own pixels, and a cloud vendor has no part
+        // in it. It is also the one step that can fail without spoiling the
+        // run — null here just means the character keeps the portrait they
+        // have, so it is never allowed to throw the flow into its error state.
+        const portraitUri = await buildPhotoPortrait(photo, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        track('avatar_photo_portrait', { made: portraitUri !== null });
+
         setProgress(1);
         haptic.success();
-        setPhase({ name: 'reveal', photo, result });
+        setPhase({ name: 'reveal', photo, result, portraitUri });
       } catch (error) {
         if (controller.signal.aborted) return;
         const code = error instanceof AvatarError ? error.code : 'unknown';
@@ -165,10 +181,11 @@ export default function SelfieFlow({
   }
 
   if (phase.name === 'reveal') {
-    const { photo, result } = phase;
+    const { photo, result, portraitUri } = phase;
     return (
       <AvatarReveal
         photoUri={photo.uri}
+        portraitUri={portraitUri}
         result={result}
         age={age}
         body={body}
@@ -177,8 +194,9 @@ export default function SelfieFlow({
           track('avatar_photo_kept', {
             provider: result.providerId,
             confidence: Math.round(result.confidence * 100),
+            portrait: portraitUri !== null,
           });
-          onKeep(genome);
+          onKeep(genome, portraitUri);
         }}
         onRegenerate={() => {
           // faceOnly: the player may have kept the hair and colours from the

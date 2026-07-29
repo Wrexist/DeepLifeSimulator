@@ -4,7 +4,7 @@
  * ## The failure this guards
  *
  * `identity.portraitUri` is a base64 PNG snapshotted from the GL canvas, and it
- * is written into EVERY save. `takeSnapshotAsync` captures the drawing buffer at
+ * is written into EVERY save. The capture reads the drawing buffer at
  * its real size, so on a 3x-density phone an unbounded capture is a
  * ~1100x1300 PNG — hundreds of kilobytes.
  *

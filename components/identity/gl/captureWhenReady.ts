@@ -22,7 +22,7 @@
 export interface CaptureTarget {
   /** Settles when the scanned head is in place, or when loading it has failed. */
   ready: Promise<void>;
-  /** Draw the current frame. `takeSnapshotAsync` reads the framebuffer. */
+  /** Draw the current frame. The snapshot reads the framebuffer as it stands. */
   render(): void;
 }
 
