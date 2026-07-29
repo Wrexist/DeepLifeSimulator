@@ -120,6 +120,8 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
       { key: 'jawAngle', label: 'Jaw taper' },
       { key: 'chinLength', label: 'Chin length' },
       { key: 'chinProtrusion', label: 'Chin projection' },
+      { key: 'chinCleft', label: 'Chin cleft' },
+      { key: 'templeWidth', label: 'Temple width' },
     ],
   },
   {
@@ -127,6 +129,7 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
     morphs: [
       { key: 'cheekboneHeight', label: 'Cheekbone height' },
       { key: 'cheekFullness', label: 'Cheek fullness' },
+      { key: 'cheekHollow', label: 'Cheek hollow' },
       { key: 'browHeight', label: 'Brow height' },
       { key: 'browProtrusion', label: 'Brow ridge' },
       { key: 'foreheadSlope', label: 'Forehead slope' },
@@ -148,6 +151,7 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
       { key: 'noseWidth', label: 'Width' },
       { key: 'noseBridge', label: 'Bridge' },
       { key: 'noseTip', label: 'Tip' },
+      { key: 'nostrilFlare', label: 'Nostril flare' },
     ],
   },
   {
@@ -160,12 +164,15 @@ const GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string }[] }[
       // is a control the player fights.
       { key: 'mouthHeight', label: 'Upper lip height' },
       { key: 'lipFullness', label: 'Lip fullness' },
+      { key: 'lipRatio', label: 'Upper / lower lip' },
+      { key: 'philtrumDepth', label: 'Philtrum depth' },
     ],
   },
   {
     title: 'Ears & neck',
     morphs: [
       { key: 'earSize', label: 'Ear size' },
+      { key: 'earAngle', label: 'Ear angle' },
       { key: 'neckThickness', label: 'Neck thickness' },
     ],
   },

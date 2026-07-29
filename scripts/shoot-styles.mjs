@@ -193,8 +193,16 @@ async function main() {
       const aged = genomeMod.applyAging(g, age);
       if (blemish !== undefined) aged.blemishes = blemish;
       if (groom && sweep !== null) {
-        aged[groom.field] = sweep;
-        g[groom.field] = sweep;
+        // A morph lives under `.morphs`; everything else is top level. Setting
+        // the wrong one is silent — the render succeeds and shows nothing, which
+        // is indistinguishable from a control that does not work.
+        if (Object.prototype.hasOwnProperty.call(g.morphs, groom.field)) {
+          g.morphs[groom.field] = sweep;
+          aged.morphs[groom.field] = sweep;
+        } else {
+          aged[groom.field] = sweep;
+          g[groom.field] = sweep;
+        }
       }
       const mesh = head.buildHeadMesh(g, { age });
       // HAIR=<style> pins the cut, so a style can be looked at on this head

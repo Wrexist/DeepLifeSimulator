@@ -50,7 +50,36 @@ export const FACE_MORPH_KEYS = [
   'earSize',
   'foreheadSlope',
   'neckThickness',
+  // APPEND-ONLY, and appending has a cost worth knowing about.
+  //
+  // `randomizeFace` draws one morph per key from a single seeded stream, in
+  // this order, so a key added ANYWHERE consumes a draw and shifts every later
+  // one — including the palette indices drawn after the loop. That silently
+  // gives every existing seeded character different colouring. The randomiser
+  // keeps the first `LEGACY_MORPH_COUNT` keys on the original stream and draws
+  // the rest from a second one for exactly that reason; see the note there.
+  //
+  // Saved genomes are a Record keyed by name, so a new key simply defaults to
+  // 0.5 through `clampMorphs` on load — the ORDER matters only to the
+  // randomiser, and the position within this array matters not at all to a save.
+  'nostrilFlare',
+  'philtrumDepth',
+  'lipRatio',
+  'cheekHollow',
+  'templeWidth',
+  'chinCleft',
+  'earAngle',
 ] as const;
+
+/**
+ * How many morphs existed before the second batch was appended.
+ *
+ * The boundary between "drawn from the original random stream" and "drawn from
+ * the appended one". Moving this number re-rolls every seeded character in the
+ * game, which is why it is a constant with a name rather than a slice index
+ * somewhere in `randomizeFace`.
+ */
+export const LEGACY_MORPH_COUNT = 24;
 
 export type FaceMorphKey = (typeof FACE_MORPH_KEYS)[number];
 

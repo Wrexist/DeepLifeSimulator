@@ -31,14 +31,27 @@ inherited and aged with **no control anywhere**.
       frames were the same face — so its coefficients were roughly doubled and
       re-rendered. An invisible control is a dead one, not a subtle one.
 
-### Phase 2 — Makeup
+### Phase 3 — More structure morphs — DONE (24 morphs -> 31)
+- [x] nostrilFlare, philtrumDepth, lipRatio, cheekHollow, templeWidth,
+      chinCleft, earAngle — each with a real term in `buildHeadMesh` and a
+      `morphBinding` stem for the scanned rig
+- [x] `randomizeFace` now draws appended morphs from a SECOND seeded stream.
+      One draw per key from one stream meant a new key shifted every later
+      draw, including the palette indices — every existing seeded character
+      would have got different colouring. The golden from Phase 1 caught it.
+- [x] `lib/identity/__tests__/morphsAreLive.test.ts`: every one of the 31
+      morphs must move the mesh, and no pair may be near-identical as a
+      DISPLACEMENT FIELD. Mutation-checked: making one morph inert fails it.
+- [x] Fixed `GROOM=` in shoot-styles.mjs — it set `genome.<field>` for morph
+      keys, which live under `genome.morphs`, so four sweeps came back "ok"
+      having rendered nothing. The same class of bug the test above exists for.
+- [x] chinCleft widened 0.030 -> 0.055: at 128 rings the grid spacing is
+      ~0.0216, so the original field fell between vertices and the cleft was in
+      the maths and not in the mesh. The mouth line hit this exact trap before.
+
+### Phase 2 — Makeup (next)
 - [ ] Bake `lip` and `lid` vertex fields the way `brow` is baked
 - [ ] Lip colour + strength, eyeshadow colour + strength, blush strength
-
-### Phase 3 — More structure morphs
-- [ ] nostrilFlare, philtrumLength, upperLipRatio, eyeHood, earAngle,
-      cheekHollow, templeWidth, chinCleft, jawlineDefinition
-- [ ] Each needs a real term in `buildHeadMesh` and a `morphBinding` entry
 
 ### Rules this must not break
 - A new control MUST move something on screen, or it does not ship

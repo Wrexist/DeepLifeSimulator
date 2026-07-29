@@ -488,6 +488,17 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const earSize = centred(m.earSize);
   const foreheadSlope = centred(m.foreheadSlope);
   const neckThickness = centred(m.neckThickness) + musculature * 0.35 + adiposity * 0.2;
+  // The second batch. Each one has a real term below; none of them is a
+  // rescaling of a morph that already exists, which is the test a new slider
+  // has to pass — two sliders that move the same vertices the same way are one
+  // slider and a decoy.
+  const nostrilFlare = centred(m.nostrilFlare);
+  const philtrumDepth = centred(m.philtrumDepth);
+  const lipRatio = centred(m.lipRatio);
+  const cheekHollow = centred(m.cheekHollow);
+  const templeWidth = centred(m.templeWidth);
+  const chinCleft = centred(m.chinCleft);
+  const earAngle = centred(m.earAngle);
 
   // --- Landmarks (move with the morphs that own them) --------------------
   // The eye line. Raised from 0.06 after rendering: at 0.06 the forehead was
@@ -631,7 +642,10 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // where the parietal bulge is genuinely wide.
       const temple = smoothstep(0.16, 0.52, y) * smoothstep(1.05, 0.62, y) * headness;
       const crown = smoothstep(0.55, 1.00, y) * headness;
-      x *= 1 - 0.085 * temple - 0.055 * crown;
+      // Temple narrowing, now under the player's control. A wide temple gives a
+      // squarer skull and a narrow one an oval — it is the difference the eye
+      // reads as "head shape" before it reads any feature, and it was fixed.
+      x *= 1 - (0.085 - templeWidth * 0.085) * temple - 0.055 * crown;
       z *= 1 - 0.030 * temple - 0.045 * crown;
 
       // ---- Jaw ----------------------------------------------------------
@@ -667,6 +681,17 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const chinMask = blobAniso(x, y, z, 0, chinY + 0.06, 0.62, 0.30, 0.26, 0.45);
       y -= chinLength * 0.16 * chinMask;
       z += chinProtrusion * 0.20 * chinMask * front;
+      // A cleft: a narrow vertical groove down the middle of the chin pad.
+      // Signed, so the slider also runs the other way into a rounder, fuller
+      // chin — a control that only subtracts spends half its travel doing
+      // nothing.
+      // 0.030 -> 0.055 wide. At 128 rings the grid spacing over the head is
+      // about 0.0216, so a field 0.030 across spans barely more than one cell
+      // and lands BETWEEN vertices on most heads — the cleft was in the maths
+      // and not in the mesh. The mouth line hit exactly this and the note there
+      // says the same thing. A cleft is a wide soft dimple anyway, not a slot.
+      const cleftMask = blobAniso(x, y, z, 0, chinY + 0.060, 0.80, 0.055, 0.085, 0.24);
+      z -= chinCleft * 0.075 * cleftMask * front;
 
       // ---- Cheeks --------------------------------------------------------
       const cheekY = -0.02 + cheekboneHeight * 0.16;
@@ -680,6 +705,15 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const fullness = cheekFullness * 0.14;
       x += Math.sign(x || 1) * fullness * (cheekMask * 0.6 + jowlMask);
       z += fullness * 0.5 * jowlMask;
+      // A HOLLOW UNDER THE CHEEKBONE, which `cheekFullness` cannot express.
+      // Fullness adds volume across the whole cheek and the jowl below it; the
+      // gaunt look is the opposite thing in one band only — the buccal recess
+      // between the bone and the jaw, with the bone still standing proud above
+      // it. Centred lower and much tighter than the cheek blob for that reason.
+      const hollowSide: Vec3 = [x >= 0 ? 0.36 : -0.36, -0.16, 0.50];
+      const hollowMask = blobAniso(x, y, z, hollowSide[0], hollowSide[1], hollowSide[2], 0.24, 0.19, 0.40);
+      x -= Math.sign(x || 1) * cheekHollow * 0.085 * hollowMask;
+      z -= cheekHollow * 0.045 * hollowMask;
 
       // ---- Soft tissue from body composition ------------------------------
       //
@@ -772,13 +806,31 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
         blobAniso(x, y, z, nostrilX, noseTipY - 0.048, 0.88, 0.029, 0.030, 0.15) +
         blobAniso(x, y, z, -nostrilX, noseTipY - 0.048, 0.88, 0.029, 0.030, 0.15);
       z -= 0.050 * nostrilMask * headness;
+      // ALAR FLARE — the wings either side of the nostrils, pushed out.
+      //
+      // Not the same as `noseWidth`, which scales the whole nose including the
+      // bridge. Flare is the base alone: a narrow bridge over wide nostrils and
+      // a wide bridge over narrow ones are both common and neither was
+      // reachable. The blob is wider and shorter than the nostril recess so it
+      // catches the wing rather than the opening.
+      // Named `flare*` rather than `alar*` because `alarMask` a few lines up is
+      // the CREASE where the wing meets the cheek, and this is the wing itself.
+      const flareX = 0.052 + noseWidth * 0.022;
+      const flareMask =
+        blobAniso(x, y, z, flareX, noseTipY - 0.040, 0.86, 0.042, 0.038, 0.20) +
+        blobAniso(x, y, z, -flareX, noseTipY - 0.040, 0.86, 0.042, 0.038, 0.20);
+      x += Math.sign(x || 1) * nostrilFlare * 0.048 * flareMask * headness;
 
       // ---- Lips ------------------------------------------------------------
       const lipHalfWidth = 0.115 + mouthWidth * 0.100;
       const upperMask = blobAniso(x, y, z, 0, mouthY + 0.035, 0.80, lipHalfWidth, 0.045, 0.26);
       const lowerMask = blobAniso(x, y, z, 0, mouthY - 0.055, 0.80, lipHalfWidth, 0.055, 0.26);
-      z += (0.030 + lipFullness * 0.042) * upperMask;
-      z += (0.034 + lipFullness * 0.048) * lowerMask;
+      // `lipFullness` sets how much lip there is; `lipRatio` decides how it is
+      // SPLIT. A full upper lip over a thin lower one and the reverse are two
+      // very different mouths, and fullness alone gives neither — it scales both
+      // together, so every character had the same lip proportions.
+      z += (0.030 + lipFullness * 0.042) * (1 + lipRatio * 0.55) * upperMask;
+      z += (0.034 + lipFullness * 0.048) * (1 - lipRatio * 0.45) * lowerMask;
       // The seam between the lips — a crease, or the mouth reads as one blob.
       //
       // 0.042 -> 0.017. At 0.042, against lips standing 0.05 proud, this was a
@@ -819,7 +871,9 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // reason the space between nose and mouth reads as anatomy rather than a
       // gap. Fades out before the lip so it does not cut the vermilion.
       const philtrumMask = blobAniso(x, y, z, 0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86, 0.028, 0.052, 0.18);
-      z -= 0.020 * philtrumMask * headness;
+      // Signed around the existing 0.020, so the slider runs from a flat upper
+      // lip to a pronounced groove rather than only ever deepening one.
+      z -= (0.020 + philtrumDepth * 0.026) * philtrumMask * headness;
 
       // The MENTOLABIAL SULCUS — the crease under the lower lip, before the
       // chin rises again. Without it the lower lip melts into the chin and the
@@ -835,7 +889,11 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       const earMask =
         blobAniso(x, y, z, SKULL.rx * 0.94, -0.04, -0.06, earR[0], earR[1], earR[2]) +
         blobAniso(x, y, z, -SKULL.rx * 0.94, -0.04, -0.06, earR[0], earR[1], earR[2]);
-      x += Math.sign(x || 1) * (0.075 + earSize * 0.055) * earMask * headness;
+      // Size is how big the ear is; angle is how far it stands off the skull.
+      // They are genuinely independent — small ears can stick out and large ones
+      // can lie flat — and only the first was reachable.
+      x += Math.sign(x || 1)
+        * (0.075 + earSize * 0.055 + earAngle * 0.062) * earMask * headness;
 
       // ---- Neck --------------------------------------------------------------
       // Below NECK_TOP the surface becomes a cylinder-ish column rather than

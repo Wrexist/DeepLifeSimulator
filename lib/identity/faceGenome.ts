@@ -17,6 +17,7 @@
 
 import {
   FACE_MORPH_KEYS,
+  LEGACY_MORPH_COUNT,
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
@@ -160,9 +161,28 @@ export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}):
   const stated = String(options.sex || '').toLowerCase();
   const bias = stated === 'male' ? 1 : stated === 'female' ? -1 : 0;
 
+  // TWO STREAMS, AND THE SPLIT IS LOAD-BEARING.
+  //
+  // One draw per morph, in key order, from one seeded stream — so a morph
+  // appended to `FACE_MORPH_KEYS` consumes a draw and shifts every later one,
+  // INCLUDING the palette indices drawn after this loop. Appending the second
+  // batch of seven on the main stream would have handed every existing seeded
+  // character a different skin tone, hair colour, eye colour and haircut, for a
+  // change that was supposed to add sliders. Nothing would have looked broken;
+  // they would just have been different people.
+  //
+  // So the original twenty-four keep the original stream, and anything after
+  // them draws from a second one derived from the same seed. A third batch
+  // appends the same way and costs nothing.
   const morphs = {} as FaceMorphs;
-  for (const key of FACE_MORPH_KEYS) {
+  const legacy = FACE_MORPH_KEYS.slice(0, LEGACY_MORPH_COUNT);
+  const appended = FACE_MORPH_KEYS.slice(LEGACY_MORPH_COUNT);
+  for (const key of legacy) {
     morphs[key] = clamp01(sampleMorph(rng, spread) + bias * (MALE_BIAS[key] ?? 0));
+  }
+  const extraRng = makeGenomeRng(`${seed}#morphs2`);
+  for (const key of appended) {
+    morphs[key] = clamp01(sampleMorph(extraRng, spread) + bias * (MALE_BIAS[key] ?? 0));
   }
 
   // Hair: biased, never forbidden — a male character can still have long hair

@@ -164,6 +164,18 @@ const MAKEHUMAN_STEMS: Record<FaceMorphKey, string[]> = {
   earSize: ['earscale'],
   foreheadSlope: ['foreheadscalevert'],
   neckThickness: ['neckscalehoriz'],
+  // The second batch. Same rule as the first: an exact stem, matched in the
+  // alias pass, and `scripts/makehuman-targets.mjs --verify` reports any that
+  // match nothing so a wrong guess fails at build time rather than becoming a
+  // dead slider. The procedural head implements all seven directly; these are
+  // what the SCANNED rig binds them to when it has the target.
+  nostrilFlare: ['nosenostrilwidth'],
+  philtrumDepth: ['mouthphiltrum'],
+  lipRatio: ['mouthlowerlipheight'],
+  cheekHollow: ['cheekbones'],
+  templeWidth: ['headtemple'],
+  chinCleft: ['chincleft'],
+  earAngle: ['earwing'],
 };
 
 export interface RigBinding {
