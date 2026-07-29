@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger';
 import {
   resolveSaveSigningRuntimeConfig,
   resolveActiveSaveHmacKey,
+  resolveSaveHmacKeys,
   SaveSigningConfigError,
 } from '@/utils/saveSigningConfig';
 
@@ -121,7 +122,43 @@ function getActiveSaveHmacKey(): string | null {
   return null;
 }
 
-function sha256(message: string): string {
+/**
+ * Whether to reproduce the original (incorrect) 64-bit length padding.
+ *
+ * `for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff)` looks
+ * like a big-endian 64-bit length, but JS masks a shift count to 5 bits, so
+ * `>>>56` is `>>>24`, `>>>48` is `>>>16`, and so on: the eight bytes came out
+ * as [b3,b2,b1,b0,b3,b2,b1,b0] instead of [0,0,0,0,b3,b2,b1,b0]. Standard
+ * SHA-256 requires that high word to be zero for any message under 2^32 bits,
+ * so the digest diverged from real SHA-256 for EVERY message except the empty
+ * string — not only large ones. 2026-07-29 audit SEC-8.
+ *
+ * It was self-consistent, so it signed and verified fine locally and is not a
+ * data-loss bug in itself. But it is not HMAC-SHA256, so it disagrees with any
+ * standards-compliant server, and simply correcting it would have invalidated
+ * every save on every device at once. So: new signatures use the correct
+ * padding, and the legacy padding stays as a VERIFIER only, letting existing
+ * saves re-sign onto the correct one the next time they are written.
+ */
+type Sha256Padding = 'correct' | 'legacy';
+
+/** UTF-8 encode a JS string to bytes. */
+function utf8Bytes(message: string): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i < message.length; i++) {
+    const c = message.charCodeAt(i);
+    if (c < 0x80) bytes.push(c);
+    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
+    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
+  }
+  return bytes;
+}
+
+function sha256(message: string, padding: Sha256Padding = 'correct'): string {
+  return sha256Bytes(utf8Bytes(message), padding);
+}
+
+function sha256Bytes(input: number[], padding: Sha256Padding = 'correct'): string {
   // SHA-256 constants
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -137,19 +174,19 @@ function sha256(message: string): string {
   const rr = (v: number, n: number) => (v >>> n) | (v << (32 - n));
 
   // Pre-processing: convert message to bytes
-  const bytes: number[] = [];
-  for (let i = 0; i < message.length; i++) {
-    const c = message.charCodeAt(i);
-    if (c < 0x80) bytes.push(c);
-    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
-    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
-  }
+  const bytes: number[] = input.slice();
 
   const bitLen = bytes.length * 8;
   bytes.push(0x80);
   while (bytes.length % 64 !== 56) bytes.push(0);
-  // Append 64-bit big-endian length
-  for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff);
+  // Append 64-bit big-endian length. The high word is always zero for any
+  // message under 2^32 bits, which is every save we will ever write.
+  if (padding === 'legacy') {
+    for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff);
+  } else {
+    bytes.push(0, 0, 0, 0);
+    bytes.push((bitLen >>> 24) & 0xff, (bitLen >>> 16) & 0xff, (bitLen >>> 8) & 0xff, bitLen & 0xff);
+  }
 
   let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
   let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
@@ -198,13 +235,54 @@ export function calculateHmacSignature(data: string): string {
     }
     throw new SaveSigningConfigError();
   }
+  return hmacWith(data, key);
+}
+
+/**
+ * HMAC-SHA256 under an explicit key and padding mode.
+ *
+ * Built on BYTES, not strings. The original constructed the ipad/opad blocks as
+ * a JS string (`String.fromCharCode(keyByte ^ 0x36)`) and handed that to a
+ * `sha256` that UTF-8-encoded its input — so every one of the 64 block bytes
+ * at or above 0x80 silently expanded into two bytes before hashing. Combined
+ * with the length-padding bug, the result was self-consistent but was not
+ * HMAC-SHA256 for any input at all. Found by comparing against `node:crypto`
+ * while fixing the padding: the padding alone did not close the gap.
+ */
+function hmacWith(data: string, key: string): string {
   // HMAC: H((key XOR opad) || H((key XOR ipad) || message))
+  const blockSize = 64;
+  let keyBytes: number[] = [];
+  for (let i = 0; i < key.length; i++) keyBytes.push(key.charCodeAt(i) & 0xff);
+  if (keyBytes.length > blockSize) {
+    keyBytes = hexToBytes(sha256Bytes(keyBytes, 'correct'));
+  }
+  while (keyBytes.length < blockSize) keyBytes.push(0);
+
+  const ipad: number[] = new Array(blockSize);
+  const opad: number[] = new Array(blockSize);
+  for (let i = 0; i < blockSize; i++) {
+    ipad[i] = keyBytes[i] ^ 0x36;
+    opad[i] = keyBytes[i] ^ 0x5c;
+  }
+
+  const innerHash = sha256Bytes(ipad.concat(utf8Bytes(data)), 'correct');
+  return sha256Bytes(opad.concat(hexToBytes(innerHash)), 'correct');
+}
+
+/**
+ * The ORIGINAL signature function, reproduced verbatim — string-built pad
+ * blocks (so every pad byte >= 0x80 UTF-8-expands) and the wrong 64-bit length
+ * word. Kept for VERIFICATION ONLY, so every save already on a device keeps
+ * loading and re-signs onto the real HMAC on its next write. Nothing signs with
+ * this. Delete it once every active install has re-saved.
+ */
+function hmacLegacyExact(data: string, key: string): string {
   const blockSize = 64;
   let keyBytes: number[] = [];
   for (let i = 0; i < key.length; i++) keyBytes.push(key.charCodeAt(i));
   if (keyBytes.length > blockSize) {
-    // Hash the key if it's longer than block size
-    const hashedKey = sha256(key);
+    const hashedKey = sha256(key, 'legacy');
     keyBytes = [];
     for (let i = 0; i < hashedKey.length; i += 2) {
       keyBytes.push(parseInt(hashedKey.substr(i, 2), 16));
@@ -218,13 +296,19 @@ export function calculateHmacSignature(data: string): string {
     opadStr += String.fromCharCode(keyBytes[i] ^ 0x5c);
   }
 
-  const innerHash = sha256(ipadStr + data);
-  // Convert inner hash hex back to string for outer hash
+  const innerHash = sha256(ipadStr + data, 'legacy');
   let innerBytes = '';
   for (let i = 0; i < innerHash.length; i += 2) {
     innerBytes += String.fromCharCode(parseInt(innerHash.substr(i, 2), 16));
   }
-  return sha256(opadStr + innerBytes);
+  return sha256(opadStr + innerBytes, 'legacy');
+}
+
+/** Hex digest → raw bytes. */
+function hexToBytes(hex: string): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.substr(i, 2), 16));
+  return out;
 }
 
 /**
@@ -1686,6 +1770,31 @@ export function createSaveEnvelope(dataString: string): string {
  * Verify save data integrity using checksum and HMAC signature.
  * Accepts both legacy (CRC32-only) and new (HMAC-SHA256) formats for backwards compatibility.
  */
+/**
+ * Does `expectedHmac` match under ANY configured verification key, in either
+ * padding mode? First entry in `EXPO_PUBLIC_SAVE_HMAC_KEY` signs; every entry
+ * verifies. Never throws — an unconfigured build simply matches nothing.
+ */
+function verifyHmacAgainstAnyKey(data: string, expectedHmac: string): boolean {
+  let keys: string[];
+  try {
+    keys = resolveSaveHmacKeys(saveSigningRuntime);
+  } catch {
+    return false;
+  }
+
+  for (const key of keys) {
+    try {
+      if (hmacWith(data, key) === expectedHmac) return true;
+      // Saves written before the signature was corrected.
+      if (hmacLegacyExact(data, key) === expectedHmac) return true;
+    } catch {
+      // A key that cannot be used is simply not a match.
+    }
+  }
+  return false;
+}
+
 export function verifySaveData(data: string, expectedChecksum: string, expectedSignature?: string, expectedHmac?: string): boolean {
   // Always verify CRC32 checksum for basic corruption detection
   const actualChecksum = calculateChecksum(data);
@@ -1695,6 +1804,17 @@ export function verifySaveData(data: string, expectedChecksum: string, expectedS
 
   // ANTI-EXPLOIT: Verify HMAC-SHA256 if present (new saves always have this)
   if (expectedHmac) {
+    // Try EVERY configured key, and under both padding modes.
+    //
+    // There used to be exactly one candidate, compared with a single `!==`, so
+    // a key rotation invalidated every save on every device simultaneously with
+    // no way back (the weak-migration escape hatch is refused by the production
+    // preflight). Accepting a list makes a rotation converge instead: old saves
+    // keep verifying and re-sign onto the current key on their next write.
+    // The legacy padding is here for the same reason — see `Sha256Padding`.
+    // 2026-07-29 audit SEC-2 / SEC-8.
+    if (verifyHmacAgainstAnyKey(data, expectedHmac)) return true;
+
     let actualHmac: string;
     try {
       actualHmac = calculateHmacSignature(data);
@@ -2071,10 +2191,24 @@ export async function doubleBufferLoad(
     }
 
     // Both buffers absent or unverifiable — check the legacy single-key save.
+    //
+    // Reading this KEY used to be gated on `allowLegacy`, which is the
+    // unsigned-legacy-FORMAT flag and is false on every shipped build (the
+    // preflight hard-fails a production build that enables it). So
+    // `save_slot_N` was never read in production no matter what it held — and
+    // a correctly signed v2 envelope sitting there verifies under the normal
+    // rules. That conflation made the legacy→double-buffer migration below
+    // unreachable and, chained with the empty/unreadable conflation, let an
+    // affected slot report as EMPTY and be handed to a new game.
+    //
+    // The two concerns are now separate: the key is always READ and always
+    // decoded; only the raw-unsigned payload branch inside
+    // `decodePersistedSaveEnvelope` stays gated on `allowLegacy`.
+    // 2026-07-29 audit SEC-3.
     const legacyData = await storage.getItem(slotKey);
     if (legacyData) {
       blobPresent = true;
-      if (allowLegacy) {
+      {
         const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
         if (decoded.valid) {
           // Migrate: write to buffer A and set pointer
@@ -2100,18 +2234,17 @@ export async function doubleBufferLoad(
     return { data: null, source: 'none', blobPresent: false };
   } catch (error) {
     logger.error('[DOUBLE_BUFFER] Load failed:', error);
-    // Last resort: try reading the legacy key directly
-    if (allowLegacy) {
-      try {
-        const legacyData = await storage.getItem(slotKey);
-        if (legacyData) {
-          const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
-          if (decoded.valid) {
-            return { data: legacyData, source: 'legacy', blobPresent: true };
-          }
+    // Last resort: try reading the legacy key directly. Same split as above —
+    // the key is always read; the FORMAT policy lives in the decoder.
+    try {
+      const legacyData = await storage.getItem(slotKey);
+      if (legacyData) {
+        const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
+        if (decoded.valid) {
+          return { data: legacyData, source: 'legacy', blobPresent: true };
         }
-      } catch {}
-    }
+      }
+    } catch {}
     // A throw tells us nothing about whether the slot holds data, so it must
     // NOT read as empty.
     return { data: null, source: 'unknown', blobPresent: true };

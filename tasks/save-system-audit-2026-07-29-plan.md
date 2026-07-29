@@ -94,17 +94,22 @@ Phase 1 fixed the three *callers*. This fixes the cause.
 | MR-5 | The staking repair tested falsy instead of `undefined`, so a position legitimately staked at absolute week 0 was "migrated" on every load. |
 | MR-6 | The invalid-hobby removal set no `repaired` flag, so the clone carrying it was discarded — the fix computed and thrown away on every load. Same class as the fourteen Spark/Pulse backfills. |
 
-## Phase 7 — Signing & cloud
+## Phase 7 — Signing *(done)*
 
-- **SEC-2** — one shared bundled HMAC key, no key id in the envelope, no
-  previous-key verification list: any rotation invalidates every save at once.
-  This is what makes SEC-1 a fleet-wide risk rather than a local one, and
-  `tasks/leaked-key-rotation-runbook.md` shows rotation is a live plan.
-- **SEC-3** — `doubleBufferLoad` gates reading the legacy *key* on the
-  unsigned-legacy-*format* flag.
-- **SEC-8** — the hand-rolled SHA-256 writes a wrong 64-bit length block for
-  every message.
-- **SEC-7**, SEC-4, SEC-6, BRC-8 through BRC-13.
+| Finding | Fix |
+|---|---|
+| SEC-2 | One key, one `!==`, no key id: a rotation invalidated every save on every device at once with no in-field lever back. `EXPO_PUBLIC_SAVE_HMAC_KEY` now accepts a comma-separated list — first entry signs, all entries verify — so a rotation converges instead of orphaning. Documented in `.env.example`. |
+| SEC-8 (+ more) | The 64-bit length word was written with `>>> 56`, which JS masks to `>>> 24`, so the digest diverged from real SHA-256 for **every** message, not only large ones. Fixing that alone was not enough: comparing against `node:crypto` showed the ipad/opad blocks were built as a **string** and then UTF-8-encoded, so every pad byte ≥ 0x80 silently expanded. The HMAC is now byte-based and matches `node:crypto` exactly. The original construction survives verbatim as a verify-only fallback, so no existing save is orphaned; each re-signs on its next write. |
+| SEC-3 | Reading the legacy save **key** was gated on the unsigned-legacy **format** flag, which is false on every shipped build — so `save_slot_N` was never read in production regardless of content, even a correctly signed v2 envelope. That made the legacy→double-buffer migration unreachable and, chained with the empty/unreadable conflation, let an affected slot read as EMPTY and be handed to a new game. Key reading and format policy are now separate concerns. |
+| SEC-7 | Paid permanent perks are signed with the same key and failed closed to `[]` on a verification failure — a key change presented a paying player as never having purchased, with one `logger.warn`. An *absent* envelope and a *present but unverifiable* one are now distinguished and the latter recorded, so a restore can be offered. Still fails closed. |
+
+### Deliberately not done
+
+- **SEC-4, SEC-6, BRC-8 through BRC-13** are cloud-sync findings. The cloud path
+  is dead at two levels (BRC-8) — fixing signature details on an unreachable
+  feature is not what protects a save today. They stay filed.
+- **PIPE-2, PIPE-4 through PIPE-8** are throughput and messaging refinements
+  whose data-loss consequences were closed by Phases 1–5.
 
 ---
 
