@@ -218,6 +218,44 @@ const MEASURES = {
   // near-zero on-axis strength (faceWidth 0.120 -> 0.007). Reverted.
   lipFullness: { a: 51, b: 57, axis: 'y', over: FACE_H },
   mouthHeight: { a: 51, b: 33, axis: 'y', over: FACE_H },
+
+  // ── The second batch ────────────────────────────────────────────────────
+  //
+  // Each is a RATIO against a span it must not simply restate. That is the
+  // whole difficulty: `nostrilFlare` measured against face width IS
+  // `noseWidth`, and the solve would be asked to separate two names for one
+  // quantity — which is what produced the weak, noisy pair the `jawAngle` note
+  // above describes.
+
+  /**
+   * How far the alae spread relative to the nostril openings between them.
+   *
+   * 31 and 35 are the outer alar corners, 32 and 34 the inner ones. `noseWidth`
+   * is already 31-35 over the face, so THAT is "wide nose"; this is the
+   * different question of whether the wings flare away from the septum, which a
+   * narrow nose can do and a wide one can fail to.
+   */
+  nostrilFlare: { a: 31, b: 35, axis: 'x', over: { a: 32, b: 34, axis: 'x' } },
+
+  /**
+   * Upper lip thickness against lower.
+   *
+   * 51 is the top of the upper lip and 62 its inner edge; 66 is the inner edge
+   * of the lower lip and 57 its bottom. `lipFullness` spans 51-57 — both lips
+   * together — so this is orthogonal to it by construction: it says how the
+   * total is SPLIT, and can move while the total does not.
+   */
+  lipRatio: { a: 51, b: 62, axis: 'y', over: { a: 66, b: 57, axis: 'y' } },
+
+  /**
+   * Width across the outer brows, against face width.
+   *
+   * The temples sit just outside 17 and 26, and there is no landmark on them.
+   * The outer brow span is the closest thing the 68-point set has that is
+   * measured at the right HEIGHT — `faceWidth` (0-16) is taken down at the ear
+   * and jaw, so a head can be broad there and narrow here.
+   */
+  templeWidth: { a: 17, b: 26, axis: 'x', over: FACE_W },
 };
 
 /**
@@ -302,6 +340,50 @@ const REGION_SPECS = {
    * already had to fix once, on faceWidth.
    */
   foreheadSlope: (P, R) => -lineSlope(R.foreheadMid, (v) => P[v * 3 + 1], (v) => P[v * 3 + 2]),
+
+  // ── Grooves and hollows ─────────────────────────────────────────────────
+  //
+  // A groove is not a distance between two points, it is a DIFFERENCE between
+  // the midline and the ridges flanking it. No pair of landmarks can express
+  // that — 33 and 51 bracket the philtrum vertically and say nothing about its
+  // depth — which is exactly the case `REGION_SPECS` exists for.
+  //
+  // Both are normalised by face width so they are ratios of two lengths on the
+  // same head, per the note above. Both are means over bands, so they stay
+  // smooth: the depth of a groove read as `min z` would jump between
+  // neighbouring vertices and put that jump straight into the sensitivity
+  // matrix as noise.
+
+  /** How far the philtrum midline sits behind the ridges either side of it. */
+  philtrumDepth: (P, R, landmarks, faceW) =>
+    (mean(R.philtrumFlank, (v) => P[v * 3 + 2]) - mean(R.philtrumMid, (v) => P[v * 3 + 2]))
+    / Math.max(1e-6, faceW),
+
+  /** The same measurement on the chin — a cleft is a midline set back. */
+  chinCleft: (P, R, landmarks, faceW) =>
+    (mean(R.chinFlank, (v) => P[v * 3 + 2]) - mean(R.chinMid, (v) => P[v * 3 + 2]))
+    / Math.max(1e-6, faceW),
+
+  /**
+   * How hollow the cheek is under the cheekbone.
+   *
+   * Mean |x| across the mid-cheek band over mean |x| across the zygomatic band
+   * above it. A gaunt face is narrow BELOW a cheekbone that stays wide, which
+   * is a different quantity from `cheekFullness` (the 2-14 contour width) and
+   * can move while that does not.
+   */
+  cheekHollow: (P, R) =>
+    mean(R.cheekbone, (v) => Math.abs(P[v * 3])) / Math.max(1e-6, mean(R.midCheek, (v) => Math.abs(P[v * 3]))),
+
+  /**
+   * How much the ear flares away from the head at its back edge.
+   *
+   * Rear half of the ear against its front half. `earSize` is the whole ear
+   * against the skull, so it says how big and how far out; this says the ANGLE,
+   * which is what makes ears read as sticking out — they hinge at the front.
+   */
+  earAngle: (P, R) =>
+    mean(R.earRear, (v) => Math.abs(P[v * 3])) / Math.max(1e-6, mean(R.earFront, (v) => Math.abs(P[v * 3]))),
 };
 
 /** Mean of `f` over a vertex index list. */
@@ -361,7 +443,18 @@ function buildRegions(neutral, landmarks) {
     headX = Math.max(headX, Math.abs(P[v * 3]));
   }
 
+  // Feature heights the second batch of bands is placed against. Taken from
+  // landmarks rather than from fractions of the head, so a band lands on the
+  // anatomy it is named for on every mode rather than on whatever happens to be
+  // at that height.
+  const noseBaseY = P[landmarks[33] * 3 + 1];
+  const upperLipY = P[landmarks[51] * 3 + 1];
+  const lowerLipY = P[landmarks[57] * 3 + 1];
+  const cheekY = (P[landmarks[2] * 3 + 1] + P[landmarks[14] * 3 + 1]) / 2;
+
   const ear = [], skull = [], neck = [], foreheadMid = [];
+  const philtrumMid = [], philtrumFlank = [], chinMid = [], chinFlank = [];
+  const cheekbone = [], midCheek = [];
   for (let v = 0; v < n; v++) {
     const x = Math.abs(P[v * 3]), y = P[v * 3 + 1], z = P[v * 3 + 2];
     const earHeight = y >= chinY + 0.15 * H && y <= browY + 0.12 * H;
@@ -371,8 +464,39 @@ function buildRegions(neutral, landmarks) {
     if (earHeight && z <= maxZ - 0.68 * D && x >= 0.45 * headX) skull.push(v);
     if (y <= chinY - 0.02 * H && y >= chinY - 0.28 * H) neck.push(v);
     if (x <= 0.07 * headX && y >= browY && y <= browY + 0.62 * H) foreheadMid.push(v);
+
+    // PHILTRUM: the band between the nose base and the top of the upper lip,
+    // on the front of the face only. The midline strip is the groove; the
+    // flanking strips are the ridges it runs between.
+    const onFront = z >= maxZ - 0.30 * D;
+    if (onFront && y <= noseBaseY && y >= upperLipY) {
+      if (x <= 0.022 * headX) philtrumMid.push(v);
+      else if (x >= 0.035 * headX && x <= 0.085 * headX) philtrumFlank.push(v);
+    }
+    // CHIN: below the lower lip, above the bottom of the chin.
+    if (onFront && y <= lowerLipY && y >= chinY + 0.02 * H) {
+      if (x <= 0.035 * headX) chinMid.push(v);
+      else if (x >= 0.055 * headX && x <= 0.13 * headX) chinFlank.push(v);
+    }
+    // CHEEK: a zygomatic band and the band below it. Both taken well out from
+    // the midline so neither picks up the nose.
+    const onCheek = x >= 0.30 * headX && z >= maxZ - 0.55 * D;
+    if (onCheek && Math.abs(y - cheekY) <= 0.06 * H) cheekbone.push(v);
+    if (onCheek && Math.abs(y - (cheekY + upperLipY) / 2) <= 0.06 * H) midCheek.push(v);
   }
-  return { ear, skull, neck, foreheadMid };
+
+  // The ear split is done AFTER the ear set exists, at the set's own mean
+  // depth: the ear sits at a different z on every mode, so a fixed plane would
+  // put the whole ear on one side of it for some of them.
+  const earZ = mean(ear, (v) => P[v * 3 + 2]);
+  const earFront = ear.filter((v) => P[v * 3 + 2] >= earZ);
+  const earRear = ear.filter((v) => P[v * 3 + 2] < earZ);
+
+  return {
+    ear, skull, neck, foreheadMid,
+    philtrumMid, philtrumFlank, chinMid, chinFlank,
+    cheekbone, midCheek, earFront, earRear,
+  };
 }
 
 const AXIS_INDEX = { x: 0, y: 1, z: 2 };

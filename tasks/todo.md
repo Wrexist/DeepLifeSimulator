@@ -66,14 +66,37 @@ inherited and aged with **no control anywhere**.
 - [ ] FaceStudio "Makeup" card
 - [ ] Tests + on-screen sweep
 
-### Rig rebuild owed (found by CI, not by me)
-- [ ] `head_ict.glb` and the MakeHuman target list are GENERATED and have not
-      been regenerated since the seven new morphs were appended, so on the
-      SCANNED head — the one that ships — those seven sliders are hidden by
-      `binding.unbound`. Recorded in `helpers/pendingRigMorphs.ts` and asserted
-      as an exact set, so a twenty-fifth morph falling out still fails.
-      Needs the ICT-FaceKit source and a measured axis per morph in
-      `scripts/build-ict-head.mjs`.
+### Rig rebuild — DONE for the head that ships
+- [x] ICT-FaceKit re-cloned; `head_ict.glb` rebuilt with an axis for all seven.
+      31/31 bind, `unbound` is empty again and `ictHead.test.ts` is back to the
+      strict assertion.
+- [x] Three derive from landmarks — `nostrilFlare` (alar spread over the inner
+      nostril span, so it is not just `noseWidth` again), `lipRatio` (upper lip
+      over lower, orthogonal to `lipFullness` by construction), `templeWidth`
+      (outer-brow span, measured at the right HEIGHT unlike `faceWidth`).
+- [x] Four needed REGION measures, because a groove is a difference between the
+      midline and the ridges beside it and no pair of landmarks can say that:
+      `philtrumDepth`, `chinCleft` (both midline-vs-flank z over face width),
+      `cheekHollow` (mid-cheek width over zygomatic width), `earAngle` (rear
+      half of the ear over its front half).
+- [x] Worst cross-talk UNCHANGED at 0.710 — still the known lipFullness /
+      chinLength coupling, which is arithmetic and not a defect. The seven new
+      axes are all <= 0.012, so none of them drags another feature.
+- [x] `MORPH=<key>:<values>` added to `shoot-styles.mjs` — sweeps ONE morph on
+      the SCANNED head. There was no way to look at a single axis on the head
+      that ships, which is why seven dead sliders were invisible in every render.
+      It exits loudly on an unbound morph rather than rendering three identical
+      frames.
+- [x] Confirmed on screen: `cheekHollow` (full -> gaunt, cheekbone holds its
+      width) and `earAngle` (ear tucked -> flared) both clearly correct.
+- [ ] `chinCleft` is BOUND, moves the mesh and scores 24.2 on-axis, but I could
+      not confirm a visible CLEFT — what renders reads as a general chin-shape
+      change. A cleft may be finer than 100 identity PCA modes represent. Needs
+      a chin-framed render to settle; do not claim it works until then.
+- [ ] MakeHuman still lags, and deliberately: its list is a hand-written fixture
+      and there is no install here to check new stem names against. Inventing
+      names would make the test green while proving nothing. Narrowed
+      `helpers/pendingRigMorphs.ts` to that one case.
 
 ### Rules this must not break
 - A new control MUST move something on screen, or it does not ship

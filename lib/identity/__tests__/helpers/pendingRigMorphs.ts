@@ -1,21 +1,33 @@
 /**
- * Morphs the app has but the generated rigs do not — yet.
+ * Morphs the app has that the MAKEHUMAN fixture does not.
  *
- * `head_ict.glb` and the captured MakeHuman target list are both GENERATED, by
- * `scripts/build-ict-head.mjs` and `scripts/makehuman-targets.mjs`, and neither
- * has been regenerated since the second batch of morphs was appended. Adding one
- * is not just a list entry: each needs a measured axis in the build script and a
- * copy of the ICT-FaceKit source to re-derive from.
+ * ## This list used to be about the shipping rig, and no longer is
  *
- * Until that lands these seven drive the PROCEDURAL head only. On the scanned
- * head — the one that ships once the GLB loads — `binding.unbound` hides their
- * sliders, so the player sees fewer controls rather than dead ones. That is the
- * designed degradation, and recording it here is the difference between a known
- * gap and a silent one.
+ * When the second batch of seven morphs was appended, neither generated rig
+ * carried them. `head_ict.glb` — the head that actually ships — has since been
+ * rebuilt from the ICT-FaceKit basis with a measured axis for each, so
+ * `ictHead.test.ts` is back to asserting `unbound` is empty. Only MakeHuman
+ * still lags, and it lags for a different and smaller reason.
  *
- * Lives in `helpers/` rather than inside a test file because two suites assert
- * against it, and importing across test files would re-run the other suite's
- * describes as a side effect.
+ * ## Why MakeHuman is not simply extended too
+ *
+ * `MAKEHUMAN` in `makehuman.test.ts` is a hand-written slice of a real
+ * `data/targets` tree, not a captured one, and there is no MakeHuman install
+ * here to check new names against. The stems in `MAKEHUMAN_STEMS` for these
+ * seven are plausible — `nosenostrilwidth`, `chincleft`, `earwing` — and
+ * plausible is exactly the danger `scripts/makehuman-targets.mjs` was written
+ * to guard against: its docstring notes that `nose-scale-horiz` is width and
+ * `nose-scale-vert` is length, so a reasonable guess produces a slider that
+ * deforms the WRONG feature, which reads as a modelling bug rather than a
+ * wiring one.
+ *
+ * Adding invented names to the fixture would make the test green while proving
+ * nothing, since the fixture would then contain whatever the stems expect by
+ * construction. Running `node scripts/makehuman-targets.mjs <data-dir>` against
+ * a real install is what settles it; until then this records the gap.
+ *
+ * MakeHuman is an exploratory route, not the shipping one — nothing a player
+ * sees depends on it.
  */
 export const PENDING_RIG_MORPHS: readonly string[] = [
   'nostrilFlare', 'philtrumDepth', 'lipRatio', 'cheekHollow',

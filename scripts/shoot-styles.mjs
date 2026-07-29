@@ -397,6 +397,63 @@ async function main() {
     return;
   }
 
+  /**
+   * MORPH=<key>:<v,v,v> sweeps ONE morph on the SCANNED head.
+   *
+   * The scanned head is the one that ships once the GLB loads, and until this
+   * existed there was no way to look at a single axis on it — `SEXES` and the
+   * random sweeps move every morph at once, which shows that the rig works and
+   * not that any particular slider does.
+   *
+   * That gap was not hypothetical. Seven morphs were added to the app while
+   * `head_ict.glb` still predated them, so they bound to nothing and
+   * `binding.unbound` hid their sliders on the shipping head — visible in a
+   * test, invisible in every render anyone had made.
+   *
+   * Everything except the swept morph is held at neutral, so whatever moves
+   * between frames is the axis and nothing else.
+   */
+  if (process.env.MORPH) {
+    const genomeMod = loadTs('lib/identity/faceGenome.ts');
+    const bindMod = loadTs('lib/identity/morphBinding.ts');
+    const identity = loadTs('lib/identity/types.ts');
+    const names = await page.evaluate(() => window.__morphNames);
+    const binding = bindMod.bindGenomeToRig(names);
+    const [key, list] = process.env.MORPH.split(':');
+    if (!identity.FACE_MORPH_KEYS.includes(key)) {
+      console.error(`unknown morph "${key}"`);
+      process.exit(2);
+    }
+    if (binding.unbound.includes(key)) {
+      // Loud rather than a blank sweep. An unbound morph renders three
+      // identical frames, which looks like a weak slider rather than a missing
+      // one — the exact confusion this mode exists to end.
+      console.error(`"${key}" is UNBOUND on this rig — nothing to render.`);
+      process.exit(2);
+    }
+    const values = (list ?? '0,0.5,1').split(',').map(Number);
+    const shots = [];
+    for (const v of values) {
+      const g = genomeMod.normalizeGenome({ morphs: { ...genomeMod.neutralMorphs(), [key]: v } });
+      const { influences } = bindMod.genomeToInfluences(g, binding, { signed: true });
+      await page.evaluate((c) => window.__applyCharacter(c), {
+        influences,
+        hairColor: identity.HAIR_COLORS[g.hairColor],
+        eyeColor: identity.EYE_COLORS[g.eyeColor],
+        blemish: 0,
+        browThickness: 0.5,
+        undertone: 0.5,
+        hairStyle: 'bald',
+        facialHair: 'none',
+      });
+      shots.push({ name: `${key}=${v}`, png: await page.locator('canvas').screenshot() });
+    }
+    await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
+    await browser.close();
+    server.close();
+    return;
+  }
+
   // SWEEP=hex,hex,... renders the same head once per colour. Palettes are
   // where "it looked fine" hides: the default entry is checked constantly and
   // the ends of the range almost never.

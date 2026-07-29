@@ -112,6 +112,21 @@
       "sd": 0.012873,
       "norm": null
     },
+    "nostrilFlare": {
+      "mean": 2.080032,
+      "sd": 0.118859,
+      "norm": null
+    },
+    "lipRatio": {
+      "mean": 0.860666,
+      "sd": 0.137016,
+      "norm": null
+    },
+    "templeWidth": {
+      "mean": 0.789816,
+      "sd": 0.030945,
+      "norm": null
+    },
     "earSize": {
       "mean": 1.504995,
       "sd": 0.052662,
@@ -125,6 +140,26 @@
     "foreheadSlope": {
       "mean": 0.88753,
       "sd": 0.424014,
+      "norm": null
+    },
+    "philtrumDepth": {
+      "mean": -0.006424,
+      "sd": 0.000819,
+      "norm": null
+    },
+    "chinCleft": {
+      "mean": 0.012031,
+      "sd": 0.000739,
+      "norm": null
+    },
+    "cheekHollow": {
+      "mean": 1.4732,
+      "sd": 0.02327,
+      "norm": null
+    },
+    "earAngle": {
+      "mean": 1.038747,
+      "sd": 0.014232,
       "norm": null
     }
   }
