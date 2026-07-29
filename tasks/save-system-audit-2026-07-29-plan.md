@@ -63,21 +63,16 @@ Shipped:
 | BRC-14 | The restore read the outgoing save only to feed the exploit check, then overwrote it. It is now snapshotted under `before_restore` first, so picking the wrong entry is undoable. |
 | BRC-7 | The protected-state layer was a closed loop — nothing wrote the keys, so nothing was ever embedded, so nothing wrote the keys. `performSave` now bootstraps it after a successful write. Landed after BRC-6, or switching it on would have started refusing legitimate recoveries. |
 
-## Phase 4 — Stop conflating "unreadable" with "empty" at the source
+## Phase 4 — Stop conflating "unreadable" with "empty" at the source *(done)*
 
-Phase 1 fixed the three *callers*. The root cause is still in
-`doubleBufferLoad`, which returns `{data: null, source: 'none'}` for four
-different outcomes.
+Phase 1 fixed the three *callers*. This fixes the cause.
 
-- **PIPE-1 / SEC-1 (root)** — widen the return with `blobPresent` and
-  `source: 'unverified' | 'unknown'`; add `readSaveSlotDetailed`. Leave
-  `readSaveSlot` untouched so its ~10 callers keep their meaning.
-- **SAVE-OW-3** — when the `_active` pointer is missing, still try `_A` then
-  `_B` before the legacy fallback. A lost pointer must not read as "no data".
-- **PIPE-8** — `validateSaveSlot` can never report `exists: true` for an
-  unreadable slot, so its corruption messaging is dead.
-- **SAVE-OW-8** — `purgeSlotIfPhantom` clears slot markers when the blob is
-  merely unreadable.
+| Finding | Fix |
+|---|---|
+| PIPE-1 / SEC-1 (root) | `doubleBufferLoad` returned `{data: null, source: 'none'}` for four different outcomes. It now reports `none` / `unverified` / `unknown` plus a `blobPresent` flag that is never optimistic — a thrown read reports `true`. New `readSaveSlotDetailed`; `readSaveSlot` is untouched so its callers keep their meaning. |
+| SAVE-OW-3 | The whole buffer-reading block sat inside `if (currentActive === 'A' \|\| 'B')`, so a slot whose `_active` pointer went missing never had `_A` or `_B` read at all — two intact saves reported as "no data". Both buffers are now tried in either case, and a wrong or missing pointer is healed on read. |
+| PIPE-8 | `validateSaveSlot` hardcoded `exists: false` on the null path, so its own corruption messaging was unreachable for the case that produces it. |
+| SAVE-OW-8 | `purgeSlotIfPhantom` wiped the summary and slot markers for a blob it merely could not read — the Continue card vanished while the save sat on disk, recoverable and unreachable. |
 
 ## Phase 5 — The write pipeline
 

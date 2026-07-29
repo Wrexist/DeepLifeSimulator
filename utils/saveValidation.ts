@@ -1970,6 +1970,40 @@ export async function doubleBufferSave(
 }
 
 /**
+ * What a slot read actually found.
+ *
+ * `none` and `unverified`/`unknown` used to be the SAME `{data: null}`, and
+ * three separate occupancy guards read that null as "this slot is free to
+ * overwrite". A save that merely failed CRC32/HMAC verification — after an HMAC
+ * key rotation, say, which invalidates every save on the device at once —
+ * looked exactly like an empty slot. So did a storage read that threw.
+ * (2026-07-29 audit PIPE-1 / SEC-1.)
+ */
+export type SaveSlotSource =
+  /** Read and verified from that buffer / the legacy key. */
+  | 'A'
+  | 'B'
+  | 'legacy'
+  /** Nothing is stored here. The ONLY value that means "safe to overwrite". */
+  | 'none'
+  /** A blob exists but did not verify. Often still recoverable from a backup. */
+  | 'unverified'
+  /** The read itself failed. Proves nothing about whether data exists. */
+  | 'unknown';
+
+export interface SaveSlotReadResult {
+  data: string | null;
+  source: SaveSlotSource;
+  migrated?: boolean;
+  /**
+   * True when any raw slot key returned a non-null string, or when we could not
+   * establish that they did not. Never optimistic: a thrown read reports `true`,
+   * because "I could not tell" must not authorise a destructive write.
+   */
+  blobPresent: boolean;
+}
+
+/**
  * Double-buffer load: reads from the active buffer with fallback to the other.
  * Also handles migration from legacy single-key saves.
  */
@@ -1977,69 +2011,79 @@ export async function doubleBufferLoad(
   slotKey: string,
   storage: typeof AsyncStorage = AsyncStorage,
   options: { allowLegacy?: boolean } = {}
-): Promise<{ data: string | null; source: 'A' | 'B' | 'legacy' | 'none'; migrated?: boolean }> {
+): Promise<SaveSlotReadResult> {
   const pointerKey = `${slotKey}_active`;
   const keyA = `${slotKey}_A`;
   const keyB = `${slotKey}_B`;
   const allowLegacy = options.allowLegacy ?? ALLOW_UNSIGNED_LEGACY_SAVES;
 
+  let blobPresent = false;
+
   try {
     const currentActive = (await storage.getItem(pointerKey)) as 'A' | 'B' | null;
 
-    // If pointer exists, try active buffer first, then fallback
-    if (currentActive === 'A' || currentActive === 'B') {
-      const activeKey = currentActive === 'A' ? keyA : keyB;
-      const fallbackKey = currentActive === 'A' ? keyB : keyA;
-      const fallbackBuffer = currentActive === 'A' ? 'B' : 'A';
+    // Try the pointed-at buffer first, then the other one. When the pointer is
+    // MISSING we still try both: this whole block used to sit inside
+    // `if (currentActive === 'A' || currentActive === 'B')`, so a lost pointer
+    // skipped the buffers entirely and fell straight through to the legacy key
+    // — reporting "no data" for a slot holding two intact megabyte saves
+    // (2026-07-29 audit SAVE-OW-3).
+    const order: Array<'A' | 'B'> = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
 
-      // Try active buffer
-      const activeData = await storage.getItem(activeKey);
-      if (activeData) {
-        // Verify envelope integrity before returning
-        const decoded = decodePersistedSaveEnvelope(activeData, { allowLegacy });
-        if (decoded.valid) {
-          return { data: activeData, source: currentActive };
-        }
-        logger.warn(`[DOUBLE_BUFFER] Active buffer ${currentActive} failed verification, trying fallback`);
+    for (const buffer of order) {
+      const bufferKey = buffer === 'A' ? keyA : keyB;
+      const bufferData = await storage.getItem(bufferKey);
+      if (!bufferData) continue;
+      blobPresent = true;
+
+      const decoded = decodePersistedSaveEnvelope(bufferData, { allowLegacy });
+      if (!decoded.valid) {
+        logger.warn(`[DOUBLE_BUFFER] Buffer ${buffer} failed verification for ${slotKey}`);
+        continue;
       }
 
-      // Active buffer is corrupt or missing — try fallback
-      const fallbackData = await storage.getItem(fallbackKey);
-      if (fallbackData) {
-        const decoded = decodePersistedSaveEnvelope(fallbackData, { allowLegacy });
-        if (decoded.valid) {
-          // Fix the pointer to the good buffer
-          await storage.setItem(pointerKey, fallbackBuffer);
-          logger.warn(`[DOUBLE_BUFFER] Recovered from fallback buffer ${fallbackBuffer}`);
-          return { data: fallbackData, source: fallbackBuffer };
-        }
-        logger.error(`[DOUBLE_BUFFER] Both buffers failed verification for ${slotKey}`);
-      }
-
-      // Both buffers failed — still check legacy key as last resort
-    }
-
-    // No pointer or both buffers failed — check legacy single-key save
-    const legacyData = await storage.getItem(slotKey);
-    if (legacyData && allowLegacy) {
-      const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
-      if (decoded.valid) {
-        // Migrate: write to buffer A and set pointer
+      // Heal a wrong or missing pointer so the next read goes straight there.
+      if (currentActive !== buffer) {
         try {
-          const canonicalEnvelope = createSaveEnvelope(legacyData);
-          await storage.setItem(keyA, canonicalEnvelope);
-          await storage.setItem(pointerKey, 'A');
-          // Don't delete legacy key yet — keep as extra fallback until next successful save
-          logger.info(`[DOUBLE_BUFFER] Migrated legacy save to double-buffer for ${slotKey}`);
-          return { data: canonicalEnvelope, source: 'legacy', migrated: true };
-        } catch (migrateError) {
-          logger.warn('[DOUBLE_BUFFER] Migration to double-buffer failed (non-critical)', { error: migrateError });
-          return { data: legacyData, source: 'legacy', migrated: true };
+          await storage.setItem(pointerKey, buffer);
+          logger.warn(`[DOUBLE_BUFFER] Repointed ${slotKey} to buffer ${buffer}`);
+        } catch (pointerError) {
+          logger.warn('[DOUBLE_BUFFER] Could not repair active pointer (non-critical)', {
+            error: pointerError,
+          });
+        }
+      }
+      return { data: bufferData, source: buffer, blobPresent: true };
+    }
+
+    // Both buffers absent or unverifiable — check the legacy single-key save.
+    const legacyData = await storage.getItem(slotKey);
+    if (legacyData) {
+      blobPresent = true;
+      if (allowLegacy) {
+        const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
+        if (decoded.valid) {
+          // Migrate: write to buffer A and set pointer
+          try {
+            const canonicalEnvelope = createSaveEnvelope(legacyData);
+            await storage.setItem(keyA, canonicalEnvelope);
+            await storage.setItem(pointerKey, 'A');
+            // Don't delete legacy key yet — keep as extra fallback until next successful save
+            logger.info(`[DOUBLE_BUFFER] Migrated legacy save to double-buffer for ${slotKey}`);
+            return { data: canonicalEnvelope, source: 'legacy', migrated: true, blobPresent: true };
+          } catch (migrateError) {
+            logger.warn('[DOUBLE_BUFFER] Migration to double-buffer failed (non-critical)', { error: migrateError });
+            return { data: legacyData, source: 'legacy', migrated: true, blobPresent: true };
+          }
         }
       }
     }
 
-    return { data: null, source: 'none' };
+    if (blobPresent) {
+      logger.error(`[DOUBLE_BUFFER] Data present but unverifiable for ${slotKey}`);
+      return { data: null, source: 'unverified', blobPresent: true };
+    }
+    return { data: null, source: 'none', blobPresent: false };
   } catch (error) {
     logger.error('[DOUBLE_BUFFER] Load failed:', error);
     // Last resort: try reading the legacy key directly
@@ -2049,13 +2093,29 @@ export async function doubleBufferLoad(
         if (legacyData) {
           const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
           if (decoded.valid) {
-            return { data: legacyData, source: 'legacy' };
+            return { data: legacyData, source: 'legacy', blobPresent: true };
           }
         }
       } catch {}
     }
-    return { data: null, source: 'none' };
+    // A throw tells us nothing about whether the slot holds data, so it must
+    // NOT read as empty.
+    return { data: null, source: 'unknown', blobPresent: true };
   }
+}
+
+/**
+ * Read a slot and report WHY it came back empty, for callers deciding whether a
+ * slot may be overwritten. `readSaveSlot` cannot answer that — it returns the
+ * same `null` for "nothing stored", "failed verification" and "the read threw".
+ * Only `'none'` means safe to overwrite.
+ */
+export async function readSaveSlotDetailed(
+  slot: number,
+  storage: typeof AsyncStorage = AsyncStorage,
+  options: { allowLegacy?: boolean } = {}
+): Promise<SaveSlotReadResult> {
+  return doubleBufferLoad(`save_slot_${slot}`, storage, options);
 }
 
 /**
