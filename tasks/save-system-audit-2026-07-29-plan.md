@@ -54,17 +54,14 @@ Shipped:
 | BRC-2 | 5-deep ring + unthrottled autosave = ~10 minutes of history. Now: auto_save rate-limited, generational retention, protected reasons exempt from rotation. |
 | BRC-3 / SAVE-OW-4 | The "pre-save backup" snapshotted the state being *written*. New `snapshotOutgoingSave()` captures the outgoing envelope verbatim (no decode, so an unverifiable save is still captured) — wired into onboarding and the death-screen slot wipe. |
 
-## Phase 3 — Give the player the recovery surface *(next)*
+## Phase 3 — Give the player the recovery surface *(done)*
 
-- **BRC-1** — backups are write-only. `restoreFromBackup`, `createManualBackup`,
-  `listAllBackups` have zero callers. The one UI state literally labelled
-  "Recovery Needed" offers only Delete. Add a restore picker to `SaveSlots`.
-- **BRC-6** — the anti-exploit gate refuses every pre-prestige and pre-death
-  restore and fails closed on its own exception, so it would block the restores
-  a recovering player most needs. Must land with BRC-1.
-- **BRC-14** — a restore is itself irreversible; snapshot under `before_restore`
-  (already a protected reason) first.
-- **BRC-7** — the protected-state layer can never bootstrap.
+| Finding | Fix |
+|---|---|
+| BRC-1 | Backups were write-only — `restoreFromBackup` / `createManualBackup` / `listAllBackups` had zero callers, and the slot state labelled "Recovery Needed" offered only Delete. New `RestoreBackupSheet`, reachable from every slot with data or in recovery. It is a *restore point picker*, not a file list: each entry leads with who the character was and how far they got. |
+| BRC-6 | The gate was written for an in-run rewind and applied to every restore. `restoreFromBackup` now takes an `intent`; a `'recovery'` skips the death, generation and criminal-record checks, and the generation check is off-by-one even for a rewind so the life you just finished stays restorable. The catch now fails **open** — refusing a restore because the check crashed is strictly worse than the single-player exploit it guards. |
+| BRC-14 | The restore read the outgoing save only to feed the exploit check, then overwrote it. It is now snapshotted under `before_restore` first, so picking the wrong entry is undoable. |
+| BRC-7 | The protected-state layer was a closed loop — nothing wrote the keys, so nothing was ever embedded, so nothing wrote the keys. `performSave` now bootstraps it after a successful write. Landed after BRC-6, or switching it on would have started refusing legitimate recoveries. |
 
 ## Phase 4 — Stop conflating "unreadable" with "empty" at the source
 

@@ -236,6 +236,20 @@ class SaveQueue {
         throw new Error(saveResult.error || 'Double-buffer save failed');
       }
 
+      // BRC-7: bootstrap the protected-state keys. Nothing wrote them, so
+      // `getProtectedState` returned null for the whole lifetime of the app —
+      // which made the embed above a closed loop (nothing to embed, so nothing
+      // ever got written) and left the anti-exploit layer inert. Written AFTER
+      // the save succeeds so a failed write cannot advance the high-water marks.
+      // Non-blocking and non-critical: this must never fail a save.
+      void import('./saveBackup')
+        .then((m) => m.updateProtectedState(operation.slot, operation.data))
+        .catch((err) => {
+          this.log.warn('Failed to update protected state (non-critical):', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
       await safeSetItem('lastSlot', slotToSave.toString());

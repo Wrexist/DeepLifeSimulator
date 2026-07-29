@@ -30,6 +30,14 @@ const MAX_TOTAL_BACKUP_SIZE = 10 * 1024 * 1024; // 10MB total backup storage lim
 const MIN_BACKUP_INTERVAL_MS = 60 * 1000; // Minimum 1 minute between manual backups
 const LAST_BACKUP_PREFIX = 'last_backup_time_';
 
+/**
+ * Why a restore is being performed.
+ * - `recovery`: the player is repairing a broken or lost save. Progression
+ *   protections are skipped — they would block the case they exist to survive.
+ * - `rewind`: an in-run rollback. Full anti-exploit checks apply.
+ */
+export type RestoreIntent = 'recovery' | 'rewind';
+
 export type BackupReason = 'manual' | 'auto_save' | 'delete_save' | 'corruption_recovery' | 'before_update' | 'background_save' | 'app_resume' | 'emergency_save' | 'before_week' | 'before_overwrite' | 'before_prestige' | 'before_restore';
 
 /**
@@ -308,11 +316,22 @@ export async function canCreateBackup(slot: number, gameState: any): Promise<Exp
  * Check if restoring a backup is allowed (anti-exploit)
  */
 export async function canRestoreBackup(
-  slot: number, 
-  backupState: any, 
-  currentState: any
+  slot: number,
+  backupState: any,
+  currentState: any,
+  intent: RestoreIntent = 'rewind'
 ): Promise<ExploitCheckResult> {
   try {
+    // A RECOVERY restore is the player getting their own save back after
+    // something went wrong. Progression-protection checks exist to stop a
+    // player rewinding past a bad outcome mid-run; applied to a recovery they
+    // do the opposite of their job. Concretely: `continueAsChild` bumps
+    // generationNumber, so check 4 made every backup from the run that just
+    // ended permanently unrestorable — including one taken seconds earlier —
+    // and the autosave keeps running while dead, so check 1 filled the ring
+    // with dead-state backups that became the only legal restores.
+    const isRecovery = intent === 'recovery';
+
     const protectedState = await getProtectedState(slot);
     
     // Also check current state directly (in case protected state isn't up to date)
@@ -321,7 +340,7 @@ export async function canRestoreBackup(
     const currentGeneration = currentState?.generationNumber || 1;
     
     // Check 1: Death reversal - cannot restore to alive state if player has died
-    const playerIsDead = protectedState?.isDead || currentIsDead;
+    const playerIsDead = !isRecovery && (protectedState?.isDead || currentIsDead);
     if (playerIsDead) {
       const backupIsDead = backupState.showDeathPopup || backupState.deathReason;
       if (!backupIsDead) {
@@ -363,13 +382,16 @@ export async function canRestoreBackup(
       }
     }
     
-    // Check 4: Generation mismatch - cannot go back to previous generation
+    // Check 4: Generation mismatch - cannot go back to previous generation.
+    // Skipped for a recovery, and otherwise off-by-one so the immediately
+    // preceding generation stays restorable: continuing your legacy must not
+    // make the life you just finished unrecoverable.
     const highestGeneration = Math.max(
       protectedState?.generationNumber || 1, 
       currentGeneration
     );
     const backupGeneration = backupState.generationNumber || 1;
-    if (backupGeneration < highestGeneration) {
+    if (!isRecovery && backupGeneration < highestGeneration - 1) {
       return {
         allowed: false,
         reason: 'Cannot restore to a previous generation. Your lineage has moved on.',
@@ -382,7 +404,7 @@ export async function canRestoreBackup(
       protectedState?.totalCrimesCommitted || 0,
       currentState?.streetJobsCompleted || 0
     );
-    if (totalCrimes > 10) {
+    if (!isRecovery && totalCrimes > 10) {
       const backupCrimes = backupState.streetJobsCompleted || 0;
       // Allow some tolerance but not significant reduction (50%)
       if (backupCrimes < totalCrimes * 0.5) {
@@ -396,13 +418,12 @@ export async function canRestoreBackup(
     
     return { allowed: true };
   } catch (error) {
-    logger.error('Error checking restore permission', error);
-    // Block restore if check fails (fail-closed for security)
-    return {
-      allowed: false,
-      reason: 'Unable to verify backup integrity. Please try again.',
-      exploitType: 'invalid_state',
-    };
+    // Fail OPEN. This used to fail closed "for security", which trades a
+    // single-player progression exploit against permanent, unrecoverable data
+    // loss for a player whose save is already broken — an exception in the
+    // permission check is exactly the moment they need the restore most.
+    logger.error('Error checking restore permission — allowing restore', error);
+    return { allowed: true };
   }
 }
 
@@ -719,8 +740,9 @@ export async function loadBackup(backupId: string): Promise<{ data: string; chec
  * Returns the restored state object if successful, null otherwise
  */
 export async function restoreFromBackup(
-  slot: number, 
-  backupId: string
+  slot: number,
+  backupId: string,
+  intent: RestoreIntent = 'recovery'
 ): Promise<{ success: boolean; state?: any; error?: string }> {
   try {
     const backup = await loadBackup(backupId);
@@ -757,12 +779,21 @@ export async function restoreFromBackup(
     }
     
     // ANTI-EXPLOIT: Check if restore is allowed
-    const exploitCheck = await canRestoreBackup(slot, backupState, currentState);
+    const exploitCheck = await canRestoreBackup(slot, backupState, currentState, intent);
     if (!exploitCheck.allowed) {
       logger.warn(`Restore blocked: ${exploitCheck.exploitType} - ${exploitCheck.reason}`);
       return { success: false, error: exploitCheck.reason };
     }
     
+    // BRC-14: a restore is itself destructive — it discards the state it
+    // replaces. Snapshot that first, so picking the wrong entry out of the list
+    // is not a one-way door. `currentData` is already a persisted envelope,
+    // which is exactly what createBackup takes, so nothing is re-encoded and a
+    // save that no longer verifies is still captured byte-for-byte.
+    if (currentData) {
+      await createBackup(slot, currentData, 'before_restore').catch(() => null);
+    }
+
     // Write through the SAME path a real save uses. This used to be
     // `atomicSave`, which writes only the legacy single key `save_slot_N` —
     // but every save since the double-buffer landed writes `_A`/`_B` and sets

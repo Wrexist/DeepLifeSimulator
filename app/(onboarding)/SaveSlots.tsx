@@ -3,8 +3,9 @@ import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, Touchable
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, Trash2 } from 'lucide-react-native';
+import { History, Play, Trash2 } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import RestoreBackupSheet from '@/components/onboarding/RestoreBackupSheet';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 // Leaf context, not the @/contexts/GameContext barrel — the barrel's eager
@@ -97,6 +98,10 @@ export default function SaveSlots() {
   const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  // The slot whose restore points are open. A slot marked "Recovery Needed"
+  // used to offer nothing but Delete — the button that destroyed the last copy
+  // of the save the player came here to rescue (2026-07-29 audit BRC-1).
+  const [restoreSlot, setRestoreSlot] = useState<number | null>(null);
   // This screen's background artwork index (null until the shared cycle counter
   // is peeked — the flat PAGE_BG shows meanwhile). PEEK, not take: the main menu
   // owns advancing the cycle, so revisiting slots never rotates the artwork.
@@ -459,7 +464,7 @@ export default function SaveSlots() {
                     {slot.hasData
                       ? fullName || 'Unnamed Character'
                       : needsRecovery
-                        ? 'Unreadable save — delete to reuse this slot'
+                        ? 'Unreadable save — try Restore, or delete to reuse this slot'
                         : 'Start a new life here'}
                   </Text>
 
@@ -482,6 +487,16 @@ export default function SaveSlots() {
 
                   {slot.hasData || needsRecovery ? (
                     <View style={styles.slotFooter}>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`Restore slot ${slot.id} from an earlier point`}
+                        onPress={() => setRestoreSlot(slot.id)}
+                        style={styles.restoreAction}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <History size={scale(14)} color="#38BDF8" />
+                        <Text style={styles.restoreText}>Restore</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         accessibilityRole="button"
                         accessibilityLabel={`Delete slot ${slot.id}`}
@@ -520,6 +535,19 @@ export default function SaveSlots() {
           icon={<Play size={24} color="#FFFFFF" />}
         />
       </View>
+
+      <RestoreBackupSheet
+        visible={restoreSlot !== null}
+        slot={restoreSlot}
+        onClose={() => setRestoreSlot(null)}
+        onRestored={(slot) => {
+          // The blob changed underneath the cached summary; drop it and rescan
+          // so the card shows the restored character, not the replaced one.
+          void deleteSaveSlotMeta(slot)
+            .catch(() => {})
+            .then(() => loadSlots());
+        }}
+      />
 
       <ConfirmDialog
         visible={showDeleteConfirm !== null}
@@ -633,6 +661,18 @@ const styles = StyleSheet.create({
   slotFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: scale(16),
+  },
+  restoreAction: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scale(6),
+    paddingVertical: verticalScale(4),
+  },
+  restoreText: {
+    color: '#38BDF8',
+    fontSize: fontScale(12),
+    fontWeight: '700',
   },
   deleteAction: {
     alignItems: 'center',
