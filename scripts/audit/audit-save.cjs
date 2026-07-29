@@ -17,6 +17,9 @@
  *       default is also mirrored in repairGameState (CLAUDE.md save-format rule (b)).
  *   V9  No repair branch writes a backfill without setting `repaired = true` — the
  *       repaired clone is discarded otherwise (2026-07-28 audit save-3).
+ *   V10 A new life can never guess its save slot: no numeric slot fallback, every
+ *       entry into onboarding assigns one, and the write itself re-checks
+ *       occupancy (2026-07-29 player save-loss report).
  */
 'use strict';
 
@@ -179,6 +182,63 @@ function build() {
         + (flagless.length > 6 ? ' …' : '')
         + ' — the repaired clone is only written back when the flag is set, so these are discarded.',
       'utils/saveValidation.ts');
+  }
+
+  // --- V10: a new life must never guess which slot to overwrite ------------
+  // A player lost a prestiged run to a fresh Week 1 character that validated
+  // clean — it WAS clean, just written to the wrong slot. `Perks` resolved the
+  // target with `state.slot || 1`, so any route into onboarding that skipped the
+  // slot picker (the death screen set no slot at all) inherited the context
+  // default and clobbered slot 1 in silence. Three shapes brought that back, so
+  // all three are checked.
+  const onboardingSources = L.walk(
+    ['app/(onboarding)', 'src/features/onboarding'],
+    L.isProductionSource,
+  );
+
+  // V10a — no numeric fallback for a slot. "Unchosen" must stay unchosen.
+  const slotFallbacks = L.grep(onboardingSources, /\bslot\s*(\|\||\?\?)\s*[1-9]\b/i, {
+    skipComments: true,
+  });
+  a.assert(slotFallbacks.length === 0, 'high',
+    'No onboarding module defaults an unchosen save slot to a number',
+    `${slotFallbacks.length} slot fallback(s) would pick a slot for the player`,
+    slotFallbacks.map((h) => `${h.file}:${h.line} — ${h.text}`).join(' · ')
+      + ' — a write cannot tell a deliberate slot 1 from a defaulted one, so it must refuse instead (src/features/onboarding/slotSafety.ts).',
+    'src/features/onboarding/slotSafety.ts');
+
+  // V10b — every screen that pushes into the onboarding stack assigns a slot
+  // first. DeathPopup navigated there setting nothing at all.
+  const navigators = L.walk(['app', 'components'], L.isProductionSource).filter((f) => {
+    const src = L.read(f);
+    if (src == null) return false;
+    if (!/router\.(push|replace|navigate)\(\s*['"]\/\(onboarding\)\/Scenarios/.test(src)) return false;
+    // Screens already INSIDE the flow are exempt: their navigation to Scenarios
+    // is the flow guard bouncing a player backwards, not a new entry, and the
+    // guard itself now requires a slot before those screens render at all.
+    if (/useOnboardingFlowGuard/.test(src)) return false;
+    // Assigning a slot, or handing the player to the picker, both count.
+    return !/\bslot\s*:/.test(L.stripNoise(src)) && !/\/\(onboarding\)\/SaveSlots/.test(src);
+  });
+  a.assert(navigators.length === 0, 'high',
+    'Every entry into the onboarding stack sets the target save slot',
+    `${navigators.length} screen(s) enter onboarding without choosing a slot`,
+    navigators.join(', ')
+      + ' — the write four screens later has nothing to go on and used to default to slot 1.',
+    'components/DeathPopup.tsx');
+
+  // V10c — the refusal lives at the write, not only in the UI. A guard on an
+  // earlier screen is bypassed by the next navigation path someone adds.
+  const initializer = L.read('src/features/onboarding/gameInitializer.ts');
+  if (initializer) {
+    const clean = L.stripNoise(initializer);
+    const resolveAt = clean.indexOf('resolveNewLifeSlot(');
+    const saveAt = clean.indexOf('forceSave(');
+    a.assert(resolveAt !== -1 && saveAt !== -1 && resolveAt < saveAt, 'high',
+      'initializeAndSaveGame resolves the slot before it writes',
+      'The new-game write is not gated on a fresh slot check',
+      'forceSave must be preceded by resolveNewLifeSlot in the same function — the occupancy read has to happen against the storage the save is about to overwrite.',
+      'src/features/onboarding/gameInitializer.ts');
   }
 
   return a;

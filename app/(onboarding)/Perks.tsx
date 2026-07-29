@@ -51,6 +51,8 @@ import {
   validateOnboardingInputs,
   initializeAndSaveGame,
 } from '@/src/features/onboarding/gameInitializer';
+import { resolveNewLifeSlot } from '@/src/features/onboarding/slotSafety';
+import { snapshotOutgoingSave } from '@/utils/saveBackup';
 import {
   logOnboardingStepView,
   logOnboardingValidationError,
@@ -482,7 +484,11 @@ export default function Perks() {
         ambitionId: state.ambitionId,
       });
 
-      const slotToUse = state.slot || 1;
+      // Pass the chosen slot through UNCHANGED. The old `state.slot || 1` is
+      // what let a flow that never picked a slot — the death screen, a deep
+      // link, a rehydrated draft — land on slot 1 and overwrite a real save.
+      // `initializeAndSaveGame` re-reads the slot and refuses if it is not ours.
+      const slotToUse = state.slot;
       const createBackupForOnboarding = async (
         slot: number,
         stateToSave: any,
@@ -506,10 +512,25 @@ export default function Perks() {
         loadGame,
         validateGameEntry,
         isSaveSigningConfigError,
+        resolveNewLifeSlot,
+        snapshotOutgoingSave,
       });
 
       if (!result.success) {
         haptic.error();
+        if (result.slotProblem) {
+          // Don't dead-end them on an alert four screens deep — the fix is a
+          // slot choice, so take them to where that choice is made. Their
+          // scenario, name, perks and mindset stay in the draft, so coming
+          // back is a couple of taps, not a restart.
+          Alert.alert(result.errorTitle!, result.errorMessage!, [
+            {
+              text: 'Choose Slot',
+              onPress: () => router.replace('/(onboarding)/SaveSlots'),
+            },
+          ]);
+          return;
+        }
         Alert.alert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
         return;
       }

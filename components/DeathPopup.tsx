@@ -3,6 +3,8 @@ import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
+import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { useGame } from '@/contexts/GameContext';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
@@ -24,6 +26,11 @@ const LinearGradient = LinearGradientFallback;
 function DeathPopup() {
   const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, currentSlot, saveGame } = useGame();
   const router = useRouter();
+  // The new life has to be told which slot it belongs in. This screen used to
+  // navigate into onboarding without setting one, so the flow fell back to the
+  // context default (slot 1) and wrote the fresh character over whatever was
+  // there — the save-loss a player reported after a prestiged run vanished.
+  const { setState: setOnboardingState } = useOnboarding();
   // App-level IAP store launcher — used to bridge out of "not enough gems"
   // dead-ends (revive / rewind) without auto-opening or blocking the death flow.
   // `isStoreOpen` lets the death Modal SUPPRESS itself while the store's own RN
@@ -323,6 +330,13 @@ function DeathPopup() {
       }));
 
       if (currentSlot) {
+        // Snapshot the life we are about to erase FIRST. This path deleted the
+        // slot outright, so a player who tapped "Start New Game" by mistake —
+        // or who did not realise it wipes the slot — had no way back.
+        // Rotation-exempt, so it is not evicted by the next few autosaves.
+        const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
+        await snapshotOutgoingSave(currentSlot, 'before_overwrite');
+
         // CRASH FIX (A-1): Delete all double-buffer keys for this slot
         const { deleteSaveSlot } = await import('@/utils/saveValidation');
         await deleteSaveSlot(currentSlot);
@@ -332,9 +346,20 @@ function DeathPopup() {
         // first. Errors swallowed (must not block starting the new life).
         await import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(currentSlot)).catch(() => {});
         await AsyncStorage.removeItem('lastSlot');
+        // The slot we just emptied is exactly where this life's successor
+        // belongs — the player stays in the slot they were playing. Set it
+        // explicitly; the onboarding write refuses an unset slot rather than
+        // guessing one.
+        setOnboardingState((prev) => ({ ...prev, slot: currentSlot }));
+        router.replace('/(onboarding)/Scenarios');
+        return;
       }
 
-      router.replace('/(onboarding)/Scenarios');
+      // No current slot (shouldn't happen, but a death with no slot marker is
+      // survivable): send them to the picker instead of into a write that would
+      // have to guess.
+      setOnboardingState((prev) => ({ ...prev, slot: NEW_LIFE_SLOT_UNSET }));
+      router.replace('/(onboarding)/SaveSlots');
     } catch (error) {
       if (__DEV__) {
         logger.error('Failed to start new game:', error);
@@ -344,7 +369,7 @@ function DeathPopup() {
         showDeathPopup: true,
       }));
     }
-  }, [setGameState, currentSlot, router]);
+  }, [setGameState, currentSlot, router, setOnboardingState]);
 
   const handleShareObituary = useCallback(async () => {
     try {

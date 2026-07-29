@@ -13,6 +13,7 @@ import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloating
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { type SaveSlotData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
 import {
   readSaveSlotMeta,
@@ -290,7 +291,9 @@ export default function SaveSlots() {
 
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
-        setState((prev) => ({ ...prev, slot: 0 }));
+        // Deliberately UNSET, not 'slot 1'. The onboarding write refuses an
+        // unset slot rather than picking one (src/features/onboarding/slotSafety.ts).
+        setState((prev) => ({ ...prev, slot: NEW_LIFE_SLOT_UNSET }));
       }
 
       // DATA-LOSS FIX (same root cause as the currentSlot desync): if the

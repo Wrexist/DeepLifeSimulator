@@ -1,6 +1,6 @@
 import { logger } from './logger';
 import {
-  atomicSave,
+  doubleBufferSave,
   calculateHmacSignature,
   calculateChecksum,
   createSaveEnvelope,
@@ -14,11 +14,40 @@ import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKe
 const BACKUP_PREFIX = 'save_backup_';
 const PROTECTED_STATE_PREFIX = 'protected_state_';
 const MAX_BACKUPS_PER_SLOT = 5; // Increased from 3 to 5 for better recovery options
+/** Recent rotatable backups always kept, whatever their age. */
+const KEEP_NEWEST_BACKUPS = 3;
+/**
+ * Age bands for generational retention: the newest backup at least this old
+ * survives rotation. Bounds the total at KEEP_NEWEST_BACKUPS + 3 per slot while
+ * guaranteeing a copy that predates the current play session.
+ */
+const GENERATIONAL_BACKUP_BANDS = [
+  60 * 60 * 1000, // 1 hour
+  24 * 60 * 60 * 1000, // 1 day
+  7 * 24 * 60 * 60 * 1000, // 1 week
+];
 const MAX_TOTAL_BACKUP_SIZE = 10 * 1024 * 1024; // 10MB total backup storage limit
 const MIN_BACKUP_INTERVAL_MS = 60 * 1000; // Minimum 1 minute between manual backups
 const LAST_BACKUP_PREFIX = 'last_backup_time_';
 
-export type BackupReason = 'manual' | 'auto_save' | 'delete_save' | 'corruption_recovery' | 'before_update' | 'background_save' | 'app_resume' | 'emergency_save' | 'before_week';
+export type BackupReason = 'manual' | 'auto_save' | 'delete_save' | 'corruption_recovery' | 'before_update' | 'background_save' | 'app_resume' | 'emergency_save' | 'before_week' | 'before_overwrite' | 'before_prestige' | 'before_restore';
+
+/**
+ * Backups that rotation may never evict.
+ *
+ * The ring is `MAX_BACKUPS_PER_SLOT` deep and the 2-minute autosave writes into
+ * it unconditionally, so a flat newest-5 policy meant the entire recovery window
+ * was about ten minutes of play. A snapshot taken because something irreversible
+ * was ABOUT to happen is the one copy a player actually needs, and it was the
+ * first thing evicted. These are kept regardless of age or count.
+ */
+const PROTECTED_BACKUP_REASONS: ReadonlySet<string> = new Set<string>([
+  'manual',
+  'before_overwrite',
+  'before_prestige',
+  'before_restore',
+  'delete_save',
+]);
 
 export interface BackupGameInfo {
   characterName: string;
@@ -431,6 +460,16 @@ export async function createBackup(
   preparsed?: NormalizedBackupPayload,
 ): Promise<string | null> {
   try {
+    // Rate-limit the automatic ring only. `createBackup` never went through
+    // `canCreateBackup`, so every 2-minute autosave — and every one of the 88
+    // saveGame call sites — wrote a backup and rotated. Five entries deep, that
+    // made the whole recovery history a few minutes long. Deliberate snapshots
+    // (manual, before_overwrite, before_prestige…) are never throttled.
+    if (reason === 'auto_save') {
+      const [newest] = await listBackups(slot);
+      if (newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS) return null;
+    }
+
     const { state, canonicalSaveData } = preparsed ?? normalizeBackupPayload(data);
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
     const canonicalHmac = calculateHmacSignature(canonicalSaveData);
@@ -724,13 +763,26 @@ export async function restoreFromBackup(
       return { success: false, error: exploitCheck.reason };
     }
     
-    // Perform the restore using canonical save payload and atomic write+verify.
+    // Write through the SAME path a real save uses. This used to be
+    // `atomicSave`, which writes only the legacy single key `save_slot_N` —
+    // but every save since the double-buffer landed writes `_A`/`_B` and sets
+    // the `_active` pointer, and `doubleBufferLoad` consults that pointer FIRST,
+    // falling through to the legacy key only when the pointer is missing AND
+    // both buffers fail (and even then only when `allowLegacy`, which is false
+    // on every signed production build). So on any device that had saved even
+    // once, a "successful" restore reported success and the next load served
+    // the pre-restore buffer — the player was told it worked and got their
+    // unrestored save back.
     const mainSaveKey = `save_slot_${slot}`;
-    const restoreResult = await atomicSave(mainSaveKey, canonicalBackupData);
+    const restoreResult = await doubleBufferSave(mainSaveKey, canonicalBackupData);
     if (!restoreResult.success) {
       logger.error(`Atomic restore failed for slot ${slot}: ${restoreResult.error}`);
       return { success: false, error: restoreResult.error || 'Failed to restore backup atomically' };
     }
+
+    // Drop any stale legacy blob so it can never outrank the restore on a build
+    // that does allow legacy reads. Non-critical: the pointer already wins.
+    await safeRemoveItem(mainSaveKey).catch(() => {});
 
     // The slot blob was just OVERWRITTEN with the backup, so the cached per-slot
     // summary is now stale — invalidate it BEFORE reporting success so no caller
@@ -751,20 +803,65 @@ export async function restoreFromBackup(
 }
 
 /**
+ * Snapshot whatever a slot currently holds, BEFORE something overwrites it.
+ *
+ * The two production backup call sites both passed the state being WRITTEN: the
+ * autosave under 'auto_save', and onboarding under the tag 'before_onboarding'
+ * — which reads like a pre-overwrite snapshot and was a snapshot of the thing
+ * doing the overwriting. Nothing in the app ever copied the outgoing save, so
+ * an overwrite had no rescue copy at all.
+ *
+ * Reads the persisted envelope and stores it verbatim — no decode, no re-encode,
+ * so a save that no longer verifies is still captured byte-for-byte and stays
+ * recoverable. Returns the backup id, or null when the slot held nothing.
+ * Never throws: this must not be able to block the write it precedes.
+ */
+export async function snapshotOutgoingSave(
+  slot: number,
+  reason: BackupReason = 'before_overwrite',
+): Promise<string | null> {
+  try {
+    const { readSaveSlot, shouldAllowUnsignedLegacySaves: allowLegacyFn } = await import(
+      '@/utils/saveValidation'
+    );
+    const existing = await readSaveSlot(slot, undefined, { allowLegacy: allowLegacyFn() });
+    if (!existing) return null;
+    return await createBackup(slot, existing, reason);
+  } catch (error) {
+    logger.warn(`Could not snapshot outgoing save for slot ${slot} (non-critical)`, { error });
+    return null;
+  }
+}
+
+/**
  * Delete old backups to save space
  */
 async function rotateBackups(slot: number) {
   try {
-    const backups = await listBackups(slot);
-    
-    if (backups.length > MAX_BACKUPS_PER_SLOT) {
-      const toDelete = backups.slice(MAX_BACKUPS_PER_SLOT);
-      const keysToDelete = toDelete.map(b => b.id);
-      
-      if (keysToDelete.length > 0) {
-        await safeMultiRemove(keysToDelete);
-        logger.info(`Removed ${keysToDelete.length} old backups for slot ${slot}`);
-      }
+    const backups = await listBackups(slot); // newest first
+
+    // Protected reasons are exempt entirely — they exist precisely because
+    // something destructive was about to happen.
+    const rotatable = backups.filter((b) => !PROTECTED_BACKUP_REASONS.has(b.reason));
+
+    // Generational retention over the rotatable ones: the newest few, plus the
+    // newest survivor in each older age band. A flat newest-5 spanned roughly
+    // ten minutes of play on the 2-minute autosave, so a player who noticed the
+    // problem an hour later had nothing left that predated it. This keeps the
+    // count bounded while guaranteeing something older than the current session.
+    const keep = new Set<string>();
+    for (const b of rotatable.slice(0, KEEP_NEWEST_BACKUPS)) keep.add(b.id);
+
+    const now = Date.now();
+    for (const minAgeMs of GENERATIONAL_BACKUP_BANDS) {
+      const survivor = rotatable.find((b) => now - b.timestamp >= minAgeMs);
+      if (survivor) keep.add(survivor.id);
+    }
+
+    const keysToDelete = rotatable.filter((b) => !keep.has(b.id)).map((b) => b.id);
+    if (keysToDelete.length > 0) {
+      await safeMultiRemove(keysToDelete);
+      logger.info(`Removed ${keysToDelete.length} old backups for slot ${slot}`);
     }
   } catch (error) {
     logger.error(`Failed to rotate backups for slot ${slot}`, error);

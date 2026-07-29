@@ -142,14 +142,59 @@ describe('createBackupFromState on a production-signed build', () => {
     expect(decoded.valid).toBe(true);
   });
 
-  it('keeps every backup of a slot up to the rotation limit', async () => {
+  /**
+   * Autosave backups are rate-limited (2026-07-29 audit BRC-2). `createBackup`
+   * never consulted `canCreateBackup`, so every one of the 88 saveGame call
+   * sites plus the 2-minute autosave wrote into a 5-deep ring — the entire
+   * recovery history for a slot was a few minutes of play. Deliberate snapshots
+   * are exempt, because those are the ones a player actually needs.
+   */
+  it('throttles back-to-back auto_save backups to one per interval', async () => {
     const { backup } = loadAsProductionBuild();
     const slot = 5;
-    for (let i = 0; i < 3; i += 1) {
-      const id = await backup.createBackupFromState(slot, sampleState({ weeksLived: 100 + i }), 'auto_save');
-      expect(id).not.toBeNull();
+
+    const first = await backup.createBackupFromState(slot, sampleState({ weeksLived: 100 }), 'auto_save');
+    expect(first).not.toBeNull();
+
+    // Two more in the same instant: both refused, nothing added to the ring.
+    expect(await backup.createBackupFromState(slot, sampleState({ weeksLived: 101 }), 'auto_save')).toBeNull();
+    expect(await backup.createBackupFromState(slot, sampleState({ weeksLived: 102 }), 'auto_save')).toBeNull();
+
+    expect((await backup.listBackups(slot)).length).toBe(1);
+  });
+
+  it('never throttles a deliberate snapshot — those are the recoverable ones', async () => {
+    const { backup } = loadAsProductionBuild();
+    const slot = 6;
+
+    await backup.createBackupFromState(slot, sampleState({ weeksLived: 10 }), 'auto_save');
+    for (const reason of ['manual', 'before_overwrite', 'before_prestige'] as const) {
+      expect(
+        await backup.createBackupFromState(slot, sampleState({ weeksLived: 11 }), reason),
+      ).not.toBeNull();
     }
+
+    expect((await backup.listBackups(slot)).length).toBe(4);
+  });
+
+  it('keeps protected snapshots even when the rotatable ring overflows', async () => {
+    const { backup } = loadAsProductionBuild();
+    const slot = 7;
+
+    const precious = await backup.createBackupFromState(
+      slot,
+      sampleState({ weeksLived: 2231 }),
+      'before_overwrite',
+    );
+    expect(precious).not.toBeNull();
+
+    // Far more rotatable backups than the ring holds. Under the old flat
+    // newest-5 slice, the pre-overwrite copy was the first thing evicted.
+    for (let i = 0; i < 12; i += 1) {
+      await backup.createBackupFromState(slot, sampleState({ weeksLived: i }), 'corruption_recovery');
+    }
+
     const listed = await backup.listBackups(slot);
-    expect(listed.length).toBe(3);
+    expect(listed.some((b: { id: string }) => b.id === precious)).toBe(true);
   });
 });

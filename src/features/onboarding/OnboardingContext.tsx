@@ -2,8 +2,15 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { Scenario } from './scenarioData';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
+import { NEW_LIFE_SLOT_UNSET } from './slotSafety';
 
 interface OnboardingState {
+  /**
+   * Target save slot, 1-3. `NEW_LIFE_SLOT_UNSET` (0) means the player has not
+   * chosen one — which is NOT a licence to pick one for them. This used to
+   * default to 1, and every route that reached onboarding without visiting the
+   * slot picker quietly inherited it and overwrote slot 1. See `slotSafety.ts`.
+   */
   slot: number;
   scenario?: Scenario;
   challengeScenarioId?: string; // CRITICAL FIX: Track challenge scenario ID separately from regular scenario
@@ -24,7 +31,7 @@ interface OnboardingContextType {
 }
 
 const defaultState: OnboardingState = {
-  slot: 1,
+  slot: NEW_LIFE_SLOT_UNSET,
   firstName: '',
   lastName: '',
   sex: 'random',
