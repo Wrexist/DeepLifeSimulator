@@ -94,6 +94,20 @@ export interface MeshData {
    * only shows on the scanned path.
    */
   brow?: Float32Array;
+  /**
+   * Makeup regions, per vertex, the same shape as `brow` and for the same
+   * reason: the geometry decides WHERE, the renderer decides what colour.
+   *
+   * Three fields rather than one packed value because they overlap — the outer
+   * corner of a lid is also nearly the temple, an apple of a cheek reaches the
+   * lower lid — and packing them into value bands of a single float would make
+   * every overlap a hard switch between two regions instead of a blend of them.
+   * Three floats per vertex is 112 KB on a 9.4k mesh; a visible seam across
+   * somebody's cheekbone costs more than that.
+   */
+  lip?: Float32Array;
+  lid?: Float32Array;
+  cheek?: Float32Array;
 }
 
 /** Feature heights in model space, measured after the morphs are applied. */
@@ -546,6 +560,9 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
   const positions = new Float32Array(vertexCount * 3);
   const normals = new Float32Array(vertexCount * 3);
   const brow = new Float32Array(vertexCount);
+  const lip = new Float32Array(vertexCount);
+  const lid = new Float32Array(vertexCount);
+  const cheek = new Float32Array(vertexCount);
 
   // Neck/shoulder blend: below this the surface stops being a head and becomes a
   // neck, so the skull morphs must fade out or the jaw drags the throat with it.
@@ -816,9 +833,15 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // Named `flare*` rather than `alar*` because `alarMask` a few lines up is
       // the CREASE where the wing meets the cheek, and this is the wing itself.
       const flareX = 0.052 + noseWidth * 0.022;
+      // WIDER THAN THE ALA ITSELF, on purpose. At 128 rings the grid spacing is
+      // ~0.0216, so a 0.042 x 0.038 field spans barely two vertices each side
+      // and the morph moved twelve vertices on the whole head — present in the
+      // maths, absent from the mesh. The same trap `chinCleft` and the mouth
+      // line both fell into. A field has to be several grid cells across before
+      // it is geometry rather than arithmetic.
       const flareMask =
-        blobAniso(x, y, z, flareX, noseTipY - 0.040, 0.86, 0.042, 0.038, 0.20) +
-        blobAniso(x, y, z, -flareX, noseTipY - 0.040, 0.86, 0.042, 0.038, 0.20);
+        blobAniso(x, y, z, flareX, noseTipY - 0.040, 0.86, 0.066, 0.058, 0.24) +
+        blobAniso(x, y, z, -flareX, noseTipY - 0.040, 0.86, 0.066, 0.058, 0.24);
       x += Math.sign(x || 1) * nostrilFlare * 0.048 * flareMask * headness;
 
       // ---- Lips ------------------------------------------------------------
@@ -870,7 +893,10 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
       // Small, and one of the strongest cues that a face is a face: it is the
       // reason the space between nose and mouth reads as anatomy rather than a
       // gap. Fades out before the lip so it does not cut the vermilion.
-      const philtrumMask = blobAniso(x, y, z, 0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86, 0.028, 0.052, 0.18);
+      // Widened from 0.028 x 0.052 for the reason above: it moved seven
+      // vertices. The groove is genuinely narrow on a face, but a field
+      // narrower than the grid renders as nothing at all.
+      const philtrumMask = blobAniso(x, y, z, 0, (noseTipY + mouthY) * 0.5 + 0.012, 0.86, 0.062, 0.088, 0.22);
       // Signed around the existing 0.020, so the slider runs from a flat upper
       // lip to a pronounced groove rather than only ever deepening one.
       z -= (0.020 + philtrumDepth * 0.026) * philtrumMask * headness;
@@ -948,6 +974,51 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
           blobRot(x, y, z, eyeX * 1.06, browY - 0.005, 0.74, BROW_R[0], BROW_R[1], BROW_R[2], browSin, browCos) +
           blobRot(x, y, z, -eyeX * 1.06, browY - 0.005, 0.74, BROW_R[0], BROW_R[1], BROW_R[2], -browSin, browCos);
         brow[vi / 3] = Math.max(0, Math.min(1, w * gap * 1.5));
+      }
+
+      // ---- Makeup regions ----------------------------------------------------
+      // Sampled at the FINAL position, like the brow, so each region follows the
+      // morphs that moved the feature it belongs to. All three are FRONT-GATED:
+      // the mouth blob is a solid of revolution about the head's axis, so
+      // without this the lip field wraps around and paints the back of the neck.
+      {
+        const front = smoothstep(0.05, 0.45, z);
+
+        // LIPS. Two lobes rather than one blob, split at the seam, so an upper
+        // lip that is thinner than the lower one still gets colour to its own
+        // edge. `lipRatio` already moved the seam; this follows it.
+        const seam = mouthY;
+        const halfW = 0.150 + mouthWidth * 0.065;
+        // Heights well above the grid spacing (~0.022 at this ring count). The
+        // first pass used 0.030 and 0.034, which put each lip lobe barely one
+        // and a half vertices tall — 18 vertices over the whole mouth, and a
+        // lipstick slider that rendered as a faint blush on the lip line. The
+        // third time this trap has been hit in this file, after `chinCleft` and
+        // the mouth line itself.
+        const upper = blobAniso(x, y, z, 0, seam + 0.030, 0.86, halfW, 0.084, 0.26);
+        const lower = blobAniso(x, y, z, 0, seam - 0.034, 0.86, halfW * 0.94, 0.092, 0.26);
+        lip[vi / 3] = Math.max(0, Math.min(1, (upper + lower) * front * 1.25));
+
+        // UPPER LIDS, from the lash line up toward the brow — where shadow goes,
+        // which is NOT the whole socket. Sat above the eye centre and stopped
+        // short of the brow field, so the two never fight over the same texels.
+        const lidY = eyeY + 0.052;
+        const lidL = blobAniso(x, y, z, eyeX, lidY, 0.80, 0.120, 0.068, 0.28);
+        const lidR = blobAniso(x, y, z, -eyeX, lidY, 0.80, 0.120, 0.068, 0.28);
+        const notBrow = 1 - Math.max(0, Math.min(1, brow[vi / 3]));
+        lid[vi / 3] = Math.max(0, Math.min(1, (lidL + lidR) * front * notBrow * 1.3));
+
+        // APPLES OF THE CHEEKS — below the outer eye corner and outboard of the
+        // nose, which is where blush is worn and, more to the point, not where
+        // the nose is: a blob centred on the cheek but wide enough to be
+        // legible reaches the nostril, and blush on somebody's nose reads as
+        // sunburn.
+        const cheekY = eyeY - 0.135;
+        const cheekX = eyeX + 0.055;
+        const cl = blobAniso(x, y, z, cheekX, cheekY, 0.72, 0.145, 0.098, 0.32);
+        const cr = blobAniso(x, y, z, -cheekX, cheekY, 0.72, 0.145, 0.098, 0.32);
+        const offNose = smoothstep(0.055, 0.115, Math.abs(x));
+        cheek[vi / 3] = Math.max(0, Math.min(1, (cl + cr) * front * offNose * 1.15));
       }
 
       positions[vi] = x;
@@ -1049,7 +1120,7 @@ export function buildHeadMesh(genome: FaceGenome, options: HeadMeshOptions = {})
     eyeZ,
   };
 
-  return { positions, normals, indices, landmarks, brow };
+  return { positions, normals, indices, landmarks, brow, lip, lid, cheek };
 }
 
 /**

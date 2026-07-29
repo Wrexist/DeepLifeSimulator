@@ -51,6 +51,8 @@ import {
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_COLOR_NAMES,
+  LIP_COLORS,
+  LIP_COLOR_NAMES,
   SKIN_TONE_NAMES,
   EYE_COLOR_NAMES,
   swatchName,
@@ -550,6 +552,52 @@ export default function FaceStudio({
               onSelect={(i) => { haptic.light(); onChange(withOptional(genome, 'browColor', i)); }}
             />
           </View>
+        </Card>
+
+        {/* MAKEUP. Off by default, so this card opens showing three sliders at
+            zero and nothing on the face — which is correct: makeup is a choice,
+            and a creator that arrives with lipstick already on has made it for
+            the player. The colour rows only appear once there is something to
+            colour, for the same reason the facial-hair colour does. */}
+        <Card title="Makeup">
+          <MorphSlider
+            label="Lipstick"
+            value={genome.lipStrength}
+            onChange={(v) => onChange({ ...genome, lipStrength: v })}
+            onEditStart={pushHistory}
+          />
+          {genome.lipStrength > 0.02 ? (
+            <View style={styles.subSection}>
+              <Swatches
+                colors={LIP_COLORS}
+                names={LIP_COLOR_NAMES}
+                selected={genome.lipColor ?? 0}
+                onSelect={(i) => { haptic.light(); onChange({ ...genome, lipColor: i }); }}
+              />
+            </View>
+          ) : null}
+          <MorphSlider
+            label="Eyeshadow"
+            value={genome.eyeshadowStrength}
+            onChange={(v) => onChange({ ...genome, eyeshadowStrength: v })}
+            onEditStart={pushHistory}
+          />
+          {genome.eyeshadowStrength > 0.02 ? (
+            <View style={styles.subSection}>
+              <Swatches
+                colors={LIP_COLORS}
+                names={LIP_COLOR_NAMES}
+                selected={genome.eyeshadowColor ?? 0}
+                onSelect={(i) => { haptic.light(); onChange({ ...genome, eyeshadowColor: i }); }}
+              />
+            </View>
+          ) : null}
+          <MorphSlider
+            label="Blush"
+            value={genome.blush}
+            onChange={(v) => onChange({ ...genome, blush: v })}
+            onEditStart={pushHistory}
+          />
         </Card>
 
         <Card title="Complexion">

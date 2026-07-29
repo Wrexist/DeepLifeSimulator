@@ -27,6 +27,7 @@ import {
   FACE_MORPH_KEYS,
   neutralMorphs,
 } from '@/lib/identity';
+import { PENDING_RIG_MORPHS } from './helpers/pendingRigMorphs';
 import type { FaceGenome } from '@/lib/identity';
 
 /**
@@ -77,15 +78,22 @@ const MAKEHUMAN = [
 describe('MakeHuman target binding', () => {
   const binding = bindGenomeToRig(MAKEHUMAN);
 
-  it('binds all 24 app morphs — every slider in the creator is live', () => {
+  it('binds every app morph the target list was captured for', () => {
     // This is the whole reason MakeHuman beats a MetaHuman preset: it is a
     // sculpting set, so nothing has to be hidden as a dead control.
-    expect(binding.unbound).toEqual([]);
-    expect(Object.keys(binding.bound)).toHaveLength(FACE_MORPH_KEYS.length);
+    //
+    // The seven appended morphs are the exception, and the same one as in
+    // `ictHead.test.ts`: the captured target list predates them. Asserted as an
+    // exact set so a twenty-fifth morph losing its target still fails here.
+    expect([...binding.unbound].sort()).toEqual([...PENDING_RIG_MORPHS].sort());
+    expect(Object.keys(binding.bound))
+      .toHaveLength(FACE_MORPH_KEYS.length - PENDING_RIG_MORPHS.length);
   });
 
-  it('gives every morph a negative half, so sliders work below the midpoint', () => {
-    const oneSided = FACE_MORPH_KEYS.filter((k) => !binding.negative[k]?.length);
+  it('gives every bound morph a negative half, so sliders work below the midpoint', () => {
+    const oneSided = FACE_MORPH_KEYS
+      .filter((k) => !PENDING_RIG_MORPHS.includes(k))
+      .filter((k) => !binding.negative[k]?.length);
     expect(oneSided).toEqual([]);
   });
 

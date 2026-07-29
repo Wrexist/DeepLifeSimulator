@@ -49,9 +49,31 @@ inherited and aged with **no control anywhere**.
       ~0.0216, so the original field fell between vertices and the cleft was in
       the maths and not in the mesh. The mouth line hit this exact trap before.
 
-### Phase 2 — Makeup (next)
-- [ ] Bake `lip` and `lid` vertex fields the way `brow` is baked
-- [ ] Lip colour + strength, eyeshadow colour + strength, blush strength
+### Phase 2 — Makeup (in progress)
+- [x] `lip`, `lid` and `cheek` vertex fields baked the way `brow` is
+- [x] Genome: lipColor/lipStrength, eyeshadowColor/eyeshadowStrength, blush.
+      Default OFF and NOT randomised, inherited or aged — undertone is something
+      a person is, lipstick is something they chose this morning. Drawing for it
+      would also extend the random stream, which re-rolls every seeded face.
+- [x] `LIP_COLORS` palette (10) shared by lipstick and eyeshadow
+- [x] Procedural shader: blush MULTIPLIES toward its colour (pigment on skin),
+      lipstick and shadow MIX (opaque product). Mixing blush at full strength
+      replaces the cheek with a flat disc and loses the shading under it.
+- [ ] Scanned head: needs a lip/lid/cheek mask. The roughness map's RED channel
+      is free (three samples GREEN only) and `bake-face-textures.mjs` already
+      computes a `lip` value — one channel can carry all three regions as value
+      bands. Requires a re-bake of `face_roughness.png`.
+- [ ] FaceStudio "Makeup" card
+- [ ] Tests + on-screen sweep
+
+### Rig rebuild owed (found by CI, not by me)
+- [ ] `head_ict.glb` and the MakeHuman target list are GENERATED and have not
+      been regenerated since the seven new morphs were appended, so on the
+      SCANNED head — the one that ships — those seven sliders are hidden by
+      `binding.unbound`. Recorded in `helpers/pendingRigMorphs.ts` and asserted
+      as an exact set, so a twenty-fifth morph falling out still fails.
+      Needs the ICT-FaceKit source and a measured axis per morph in
+      `scripts/build-ict-head.mjs`.
 
 ### Rules this must not break
 - A new control MUST move something on screen, or it does not ship

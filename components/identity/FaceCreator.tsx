@@ -61,6 +61,8 @@ const MORPH_GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string 
       { key: 'cheekboneHeight', label: 'Cheekbones' },
       { key: 'cheekFullness', label: 'Cheek fullness' },
       { key: 'foreheadSlope', label: 'Forehead' },
+      { key: 'cheekHollow', label: 'Cheek hollow' },
+      { key: 'templeWidth', label: 'Temple width' },
     ],
   },
   {
@@ -70,6 +72,7 @@ const MORPH_GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string 
       { key: 'jawAngle', label: 'Jaw angle' },
       { key: 'chinLength', label: 'Chin length' },
       { key: 'chinProtrusion', label: 'Chin projection' },
+      { key: 'chinCleft', label: 'Chin cleft' },
     ],
   },
   {
@@ -90,6 +93,7 @@ const MORPH_GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string 
       { key: 'noseWidth', label: 'Width' },
       { key: 'noseBridge', label: 'Bridge' },
       { key: 'noseTip', label: 'Tip' },
+      { key: 'nostrilFlare', label: 'Nostril flare' },
     ],
   },
   {
@@ -99,7 +103,10 @@ const MORPH_GROUPS: { title: string; morphs: { key: FaceMorphKey; label: string 
       { key: 'lipFullness', label: 'Lip fullness' },
       // Nose-base to upper-lip — the philtrum, not the opening.
       { key: 'mouthHeight', label: 'Upper lip height' },
+      { key: 'lipRatio', label: 'Upper / lower lip' },
+      { key: 'philtrumDepth', label: 'Philtrum depth' },
       { key: 'earSize', label: 'Ears' },
+      { key: 'earAngle', label: 'Ear angle' },
       { key: 'neckThickness', label: 'Neck' },
     ],
   },

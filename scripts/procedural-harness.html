@@ -72,6 +72,13 @@ window.__setHead = (d) => {
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(d.positions), 3));
   geom.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(d.normals), 3));
   geom.setAttribute('brow', new THREE.BufferAttribute(new Float32Array(d.brow), 1));
+  // The makeup regions. Missing here and the shader's attributes read zero,
+  // which renders a face with no makeup on it however far the sliders are
+  // pushed — a harness that shows nothing is indistinguishable from a control
+  // that does nothing.
+  for (const name of ['lip', 'lid', 'cheek']) {
+    if (d[name]) geom.setAttribute(name, new THREE.BufferAttribute(new Float32Array(d[name]), 1));
+  }
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(d.indices), 1));
 
   const mat = new THREE.MeshPhysicalMaterial({
@@ -87,11 +94,23 @@ window.__setHead = (d) => {
   // finished.
   const uBrowThickness = { value: d.browThickness ?? 0.5 };
   const uUndertone = { value: d.undertone ?? 0.5 };
+  // Makeup defaults to OFF here, matching the app: an absent strength is no
+  // makeup, not full makeup.
+  const uLipColor = { value: new THREE.Color(d.lipColor ?? '#C98B7A') };
+  const uLipStrength = { value: d.lipStrength ?? 0 };
+  const uShadowColor = { value: new THREE.Color(d.shadowColor ?? '#C98B7A') };
+  const uShadowStrength = { value: d.shadowStrength ?? 0 };
+  const uBlush = { value: d.blush ?? 0 };
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uBrowColor = uBrowColor;
     sh.uniforms.uBlemish = uBlemish;
     sh.uniforms.uBrowThickness = uBrowThickness;
     sh.uniforms.uUndertone = uUndertone;
+    sh.uniforms.uLipColor = uLipColor;
+    sh.uniforms.uLipStrength = uLipStrength;
+    sh.uniforms.uShadowColor = uShadowColor;
+    sh.uniforms.uShadowStrength = uShadowStrength;
+    sh.uniforms.uBlush = uBlush;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + window.__SKIN_VERT_COMMON)
       .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__SKIN_VERT_BODY);

@@ -21,6 +21,7 @@ import {
   FACIAL_HAIR_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
+  LIP_COLORS,
   EYE_COLORS,
   SKIN_TONES,
   type FaceGenome,
@@ -254,6 +255,15 @@ export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}):
     // browColor and beardColor are left undefined: following the hair is what
     // almost everyone's do, and it keeps a random face from arriving with
     // eyebrows that do not belong to it.
+    //
+    // MAKEUP IS NOT ROLLED, and it consumes no draw. Constants rather than
+    // samples on purpose — twice over. A randomiser that puts lipstick on a
+    // character nobody asked to wear it is one the player fights, and drawing
+    // for it would extend the stream, which is the thing that silently re-rolls
+    // every existing seeded face (see `LEGACY_MORPH_COUNT`).
+    lipStrength: 0,
+    eyeshadowStrength: 0,
+    blush: 0,
   };
 }
 
@@ -292,7 +302,37 @@ export function normalizeGenome(input: Partial<FaceGenome> | null | undefined, s
     // the colour from the hair or to obey the player.
     ...paletteOverride('browColor', input.browColor),
     ...paletteOverride('beardColor', input.beardColor),
+    // Makeup. Defaults to NONE rather than to neutral, unlike everything above
+    // it: 0.5 undertone is a face, 0.5 lipstick is a decision. An existing save
+    // that has never heard of these renders exactly as it did before.
+    lipStrength: clampOff(input.lipStrength),
+    eyeshadowStrength: clampOff(input.eyeshadowStrength),
+    blush: clampOff(input.blush),
+    ...makeupOverride('lipColor', input.lipColor),
+    ...makeupOverride('eyeshadowColor', input.eyeshadowColor),
   };
+}
+
+/**
+ * Clamp a makeup strength, defaulting a broken value to OFF.
+ *
+ * Not `clamp01`, which resolves a non-finite number to 0.5 — the neutral
+ * midpoint, and the right answer for a morph or an undertone, where "no value"
+ * means "the middle of the range". A makeup strength has no middle: 0.5 is half
+ * a face of lipstick, and a corrupt save should not put makeup on a character
+ * who never chose any. Absence and corruption both mean none.
+ */
+function clampOff(value: unknown): number {
+  if (typeof value !== 'number' || !isFinite(value)) return 0;
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+/** The same rule as `paletteOverride`, against the makeup palette. */
+function makeupOverride(
+  key: 'lipColor' | 'eyeshadowColor', value: unknown,
+): Record<string, number> {
+  if (typeof value !== 'number' || !isFinite(value)) return {};
+  return { [key]: Math.round(clampRange(value, 0, LIP_COLORS.length - 1)) };
 }
 
 /**
@@ -378,6 +418,11 @@ export function inheritFace(
     // override — "this character dyes their brows" — not a trait, and a child
     // born already overriding their own brow colour is nobody's idea of
     // inheritance. Absent means "follow the hair", which is what a baby's do.
+    //
+    // Makeup is not inherited for the same reason, only more so.
+    lipStrength: 0,
+    eyeshadowStrength: 0,
+    blush: 0,
   };
 }
 

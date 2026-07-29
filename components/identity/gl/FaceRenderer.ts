@@ -34,6 +34,7 @@ import {
   EYE_SHELLS,
   EYE_SEGMENTS,
   HAIR_COLORS,
+  LIP_COLORS,
   HAIR_SPEC,
   SKIN_TONES,
   bindGenomeToRig,
@@ -109,6 +110,13 @@ function toBufferGeometry(mesh: MeshData): THREE.BufferGeometry {
     // Per-vertex eyebrow weight; the skin material tints toward hair colour.
     geometry.setAttribute('brow', new THREE.BufferAttribute(mesh.brow, 1));
   }
+  // Makeup regions. The shader DECLARES these attributes unconditionally, and an
+  // unbound attribute reads as zero — which is "no makeup" and therefore safe,
+  // but it is safe by accident. Binding them here is what makes the controls
+  // work rather than silently do nothing.
+  if (mesh.lip) geometry.setAttribute('lip', new THREE.BufferAttribute(mesh.lip, 1));
+  if (mesh.lid) geometry.setAttribute('lid', new THREE.BufferAttribute(mesh.lid, 1));
+  if (mesh.cheek) geometry.setAttribute('cheek', new THREE.BufferAttribute(mesh.cheek, 1));
   geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
   geometry.computeBoundingSphere();
   return geometry;
@@ -135,6 +143,14 @@ function toBufferGeometry(mesh: MeshData): THREE.BufferGeometry {
  * cautious one — this material sat at 0.22 and the whole head read as moulded
  * chocolate. Dewy has to stop well short of lacquered.
  */
+/** A makeup palette entry, defaulting to the first when none is chosen. */
+function makeupHex(index: number | undefined): string {
+  const i = typeof index === 'number' && isFinite(index)
+    ? Math.max(0, Math.min(LIP_COLORS.length - 1, Math.round(index)))
+    : 0;
+  return LIP_COLORS[i];
+}
+
 function applySkinFinish(
   material: THREE.MeshPhysicalMaterial,
   shine: number,
@@ -1212,11 +1228,23 @@ export function createFaceScene(
       const uBlemish = { value: Math.max(0, Math.min(1, aged.blemishes)) };
       const uBrowThickness = { value: Math.max(0, Math.min(1, aged.browThickness)) };
       const uUndertone = { value: Math.max(0, Math.min(1, aged.skinUndertone)) };
+      // Makeup. The colour is only consulted where its strength is non-zero, so
+      // an unset colour with zero strength costs a multiply by zero.
+      const uLipColor = { value: new THREE.Color(makeupHex(aged.lipColor)) };
+      const uLipStrength = { value: Math.max(0, Math.min(1, aged.lipStrength)) };
+      const uShadowColor = { value: new THREE.Color(makeupHex(aged.eyeshadowColor)) };
+      const uShadowStrength = { value: Math.max(0, Math.min(1, aged.eyeshadowStrength)) };
+      const uBlush = { value: Math.max(0, Math.min(1, aged.blush)) };
       headMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uBrowColor = uBrowColor;
         shader.uniforms.uBlemish = uBlemish;
         shader.uniforms.uBrowThickness = uBrowThickness;
         shader.uniforms.uUndertone = uUndertone;
+        shader.uniforms.uLipColor = uLipColor;
+        shader.uniforms.uLipStrength = uLipStrength;
+        shader.uniforms.uShadowColor = uShadowColor;
+        shader.uniforms.uShadowStrength = uShadowStrength;
+        shader.uniforms.uBlush = uBlush;
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', `#include <common>\n${SKIN_VERT_COMMON}`)
           .replace('#include <begin_vertex>', `#include <begin_vertex>${SKIN_VERT_BODY}`);

@@ -221,6 +221,7 @@ async function main() {
       await page.evaluate((d) => window.__setHead(d), {
         positions: Array.from(mesh.positions), normals: Array.from(mesh.normals),
         indices: Array.from(mesh.indices), brow: Array.from(mesh.brow),
+        lip: Array.from(mesh.lip), lid: Array.from(mesh.lid), cheek: Array.from(mesh.cheek),
         // Framed by the app's own `frameHead`, evaluated here rather than
         // shipped as source: injecting a transpiled function is a way to end
         // up verifying a copy of it.
@@ -232,6 +233,11 @@ async function main() {
         blemish: aged.blemishes,
         browThickness: aged.browThickness,
         undertone: aged.skinUndertone,
+        lipColor: types.LIP_COLORS[aged.lipColor ?? 0],
+        lipStrength: aged.lipStrength,
+        shadowColor: types.LIP_COLORS[aged.eyeshadowColor ?? 0],
+        shadowStrength: aged.eyeshadowStrength,
+        blush: aged.blush,
         shells: { ...head.EYE_SHELLS },
         segments: { ...head.EYE_SEGMENTS },
         eyes: [eyes.left, eyes.right].map((e) => ({ x: e.x, y: e.y, z: e.z, radius: e.radius })),

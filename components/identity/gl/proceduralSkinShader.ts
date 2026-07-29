@@ -1,5 +1,5 @@
 /**
- * The procedural head's skin shader patch — eyebrows, freckles, undertone.
+ * The procedural head's skin shader patch — brows, freckles, undertone, makeup.
  *
  * ## Why it is not inline in `FaceRenderer`
  *
@@ -29,11 +29,13 @@
 
 /** Declared at `#include <common>` in the vertex shader. */
 export const SKIN_VERT_COMMON =
-  'attribute float brow;\nvarying float vBrow;\nvarying vec3 vSkinPos;\n';
+  'attribute float brow;\nvarying float vBrow;\nvarying vec3 vSkinPos;\n'
+  + 'attribute float lip;\nattribute float lid;\nattribute float cheek;\n'
+  + 'varying float vLip;\nvarying float vLid;\nvarying float vCheek;\n';
 
 /** Appended to `#include <begin_vertex>`. */
 export const SKIN_VERT_BODY =
-  '\nvBrow = brow;\nvSkinPos = position;\n';
+  '\nvBrow = brow;\nvSkinPos = position;\nvLip = lip;\nvLid = lid;\nvCheek = cheek;\n';
 
 /** Declared at `#include <common>` in the fragment shader. */
 export const SKIN_FRAG_COMMON = [
@@ -43,8 +45,19 @@ export const SKIN_FRAG_COMMON = [
   // used as a mix weight; undertone tilts the skin between pink and gold.
   'uniform float uBrowThickness;',
   'uniform float uUndertone;',
+  // Makeup. Each strength is 0 by default, so a character wearing none costs
+  // three multiplies by zero and looks exactly as they did before makeup
+  // existed.
+  'uniform vec3 uLipColor;',
+  'uniform float uLipStrength;',
+  'uniform vec3 uShadowColor;',
+  'uniform float uShadowStrength;',
+  'uniform float uBlush;',
   'varying float vBrow;',
   'varying vec3 vSkinPos;',
+  'varying float vLip;',
+  'varying float vLid;',
+  'varying float vCheek;',
   // A hash, not a product of sines. Every attempt at scattered detail in this
   // project that used trigonometry came out as a lattice, a corduroy or a
   // herringbone before it was replaced with one of these.
@@ -91,4 +104,19 @@ export const SKIN_FRAG_BODY = [
   'float freckle = smoothstep(0.42, 0.12, fd) * step(0.82, skinHash(fcell + 11.0));',
   'float onFace = smoothstep(-0.1, 0.5, vSkinPos.z) * (1.0 - brow);',
   'diffuseColor.rgb *= 1.0 - 0.30 * clamp(uBlemish, 0.0, 1.0) * freckle * onFace;',
+  // MAKEUP, last — it goes on top of the skin, the freckles and the brows, in
+  // that order, because that is the order it goes on a face. Painting lipstick
+  // before the freckle pass would put freckles on the lipstick.
+  //
+  // Blush is MULTIPLIED toward its colour rather than mixed to it. Blush is
+  // pigment on skin, not paint: mixing at full strength replaces the cheek with
+  // a flat disc of colour and loses every bit of shading underneath, which is
+  // the single most obvious way to make makeup look like a sticker.
+  'float blushW = clamp(uBlush, 0.0, 1.0) * clamp(vCheek, 0.0, 1.0);',
+  'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.06, 0.80, 0.82), blushW * 0.85);',
+  // Eyeshadow and lipstick DO mix toward their colour — both are opaque
+  // products and a lipstick that only tinted would make every colour in the
+  // palette look like the same pale wash on a dark skin tone.
+  'diffuseColor.rgb = mix(diffuseColor.rgb, uShadowColor, clamp(uShadowStrength, 0.0, 1.0) * clamp(vLid, 0.0, 1.0) * 0.80);',
+  'diffuseColor.rgb = mix(diffuseColor.rgb, uLipColor, clamp(uLipStrength, 0.0, 1.0) * clamp(vLip, 0.0, 1.0));',
 ].join('\n') + '\n';

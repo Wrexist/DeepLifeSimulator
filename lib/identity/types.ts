@@ -246,6 +246,29 @@ export interface FaceGenome {
    * describes the shape underneath.
    */
   skinShine: number;
+
+  // ── Makeup ───────────────────────────────────────────────────────────────
+  //
+  // Off by default and NOT randomised, inherited or aged, which is the whole
+  // difference between makeup and the fields above it. Undertone is something
+  // a person is; lipstick is something they chose this morning. A randomiser
+  // that put makeup on a character nobody asked to wear it is a randomiser the
+  // player fights, and a child born wearing their mother's lipstick is nobody's
+  // idea of inheritance.
+  //
+  // Strengths are [0, 1] with 0 = none, so an existing save that has never
+  // heard of these renders exactly as it did before.
+
+  /** Index into `LIP_COLORS`. Only consulted when `lipStrength` > 0. */
+  lipColor?: number;
+  /** Lipstick opacity, [0, 1]. 0 is bare lips. */
+  lipStrength: number;
+  /** Index into `LIP_COLORS`, reused — the palette spans warm to cool already. */
+  eyeshadowColor?: number;
+  /** Eyeshadow opacity, [0, 1]. */
+  eyeshadowStrength: number;
+  /** Blush on the apples of the cheeks, [0, 1]. */
+  blush: number;
 }
 
 /**
@@ -411,6 +434,19 @@ export const EYE_COLORS: readonly string[] = [
 ];
 
 /**
+ * Makeup colours — lipstick and eyeshadow share one palette.
+ *
+ * Index is what a save stores, so entries may be RE-TONED but never reordered.
+ * Deliberately one palette rather than two: the useful range for both is the
+ * same walk from nude through warm reds to plum and cool tones, and a second
+ * near-identical array is two things to keep in sync for no gain.
+ */
+export const LIP_COLORS: readonly string[] = [
+  '#C98B7A', '#B76E79', '#C25B54', '#A8322D', '#8C1F2F',
+  '#7B2D45', '#5E2440', '#8E5A8C', '#5C5A8C', '#3F3B4A',
+];
+
+/**
  * Names for the palettes, index-aligned with them.
  *
  * These exist because a colour swatch is a button with no text in it: a screen
@@ -424,6 +460,11 @@ export const EYE_COLORS: readonly string[] = [
 export const SKIN_TONE_NAMES: readonly string[] = [
   'Porcelain', 'Fair', 'Light', 'Light tan', 'Tan',
   'Golden', 'Bronze', 'Deep bronze', 'Deep', 'Darkest',
+];
+
+export const LIP_COLOR_NAMES: readonly string[] = [
+  'Nude', 'Rose', 'Coral', 'Classic red', 'Wine',
+  'Berry', 'Plum', 'Orchid', 'Slate', 'Espresso',
 ];
 
 export const HAIR_COLOR_NAMES: readonly string[] = [
