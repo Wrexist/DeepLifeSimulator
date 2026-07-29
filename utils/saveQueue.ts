@@ -799,6 +799,28 @@ class SaveQueue {
         });
       }
       
+      // Checkpoints were the ONE sub-tree pruning never touched, and each one
+      // carries a whole (slimmed) game snapshot — so on a long save they are
+      // typically the largest thing in the payload, and the over-size retry
+      // provably could not shrink them. 2026-07-28 audit save-4.
+      //
+      // Each snapshot is run through THIS SAME function rather than a parallel
+      // list of caps, so the checkpoint path and the top-level path cannot drift
+      // apart as new arrays are added. Any nested `checkpoints` key is dropped
+      // before recursing — a snapshot should never contain snapshots, and that
+      // also bounds the recursion at one level.
+      if (Array.isArray(pruned.checkpoints) && pruned.checkpoints.length > 0) {
+        // Dropping checkpoints entirely is reserved for the aggressive retry:
+        // they are visible rewind targets in the Time Machine, so the normal
+        // pass must only slim them, never remove them.
+        const checkpoints = aggressive ? tail(pruned.checkpoints, 2) : pruned.checkpoints;
+        pruned.checkpoints = checkpoints.map((cp: any) => {
+          if (!cp || typeof cp !== 'object' || !cp.snapshot || typeof cp.snapshot !== 'object') return cp;
+          const { checkpoints: _nested, ...snapshot } = cp.snapshot;
+          return { ...cp, snapshot: this.pruneSaveData(snapshot, aggressive) };
+        });
+      }
+
       return pruned;
     } catch (error) {
       this.log.error('Error pruning save data:', error);

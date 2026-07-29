@@ -15,6 +15,8 @@
  *   V7  createTestGameState factory exists.
  *   V8  Migration/repair parity: every field a migration backfills with a CONCRETE
  *       default is also mirrored in repairGameState (CLAUDE.md save-format rule (b)).
+ *   V9  No repair branch writes a backfill without setting `repaired = true` — the
+ *       repaired clone is discarded otherwise (2026-07-28 audit save-3).
  */
 'use strict';
 
@@ -163,10 +165,56 @@ function build() {
       'utils/saveValidation.ts');
   }
 
+  // --- V9: a repair that never sets the flag is a repair that is discarded ---
+  // repairGameState works on a CLONE and writes it back only when `repaired` is
+  // true, so a branch that assigns a default but leaves the flag alone is
+  // computed and thrown away — the save reaches gameplay exactly as broken as it
+  // arrived, on every load. Fourteen Spark/Pulse backfills had that shape.
+  if (sv != null) {
+    const flagless = repairBranchesMissingFlag(sv);
+    a.assert(flagless.length === 0, 'medium',
+      'Every repairGameState backfill sets `repaired`',
+      `${flagless.length} repair branch(es) assign a default without setting \`repaired\``,
+      flagless.slice(0, 6).map((f) => `line ${f.line}: ${f.text}`).join(' · ')
+        + (flagless.length > 6 ? ' …' : '')
+        + ' — the repaired clone is only written back when the flag is set, so these are discarded.',
+      'utils/saveValidation.ts');
+  }
+
   return a;
 }
 
 // --- helpers ---------------------------------------------------------------
+
+/**
+ * Single-line `if (…) s.x = <default>;` branches inside repairGameState that do
+ * not set `repaired`. Deliberately narrow: only the one-line form, which is the
+ * shape that hid the save-3 class. Multi-line blocks are brace-matched and
+ * checked for the flag anywhere inside.
+ */
+function repairBranchesMissingFlag(src) {
+  const clean = L.stripNoise(src);
+  const fnStart = clean.indexOf('export function repairGameState');
+  if (fnStart === -1) return [];
+  // Body ends at the first column-0 `}` after the declaration.
+  const bodyEnd = clean.indexOf('\n}', fnStart);
+  const body = clean.slice(fnStart, bodyEnd === -1 ? clean.length : bodyEnd);
+  const startLine = src.slice(0, fnStart).split('\n').length;
+
+  const out = [];
+  const lines = body.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // `if (<cond>) <obj>.<field> = <value>;` all on one line, no `repaired`.
+    const m = line.match(/^\s*if\s*\(.*\)\s*\{?\s*(s|sp|sm|dw|b|gs)\.[\w.[\]'"]+\s*=\s*[^=].*;/);
+    if (!m) continue;
+    if (/\brepaired\b/.test(line)) continue;
+    // A one-line `if (…) {` that opens a block: the flag may be on a later line.
+    if (/\{\s*$/.test(line)) continue;
+    out.push({ line: startLine + i, text: line.trim().slice(0, 90) });
+  }
+  return out;
+}
 function parseMigrationKeys(src) {
   // Isolate ONLY the `migrations = { … }` object body via brace matching, so numeric
   // keys in unrelated objects later in the file aren't miscounted as covered versions

@@ -982,7 +982,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
- const processedRelationships = (prevState.relationships || []).map((rel, relIdx) => {
+ // PERF-2: the relationship pass iterates a player-growable array and calls four
+ // subsystems (pregnancy, wedding, health, NPC depth), and was the one such block
+ // in the updater with no try/catch of its own — a throw on a malformed
+ // relationship fell through to the outer catch, which returns prevState, so
+ // `weeksLived` never advanced and Next Week failed that week. Wrapped like its
+ // pets/vehicles/luxury siblings, with a self-healing carry-over fallback
+ // (Array.isArray, not `?? []`: a truthy non-array is the exact throw case and
+ // would otherwise re-throw every week). 2026-07-28 audit PERF-2.
+ let processedRelationships: Relationship[] = [];
+ try {
+ processedRelationships = (prevState.relationships || []).map((rel, relIdx) => {
  if (!rel || typeof rel!== 'object') return rel;
 
  // R7 Phase 2 step 2.6-iii-D: pregnancy progression + birth extracted to
@@ -1050,11 +1060,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // Apply relationship happiness penalties
- if (relationshipHappinessPenalty < 0) {
- newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + relationshipHappinessPenalty));
- }
-
  // R7 Phase 2 step 2.6-iii-A: NPC depth tick extracted into
  // ./actions/weekly/applyNPCDepthTick.ts. Same processWeeklyNPCDepth call,
  // same 2-notification-per-week cap, same try/catch silent fallback when
@@ -1068,6 +1073,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // depend on (they read `processedRelationships`, not a renamed variable).
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
+ } catch (relErr) {
+ logger.error('[RELATIONSHIP TICK] Failed:', relErr);
+ // Carry the relationships over untouched and drop every partial output of
+ // this pass, so a half-finished run can't birth a child, queue a birth
+ // notification, or apply a partial happiness penalty.
+ processedRelationships = Array.isArray(prevState.relationships) ? [...prevState.relationships] : [];
+ newBornChildren.length = 0;
+ newShowBirthPopup = false;
+ birthMessage = '';
+ relationshipHappinessPenalty = 0;
+ }
+
+ // Applied outside the try: a throw mid-pass resets the accumulator above, so
+ // the player is never charged a partial week of relationship unhappiness.
+ if (relationshipHappinessPenalty < 0) {
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + relationshipHappinessPenalty));
+ }
 
  // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
  // (fired only if Contacts was open on the exact anniversary week), so the

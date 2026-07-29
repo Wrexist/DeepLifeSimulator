@@ -20,6 +20,7 @@
  *   E11 Luxury verb side-channel income stays under the trophy it belongs to: a
  *       recurring fee below the item's weekly upkeep, and at most ONE profitable
  *       outcome per verb (weekly audit 2026-07-28).
+ *   E12 Every rewarded-ad money/gem grant is rate-limited (2026-07-28 audit econ-4).
  */
 'use strict';
 
@@ -160,8 +161,49 @@ function build() {
 
   checkClaimClockGuards(a);
   checkLuxuryVerbIncome(a);
+  checkAdRewardLimits(a);
 
   return a;
+}
+
+// ---------------------------------------------------------------------------
+// E12 — rewarded-ad grants must be rate-limited (2026-07-28 audit econ-4)
+// ---------------------------------------------------------------------------
+/**
+ * A rewarded ad that pays money or gems needs a cooldown, a per-week cap, or a
+ * persisted claim marker. `watchAdForFollowerBoost` keys on `lastAdBoostWeek`
+ * and the gem orb has its own guard, but the Bank app's cash bonus had none of
+ * the three — an unbounded faucet on the only surface that grants CASH for an
+ * ad. This flags the shape: a `<WatchAdRewardButton>` whose `onReward` touches
+ * money/gems while the element passes no `disabled` prop.
+ *
+ * Deliberately narrow (the JSX element, not every ad API) so it names a real
+ * call site rather than emitting a survey.
+ */
+function checkAdRewardLimits(a) {
+  const files = L.walk(['components', 'app'], L.isProductionSource);
+  const offenders = [];
+  for (const file of files) {
+    const src = L.read(file);
+    if (src == null || !/WatchAdRewardButton/.test(src)) continue;
+    const clean = L.stripNoise(src);
+    // Each JSX usage of the button, brace-tolerant up to the closing `/>`.
+    const re = /<WatchAdRewardButton\b[\s\S]{0,1200}?\/>/g;
+    let m;
+    while ((m = re.exec(clean))) {
+      const el = m[0];
+      const grantsValue = /onReward[\s\S]{0,400}?(updateMoney|applyMoneyDelta|gems|money)/.test(el);
+      const rateLimited = /disabled\s*=/.test(el);
+      if (grantsValue && !rateLimited) {
+        offenders.push(`${file}:${clean.slice(0, m.index).split('\n').length}`);
+      }
+    }
+  }
+  a.assert(offenders.length === 0, 'medium',
+    'Every rewarded-ad money/gem grant is rate-limited',
+    `${offenders.length} rewarded-ad button(s) grant value with no disabled/cooldown gate`,
+    offenders.join(', ') + ' — an ad reward with no cooldown, cap or claim marker is an unbounded faucet (econ-4).',
+    'components/mobile/BankApp.tsx');
 }
 
 // ---------------------------------------------------------------------------
