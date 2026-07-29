@@ -1,5 +1,5 @@
 /**
- * The procedural head's skin shader patch — eyebrows and freckles.
+ * The procedural head's skin shader patch — eyebrows, freckles, undertone.
  *
  * ## Why it is not inline in `FaceRenderer`
  *
@@ -39,6 +39,10 @@ export const SKIN_VERT_BODY =
 export const SKIN_FRAG_COMMON = [
   'uniform vec3 uBrowColor;',
   'uniform float uBlemish;',
+  // 0.5 neutral on both. Thickness scales the baked brow field before it is
+  // used as a mix weight; undertone tilts the skin between pink and gold.
+  'uniform float uBrowThickness;',
+  'uniform float uUndertone;',
   'varying float vBrow;',
   'varying vec3 vSkinPos;',
   // A hash, not a product of sines. Every attempt at scattered detail in this
@@ -50,8 +54,33 @@ export const SKIN_FRAG_COMMON = [
 /** Appended to `#include <color_fragment>`. */
 export const SKIN_FRAG_BODY = [
   '',
+  // UNDERTONE, before anything is drawn on top of the skin. A second axis on
+  // `skinTone`, which is only a lightness ladder: cool lifts blue and drops
+  // red, warm does the reverse.
+  //
+  // These started at a third of their current size, on the reasoning that this
+  // is the difference between two people of the same complexion rather than
+  // between two complexions. Rendered as a sweep it was invisible — the three
+  // frames were the same face — and an invisible control is not a subtle one,
+  // it is a dead one. Blue moves furthest because that is where the pink/gold
+  // axis actually lives; green barely moves at all, because it carries most of
+  // the perceived lightness and shifting it changes the TONE rather than the
+  // undertone.
+  'float utone = clamp(uUndertone, 0.0, 1.0) - 0.5;',
+  'diffuseColor.r *= 1.0 + utone * 0.17;',
+  'diffuseColor.g *= 1.0 + utone * 0.05;',
+  'diffuseColor.b *= 1.0 - utone * 0.22;',
   // Eyebrows: a tint toward the hair colour, weighted by the baked brow field.
-  'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, clamp(vBrow, 0.0, 1.0));',
+  //
+  // Thickness is a POWER on the field, not a multiply. The field falls off
+  // toward the edges of the brow, so raising it to a power moves the contour at
+  // which the tint fades out — a thin brow keeps its arch and loses its
+  // outside, which is what plucking does. A multiply would instead fade the
+  // whole brow toward the skin colour uniformly, which reads as a brow drawn in
+  // the wrong colour rather than a thinner one.
+  'float bthick = clamp(uBrowThickness, 0.0, 1.0);',
+  'float brow = pow(clamp(vBrow, 0.0, 1.0), mix(2.6, 0.45, bthick));',
+  'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, brow);',
   // Freckles. Cell noise: one candidate per cell, most cells empty, so they
   // scatter instead of forming a texture. Front of the face only, and never on
   // the brows — a freckle drawn over an eyebrow reads as a gap in it.
@@ -60,6 +89,6 @@ export const SKIN_FRAG_BODY = [
   'float fjit = skinHash(fcell) - 0.5;',
   'float fd = length(flocal - fjit * 0.5);',
   'float freckle = smoothstep(0.42, 0.12, fd) * step(0.82, skinHash(fcell + 11.0));',
-  'float onFace = smoothstep(-0.1, 0.5, vSkinPos.z) * (1.0 - clamp(vBrow, 0.0, 1.0));',
+  'float onFace = smoothstep(-0.1, 0.5, vSkinPos.z) * (1.0 - brow);',
   'diffuseColor.rgb *= 1.0 - 0.30 * clamp(uBlemish, 0.0, 1.0) * freckle * onFace;',
 ].join('\n') + '\n';

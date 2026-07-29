@@ -1,5 +1,51 @@
 # Task Tracker
 
+## 🎨 Far more look customization (2026-07-29)
+
+Branch: `claude/game-character-customization-fk5s4m`. Goal: a lot more options
+for how a character looks, actually rendered — not sliders that move nothing.
+
+### What exists today
+24 face morphs, 10 skin tones, 14 hair colours, 6 eye colours, 35 hair styles,
+5 facial-hair styles, and `blemishes` (freckles) which is stored, randomised,
+inherited and aged with **no control anywhere**.
+
+### Phase 1 — Details & colour (shader-driven, no new geometry)
+- [x] Expose freckles (`blemishes`) as a slider — it already rendered on both heads
+- [x] Eyebrows: thickness (power on the baked brow field) + colour override
+- [x] Facial hair: colour override + density (mesh offset AND colour blend)
+- [x] Skin: undertone (cool ↔ warm) and finish (roughness + clearcoat)
+- [x] Plumbing: types, normalizeGenome, randomizeFace, inheritFace, applyAging
+- [x] STATE_VERSION 26 → 27 + migration 27 + docs in sync
+- [x] Both render paths — procedural shader patch AND the scanned head's inline GLSL
+- [x] FaceStudio: Eyebrows and Complexion cards, facial-hair sub-controls
+- [x] `scripts/procedural-harness.html` given the new uniforms (an absent one
+      reads as 0, which is the thinnest brow and a full cool cast — a harness
+      that renders the extreme of a control is worse than one that ignores it)
+- [x] Tests: 31 in `lib/identity/__tests__/grooming.test.ts`, including a
+      GOLDEN that the appended random draws did not shift any existing face
+      (checked directly against the previous build before capturing it)
+- [x] Verified ON SCREEN through `HARNESS=./procedural-harness.html GROOM=<field>:<values>`,
+      a sweep mode added to `scripts/shoot-styles.mjs` for exactly this. Brow
+      thickness and freckles read immediately; undertone did NOT — the three
+      frames were the same face — so its coefficients were roughly doubled and
+      re-rendered. An invisible control is a dead one, not a subtle one.
+
+### Phase 2 — Makeup
+- [ ] Bake `lip` and `lid` vertex fields the way `brow` is baked
+- [ ] Lip colour + strength, eyeshadow colour + strength, blush strength
+
+### Phase 3 — More structure morphs
+- [ ] nostrilFlare, philtrumLength, upperLipRatio, eyeHood, earAngle,
+      cheekHollow, templeWidth, chinCleft, jawlineDefinition
+- [ ] Each needs a real term in `buildHeadMesh` and a `morphBinding` entry
+
+### Rules this must not break
+- A new control MUST move something on screen, or it does not ship
+      (`binding.unbound` already hides dead sliders — do not add to that list)
+- `HAIR_STYLES` / `FACIAL_HAIR_STYLES` are APPEND-ONLY (saves store the name)
+- Palettes may be re-toned, never reordered (saves store the index)
+
 ## 🎨 Vitals symmetry + Week Summary toggle + Heads Up Liquid Glass redesign (2026-07-09)
 
 Branch: `claude/vitals-ui-notifications-redesign-e3262m`. User screenshots showed

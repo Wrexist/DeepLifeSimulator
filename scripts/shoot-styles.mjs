@@ -172,11 +172,30 @@ async function main() {
 
     const age = Number(process.env.AGE ?? 30);
     const blemish = process.env.BLEMISH === undefined ? undefined : Number(process.env.BLEMISH);
+    /**
+     * GROOM=<field>:<a,b,c> sweeps one grooming control across one face.
+     *
+     * The controls it covers are material properties, so a sweep is the only way
+     * to see them: a single render says nothing about whether a slider is wired,
+     * and every one of them looks plausible at any value. PROC supplies the
+     * seeds; this overrides one field per shot, so what changes between frames
+     * is exactly the control and nothing else.
+     */
+     const groom = process.env.GROOM ? (() => {
+       const [field, list] = process.env.GROOM.split(':');
+       return { field, values: (list ?? '0,0.5,1').split(',').map(Number) };
+     })() : null;
     const shots = [];
+    const passes = groom ? groom.values : [null];
     for (const seed of process.env.PROC.split(',')) {
+     for (const sweep of passes) {
       const g = genomeMod.randomizeFace(seed, { sex: process.env.SEX ?? undefined, spread: 0.7 });
       const aged = genomeMod.applyAging(g, age);
       if (blemish !== undefined) aged.blemishes = blemish;
+      if (groom && sweep !== null) {
+        aged[groom.field] = sweep;
+        g[groom.field] = sweep;
+      }
       const mesh = head.buildHeadMesh(g, { age });
       // HAIR=<style> pins the cut, so a style can be looked at on this head
       // without rerolling seeds until the randomiser hands it over.
@@ -200,9 +219,11 @@ async function main() {
         framing: framing.frameHead({ min: lo, max: hi }, 0.12),
         skin: types.SKIN_TONES[aged.skinTone],
         hairColor: hairHex,
-        browColor: hairHex,
+        browColor: typeof aged.browColor === 'number' ? types.HAIR_COLORS[aged.browColor] : hairHex,
         eyeColor: types.EYE_COLORS[aged.eyeColor],
         blemish: aged.blemishes,
+        browThickness: aged.browThickness,
+        undertone: aged.skinUndertone,
         shells: { ...head.EYE_SHELLS },
         segments: { ...head.EYE_SEGMENTS },
         eyes: [eyes.left, eyes.right].map((e) => ({ x: e.x, y: e.y, z: e.z, radius: e.radius })),
@@ -211,7 +232,11 @@ async function main() {
           indices: Array.from(hairMesh.indices), coverage: Array.from(hairMesh.coverage),
         } : null,
       });
-      shots.push({ name: seed, png: await page.locator('canvas').screenshot() });
+      shots.push({
+        name: groom ? `${groom.field}=${sweep}` : seed,
+        png: await page.locator('canvas').screenshot(),
+      });
+     }
     }
     await writeSheet(page, shots, Math.min(5, shots.length), vw, vh, out);
     await browser.close();
@@ -244,6 +269,8 @@ async function main() {
         hairColor: types.HAIR_COLORS[g.hairColor],
         eyeColor: types.EYE_COLORS[g.eyeColor],
         blemish: g.blemishes,
+        browThickness: g.browThickness,
+        undertone: g.skinUndertone,
         hairStyle: g.hairStyle,
         facialHair: g.facialHair,
       });
@@ -303,6 +330,8 @@ async function main() {
         hairColor: types.HAIR_COLORS[aged.hairColor],
         eyeColor: types.EYE_COLORS[aged.eyeColor],
         blemish: aged.blemishes,
+        browThickness: aged.browThickness,
+        undertone: aged.skinUndertone,
         hairStyle: aged.hairStyle,
         facialHair: aged.facialHair,
       });
@@ -339,6 +368,8 @@ async function main() {
         hairColor: types.HAIR_COLORS[g.hairColor],
         eyeColor: types.EYE_COLORS[g.eyeColor],
         blemish: g.blemishes,
+        browThickness: g.browThickness,
+        undertone: g.skinUndertone,
         // Held fixed on purpose: hair and a beard are what a viewer reads sex
         // from first, and letting them vary would hide whether the FACE moved.
         hairStyle: 'short',

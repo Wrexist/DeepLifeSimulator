@@ -158,6 +158,65 @@ export interface FaceGenome {
    * same defect as a slider that moves nothing.
    */
   blemishes: number;
+
+  // ── Grooming and complexion ──────────────────────────────────────────────
+  //
+  // Everything below is [0, 1] with 0.5 neutral, or an index into a palette.
+  // They are separate fields rather than morphs because a morph moves geometry
+  // and every one of these is a material property — putting them in
+  // `FaceMorphs` would make `randomizeFace`'s spread and `MALE_BIAS` apply to
+  // eyebrow colour, and would offer them as sliders on the preset-head route
+  // where they render perfectly well.
+
+  /**
+   * Eyebrow thickness, [0, 1], 0.5 neutral.
+   *
+   * Scales the baked per-vertex brow field on the procedural head and the brow
+   * mask on the scanned one, so it thins toward the edges first, the way a
+   * plucked brow actually thins. Never reaches zero — a face with no eyebrows
+   * at all reads as an error rather than as a choice, and the shape is what
+   * carries the expression.
+   */
+  browThickness: number;
+  /**
+   * Index into `HAIR_COLORS`, or undefined to follow the hair.
+   *
+   * Undefined is the default and the honest one: brows follow the hair on most
+   * people, and the renderer already derives a brow colour from it (desaturated
+   * and darkened, because brow hair is coarser and blonde brows are not blonde
+   * hair). Setting this overrides that derivation outright.
+   *
+   * Optional rather than a -1 sentinel so an absent key already means the
+   * default — no backfill, per the save rules in CLAUDE.md §7.
+   */
+  browColor?: number;
+  /** Index into `HAIR_COLORS` for facial hair, or undefined to follow the hair. */
+  beardColor?: number;
+  /**
+   * Facial hair density, [0, 1], 0.5 neutral.
+   *
+   * The difference between three-day stubble and a full beard is not the SHAPE
+   * — `facialHair` already picks that — it is how much skin shows through. This
+   * is that, and it is what makes stubble read as stubble.
+   */
+  beardDensity: number;
+  /**
+   * Skin undertone, [0, 1]: 0 cool/pink, 0.5 neutral, 1 warm/golden.
+   *
+   * A second axis on top of `skinTone`, which is a lightness ladder. Two people
+   * at the same point on that ladder can look nothing alike, and undertone is
+   * most of why — it is the thing people are talking about when they say a
+   * foundation is the right darkness and the wrong colour.
+   */
+  skinUndertone: number;
+  /**
+   * Skin finish, [0, 1]: 0 matte, 0.5 natural, 1 dewy.
+   *
+   * Drives specular roughness. Cheap, and it changes the read of a face more
+   * than most of the geometry sliders do, because it changes how the light
+   * describes the shape underneath.
+   */
+  skinShine: number;
 }
 
 /**

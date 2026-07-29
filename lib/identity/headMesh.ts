@@ -1613,7 +1613,16 @@ export function buildFacialHairMesh(
   if (style === 'none') return null;
 
   const mouthY = -0.36 + centred(genome.morphs.mouthHeight) * 0.10;
-  const thickness = style === 'stubble' ? 0.008 : style === 'full' ? 0.030 : 0.020;
+  // The style sets the SHAPE and the base thickness; `beardDensity` scales how
+  // far the shell stands off the skin within it. That is the difference the
+  // player is actually reaching for — three-day growth and a full beard of the
+  // same shape differ in bulk, not in outline.
+  //
+  // Bounded at 0.6 rather than 0: a shell at zero offset is coincident with the
+  // skin and z-fights it, which flickers instead of disappearing. Absence is
+  // what `facialHair: 'none'` is for.
+  const density = 0.6 + 0.85 * clamp01(genome.beardDensity ?? 0.5);
+  const thickness = (style === 'stubble' ? 0.008 : style === 'full' ? 0.030 : 0.020) * density;
 
   const src = head.positions;
   const srcN = head.normals;

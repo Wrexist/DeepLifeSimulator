@@ -4,7 +4,7 @@ import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { createIdentity } from '@/lib/identity';
 
-export const STATE_VERSION = 26;
+export const STATE_VERSION = 27;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';

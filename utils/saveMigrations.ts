@@ -744,6 +744,26 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 26;
     return state;
   },
+
+  // Version 27: grooming and complexion on `FaceGenome` — brow thickness and
+  // colour, facial-hair colour and density, skin undertone and finish.
+  //
+  // The same `normalizeIdentity` call as v26, and that is the whole migration.
+  // It is registered rather than listed as a no-op because it DOES do work: the
+  // four concrete-default fields (`browThickness`, `beardDensity`,
+  // `skinUndertone`, `skinShine`) are backfilled to 0.5 by `normalizeGenome`
+  // underneath it, and `repairGameState` runs the same normalizer for a partial
+  // save. The two optional fields — `browColor`, `beardColor` — are
+  // deliberately NOT written: their default is "absent", meaning follow the
+  // hair, so writing a key would turn every existing character's brows into an
+  // explicit override of the colour they already had.
+  27: (state) => {
+    if (state.identity && typeof state.identity === 'object' && !Array.isArray(state.identity)) {
+      state.identity = normalizeIdentity(state.identity, 'legacy-save');
+    }
+    state.version = 27;
+    return state;
+  },
 };
 
 /**

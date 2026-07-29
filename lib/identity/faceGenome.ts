@@ -218,6 +218,22 @@ export function randomizeFace(seed: string, options: RandomizeFaceOptions = {}):
     hairStyle,
     facialHair,
     blemishes: clamp01(rng() * 0.6),
+    // Grooming and complexion. Bell-sampled at a narrow spread for the same
+    // reason the morphs are: an even draw gives half the population an extreme
+    // on every axis, and a face with the thinnest possible brows AND the
+    // shiniest possible skin is a caricature nobody rolled for.
+    //
+    // Drawn AFTER everything above so a seed that produced a given face before
+    // these existed still produces that face. Appending is not a style choice
+    // here — inserting a draw shifts every later one, which is how `sex` once
+    // reached skin tone, hair colour and eye colour.
+    browThickness: sampleMorph(rng, 0.55),
+    beardDensity: sampleMorph(rng, 0.55),
+    skinUndertone: sampleMorph(rng, 0.7),
+    skinShine: sampleMorph(rng, 0.5),
+    // browColor and beardColor are left undefined: following the hair is what
+    // almost everyone's do, and it keeps a random face from arriving with
+    // eyebrows that do not belong to it.
   };
 }
 
@@ -246,7 +262,33 @@ export function normalizeGenome(input: Partial<FaceGenome> | null | undefined, s
     hairStyle,
     facialHair,
     blemishes: clamp01(input.blemishes ?? 0.2),
+    browThickness: clamp01(input.browThickness ?? 0.5),
+    beardDensity: clamp01(input.beardDensity ?? 0.5),
+    skinUndertone: clamp01(input.skinUndertone ?? 0.5),
+    skinShine: clamp01(input.skinShine ?? 0.5),
+    // Spread rather than assigned, so an absent key STAYS absent. Writing
+    // `browColor: undefined` would be the same value and a different object —
+    // and `'browColor' in genome` is how the renderer asks whether to derive
+    // the colour from the hair or to obey the player.
+    ...paletteOverride('browColor', input.browColor),
+    ...paletteOverride('beardColor', input.beardColor),
   };
+}
+
+/**
+ * An optional palette index, present only when it is a real one.
+ *
+ * These fields mean "the player overrode this"; anything that is not a usable
+ * index — undefined, null, a string from a hand-edited save, NaN — means they
+ * did not, and must come back absent rather than clamped to 0. Clamping would
+ * turn every corrupt value into "black", which is a choice the player did not
+ * make and cannot tell apart from one they did.
+ */
+function paletteOverride(
+  key: 'browColor' | 'beardColor', value: unknown,
+): Record<string, number> {
+  if (typeof value !== 'number' || !isFinite(value)) return {};
+  return { [key]: Math.round(clampRange(value, 0, HAIR_COLORS.length - 1)) };
 }
 
 /**
@@ -304,7 +346,25 @@ export function inheritFace(
     hairStyle: hairPool[Math.floor(rng() * hairPool.length)] ?? 'short',
     facialHair: 'none',
     blemishes: clamp01((mother.blemishes + father.blemishes) / 2 + (rng() - 0.5) * 0.2),
+    // Blended like the morphs are, with the same small mutation. Brow thickness
+    // and skin undertone run in families as visibly as a nose does — a child who
+    // inherits neither parent's colouring is the thing that makes a family tree
+    // stop reading as a family.
+    browThickness: blendTrait(mother.browThickness, father.browThickness, rng),
+    beardDensity: blendTrait(mother.beardDensity, father.beardDensity, rng),
+    skinUndertone: blendTrait(mother.skinUndertone, father.skinUndertone, rng),
+    skinShine: blendTrait(mother.skinShine, father.skinShine, rng),
+    // browColor and beardColor are deliberately NOT inherited. They are an
+    // override — "this character dyes their brows" — not a trait, and a child
+    // born already overriding their own brow colour is nobody's idea of
+    // inheritance. Absent means "follow the hair", which is what a baby's do.
   };
+}
+
+/** One inherited trait: a point between the parents, plus a small mutation. */
+function blendTrait(a: number, b: number, rng: () => number): number {
+  const mix = rng();
+  return clamp01(a * mix + b * (1 - mix) + (rng() - 0.5) * 0.12);
 }
 
 /**
@@ -387,6 +447,21 @@ export function applyAging(genome: FaceGenome, age: number): FaceGenome {
     hairStyle,
     // Sun damage and age spots accumulate and never reverse.
     blemishes: clamp01(genome.blemishes + clampRange((a - 35) / 60, 0, 1) * 0.35),
+    // Brows coarsen and grow out from about fifty. A small, one-directional
+    // drift, like the blemishes above — it is one of the few cues that reads as
+    // age rather than as a different person.
+    browThickness: clamp01(genome.browThickness + clampRange((a - 48) / 40, 0, 1) * 0.22),
+    // Skin peaks oily in the teens and dries steadily after thirty. Both ends
+    // are real and both are legible: a shiny teenager and a matte seventy-year
+    // -old are recognisable without a single wrinkle being drawn.
+    skinShine: clamp01(
+      genome.skinShine
+      + clampRange((20 - a) / 8, 0, 1) * 0.20
+      - clampRange((a - 30) / 45, 0, 1) * 0.30,
+    ),
+    // Undertone and beard density are authored, not aged. Undertone does not
+    // change over a life, and a beard that thickens on its own would overwrite
+    // a choice the player made rather than express one.
   };
 }
 

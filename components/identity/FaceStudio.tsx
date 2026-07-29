@@ -500,6 +500,73 @@ export default function FaceStudio({
             selected={genome.facialHair}
             onSelect={(v) => { haptic.light(); onChange({ ...genome, facialHair: v as FacialHairStyle }); }}
           />
+          {/* Only once there is facial hair to colour. A colour picker and a
+              density slider above a character who has chosen "none" are two
+              controls that visibly do nothing, which is the thing this screen
+              already refuses to ship for the morph sliders. */}
+          {genome.facialHair !== 'none' ? (
+            <View style={styles.subSection}>
+              <Text style={styles.subLabel}>Colour</Text>
+              <OptionalSwatches
+                colors={HAIR_COLORS}
+                names={HAIR_COLOR_NAMES}
+                selected={genome.beardColor}
+                onSelect={(i) => { haptic.light(); onChange(withOptional(genome, 'beardColor', i)); }}
+              />
+              <MorphSlider
+                label="Density"
+                value={genome.beardDensity}
+                onChange={(v) => onChange({ ...genome, beardDensity: v })}
+                onEditStart={pushHistory}
+              />
+            </View>
+          ) : null}
+        </Card>
+
+        {/* DETAILS. Everything here is a material property rather than
+            geometry, so it works on every route — including the preset heads,
+            where the structure sliders are hidden because a preset's shape is
+            baked in and nothing would move. */}
+        <Card title="Eyebrows">
+          <MorphSlider
+            label="Thickness"
+            value={genome.browThickness}
+            onChange={(v) => onChange({ ...genome, browThickness: v })}
+            onEditStart={pushHistory}
+          />
+          <View style={styles.subSection}>
+            <Text style={styles.subLabel}>Colour</Text>
+            <OptionalSwatches
+              colors={HAIR_COLORS}
+              names={HAIR_COLOR_NAMES}
+              selected={genome.browColor}
+              onSelect={(i) => { haptic.light(); onChange(withOptional(genome, 'browColor', i)); }}
+            />
+          </View>
+        </Card>
+
+        <Card title="Complexion">
+          {/* `blemishes` was stored, randomised, inherited from both parents,
+              drifted upward with age and RENDERED on both heads, with no
+              control anywhere in the app. */}
+          <MorphSlider
+            label="Freckles"
+            value={genome.blemishes}
+            onChange={(v) => onChange({ ...genome, blemishes: v })}
+            onEditStart={pushHistory}
+          />
+          <MorphSlider
+            label="Undertone"
+            value={genome.skinUndertone}
+            onChange={(v) => onChange({ ...genome, skinUndertone: v })}
+            onEditStart={pushHistory}
+          />
+          <MorphSlider
+            label="Finish"
+            value={genome.skinShine}
+            onChange={(v) => onChange({ ...genome, skinShine: v })}
+            onEditStart={pushHistory}
+          />
         </Card>
 
         {groups.map((group) => {
@@ -633,6 +700,72 @@ function Swatches({
   );
 }
 
+/**
+ * Swatches with a "same as hair" option in front of the palette.
+ *
+ * `browColor` and `beardColor` are OVERRIDES: absent means follow the hair,
+ * which is what almost everybody's do and what a randomised face gets. The
+ * picker has to be able to express that, and it has to be able to get BACK to
+ * it — a colour picker with no way to undo a choice is one the player only ever
+ * uses once, by accident.
+ */
+/**
+ * Set or CLEAR an optional field.
+ *
+ * `{ ...genome, browColor: undefined }` is not the same object as one without
+ * the key, and the renderer asks `typeof aged.browColor === 'number'` — which
+ * happens to give the right answer either way, but `normalizeGenome` spreads
+ * the key in only when it is real, so a genome carrying an explicit
+ * `undefined` would round-trip through a save into a different shape than the
+ * one in memory. Deleting keeps them identical.
+ */
+function withOptional(
+  genome: FaceGenome, key: 'browColor' | 'beardColor', value: number | undefined,
+): FaceGenome {
+  const next = { ...genome };
+  if (value === undefined) delete next[key];
+  else next[key] = value;
+  return next;
+}
+
+function OptionalSwatches({
+  colors, names, selected, onSelect,
+}: {
+  colors: readonly string[];
+  names: readonly string[];
+  /** undefined = follow the hair. */
+  selected: number | undefined;
+  onSelect: (i: number | undefined) => void;
+}): React.JSX.Element {
+  return (
+    <View style={styles.swatchRow}>
+      <TouchableOpacity
+        onPress={() => onSelect(undefined)}
+        accessibilityRole="button"
+        accessibilityLabel="Same as hair"
+        accessibilityState={{ selected: selected === undefined }}
+        style={[styles.autoChip, selected === undefined ? styles.autoChipOn : null]}
+      >
+        <Text style={[styles.autoChipText, selected === undefined ? styles.autoChipTextOn : null]}>
+          Same as hair
+        </Text>
+      </TouchableOpacity>
+      {colors.map((c, i) => (
+        <TouchableOpacity
+          key={`${c}-${i}`}
+          onPress={() => onSelect(i)}
+          accessibilityRole="button"
+          accessibilityLabel={swatchName(names, i)}
+          accessibilityState={{ selected: i === selected }}
+          style={[styles.swatchRing, i === selected ? styles.swatchRingOn : null]}
+        >
+          <View style={[styles.swatch, { backgroundColor: c }]} />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
 function Chips({
   options, selected, onSelect,
 }: { options: readonly string[]; selected: string; onSelect: (v: string) => void }): React.JSX.Element {
@@ -660,6 +793,20 @@ function Chips({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  autoChip: {
+    paddingHorizontal: scale(11),
+    height: scale(30),
+    justifyContent: 'center',
+    borderRadius: scale(9),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  autoChipOn: { borderColor: C.accent, backgroundColor: 'rgba(76,141,255,0.16)' },
+  autoChipText: { color: C.sub, fontSize: fontScale(12), fontWeight: '700' },
+  subSection: { marginTop: scale(12), gap: scale(6) },
+  subLabel: { color: C.sub, fontSize: fontScale(12), fontWeight: '700' },
+  autoChipTextOn: { color: C.text },
   scroll: { padding: scale(16), paddingBottom: scale(110) },
   stepRow: { alignItems: 'flex-end', marginBottom: scale(10) },
   dashes: { flexDirection: 'row', gap: scale(5) },

@@ -122,6 +122,31 @@ function toBufferGeometry(mesh: MeshData): THREE.BufferGeometry {
  * whole custom shader — this keeps three's lighting, tone mapping and fog
  * intact, which a hand-rolled ShaderMaterial would throw away.
  */
+
+/**
+ * Skin finish, as roughness and sheen.
+ *
+ * `skinShine` is [0, 1] with 0.5 neutral, and it moves two things because one
+ * alone does not read: roughness decides how tight the highlight is, clearcoat
+ * decides whether there is a second, sharper one over the top. Matte skin is
+ * rough with almost no coat; dewy skin is smoother with a hint of one.
+ *
+ * The clearcoat ceiling is 0.14, and that is a hard-won number rather than a
+ * cautious one — this material sat at 0.22 and the whole head read as moulded
+ * chocolate. Dewy has to stop well short of lacquered.
+ */
+function applySkinFinish(
+  material: THREE.MeshPhysicalMaterial,
+  shine: number,
+  /** Roughness at neutral. The scanned head uses 1 so its map IS the value. */
+  neutralRoughness: number,
+): void {
+  const s = Math.max(0, Math.min(1, shine)) - 0.5;
+  material.roughness = Math.max(0.05, neutralRoughness * (1 - s * 0.42));
+  material.clearcoat = Math.max(0, 0.05 + s * 0.18);
+  material.clearcoatRoughness = Math.max(0.08, 0.7 - s * 0.55);
+}
+
 function makeShellMaterial(color: THREE.ColorRepresentation, roughness: number): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
     color,
@@ -369,6 +394,10 @@ export function createFaceScene(
     uBrowColor: { value: new THREE.Color(0x2a1c14) },
     /** `genome.blemishes`, [0, 1] — freckle and mottle density. */
     uBlemish: { value: 0.2 },
+    /** `genome.browThickness`, [0, 1] — 0.5 neutral. */
+    uBrowThickness: { value: 0.5 },
+    /** `genome.skinUndertone`, [0, 1] — 0 cool, 0.5 neutral, 1 warm. */
+    uUndertone: { value: 0.5 },
   };
 
   const assetBeardUniforms = {
@@ -454,6 +483,9 @@ export function createFaceScene(
       // physics than a flat value, not a cheat to rescue the render.
       const lum = 0.3 * skinMat.color.r + 0.59 * skinMat.color.g + 0.11 * skinMat.color.b;
       skinMat.envMapIntensity = 0.45 + 0.55 * (1 - Math.min(1, lum * 1.6));
+      // 1 when there is a roughness map, because then `roughness` scales the
+      // map rather than replacing it — the same reason it is set to 1 above.
+      applySkinFinish(skinMat, aged.skinShine, skinMat.roughnessMap ? 1 : 0.72);
     }
     const irisMat = assetParts.iris?.material as THREE.MeshPhysicalMaterial | undefined;
     if (irisMat) irisMat.color.set(iris);
@@ -513,10 +545,21 @@ export function createFaceScene(
     // OLIVE eyebrows. Pulling a fifth of the way toward the colour's own
     // luminance removes the skew, and it is truer anyway — brow hair is coarser
     // and reads less saturated than the hair on the head.
-    const brow = assetSkinUniforms.uBrowColor.value
-      .set(HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))]);
-    const browLum = 0.3 * brow.r + 0.59 * brow.g + 0.11 * brow.b;
-    brow.lerp(GREY.setScalar(browLum), 0.22).multiplyScalar(0.56);
+    //
+    // UNLESS the player picked a brow colour. `browColor` is an override, so an
+    // explicit choice is used as chosen rather than pushed two shades darker —
+    // somebody who picks white brows on purpose means white, and applying the
+    // derivation on top would hand them grey and look like a bug.
+    const browOverride = typeof aged.browColor === 'number';
+    const brow = assetSkinUniforms.uBrowColor.value.set(
+      HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, browOverride ? aged.browColor! : aged.hairColor))],
+    );
+    if (!browOverride) {
+      const browLum = 0.3 * brow.r + 0.59 * brow.g + 0.11 * brow.b;
+      brow.lerp(GREY.setScalar(browLum), 0.22).multiplyScalar(0.56);
+    }
+    assetSkinUniforms.uBrowThickness.value = Math.max(0, Math.min(1, aged.browThickness));
+    assetSkinUniforms.uUndertone.value = Math.max(0, Math.min(1, aged.skinUndertone));
     // The AGED value: `applyAging` drifts this upward, which is what turns
     // freckles into age spots over a lifetime without a second field.
     assetSkinUniforms.uBlemish.value = Math.max(0, Math.min(1, aged.blemishes));
@@ -530,13 +573,19 @@ export function createFaceScene(
         // Facial hair reads darker than scalp hair on the same head, so it is
         // the hair colour knocked down rather than a second palette to keep in
         // sync — a beard that does not match the hair looks like a costume.
-        const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
+        const beardOverride = typeof aged.beardColor === 'number';
+        const hairHex = HAIR_COLORS[Math.min(
+          HAIR_COLORS.length - 1,
+          Math.max(0, beardOverride ? aged.beardColor! : aged.hairColor),
+        )];
         // Desaturated first, for the reason the eyebrows are — a dark saturated
         // orange skews toward yellow-green through ACES, and a blond beard came
-        // out khaki.
+        // out khaki. Skipped for an explicit choice, same as the brows.
         const beardColor = (assetBeard.material as THREE.MeshStandardMaterial).color.set(hairHex);
-        const rawLum = 0.3 * beardColor.r + 0.59 * beardColor.g + 0.11 * beardColor.b;
-        beardColor.lerp(GREY.setScalar(rawLum), 0.20).multiplyScalar(0.72);
+        if (!beardOverride) {
+          const rawLum = 0.3 * beardColor.r + 0.59 * beardColor.g + 0.11 * beardColor.b;
+          beardColor.lerp(GREY.setScalar(rawLum), 0.20).multiplyScalar(0.72);
+        }
         // A PALE BEARD HAS TO BE THINNER.
         //
         // Rendered on a grey-haired character the beard came out as a solid
@@ -546,7 +595,15 @@ export function createFaceScene(
         // is genuinely more translucent than pigmented hair, so letting more
         // skin through at the light end is both the fix and the truth.
         const beardLum = 0.3 * beardColor.r + 0.59 * beardColor.g + 0.11 * beardColor.b;
-        assetBeardUniforms.uDensity.value = spec.density * (1 - 0.68 * Math.min(1, beardLum * 2.0));
+        // The player's density on top of the style's own and the pale-beard
+        // correction. Multiplicative, so it never defeats the correction that
+        // stops a white beard reading as a bandage — it moves within it.
+        // Centred on 0.5 and bounded well away from zero: at zero the mesh is
+        // still there and invisible, which reads as a broken beard rather than
+        // as no beard, and "no beard" is what `facialHair: 'none'` is for.
+        const chosen = 0.55 + 0.90 * Math.max(0, Math.min(1, aged.beardDensity));
+        assetBeardUniforms.uDensity.value =
+          spec.density * (1 - 0.68 * Math.min(1, beardLum * 2.0)) * chosen;
       }
     }
   }
@@ -626,7 +683,8 @@ export function createFaceScene(
         Object.assign(shader.uniforms, assetSkinUniforms);
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uBrowColor;\nuniform float uBlemish;\n' +
+            'uniform vec3 uBrowColor;\nuniform float uBlemish;\n'
+            + 'uniform float uBrowThickness;\nuniform float uUndertone;\n' +
             'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }')
           .replace('#include <color_fragment>', '#include <color_fragment>\n' +
             (textures.roughness
@@ -634,7 +692,17 @@ export function createFaceScene(
               // than multiplying, because the painted brow is already dark: a
               // multiply would only ever make a blonde brow darker.
               ? 'vec2 skinRg = texture2D(roughnessMap, vRoughnessMapUv).gb;\n'
-                + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, skinRg.y * 0.76);\n'
+                // Undertone first, so the brow tint and the freckles land on
+                // the final skin colour rather than being shifted by it.
+                + 'float utone = clamp(uUndertone, 0.0, 1.0) - 0.5;\n'
+                + 'diffuseColor.r *= 1.0 + utone * 0.17;\n'
+                + 'diffuseColor.g *= 1.0 + utone * 0.05;\n'
+                + 'diffuseColor.b *= 1.0 - utone * 0.22;\n'
+                // Thickness as a power on the painted brow mask, the same way
+                // the procedural head does it — a thin brow loses its outside
+                // and keeps its arch, rather than fading uniformly toward skin.
+                + 'float browMask = pow(skinRg.y, mix(2.6, 0.45, clamp(uBrowThickness, 0.0, 1.0)));\n'
+                + 'diffuseColor.rgb = mix(diffuseColor.rgb, uBrowColor, browMask * 0.76);\n'
                 // FRECKLES. `genome.blemishes` is stored in every save, drifts
                 // upward with age and is inherited by children — and until now
                 // nothing rendered it. A field the game maintains and never
@@ -644,7 +712,7 @@ export function createFaceScene(
                 // map is matte on skin and glossy on lips, so thresholding it
                 // gives "is this skin" for free, and the brow mask in blue
                 // keeps them off the eyebrows. No new texture, no new bake.
-                + 'float skinness = smoothstep(0.44, 0.60, skinRg.x) * (1.0 - skinRg.y);\n'
+                + 'float skinness = smoothstep(0.44, 0.60, skinRg.x) * (1.0 - browMask);\n'
                 // A HASH, not sines. This is the third time in this file that
                 // a handful of sine waves has been tried for something meant to
                 // look scattered — hair strands, beard stipple, and now
@@ -1107,28 +1175,48 @@ export function createFaceScene(
       clearcoatRoughness: 0.7,
       envMapIntensity: 0.7,
     }));
+    // Matte to dewy. Overwrites the three values just set, which is why they
+    // are still written above: they are the neutral this moves around, and
+    // reading them here rather than repeating the numbers is how the two stay
+    // in step.
+    applySkinFinish(headMaterial, aged.skinShine, 0.72);
     // EYEBROWS. The procedural head had none: this material was a flat colour
     // with no shader patch, while the scanned head has brows painted into its
     // albedo and tinted by hair colour. `buildHeadMesh` now emits a per-vertex
     // brow weight; this tints by it. Brows survive a shaved head, so the colour
     // comes from the hair palette rather than from whether there is any hair.
     {
-      const hairHex = HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.hairColor))];
-      const browColor = new THREE.Color(hairHex).multiplyScalar(0.62);
-      const skinColor = new THREE.Color(skin);
-      // Contrast floor against the skin — black hair on the darkest tone put the
-      // brow within a few units of the face and it vanished. Loose enough that a
-      // blond stays faint-browed, as blonds are.
-      const lum = (c: THREE.Color) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
-      const target = lum(skinColor) * 0.55;
-      if (lum(browColor) > target && lum(browColor) > 1e-4) {
-        browColor.multiplyScalar(target / lum(browColor));
+      // An explicit brow colour is used as chosen. The derivation below exists
+      // to make a brow that FOLLOWS the hair look right; run on a colour the
+      // player picked on purpose it would quietly refuse to give them what they
+      // asked for — pick white and get grey.
+      const browOverride = typeof aged.browColor === 'number';
+      const hairHex = HAIR_COLORS[Math.min(
+        HAIR_COLORS.length - 1,
+        Math.max(0, browOverride ? aged.browColor! : aged.hairColor),
+      )];
+      const browColor = new THREE.Color(hairHex);
+      if (!browOverride) {
+        browColor.multiplyScalar(0.62);
+        const skinColor = new THREE.Color(skin);
+        // Contrast floor against the skin — black hair on the darkest tone put
+        // the brow within a few units of the face and it vanished. Loose enough
+        // that a blond stays faint-browed, as blonds are.
+        const lum = (c: THREE.Color) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+        const target = lum(skinColor) * 0.55;
+        if (lum(browColor) > target && lum(browColor) > 1e-4) {
+          browColor.multiplyScalar(target / lum(browColor));
+        }
       }
       const uBrowColor = { value: browColor };
       const uBlemish = { value: Math.max(0, Math.min(1, aged.blemishes)) };
+      const uBrowThickness = { value: Math.max(0, Math.min(1, aged.browThickness)) };
+      const uUndertone = { value: Math.max(0, Math.min(1, aged.skinUndertone)) };
       headMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uBrowColor = uBrowColor;
         shader.uniforms.uBlemish = uBlemish;
+        shader.uniforms.uBrowThickness = uBrowThickness;
+        shader.uniforms.uUndertone = uUndertone;
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', `#include <common>\n${SKIN_VERT_COMMON}`)
           .replace('#include <begin_vertex>', `#include <begin_vertex>${SKIN_VERT_BODY}`);
@@ -1181,7 +1269,20 @@ export function createFaceScene(
 
     const beard = buildFacialHairMesh(head, genome.facialHair, genome);
     if (beard) {
-      const beardColor = new THREE.Color(hairHex).multiplyScalar(0.72);
+      // The player's colour if they set one, otherwise the hair knocked down —
+      // facial hair reads darker than scalp hair on the same head.
+      const beardHex = typeof aged.beardColor === 'number'
+        ? HAIR_COLORS[Math.min(HAIR_COLORS.length - 1, Math.max(0, aged.beardColor))]
+        : hairHex;
+      const beardColor = new THREE.Color(beardHex);
+      if (typeof aged.beardColor !== 'number') beardColor.multiplyScalar(0.72);
+      // Sparse growth shows skin through it, and this shell cannot: it is
+      // opaque. Blending the colour toward the skin is what that looks like
+      // from any distance a portrait is seen at, and it costs nothing —
+      // the alternative is an alpha-tested stipple, which is a second material,
+      // a sorting problem and a shimmering edge on a head that turns.
+      const sparse = 1 - Math.max(0, Math.min(1, aged.beardDensity));
+      beardColor.lerp(new THREE.Color(skin), sparse * 0.45);
       beardMesh = new THREE.Mesh(track(toBufferGeometry(beard)), track(makeShellMaterial(beardColor, 0.92)));
       holder.add(beardMesh);
     }

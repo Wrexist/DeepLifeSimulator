@@ -21,9 +21,15 @@ function makeV25Save(overrides: Record<string, unknown> = {}): Record<string, un
 }
 
 describe('identity save plumbing', () => {
-  it('bumps STATE_VERSION to 26 and keeps the alias in sync', () => {
-    expect(STATE_VERSION).toBe(26);
+  it('keeps the STATE_VERSION alias in sync, whatever the version is', () => {
+    // Not pinned to a number any more. This assertion was `toBe(26)` and it
+    // failed on the very next bump, which taught nothing: the version moving is
+    // normal and expected, and a test that has to be edited every time one lands
+    // is a test nobody reads by the third time. What must hold is that the alias
+    // in `saveMigrations` tracks the canonical constant, and that every version
+    // in the chain is covered — both asserted here and below.
     expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(26);
   });
 
   it('ships a complete identity in initialGameState', () => {
@@ -49,7 +55,7 @@ describe('identity save plumbing', () => {
     it('backfills a full identity onto a v25 save', () => {
       const { state, migrationsApplied } = runMigrations(makeV25Save());
       expect(migrationsApplied).toContain(26);
-      expect(state.version).toBe(26);
+      expect(state.version).toBe(STATE_VERSION);
       const id = state.identity as Identity;
       expect(Object.keys(id.face.morphs).sort()).toEqual([...FACE_MORPH_KEYS].sort());
       expect(id.body.weightKg).toBeGreaterThan(0);
@@ -108,9 +114,9 @@ describe('identity save plumbing', () => {
       }
     });
 
-    it('migrates a very old save all the way to 26', () => {
+    it('migrates a very old save all the way to current', () => {
       const { state } = runMigrations(makeV25Save({ version: 10 }));
-      expect(state.version).toBe(26);
+      expect(state.version).toBe(STATE_VERSION);
       expect((state.identity as Identity).body.weightKg).toBeGreaterThan(0);
     });
   });

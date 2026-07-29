@@ -80,9 +80,18 @@ window.__setHead = (d) => {
   });
   const uBrowColor = { value: new THREE.Color(d.browColor) };
   const uBlemish = { value: d.blemish };
+  // Defaulted to neutral rather than to 0. An absent uniform reads as 0, which
+  // for these two is not "off" — it is the thinnest possible brow and a full
+  // cool colour cast. A harness that quietly renders the extreme of a control
+  // is worse than one that does not render it, because the picture looks
+  // finished.
+  const uBrowThickness = { value: d.browThickness ?? 0.5 };
+  const uUndertone = { value: d.undertone ?? 0.5 };
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uBrowColor = uBrowColor;
     sh.uniforms.uBlemish = uBlemish;
+    sh.uniforms.uBrowThickness = uBrowThickness;
+    sh.uniforms.uUndertone = uUndertone;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + window.__SKIN_VERT_COMMON)
       .replace('#include <begin_vertex>', '#include <begin_vertex>' + window.__SKIN_VERT_BODY);
