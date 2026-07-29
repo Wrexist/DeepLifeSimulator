@@ -147,6 +147,40 @@ describe('a restore keeps a way back', () => {
   });
 });
 
+describe('the pre-prestige snapshot exists at all', () => {
+  it('is a reason rotation will never evict', async () => {
+    // Prestige rebuilds the entire state — the single most destructive thing a
+    // player can do on purpose — and it was the one destructive path with no
+    // backup call whatsoever, so a mis-tapped prestige was unrecoverable.
+    // `before_prestige` was declared, protected and shown in the restore UI,
+    // and nothing ever wrote one. 2026-07-29 audit BRC-4.
+    const precious = await createBackup(
+      SLOT,
+      createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2231 }))),
+      'before_prestige',
+    );
+    expect(precious).not.toBeNull();
+
+    for (let i = 0; i < 12; i += 1) {
+      await createBackup(SLOT, createSaveEnvelope(JSON.stringify(alive({ weeksLived: i }))), 'corruption_recovery');
+    }
+
+    expect((await listBackups(SLOT)).some((b) => b.id === precious)).toBe(true);
+  });
+
+  it('restores the pre-prestige life as a recovery', async () => {
+    const beforePrestige = alive({ userProfile: { firstName: 'Mara', lastName: 'O' }, generationNumber: 2 });
+    const id = await createBackup(SLOT, createSaveEnvelope(JSON.stringify(beforePrestige)), 'before_prestige');
+
+    // The post-prestige state has moved on.
+    await doubleBufferSave(SLOT_KEY, createSaveEnvelope(JSON.stringify(alive({ generationNumber: 3, weeksLived: 0 }))));
+
+    const result = await restoreFromBackup(SLOT, id!, 'recovery');
+    expect(result.success).toBe(true);
+    expect(result.state.generationNumber).toBe(2);
+  });
+});
+
 describe('the restore list reads like a set of moments, not files', () => {
   it('leads with who the character was and how far they got', () => {
     expect(

@@ -4178,6 +4178,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  throw new Error('Cannot save your prestige: no save slot is loaded.');
  }
  const slotToUse = currentSlot;
+
+ // Snapshot the pre-prestige life BEFORE the rebuilt state is written.
+ // Prestige is the single most destructive thing a player can do on purpose —
+ // it rebuilds the whole state — and it was the one destructive path with no
+ // backup call at all, so a mis-tapped prestige was unrecoverable. Awaited so
+ // the copy exists before the overwrite; 'before_prestige' is rotation-exempt,
+ // so the next few autosaves cannot evict it. Non-blocking on failure: a
+ // backup problem must not cost the player the prestige they earned.
+ // 2026-07-29 audit BRC-4.
+ // `executePrestige` is synchronous, so this is a promise the save below
+ // CHAINS onto rather than a fire-and-forget — otherwise the queued write
+ // could drain first and the snapshot would copy the post-prestige state.
+ const prePrestigeSnapshot = import('@/utils/saveBackup')
+ .then((m) => m.snapshotOutgoingSave(slotToUse, 'before_prestige'))
+ .catch((snapshotError) => {
+ logger.warn('[PRESTIGE] Pre-prestige snapshot failed (non-critical)', { error: snapshotError });
+ return null;
+ });
+
  // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
  const prestigeStateVersion = (newGameState as { version?: unknown }).version;
  const inMemoryPrestigeVersion = typeof prestigeStateVersion === 'number' ? prestigeStateVersion : 0;
@@ -4188,7 +4207,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedAt: Date.now(),
  version: versionToWrite,
  };
- queueSave(slotToUse, gameData).catch(err => {
+ // Ordered after the snapshot so the backup captures the life being replaced.
+ prePrestigeSnapshot
+ .then(() => queueSave(slotToUse, gameData))
+ .catch(err => {
  logger.error('[executePrestige] Failed to queue save:', err);
  });
  } catch (error) {
