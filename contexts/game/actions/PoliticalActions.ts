@@ -411,6 +411,31 @@ export const runForOffice = (
         nextElectionWeek: nextElection,
       },
       currentJob: 'political',
+      // Open a careerHistory entry for the office, mirroring what
+      // JobActions does on accepting an ordinary job. `updateCareerHistory`
+      // only ever accumulates into an EXISTING open entry — it never creates
+      // one — so without this a politician's weeks and earnings had nowhere to
+      // land, and the retirement path had no entry to close. Idempotent: a
+      // re-election while already in office must not open a second entry.
+      // 2026-07-28 audit GL-3.
+      lifetimeStatistics: prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            careerHistory: (prev.lifetimeStatistics.careerHistory || []).some(
+              (e) => e.job === 'political' && e.endWeek === undefined,
+            )
+              ? prev.lifetimeStatistics.careerHistory || []
+              : [
+                  ...(prev.lifetimeStatistics.careerHistory || []),
+                  {
+                    job: 'political',
+                    weeks: 0,
+                    earnings: 0,
+                    startWeek: prev.weeksLived || 0,
+                  },
+                ],
+          }
+        : prev.lifetimeStatistics,
       };
     });
 

@@ -68,6 +68,9 @@ import {
   removeBill,
   contributeToSavingsGoal,
   createSavingsGoal,
+  claimAdCashBonus,
+  getAdCashBonusAmount,
+  canClaimAdCashBonus,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan } from '@/contexts/game/actions/LoanActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -141,7 +144,10 @@ function BankAppInner({ onBack }: BankAppProps) {
   const cash = gameState.stats?.money ?? 0;
   // Rewarded-ad cash bonus: ~2% of current cash, floored at $50 and capped at
   // $5,000 (clean $10 steps) so it helps early and never breaks the economy.
-  const adCashBonus = Math.max(50, Math.min(5000, Math.round((cash * 0.02) / 10) * 10));
+  // Quoted from the same helper the action pays from, so the pill can never
+  // advertise a number the grant does not honour.
+  const adCashBonus = getAdCashBonusAmount(gameState);
+  const adBonusReady = canClaimAdCashBonus(gameState);
   const totalBank = banking.accounts.reduce((s, a) => s + a.balance, 0);
   const totalDebt =
     banking.creditCards.reduce((s, c) => s + c.balance, 0) +
@@ -565,13 +571,26 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
         </TouchableOpacity>
 
-        {/* Optional rewarded-ad cash bonus. Hides itself when ads are removed. */}
+        {/* The bank's weekly sponsored bonus. Hides itself when ads are removed.
+            Gated to one claim per in-game week (econ-4): it was the only ad
+            reward paying CASH and had no cooldown at all, so it could be watched
+            on repeat for 2% of the balance a time. The cooldown is stated on the
+            pill rather than discovered by tapping into a refusal. */}
         <WatchAdRewardButton
-          label="Watch ad → cash bonus"
-          sublabel={`+${formatMoney(adCashBonus)} to your wallet`}
+          label={adBonusReady ? 'Watch ad → cash bonus' : 'Sponsored bonus claimed'}
+          sublabel={
+            adBonusReady
+              ? `+${formatMoney(adCashBonus)} to your wallet · once a week`
+              : 'Your bank offers this once a week.'
+          }
           colors={['#34D399', '#059669']}
           icon={Gift}
-          onReward={() => updateMoney(setGameState, adCashBonus, 'Watch ad bonus')}
+          disabled={!adBonusReady}
+          disabledLabel="Available next week"
+          // No modal on success: the pill flips to its claimed state, the button
+          // fires its own success haptic, and the wallet updates in place — a
+          // confirmation dialog for a small bonus is interruption, not feedback.
+          onReward={() => { claimAdCashBonus(setGameState, gameState); }}
           onGranted={queueSave}
         />
 

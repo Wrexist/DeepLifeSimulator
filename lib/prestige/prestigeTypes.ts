@@ -133,3 +133,28 @@ export const PRESTIGE_THRESHOLD = BASE_PRESTIGE_THRESHOLD;
  */
 export type PrestigePath = 'reset' | 'child';
 
+
+/**
+ * Is the player eligible to prestige RIGHT NOW?
+ *
+ * Derived from net worth against the level's threshold rather than read from
+ * `state.prestigeAvailable` — that flag is only ever written FALSE (see
+ * prestigeExecution), so anything gated on it was dead: the Life Chapter goal
+ * could not complete, its reward was unclaimable, and the home PrestigeButton
+ * never rendered. The flag is still honoured when set, so DevTools can force it.
+ * 2026-07-28 audit UX-1.
+ *
+ * Lives here, next to the threshold it compares against, so the chapter goal and
+ * both UI gates share one answer.
+ */
+export function isPrestigeAvailable(state: {
+  prestigeAvailable?: boolean;
+  prestige?: { prestigeLevel?: number };
+}): boolean {
+  if (state?.prestigeAvailable === true) return true;
+  // Lazy require: achievements imports luxury, and prestigeTypes is imported by
+  // low-level modules that must stay cheap.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { netWorth } = require('@/lib/progress/achievements') as typeof import('@/lib/progress/achievements');
+  return netWorth(state as never) >= getPrestigeThreshold(state?.prestige?.prestigeLevel ?? 0);
+}

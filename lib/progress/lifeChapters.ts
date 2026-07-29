@@ -9,6 +9,8 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { netWorth } from '@/lib/progress/achievements';
+import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 
 export interface ChapterGoal {
   id: string;
@@ -233,8 +235,22 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch5_prestige_ready',
         title: 'Prestige Ready',
         description: 'Reach prestige eligibility',
-        checkComplete: (s) => !!s.prestigeAvailable,
-        checkProgress: (s) => s.prestigeAvailable ? 1 : Math.min(0.9, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 100_000_000),
+        // DERIVED, not read from a stored flag. `prestigeAvailable` is only ever
+        // written FALSE (prestigeExecution resets it; nothing sets it true
+        // outside DevTools), so this goal could never complete, its reward was
+        // permanently unclaimable, and the home PrestigeButton behind the same
+        // flag was dead. Deriving it from the same threshold the prestige system
+        // itself uses is what makes it true. 2026-07-28 audit UX-1.
+        checkComplete: (s) =>
+          !!s.prestigeAvailable || netWorth(s) >= getPrestigeThreshold(s.prestige?.prestigeLevel ?? 0),
+        checkProgress: (s) => {
+          if (s.prestigeAvailable) return 1;
+          const threshold = getPrestigeThreshold(s.prestige?.prestigeLevel ?? 0);
+          if (!(threshold > 0)) return 0;
+          // The old formula divided by a hardcoded $100M — 10x the real $10M
+          // threshold — and capped at 0.9, so the bar could never fill either.
+          return Math.max(0, Math.min(1, netWorth(s) / threshold));
+        },
       },
     ],
     completionReward: { money: 25000, gems: 200 },

@@ -92,6 +92,9 @@ describe('initializeAndSaveGame', () => {
     loadGame: jest.fn(async () => ({ version: 12, valid: true })),
     validateGameEntry: jest.fn(() => ({ canEnter: true, errors: [], warnings: [] })),
     isSaveSigningConfigError: jest.fn(() => false),
+    // The slot is approved by default here; the refusal path has its own suite
+    // (__tests__/onboarding/newLifeSlotSafety.test.ts).
+    resolveNewLifeSlot: jest.fn(async (slot: unknown) => ({ ok: true, slot: slot as number })),
   });
 
   it('succeeds on valid flow', async () => {

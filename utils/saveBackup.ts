@@ -1,6 +1,6 @@
 import { logger } from './logger';
 import {
-  atomicSave,
+  doubleBufferSave,
   calculateHmacSignature,
   calculateChecksum,
   createSaveEnvelope,
@@ -14,11 +14,48 @@ import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKe
 const BACKUP_PREFIX = 'save_backup_';
 const PROTECTED_STATE_PREFIX = 'protected_state_';
 const MAX_BACKUPS_PER_SLOT = 5; // Increased from 3 to 5 for better recovery options
+/** Recent rotatable backups always kept, whatever their age. */
+const KEEP_NEWEST_BACKUPS = 3;
+/**
+ * Age bands for generational retention: the newest backup at least this old
+ * survives rotation. Bounds the total at KEEP_NEWEST_BACKUPS + 3 per slot while
+ * guaranteeing a copy that predates the current play session.
+ */
+const GENERATIONAL_BACKUP_BANDS = [
+  60 * 60 * 1000, // 1 hour
+  24 * 60 * 60 * 1000, // 1 day
+  7 * 24 * 60 * 60 * 1000, // 1 week
+];
 const MAX_TOTAL_BACKUP_SIZE = 10 * 1024 * 1024; // 10MB total backup storage limit
 const MIN_BACKUP_INTERVAL_MS = 60 * 1000; // Minimum 1 minute between manual backups
 const LAST_BACKUP_PREFIX = 'last_backup_time_';
 
-export type BackupReason = 'manual' | 'auto_save' | 'delete_save' | 'corruption_recovery' | 'before_update' | 'background_save' | 'app_resume' | 'emergency_save' | 'before_week';
+/**
+ * Why a restore is being performed.
+ * - `recovery`: the player is repairing a broken or lost save. Progression
+ *   protections are skipped — they would block the case they exist to survive.
+ * - `rewind`: an in-run rollback. Full anti-exploit checks apply.
+ */
+export type RestoreIntent = 'recovery' | 'rewind';
+
+export type BackupReason = 'manual' | 'auto_save' | 'delete_save' | 'corruption_recovery' | 'before_update' | 'background_save' | 'app_resume' | 'emergency_save' | 'before_week' | 'before_overwrite' | 'before_prestige' | 'before_restore';
+
+/**
+ * Backups that rotation may never evict.
+ *
+ * The ring is `MAX_BACKUPS_PER_SLOT` deep and the 2-minute autosave writes into
+ * it unconditionally, so a flat newest-5 policy meant the entire recovery window
+ * was about ten minutes of play. A snapshot taken because something irreversible
+ * was ABOUT to happen is the one copy a player actually needs, and it was the
+ * first thing evicted. These are kept regardless of age or count.
+ */
+const PROTECTED_BACKUP_REASONS: ReadonlySet<string> = new Set<string>([
+  'manual',
+  'before_overwrite',
+  'before_prestige',
+  'before_restore',
+  'delete_save',
+]);
 
 export interface BackupGameInfo {
   characterName: string;
@@ -279,11 +316,22 @@ export async function canCreateBackup(slot: number, gameState: any): Promise<Exp
  * Check if restoring a backup is allowed (anti-exploit)
  */
 export async function canRestoreBackup(
-  slot: number, 
-  backupState: any, 
-  currentState: any
+  slot: number,
+  backupState: any,
+  currentState: any,
+  intent: RestoreIntent = 'rewind'
 ): Promise<ExploitCheckResult> {
   try {
+    // A RECOVERY restore is the player getting their own save back after
+    // something went wrong. Progression-protection checks exist to stop a
+    // player rewinding past a bad outcome mid-run; applied to a recovery they
+    // do the opposite of their job. Concretely: `continueAsChild` bumps
+    // generationNumber, so check 4 made every backup from the run that just
+    // ended permanently unrestorable — including one taken seconds earlier —
+    // and the autosave keeps running while dead, so check 1 filled the ring
+    // with dead-state backups that became the only legal restores.
+    const isRecovery = intent === 'recovery';
+
     const protectedState = await getProtectedState(slot);
     
     // Also check current state directly (in case protected state isn't up to date)
@@ -292,7 +340,7 @@ export async function canRestoreBackup(
     const currentGeneration = currentState?.generationNumber || 1;
     
     // Check 1: Death reversal - cannot restore to alive state if player has died
-    const playerIsDead = protectedState?.isDead || currentIsDead;
+    const playerIsDead = !isRecovery && (protectedState?.isDead || currentIsDead);
     if (playerIsDead) {
       const backupIsDead = backupState.showDeathPopup || backupState.deathReason;
       if (!backupIsDead) {
@@ -334,13 +382,16 @@ export async function canRestoreBackup(
       }
     }
     
-    // Check 4: Generation mismatch - cannot go back to previous generation
+    // Check 4: Generation mismatch - cannot go back to previous generation.
+    // Skipped for a recovery, and otherwise off-by-one so the immediately
+    // preceding generation stays restorable: continuing your legacy must not
+    // make the life you just finished unrecoverable.
     const highestGeneration = Math.max(
       protectedState?.generationNumber || 1, 
       currentGeneration
     );
     const backupGeneration = backupState.generationNumber || 1;
-    if (backupGeneration < highestGeneration) {
+    if (!isRecovery && backupGeneration < highestGeneration - 1) {
       return {
         allowed: false,
         reason: 'Cannot restore to a previous generation. Your lineage has moved on.',
@@ -353,7 +404,7 @@ export async function canRestoreBackup(
       protectedState?.totalCrimesCommitted || 0,
       currentState?.streetJobsCompleted || 0
     );
-    if (totalCrimes > 10) {
+    if (!isRecovery && totalCrimes > 10) {
       const backupCrimes = backupState.streetJobsCompleted || 0;
       // Allow some tolerance but not significant reduction (50%)
       if (backupCrimes < totalCrimes * 0.5) {
@@ -367,13 +418,12 @@ export async function canRestoreBackup(
     
     return { allowed: true };
   } catch (error) {
-    logger.error('Error checking restore permission', error);
-    // Block restore if check fails (fail-closed for security)
-    return {
-      allowed: false,
-      reason: 'Unable to verify backup integrity. Please try again.',
-      exploitType: 'invalid_state',
-    };
+    // Fail OPEN. This used to fail closed "for security", which trades a
+    // single-player progression exploit against permanent, unrecoverable data
+    // loss for a player whose save is already broken — an exception in the
+    // permission check is exactly the moment they need the restore most.
+    logger.error('Error checking restore permission — allowing restore', error);
+    return { allowed: true };
   }
 }
 
@@ -413,16 +463,35 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
 }
 
 /**
- * Create a backup of a save slot
+ * Create a backup of a save slot.
+ *
+ * `data` is a PERSISTED save payload — a v2 envelope, or a legacy raw payload
+ * on builds that still accept those. Callers holding a live GameState must use
+ * `createBackupFromState`, which wraps it first: handing a raw state string in
+ * here is rejected by the envelope decode on every signed build (see the
+ * comment on that function).
+ *
+ * `preparsed` lets a caller that already holds both the state object and the
+ * canonical envelope skip the decode + re-encode round trip entirely.
  */
 export async function createBackup(
-  slot: number, 
-  data: string, 
-  _checksum: string, 
-  reason: BackupReason | string = 'auto_save'
+  slot: number,
+  data: string,
+  reason: BackupReason | string = 'auto_save',
+  preparsed?: NormalizedBackupPayload,
 ): Promise<string | null> {
   try {
-    const { state, canonicalSaveData } = normalizeBackupPayload(data);
+    // Rate-limit the automatic ring only. `createBackup` never went through
+    // `canCreateBackup`, so every 2-minute autosave — and every one of the 88
+    // saveGame call sites — wrote a backup and rotated. Five entries deep, that
+    // made the whole recovery history a few minutes long. Deliberate snapshots
+    // (manual, before_overwrite, before_prestige…) are never throttled.
+    if (reason === 'auto_save') {
+      const [newest] = await listBackups(slot);
+      if (newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS) return null;
+    }
+
+    const { state, canonicalSaveData } = preparsed ?? normalizeBackupPayload(data);
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
     const canonicalHmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
@@ -559,7 +628,24 @@ export async function createBackup(
 }
 
 /**
- * Helper to create a backup directly from a state object
+ * Create a backup directly from a live GameState object.
+ *
+ * This used to stringify the RAW state and hand it to `createBackup`, whose
+ * first step is `normalizeBackupPayload` → `decodePersistedSaveEnvelope`. A raw
+ * state has no `v: 2`, so on any build where unsigned legacy saves are refused
+ * — which is EVERY shipped build (`shouldAllowUnsignedLegacySaves()` is true
+ * only under __DEV__ or an env flag that `scripts/preflightSaveSigning.js`
+ * hard-errors on for production) — the decode returned "Unsigned legacy save
+ * format is not accepted", `normalizeBackupPayload` threw, and `createBackup`'s
+ * catch swallowed it into `return null`. Because it never rejected, the
+ * `.catch()` at the call site never fired and the save path reported success:
+ * no shipped build has ever written a backup, while dev worked fine. Wrapping
+ * the state in a canonical envelope here is the fix (2026-07-28 audit PERF-1).
+ *
+ * The state object and the envelope are both passed through, so `createBackup`
+ * does not decode and re-encode what we just built (PERF-1's sibling PERF-3);
+ * the stringify is also deferred by one macrotask so a large save does not
+ * block the frame that triggered it.
  */
 export async function createBackupFromState(
   slot: number,
@@ -567,9 +653,13 @@ export async function createBackupFromState(
   reason: string
 ): Promise<string | null> {
   try {
-    const data = JSON.stringify(state);
-    const checksum = calculateChecksum(data);
-    return createBackup(slot, data, checksum, reason);
+    // Yield first: the caller (auto-save, onboarding) is on the JS thread and
+    // does not await the result, so the stringify below should not run in the
+    // same frame. Same idiom as the save queue's pre-serialize yield.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const stateJson = JSON.stringify(state);
+    const canonicalSaveData = createSaveEnvelope(stateJson);
+    return createBackup(slot, canonicalSaveData, reason, { state, canonicalSaveData });
   } catch (error) {
     logger.error('Failed to create backup from state', error);
     return null;
@@ -650,8 +740,9 @@ export async function loadBackup(backupId: string): Promise<{ data: string; chec
  * Returns the restored state object if successful, null otherwise
  */
 export async function restoreFromBackup(
-  slot: number, 
-  backupId: string
+  slot: number,
+  backupId: string,
+  intent: RestoreIntent = 'recovery'
 ): Promise<{ success: boolean; state?: any; error?: string }> {
   try {
     const backup = await loadBackup(backupId);
@@ -688,19 +779,41 @@ export async function restoreFromBackup(
     }
     
     // ANTI-EXPLOIT: Check if restore is allowed
-    const exploitCheck = await canRestoreBackup(slot, backupState, currentState);
+    const exploitCheck = await canRestoreBackup(slot, backupState, currentState, intent);
     if (!exploitCheck.allowed) {
       logger.warn(`Restore blocked: ${exploitCheck.exploitType} - ${exploitCheck.reason}`);
       return { success: false, error: exploitCheck.reason };
     }
     
-    // Perform the restore using canonical save payload and atomic write+verify.
+    // BRC-14: a restore is itself destructive — it discards the state it
+    // replaces. Snapshot that first, so picking the wrong entry out of the list
+    // is not a one-way door. `currentData` is already a persisted envelope,
+    // which is exactly what createBackup takes, so nothing is re-encoded and a
+    // save that no longer verifies is still captured byte-for-byte.
+    if (currentData) {
+      await createBackup(slot, currentData, 'before_restore').catch(() => null);
+    }
+
+    // Write through the SAME path a real save uses. This used to be
+    // `atomicSave`, which writes only the legacy single key `save_slot_N` —
+    // but every save since the double-buffer landed writes `_A`/`_B` and sets
+    // the `_active` pointer, and `doubleBufferLoad` consults that pointer FIRST,
+    // falling through to the legacy key only when the pointer is missing AND
+    // both buffers fail (and even then only when `allowLegacy`, which is false
+    // on every signed production build). So on any device that had saved even
+    // once, a "successful" restore reported success and the next load served
+    // the pre-restore buffer — the player was told it worked and got their
+    // unrestored save back.
     const mainSaveKey = `save_slot_${slot}`;
-    const restoreResult = await atomicSave(mainSaveKey, canonicalBackupData);
+    const restoreResult = await doubleBufferSave(mainSaveKey, canonicalBackupData);
     if (!restoreResult.success) {
       logger.error(`Atomic restore failed for slot ${slot}: ${restoreResult.error}`);
       return { success: false, error: restoreResult.error || 'Failed to restore backup atomically' };
     }
+
+    // Drop any stale legacy blob so it can never outrank the restore on a build
+    // that does allow legacy reads. Non-critical: the pointer already wins.
+    await safeRemoveItem(mainSaveKey).catch(() => {});
 
     // The slot blob was just OVERWRITTEN with the backup, so the cached per-slot
     // summary is now stale — invalidate it BEFORE reporting success so no caller
@@ -721,20 +834,65 @@ export async function restoreFromBackup(
 }
 
 /**
+ * Snapshot whatever a slot currently holds, BEFORE something overwrites it.
+ *
+ * The two production backup call sites both passed the state being WRITTEN: the
+ * autosave under 'auto_save', and onboarding under the tag 'before_onboarding'
+ * — which reads like a pre-overwrite snapshot and was a snapshot of the thing
+ * doing the overwriting. Nothing in the app ever copied the outgoing save, so
+ * an overwrite had no rescue copy at all.
+ *
+ * Reads the persisted envelope and stores it verbatim — no decode, no re-encode,
+ * so a save that no longer verifies is still captured byte-for-byte and stays
+ * recoverable. Returns the backup id, or null when the slot held nothing.
+ * Never throws: this must not be able to block the write it precedes.
+ */
+export async function snapshotOutgoingSave(
+  slot: number,
+  reason: BackupReason = 'before_overwrite',
+): Promise<string | null> {
+  try {
+    const { readSaveSlot, shouldAllowUnsignedLegacySaves: allowLegacyFn } = await import(
+      '@/utils/saveValidation'
+    );
+    const existing = await readSaveSlot(slot, undefined, { allowLegacy: allowLegacyFn() });
+    if (!existing) return null;
+    return await createBackup(slot, existing, reason);
+  } catch (error) {
+    logger.warn(`Could not snapshot outgoing save for slot ${slot} (non-critical)`, { error });
+    return null;
+  }
+}
+
+/**
  * Delete old backups to save space
  */
 async function rotateBackups(slot: number) {
   try {
-    const backups = await listBackups(slot);
-    
-    if (backups.length > MAX_BACKUPS_PER_SLOT) {
-      const toDelete = backups.slice(MAX_BACKUPS_PER_SLOT);
-      const keysToDelete = toDelete.map(b => b.id);
-      
-      if (keysToDelete.length > 0) {
-        await safeMultiRemove(keysToDelete);
-        logger.info(`Removed ${keysToDelete.length} old backups for slot ${slot}`);
-      }
+    const backups = await listBackups(slot); // newest first
+
+    // Protected reasons are exempt entirely — they exist precisely because
+    // something destructive was about to happen.
+    const rotatable = backups.filter((b) => !PROTECTED_BACKUP_REASONS.has(b.reason));
+
+    // Generational retention over the rotatable ones: the newest few, plus the
+    // newest survivor in each older age band. A flat newest-5 spanned roughly
+    // ten minutes of play on the 2-minute autosave, so a player who noticed the
+    // problem an hour later had nothing left that predated it. This keeps the
+    // count bounded while guaranteeing something older than the current session.
+    const keep = new Set<string>();
+    for (const b of rotatable.slice(0, KEEP_NEWEST_BACKUPS)) keep.add(b.id);
+
+    const now = Date.now();
+    for (const minAgeMs of GENERATIONAL_BACKUP_BANDS) {
+      const survivor = rotatable.find((b) => now - b.timestamp >= minAgeMs);
+      if (survivor) keep.add(survivor.id);
+    }
+
+    const keysToDelete = rotatable.filter((b) => !keep.has(b.id)).map((b) => b.id);
+    if (keysToDelete.length > 0) {
+      await safeMultiRemove(keysToDelete);
+      logger.info(`Removed ${keysToDelete.length} old backups for slot ${slot}`);
     }
   } catch (error) {
     logger.error(`Failed to rotate backups for slot ${slot}`, error);

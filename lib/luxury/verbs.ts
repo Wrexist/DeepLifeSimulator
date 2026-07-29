@@ -83,8 +83,19 @@ export function verbsForItem(itemId: string): LuxuryVerb[] {
 
 /** How long a museum loan runs, in weeks. */
 export const MUSEUM_LOAN_WEEKS = 12;
-/** Weekly fee paid to the owner while the diamond is on display. */
-export const MUSEUM_LOAN_WEEKLY_FEE = 4_000;
+/**
+ * Weekly fee paid to the owner while the diamond is on display.
+ *
+ * Held BELOW the diamond's own weekly upkeep ($200, see catalog.ts) on purpose.
+ * The loan is the ONLY income the diamond produces, so — exactly like every
+ * catalog `yield`, which is deliberately set below its item's upkeep — it must
+ * stay under the item's upkeep or the diamond stops being a trophy and becomes a
+ * money printer. `cooldownWeeks` equals the loan term, so the loan is
+ * continuously re-armable; at the old $4,000 fee that was an uncapped, untaxed
+ * +$3,800/wk weekly rail on a $600k asset (Audit H-3, weekly audit 2026-07-28).
+ * The draw of a museum loan is the prestige (+reputation), not the cash.
+ */
+export const MUSEUM_LOAN_WEEKLY_FEE = 120;
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
@@ -162,9 +173,15 @@ export interface VerbOutcome {
  * Race the horse.
  *
  * Win chance improves with the horse's record, so a campaigned horse becomes a
- * better horse — the reason to keep racing rather than doing it once. Capped so
- * it never becomes a money printer: the purse is a multiple of the entry, and
- * the entry is lost on every run that is not a win or a place.
+ * better horse — the reason to keep racing rather than doing it once. Balanced
+ * so racing is never a money printer: only a WIN turns a profit; a PLACE returns
+ * less than the entry (it softens the loss, it does not cover it); an unplaced
+ * run loses the whole entry. At the 25% base win rate the expected value of a
+ * race is NEGATIVE, so an unproven horse loses money on average, and even a
+ * fully-campaigned one only edges positive per race — which its weekly upkeep
+ * (net of yield) more than eats over the cooldown. Before the 2026-07-28 weekly
+ * audit the place purse ($30k) exceeded the entry ($25k), so 2 of 3 outcomes
+ * profited and base EV was +$5k/race — a soft printer this comment denied.
  */
 export function resolveRace(roll: number, holding: LuxuryHolding | undefined): VerbOutcome {
   const runs = num(holding?.runs);
@@ -180,7 +197,7 @@ export function resolveRace(roll: number, holding: LuxuryHolding | undefined): V
   if (pct < winChance) {
     return {
       good: true,
-      money: 90_000,
+      money: 70_000,
       reputation: 3,
       happiness: 6,
       message: 'Your colours came home first. The winner\'s enclosure, the photograph, all of it.',
@@ -190,10 +207,10 @@ export function resolveRace(roll: number, holding: LuxuryHolding | undefined): V
   if (pct < placeChance) {
     return {
       good: true,
-      money: 30_000,
+      money: 15_000,
       reputation: 1,
       happiness: 2,
-      message: 'Placed. Not the photograph, but the prize money covers the entry.',
+      message: 'Placed. Not the photograph, but the prize money softens the entry.',
       holdingPatch: nextRecord,
     };
   }

@@ -152,7 +152,11 @@ export function buildDiagnosticReport(options: BuildReportOptions = {}): string 
     `Build marker: ${BUILD_TAG}`,
     `App version: ${appVersion()} (build ${buildNumber()})`,
     `Device: ${safe(() => Constants.deviceName || 'unknown', 'unknown')}`,
-    `State version: ${STATE_VERSION}`,
+    // BOTH numbers. This printed only the compile-time constant, so a save
+    // frozen at v13 on a v25 app reported "State version: 25" in a support
+    // ticket — structurally incapable of showing the one gap that explains a
+    // halted migration chain. 2026-07-29 audit MR-3.
+    `State version: ${safe(() => String((gameState as { version?: unknown } | null)?.version ?? 'unknown'), 'unknown')} (app expects ${STATE_VERSION})`,
     `Platform: ${Platform.OS} ${String(Platform.Version)}`,
     `Environment: ${__DEV__ ? 'dev' : 'prod'}`,
     errorSection(error),

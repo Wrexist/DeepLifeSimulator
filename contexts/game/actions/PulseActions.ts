@@ -1054,6 +1054,18 @@ export const subscribeVerifiedPro = (
   plan: InGameSubscriptionPlan = 'weekly',
 ): { success: boolean; message: string } => {
   const price = plan === 'annual' ? VERIFIED_PRO_ANNUAL_PRICE : VERIFIED_PRO_WEEKLY_PRICE;
+  // Re-entry guard: subscribing to the plan you ALREADY hold re-charges the full
+  // price and (for annual) resets paidThroughWeek to now+52 instead of extending
+  // it — a pure loss. The modal normally hides the CTA, but a double-tap or a
+  // stale render can still land here. Switching plan (weekly ⇄ annual) stays
+  // allowed. Filed as a non-blocking LOW by the 2026-07-16 weekly audit.
+  const activePro = gameState.socialMedia?.verifiedPro;
+  if (activePro?.active === true && (activePro.plan ?? 'weekly') === plan) {
+    return {
+      success: false,
+      message: 'Pulse Verified Pro is already active — no need to buy it again.',
+    };
+  }
   // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
   // setGameState is a plain (wrapped) React useState setter — it may defer the
   // updater, so reading a value the updater assigns is unreliable. The atomic
@@ -1066,6 +1078,11 @@ export const subscribeVerifiedPro = (
     };
   }
   setGameState((prev) => {
+    // Same re-entry guard re-checked against `prev` — two taps in one React batch
+    // both see the pre-dispatch snapshot, so only the in-updater check can stop
+    // the second from paying twice.
+    const prevPro = prev.socialMedia?.verifiedPro;
+    if (prevPro?.active === true && (prevPro.plan ?? 'weekly') === plan) return prev;
     // Charge in-game cash atomically (overdraft-reject) in the same updater that
     // grants the perks — closes the charge-then-grant race and never overdrafts.
     const spend = applyMoneyDelta(prev, -price, `Pulse Verified Pro (${plan})`);

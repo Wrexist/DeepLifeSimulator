@@ -197,7 +197,16 @@ export function getLifeSkillModifiers(state: GameState | null | undefined): Life
 /**
  * Apply the relationship-gain multiplier to a positive score delta and round.
  * Negative/zero deltas pass through untouched (skills never worsen a loss).
- * Shared by every relationship-gain site so charisma/socialMaster land uniformly.
+ *
+ * Wired into `updateRelationship` in GameActionsContext — the single
+ * relationship-gain path the Contacts app uses — alongside karma's
+ * `npcTrustMultiplier`. Between the 2026-07-28 audit and that wiring this had NO
+ * production consumer at all (its only caller was a zero-importer module), so a
+ * player could buy the charisma node, read a description promising faster bonds,
+ * and receive nothing (PERF-5).
+ *
+ * Gains only. Skills and standing make you better at BUILDING relationships;
+ * they never soften a betrayal, so a negative delta passes through untouched.
  */
 export function applyRelationshipGain(state: GameState | null | undefined, delta: number): number {
   if (typeof delta !== 'number' || !isFinite(delta) || delta <= 0) return delta;

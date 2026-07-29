@@ -22,6 +22,7 @@ import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
+import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
@@ -104,7 +105,8 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const prestige = gameState.prestige;
   const prestigeLevel = prestige?.prestigeLevel ?? 0;
   const prestigePoints = prestige?.prestigePoints ?? 0;
-  const prestigeAvailable = gameState.prestigeAvailable === true;
+  // Derived — the stored flag is never set true in normal play (UX-1).
+  const prestigeAvailable = isPrestigeAvailable(gameState);
 
   const legacyXp = gameState.legacyPass?.xp ?? 0;
   const legacyTier = getTierForXp(legacyXp);

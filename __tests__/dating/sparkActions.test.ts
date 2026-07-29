@@ -229,6 +229,41 @@ describe('premium subscription', () => {
     expect(getState().stats.money).toBe(5); // untouched
   });
 
+  // 2026-07-16 weekly audit (LOW): re-subscribing to the tier you already hold
+  // charged the full price again (and reset an annual term) — anti-player.
+  it('subscribeSparkPremium refuses to re-charge the tier+plan already held', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
+    const { setGameState, getState } = makeHarness(state);
+    expect(subscribeSparkPremium(setGameState, state, 'ultra', 'weekly').success).toBe(true);
+    expect(getState().stats.money).toBe(976);
+
+    const again = subscribeSparkPremium(setGameState, getState(), 'ultra', 'weekly');
+    expect(again.success).toBe(false);
+    expect(again.message).toMatch(/already active/i);
+    expect(getState().stats.money).toBe(976); // no second debit
+  });
+
+  it('subscribeSparkPremium double-tap in one batch charges exactly once', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
+    const { setGameState, getState } = makeHarness(state);
+    subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
+    subscribeSparkPremium(setGameState, state, 'ultra', 'weekly');
+    expect(getState().stats.money).toBe(976);
+    expect(getState().sparkApp!.premium.active).toBe(true);
+  });
+
+  it('subscribeSparkPremium still allows an upgrade to a different tier', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
+    const { setGameState, getState } = makeHarness(state);
+    subscribeSparkPremium(setGameState, state, 'plus', 'weekly');
+    const r = subscribeSparkPremium(setGameState, getState(), 'ultra', 'weekly');
+    expect(r.success).toBe(true);
+    expect(getState().sparkApp!.premium.tier).toBe('ultra');
+  });
+
   it('cancel reverts perks to free', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;

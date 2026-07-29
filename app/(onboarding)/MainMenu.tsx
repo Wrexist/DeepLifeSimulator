@@ -31,6 +31,7 @@ import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils
 import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -518,6 +519,15 @@ export default function MainMenu() {
         router.replace('/(tabs)/home');
       }, 100);
     } catch (error) {
+      // A save from a newer build is REFUSED on purpose — loading it would let
+      // the next autosave overwrite it. Say that, instead of the generic error
+      // (and never suggest starting a new game over an intact save).
+      // 2026-07-29 audit MR-4.
+      if (isSaveFromFutureError(error)) {
+        log.warn('Save is from a newer app version');
+        Alert.alert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        return;
+      }
       log.error('Error in continueGame:', error);
       Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
         { text: 'OK' },
