@@ -74,20 +74,15 @@ Phase 1 fixed the three *callers*. This fixes the cause.
 | PIPE-8 | `validateSaveSlot` hardcoded `exists: false` on the null path, so its own corruption messaging was unreachable for the case that produces it. |
 | SAVE-OW-8 | `purgeSlotIfPhantom` wiped the summary and slot markers for a blob it merely could not read — the Continue card vanished while the save sat on disk, recoverable and unreachable. |
 
-## Phase 5 — The write pipeline
+## Phase 5 — The write pipeline *(done)*
 
-- **PIPE-2** — the save/load mutex covers the enqueue, not the write.
-- **PIPE-3** — `release()` has no ownership token; after the 30s watchdog
-  force-release the original holder releases someone else's lock.
-- **PIPE-5** — `persistQueue` writes the whole multi-MB state on every queued
-  save.
-- **SAVE-OW-7** — the persisted queue is replayed at startup with no staleness
-  check and outside the mutex. Closes the upgrade hole where a pristine op
-  written by a ≤2.5.6 build replays after the user updates.
-- **PIPE-4** — the storage-quota recovery path is unreachable on device.
-- **PIPE-6 / PIPE-7 / PIPE-9**.
-- **SAVE-OW-5 / SAVE-OW-6** — `currentSlot` is stomped to 1 on every launch;
-  four invalid-slot guards default to slot 1 instead of aborting the write.
+| Finding | Fix |
+|---|---|
+| SAVE-OW-6 | Four guards turned "I don't know which slot this is" into "write it to slot 1" — the one thing you must not do once you know the target is unknown. All four now refuse. The guard moved to `utils/slotNumber.ts`, a leaf with no imports, because living in `saveQueue` meant every suite mocking the queue silently lost it. |
+| SAVE-OW-7 | The persisted queue holds whole GameStates and was replayed on the next launch with only a slot-number check — bypassing every guard that lives in `saveGame`. The replay boundary now drops operations older than 6 hours, pristine unstarted states, and anything that would move the slot backwards. |
+| PIPE-3 | `release()` never checked that the caller was the holder, so after the 30s watchdog force-released A and handed the lock to B, A's own `finally` unlocked B and popped C — two writers, one slot. `acquire` now returns a token; a stale release is ignored, and the watchdog invalidates the token before releasing. Token-less release still works, so no call site can silently break. |
+| SAVE-OW-5 | A mount effect wrote `currentSlot` on every change *including the first*, and `initialSlot` defaults to 1 with nothing passing it — so every launch overwrote the previous session's marker with "1" before any load. CloudSyncService uploaded under slot_1 and IAPService credited purchases to slot 1's save. `setCurrentSlotSafe` already persists on every real change; the effect only ever added the boot-time clobber. |
+| PIPE-9 | The onboarding draft hydration landed with a whole-object replace, so on a cold start it could overwrite the slot New Game had just chosen. Hydration now yields to any live choice. |
 
 ## Phase 6 — Migration & repair
 

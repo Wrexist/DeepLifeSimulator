@@ -28,6 +28,7 @@ import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
 import { fileDivorce } from './actions/DatingActions';
 import { queueSave, forceSave } from '@/utils/saveQueue';
+import { isWritableSlot } from '@/utils/slotNumber';
 import { haptic } from '@/utils/haptics';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
@@ -224,7 +225,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.debug('Skipping save: no life started yet (pristine initial state)');
  return false;
  }
- await saveLoadMutex.acquire('save');
+ const saveMutexToken = await saveLoadMutex.acquire('save');
  try {
  // CRITICAL: Validate state before saving to prevent saving corrupted state.
  // R2-F: autoFix=false. The repair branch below runs explicitly when validation
@@ -268,8 +269,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  }
 
+ // Refuse rather than redirect. This used to coerce an unknown slot to 1 and
+ // commit the write there — the one thing you must not do when you have just
+ // established that you do not know where this save belongs.
+ // 2026-07-29 audit SAVE-OW-6.
+ if (!isWritableSlot(currentSlot)) {
+ logger.error('[SAVE] Refusing to save: no valid slot is loaded', { currentSlot });
+ return false;
+ }
+ const slotToUse = currentSlot;
+
  // Create backup before save (non-blocking)
- const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
 
  // P1-12: fire-and-forget the backup. The previous Promise.race "timeout"
  // didn't actually cancel the underlying write — it just stopped awaiting,
@@ -325,7 +335,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showError('Save Error', 'Failed to save game progress. Will retry automatically.');
  return false;
  } finally {
- saveLoadMutex.release();
+ saveLoadMutex.release(saveMutexToken);
  }
  }, [currentSlot, showError]);
 
@@ -3470,7 +3480,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, []); // Empty deps - uses refs
 
  const loadGame = useCallback(async (slot: number): Promise<GameState | null> => {
- await saveLoadMutex.acquire('load');
+ const loadMutexToken = await saveLoadMutex.acquire('load');
  try {
  setLoadingMessage('Loading game...');
  setIsLoading(true);
@@ -3853,7 +3863,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return null;
  } finally {
  setIsLoading(false);
- saveLoadMutex.release();
+ saveLoadMutex.release(loadMutexToken);
  }
  }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
@@ -4148,8 +4158,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // Save after prestige
- const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
+ // Save after prestige — same rule: an unknown slot is not slot 1.
+ if (!isWritableSlot(currentSlot)) {
+ logger.error('[PRESTIGE] Refusing to save: no valid slot is loaded', { currentSlot });
+ throw new Error('Cannot save your prestige: no save slot is loaded.');
+ }
+ const slotToUse = currentSlot;
  // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
  const prestigeStateVersion = (newGameState as { version?: unknown }).version;
  const inMemoryPrestigeVersion = typeof prestigeStateVersion === 'number' ? prestigeStateVersion : 0;
