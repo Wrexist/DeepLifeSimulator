@@ -32,7 +32,7 @@ export function saveSlotMetaLooksPhantom(meta: SaveSlotMeta): boolean {
 export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
   try {
     const {
-      readSaveSlot,
+      readSaveSlotDetailed,
       decodePersistedSaveEnvelope,
       shouldAllowUnsignedLegacySaves,
       isPristineUnstartedState,
@@ -40,7 +40,22 @@ export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
     } = await import('@/utils/saveValidation');
 
     const allowLegacy = shouldAllowUnsignedLegacySaves();
-    const raw = await readSaveSlot(slot, undefined, { allowLegacy });
+    const read = await readSaveSlotDetailed(slot, undefined, { allowLegacy });
+    const raw = read.data;
+
+    // A slot we merely could not READ is not a phantom. This used to fall
+    // straight through to the marker-clearing below and report `true`, so an
+    // unverifiable save (an HMAC key change, a transient storage failure) had
+    // its summary and slot pointers wiped and its Continue card vanished —
+    // while the blob itself sat on disk, recoverable and unreachable.
+    // 2026-07-29 audit SAVE-OW-8.
+    if (!raw && read.blobPresent) {
+      log.warn('Slot has unreadable data — not treating it as a phantom', {
+        slot,
+        source: read.source,
+      });
+      return false;
+    }
 
     if (raw) {
       const decoded = decodePersistedSaveEnvelope(raw, { allowLegacy });

@@ -10,6 +10,7 @@ import {
   logOnboardingStepComplete,
   logOnboardingValidationError,
 } from '@/src/features/onboarding/onboardingAnalytics';
+import type { NewLifeSlotResolution } from '@/src/features/onboarding/slotSafety';
 
 const log = logger.scope('GameInitializer');
 
@@ -37,6 +38,12 @@ export interface InitializeGameResult {
   success: boolean;
   errorTitle?: string;
   errorMessage?: string;
+  /**
+   * Set when the run was refused because of the target slot, so the caller can
+   * send the player to the slot picker instead of leaving them on a dead-end
+   * alert.
+   */
+  slotProblem?: 'no-slot-chosen' | 'slot-occupied' | 'slot-unreadable';
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +99,12 @@ export interface InitializeGameDeps {
   applySafeDefaults: (state: any) => { defaults: string[] };
   /** Create a pre-save backup. */
   createBackupFromState: (slot: number, state: any, tag: string) => Promise<void>;
+  /**
+   * Snapshot whatever the slot already holds before we write over it. Optional
+   * so existing callers keep working, but every production caller passes it —
+   * without it an overwrite has no rescue copy.
+   */
+  snapshotOutgoingSave?: (slot: number) => Promise<string | null>;
   /** Force-save to a slot. */
   forceSave: (slot: number, state: any) => Promise<void>;
   /** Load game from a slot. */
@@ -107,6 +120,12 @@ export interface InitializeGameDeps {
   };
   /** Check if error is a save-signing config error. */
   isSaveSigningConfigError: (error: unknown) => boolean;
+  /**
+   * Decide whether this slot may be written over, read fresh at the moment of
+   * writing. Required — see `slotSafety.ts` for why this cannot be an earlier
+   * screen's job, and why it must never fall back to a default slot.
+   */
+  resolveNewLifeSlot: (requestedSlot: unknown) => Promise<NewLifeSlotResolution>;
 }
 
 /**
@@ -119,6 +138,23 @@ export async function initializeAndSaveGame(
   slot: number,
   deps: InitializeGameDeps
 ): Promise<InitializeGameResult> {
+  // Step 0: Is this slot ours to write? Read fresh, here, against the same
+  // storage the save is about to overwrite — not four screens ago. Everything
+  // below this point writes to `slot` (the pre-save backup included), so this
+  // has to come first and it has to be able to say no.
+  const resolution = await deps.resolveNewLifeSlot(slot);
+  if (!resolution.ok) {
+    log.error('Refused to start a new life in this slot', { slot, code: resolution.code });
+    logOnboardingValidationError('Perks', `slot_${resolution.code.replace(/-/g, '_')}`, { slot });
+    return {
+      success: false,
+      errorTitle: resolution.title,
+      errorMessage: resolution.message,
+      slotProblem: resolution.code,
+    };
+  }
+  const targetSlot = resolution.slot;
+
   // Step 1: Validate the constructed state
   const validation = deps.validateOnboardingState(newState);
 
@@ -166,12 +202,23 @@ export async function initializeAndSaveGame(
 
   // Step 2: Backup + save
   try {
-    await deps.createBackupFromState(slot, newState, 'before_onboarding').catch((err) => {
+    // Snapshot the OUTGOING save first. The old 'before_onboarding' backup
+    // passed `newState` — it read like a pre-overwrite copy and was a copy of
+    // the thing doing the overwriting, so an overwrite left nothing to recover.
+    // Slot resolution above already refuses an occupied slot, so this normally
+    // captures a placeholder or nothing; it is the belt to that braces.
+    if (deps.snapshotOutgoingSave) {
+      await deps.snapshotOutgoingSave(targetSlot).catch((err) => {
+        log.warn('Outgoing-save snapshot failed (non-critical):', err);
+      });
+    }
+
+    await deps.createBackupFromState(targetSlot, newState, 'new_life').catch((err) => {
       log.warn('Backup creation failed during onboarding (non-critical):', err);
     });
 
-    await deps.forceSave(slot, newState);
-    log.info('Game state saved successfully', { slot });
+    await deps.forceSave(targetSlot, newState);
+    log.info('Game state saved successfully', { slot: targetSlot });
   } catch (error) {
     log.error('Failed to save game state', error);
 
@@ -191,7 +238,7 @@ export async function initializeAndSaveGame(
   // Step 3: Load and re-validate
   let loadedState;
   try {
-    loadedState = await deps.loadGame(slot);
+    loadedState = await deps.loadGame(targetSlot);
   } catch (loadError) {
     log.error('loadGame failed:', loadError);
     logOnboardingValidationError('Perks', 'load_after_save_exception', {});
@@ -242,7 +289,7 @@ export async function initializeAndSaveGame(
     }
 
     log.info('Game entry validation passed after onboarding, ready for gameplay');
-    logOnboardingStepComplete('Perks', { slot });
+    logOnboardingStepComplete('Perks', { slot: targetSlot });
     return { success: true };
   } catch (validationError) {
     log.error('Error during post-load validation:', validationError);

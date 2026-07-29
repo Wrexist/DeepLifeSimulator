@@ -15,6 +15,12 @@
  *   E7  Miner prices strictly increase across the tier ladder.
  *   E8  Loan missed-payment penalty is a sane per-week fraction.
  *   E9  Bankruptcy floor / rent rate / weeks-per-year are present and finite.
+ *   E10 Real-time/daily claim eligibility never gates on a clock-derived STRING alone
+ *       (must use a strictly-monotone comparison — weekly audit 2026-07-24).
+ *   E11 Luxury verb side-channel income stays under the trophy it belongs to: a
+ *       recurring fee below the item's weekly upkeep, and at most ONE profitable
+ *       outcome per verb (weekly audit 2026-07-28).
+ *   E12 Every rewarded-ad money/gem grant is rate-limited (2026-07-28 audit econ-4).
  */
 'use strict';
 
@@ -153,7 +159,159 @@ function build() {
     }
   }
 
+  checkClaimClockGuards(a);
+  checkLuxuryVerbIncome(a);
+  checkAdRewardLimits(a);
+
   return a;
+}
+
+// ---------------------------------------------------------------------------
+// E12 — rewarded-ad grants must be rate-limited (2026-07-28 audit econ-4)
+// ---------------------------------------------------------------------------
+/**
+ * A rewarded ad that pays money or gems needs a cooldown, a per-week cap, or a
+ * persisted claim marker. `watchAdForFollowerBoost` keys on `lastAdBoostWeek`
+ * and the gem orb has its own guard, but the Bank app's cash bonus had none of
+ * the three — an unbounded faucet on the only surface that grants CASH for an
+ * ad. This flags the shape: a `<WatchAdRewardButton>` whose `onReward` touches
+ * money/gems while the element passes no `disabled` prop.
+ *
+ * Deliberately narrow (the JSX element, not every ad API) so it names a real
+ * call site rather than emitting a survey.
+ */
+function checkAdRewardLimits(a) {
+  const files = L.walk(['components', 'app'], L.isProductionSource);
+  const offenders = [];
+  for (const file of files) {
+    const src = L.read(file);
+    if (src == null || !/WatchAdRewardButton/.test(src)) continue;
+    const clean = L.stripNoise(src);
+    // Each JSX usage of the button, brace-tolerant up to the closing `/>`.
+    const re = /<WatchAdRewardButton\b[\s\S]{0,1200}?\/>/g;
+    let m;
+    while ((m = re.exec(clean))) {
+      const el = m[0];
+      const grantsValue = /onReward[\s\S]{0,400}?(updateMoney|applyMoneyDelta|gems|money)/.test(el);
+      const rateLimited = /disabled\s*=/.test(el);
+      if (grantsValue && !rateLimited) {
+        offenders.push(`${file}:${clean.slice(0, m.index).split('\n').length}`);
+      }
+    }
+  }
+  a.assert(offenders.length === 0, 'medium',
+    'Every rewarded-ad money/gem grant is rate-limited',
+    `${offenders.length} rewarded-ad button(s) grant value with no disabled/cooldown gate`,
+    offenders.join(', ') + ' — an ad reward with no cooldown, cap or claim marker is an unbounded faucet (econ-4).',
+    'components/mobile/BankApp.tsx');
+}
+
+// ---------------------------------------------------------------------------
+// E10 — real-time / daily claim eligibility (weekly audit 2026-07-24)
+// ---------------------------------------------------------------------------
+/**
+ * The exploit this encodes: `canClaimDailyGems` gated the PAID-currency daily
+ * drop on `settings.deepLifePlusLastGemClaim !== todayKey`, a pure device-clock
+ * day STRING with no ordering. Rolling the clock either way produced a different
+ * key, so the premium currency minted itself. The fix — and the rule — is that a
+ * claim predicate must compare day keys with a strictly-monotone operator
+ * (`todayKey <= lastKey` → refuse), never with bare (in)equality.
+ *
+ * A function is exempt when it delegates to another `can*` predicate: the guard
+ * lives there, and that predicate is checked on its own.
+ */
+function checkClaimClockGuards(a) {
+  const files = L.walk(['contexts', 'lib', 'components', 'app'], L.isProductionSource);
+  const offenders = [];
+  for (const file of files) {
+    const src = L.read(file);
+    if (src == null || !/[Cc]laim/.test(src)) continue;
+    for (const fn of namedFunctionBodies(src, /\b(can[A-Z]\w*|claim[A-Z]\w*)\b/)) {
+      const readsClock = /utcDayKey|todayKey|dayKey|DayKey|Date\.now\(|new Date\(/.test(fn.body);
+      if (!readsClock) continue;
+      const delegates = /\bcan[A-Z]\w*\s*\(/.test(fn.body);
+      if (delegates) continue;
+      const hasOrdering = /[<>]=?/.test(fn.body);
+      if (!hasOrdering) offenders.push(`${fn.name} (${file}:${fn.line})`);
+    }
+  }
+  a.assert(offenders.length === 0, 'high',
+    'Every clock-derived claim predicate uses a strictly-monotone comparison',
+    `${offenders.length} claim predicate(s) gate on a clock-derived value with no ordering comparison`,
+    offenders.join(', ') + ' — a bare `!==` on a device-clock day string is farmable in both directions (H-3 / weekly audit 2026-07-24).',
+    'contexts/game/actions/SubscriptionActions.ts');
+}
+
+// ---------------------------------------------------------------------------
+// E11 — luxury verb side-channel income (weekly audit 2026-07-28)
+// ---------------------------------------------------------------------------
+/**
+ * The catalog's core invariant is that every `yield.weekly` sits BELOW its
+ * item's `weeklyUpkeep`, so a collection always net-costs. Verb payouts are a
+ * SEPARATE channel (`getLoanIncome`, race purses) that `getTotalLuxuryYield`
+ * never sees, which is how two printers shipped. Two parseable rules:
+ *
+ *   (a) a recurring verb fee (`*_WEEKLY_FEE`) must be strictly below the owning
+ *       item's `weeklyUpkeep` — it is continuously re-armable, so it is a yield
+ *       in everything but name;
+ *   (b) at most ONE outcome of a verb may profit: sort the payouts in the verb's
+ *       resolver, and every payout below the best must be <= the verb's cost.
+ *       The racehorse's $30k place purse against a $25k entry (2 of 3 outcomes
+ *       profitable, +$5k base EV) is exactly what this catches.
+ */
+function checkLuxuryVerbIncome(a) {
+  const verbsSrc = L.read('lib/luxury/verbs.ts');
+  const catalogSrc = L.read('lib/luxury/catalog.ts');
+  if (verbsSrc == null || catalogSrc == null) {
+    a.info('Luxury verb sources not found', 'Skipping the verb-income invariant.', 'lib/luxury/verbs.ts');
+    return;
+  }
+
+  const upkeepById = parseLuxuryUpkeep(catalogSrc);
+  const verbs = parseLuxuryVerbs(verbsSrc);
+  if (verbs.length === 0) {
+    a.info('No luxury verbs parsed', 'LUXURY_VERBS shape changed — update the analyzer.', 'lib/luxury/verbs.ts');
+    return;
+  }
+
+  // (a) Recurring fees.
+  const feeRe = /export const (\w*_WEEKLY_FEE)\s*=\s*([0-9_]+)/g;
+  let f;
+  while ((f = feeRe.exec(verbsSrc))) {
+    const [, name, raw] = f;
+    const fee = Number(raw.replace(/_/g, ''));
+    // Match the fee to its verb by shared word tokens (MUSEUM_LOAN_WEEKLY_FEE → museum_loan).
+    const verb = verbs.find((v) => tokenOverlap(v.id, name) > 0);
+    const upkeep = verb ? upkeepById[verb.itemId] : undefined;
+    if (upkeep == null) {
+      a.info(`${name} has no matching catalog item`, 'Cannot compare it to an upkeep.', 'lib/luxury/verbs.ts');
+      continue;
+    }
+    a.assert(fee < upkeep, 'high',
+      `${name} ($${fmt(fee)}/wk) stays below ${verb.itemId} upkeep ($${fmt(upkeep)}/wk)`,
+      `${name} ($${fmt(fee)}/wk) meets or exceeds ${verb.itemId}'s upkeep ($${fmt(upkeep)}/wk)`,
+      'A continuously re-armable verb fee is a yield: above upkeep it turns the trophy into an untaxed weekly rail.',
+      'lib/luxury/verbs.ts');
+  }
+
+  // (b) At most one profitable outcome per verb.
+  for (const verb of verbs) {
+    const resolver = findResolverFor(verbsSrc, verb.id);
+    if (!resolver) {
+      a.info(`No resolver found for verb '${verb.id}'`, 'Payout distribution not checkable — name it resolve<Verb>.', 'lib/luxury/verbs.ts');
+      continue;
+    }
+    const payouts = [...resolver.body.matchAll(/money:\s*(-?[0-9_]+)/g)]
+      .map((m) => Number(m[1].replace(/_/g, '')))
+      .sort((x, y) => y - x);
+    if (payouts.length < 2) continue; // single-outcome verb — rule (a) territory
+    const runnersUp = payouts.slice(1).filter((p) => p > verb.cost);
+    a.assert(runnersUp.length === 0, 'high',
+      `Verb '${verb.id}': only the best outcome profits (cost $${fmt(verb.cost)}, others ≤ cost)`,
+      `Verb '${verb.id}' has ${runnersUp.length + 1} profitable outcome(s)`,
+      `payouts [${payouts.map(fmt).join(', ')}] vs cost $${fmt(verb.cost)} — more than one outcome above the cost pushes base EV positive, which is the racehorse printer (weekly audit 2026-07-28).`,
+      'lib/luxury/verbs.ts');
+  }
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -182,6 +340,90 @@ function parseMinerPrices(src) {
     out.push({ key: m[1], price: Number(m[2].replace(/_/g, '')) });
   }
   return out;
+}
+
+/**
+ * Brace-matched bodies of every named function/arrow whose name matches `nameRe`.
+ * Comments and string literals are blanked first (positions preserved), so a
+ * documented example inside a doc block can't be mistaken for real code.
+ */
+function namedFunctionBodies(src, nameRe) {
+  const clean = L.stripNoise(src);
+  const decl = new RegExp(
+    `(?:export\\s+)?(?:async\\s+)?(?:function\\s+(${nameRe.source})|const\\s+(${nameRe.source})\\s*=)`,
+    'g',
+  );
+  const out = [];
+  let m;
+  while ((m = decl.exec(clean))) {
+    const name = m[1] || m[2];
+    const open = clean.indexOf('{', m.index + m[0].length);
+    if (open === -1) continue;
+    let depth = 0;
+    let end = clean.length;
+    for (let i = open; i < clean.length; i++) {
+      if (clean[i] === '{') depth++;
+      else if (clean[i] === '}') {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    out.push({
+      name,
+      line: clean.slice(0, m.index).split('\n').length,
+      body: clean.slice(open, end + 1),
+    });
+    decl.lastIndex = open;
+  }
+  return out;
+}
+
+/** `{ id, itemId, cost, cooldownWeeks }` for every entry of LUXURY_VERBS. */
+function parseLuxuryVerbs(src) {
+  const block = src.match(/LUXURY_VERBS[^=]*=\s*\[([\s\S]*?)\n\]/);
+  if (!block) return [];
+  const out = [];
+  const re = /id:\s*'([\w_]+)'[\s\S]*?itemId:\s*'([\w_]+)'[\s\S]*?cost:\s*([0-9_]+)[\s\S]*?cooldownWeeks:\s*([0-9_]+)/g;
+  let m;
+  while ((m = re.exec(block[1]))) {
+    out.push({
+      id: m[1],
+      itemId: m[2],
+      cost: Number(m[3].replace(/_/g, '')),
+      cooldownWeeks: Number(m[4].replace(/_/g, '')),
+    });
+  }
+  return out;
+}
+
+/** `{ [catalogId]: weeklyUpkeep }` from the luxury catalog. */
+function parseLuxuryUpkeep(src) {
+  const out = {};
+  const re = /id:\s*'([\w_]+)'[\s\S]{0,600}?weeklyUpkeep:\s*([0-9_]+)/g;
+  let m;
+  while ((m = re.exec(src))) {
+    if (out[m[1]] === undefined) out[m[1]] = Number(m[2].replace(/_/g, ''));
+  }
+  return out;
+}
+
+/** Shared word tokens between a verb id (`race_horse`) and a symbol name. */
+function tokenOverlap(verbId, name) {
+  const tokens = verbId.split('_').filter(Boolean);
+  const hay = name.toLowerCase();
+  return tokens.filter((t) => hay.includes(t)).length;
+}
+
+/** The `resolve*` function whose name shares the most tokens with the verb id. */
+function findResolverFor(src, verbId) {
+  const candidates = namedFunctionBodies(src, /resolve[A-Z]\w*/);
+  let best = null;
+  let bestScore = 0;
+  for (const fn of candidates) {
+    const score = tokenOverlap(verbId, fn.name);
+    if (score > bestScore) { best = fn; bestScore = score; }
+  }
+  return bestScore > 0 ? best : null;
 }
 
 // Mirror of calculateIncomeTax (lib/economy/constants.ts) — kept in sync as an

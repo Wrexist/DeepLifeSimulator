@@ -1,4 +1,5 @@
 import { logger } from '@/utils/logger';
+import { isWritableSlot } from '@/utils/slotNumber';
 import { listBackups } from '@/utils/saveBackup';
 import { safeSetItem, safeMultiRemove, safeGetAllKeys, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { isSaveSigningConfigError, SAVE_SIGNING_CONFIG_ERROR_CODE } from '@/utils/saveValidation';
@@ -19,6 +20,13 @@ interface SaveOperation {
 
 type ToastCallback = (message: string, type: 'success' | 'error') => void;
 
+/**
+ * How old a persisted queue operation may be and still be replayed on the next
+ * launch. Past this, whatever the player has done since matters more than a
+ * write they abandoned.
+ */
+const MAX_REPLAYABLE_QUEUE_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
+
 class SaveQueue {
   private queue: SaveOperation[] = [];
   private processingPromise: Promise<void> | null = null;
@@ -38,10 +46,14 @@ class SaveQueue {
   }
 
   async addToQueue(slot: number, data: any): Promise<void> {
-    // Validate slot
-    if (typeof slot !== 'number' || isNaN(slot) || slot < 1 || slot > 3) {
-      this.log.error(`Invalid slot provided to addToQueue: ${slot}. Using default slot 1.`);
-      slot = 1;
+    // REFUSE, don't substitute. A NaN, undefined or out-of-range slot is
+    // exactly the state you are in when something upstream has already gone
+    // wrong, and this used to redirect that write onto whatever the player had
+    // in slot 1 and commit it. The correct failure mode for an unknown target
+    // is not to write. 2026-07-29 audit SAVE-OW-6.
+    if (!isWritableSlot(slot)) {
+      this.log.error(`Refusing to queue a save for an invalid slot: ${String(slot)}`);
+      throw new Error(`Cannot save: invalid save slot (${String(slot)})`);
     }
 
     const operation: SaveOperation = {
@@ -142,10 +154,11 @@ class SaveQueue {
     const saveStartTime = Date.now();
 
     // Validate slot before proceeding
-    if (typeof operation.slot !== 'number' || isNaN(operation.slot) || operation.slot < 1 || operation.slot > 3) {
-      const defaultSlot = 1;
-      this.log.error(`Invalid slot in performSave: ${operation.slot}. Using default slot ${defaultSlot}.`);
-      operation.slot = defaultSlot;
+    // processQueue already drops invalid operations, so this is unreachable —
+    // but if it ever is reached, refusing is the only safe answer.
+    if (!isWritableSlot(operation.slot)) {
+      this.log.error(`Refusing to write an operation with an invalid slot: ${String(operation.slot)}`);
+      throw new Error(`Cannot save: invalid save slot (${String(operation.slot)})`);
     }
 
     const key = `save_slot_${operation.slot}`;
@@ -236,6 +249,24 @@ class SaveQueue {
         throw new Error(saveResult.error || 'Double-buffer save failed');
       }
 
+      // BRC-7: bootstrap the protected-state keys. Nothing wrote them, so
+      // `getProtectedState` returned null for the whole lifetime of the app —
+      // which made the embed above a closed loop (nothing to embed, so nothing
+      // ever got written) and left the anti-exploit layer inert. Written AFTER
+      // the save succeeds so a failed write cannot advance the high-water marks.
+      // Non-blocking and non-critical: this must never fail a save.
+      // Awaited, not fire-and-forget: everything after this point is already
+      // awaited post-save bookkeeping, and a dangling dynamic import can
+      // resolve after the surrounding context is gone.
+      try {
+        const { updateProtectedState } = await import('./saveBackup');
+        await updateProtectedState(operation.slot, operation.data);
+      } catch (err) {
+        this.log.warn('Failed to update protected state (non-critical):', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
       await safeSetItem('lastSlot', slotToSave.toString());
@@ -324,13 +355,14 @@ class SaveQueue {
     // manage the lock when forceSave is invoked standalone.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { saveLoadMutex } = require('@/utils/saveLoadMutex');
-    if (manageMutex) await saveLoadMutex.acquire('save');
+    const mutexToken = manageMutex ? await saveLoadMutex.acquire('save') : undefined;
     try {
 
-    // Validate slot
-    if (typeof slot !== 'number' || isNaN(slot) || slot < 1 || slot > 3) {
-      this.log.error(`Invalid slot provided to forceSave: ${slot}. Using default slot 1.`);
-      slot = 1;
+    // Same rule as addToQueue: refuse rather than redirect onto slot 1. This
+    // check runs after the mutex is held, so the finally below still releases.
+    if (!isWritableSlot(slot)) {
+      this.log.error(`Refusing to force-save to an invalid slot: ${String(slot)}`);
+      throw new Error(`Cannot save: invalid save slot (${String(slot)})`);
     }
 
     const key = `save_slot_${slot}`;
@@ -467,7 +499,7 @@ class SaveQueue {
     } finally {
       // P1-11: always release the mutex, even on error (only if we acquired it).
       // C-1 (R8): skip release when manageMutex=false — saveGame owns the lock.
-      if (manageMutex) saveLoadMutex.release();
+      if (manageMutex) saveLoadMutex.release(mutexToken);
     }
   }
 
@@ -526,15 +558,68 @@ class SaveQueue {
       
       const operations: SaveOperation[] = JSON.parse(queueData);
       if (Array.isArray(operations) && operations.length > 0) {
-        // Validate and filter out invalid operations
-        const validOperations = operations.filter(op => {
-          if (!op || typeof op !== 'object') return false;
-          if (typeof op.slot !== 'number' || isNaN(op.slot) || op.slot < 1 || op.slot > 3) {
-            this.log.warn(`Skipping invalid operation with slot: ${op.slot}`);
-            return false;
+        // A persisted operation is a WHOLE GameState from a previous session,
+        // replayed on the next launch. The only thing checked was the slot
+        // number, so a write queued before the app died was committed later
+        // regardless of how old it was or what had happened to the slot since —
+        // and any guard that lives in `saveGame` is bypassed entirely, because
+        // the replay does not go through it. That is what carried the pristine
+        // boot state across an app kill on <=2.5.6, and it still would today
+        // for a device that updates while carrying a persisted queue.
+        // 2026-07-29 audit SAVE-OW-7.
+        const now = Date.now();
+        const { isPristineUnstartedState } = await import('@/utils/saveValidation');
+        const { readSaveSlotMeta } = await import('@/utils/saveSlotMeta');
+
+        const validOperations: SaveOperation[] = [];
+        for (const op of operations) {
+          if (!op || typeof op !== 'object') continue;
+          if (!isWritableSlot(op.slot)) {
+            this.log.warn(`Skipping invalid operation with slot: ${String(op?.slot)}`);
+            continue;
           }
-          return true;
-        });
+
+          // (a) Too old to be trusted. A save the player abandoned days ago
+          // should not land on top of what they have played since.
+          if (typeof op.timestamp !== 'number' || now - op.timestamp > MAX_REPLAYABLE_QUEUE_AGE_MS) {
+            this.log.warn('Skipping stale persisted save operation', { slot: op.slot, timestamp: op.timestamp });
+            continue;
+          }
+
+          // (b) The untouched boot default is never worth replaying, whoever
+          // queued it. Same guard `saveGame` applies, moved to the replay
+          // boundary where it cannot be bypassed.
+          try {
+            if (isPristineUnstartedState(op.data)) {
+              this.log.warn('Skipping persisted save of a pristine unstarted state', { slot: op.slot });
+              continue;
+            }
+          } catch {
+            // Guard threw on a malformed payload — drop it rather than write it.
+            continue;
+          }
+
+          // (c) Would it move the slot BACKWARDS? A replay that regresses
+          // weeksLived is a rollback the player never asked for.
+          try {
+            const meta = await readSaveSlotMeta(op.slot);
+            const queuedWeeks = typeof op.data?.weeksLived === 'number' ? op.data.weeksLived : -1;
+            const currentWeeks = typeof meta?.weeksLived === 'number' ? meta.weeksLived : -1;
+            if (currentWeeks > queuedWeeks) {
+              this.log.warn('Skipping persisted save that would regress the slot', {
+                slot: op.slot,
+                queuedWeeks,
+                currentWeeks,
+              });
+              continue;
+            }
+          } catch {
+            // Could not read the summary: fall through and let the op run. It
+            // already passed the age and pristine checks.
+          }
+
+          validOperations.push(op);
+        }
         
         if (validOperations.length > 0) {
           // Add restored operations to queue (immutable)
@@ -799,6 +884,28 @@ class SaveQueue {
         });
       }
       
+      // Checkpoints were the ONE sub-tree pruning never touched, and each one
+      // carries a whole (slimmed) game snapshot — so on a long save they are
+      // typically the largest thing in the payload, and the over-size retry
+      // provably could not shrink them. 2026-07-28 audit save-4.
+      //
+      // Each snapshot is run through THIS SAME function rather than a parallel
+      // list of caps, so the checkpoint path and the top-level path cannot drift
+      // apart as new arrays are added. Any nested `checkpoints` key is dropped
+      // before recursing — a snapshot should never contain snapshots, and that
+      // also bounds the recursion at one level.
+      if (Array.isArray(pruned.checkpoints) && pruned.checkpoints.length > 0) {
+        // Dropping checkpoints entirely is reserved for the aggressive retry:
+        // they are visible rewind targets in the Time Machine, so the normal
+        // pass must only slim them, never remove them.
+        const checkpoints = aggressive ? tail(pruned.checkpoints, 2) : pruned.checkpoints;
+        pruned.checkpoints = checkpoints.map((cp: any) => {
+          if (!cp || typeof cp !== 'object' || !cp.snapshot || typeof cp.snapshot !== 'object') return cp;
+          const { checkpoints: _nested, ...snapshot } = cp.snapshot;
+          return { ...cp, snapshot: this.pruneSaveData(snapshot, aggressive) };
+        });
+      }
+
       return pruned;
     } catch (error) {
       this.log.error('Error pruning save data:', error);

@@ -18,7 +18,7 @@ interface JobActionsContextType {
   gainCriminalXp: (amount: number) => void;
   gainCrimeSkillXp: (skillId: CrimeSkillId, amount: number) => void;
   unlockCrimeSkillUpgrade: (skillId: CrimeSkillId, upgradeId: string, cost: number, levelReq: number) => void;
-  applyForJob: (jobId: string) => void;
+  applyForJob: (jobId: string) => { success: boolean; message: string } | void;
   promoteCareer: (careerId: string) => { success: boolean; message: string; promotion?: PromotionDetails };
   requestRaise: (careerId: string) => { success: boolean; message: string; approved?: boolean };
   quitJob: () => void;
@@ -157,10 +157,18 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     if (!state) return;
 
     const result = JobActions.applyForJob(state, setGameState, jobId);
-    if (result) {
+    // Fire the success haptic only on an ACTUAL success. The old check was
+    // `if (result)` — truthy for a REJECTION object too, so a refused
+    // application buzzed like an accepted one and the message was dropped on
+    // the floor. Returning the result lets the screen say what happened
+    // (2026-07-28 audit UX-2); mirrors promoteCareer below.
+    if (result?.success) {
       haptic.medium(); // Job application
+    }
+    if (result) {
       logger.info('Applied for job:', { jobId, result });
     }
+    return result;
   }, [setGameState]);
 
   const promoteCareer = useCallback((careerId: string) => {

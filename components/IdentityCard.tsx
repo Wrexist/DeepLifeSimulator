@@ -22,13 +22,13 @@ import {
 } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
-import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
-import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getAvatarPortrait } from '@/utils/facePool';
@@ -178,10 +178,6 @@ function IdentityCard() {
   
   const {
     stats,
-    bankSavings,
-    items,
-    companies,
-    realEstate,
     userProfile,
     relationships,
     careers,
@@ -220,47 +216,19 @@ function IdentityCard() {
   // Reputation standing (Unknown → Icon) — makes the hidden reputation stat legible.
   const reputationStanding = getReputationStanding(stats?.reputation ?? 0);
 
-  const netWorth = useMemo(() => {
-    const assets: Asset[] = [
-      { id: 'cash', type: 'cash', baseValue: stats?.money ?? 0 },
-      { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
-    ];
-    (items || [])
-      .filter(i => i?.owned)
-      .forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
-    companies?.forEach(company => {
-      assets.push({
-        id: company.id,
-        type: 'business',
-        baseValue: 0,
-        trailingWeeklyProfit: company.weeklyIncome,
-        valuationMultiple: 10,
-      });
-      Object.entries(company.miners || {}).forEach(([id, count]) => {
-        const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
-        if (price && (count as number) > 0) {
-          assets.push({
-            id: `${company.id}_miner_${id}`,
-            type: 'hardware',
-            baseValue: price * (count as number),
-          });
-        }
-      });
-    });
-    (realEstate || [])
-      .filter(p => p?.owned)
-      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
-    // Add vehicles (depreciated value)
-    (gameState.vehicles || []).forEach(vehicle => {
-      const baseSellPercent = 0.8;
-      const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
-      const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
-      const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-      assets.push({ id: vehicle.id, type: 'vehicle', baseValue: Math.floor(depreciatedValue) });
-    });
-    const liabilities: Liability[] = [];
-    return computeNetWorth(assets, liabilities).netWorth;
-  }, [stats.money, bankSavings, items, companies, realEstate, gameState.vehicles]);
+  // The CANONICAL net worth — the same figure prestige, the leaderboard,
+  // ambitions, bail cost and the stats screen read.
+  //
+  // This card used to build its own asset list and run it through
+  // computeNetWorth: no stocks, no luxury, property at PURCHASE price,
+  // liabilities hardcoded to `[]` (so loans and mortgages simply did not
+  // count), and a 1% "transaction fee" haircut that made a fresh $200 save
+  // read $198. It was a sixth divergent basis on the most prominent number in
+  // the game. 2026-07-28 audit UX-3.
+  //
+  // netWorth() is identity-key memoised internally, so calling it per render is
+  // a pointer compare in the common case.
+  const netWorth = canonicalNetWorth(gameState);
 
   // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
   // when those arrays actually change, not on every unrelated gameState

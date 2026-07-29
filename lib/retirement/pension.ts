@@ -227,7 +227,11 @@ export function retirePlayer(state: GameState): RetireResult {
   const milestone: LifeMilestone = {
     id: `retirement-${retiredAtWeek}`,
     type: 'retirement',
-    week: num(state.date?.week, 1),
+    // ABSOLUTE week, like every sibling milestone. `date.week` is the cyclic 1-4
+    // display value, so this stamped every retirement into weeks 1-4 and the
+    // LifeStoryModal timeline sorted it against real weeks — the same class the
+    // child-birth milestone was fixed for (P0-12). 2026-07-28 audit GL-2.
+    week: retiredAtWeek,
     year: num(state.date?.year, 2025),
     details: { age: retiredAtAge, pensionWeekly: pension },
   };

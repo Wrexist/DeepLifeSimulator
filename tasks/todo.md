@@ -98,6 +98,23 @@ inherited and aged with **no control anywhere**.
       names would make the test green while proving nothing. Narrowed
       `helpers/pendingRigMorphs.ts` to that one case.
 
+### Merged main in (2026-07-29)
+
+`main` moved for the first time since this branch started — two merged PRs, 128
+files, mostly a save-system hardening batch (`saveValidation.ts` +535,
+`saveQueue.ts`, HMAC signatures, `SaveFromFutureError`).
+
+- [x] ONE conflict, in `GameActionsContext.tsx`, and both sides were right:
+      main added `luxuryRiskCost` to `totalExpenses` (recap-1 — real cash the
+      luxury tick already spent, with no reader, so the recap under-reported by
+      it) and this branch added `identityCharged` for the same reason on the
+      identity tick. Resolved by keeping BOTH; taking either alone silently
+      reintroduces the other's bug.
+- [x] Checked the thing a text merge cannot: main is still at STATE_VERSION 25
+      with migrations to 25, so this branch's 26 and 27 stack cleanly and no two
+      migrations claim the same number. A version collision would have merged
+      without a conflict marker and corrupted saves.
+
 ### Rules this must not break
 - A new control MUST move something on screen, or it does not ship
       (`binding.unbound` already hides dead sliders — do not add to that list)

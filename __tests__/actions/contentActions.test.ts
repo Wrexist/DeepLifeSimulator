@@ -17,7 +17,6 @@ import {
   MAX_PC_TIER,
   LIVE_ENERGY_DRAIN_PER_SEC,
 } from '@/contexts/game/actions/ContentActions';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { creatorLevelFromExperience } from '@/lib/content/creatorLevel';
 import type { GameState, GamingStreamingState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
@@ -66,13 +65,12 @@ function makeStore(initial: GameState) {
   return { setState, get: () => state };
 }
 
-const deps = { updateMoney };
 
 describe('publishVideo — creator level persistence', () => {
   it('recomputes level from XP after enough views cross a threshold', () => {
     // experience 90 + a big-subscriber upload crosses the 100-XP → level 2 mark.
     const store = makeStore(baseState(channel({ experience: 90, subscribers: 200_000 })));
-    const r = publishVideo(store.get(), store.setState, { title: 'Big one', rollViral: 0.99 }, deps, 5);
+    const r = publishVideo(store.get(), store.setState, { title: 'Big one', rollViral: 0.99 }, 5);
     expect(r.success).toBe(true);
     const gs = store.get().gamingStreaming!;
     expect(gs.experience).toBeGreaterThanOrEqual(100);
@@ -87,9 +85,9 @@ describe('publishVideo — trending topic bonus', () => {
     // Pin rollOrganic on both so the only difference is the trend bonus (the
     // action seeds Math.random() for organic in live play).
     const withoutStore = makeStore(baseState(channel({ subscribers: 50_000 })));
-    publishVideo(withoutStore.get(), withoutStore.setState, { title: 'plain', rollViral: 0.99, rollOrganic: 0.5, trendBonus: 0 }, deps, 5);
+    publishVideo(withoutStore.get(), withoutStore.setState, { title: 'plain', rollViral: 0.99, rollOrganic: 0.5, trendBonus: 0 }, 5);
     const withStore = makeStore(baseState(channel({ subscribers: 50_000 })));
-    publishVideo(withStore.get(), withStore.setState, { title: 'hot', rollViral: 0.99, rollOrganic: 0.5, trendBonus: 0.5 }, deps, 5);
+    publishVideo(withStore.get(), withStore.setState, { title: 'hot', rollViral: 0.99, rollOrganic: 0.5, trendBonus: 0.5 }, 5);
     const plain = withoutStore.get().gamingStreaming!.videos![0].views;
     const hot = withStore.get().gamingStreaming!.videos![0].views;
     expect(hot).toBeGreaterThan(plain);
@@ -99,7 +97,7 @@ describe('publishVideo — trending topic bonus', () => {
 describe('runStream — averageViewers', () => {
   it('writes averageViewers equal to the recorded stream viewers on the first stream', () => {
     const store = makeStore(baseState(channel({ followers: 10_000 })));
-    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, deps, 5);
+    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, 5);
     const gs = store.get().gamingStreaming!;
     expect(gs.streamHistory.length).toBe(1);
     expect(gs.averageViewers).toBe(gs.streamHistory[0].viewers);
@@ -112,15 +110,15 @@ describe('runStream — hype streak', () => {
     const store = makeStore(baseState(channel({ followers: 5_000 })));
 
     // Week 5 — first stream ever → streak 1.
-    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, deps, 5);
+    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, 5);
     expect(store.get().gamingStreaming!.hypeStreak).toBe(1);
 
     // Week 6 — consecutive → streak 2.
-    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, deps, 6);
+    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, 6);
     expect(store.get().gamingStreaming!.hypeStreak).toBe(2);
 
     // Week 10 — multi-week gap → reset to 1.
-    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, deps, 10);
+    runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, 10);
     expect(store.get().gamingStreaming!.hypeStreak).toBe(1);
   });
 
@@ -128,10 +126,10 @@ describe('runStream — hype streak', () => {
     // Build a 5-week streak (chance 0.08 + 0.03*4 = 0.20), then roll 0.15.
     const store = makeStore(baseState(channel({ followers: 5_000 })));
     for (let w = 5; w <= 9; w++) {
-      runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, deps, w);
+      runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, w);
     }
     expect(store.get().gamingStreaming!.hypeStreak).toBe(5);
-    const r = runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.15 }, deps, 10);
+    const r = runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.15 }, 10);
     // week 10 is consecutive to 9 → streak 6, chance 0.23 > 0.15 → hype.
     expect(r.outcome?.hypeTrain).toBe(true);
   });
@@ -188,7 +186,7 @@ describe('live streaming — start / tick / finalize', () => {
     for (let i = 0; i < 10; i++) tickLiveStream(store.setState, 1);
     const moneyBefore = store.get().stats.money;
     const streamsBefore = store.get().gamingStreaming!.streamsThisWeek;
-    const r = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5 }, deps, 5);
+    const r = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5 }, 5);
     expect(r.success).toBe(true);
     const gs = store.get().gamingStreaming!;
     expect(gs.currentStream).toBeNull();
@@ -197,7 +195,7 @@ describe('live streaming — start / tick / finalize', () => {
     // Finalize does NOT re-increment the weekly counter (start reserved it).
     expect(gs.streamsThisWeek).toBe(streamsBefore);
     // A second finalize is a no-op — no double pay, no duplicate history.
-    const again = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5 }, deps, 5);
+    const again = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5 }, 5);
     expect(again.success).toBe(false);
     expect(store.get().gamingStreaming!.streamHistory.length).toBe(1);
   });
@@ -207,7 +205,7 @@ describe('live streaming — start / tick / finalize', () => {
     startLiveStream(store.get(), store.setState, { game: 'Just Chatting' }, 5);
     for (let i = 0; i < 10; i++) tickLiveStream(store.setState, 1);
     expect(store.get().stats.energy).toBe(0);
-    const r = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5, autoStopped: true }, deps, 5);
+    const r = finalizeLiveStream(store.get(), store.setState, { rollHype: 0.99, rollOrganic: 0.5, autoStopped: true }, 5);
     expect(r.success).toBe(true);
     expect(r.autoStopped).toBe(true);
     expect(r.message).toMatch(/energy/i);
@@ -227,7 +225,7 @@ describe('upgradePCComponent — tier cap (anti-exploit)', () => {
   it('bumps the component tier by one and charges basePrice·2^tier', () => {
     const store = makeStore(baseState(channel()));
     const before = store.get().stats.money;
-    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu, deps);
+    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu);
     expect(r.success).toBe(true);
     expect(r.newTier).toBe(1);
     expect(store.get().gamingStreaming!.pcUpgradeLevels.cpu).toBe(1);
@@ -242,7 +240,7 @@ describe('upgradePCComponent — tier cap (anti-exploit)', () => {
     });
     const store = makeStore(createTestGameState({ stats: { money: 1_000_000_000, energy: 100_000 }, weeksLived: 5, gamingStreaming: ch }));
     const before = store.get().stats.money;
-    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu, deps);
+    const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu);
     expect(r.success).toBe(false);
     expect(r.message).toMatch(/maxed/i);
     expect(store.get().gamingStreaming!.pcUpgradeLevels.cpu).toBe(MAX_PC_TIER);

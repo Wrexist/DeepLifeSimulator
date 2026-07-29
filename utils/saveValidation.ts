@@ -5,6 +5,7 @@ import { normalizeIdentity } from '@/lib/identity';
 import {
   resolveSaveSigningRuntimeConfig,
   resolveActiveSaveHmacKey,
+  resolveSaveHmacKeys,
   SaveSigningConfigError,
 } from '@/utils/saveSigningConfig';
 
@@ -122,7 +123,43 @@ function getActiveSaveHmacKey(): string | null {
   return null;
 }
 
-function sha256(message: string): string {
+/**
+ * Whether to reproduce the original (incorrect) 64-bit length padding.
+ *
+ * `for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff)` looks
+ * like a big-endian 64-bit length, but JS masks a shift count to 5 bits, so
+ * `>>>56` is `>>>24`, `>>>48` is `>>>16`, and so on: the eight bytes came out
+ * as [b3,b2,b1,b0,b3,b2,b1,b0] instead of [0,0,0,0,b3,b2,b1,b0]. Standard
+ * SHA-256 requires that high word to be zero for any message under 2^32 bits,
+ * so the digest diverged from real SHA-256 for EVERY message except the empty
+ * string — not only large ones. 2026-07-29 audit SEC-8.
+ *
+ * It was self-consistent, so it signed and verified fine locally and is not a
+ * data-loss bug in itself. But it is not HMAC-SHA256, so it disagrees with any
+ * standards-compliant server, and simply correcting it would have invalidated
+ * every save on every device at once. So: new signatures use the correct
+ * padding, and the legacy padding stays as a VERIFIER only, letting existing
+ * saves re-sign onto the correct one the next time they are written.
+ */
+type Sha256Padding = 'correct' | 'legacy';
+
+/** UTF-8 encode a JS string to bytes. */
+function utf8Bytes(message: string): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i < message.length; i++) {
+    const c = message.charCodeAt(i);
+    if (c < 0x80) bytes.push(c);
+    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
+    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
+  }
+  return bytes;
+}
+
+function sha256(message: string, padding: Sha256Padding = 'correct'): string {
+  return sha256Bytes(utf8Bytes(message), padding);
+}
+
+function sha256Bytes(input: number[], padding: Sha256Padding = 'correct'): string {
   // SHA-256 constants
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -138,19 +175,19 @@ function sha256(message: string): string {
   const rr = (v: number, n: number) => (v >>> n) | (v << (32 - n));
 
   // Pre-processing: convert message to bytes
-  const bytes: number[] = [];
-  for (let i = 0; i < message.length; i++) {
-    const c = message.charCodeAt(i);
-    if (c < 0x80) bytes.push(c);
-    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
-    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
-  }
+  const bytes: number[] = input.slice();
 
   const bitLen = bytes.length * 8;
   bytes.push(0x80);
   while (bytes.length % 64 !== 56) bytes.push(0);
-  // Append 64-bit big-endian length
-  for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff);
+  // Append 64-bit big-endian length. The high word is always zero for any
+  // message under 2^32 bits, which is every save we will ever write.
+  if (padding === 'legacy') {
+    for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff);
+  } else {
+    bytes.push(0, 0, 0, 0);
+    bytes.push((bitLen >>> 24) & 0xff, (bitLen >>> 16) & 0xff, (bitLen >>> 8) & 0xff, bitLen & 0xff);
+  }
 
   let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
   let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
@@ -199,13 +236,54 @@ export function calculateHmacSignature(data: string): string {
     }
     throw new SaveSigningConfigError();
   }
+  return hmacWith(data, key);
+}
+
+/**
+ * HMAC-SHA256 under an explicit key and padding mode.
+ *
+ * Built on BYTES, not strings. The original constructed the ipad/opad blocks as
+ * a JS string (`String.fromCharCode(keyByte ^ 0x36)`) and handed that to a
+ * `sha256` that UTF-8-encoded its input — so every one of the 64 block bytes
+ * at or above 0x80 silently expanded into two bytes before hashing. Combined
+ * with the length-padding bug, the result was self-consistent but was not
+ * HMAC-SHA256 for any input at all. Found by comparing against `node:crypto`
+ * while fixing the padding: the padding alone did not close the gap.
+ */
+function hmacWith(data: string, key: string): string {
   // HMAC: H((key XOR opad) || H((key XOR ipad) || message))
+  const blockSize = 64;
+  let keyBytes: number[] = [];
+  for (let i = 0; i < key.length; i++) keyBytes.push(key.charCodeAt(i) & 0xff);
+  if (keyBytes.length > blockSize) {
+    keyBytes = hexToBytes(sha256Bytes(keyBytes, 'correct'));
+  }
+  while (keyBytes.length < blockSize) keyBytes.push(0);
+
+  const ipad: number[] = new Array(blockSize);
+  const opad: number[] = new Array(blockSize);
+  for (let i = 0; i < blockSize; i++) {
+    ipad[i] = keyBytes[i] ^ 0x36;
+    opad[i] = keyBytes[i] ^ 0x5c;
+  }
+
+  const innerHash = sha256Bytes(ipad.concat(utf8Bytes(data)), 'correct');
+  return sha256Bytes(opad.concat(hexToBytes(innerHash)), 'correct');
+}
+
+/**
+ * The ORIGINAL signature function, reproduced verbatim — string-built pad
+ * blocks (so every pad byte >= 0x80 UTF-8-expands) and the wrong 64-bit length
+ * word. Kept for VERIFICATION ONLY, so every save already on a device keeps
+ * loading and re-signs onto the real HMAC on its next write. Nothing signs with
+ * this. Delete it once every active install has re-saved.
+ */
+function hmacLegacyExact(data: string, key: string): string {
   const blockSize = 64;
   let keyBytes: number[] = [];
   for (let i = 0; i < key.length; i++) keyBytes.push(key.charCodeAt(i));
   if (keyBytes.length > blockSize) {
-    // Hash the key if it's longer than block size
-    const hashedKey = sha256(key);
+    const hashedKey = sha256(key, 'legacy');
     keyBytes = [];
     for (let i = 0; i < hashedKey.length; i += 2) {
       keyBytes.push(parseInt(hashedKey.substr(i, 2), 16));
@@ -219,13 +297,19 @@ export function calculateHmacSignature(data: string): string {
     opadStr += String.fromCharCode(keyBytes[i] ^ 0x5c);
   }
 
-  const innerHash = sha256(ipadStr + data);
-  // Convert inner hash hex back to string for outer hash
+  const innerHash = sha256(ipadStr + data, 'legacy');
   let innerBytes = '';
   for (let i = 0; i < innerHash.length; i += 2) {
     innerBytes += String.fromCharCode(parseInt(innerHash.substr(i, 2), 16));
   }
-  return sha256(opadStr + innerBytes);
+  return sha256(opadStr + innerBytes, 'legacy');
+}
+
+/** Hex digest → raw bytes. */
+function hexToBytes(hex: string): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.substr(i, 2), 16));
+  return out;
 }
 
 /**
@@ -458,6 +542,36 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // `crimeSkills` is a concrete-default object that repair never backfilled, and
+  // the Work tab reads it BARE in render — `gameState.crimeSkills[job.skill].level`
+  // (app/(tabs)/work.tsx) — so a save missing it (CloudSync merge / hand-edit)
+  // white-screens the tab. Restore the whole container when it is missing, and
+  // fill individual skills when it is present-but-partial (the likelier shape as
+  // the skill list grows). 2026-07-28 audit crash-1.
+  {
+    const seedSkills = initialFields.crimeSkills as Record<string, unknown> | undefined;
+    if (seedSkills && typeof seedSkills === 'object') {
+      if (!s.crimeSkills || typeof s.crimeSkills !== 'object' || Array.isArray(s.crimeSkills)) {
+        s.crimeSkills = JSON.parse(JSON.stringify(seedSkills));
+        repairs.push('Restored missing crimeSkills from defaults');
+        repaired = true;
+      } else {
+        let addedSkills = 0;
+        for (const [skillId, seed] of Object.entries(seedSkills)) {
+          const current = s.crimeSkills[skillId];
+          if (!current || typeof current !== 'object' || typeof current.level !== 'number') {
+            s.crimeSkills[skillId] = JSON.parse(JSON.stringify(seed));
+            addedSkills += 1;
+          }
+        }
+        if (addedSkills > 0) {
+          repairs.push(`Backfilled ${addedSkills} missing crimeSkills entries`);
+          repaired = true;
+        }
+      }
+    }
+  }
+
   // Additive optional fields that post-date their subsystem's last migration
   // (Luxury catalog + Life Ambitions). Migration 23 fills them on a version
   // ladder, but repair also runs on partial saves (CloudSync merge / hand-edit)
@@ -566,6 +680,90 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       (e: any) => e != null && typeof e === 'object' && typeof e.id === 'string',
     );
     repairs.push('Dropped malformed realEstateActivity entries');
+    repaired = true;
+  }
+
+  // ── Older migration/repair parity gaps (same rule (b) asymmetry) ─────────
+  // Surfaced by the new audit-save V8 static check, which cross-references every
+  // migration-backfilled CONCRETE default against repairGameState.
+  //
+  // `wantedLevel` is the one with a live crash-class consumer: JobActions does
+  // `prev.wantedLevel + (job.wantedIncrease || 1)` with no `?? 0`, so a partial
+  // save missing the key turns it into NaN, and every downstream success-chance
+  // that reads it (`Math.min(25, wantedLevel * 3)`) goes NaN with it.
+  if (typeof s.wantedLevel !== 'number' || !isFinite(s.wantedLevel)) {
+    s.wantedLevel = 0;
+    repairs.push('Backfilled missing wantedLevel from defaults');
+    repaired = true;
+  }
+  // IAP dedupe ledger (v2 migration): the list that stops a replayed store
+  // transaction from granting twice. It must exist as an array.
+  if (!Array.isArray(s.processedIAPTransactions)) {
+    s.processedIAPTransactions = [];
+    repairs.push('Backfilled missing processedIAPTransactions from defaults');
+    repaired = true;
+  }
+  // Hobby Mastery maps (migration 21).
+  if (!s.pursuits || typeof s.pursuits !== 'object' || Array.isArray(s.pursuits)) {
+    s.pursuits = {};
+    repairs.push('Backfilled missing pursuits map from defaults');
+    repaired = true;
+  }
+  if (
+    !s.weeklyPursuitPractice ||
+    typeof s.weeklyPursuitPractice !== 'object' ||
+    Array.isArray(s.weeklyPursuitPractice)
+  ) {
+    s.weeklyPursuitPractice = {};
+    repairs.push('Backfilled missing weeklyPursuitPractice map from defaults');
+    repaired = true;
+  }
+  // Legacy Pass cosmetics (migration 20) — parent-guarded, mirroring the
+  // migration's own `else if` branch for a partially-shaped legacyPass.
+  if (
+    s.legacyPass &&
+    typeof s.legacyPass === 'object' &&
+    !Array.isArray(s.legacyPass.ownedCosmetics)
+  ) {
+    s.legacyPass.ownedCosmetics = [];
+    repairs.push('Backfilled missing legacyPass.ownedCosmetics from defaults');
+    repaired = true;
+  }
+
+  // ── v22 Wave-A NESTED concrete defaults (migration/repair parity) ─────────
+  // Migration 22 backfills these on the version ladder, but repair also runs on
+  // partial saves already stamped at a later version (CloudSync merge /
+  // hand-edit) that the wholesale ladder skips — the same asymmetry
+  // `realEstateActivity` had (CLAUDE.md save-format rule (b)). Every consumer
+  // guards its read, so these are healing-not-crash repairs; they are mirrored
+  // here so the rule holds for NESTED fields too, not just top-level ones.
+  //
+  // Parent-guarded exactly like the migration: a missing subsystem is rebuilt by
+  // its own repair block (or its `ensure*` helper), never invented here.
+  if (s.banking && typeof s.banking === 'object') {
+    if (!s.banking.rateEnvironment || typeof s.banking.rateEnvironment !== 'object') {
+      s.banking.rateEnvironment = { depositMult: 1, loanDelta: 0 };
+      repairs.push('Backfilled missing banking.rateEnvironment from defaults');
+      repaired = true;
+    }
+    if (!s.banking.budgetTargets || typeof s.banking.budgetTargets !== 'object') {
+      s.banking.budgetTargets = {};
+      repairs.push('Backfilled missing banking.budgetTargets from defaults');
+      repaired = true;
+    }
+  }
+  if (s.gamingStreaming && typeof s.gamingStreaming === 'object') {
+    for (const field of ['perkTier', 'lastMemberWeek', 'hypeStreak'] as const) {
+      if (typeof s.gamingStreaming[field] !== 'number' || !isFinite(s.gamingStreaming[field])) {
+        s.gamingStreaming[field] = 0;
+        repairs.push(`Backfilled missing gamingStreaming.${field} from defaults`);
+        repaired = true;
+      }
+    }
+  }
+  if (s.travel && typeof s.travel === 'object' && !Array.isArray(s.travel.passportMilestones)) {
+    s.travel.passportMilestones = [];
+    repairs.push('Backfilled missing travel.passportMilestones from defaults');
     repaired = true;
   }
 
@@ -702,6 +900,12 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // Fix invalid hobbies
   if (Array.isArray(s.hobbies)) {
+    // The removal below is counted and flagged. It used to filter silently:
+    // repairGameState works on a CLONE that is only written back when
+    // `repaired` is true, so a load whose ONLY defect was a malformed hobby had
+    // the fix computed and thrown away, every time. Same class as the fourteen
+    // Spark/Pulse backfills. 2026-07-29 audit MR-6.
+    const originalHobbyLength = s.hobbies.length;
     s.hobbies = s.hobbies.map((hobby: any) => {
       if (!hobby || typeof hobby !== 'object' || !hobby.id) {
         return null; // Mark for removal
@@ -734,6 +938,10 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       }
       return hobby;
     }).filter((hobby: any) => hobby !== null);
+    if (s.hobbies.length !== originalHobbyLength) {
+      repairs.push(`Removed ${originalHobbyLength - s.hobbies.length} invalid hobbies`);
+      repaired = true;
+    }
   }
 
   // Fix invalid array items
@@ -971,6 +1179,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.activeScandal === undefined) {
     sm.activeScandal = null;
+    repairs.push('Normalized missing socialMedia.activeScandal');
+    repaired = true;
   }
   if (!Array.isArray(sm.scandalHistory)) {
     sm.scandalHistory = [];
@@ -1027,6 +1237,15 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing socialMedia.notifications');
     repaired = true;
   }
+  // `activeBrandDeals` is a concrete-default `[]` in initialState with neither a
+  // migration backfill nor a repair mirror — it predates both (2026-07-28 audit
+  // save-5). The static parity check in audit-save.cjs only sees fields a
+  // migration touches, so a field that never got one is invisible to it.
+  if (!Array.isArray(sm.activeBrandDeals)) {
+    sm.activeBrandDeals = [];
+    repairs.push('Created missing socialMedia.activeBrandDeals');
+    repaired = true;
+  }
   // Checkpoint snapshots strip recentPosts (see slimCheckpointSnapshot); the
   // rewind path relies on this default to restore a valid empty feed cache.
   if (!Array.isArray(sm.recentPosts)) {
@@ -1036,6 +1255,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.liveSession === undefined) {
     sm.liveSession = null;
+    repairs.push('Normalized missing socialMedia.liveSession');
+    repaired = true;
   }
   if (!Array.isArray(sm.pendingBoosts)) {
     sm.pendingBoosts = [];
@@ -1056,6 +1277,31 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   if (sm.lastViralBoostBySkill === undefined || typeof sm.lastViralBoostBySkill !== 'object') {
     sm.lastViralBoostBySkill = {};
+    repairs.push('Created missing socialMedia.lastViralBoostBySkill');
+    repaired = true;
+  }
+  // v22 Wave-A concrete defaults — mirrored from migration 22 so a partial save
+  // already stamped past v22 is healed here too (save-format rule (b)). The
+  // history is anchored with the current follower count, exactly like the
+  // migration, so charts always have a datum; the 52-point cap is re-applied.
+  if (!Array.isArray(sm.followerHistory)) {
+    sm.followerHistory = [
+      {
+        week: typeof s.weeksLived === 'number' && isFinite(s.weeksLived) ? Math.max(0, Math.floor(s.weeksLived)) : 0,
+        followers: typeof sm.followers === 'number' && isFinite(sm.followers) ? sm.followers : 0,
+      },
+    ];
+    repairs.push('Backfilled missing socialMedia.followerHistory from defaults');
+    repaired = true;
+  } else if (sm.followerHistory.length > 52) {
+    sm.followerHistory = sm.followerHistory.slice(-52);
+    repairs.push('Trimmed socialMedia.followerHistory to the 52-point cap');
+    repaired = true;
+  }
+  if (typeof sm.scandalRiskScore !== 'number' || !isFinite(sm.scandalRiskScore)) {
+    sm.scandalRiskScore = 0;
+    repairs.push('Backfilled missing socialMedia.scandalRiskScore from defaults');
+    repaired = true;
   }
 
   // ── v15+ Spark dating app defaults ───────────────────────────
@@ -1078,10 +1324,13 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing sparkApp.messages');
     repaired = true;
   }
-  if (typeof sp.swipeQuota !== 'number') sp.swipeQuota = 30;
-  if (typeof sp.swipesUsedThisWeek !== 'number') sp.swipesUsedThisWeek = 0;
-  if (typeof sp.lastQuotaResetWeek !== 'number') sp.lastQuotaResetWeek = s.weeksLived ?? 0;
-  if (typeof sp.superLikesUsedThisWeek !== 'number') sp.superLikesUsedThisWeek = 0;
+  // Every branch below MUST set `repaired` — the repaired clone is only written
+  // back onto the caller's object when that flag is true, so a backfill without
+  // it is computed and silently discarded (CLAUDE.md; 2026-07-28 audit save-3).
+  if (typeof sp.swipeQuota !== 'number') { sp.swipeQuota = 30; repairs.push('Created missing sparkApp.swipeQuota'); repaired = true; }
+  if (typeof sp.swipesUsedThisWeek !== 'number') { sp.swipesUsedThisWeek = 0; repairs.push('Created missing sparkApp.swipesUsedThisWeek'); repaired = true; }
+  if (typeof sp.lastQuotaResetWeek !== 'number') { sp.lastQuotaResetWeek = s.weeksLived ?? 0; repairs.push('Created missing sparkApp.lastQuotaResetWeek'); repaired = true; }
+  if (typeof sp.superLikesUsedThisWeek !== 'number') { sp.superLikesUsedThisWeek = 0; repairs.push('Created missing sparkApp.superLikesUsedThisWeek'); repaired = true; }
   if (!sp.premium || typeof sp.premium !== 'object') {
     sp.premium = {
       active: false,
@@ -1122,13 +1371,16 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Expired legacy Spark Premium IAP grant past its term');
     repaired = true;
   }
-  if (!Array.isArray(sp.likedYou)) sp.likedYou = [];
-  if (!Array.isArray(sp.catfishRecords)) sp.catfishRecords = [];
-  if (sp.activeJealousy === undefined) sp.activeJealousy = null;
-  if (!Array.isArray(sp.jealousyHistory)) sp.jealousyHistory = [];
-  if (sp.boost === undefined) sp.boost = null;
-  if (!Array.isArray(sp.dismissedCatfishIds)) sp.dismissedCatfishIds = [];
-  if (!Array.isArray(sp.reportedIds)) sp.reportedIds = [];
+  // Same rule (b) flag discipline as above. `likedYou` is the one with a live
+  // crash consumer: likeBackFromLikedYou reads the RAW sparkApp, so a save
+  // missing it threw — and the repair that fixed it was being thrown away.
+  if (!Array.isArray(sp.likedYou)) { sp.likedYou = []; repairs.push('Created missing sparkApp.likedYou'); repaired = true; }
+  if (!Array.isArray(sp.catfishRecords)) { sp.catfishRecords = []; repairs.push('Created missing sparkApp.catfishRecords'); repaired = true; }
+  if (sp.activeJealousy === undefined) { sp.activeJealousy = null; repairs.push('Normalized missing sparkApp.activeJealousy'); repaired = true; }
+  if (!Array.isArray(sp.jealousyHistory)) { sp.jealousyHistory = []; repairs.push('Created missing sparkApp.jealousyHistory'); repaired = true; }
+  if (sp.boost === undefined) { sp.boost = null; repairs.push('Normalized missing sparkApp.boost'); repaired = true; }
+  if (!Array.isArray(sp.dismissedCatfishIds)) { sp.dismissedCatfishIds = []; repairs.push('Created missing sparkApp.dismissedCatfishIds'); repaired = true; }
+  if (!Array.isArray(sp.reportedIds)) { sp.reportedIds = []; repairs.push('Created missing sparkApp.reportedIds'); repaired = true; }
   if (!sp.lifetimeStats || typeof sp.lifetimeStats !== 'object') {
     sp.lifetimeStats = {
       totalSwipes: 0, totalMatches: 0, totalSuperLikes: 0,
@@ -1209,7 +1461,11 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // Migrate staking positions from cyclical week to absolute week
   if (s.warehouse?.stakingPositions) {
     s.warehouse.stakingPositions.forEach((pos: any) => {
-      if (!pos.startAbsoluteWeek && pos.startWeek <= 4 && (s.weeksLived || 0) > 4) {
+      // `=== undefined`, not `!`. Absolute week 0 is a legitimate value —
+      // MiningActions writes `startAbsoluteWeek: prev.weeksLived || 0` — and
+      // testing falsy rewrote a correct 0, moving the position's start (and
+      // resetting lastClaimAbsoluteWeek) on every load. 2026-07-29 audit MR-5.
+      if (pos.startAbsoluteWeek === undefined && pos.startWeek <= 4 && (s.weeksLived || 0) > 4) {
         // Best-effort migration: estimate absolute start from weeksLived
         pos.startAbsoluteWeek = Math.max(0, (s.weeksLived || 0) - Math.floor((pos.lockWeeks || 4) / 2));
         pos.lastClaimAbsoluteWeek = pos.startAbsoluteWeek;
@@ -1544,6 +1800,31 @@ export function createSaveEnvelope(dataString: string): string {
  * Verify save data integrity using checksum and HMAC signature.
  * Accepts both legacy (CRC32-only) and new (HMAC-SHA256) formats for backwards compatibility.
  */
+/**
+ * Does `expectedHmac` match under ANY configured verification key, in either
+ * padding mode? First entry in `EXPO_PUBLIC_SAVE_HMAC_KEY` signs; every entry
+ * verifies. Never throws — an unconfigured build simply matches nothing.
+ */
+function verifyHmacAgainstAnyKey(data: string, expectedHmac: string): boolean {
+  let keys: string[];
+  try {
+    keys = resolveSaveHmacKeys(saveSigningRuntime);
+  } catch {
+    return false;
+  }
+
+  for (const key of keys) {
+    try {
+      if (hmacWith(data, key) === expectedHmac) return true;
+      // Saves written before the signature was corrected.
+      if (hmacLegacyExact(data, key) === expectedHmac) return true;
+    } catch {
+      // A key that cannot be used is simply not a match.
+    }
+  }
+  return false;
+}
+
 export function verifySaveData(data: string, expectedChecksum: string, expectedSignature?: string, expectedHmac?: string): boolean {
   // Always verify CRC32 checksum for basic corruption detection
   const actualChecksum = calculateChecksum(data);
@@ -1553,6 +1834,17 @@ export function verifySaveData(data: string, expectedChecksum: string, expectedS
 
   // ANTI-EXPLOIT: Verify HMAC-SHA256 if present (new saves always have this)
   if (expectedHmac) {
+    // Try EVERY configured key, and under both padding modes.
+    //
+    // There used to be exactly one candidate, compared with a single `!==`, so
+    // a key rotation invalidated every save on every device simultaneously with
+    // no way back (the weak-migration escape hatch is refused by the production
+    // preflight). Accepting a list makes a rotation converge instead: old saves
+    // keep verifying and re-sign onto the current key on their next write.
+    // The legacy padding is here for the same reason — see `Sha256Padding`.
+    // 2026-07-29 audit SEC-2 / SEC-8.
+    if (verifyHmacAgainstAnyKey(data, expectedHmac)) return true;
+
     let actualHmac: string;
     try {
       actualHmac = calculateHmacSignature(data);
@@ -1842,6 +2134,40 @@ export async function doubleBufferSave(
 }
 
 /**
+ * What a slot read actually found.
+ *
+ * `none` and `unverified`/`unknown` used to be the SAME `{data: null}`, and
+ * three separate occupancy guards read that null as "this slot is free to
+ * overwrite". A save that merely failed CRC32/HMAC verification — after an HMAC
+ * key rotation, say, which invalidates every save on the device at once —
+ * looked exactly like an empty slot. So did a storage read that threw.
+ * (2026-07-29 audit PIPE-1 / SEC-1.)
+ */
+export type SaveSlotSource =
+  /** Read and verified from that buffer / the legacy key. */
+  | 'A'
+  | 'B'
+  | 'legacy'
+  /** Nothing is stored here. The ONLY value that means "safe to overwrite". */
+  | 'none'
+  /** A blob exists but did not verify. Often still recoverable from a backup. */
+  | 'unverified'
+  /** The read itself failed. Proves nothing about whether data exists. */
+  | 'unknown';
+
+export interface SaveSlotReadResult {
+  data: string | null;
+  source: SaveSlotSource;
+  migrated?: boolean;
+  /**
+   * True when any raw slot key returned a non-null string, or when we could not
+   * establish that they did not. Never optimistic: a thrown read reports `true`,
+   * because "I could not tell" must not authorise a destructive write.
+   */
+  blobPresent: boolean;
+}
+
+/**
  * Double-buffer load: reads from the active buffer with fallback to the other.
  * Also handles migration from legacy single-key saves.
  */
@@ -1849,85 +2175,124 @@ export async function doubleBufferLoad(
   slotKey: string,
   storage: typeof AsyncStorage = AsyncStorage,
   options: { allowLegacy?: boolean } = {}
-): Promise<{ data: string | null; source: 'A' | 'B' | 'legacy' | 'none'; migrated?: boolean }> {
+): Promise<SaveSlotReadResult> {
   const pointerKey = `${slotKey}_active`;
   const keyA = `${slotKey}_A`;
   const keyB = `${slotKey}_B`;
   const allowLegacy = options.allowLegacy ?? ALLOW_UNSIGNED_LEGACY_SAVES;
 
+  let blobPresent = false;
+
   try {
     const currentActive = (await storage.getItem(pointerKey)) as 'A' | 'B' | null;
 
-    // If pointer exists, try active buffer first, then fallback
-    if (currentActive === 'A' || currentActive === 'B') {
-      const activeKey = currentActive === 'A' ? keyA : keyB;
-      const fallbackKey = currentActive === 'A' ? keyB : keyA;
-      const fallbackBuffer = currentActive === 'A' ? 'B' : 'A';
+    // Try the pointed-at buffer first, then the other one. When the pointer is
+    // MISSING we still try both: this whole block used to sit inside
+    // `if (currentActive === 'A' || currentActive === 'B')`, so a lost pointer
+    // skipped the buffers entirely and fell straight through to the legacy key
+    // — reporting "no data" for a slot holding two intact megabyte saves
+    // (2026-07-29 audit SAVE-OW-3).
+    const order: Array<'A' | 'B'> = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
 
-      // Try active buffer
-      const activeData = await storage.getItem(activeKey);
-      if (activeData) {
-        // Verify envelope integrity before returning
-        const decoded = decodePersistedSaveEnvelope(activeData, { allowLegacy });
-        if (decoded.valid) {
-          return { data: activeData, source: currentActive };
-        }
-        logger.warn(`[DOUBLE_BUFFER] Active buffer ${currentActive} failed verification, trying fallback`);
+    for (const buffer of order) {
+      const bufferKey = buffer === 'A' ? keyA : keyB;
+      const bufferData = await storage.getItem(bufferKey);
+      if (!bufferData) continue;
+      blobPresent = true;
+
+      const decoded = decodePersistedSaveEnvelope(bufferData, { allowLegacy });
+      if (!decoded.valid) {
+        logger.warn(`[DOUBLE_BUFFER] Buffer ${buffer} failed verification for ${slotKey}`);
+        continue;
       }
 
-      // Active buffer is corrupt or missing — try fallback
-      const fallbackData = await storage.getItem(fallbackKey);
-      if (fallbackData) {
-        const decoded = decodePersistedSaveEnvelope(fallbackData, { allowLegacy });
-        if (decoded.valid) {
-          // Fix the pointer to the good buffer
-          await storage.setItem(pointerKey, fallbackBuffer);
-          logger.warn(`[DOUBLE_BUFFER] Recovered from fallback buffer ${fallbackBuffer}`);
-          return { data: fallbackData, source: fallbackBuffer };
-        }
-        logger.error(`[DOUBLE_BUFFER] Both buffers failed verification for ${slotKey}`);
-      }
-
-      // Both buffers failed — still check legacy key as last resort
-    }
-
-    // No pointer or both buffers failed — check legacy single-key save
-    const legacyData = await storage.getItem(slotKey);
-    if (legacyData && allowLegacy) {
-      const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
-      if (decoded.valid) {
-        // Migrate: write to buffer A and set pointer
+      // Heal a wrong or missing pointer so the next read goes straight there.
+      if (currentActive !== buffer) {
         try {
-          const canonicalEnvelope = createSaveEnvelope(legacyData);
-          await storage.setItem(keyA, canonicalEnvelope);
-          await storage.setItem(pointerKey, 'A');
-          // Don't delete legacy key yet — keep as extra fallback until next successful save
-          logger.info(`[DOUBLE_BUFFER] Migrated legacy save to double-buffer for ${slotKey}`);
-          return { data: canonicalEnvelope, source: 'legacy', migrated: true };
-        } catch (migrateError) {
-          logger.warn('[DOUBLE_BUFFER] Migration to double-buffer failed (non-critical)', { error: migrateError });
-          return { data: legacyData, source: 'legacy', migrated: true };
+          await storage.setItem(pointerKey, buffer);
+          logger.warn(`[DOUBLE_BUFFER] Repointed ${slotKey} to buffer ${buffer}`);
+        } catch (pointerError) {
+          logger.warn('[DOUBLE_BUFFER] Could not repair active pointer (non-critical)', {
+            error: pointerError,
+          });
         }
       }
+      return { data: bufferData, source: buffer, blobPresent: true };
     }
 
-    return { data: null, source: 'none' };
-  } catch (error) {
-    logger.error('[DOUBLE_BUFFER] Load failed:', error);
-    // Last resort: try reading the legacy key directly
-    if (allowLegacy) {
-      try {
-        const legacyData = await storage.getItem(slotKey);
-        if (legacyData) {
-          const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
-          if (decoded.valid) {
-            return { data: legacyData, source: 'legacy' };
+    // Both buffers absent or unverifiable — check the legacy single-key save.
+    //
+    // Reading this KEY used to be gated on `allowLegacy`, which is the
+    // unsigned-legacy-FORMAT flag and is false on every shipped build (the
+    // preflight hard-fails a production build that enables it). So
+    // `save_slot_N` was never read in production no matter what it held — and
+    // a correctly signed v2 envelope sitting there verifies under the normal
+    // rules. That conflation made the legacy→double-buffer migration below
+    // unreachable and, chained with the empty/unreadable conflation, let an
+    // affected slot report as EMPTY and be handed to a new game.
+    //
+    // The two concerns are now separate: the key is always READ and always
+    // decoded; only the raw-unsigned payload branch inside
+    // `decodePersistedSaveEnvelope` stays gated on `allowLegacy`.
+    // 2026-07-29 audit SEC-3.
+    const legacyData = await storage.getItem(slotKey);
+    if (legacyData) {
+      blobPresent = true;
+      {
+        const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
+        if (decoded.valid) {
+          // Migrate: write to buffer A and set pointer
+          try {
+            const canonicalEnvelope = createSaveEnvelope(legacyData);
+            await storage.setItem(keyA, canonicalEnvelope);
+            await storage.setItem(pointerKey, 'A');
+            // Don't delete legacy key yet — keep as extra fallback until next successful save
+            logger.info(`[DOUBLE_BUFFER] Migrated legacy save to double-buffer for ${slotKey}`);
+            return { data: canonicalEnvelope, source: 'legacy', migrated: true, blobPresent: true };
+          } catch (migrateError) {
+            logger.warn('[DOUBLE_BUFFER] Migration to double-buffer failed (non-critical)', { error: migrateError });
+            return { data: legacyData, source: 'legacy', migrated: true, blobPresent: true };
           }
         }
-      } catch {}
+      }
     }
-    return { data: null, source: 'none' };
+
+    if (blobPresent) {
+      logger.error(`[DOUBLE_BUFFER] Data present but unverifiable for ${slotKey}`);
+      return { data: null, source: 'unverified', blobPresent: true };
+    }
+    return { data: null, source: 'none', blobPresent: false };
+  } catch (error) {
+    logger.error('[DOUBLE_BUFFER] Load failed:', error);
+    // Last resort: try reading the legacy key directly. Same split as above —
+    // the key is always read; the FORMAT policy lives in the decoder.
+    try {
+      const legacyData = await storage.getItem(slotKey);
+      if (legacyData) {
+        const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
+        if (decoded.valid) {
+          return { data: legacyData, source: 'legacy', blobPresent: true };
+        }
+      }
+    } catch {}
+    // A throw tells us nothing about whether the slot holds data, so it must
+    // NOT read as empty.
+    return { data: null, source: 'unknown', blobPresent: true };
   }
+}
+
+/**
+ * Read a slot and report WHY it came back empty, for callers deciding whether a
+ * slot may be overwritten. `readSaveSlot` cannot answer that — it returns the
+ * same `null` for "nothing stored", "failed verification" and "the read threw".
+ * Only `'none'` means safe to overwrite.
+ */
+export async function readSaveSlotDetailed(
+  slot: number,
+  storage: typeof AsyncStorage = AsyncStorage,
+  options: { allowLegacy?: boolean } = {}
+): Promise<SaveSlotReadResult> {
+  return doubleBufferLoad(`save_slot_${slot}`, storage, options);
 }
 
 /**

@@ -116,19 +116,23 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
   const [selectedNode, setSelectedNode] = useState<TalentNode | null>(null);
 
   const tree = TALENT_TREES[skillId];
-  const skill = gameState.crimeSkills[skillId];
+  // `crimeSkills` (and any individual skill in it) can be absent on a partial
+  // save; repairGameState now backfills it, but a modal must not throw in the
+  // window before a repaired load lands. 2026-07-28 audit crash-1.
+  const skill = gameState.crimeSkills?.[skillId];
 
-  const availablePoints = Math.max(0, skill.level - 1);
-  const spentPoints = skill.upgrades?.length || 0;
+  const skillLevel = skill?.level ?? 1;
+  const availablePoints = Math.max(0, skillLevel - 1);
+  const spentPoints = skill?.upgrades?.length || 0;
   const remainingPoints = availablePoints - spentPoints;
   const SkillIcon = SKILL_ICONS[skillId];
 
-  const isNodeUnlocked = (id: string) => skill.upgrades?.includes(id) || false;
+  const isNodeUnlocked = (id: string) => skill?.upgrades?.includes(id) || false;
 
   const canUnlockNode = (node: TalentNode): boolean => {
     if (isNodeUnlocked(node.id)) return false;
     if (remainingPoints < node.pointsCost) return false;
-    if (skill.level < node.level) return false;
+    if (skillLevel < node.level) return false;
     if (node.requires) return node.requires.every((req) => isNodeUnlocked(req));
     return true;
   };
@@ -205,7 +209,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
 
   const renderLockedReason = (node: TalentNode): string => {
     const reasons: string[] = [];
-    if (skill.level < node.level) reasons.push(`Reach Lv ${node.level}`);
+    if (skillLevel < node.level) reasons.push(`Reach Lv ${node.level}`);
     if (node.requires) {
       const missing = node.requires.filter((req) => !isNodeUnlocked(req));
       if (missing.length > 0) {
@@ -243,7 +247,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
             <View style={styles.headerText}>
               <Text style={styles.title}>{tree.name}</Text>
               <Text style={styles.subtitle}>
-                {skillId.charAt(0).toUpperCase() + skillId.slice(1)} • Level {skill.level}
+                {skillId.charAt(0).toUpperCase() + skillId.slice(1)} • Level {skillLevel}
               </Text>
             </View>
             <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} accessibilityLabel="Close">
@@ -259,7 +263,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statCell}>
-              <Text style={styles.statValue}>{skill.level}</Text>
+              <Text style={styles.statValue}>{skillLevel}</Text>
               <Text style={styles.statLabel}>level</Text>
             </View>
             <View style={styles.statDivider} />

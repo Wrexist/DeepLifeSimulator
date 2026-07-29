@@ -247,16 +247,34 @@ export function getTotalLuxuryMarketValue(
   ownedIds: readonly string[] | undefined | null,
   holdings: Record<string, LuxuryHolding> | undefined | null,
 ): number {
-  return getOwnedLuxuryItems(ownedIds).reduce((sum, item) => {
-    const holding = holdings?.[item.id];
-    // Condition discounts the value — a damaged painting is worth less than an
-    // undamaged one. Imported lazily to keep the module graph acyclic (risk.ts
-    // reads getHoldingValue from here).
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { conditionValueMultiplier, getCondition } = require('./risk') as typeof import('./risk');
-    const condition = conditionValueMultiplier(getCondition(holding));
-    return sum + Math.floor(getHoldingValue(item, holding) * LUXURY_RESALE_FRACTION * condition);
-  }, 0);
+  return getOwnedLuxuryItems(ownedIds).reduce(
+    (sum, item) => sum + getLuxuryHoldingValue(item, holdings?.[item.id]),
+    0,
+  );
+}
+
+/**
+ * What ONE holding is worth — appreciation and condition included.
+ *
+ * This is the single answer to "what is this item worth", and the sell path and
+ * net worth must both use it. They used to disagree: `sellLuxuryItem` paid a
+ * flat 60% of the CATALOG price while net worth counted the same item at
+ * condition-adjusted `currentValue`, so selling a damaged or depreciated trophy
+ * RAISED net worth — one tap, and prestige points with it (100 per $1M). The
+ * total above is now a reduce over this function, so the two definitions
+ * physically cannot drift apart again. 2026-07-28 audit econ-1.
+ */
+export function getLuxuryHoldingValue(
+  item: LuxuryItem,
+  holding: LuxuryHolding | undefined,
+): number {
+  // Condition discounts the value — a damaged painting is worth less than an
+  // undamaged one. Imported lazily to keep the module graph acyclic (risk.ts
+  // reads getHoldingValue from here).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { conditionValueMultiplier, getCondition } = require('./risk') as typeof import('./risk');
+  const condition = conditionValueMultiplier(getCondition(holding));
+  return Math.floor(getHoldingValue(item, holding) * LUXURY_RESALE_FRACTION * condition);
 }
 
 export interface AppreciationResult {

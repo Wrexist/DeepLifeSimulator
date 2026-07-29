@@ -13,6 +13,34 @@ import { STATE_VERSION } from '@/contexts/game/initialState';
 import { createIdentity, normalizeIdentity } from '@/lib/identity';
 
 // Import from initialState.ts to prevent manual sync drift
+/**
+ * A save written by a NEWER build of the app.
+ *
+ * Refusing to load it is correct — loading would merge a downgraded shape over
+ * `initialGameState` and the next autosave would overwrite the newer save for
+ * good. But the refusal used to surface as a bare `null`, the same value an
+ * EMPTY slot returns, so the menu told a player holding an intact newer save
+ * "No save data found. Please try loading from Save Slots or start a new game."
+ * 2026-07-29 audit MR-4.
+ */
+export class SaveFromFutureError extends Error {
+  readonly isSaveFromFuture = true;
+
+  constructor(message = 'This save was made by a newer version of DeepLife.') {
+    super(message);
+    this.name = 'SaveFromFutureError';
+  }
+}
+
+/** Duck-typed check — survives the dynamic import boundary and a bundle split. */
+export function isSaveFromFutureError(error: unknown): error is SaveFromFutureError {
+  return !!error && typeof error === 'object' && (error as { isSaveFromFuture?: unknown }).isSaveFromFuture === true;
+}
+
+/** The message to show a player whose save is from a newer build. */
+export const SAVE_FROM_FUTURE_MESSAGE =
+  'This save was made by a newer version of DeepLife. Update the app to load it. Your save has not been changed.';
+
 export const CURRENT_STATE_VERSION = STATE_VERSION;
 
 /**

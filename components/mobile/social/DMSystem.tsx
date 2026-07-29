@@ -10,7 +10,7 @@
  * - Relationship advice
  * - Easter eggs
  */
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
  View,
  Text,
@@ -40,7 +40,7 @@ import {
  Eye,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -284,6 +284,10 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  const [showClueModal, setShowClueModal] = useState(false);
  const [currentClue, setCurrentClue] = useState<{ type: ClueType; data: ClueData; rewardCash: number; claimed: boolean } | null>(null);
  const [revealedClues, setRevealedClues] = useState<string[]>([]);
+ // Same-frame double-press latch for the one-time clue payout (econ-5). React
+ // state cannot serve as this gate: both presses in a frame read the same
+ // pre-update value.
+ const grantedCluesRef = useRef<Set<string>>(new Set());
 
  // Initialize conversations from game state.
  // The inbox is generated ONCE, persisted, and read back from game state on
@@ -420,20 +424,32 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  const firstReveal = !revealedClues.includes(clueId);
  const rewardCash = CLUE_REWARD_CASH[message.clueType] ?? 0;
 
- if (firstReveal) {
- setRevealedClues(prev => [...prev, clueId]);
+ if (firstReveal && !grantedCluesRef.current.has(clueId)) {
+ // Synchronous latch: `firstReveal` is derived from React state, so two
+ // presses in the same frame both read it as true. This closes before any
+ // state is touched. 2026-07-28 audit econ-5.
+ grantedCluesRef.current.add(clueId);
+ setRevealedClues(prev => (prev.includes(clueId) ? prev: [...prev, clueId]));
 
- // Persist the reveal flag AND grant the one-time cash reward. The flag
- // (revealedDMClues, persisted) is the one-time gate, so the payout can
- // never be farmed by re-opening the clue. Money goes through the canonical
- // updateMoney path so daily-summary + earn challenges stay honest.
- setGameState(prev => ({
+ // Gate and grant in ONE updater, keyed on the PERSISTED flag. It used to be
+ // two dispatches — a flag write, then a separate updateMoney — so the gate
+ // was component state while the payout was its own transaction, and the
+ // money could land twice for one reveal. Now the persisted list is both the
+ // gate and the record, re-checked against `prev` inside the updater, and the
+ // credit rides the canonical applyMoneyDelta path (ceiling + NaN guards,
+ // daily-summary tracking).
+ setGameState(prev => {
+ if ((prev.revealedDMClues || []).includes(clueId)) return prev;
+ const credit = rewardCash > 0
+? applyMoneyDelta(prev, rewardCash, `Acted on a tip from ${selectedConversation?.senderName ?? 'a mysterious contact'}`)
+: {};
+ if (rewardCash > 0 && !credit) return prev; // money guard rejected it
+ return {
 ...prev,
+...credit,
  revealedDMClues: [...(prev.revealedDMClues || []), clueId],
- }));
- if (rewardCash > 0) {
- updateMoney(setGameState, rewardCash, `Acted on a tip from ${selectedConversation?.senderName ?? 'a mysterious contact'}`);
- }
+ };
+ });
  // Defer the save past the commit + parent ref-sync so the granted money AND
  // the reveal flag both persist (a synchronous save captures the pre-grant state).
  setTimeout(() => { void saveGame(); }, 0);

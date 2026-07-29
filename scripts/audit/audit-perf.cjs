@@ -12,6 +12,8 @@
  *       subsystem can't abort or stall the rest of the tick).
  *   P3  Nested-loop density in the tick stays under budget.
  *   P4  A performance regression test exists and (optionally) passes within budget.
+ *   P5  No NEW zero-importer module under lib/ utils/ contexts/ hooks/ services/ —
+ *       dead code is where the next wrong answer hides (2026-07-28 audit PERF-4/5/6).
  */
 'use strict';
 
@@ -140,6 +142,19 @@ function build({ runTests = false } = {}) {
     a.info('Performance jest suite not executed (static run)', 'Pass --run-tests (or run `npm run audit:weekly:full`) for dynamic timing.', '__tests__/performance/');
   }
 
+  // --- P5: reachability ----------------------------------------------------
+  // Two of this repo's nastiest findings were a LIVE system whose only consumer
+  // was an unreachable module (PERF-4: a second `applyLegacyBonuses` nobody
+  // called; PERF-5: the only caller of the relationship-gain multiplier). Both
+  // survived several audits because nothing looks for orphans. This names them.
+  const orphans = findZeroImporterModules();
+  a.assert(orphans.length === 0, 'low',
+    `No zero-importer modules outside the allowlist (${REACHABILITY_ALLOWLIST.length} allowlisted)`,
+    `${orphans.length} module(s) have no importer anywhere`,
+    orphans.slice(0, 8).join(', ') + (orphans.length > 8 ? ' …' : '')
+      + ' — delete them, or add to REACHABILITY_ALLOWLIST with a reason if they are deliberate tooling.',
+    'scripts/audit/audit-perf.cjs');
+
   return a;
 }
 
@@ -192,6 +207,67 @@ function countNestedLoops(src) {
     }
   }
   return count;
+}
+
+
+/**
+ * Modules that are deliberately unreferenced. Each needs a reason — an
+ * allowlist without one becomes a place to hide the next orphan.
+ */
+const REACHABILITY_ALLOWLIST = [
+  // Dev-only simulation harnesses, run by hand rather than imported by the app.
+  // Their siblings in the same directory ARE referenced, so the directory is
+  // live tooling rather than dead weight.
+  'lib/simulation/BugHunterSimulator.ts',
+  'lib/simulation/MultiWeekSimulator.ts',
+  'lib/simulation/AppSimulator.ts',
+  'lib/simulation/RealActionSimulator.ts',
+  'lib/simulation/ComprehensiveGameSimulator.ts',
+  'lib/simulation/LongTermSimulator.ts',
+  'lib/simulation/runComprehensiveTests.ts',
+];
+
+/**
+ * Every source module under the app directories with no importer anywhere.
+ *
+ * Resolution forms that must NOT be reported (they are real references):
+ *   - static `from '…/name'` and `require('…/name')`
+ *   - dynamic `await import('…/name')`
+ *   - jest.mock('…/name')
+ *   - barrel re-exports (`export * from './name'`)
+ *   - PLATFORM EXTENSIONS: `utils/offlineManager.native.ts` is reached through the
+ *     extensionless import in CloudSyncService, so a `.native`/`.web`/`.ios`/
+ *     `.android` file is matched on its BASE name.
+ * Entry points (app/ routes, config, scripts) are excluded — Expo Router loads
+ * those by convention, not by import.
+ */
+function findZeroImporterModules() {
+  const roots = ['lib', 'utils', 'contexts', 'hooks', 'services'];
+  const candidates = L.walk(roots, L.isProductionSource)
+    .filter((f) => !/__tests__|__mocks__/.test(f));
+
+  // One corpus to search: everything that could reference a module.
+  const corpusFiles = L.walk(['app', 'lib', 'utils', 'contexts', 'hooks', 'services', 'components', 'src', 'scripts', '__tests__'],
+    (name) => /\.(ts|tsx|js|cjs|mjs)$/.test(name));
+  const corpus = corpusFiles.map((f) => ({ file: f, src: L.read(f) || '' }));
+
+  const orphans = [];
+  for (const file of candidates) {
+    if (REACHABILITY_ALLOWLIST.includes(file)) continue;
+    // Platform extensions resolve through their base name.
+    const base = file
+      .replace(/\.(ts|tsx)$/, '')
+      .replace(/\.(native|web|ios|android)$/, '');
+    const leaf = base.split('/').pop();
+    // `index` files are the barrel itself — reached as the directory name.
+    const needle = leaf === 'index' ? base.split('/').slice(-2, -1)[0] : leaf;
+    if (!needle) continue;
+
+    const re = new RegExp(`['"\`][^'"\`]*\\b${needle}['"\`]|\\b${needle}\\s*}?\\s*from|['"\`][^'"\`]*/${needle}['"\`]`);
+    const referenced = corpus.some(({ file: other, src }) => other !== file && re.test(src));
+    if (!referenced) orphans.push(file);
+  }
+  return orphans;
 }
 
 module.exports = { build };

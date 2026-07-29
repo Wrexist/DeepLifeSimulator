@@ -16,7 +16,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements } from '@/lib/progress/achievements';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
-import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
@@ -28,6 +28,8 @@ import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
 import { fileDivorce } from './actions/DatingActions';
 import { queueSave, forceSave } from '@/utils/saveQueue';
+import { isWritableSlot } from '@/utils/slotNumber';
+import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
@@ -61,9 +63,10 @@ import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/d
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
-import { getEventChainStageCount } from '@/lib/events/engine';
+import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
 import type { WeeklyEvent } from '@/lib/events/engine';
-import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { applyKarmaChange, getKarmaModifiers, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import {
  MINER_PRICES,
  calculateIncomeTax,
@@ -131,6 +134,7 @@ import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealt
 import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
+import { resolveFamilySpouse } from './actions/weekly/resolveFamilySpouse';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
@@ -224,7 +228,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.debug('Skipping save: no life started yet (pristine initial state)');
  return false;
  }
- await saveLoadMutex.acquire('save');
+ const saveMutexToken = await saveLoadMutex.acquire('save');
  try {
  // CRITICAL: Validate state before saving to prevent saving corrupted state.
  // R2-F: autoFix=false. The repair branch below runs explicitly when validation
@@ -268,8 +272,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  }
 
+ // Refuse rather than redirect. This used to coerce an unknown slot to 1 and
+ // commit the write there — the one thing you must not do when you have just
+ // established that you do not know where this save belongs.
+ // 2026-07-29 audit SAVE-OW-6.
+ if (!isWritableSlot(currentSlot)) {
+ logger.error('[SAVE] Refusing to save: no valid slot is loaded', { currentSlot });
+ return false;
+ }
+ const slotToUse = currentSlot;
+
  // Create backup before save (non-blocking)
- const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
 
  // P1-12: fire-and-forget the backup. The previous Promise.race "timeout"
  // didn't actually cancel the underlying write — it just stopped awaiting,
@@ -325,7 +338,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showError('Save Error', 'Failed to save game progress. Will retry automatically.');
  return false;
  } finally {
- saveLoadMutex.release();
+ saveLoadMutex.release(saveMutexToken);
  }
  }, [currentSlot, showError]);
 
@@ -995,7 +1008,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
- const processedRelationships = (prevState.relationships || []).map((rel, relIdx) => {
+ // PERF-2: the relationship pass iterates a player-growable array and calls four
+ // subsystems (pregnancy, wedding, health, NPC depth), and was the one such block
+ // in the updater with no try/catch of its own — a throw on a malformed
+ // relationship fell through to the outer catch, which returns prevState, so
+ // `weeksLived` never advanced and Next Week failed that week. Wrapped like its
+ // pets/vehicles/luxury siblings, with a self-healing carry-over fallback
+ // (Array.isArray, not `?? []`: a truthy non-array is the exact throw case and
+ // would otherwise re-throw every week). 2026-07-28 audit PERF-2.
+ let processedRelationships: Relationship[] = [];
+ try {
+ processedRelationships = (prevState.relationships || []).map((rel, relIdx) => {
  if (!rel || typeof rel!== 'object') return rel;
 
  // R7 Phase 2 step 2.6-iii-D: pregnancy progression + birth extracted to
@@ -1063,11 +1086,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // Apply relationship happiness penalties
- if (relationshipHappinessPenalty < 0) {
- newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + relationshipHappinessPenalty));
- }
-
  // R7 Phase 2 step 2.6-iii-A: NPC depth tick extracted into
  // ./actions/weekly/applyNPCDepthTick.ts. Same processWeeklyNPCDepth call,
  // same 2-notification-per-week cap, same try/catch silent fallback when
@@ -1081,6 +1099,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // depend on (they read `processedRelationships`, not a renamed variable).
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
+ } catch (relErr) {
+ logger.error('[RELATIONSHIP TICK] Failed:', relErr);
+ // Carry the relationships over untouched and drop every partial output of
+ // this pass, so a half-finished run can't birth a child, queue a birth
+ // notification, or apply a partial happiness penalty.
+ processedRelationships = Array.isArray(prevState.relationships) ? [...prevState.relationships] : [];
+ newBornChildren.length = 0;
+ newShowBirthPopup = false;
+ birthMessage = '';
+ relationshipHappinessPenalty = 0;
+ }
+
+ // Applied outside the try: a throw mid-pass resets the accumulator above, so
+ // the player is never charged a partial week of relationship unhappiness.
+ if (relationshipHappinessPenalty < 0) {
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + relationshipHappinessPenalty));
+ }
 
  // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
  // (fired only if Contacts was open on the exact anniversary week), so the
@@ -1169,6 +1204,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  let updatedPendingEvents = weeklyEventsResult.updatedPendingEvents;
  const newEventCount = weeklyEventsResult.newEventCount;
+
+ // GL-1: clear an activeEventChain that can never advance again (see
+ // healLatchedEventChain). Returns null — and changes nothing — unless the
+ // save is actually latched.
+ let healedEventChain: ReturnType<typeof healLatchedEventChain> = null;
+ try {
+   healedEventChain = healLatchedEventChain(prevState);
+ } catch (chainErr) {
+   logger.warn('[EVENT CHAIN] heal check failed', { error: String(chainErr) });
+ }
 
  // R7 Phase 2 step 2.7-C: cliffhanger resolution extracted into
  // ./actions/weekly/applyCliffhangerResolution.ts. Same lookup, same
@@ -1347,19 +1392,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
  // exactly like the vehicle tick above. See ./actions/weekly/applyLuxuryItems.ts.
  let luxuryCharged = 0;
+ // Declared out here so the catch below leaves them at 0 — a failed luxury tick
+ // must not report phantom income or costs in the recap.
+ let luxuryYield = 0;
+ let luxuryRiskCost = 0;
  let nextLuxuryHoldings: typeof prevState.luxuryHoldings = prevState.luxuryHoldings;
  let updatedAchievements: typeof prevState.achievements = prevState.achievements;
  try {
  const moneyBeforeLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
  const luxuryWeek = applyLuxuryItemsForWeek(prevState.luxuryItems, weeklyCtx, prevState.luxuryHoldings);
- const luxuryUpkeep = luxuryWeek.upkeep;
+ luxuryYield = luxuryWeek.yield;
+ luxuryRiskCost = luxuryWeek.riskCost;
  // Appreciation moves net worth, not cash. Same reference when nothing drifted,
  // so a collection of pure trophies causes no state churn.
  nextLuxuryHoldings = luxuryWeek.holdings;
- // The helper floors the deduction at $0, so on a broke week it charges LESS than
- // the sticker upkeep. Report what actually left the wallet in the recap, not the
- // nominal (= nominal whenever the player could afford it).
- luxuryCharged = Math.min(luxuryUpkeep, moneyBeforeLuxury);
+ // What upkeep ACTUALLY took out of the wallet, read from the money on both
+ // sides of the call rather than inferred. The helper credits yield BEFORE
+ // charging upkeep (crediting second would make going broke profitable), so the
+ // old `Math.min(upkeep, moneyBefore)` under-reported a low-cash week: $10k cash
+ // + $85k yield - $150k upkeep really charges $95k but was reported as $10k,
+ // which also mis-sized the lifestyle budget row. 2026-07-28 audit recap-1.
+ const moneyAfterLuxury = typeof newStats.money === 'number' && isFinite(newStats.money) ? Math.max(0, newStats.money) : 0;
+ luxuryCharged = Math.max(0, moneyBeforeLuxury + luxuryYield - moneyAfterLuxury - luxuryRiskCost);
  // Un-orphan the legacy `luxury_life` achievement (rendered on the Progression
  // screen but never completed in normal play). Luxury ownership only changes via
  // purchase/sell, so evaluate against prevState.luxuryItems. Only remap the array
@@ -1570,15 +1624,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // week the nominal overstates what was really paid); every other component is
  // already the real figure (loan autopay tracks its actual payment). Equals the
  // old nominal sum on any week the player could afford these upkeeps.
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged + identityCharged;
+ // BOTH SIDES OF A MERGE, and both were right. main added luxuryRiskCost
+ // (insurance premiums + uninsured incident losses — real cash the luxury tick
+ // already took out of the wallet, with no reader anywhere, so the recap
+ // under-reported expenses by it: recap-1). This branch added identityCharged,
+ // the grooming and procedure spending the identity tick takes the same way.
+ // They are independent components of the same sum; keeping one would silently
+ // reintroduce the other's bug.
+ const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged + luxuryRiskCost + identityCharged;
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
  luckyTier,
  streakBonus: streakBonusAmount > 0 ? streakBonusAmount: undefined,
- incomeEarned: totalIncome + luckyBonus + streakBonusAmount,
+ // Luxury yield (charter fees, dividends, museum loan fees — up to six figures
+ // a week late-game) is credited to the wallet by the luxury tick but was
+ // missing from the recap entirely, so netChange never matched the money the
+ // player actually gained. Added to the DISPLAY fields only: `totalIncome` is
+ // computed far earlier and feeds calculateIncomeTax, so folding it in there
+ // would retroactively tax the yield — a balance change, not a reporting fix.
+ incomeEarned: totalIncome + luckyBonus + streakBonusAmount + luxuryYield,
  expensesPaid: Math.round(totalExpenses),
- netChange: Math.round(totalIncome + luckyBonus + streakBonusAmount - totalExpenses),
+ netChange: Math.round(totalIncome + luckyBonus + streakBonusAmount + luxuryYield - totalExpenses),
  careerProgressPercent: (() => {
  const activeCareer = (updatedCareers || []).find((c: any) => c?.id === newCurrentJob && c?.accepted);
  return activeCareer?.progress || 0;
@@ -2168,6 +2235,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevState,
    newBornChildrenCount: newBornChildren.length,
    careerSalary,
+   // Political office pay is owned by passiveIncome, so `careerSalary` is 0
+   // while in office — without this the work accumulators (and therefore the
+   // pension) never moved for a career politician. GL-3.
+   politicalWeeklySalary: getPoliticalWeeklySalary(prevState),
    safeNetWorth,
    totalIncome,
    nextWeeksLived,
@@ -2234,7 +2305,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  return {
 ...prevState.family,
-...(newWeddingSpouse ? { spouse: newWeddingSpouse }: {}),
+ // Re-derived, not carried: the health pass can end a marriage mid-tick and
+ // this denormalized copy used to survive it (2026-07-28 audit GL-5).
+ spouse: resolveFamilySpouse({
+ prevSpouse: prevState.family?.spouse,
+ relationships: processedRelationships,
+ newWeddingSpouse: newWeddingSpouse ?? undefined,
+ }),
  children,
  };
  })(),
@@ -2269,6 +2346,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  pendingEvents: updatedPendingEvents,
  // #16: persist the dequeued follow-up chain queue (due ones surfaced above).
  pendingChainedEvents: updatedPendingChainedEvents,
+ // GL-1 self-heal: a save latched by the old off-by-one carries an
+ // activeEventChain the engine can never advance, which also blocks every
+ // future chain. `healedEventChain` is null on an ordinary tick, so this
+ // spreads nothing and the output stays byte-identical.
+...(healedEventChain ?? {}),
  // Update economy state
  economy: updatedEconomy,
  // Update last event week for pity system
@@ -2926,45 +3008,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Failed to check for chained events:', { error: e });
  }
 
- // Update activeEventChain if this is part of a chain
- let updatedActiveEventChain = prevState.activeEventChain;
- let updatedEventChains = prevState.eventChains || [];
- if (event.chainId) {
- const currentChain = prevState.activeEventChain;
- if (currentChain && currentChain.chainId === event.chainId) {
- // Existing chain — advance or complete
- if (currentChain.currentStage < currentChain.totalStages - 1) {
- updatedActiveEventChain = {
-...currentChain,
- eventId: eventId,
- currentStage: currentChain.currentStage + 1,
- };
- } else {
- // Chain complete — mark in history.
- // R2-B: cap to 50 — was unbounded.
- updatedActiveEventChain = undefined;
- updatedEventChains = [
-...updatedEventChains,
- {
- chainId: event.chainId,
- currentStage: currentChain.totalStages - 1,
- stages: [],
- completed: true,
- },
- ].slice(-50);
- }
- } else if (!currentChain && event.chainStage === 0) {
- // Starting a NEW chain from stage 0
- updatedActiveEventChain = {
- chainId: event.chainId,
- eventId: eventId,
- currentStage: 0,
- // Use the chain's real stage count so the final payout stage isn't dropped
- // (a hardcoded 3 force-completed the 4-stage business_opportunity chain).
- totalStages: getEventChainStageCount(event.chainId) ?? 3,
- };
- }
- }
+ // Chain bookkeeping (advance / complete / start) lives in the pure
+ // `advanceEventChain` helper so it is unit-testable — the GL-1 off-by-one
+ // survived precisely because this decision was inline in a React callback
+ // that no test could drive.
+ const chainUpdate = advanceEventChain(
+   { activeEventChain: prevState.activeEventChain, eventChains: prevState.eventChains },
+   event,
+   eventId,
+ );
+ const updatedActiveEventChain = chainUpdate.activeEventChain;
+ const updatedEventChains = chainUpdate.eventChains;
 
  // Apply karma change if the choice has a karma effect
  let updatedKarma = prevState.karma;
@@ -3473,7 +3527,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, []); // Empty deps - uses refs
 
  const loadGame = useCallback(async (slot: number): Promise<GameState | null> => {
- await saveLoadMutex.acquire('load');
+ const loadMutexToken = await saveLoadMutex.acquire('load');
  try {
  setLoadingMessage('Loading game...');
  setIsLoading(true);
@@ -3560,7 +3614,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
  try {
- const { runMigrations } = await import('@/utils/saveMigrations');
+ const { runMigrations, SaveFromFutureError } = await import('@/utils/saveMigrations');
  const migrationResult = runMigrations(parsed);
  if (migrationResult.migrationsApplied.length > 0) {
  logger.info('[LOAD_GAME] Applied save migrations:', migrationResult.migrationsApplied);
@@ -3574,9 +3628,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // overwrite the newer save permanently. Refuse to load so the save is
  // preserved intact until the user updates the app.
  logger.error('[LOAD_GAME] Save is from a newer app version — refusing to load to avoid overwriting it.');
- return null;
+ // Throw rather than return null. A bare null is the SAME value an empty
+ // slot returns, so the menu told a player with a perfectly good newer save
+ // "No save data found — start a new game" (2026-07-29 audit MR-4). The
+ // refusal itself is correct; only the reporting was not.
+ throw new SaveFromFutureError();
+ }
+ // MR-2: honour runMigrations' RETURN contract. Every registered migration
+ // happens to mutate in place today, so `migrationResult.state === parsed` —
+ // but the contract is the return value, and the two OTHER call sites already
+ // read it. A future migration written in the pure style would have had its
+ // work silently dropped on the primary load path alone.
+ if (migrationResult.state && typeof migrationResult.state === 'object') {
+ parsed = migrationResult.state;
  }
  } catch (migrationError) {
+ if (isSaveFromFutureError(migrationError)) throw migrationError;
  logger.error('[LOAD_GAME] Migration system failed (non-fatal, continuing with repair):', migrationError);
  }
 
@@ -3856,18 +3923,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return null;
  } finally {
  setIsLoading(false);
- saveLoadMutex.release();
+ saveLoadMutex.release(loadMutexToken);
  }
  }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
- // Relationship functions for Contacts app
+ // Relationship functions for Contacts app.
+ //
+ // A POSITIVE change is scaled by who the player has become: the charisma /
+ // socialMaster life skills they bought, and their karma standing. Both
+ // multipliers existed and were computed correctly, but their only consumer was
+ // an unreachable module — so a player could buy the charisma node, watch the
+ // description promise faster bonds, and get exactly nothing (2026-07-28 audit
+ // PERF-5). This is the single relationship-gain path the Contacts app uses, so
+ // wiring it here is what makes those purchases real.
+ //
+ // Losses are NEVER scaled: skills and good standing make you better at building
+ // relationships, they do not soften a betrayal. `applyRelationshipGain` already
+ // passes negatives through untouched; the karma multiplier is gated to match,
+ // so a low-karma player is not punished twice on the way down.
  const updateRelationship = useCallback((relationshipId: string, change: number) => {
  setGameState(prev => {
+ const scaled = change > 0
+? applyRelationshipGain(prev, Math.round(change * getKarmaModifiers(prev.karma || INITIAL_KARMA).npcTrustMultiplier))
+: change;
  const relationships = (prev.relationships || []).map(r => {
  if (r.id === relationshipId) {
  return {
 ...r,
- relationshipScore: clampRelationshipScore(r.relationshipScore + change),
+ relationshipScore: clampRelationshipScore(r.relationshipScore + scaled),
  };
  }
  return r;
@@ -4135,8 +4218,31 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // Save after prestige
- const slotToUse = (currentSlot >= 1 && currentSlot <= 3) ? currentSlot: 1;
+ // Save after prestige — same rule: an unknown slot is not slot 1.
+ if (!isWritableSlot(currentSlot)) {
+ logger.error('[PRESTIGE] Refusing to save: no valid slot is loaded', { currentSlot });
+ throw new Error('Cannot save your prestige: no save slot is loaded.');
+ }
+ const slotToUse = currentSlot;
+
+ // Snapshot the pre-prestige life BEFORE the rebuilt state is written.
+ // Prestige is the single most destructive thing a player can do on purpose —
+ // it rebuilds the whole state — and it was the one destructive path with no
+ // backup call at all, so a mis-tapped prestige was unrecoverable. Awaited so
+ // the copy exists before the overwrite; 'before_prestige' is rotation-exempt,
+ // so the next few autosaves cannot evict it. Non-blocking on failure: a
+ // backup problem must not cost the player the prestige they earned.
+ // 2026-07-29 audit BRC-4.
+ // `executePrestige` is synchronous, so this is a promise the save below
+ // CHAINS onto rather than a fire-and-forget — otherwise the queued write
+ // could drain first and the snapshot would copy the post-prestige state.
+ const prePrestigeSnapshot = import('@/utils/saveBackup')
+ .then((m) => m.snapshotOutgoingSave(slotToUse, 'before_prestige'))
+ .catch((snapshotError) => {
+ logger.warn('[PRESTIGE] Pre-prestige snapshot failed (non-critical)', { error: snapshotError });
+ return null;
+ });
+
  // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
  const prestigeStateVersion = (newGameState as { version?: unknown }).version;
  const inMemoryPrestigeVersion = typeof prestigeStateVersion === 'number' ? prestigeStateVersion : 0;
@@ -4147,7 +4253,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedAt: Date.now(),
  version: versionToWrite,
  };
- queueSave(slotToUse, gameData).catch(err => {
+ // Ordered after the snapshot so the backup captures the life being replaced.
+ prePrestigeSnapshot
+ .then(() => queueSave(slotToUse, gameData))
+ .catch(err => {
  logger.error('[executePrestige] Failed to queue save:', err);
  });
  } catch (error) {

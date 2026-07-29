@@ -118,10 +118,54 @@ describe('racing', () => {
     expect(outcome.holdingPatch).toEqual({ runs: 1, wins: 0 });
   });
 
-  it('places in the middle — the prize covers the entry', () => {
+  it('places in the middle — the prize softens the entry but does not cover it', () => {
+    // A place must return LESS than the entry. If it returns more (the old $30k
+    // place vs $25k entry), then win AND place both profit — 2 of 3 outcomes —
+    // and racing is a money printer (weekly audit 2026-07-28).
     const outcome = resolveRace(0.4, undefined);
-    expect(outcome.money).toBeGreaterThanOrEqual(RACE.cost);
-    expect(outcome.money).toBeLessThan(90_000);
+    expect(outcome.good).toBe(true);
+    expect(outcome.money).toBeGreaterThan(0);
+    expect(outcome.money).toBeLessThan(RACE.cost);
+  });
+
+  it('is negative-EV at base form — racing is a cost, not an income stream', () => {
+    // The whole verb must not be a printer. Over the base outcome distribution
+    // (25% win, 25% place, 50% unplaced), the expected NET return after the
+    // entry must be <= 0, so an unproven horse loses money on average. resolveRace
+    // returns the purse EXCLUDING the entry, so subtract it in each band.
+    const entry = RACE.cost;
+    const win = resolveRace(0.0, undefined).money; // pct 0  -> win
+    const place = resolveRace(0.4, undefined).money; // pct 40 -> place
+    const unplaced = resolveRace(0.99, undefined).money; // pct 99 -> unplaced
+    // Base EV is negative, but a WIN must still turn a profit — otherwise the
+    // "only a win pays" invariant could be satisfied by a win that also loses.
+    expect(win).toBeGreaterThan(entry);
+    const ev = 0.25 * (win - entry) + 0.25 * (place - entry) + 0.5 * (unplaced - entry);
+    expect(ev).toBeLessThanOrEqual(0);
+  });
+
+  it('stays a net loss over the cooldown even fully campaigned', () => {
+    // The comment on resolveRace claims a maxed horse's positive per-race EV is
+    // outweighed by upkeep (net of yield) over the cooldown. Make that claim
+    // executable rather than trusting the prose. Max form is formBonus 15
+    // (a perfect record) -> winChance 40%, placeChance 65%, so the outcome bands
+    // are win 40% / place 25% / unplaced 35%. Payouts come from resolveRace
+    // itself; the carrying cost comes from the real catalog constants.
+    const maxed: LuxuryHolding = { acquiredWeek: 0, runs: 50, wins: 50 };
+    const entry = RACE.cost;
+    const win = resolveRace(0.0, maxed).money; // pct 0  -> win band
+    const place = resolveRace(0.5, maxed).money; // pct 50 in [40,65) -> place band
+    const unplaced = resolveRace(0.99, maxed).money; // pct 99 -> unplaced band
+    const perRaceEV = 0.4 * (win - entry) + 0.25 * (place - entry) + 0.35 * (0 - entry);
+
+    const horse = getLuxuryItem('racehorse');
+    if (!horse) throw new Error('racehorse missing from the luxury catalog');
+    // One race per cooldown, so the net over a full cycle is the race EV minus
+    // the cost of holding the horse (upkeep net of its own yield) for those
+    // weeks. That must be <= 0, or a campaigned horse net-prints.
+    const carryPerWeek = horse.weeklyUpkeep - (horse.yield?.weekly ?? 0);
+    const netOverCooldown = perRaceEV - carryPerWeek * RACE.cooldownWeeks;
+    expect(netOverCooldown).toBeLessThanOrEqual(0);
   });
 
   it('a campaigned horse wins more often than an unraced one', () => {
@@ -203,5 +247,22 @@ describe('museum loan', () => {
   it('costs nothing to arrange, unlike the other verbs', () => {
     expect(LOAN.cost).toBe(0);
     expect(LOAN.energyCost).toBe(0);
+  });
+
+  it('never out-earns the diamond it belongs to (no printer)', () => {
+    // The loan is free to arrange and its cooldown equals its term, so it is
+    // continuously re-armable. Exercise the ACTUAL income path — getLoanIncome
+    // for a diamond currently on loan — not just the constant, so a future
+    // multiplier or hardcoded payout in that function can't reintroduce the
+    // exploit while this test stays green. The effective weekly income must stay
+    // below the item's own upkeep, or it is an uncapped weekly money printer
+    // (weekly audit 2026-07-28: the old $4,000 fee netted +$3,800/wk over the
+    // $200 upkeep).
+    const diamond = getLuxuryItem('museum_diamond');
+    if (!diamond) throw new Error('museum_diamond missing from the luxury catalog');
+    const onLoan = { museum_diamond: { acquiredWeek: 0, loanedUntilWeek: 999 } };
+    const weeklyIncome = getLoanIncome(['museum_diamond'], onLoan, 100);
+    expect(weeklyIncome).toBe(MUSEUM_LOAN_WEEKLY_FEE); // sanity: the loan is paying
+    expect(weeklyIncome).toBeLessThan(diamond.weeklyUpkeep);
   });
 });

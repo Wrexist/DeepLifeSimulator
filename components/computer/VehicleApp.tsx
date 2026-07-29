@@ -41,6 +41,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import BuyVehicleModal from '@/components/vehicles/BuyVehicleModal';
 import {
   getDriversLicense,
+  getPilotLicense,
   refuelVehicle,
   repairVehicle,
   sellVehicle,
@@ -49,6 +50,7 @@ import {
   cancelInsurance,
   purchaseVehicleWithAutoLoan,
 } from '@/contexts/game/actions/VehicleActions';
+import { PILOT_LICENSE } from '@/lib/vehicles/aircraft';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import {
@@ -274,6 +276,55 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
       </TouchableOpacity>
     </View>
   );
+
+  /**
+   * Pilot's licence — the gate on both aircraft in the dealership.
+   *
+   * `getPilotLicense` existed with the full age/cash/atomic-grant treatment and
+   * had NO caller anywhere in the app, so `hasPilotLicense` could never become
+   * true and the two aircraft were permanently unbuyable — advertised, priced,
+   * and unreachable. 2026-07-28 audit reach-1. Note the signature differs from
+   * getDriversLicense: no `deps` object.
+   */
+  const renderPilotLicensePrompt = () => {
+    const affordable = cash >= PILOT_LICENSE.cost;
+    const oldEnough = (gameState.date?.age ?? 0) >= PILOT_LICENSE.minAge;
+    const enabled = affordable && oldEnough;
+    return (
+      <View style={[getGlassCard(darkMode, 6), styles.licenseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: AMBER_FILL, borderWidth: 1, borderColor: AMBER_RIM }]}>
+          <IdCard size={scale(20)} color={accent.warning} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.licenseTitle, { color: theme.text }]}>Train for your pilot&apos;s license</Text>
+          <Text style={[styles.licenseSub, { color: theme.textMuted }]}>
+            {oldEnough
+              ? `Costs $${PILOT_LICENSE.cost.toLocaleString()} · Required to own any aircraft.`
+              : `Available from age ${PILOT_LICENSE.minAge}.`}
+          </Text>
+        </View>
+        <TouchableOpacity
+          disabled={!enabled}
+          accessibilityRole="button"
+          accessibilityLabel={`Pay ${PILOT_LICENSE.cost} dollars for a pilot's license`}
+          onPress={() => {
+            const result = getPilotLicense(gameState, setGameState);
+            if (!result.success) Alert.alert('License', result.message);
+            queueSave();
+          }}
+          style={[
+            styles.btn,
+            { backgroundColor: enabled ? ORANGE : theme.surfaceElevated },
+            enabled && getPlatformShadows(5, 0.3, 2, 8),
+          ]}
+        >
+          <Text style={[styles.btnText, { color: enabled ? '#FFFFFF' : theme.textMuted }]}>
+            ${PILOT_LICENSE.cost.toLocaleString()}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   // --- Vehicle art (require() image from the template, keyed by id) --------
   const renderArt = (v: Vehicle, height: number, radius: number) => {
@@ -756,6 +807,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         </View>
 
         {!hasLicense && renderLicensePrompt()}
+        {hasLicense && !gameState.hasPilotLicense && renderPilotLicensePrompt()}
 
         {filtered.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
