@@ -246,11 +246,28 @@ export async function validateSaveSlot(slot: number): Promise<{
   
   try {
     // CRASH FIX (A-1): Read from double-buffer system
-    const { readSaveSlot, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
+    const { readSaveSlotDetailed, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
     const allowLegacy = shouldAllowUnsignedLegacySaves();
-    const savedData = await readSaveSlot(slot, undefined, { allowLegacy });
-    
+    const read = await readSaveSlotDetailed(slot, undefined, { allowLegacy });
+    const savedData = read.data;
+
     if (!savedData) {
+      // `exists` used to be hardcoded false here, so the corruption branches
+      // below — the ones that report `exists: true` with a verification error —
+      // were unreachable for the case that actually produces them: a slot whose
+      // stored save no longer verifies. It read out as "empty", which is the
+      // one answer that invites an overwrite. 2026-07-29 audit PIPE-8.
+      if (read.blobPresent) {
+        return {
+          valid: false,
+          exists: true,
+          errors: [
+            read.source === 'unknown'
+              ? 'Save slot could not be read. Please try again.'
+              : 'Save data is present but could not be verified. It may be recoverable from a backup.',
+          ],
+        };
+      }
       return {
         valid: false,
         exists: false,

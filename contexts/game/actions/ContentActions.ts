@@ -14,7 +14,11 @@ import { streamEarnings, videoEarnings } from '@/lib/content/monetization';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { rollingAverageViewers, nextHypeStreak, hypeChanceForStreak } from '@/lib/content/streamMeta';
 import { logger } from '@/utils/logger';
-import { updateMoney, applyMoneyDelta } from './MoneyActions';
+// Every money flow in this module goes through the canonical applyMoneyDelta
+// inside the same updater that grants the reward. The old `deps: { updateMoney }`
+// parameter these actions carried was never read (2026-07-16 weekly audit LOW) —
+// it advertised a second, non-atomic money path that does not exist here.
+import { applyMoneyDelta } from './MoneyActions';
 
 const log = logger.scope('ContentActions');
 const safe = (n: number | undefined, fb = 0): number =>
@@ -95,7 +99,6 @@ export function publishVideo(
     rollOrganic?: number;
     trendBonus?: number;
   },
-  deps: { updateMoney: typeof updateMoney },
   currentWeek: number
 ): PublishVideoResult {
   const energy = safe(gameState.stats?.energy, 0);
@@ -196,7 +199,6 @@ export function runStream(
   gameState: GameState,
   setGameState: SetGS,
   args: { game: string; duration: number; energyCost?: number; rollHype?: number; rollOrganic?: number },
-  deps: { updateMoney: typeof updateMoney },
   currentWeek: number
 ): RunStreamResult {
   const energy = safe(gameState.stats?.energy, 0);
@@ -458,7 +460,6 @@ export function finalizeLiveStream(
   gameState: GameState,
   setGameState: SetGS,
   args: { rollHype?: number; rollOrganic?: number; autoStopped?: boolean },
-  deps: { updateMoney: typeof updateMoney },
   currentWeek: number
 ): FinalizeLiveResult {
   const channel = ensureChannel(gameState);
@@ -558,7 +559,6 @@ export function buyAccessory(
   setGameState: SetGS,
   id: keyof GamingStreamingState['equipment'],
   price: number,
-  deps: { updateMoney: typeof updateMoney }
 ): { success: boolean; message: string } {
   const channel = ensureChannel(gameState);
   if (channel.equipment[id]) return { success: false, message: 'Already owned.' };
@@ -586,7 +586,6 @@ export function upgradePCComponent(
   setGameState: SetGS,
   id: keyof GamingStreamingState['pcUpgradeLevels'],
   basePrice: number,
-  deps: { updateMoney: typeof updateMoney }
 ): { success: boolean; message: string; newTier?: number } {
   const channel = ensureChannel(gameState);
   const currentTier = channel.pcUpgradeLevels[id] || 0;

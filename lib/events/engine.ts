@@ -3086,6 +3086,139 @@ export function getEventChainStageCount(chainId: string): number | undefined {
   return eventChainDefinitions.find((c) => c.chainId === chainId)?.stages.length;
 }
 
+/**
+ * Chain bookkeeping for a resolved event: advance the active chain, complete it,
+ * or start a new one.
+ *
+ * Pure and exported ON PURPOSE. This decision used to live inline inside
+ * `resolveEvent` in the React context, where no test could reach it — which is
+ * exactly why an off-by-one survived there: `eventChains.test.ts` only ever
+ * exercised `getNextChainEvent`, hand-building an `activeEventChain` rather than
+ * producing one. The bug was that the branch compared the STORED stage index
+ * (the last stage resolved) against the end of the chain, so resolving the final
+ * stage advanced instead of completing, and the chain latched forever
+ * (2026-07-28 audit GL-1).
+ *
+ * `currentStage` is the index of the last RESOLVED stage — `getNextChainEvent`
+ * reads it as `currentStage + 1`, so the two must agree on that meaning.
+ *
+ * Returns the fields the caller should write; `eventChains` is returned
+ * unchanged (same reference) unless a chain completed.
+ */
+export function advanceEventChain(
+  prev: {
+    activeEventChain: GameState['activeEventChain'];
+    eventChains: GameState['eventChains'];
+  },
+  event: { chainId?: string; chainStage?: number },
+  eventId: string,
+): {
+  activeEventChain: GameState['activeEventChain'];
+  eventChains: NonNullable<GameState['eventChains']>;
+} {
+  const eventChains = prev.eventChains || [];
+  if (!event.chainId) {
+    return { activeEventChain: prev.activeEventChain, eventChains };
+  }
+
+  const currentChain = prev.activeEventChain;
+
+  if (currentChain && currentChain.chainId === event.chainId) {
+    // Decide about the stage being resolved RIGHT NOW, not the stored one.
+    const resolvedStage = typeof event.chainStage === 'number'
+      ? event.chainStage
+      : currentChain.currentStage + 1;
+
+    if (resolvedStage < currentChain.totalStages - 1) {
+      return {
+        activeEventChain: { ...currentChain, eventId, currentStage: resolvedStage },
+        eventChains,
+      };
+    }
+
+    // Final stage resolved — the chain is done and must be recorded so
+    // rollEventChain's completed-chain filter can see it.
+    return {
+      activeEventChain: undefined,
+      eventChains: [
+        ...eventChains,
+        {
+          chainId: event.chainId,
+          currentStage: currentChain.totalStages - 1,
+          stages: [],
+          completed: true,
+        },
+        // R2-B: cap to 50 — was unbounded.
+      ].slice(-50) as NonNullable<GameState['eventChains']>,
+    };
+  }
+
+  if (!currentChain && event.chainStage === 0) {
+    return {
+      activeEventChain: {
+        chainId: event.chainId,
+        eventId,
+        currentStage: 0,
+        // The chain's real stage count, so the final payout stage isn't dropped
+        // (a hardcoded 3 force-completed the 4-stage business_opportunity chain).
+        totalStages: getEventChainStageCount(event.chainId) ?? 3,
+      },
+      eventChains,
+    };
+  }
+
+  return { activeEventChain: currentChain, eventChains };
+}
+
+/**
+ * Heal a LATCHED `activeEventChain` — one the engine can never advance again.
+ *
+ * An off-by-one in the resolve path (fixed 2026-07-28, audit GL-1) left saves
+ * pointing at a stage past the end of their chain. `getNextChainEvent` refuses
+ * to generate anything for such a state, and `rollEventChain` only fires when
+ * `activeEventChain` is absent — so the field pinned itself and every future
+ * chain was locked out for the rest of that life. Fixing the resolve path does
+ * nothing for the saves already in that state, and there is no version bump to
+ * hang a migration on, so the terminal condition is detected and cleared on the
+ * weekly tick instead: an active chain whose next stage cannot be produced is,
+ * by definition, over.
+ *
+ * Also covers a chain whose definition was removed from the catalog — same
+ * dead-end, same resolution.
+ *
+ * Returns `null` when there is nothing to heal, so the caller can leave state
+ * untouched (and byte-identical) on every ordinary tick.
+ */
+export function healLatchedEventChain(state: GameState): {
+  activeEventChain: undefined;
+  eventChains: NonNullable<GameState['eventChains']>;
+} | null {
+  const active = state.activeEventChain;
+  if (!active) return null;
+  if (getNextChainEvent(state)) return null; // still has a stage to play
+
+  const existing = Array.isArray(state.eventChains) ? state.eventChains : [];
+  const alreadyRecorded = existing.some(
+    (c: any) => c?.chainId === active.chainId && c?.completed,
+  );
+  const stageCount = getEventChainStageCount(active.chainId);
+
+  return {
+    activeEventChain: undefined,
+    eventChains: alreadyRecorded
+      ? existing
+      : ([
+          ...existing,
+          {
+            chainId: active.chainId,
+            currentStage: Math.max(0, (stageCount ?? active.totalStages ?? 1) - 1),
+            stages: [],
+            completed: true,
+          },
+        ].slice(-50) as NonNullable<GameState['eventChains']>),
+  };
+}
+
 // ── ENGAGEMENT: Guaranteed starter events for new players ──
 // These fire once at specific weeks to create positive first impressions
 const starterEventTemplates: EventTemplate[] = [

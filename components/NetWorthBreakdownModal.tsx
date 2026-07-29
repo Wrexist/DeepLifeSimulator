@@ -9,6 +9,8 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { MINER_PRICES } from '@/lib/economy/constants';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getTotalLuxuryMarketValue } from '@/lib/luxury';
 const LinearGradient = LinearGradientFallback;
 
 interface NetWorthBreakdownModalProps {
@@ -21,17 +23,37 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
   const { settings, stats, bankSavings = 0, items, companies, realEstate, vehicles } = gameState;
   const isDarkMode = settings?.darkMode ?? false;
 
+  // The itemisation must add up to the CANONICAL headline (UX-3). Previously
+  // this list omitted stocks and luxury entirely, priced property at purchase
+  // cost, and passed an empty liabilities array — so loans and mortgages simply
+  // did not count, and the modal disagreed with every other net-worth surface
+  // in the game (including the card that opens it).
   const breakdown = useMemo(() => {
     const assets: Asset[] = [
       { id: 'cash', type: 'cash', baseValue: stats.money },
       { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
     ];
-    
+
     // Items
     (items || [])
       .filter(i => i?.owned)
       .forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
-    
+
+    // Stocks — held holdings at their current price.
+    (gameState.stocks?.holdings || []).forEach((h, i) => {
+      const value = (h?.shares || 0) * (h?.currentPrice || 0);
+      if (value > 0) {
+        assets.push({ id: `stock_${h?.symbol ?? i}`, type: 'investment', baseValue: value });
+      }
+    });
+
+    // Luxury — resale value of the collection, condition and appreciation
+    // included, matching what a sale would actually pay.
+    const luxuryValue = getTotalLuxuryMarketValue(gameState.luxuryItems, gameState.luxuryHoldings);
+    if (luxuryValue > 0) {
+      assets.push({ id: 'luxury', type: 'luxury', baseValue: luxuryValue });
+    }
+
     // Companies
     companies?.forEach(company => {
       assets.push({
@@ -39,7 +61,9 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
         type: 'business',
         baseValue: 0,
         trailingWeeklyProfit: company.weeklyIncome,
-        valuationMultiple: 10,
+        // Annualised, matching the canonical calculation (weekly × 52). The old
+        // 10x multiple was a third answer to what a company is worth.
+        valuationMultiple: WEEKS_PER_YEAR,
       });
       Object.entries(company.miners || {}).forEach(([id, count]) => {
         const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
@@ -52,12 +76,12 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
         }
       });
     });
-    
-    // Real Estate
+
+    // Real Estate — CURRENT value, not what was paid for it.
     (realEstate || [])
       .filter(p => p?.owned)
-      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
-    
+      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.currentValue ?? p.price }));
+
     // Vehicles (depreciated value)
     (vehicles || []).forEach(vehicle => {
       const baseSellPercent = 0.8;
@@ -66,10 +90,25 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
       const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
       assets.push({ id: vehicle.id, type: 'vehicle', baseValue: Math.floor(depreciatedValue) });
     });
-    
-    const liabilities: Liability[] = [];
+
+    // Debt is part of net worth. This was hardcoded empty.
+    const liabilities: Liability[] = (gameState.loans || [])
+      .filter(l => (l?.remaining || 0) > 0)
+      .map(l => ({ id: l.id, type: 'loan', principal: l.remaining }));
+
     return computeNetWorth(assets, liabilities);
-  }, [stats.money, bankSavings, items, companies, realEstate, vehicles]);
+  }, [
+    stats.money,
+    bankSavings,
+    items,
+    companies,
+    realEstate,
+    vehicles,
+    gameState.stocks,
+    gameState.luxuryItems,
+    gameState.luxuryHoldings,
+    gameState.loans,
+  ]);
 
   const assetDetails = useMemo(() => {
     const details: { label: string; value: number; icon: any; color: string; items?: { name: string; value: number }[] }[] = [];

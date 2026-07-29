@@ -19,6 +19,7 @@ import IdentityCard from '@/components/IdentityCard';
 import PremiumCrownButton from '@/components/PremiumCrownButton';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
+import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigePreviewCard from '@/components/PrestigePreviewCard';
 import PrestigeModal from '@/components/PrestigeModal';
@@ -603,7 +604,7 @@ function HomeScreenContent() {
         })()}
 
         {/* Prestige Button */}
-        {gameState.prestigeAvailable && (
+        {isPrestigeAvailable(gameState) && (
           <PrestigeButton onPress={() => setShowPrestigeModal(true)} />
         )}
 

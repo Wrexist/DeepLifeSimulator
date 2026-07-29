@@ -4,6 +4,7 @@ import {
   ECONOMY_EVENT_WEEKLY_CHANCE,
   ECONOMY_EVENT_MIN_CALM_WEEKS,
 } from '@/lib/config/gameConstants';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 /**
  * Economic event states that affect all players globally
@@ -80,7 +81,11 @@ export function generateEconomicEvent(state: GameState): EconomyEventData {
     return {
       currentState: 'normal',
       stateStartWeek: weeksLived,
-      stateDuration: 8 + Math.floor(Math.random() * 8), // 8-16 weeks of normal
+      // Seeded: this runs inside the weekly-tick updater, which React can invoke
+      // more than once (StrictMode / concurrent rendering). An unseeded draw made
+      // the calm stretch depend on which invocation React kept, and made the
+      // outcome unreproducible from the save. 2026-07-28 audit GL-4.
+      stateDuration: 8 + Math.floor(makeWeeklyRoll(weeksLived)('economy:calm-duration') * 8), // 8-16 weeks of normal
       modifiers: {
         incomeMultiplier: 1.0,
         stockVolatility: 1.0,

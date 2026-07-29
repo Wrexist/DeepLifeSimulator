@@ -19,7 +19,31 @@ interface FlowGuardState {
   scenario?: unknown;
   firstName?: string;
   lastName?: string;
+  /** Target save slot, 1-3. 0/undefined means the player never chose one. */
+  slot?: number;
 }
+
+/**
+ * A life has to know where it will be saved before it can be built. Without
+ * this, any route that reached the onboarding stack without visiting the slot
+ * picker — the death screen, a deep link — walked all the way to the write and
+ * then had to guess a slot. It guessed 1, and players lost saves.
+ *
+ * Not enforced on `Scenarios` on purpose: that is the entry point, and bouncing
+ * on mount would race the slot assignment the caller does immediately before
+ * navigating. By `Customize` the choice has long since committed.
+ */
+const requiresSlot = (state: FlowGuardState): FlowGuardResult | null => {
+  const slot = state.slot;
+  if (typeof slot !== 'number' || !Number.isInteger(slot) || slot < 1 || slot > 3) {
+    return {
+      allowed: false,
+      redirectTo: '/(onboarding)/SaveSlots' as Href,
+      reason: 'No save slot selected',
+    };
+  }
+  return null;
+};
 
 /**
  * Check whether the user can access a given onboarding screen
@@ -29,12 +53,16 @@ export function canAccessScreen(
   screen: OnboardingScreenName,
   state: FlowGuardState
 ): FlowGuardResult {
+  // Every screen past the entry point needs a chosen slot.
+  const slotIssue = requiresSlot(state);
+
   switch (screen) {
     case 'Scenarios':
       // Entry point — no prerequisites
       return { allowed: true };
 
     case 'Customize':
+      if (slotIssue) return slotIssue;
       if (!state.scenario) {
         return {
           allowed: false,
@@ -45,6 +73,7 @@ export function canAccessScreen(
       return { allowed: true };
 
     case 'Ambitions':
+      if (slotIssue) return slotIssue;
       // Ambition is chosen AFTER identity but the choice itself is optional.
       // We still require the prerequisites so the flow can't be entered early.
       if (!state.scenario) {
@@ -64,6 +93,7 @@ export function canAccessScreen(
       return { allowed: true };
 
     case 'Perks':
+      if (slotIssue) return slotIssue;
       if (!state.scenario) {
         return {
           allowed: false,

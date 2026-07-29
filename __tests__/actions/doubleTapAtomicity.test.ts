@@ -10,7 +10,6 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import { watchAdForFollowerBoost } from '@/contexts/game/actions/PulseActions';
 import { purchasePassport, investInBusinessOpportunity } from '@/contexts/game/actions/TravelActions';
 import { buyAccessory } from '@/contexts/game/actions/ContentActions';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 
 /** Functional-setState harness: updaters run against the LIVE ref (like React
  *  processing a batch), while callers hold the stale snapshot. */
@@ -50,8 +49,8 @@ describe('same-batch double-tap atomicity (2026-07-05 audit fixes)', () => {
     const { ref, setGameState } = makeHarness(state);
     const stale = state;
 
-    purchasePassport(stale, setGameState, { updateMoney });
-    purchasePassport(stale, setGameState, { updateMoney });
+    purchasePassport(stale, setGameState);
+    purchasePassport(stale, setGameState);
 
     expect(ref.state.travel?.passportOwned).toBe(true);
     expect(ref.state.stats.money).toBe(600); // 1100 - 500, charged ONCE (old code: 100)
@@ -78,8 +77,8 @@ describe('same-batch double-tap atomicity (2026-07-05 audit fixes)', () => {
     const { ref, setGameState } = makeHarness(state);
     const stale = state;
 
-    investInBusinessOpportunity(stale, setGameState, 'opp1', { updateMoney });
-    investInBusinessOpportunity(stale, setGameState, 'opp1', { updateMoney });
+    investInBusinessOpportunity(stale, setGameState, 'opp1');
+    investInBusinessOpportunity(stale, setGameState, 'opp1');
 
     expect(ref.state.travel?.businessOpportunities?.opp1?.invested).toBe(true);
     expect(ref.state.stats.money).toBe(1_500); // 2500 - 1000, charged ONCE (old code: 500)
@@ -91,8 +90,8 @@ describe('same-batch double-tap atomicity (2026-07-05 audit fixes)', () => {
     const { ref, setGameState } = makeHarness(state);
     const stale = state;
 
-    buyAccessory(stale, setGameState, 'microphone', 200, { updateMoney });
-    buyAccessory(stale, setGameState, 'microphone', 200, { updateMoney });
+    buyAccessory(stale, setGameState, 'microphone', 200);
+    buyAccessory(stale, setGameState, 'microphone', 200);
 
     expect(ref.state.gamingStreaming?.equipment?.microphone).toBe(true);
     expect(ref.state.stats.money).toBe(250); // 450 - 200, charged ONCE (old code: 50)

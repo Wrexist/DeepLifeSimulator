@@ -70,15 +70,43 @@ export function resolveSaveSigningRuntimeConfig(
 }
 
 export function resolveActiveSaveHmacKey(config: SaveSigningRuntimeConfig): string | null {
+  const [signingKey] = resolveSaveHmacKeys(config);
+  return signingKey ?? null;
+}
+
+/**
+ * Every key a save may be verified against — the first one signs, all of them
+ * verify.
+ *
+ * There was exactly one key, compared with a single `!==`, and no key id in the
+ * envelope. So a rotation did not degrade anything gracefully: it invalidated
+ * every save on every device at once, with no in-field lever to get them back
+ * (the weak-migration fallback is refused by the production preflight). And the
+ * blast radius is not only saves — paid permanent entitlements are signed with
+ * the same key and fail closed to `[]`, so a key change also presents a paying
+ * player as never having purchased. `tasks/leaked-key-rotation-runbook.md`
+ * shows rotation is a live plan. 2026-07-29 audit SEC-2 / SEC-7.
+ *
+ * Configure as a comma-separated list, newest first:
+ *   EXPO_PUBLIC_SAVE_HMAC_KEY="new-key,previous-key"
+ * New writes are signed with `new-key`; saves signed with `previous-key` keep
+ * verifying and re-sign onto the current key the next time they are written.
+ */
+export function resolveSaveHmacKeys(config: SaveSigningRuntimeConfig): string[] {
+  const keys: string[] = [];
+
   if (config.configuredHmacKey) {
-    return config.configuredHmacKey;
+    for (const part of config.configuredHmacKey.split(',')) {
+      const trimmed = part.trim();
+      if (trimmed.length > 0 && !keys.includes(trimmed)) keys.push(trimmed);
+    }
   }
 
-  if (config.isDev) {
-    return 'dev-local-save-hmac-key';
+  if (keys.length === 0 && config.isDev) {
+    keys.push('dev-local-save-hmac-key');
   }
 
-  return null;
+  return keys;
 }
 
 export function resolveActiveSaveHmacKeyOrThrow(config: SaveSigningRuntimeConfig): string | null {

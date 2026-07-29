@@ -23,7 +23,7 @@ import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/
 import {
   createLuxuryProperty,
   getLuxuryItem,
-  getLuxuryResaleValue,
+  getLuxuryHoldingValue,
   isDevelopable,
   luxuryPropertyId,
   ownsLuxuryItem,
@@ -152,11 +152,23 @@ export const sellLuxuryItem = (
     return { success: false, message: `The ${item.name} is on loan. You can't sell it until it comes back.` };
   }
 
-  const refund = getLuxuryResaleValue(item);
+  // What the item is actually worth NOW — appreciation and condition included,
+  // the same figure net worth counts it at. It used to be a flat 60% of the
+  // CATALOG price, which ignored both: selling a damaged or depreciated trophy
+  // paid MORE than it was carrying in net worth, so the sale was a one-tap net
+  // worth (and prestige-point) gain, and the whole risk system had no cash
+  // consequence. 2026-07-28 audit econ-1.
+  const quotedRefund = getLuxuryHoldingValue(item, gameState.luxuryHoldings?.[itemId]);
 
+  let paidRefund = quotedRefund;
   setGameState((prev) => {
     // Only pay out if it's actually still owned in fresh state.
     if (!ownsLuxuryItem(prev.luxuryItems, itemId)) return prev;
+    // Re-price against `prev` for the same reason the ownership check is here:
+    // the outer read is a render-time snapshot, and a tick in between can have
+    // appreciated or damaged the item.
+    const refund = getLuxuryHoldingValue(item, prev.luxuryHoldings?.[itemId]);
+    paidRefund = refund;
     // "sold" keyword keeps this out of totalMoneyEarned (see isIncomeReason).
     const credit = applyMoneyDelta(prev, refund, `Sold luxury: ${item.name}`);
     if (!credit) return prev;
@@ -181,8 +193,8 @@ export const sellLuxuryItem = (
     };
   });
 
-  log.info(`Player sold luxury: ${item.name} (+$${refund.toLocaleString()})`);
-  return { success: true, message: `Sold your ${item.name} for $${refund.toLocaleString()}.` };
+  log.info(`Player sold luxury: ${item.name} (+$${paidRefund.toLocaleString()})`);
+  return { success: true, message: `Sold your ${item.name} for $${paidRefund.toLocaleString()}.` };
 };
 
 
@@ -370,16 +382,23 @@ export const setLuxuryInsurance = (
     return { success: false, message: `You don't own the ${item.name}.` };
   }
 
-  setGameState((prev) => ({
-    ...prev,
-    luxuryHoldings: {
-      ...(prev.luxuryHoldings || {}),
-      [itemId]: {
-        ...(prev.luxuryHoldings?.[itemId] ?? { acquiredWeek: prev.weeksLived ?? 0 }),
-        insured,
+  setGameState((prev) => {
+    // Re-check ownership against fresh state, like every sibling luxury action.
+    // The outer check reads a render-time snapshot; without this, insuring an
+    // item sold in the same batch would mint a holding for something the player
+    // no longer owns — and that holding would then be billed a premium weekly.
+    if (!ownsLuxuryItem(prev.luxuryItems, itemId)) return prev;
+    return {
+      ...prev,
+      luxuryHoldings: {
+        ...(prev.luxuryHoldings || {}),
+        [itemId]: {
+          ...(prev.luxuryHoldings?.[itemId] ?? { acquiredWeek: prev.weeksLived ?? 0 }),
+          insured,
+        },
       },
-    },
-  }));
+    };
+  });
 
   return {
     success: true,

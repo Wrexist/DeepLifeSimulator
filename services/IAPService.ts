@@ -16,7 +16,7 @@ import { track } from '@/lib/analytics';
 // server, while reusing the SAME applyBenefit grant + dedup below. No import
 // cycle: RevenueCatService depends only on featureFlags/logger.
 import { revenueCatService } from '@/services/RevenueCatService';
-import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
+import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { clampHobbySkillLevel } from '@/utils/stateValidation';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
@@ -33,6 +33,7 @@ const IAP_VERIFY_TOKEN = process.env.EXPO_PUBLIC_IAP_VERIFY_TOKEN;
 const IAP_VERIFY_TIMEOUT_MS = 8000;
 const PROCESSED_IAP_TRANSACTIONS_KEY = 'iap_processed_transactions';
 const MAX_PROCESSED_IAP_TRANSACTIONS = 2000;
+const ENTITLEMENTS_UNREADABLE_KEY = 'entitlements_unreadable_at';
 const TRUSTED_PERMANENT_PERKS_KEY = 'permanent_perks_v2';
 const LEGACY_PERMANENT_PERKS_KEY = 'permanent_perks';
 const ALLOW_LEGACY_LOCAL_ENTITLEMENTS =
@@ -1529,6 +1530,33 @@ export class IAPService {
   }
 
   // Load permanent perks from storage
+  /**
+   * True when a permanent-entitlement envelope EXISTS but could not be
+   * verified. Distinct from "no purchases": the player bought something and we
+   * cannot read it, which is a restore prompt, not an empty account.
+   */
+  static entitlementsUnreadable = false;
+
+  /** Has this install seen an unreadable entitlement envelope? */
+  static async areEntitlementsUnreadable(): Promise<boolean> {
+    if (IAPService.entitlementsUnreadable) return true;
+    try {
+      return (await safeGetItem(ENTITLEMENTS_UNREADABLE_KEY)) != null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Clear the marker once entitlements have been read or restored. */
+  static async clearEntitlementsUnreadable(): Promise<void> {
+    IAPService.entitlementsUnreadable = false;
+    try {
+      await safeRemoveItem(ENTITLEMENTS_UNREADABLE_KEY);
+    } catch {
+      // Non-critical.
+    }
+  }
+
   static async loadPermanentPerks(): Promise<string[]> {
     try {
       const trustedEnvelope = await safeGetItem(TRUSTED_PERMANENT_PERKS_KEY);
@@ -1541,12 +1569,23 @@ export class IAPService {
         if (decoded.valid && typeof decoded.data === 'string') {
           const parsed = JSON.parse(decoded.data);
           const source = Array.isArray(parsed) ? parsed : parsed?.perks;
+          await IAPService.clearEntitlementsUnreadable();
           return IAPService.sanitizePermanentPerkList(source);
         }
 
-        logger.warn('Trusted permanent perks envelope failed validation', {
+        // The two failure modes are NOT the same, and collapsing them cost a
+        // paying player their purchases with one logger.warn: an ABSENT
+        // envelope genuinely means no purchases, but a PRESENT one that will
+        // not verify means the entitlements are intact and unreadable — a key
+        // change, not an empty account. Fail closed either way, but record the
+        // difference so the app can offer a restore instead of silently
+        // presenting a paying player as never having bought anything.
+        // 2026-07-29 audit SEC-7.
+        logger.error('Trusted permanent perks envelope failed validation — entitlements unreadable', {
           error: decoded.error,
         });
+        IAPService.entitlementsUnreadable = true;
+        await safeSetItem(ENTITLEMENTS_UNREADABLE_KEY, String(Date.now())).catch(() => {});
       }
 
       if (!ALLOW_LEGACY_LOCAL_ENTITLEMENTS) {

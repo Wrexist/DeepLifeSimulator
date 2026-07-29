@@ -424,6 +424,43 @@ describe('monetization', () => {
     expect(getState().stats.money).toBe(5000 - 865);
   });
 
+  // 2026-07-16 weekly audit (LOW): subscribing while already subscribed charged
+  // the price again — a pure anti-player double-charge.
+  it('subscribeVerifiedPro refuses to re-charge the plan the player already holds', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
+    const { setGameState, getState } = makeStateHarness(state);
+    expect(subscribeVerifiedPro(setGameState, state, 'weekly').success).toBe(true);
+    expect(getState().stats.money).toBe(980);
+
+    const again = subscribeVerifiedPro(setGameState, getState(), 'weekly');
+    expect(again.success).toBe(false);
+    expect(again.message).toMatch(/already active/i);
+    expect(getState().stats.money).toBe(980); // no second debit
+  });
+
+  it('subscribeVerifiedPro double-tap in one batch charges exactly once', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.money = 1000;
+    const { setGameState, getState } = makeStateHarness(state);
+    // Both taps read the SAME pre-dispatch snapshot — only the in-updater
+    // re-check against `prev` can stop the second charge.
+    subscribeVerifiedPro(setGameState, state, 'weekly');
+    subscribeVerifiedPro(setGameState, state, 'weekly');
+    expect(getState().stats.money).toBe(980);
+    expect(getState().socialMedia!.verifiedPro!.active).toBe(true);
+  });
+
+  it('subscribeVerifiedPro still allows switching weekly → annual', () => {
+    const state = freshState({ weeksLived: 4 });
+    state.stats.money = 5000;
+    const { setGameState, getState } = makeStateHarness(state);
+    subscribeVerifiedPro(setGameState, state, 'weekly');
+    const r = subscribeVerifiedPro(setGameState, getState(), 'annual');
+    expect(r.success).toBe(true);
+    expect(getState().socialMedia!.verifiedPro!.plan).toBe('annual');
+  });
+
   it('cancelVerifiedPro disables perks and clears the blue check (userProfile.verified)', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.money = 1000;

@@ -61,9 +61,10 @@ export const REWIND_GEM_COST = 20;
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────
 
-function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
+/** Every field of a fresh sparkApp slice, as its own object per call. */
+function sparkDefaults(): NonNullable<GameState['sparkApp']> {
   return (
-    prev.sparkApp ?? {
+    {
       profile: { bio: '', photos: [], interests: [], showAge: true, showJob: true, showWealth: false },
       swipes: [],
       matches: [],
@@ -93,6 +94,39 @@ function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
       },
     }
   );
+}
+
+/** Drop explicitly-undefined keys so a spread can't punch holes in the defaults. */
+function definedOnly<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
+
+/**
+ * The sparkApp slice, guaranteed complete.
+ *
+ * This used to be `prev.sparkApp ?? defaults` — all-or-nothing, so a
+ * PRESENT-but-partial slice (CloudSync merge, hand-edit, a save written before a
+ * field existed) passed straight through with its holes intact, and every
+ * consumer that read a sub-field without a guard threw. repairGameState backfills
+ * the same fields on load, but repair only runs at the load boundary; the fix
+ * belongs in the helper every action already calls (2026-07-07 lesson), so a
+ * partial slice reaching an action mid-session is healed too.
+ */
+function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
+  const defaults = sparkDefaults();
+  const sp = prev.sparkApp;
+  if (!sp) return defaults;
+  return {
+    ...defaults,
+    ...definedOnly(sp),
+    profile: { ...defaults.profile, ...definedOnly(sp.profile ?? {}) },
+    premium: sp.premium
+      ? { ...defaults.premium, ...definedOnly(sp.premium), perks: sp.premium.perks ?? perksForTier(sp.premium.tier ?? 'free') }
+      : defaults.premium,
+    lifetimeStats: { ...defaults.lifetimeStats, ...definedOnly(sp.lifetimeStats ?? {}) },
+  };
 }
 
 function genId(prefix: string): string {
@@ -642,6 +676,17 @@ export const subscribeSparkPremium = (
 ): { success: boolean; message: string } => {
   const price = plan === 'annual' ? SPARK_TIER_PRICING[tier].annual : SPARK_TIER_PRICING[tier].weekly;
   const tierLabel = tier === 'ultra' ? 'Ultra' : 'Plus';
+  // Re-entry guard: buying the tier+plan you ALREADY hold re-charges the full
+  // price and (for annual) resets paidThroughWeek to now+52 rather than extending
+  // it — a pure loss. Changing tier (Plus ⇄ Ultra) or plan stays allowed. Filed
+  // as a non-blocking LOW by the 2026-07-16 weekly audit.
+  const activePremium = gameState.sparkApp?.premium;
+  if (activePremium?.active === true && activePremium.tier === tier && (activePremium.plan ?? 'weekly') === plan) {
+    return {
+      success: false,
+      message: `Spark ${tierLabel} is already active — no need to buy it again.`,
+    };
+  }
   // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
   // setGameState is a plain (wrapped) React useState setter that may defer the
   // updater, so reading a value the updater assigns is unreliable. The atomic
@@ -654,6 +699,17 @@ export const subscribeSparkPremium = (
     };
   }
   setGameState((prev) => {
+    // Same re-entry guard re-checked against `prev` — two taps in one React batch
+    // both read the pre-dispatch snapshot, so only this in-updater check stops the
+    // second from paying twice.
+    const prevPremium = prev.sparkApp?.premium;
+    if (
+      prevPremium?.active === true &&
+      prevPremium.tier === tier &&
+      (prevPremium.plan ?? 'weekly') === plan
+    ) {
+      return prev;
+    }
     // Charge in-game cash atomically (overdraft-reject) in the same updater that
     // grants the perks.
     const spend = applyMoneyDelta(prev, -price, `Spark ${tier} (${plan})`);

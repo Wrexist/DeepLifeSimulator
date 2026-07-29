@@ -57,14 +57,26 @@ export const hasMeaningfulSaveData = (state: SaveSlotSnapshot): boolean => {
  */
 export const findFirstEmptySlot = async (): Promise<number | null> => {
   try {
+    const { probeSaveSlotBlob } = await import('@/utils/saveSlotMeta');
     const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
       '@/utils/saveValidation'
     );
     const allowLegacy = shouldAllowUnsignedLegacySaves();
 
     for (let i = 1; i <= 3; i++) {
+      // The raw probe first, because `readSaveSlot` returns the SAME null for
+      // "nothing stored", "stored but failed CRC32/HMAC verification" and "the
+      // storage read threw". Branching on that null called an unverifiable save
+      // empty and handed the slot to New Game — one HMAC key rotation would have
+      // made every slot on the device look free. `probeSaveSlotBlob` reads the
+      // three raw keys and never confuses a failure with an absence.
+      const probe = await probeSaveSlotBlob(i);
+      if (probe === 'empty') return i; // nothing stored → safe to use
+      if (probe === 'unknown') continue; // read failed → assume occupied
+
       const data = await readSaveSlot(i, undefined, { allowLegacy });
-      if (!data) return i; // nothing stored → safe to use
+      // A blob exists (we just saw it) but did not verify → recoverable, skip.
+      if (!data) continue;
 
       try {
         const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
@@ -93,6 +105,7 @@ export const findFirstEmptySlot = async (): Promise<number | null> => {
  */
 export const checkIfAllSlotsFull = async (): Promise<boolean> => {
   try {
+    const { probeSaveSlotBlob } = await import('@/utils/saveSlotMeta');
     const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
       '@/utils/saveValidation'
     );
@@ -100,8 +113,21 @@ export const checkIfAllSlotsFull = async (): Promise<boolean> => {
     let fullSlots = 0;
 
     for (let i = 1; i <= 3; i++) {
+      // Same rule as findFirstEmptySlot: only a confirmed 'empty' is empty.
+      // An unverifiable or unreadable slot counts as FULL, so the "all slots
+      // full" backstop can still see it.
+      const probe = await probeSaveSlotBlob(i);
+      if (probe === 'empty') continue;
+      if (probe === 'unknown') {
+        fullSlots++;
+        continue;
+      }
+
       const data = await readSaveSlot(i, undefined, { allowLegacy });
-      if (!data) continue;
+      if (!data) {
+        fullSlots++;
+        continue;
+      }
 
       try {
         const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });

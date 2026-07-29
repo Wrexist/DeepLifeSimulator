@@ -10,8 +10,9 @@
  *   1. totalJailTime — `+1` per week the player was already in jail at
  *      tick start (`prevState.jailWeeks > 0`).
  *   2. totalChildren — `+newBornChildren.length` for the births this tick.
- *   3. totalWeeksWorked — `+1` when `careerSalary > 0`.
- *   4. highestSalary — `max(existing, careerSalary)`.
+ *   3. totalWeeksWorked — `+1` when the week was paid work (career salary, or
+ *      political office pay, which is carried separately — see the input doc).
+ *   4. highestSalary — `max(existing, effectiveSalary)`.
  *   5. careerHistory — finds the FIRST open entry (no endWeek) for
  *      `prevState.currentJob` and accumulates this week's earnings + 1
  *      week. Only updates one entry even if multiple match.
@@ -40,6 +41,23 @@ export interface LifetimeStatisticsInput {
    * we read from prevState directly to keep the helper testable in isolation. */
   newBornChildrenCount: number;
   careerSalary: number;
+  /**
+   * Weekly pay from holding political office, 0 when not in office.
+   *
+   * Political pay is deliberately NOT part of `careerSalary`:
+   * `applyCareerSalaryAndPenalty` returns 0 while `currentJob === 'political'`
+   * because the money is owned by `lib/economy/passiveIncome.ts` (one owner per
+   * income stream). But every work accumulator below gated on `careerSalary`,
+   * so a career politician accrued ZERO totalWeeksWorked, never moved
+   * highestSalary, and got no careerHistory entry — which `computePension`
+   * reads, so they retired on a $0 pension. Passing the political figure
+   * separately keeps the money ownership rule intact while letting the
+   * bookkeeping see the work. MUST be the WEEKLY figure
+   * (`salary / WEEKS_PER_YEAR`), never the raw annual one — the pension is
+   * computed off `highestSalary`, so an annual number there is a 52x pension.
+   * 2026-07-28 audit GL-3.
+   */
+  politicalWeeklySalary?: number;
   /** From preTick.computeDecayInputs — clamped net worth used as a
    * tradeoff between "real" peaks and avoiding overflow on huge stocks. */
   safeNetWorth: number;
@@ -61,14 +79,20 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
   }
 
   const jailedThisWeek = (input.prevState.jailWeeks || 0) > 0;
-  const workedThisWeek = input.careerSalary > 0;
+  // Either kind of paid work counts as work.
+  const politicalWeeklySalary =
+    typeof input.politicalWeeklySalary === 'number' && isFinite(input.politicalWeeklySalary)
+      ? Math.max(0, input.politicalWeeklySalary)
+      : 0;
+  const effectiveSalary = input.careerSalary > 0 ? input.careerSalary : politicalWeeklySalary;
+  const workedThisWeek = effectiveSalary > 0;
   const prevPeakNetWorth = ls.peakNetWorth ?? 0;
   const newPeakSet = input.safeNetWorth > prevPeakNetWorth;
 
   const careerHistory = updateCareerHistory(
     ls.careerHistory || [],
     input.prevState.currentJob,
-    input.careerSalary,
+    effectiveSalary,
   );
 
   const shouldSampleHistory = input.nextWeeksLived % HISTORY_SAMPLE_INTERVAL_WEEKS === 0;
@@ -91,7 +115,7 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
       totalJailTime: (ls.totalJailTime ?? 0) + (jailedThisWeek ? 1 : 0),
       totalChildren: (ls.totalChildren ?? 0) + input.newBornChildrenCount,
       totalWeeksWorked: (ls.totalWeeksWorked ?? 0) + (workedThisWeek ? 1 : 0),
-      highestSalary: Math.max(ls.highestSalary ?? 0, input.careerSalary),
+      highestSalary: Math.max(ls.highestSalary ?? 0, effectiveSalary),
       careerHistory,
       peakNetWorth: Math.max(prevPeakNetWorth, input.safeNetWorth),
       peakNetWorthWeek: newPeakSet

@@ -107,10 +107,16 @@ export function GameStateProvider({
     void safeSetItem('lastSlot', String(normalizedSlot));
   }, []);
 
-  useEffect(() => {
-    // Persist active slot on mount and whenever it changes.
-    void safeSetItem('currentSlot', String(currentSlot));
-  }, [currentSlot]);
+  // NO mount-effect write here. There used to be one — `void safeSetItem(
+  // 'currentSlot', String(currentSlot))` on every change INCLUDING the first —
+  // and since `initialSlot` defaults to 1 and `GameProvider` never passes it,
+  // every launch overwrote the marker the previous session left with "1"
+  // before any load had run. The key looked authoritative and always read 1.
+  // Two consumers prefer it over `lastSlot`: CloudSyncService uploaded under
+  // slot_1, and IAPService credited a purchase to slot 1's save — so a paying
+  // player's real slot never received what they bought.
+  // `setCurrentSlotSafe` already persists on every real change, so the effect
+  // only ever added the boot-time clobber. 2026-07-29 audit SAVE-OW-5.
 
   // Alias for backwards compatibility
   const updateGameState = wrappedSetGameState;
