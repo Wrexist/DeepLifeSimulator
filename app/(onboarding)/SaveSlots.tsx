@@ -15,6 +15,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
+import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { type SaveSlotData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
 import {
   readSaveSlotMeta,
@@ -275,6 +276,11 @@ export default function SaveSlots() {
         router.push('/(tabs)/home');
       }, 80);
     } catch (error) {
+      if (isSaveFromFutureError(error)) {
+        log.warn('Save is from a newer app version', { slot: selectedSlot });
+        Alert.alert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE);
+        return;
+      }
       log.error('Error continuing game', error);
       Alert.alert('Load Error', 'An error occurred while loading your save. Please try again.');
     } finally {

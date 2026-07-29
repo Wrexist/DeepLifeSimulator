@@ -786,6 +786,12 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // Fix invalid hobbies
   if (Array.isArray(s.hobbies)) {
+    // The removal below is counted and flagged. It used to filter silently:
+    // repairGameState works on a CLONE that is only written back when
+    // `repaired` is true, so a load whose ONLY defect was a malformed hobby had
+    // the fix computed and thrown away, every time. Same class as the fourteen
+    // Spark/Pulse backfills. 2026-07-29 audit MR-6.
+    const originalHobbyLength = s.hobbies.length;
     s.hobbies = s.hobbies.map((hobby: any) => {
       if (!hobby || typeof hobby !== 'object' || !hobby.id) {
         return null; // Mark for removal
@@ -818,6 +824,10 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       }
       return hobby;
     }).filter((hobby: any) => hobby !== null);
+    if (s.hobbies.length !== originalHobbyLength) {
+      repairs.push(`Removed ${originalHobbyLength - s.hobbies.length} invalid hobbies`);
+      repaired = true;
+    }
   }
 
   // Fix invalid array items
@@ -1337,7 +1347,11 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // Migrate staking positions from cyclical week to absolute week
   if (s.warehouse?.stakingPositions) {
     s.warehouse.stakingPositions.forEach((pos: any) => {
-      if (!pos.startAbsoluteWeek && pos.startWeek <= 4 && (s.weeksLived || 0) > 4) {
+      // `=== undefined`, not `!`. Absolute week 0 is a legitimate value —
+      // MiningActions writes `startAbsoluteWeek: prev.weeksLived || 0` — and
+      // testing falsy rewrote a correct 0, moving the position's start (and
+      // resetting lastClaimAbsoluteWeek) on every load. 2026-07-29 audit MR-5.
+      if (pos.startAbsoluteWeek === undefined && pos.startWeek <= 4 && (s.weeksLived || 0) > 4) {
         // Best-effort migration: estimate absolute start from weeksLived
         pos.startAbsoluteWeek = Math.max(0, (s.weeksLived || 0) - Math.floor((pos.lockWeeks || 4) / 2));
         pos.lastClaimAbsoluteWeek = pos.startAbsoluteWeek;

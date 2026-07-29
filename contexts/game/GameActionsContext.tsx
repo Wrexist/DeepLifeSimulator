@@ -29,6 +29,7 @@ import { initialGameState, STATE_VERSION } from './initialState';
 import { fileDivorce } from './actions/DatingActions';
 import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
+import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
@@ -3567,7 +3568,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
  try {
- const { runMigrations } = await import('@/utils/saveMigrations');
+ const { runMigrations, SaveFromFutureError } = await import('@/utils/saveMigrations');
  const migrationResult = runMigrations(parsed);
  if (migrationResult.migrationsApplied.length > 0) {
  logger.info('[LOAD_GAME] Applied save migrations:', migrationResult.migrationsApplied);
@@ -3581,9 +3582,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // overwrite the newer save permanently. Refuse to load so the save is
  // preserved intact until the user updates the app.
  logger.error('[LOAD_GAME] Save is from a newer app version — refusing to load to avoid overwriting it.');
- return null;
+ // Throw rather than return null. A bare null is the SAME value an empty
+ // slot returns, so the menu told a player with a perfectly good newer save
+ // "No save data found — start a new game" (2026-07-29 audit MR-4). The
+ // refusal itself is correct; only the reporting was not.
+ throw new SaveFromFutureError();
+ }
+ // MR-2: honour runMigrations' RETURN contract. Every registered migration
+ // happens to mutate in place today, so `migrationResult.state === parsed` —
+ // but the contract is the return value, and the two OTHER call sites already
+ // read it. A future migration written in the pure style would have had its
+ // work silently dropped on the primary load path alone.
+ if (migrationResult.state && typeof migrationResult.state === 'object') {
+ parsed = migrationResult.state;
  }
  } catch (migrationError) {
+ if (isSaveFromFutureError(migrationError)) throw migrationError;
  logger.error('[LOAD_GAME] Migration system failed (non-fatal, continuing with repair):', migrationError);
  }
 

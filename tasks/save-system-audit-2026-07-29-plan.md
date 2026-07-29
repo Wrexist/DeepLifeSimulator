@@ -84,9 +84,15 @@ Phase 1 fixed the three *callers*. This fixes the cause.
 | SAVE-OW-5 | A mount effect wrote `currentSlot` on every change *including the first*, and `initialSlot` defaults to 1 with nothing passing it — so every launch overwrote the previous session's marker with "1" before any load. CloudSyncService uploaded under slot_1 and IAPService credited purchases to slot 1's save. `setCurrentSlotSafe` already persists on every real change; the effect only ever added the boot-time clobber. |
 | PIPE-9 | The onboarding draft hydration landed with a whole-object replace, so on a cold start it could overwrite the slot New Game had just chosen. Hydration now yields to any live choice. |
 
-## Phase 6 — Migration & repair
+## Phase 6 — Migration & repair *(done)*
 
-**MR-3** (a halted migration chain loads silently), MR-2, MR-4, MR-5, MR-6.
+| Finding | Fix |
+|---|---|
+| MR-3 | The diagnostic report printed `State version: ${STATE_VERSION}` — the compile-time constant, not the save's. A save frozen at v13 on a v25 app reported "25" in a support ticket, structurally unable to show the one gap that explains a halted migration chain. Now prints both. |
+| MR-4 | A save from a newer build is refused on purpose, but the refusal returned a bare `null` — the same value an empty slot returns — so the menu said "No save data found. …start a new game" over an intact newer save. Now a typed `SaveFromFutureError` with honest copy at both entry points. |
+| MR-2 | `runMigrations` has a return contract that two of its three call sites honour; the primary load path kept its own reference. Works today because every migration mutates in place — a future pure-style migration would have been silently dropped on the path that matters most. |
+| MR-5 | The staking repair tested falsy instead of `undefined`, so a position legitimately staked at absolute week 0 was "migrated" on every load. |
+| MR-6 | The invalid-hobby removal set no `repaired` flag, so the clone carrying it was discarded — the fix computed and thrown away on every load. Same class as the fourteen Spark/Pulse backfills. |
 
 ## Phase 7 — Signing & cloud
 
