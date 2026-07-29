@@ -507,3 +507,79 @@ export const getCheckingAccount = (state: GameState) => {
   if (!state.banking) return undefined;
   return findCheckingAccount(state.banking);
 };
+
+// ---------------------------------------------------------------------------
+// Sponsored bonus (rewarded ad)
+// ---------------------------------------------------------------------------
+
+/** One sponsored bonus per in-game week. */
+export const AD_CASH_BONUS_COOLDOWN_WEEKS = 1;
+
+/**
+ * The bank's weekly sponsored bonus, scaled off the player's balance.
+ *
+ * Exported so the button quotes exactly what the action will pay — a reward
+ * that advertises one number and grants another is the shape of every "silent
+ * rejection" finding in this codebase.
+ */
+export const getAdCashBonusAmount = (state: GameState): number => {
+  const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money)
+    ? Math.max(0, state.stats.money)
+    : 0;
+  return Math.max(50, Math.min(5000, Math.round((cash * 0.02) / 10) * 10));
+};
+
+/** Weeks until the bonus is claimable again — 0 when it is ready now. */
+export const weeksUntilAdCashBonus = (state: GameState): number => {
+  const ws = state.weeksLived ?? 0;
+  const last = state.settings?.lastAdCashBonusWeek;
+  if (typeof last !== 'number' || !isFinite(last)) return 0; // never claimed
+  return Math.max(0, AD_CASH_BONUS_COOLDOWN_WEEKS - (ws - last));
+};
+
+/** True when the sponsored bonus can be claimed right now. */
+export const canClaimAdCashBonus = (state: GameState): boolean =>
+  weeksUntilAdCashBonus(state) === 0;
+
+/**
+ * Claim the weekly sponsored bonus.
+ *
+ * This was an UNGATED faucet: the only ad reward in the game that paid CASH,
+ * with no cooldown, no cap and no claim marker, so it could be watched
+ * repeatedly for 2% of the balance each time (2026-07-28 audit econ-4). It now
+ * mirrors `watchAdForFollowerBoost`: one claim per in-game week, keyed on
+ * `weeksLived`, with the cooldown re-checked INSIDE the updater so two taps in
+ * one React batch cannot both pay out.
+ *
+ * The marker lives on `settings` as an optional field with an undefined default
+ * — the sanctioned no-migration pattern — and is game time, never wall clock.
+ */
+export const claimAdCashBonus = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+): { success: boolean; message: string; amount: number } => {
+  if (!canClaimAdCashBonus(gameState)) {
+    return { success: false, message: 'You have already taken this week\'s bonus.', amount: 0 };
+  }
+  const amount = getAdCashBonusAmount(gameState);
+
+  let granted = 0;
+  setGameState((prev) => {
+    // Atomic gate: both taps in a batch read the same stale snapshot above, so
+    // this re-check against `prev` is the only thing that stops a double payout.
+    if (!canClaimAdCashBonus(prev)) return prev;
+    const freshAmount = getAdCashBonusAmount(prev);
+    const credit = applyMoneyDelta(prev, freshAmount, 'Bank sponsored bonus');
+    if (!credit) return prev;
+    granted = freshAmount;
+    return {
+      ...prev,
+      ...credit,
+      settings: { ...prev.settings, lastAdCashBonusWeek: prev.weeksLived ?? 0 },
+    };
+  });
+
+  return granted > 0
+    ? { success: true, message: `The bank credited your account.`, amount: granted }
+    : { success: false, message: 'Bonus unavailable right now.', amount: 0 };
+};

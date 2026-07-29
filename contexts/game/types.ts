@@ -1596,6 +1596,12 @@ export interface GameSettings {
   deepLifePlusLastGemClaim?: string; // UTC day key of the last daily gem-drop claim (members-only)
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip
   deepLifePlusLastGemClaimAt?: number; // Monotonic epoch-ms high-water mark of the last claim — blocks backward-clock farming
+  // Absolute `weeksLived` of the last Bank sponsored-bonus claim. Optional with
+  // an undefined default (the sanctioned pattern — an absent key already equals
+  // "never claimed"), so no migration or STATE_VERSION bump is owed. Keyed on
+  // GAME time, never a wall-clock date: a real-time key is farmable by moving
+  // the device clock (2026-07-24 daily-gem lesson).
+  lastAdCashBonusWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle

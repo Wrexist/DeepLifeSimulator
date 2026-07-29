@@ -63,7 +63,8 @@ import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
 import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
 import type { WeeklyEvent } from '@/lib/events/engine';
-import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { applyKarmaChange, getKarmaModifiers, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import {
  MINER_PRICES,
  calculateIncomeTax,
@@ -3856,14 +3857,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
- // Relationship functions for Contacts app
+ // Relationship functions for Contacts app.
+ //
+ // A POSITIVE change is scaled by who the player has become: the charisma /
+ // socialMaster life skills they bought, and their karma standing. Both
+ // multipliers existed and were computed correctly, but their only consumer was
+ // an unreachable module — so a player could buy the charisma node, watch the
+ // description promise faster bonds, and get exactly nothing (2026-07-28 audit
+ // PERF-5). This is the single relationship-gain path the Contacts app uses, so
+ // wiring it here is what makes those purchases real.
+ //
+ // Losses are NEVER scaled: skills and good standing make you better at building
+ // relationships, they do not soften a betrayal. `applyRelationshipGain` already
+ // passes negatives through untouched; the karma multiplier is gated to match,
+ // so a low-karma player is not punished twice on the way down.
  const updateRelationship = useCallback((relationshipId: string, change: number) => {
  setGameState(prev => {
+ const scaled = change > 0
+? applyRelationshipGain(prev, Math.round(change * getKarmaModifiers(prev.karma || INITIAL_KARMA).npcTrustMultiplier))
+: change;
  const relationships = (prev.relationships || []).map(r => {
  if (r.id === relationshipId) {
  return {
 ...r,
- relationshipScore: clampRelationshipScore(r.relationshipScore + change),
+ relationshipScore: clampRelationshipScore(r.relationshipScore + scaled),
  };
  }
  return r;
