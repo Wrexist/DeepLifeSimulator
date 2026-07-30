@@ -430,6 +430,37 @@ export async function canRestoreBackup(
 }
 
 /**
+ * Is an automatic backup throttled right now? Cheap enough to call FIRST.
+ *
+ * The 60-second throttle used to be the first statement inside `createBackup` —
+ * i.e. after `createBackupFromState` had already run `JSON.stringify(state)`,
+ * a CRC32 over the whole string and a pure-JS HMAC-SHA256 over it again. With
+ * 155 `saveGame` call sites, every save within a minute of the last backup paid
+ * that entire cost and then threw the result away. On a late-game save that is
+ * hundreds of milliseconds of JS-thread work per discarded backup.
+ *
+ * It also read the newest timestamp via `listBackups`, which `safeGetItem`s and
+ * `JSON.parse`s EVERY backup blob for the slot (up to 5, each holding a full
+ * save envelope) just to look at `metadata.timestamp`. This reads one small
+ * key instead, and only falls back to `listBackups` when that key is absent —
+ * a save from before this key was maintained. 2026-07-30 audit PERF-1.
+ */
+async function isAutoBackupThrottled(slot: number): Promise<boolean> {
+  try {
+    const stamp = await safeGetItem(`${LAST_BACKUP_PREFIX}${slot}`);
+    if (stamp) {
+      const last = parseInt(stamp, 10);
+      if (Number.isFinite(last)) return Date.now() - last < MIN_BACKUP_INTERVAL_MS;
+    }
+    const [newest] = await listBackups(slot);
+    return !!newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS;
+  } catch {
+    // Never let the throttle check itself block a backup.
+    return false;
+  }
+}
+
+/**
  * Record backup creation time for rate limiting
  */
 async function recordBackupTime(slot: number): Promise<void> {
@@ -506,10 +537,7 @@ export async function createBackup(
     // saveGame call sites — wrote a backup and rotated. Five entries deep, that
     // made the whole recovery history a few minutes long. Deliberate snapshots
     // (manual, before_overwrite, before_prestige…) are never throttled.
-    if (reason === 'auto_save') {
-      const [newest] = await listBackups(slot);
-      if (newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS) return null;
-    }
+    if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
 
     const { state, canonicalSaveData } = preparsed ?? normalizeBackupPayload(data);
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
@@ -557,6 +585,9 @@ export async function createBackup(
       logger.error(`Backup for slot ${slot} was rejected by storage; not rotating`);
       return null;
     }
+    // Maintain the cheap throttle stamp so `isAutoBackupThrottled` never has to
+    // fall back to parsing every backup blob.
+    await recordBackupTime(slot);
     logger.info(`Created backup for slot ${slot}: ${backupId} (${reason})`);
 
     // Rotate backups to keep only the latest ones. Only ever after a CONFIRMED
@@ -704,9 +735,14 @@ export async function createBackupFromState(
   reason: string
 ): Promise<string | null> {
   try {
-    // Yield first: the caller (auto-save, onboarding) is on the JS thread and
-    // does not await the result, so the stringify below should not run in the
-    // same frame. Same idiom as the save queue's pre-serialize yield.
+    // THROTTLE FIRST, serialize second. Everything below — stringify, CRC32,
+    // HMAC — is wasted work when `createBackup` is about to refuse this backup
+    // for being inside the 60-second window. See `isAutoBackupThrottled`.
+    if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
+
+    // Yield: the caller (auto-save, onboarding) is on the JS thread and does not
+    // await the result, so the stringify below should not run in the same frame.
+    // Same idiom as the save queue's pre-serialize yield.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     const stateJson = JSON.stringify(state);
     const canonicalSaveData = createSaveEnvelope(stateJson);
