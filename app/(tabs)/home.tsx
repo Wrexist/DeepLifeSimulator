@@ -32,6 +32,7 @@ import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
@@ -636,6 +637,7 @@ function HomeScreenContent() {
             Renders only when an ambition was picked (freeform lives skip it). */}
         <FadeInUp delay={55}>
           <AmbitionCard />
+          <AmbitionPickerCard />
           <WeeklyChallengeCard />
         </FadeInUp>
 

@@ -476,6 +476,24 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
  * `preparsed` lets a caller that already holds both the state object and the
  * canonical envelope skip the decode + re-encode round trip entirely.
  */
+/**
+ * Monotonic suffix so two backups written in the same millisecond cannot
+ * collide.
+ *
+ * The id was `save_backup_${slot}_${Date.now()}`, so a backup created in the
+ * same millisecond as another silently OVERWROTE it — including its `reason`.
+ * That is how a rotation-exempt snapshot (`before_overwrite`, `before_prestige`)
+ * could be replaced by a routine one and then evicted: exactly the copy the
+ * generational-retention work exists to protect. CI caught it as a flaky
+ * assertion; the flake was the bug.
+ */
+let backupIdSequence = 0;
+
+function nextBackupId(slot: number, timestamp: number): string {
+  backupIdSequence = (backupIdSequence + 1) % 1_000_000;
+  return `${BACKUP_PREFIX}${slot}_${timestamp}_${backupIdSequence.toString(36)}`;
+}
+
 export async function createBackup(
   slot: number,
   data: string,
@@ -497,7 +515,7 @@ export async function createBackup(
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
     const canonicalHmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
-    const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
+    const backupId = nextBackupId(slot, timestamp);
     
     const gameInfo = extractGameInfo(state);
     
@@ -945,7 +963,7 @@ export async function createManualBackup(
     const checksum = calculateChecksum(canonicalSaveData);
     const hmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
-    const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
+    const backupId = nextBackupId(slot, timestamp);
     
     const backupData = {
       data: canonicalSaveData,

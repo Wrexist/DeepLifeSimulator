@@ -1047,20 +1047,22 @@ function WorkScreenContent() {
                                             weeksLived: gameState.weeksLived,
                                             netWorth: calculateNetWorth(gameState),
                                         };
-                                        const unlockedCareers = getUnlockedAdvancedCareers(advCareerGate);
+                                        // Render EVERY advanced career, locked ones included.
+                                        //
+                                        // This used to pre-filter with `getUnlockedAdvancedCareers`, which
+                                        // returns only unlocked entries — so the `isLocked` line below was
+                                        // always false and the whole requirement formatter was unreachable
+                                        // dead code. A player who had unlocked none saw one generic
+                                        // sentence, and the five best careers in the game (CEO topping out
+                                        // at $24,000/wk, Investment Banker, Surgeon, Research Scientist,
+                                        // Creative Director) were invisible with no hint of what to do.
+                                        // A locked goal you can see is a goal; one you cannot is nothing.
+                                        // 2026-07-30 audit GP-10.
+                                        // eslint-disable-next-line @typescript-eslint/no-require-imports
+                                        const { ADVANCED_CAREERS } = require('@/lib/careers/advancedCareers');
+                                        void getUnlockedAdvancedCareers; // still exported for other callers
 
-                                        if (unlockedCareers.length === 0) {
-                                            return (
-                                                <View style={styles.lockedCareerContainer}>
-                                                    <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
-                                                    <Text style={[styles.lockedCareerText, styles.lockedCareerTextDark]}>
-                                                        Complete education, gain experience, and build reputation to unlock advanced careers.
-                                                    </Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        return unlockedCareers.map((career: AdvancedCareer) => {
+                                        return (ADVANCED_CAREERS as AdvancedCareer[]).map((career: AdvancedCareer) => {
                                             const isLocked = !isCareerUnlocked(career, advCareerGate);
                                             const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
                                             const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
@@ -1072,6 +1074,12 @@ function WorkScreenContent() {
                                                 if ('experience' in req && req.experience) lockReqs.push(`Experience: ${req.experience} weeks`);
                                                 if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
                                                 if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
+                                                // Never printed before, because this whole block was
+                                                // unreachable — two of the five careers are gated on a
+                                                // claimed achievement and the player was never told.
+                                                if ('achievements' in req && req.achievements && req.achievements.length > 0) {
+                                                    lockReqs.push(`Achievement: ${req.achievements.join(', ')}`);
+                                                }
                                             }
 
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
