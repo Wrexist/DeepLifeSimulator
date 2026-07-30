@@ -1,0 +1,88 @@
+campaign,ad_group,keyword,match_type,max_cpt_usd,rationale
+DLS-US-Category-Exact,LifeSim-Core,life simulator,EXACT,1.30,Head term for the genre; also the app's primary ASO keyword
+DLS-US-Category-Exact,LifeSim-Core,life sim,EXACT,1.10,Short-form head term
+DLS-US-Category-Exact,LifeSim-Core,life simulator game,EXACT,1.10,Head term + qualifier; usually cheaper than the head
+DLS-US-Category-Exact,LifeSim-Core,life simulation game,EXACT,1.00,Formal phrasing of the genre
+DLS-US-Category-Exact,LifeSim-Core,life sim game,EXACT,1.00,Short-form + qualifier
+DLS-US-Category-Exact,LifeSim-Core,realistic life simulator,EXACT,1.10,Highest-fit long tail — the app's actual differentiator
+DLS-US-Category-Exact,LifeSim-Core,real life simulator,EXACT,1.00,High-fit long tail
+DLS-US-Category-Exact,LifeSim-Core,virtual life game,EXACT,0.90,Adjacent phrasing
+DLS-US-Category-Exact,LifeSim-Core,virtual life simulator,EXACT,0.90,Adjacent phrasing
+DLS-US-Category-Exact,LifeSim-Core,my life simulator,EXACT,0.85,First-person phrasing common in search
+DLS-US-Category-Exact,LifeSim-Core,live another life game,EXACT,0.80,Intent-rich long tail
+DLS-US-Category-Exact,LifeSim-Core,adulthood simulator,EXACT,0.75,Matches the game's start-at-18 premise exactly
+DLS-US-Category-Exact,LifeSim-Core,growing up game,EXACT,0.70,Premise-matched long tail
+DLS-US-Category-Exact,LifeSim-Core,life story game,EXACT,0.80,Genre adjacent
+DLS-US-Category-Exact,LifeSim-Core,life rpg,EXACT,0.75,Crossover audience
+DLS-US-Category-Exact,LifeSim-Core,text life simulator,EXACT,0.70,Describes the BitLife-style format users search for
+DLS-US-Category-Exact,LifeSim-Core,life choices game,EXACT,0.85,Bridges LifeSim and Choices themes
+DLS-US-Category-Exact,LifeSim-Core,human life simulator,EXACT,0.65,Long tail
+DLS-US-Category-Exact,Money-Wealth,get rich game,EXACT,1.05,Core fantasy of the app; strong CR expected
+DLS-US-Category-Exact,Money-Wealth,money simulator,EXACT,1.00,Direct match to the economic engine
+DLS-US-Category-Exact,Money-Wealth,billionaire simulator,EXACT,1.00,Aspiration term with good volume
+DLS-US-Category-Exact,Money-Wealth,billionaire game,EXACT,0.95,Aspiration term
+DLS-US-Category-Exact,Money-Wealth,millionaire game,EXACT,0.90,Aspiration term, lower ceiling than billionaire
+DLS-US-Category-Exact,Money-Wealth,rich life game,EXACT,0.85,Aspiration term
+DLS-US-Category-Exact,Money-Wealth,wealth simulator,EXACT,0.85,Precise fit; low volume, high intent
+DLS-US-Category-Exact,Money-Wealth,rags to riches game,EXACT,0.90,Literally the app's premise — start at 18 with nothing
+DLS-US-Category-Exact,Money-Wealth,money management game,EXACT,0.80,Attracts the sim-not-idle searcher
+DLS-US-Category-Exact,Money-Wealth,financial simulator,EXACT,0.80,Precise fit for the loans/interest/compounding engine
+DLS-US-Category-Exact,Money-Wealth,debt simulator,EXACT,0.70,Differentiator — few life sims model debt
+DLS-US-Category-Exact,Money-Wealth,bankruptcy game,EXACT,0.65,Differentiator; already in the store listing copy
+DLS-US-Category-Exact,Money-Wealth,net worth game,EXACT,0.60,Long tail
+DLS-US-Category-Exact,Career-Job,career simulator,EXACT,0.95,Direct match to 20+ career paths
+DLS-US-Category-Exact,Career-Job,career game,EXACT,0.85,Head-ish term
+DLS-US-Category-Exact,Career-Job,job simulator game,EXACT,0.80,Qualified to avoid the VR Job Simulator title
+DLS-US-Category-Exact,Career-Job,work life simulator,EXACT,0.80,Long tail
+DLS-US-Category-Exact,Career-Job,ceo simulator,EXACT,0.85,Matches the boardroom end of the career ladder
+DLS-US-Category-Exact,Career-Job,corporate ladder game,EXACT,0.70,Precise long tail
+DLS-US-Category-Exact,Career-Job,office simulator,EXACT,0.70,Adjacent
+DLS-US-Category-Exact,Career-Job,salary simulator,EXACT,0.60,Long tail
+DLS-US-Category-Exact,Investing-Stocks,stock market game,EXACT,1.00,Direct match to the living stock market
+DLS-US-Category-Exact,Investing-Stocks,stock market simulator,EXACT,1.00,Direct match; watch for real-trading-app intent
+DLS-US-Category-Exact,Investing-Stocks,stock simulator,EXACT,0.90,Head-ish; heavy negative list required
+DLS-US-Category-Exact,Investing-Stocks,trading simulator,EXACT,0.90,Direct match
+DLS-US-Category-Exact,Investing-Stocks,investing game,EXACT,0.85,Direct match
+DLS-US-Category-Exact,Investing-Stocks,investing simulator,EXACT,0.85,Direct match
+DLS-US-Category-Exact,Investing-Stocks,stock trading game,EXACT,0.85,Direct match
+DLS-US-Category-Exact,Investing-Stocks,crypto trading game,EXACT,0.85,Matches the crypto market subsystem
+DLS-US-Category-Exact,Investing-Stocks,crypto simulator,EXACT,0.80,Matches the crypto market subsystem
+DLS-US-Category-Exact,Investing-Stocks,day trading game,EXACT,0.75,Long tail
+DLS-US-Category-Exact,Investing-Stocks,wall street game,EXACT,0.70,Thematic long tail
+DLS-US-Category-Exact,Investing-Stocks,portfolio simulator,EXACT,0.60,Long tail; watch for real-finance intent
+DLS-US-Category-Exact,Business-Tycoon,tycoon game,EXACT,1.05,Large adjacent genre; the app's business/company systems fit
+DLS-US-Category-Exact,Business-Tycoon,business simulator,EXACT,1.00,Direct match
+DLS-US-Category-Exact,Business-Tycoon,business tycoon,EXACT,0.95,Direct match
+DLS-US-Category-Exact,Business-Tycoon,business game,EXACT,0.90,Head-ish
+DLS-US-Category-Exact,Business-Tycoon,entrepreneur game,EXACT,0.80,Precise fit
+DLS-US-Category-Exact,Business-Tycoon,startup simulator,EXACT,0.80,Precise fit
+DLS-US-Category-Exact,Business-Tycoon,company simulator,EXACT,0.75,Precise fit
+DLS-US-Category-Exact,Business-Tycoon,empire building game,EXACT,0.75,Matches the store listing's "build an empire" hook
+DLS-US-Category-Exact,Business-Tycoon,business empire game,EXACT,0.75,Matches the store listing hook
+DLS-US-Category-Exact,Business-Tycoon,management simulator,EXACT,0.65,Broad adjacent; monitor CR closely
+DLS-US-Category-Exact,RealEstate,real estate tycoon,EXACT,0.95,Direct match to the property system
+DLS-US-Category-Exact,RealEstate,real estate game,EXACT,0.90,Direct match
+DLS-US-Category-Exact,RealEstate,property tycoon,EXACT,0.85,Direct match
+DLS-US-Category-Exact,RealEstate,real estate simulator,EXACT,0.85,Direct match
+DLS-US-Category-Exact,RealEstate,landlord simulator,EXACT,0.80,Matches the tenancy subsystem
+DLS-US-Category-Exact,RealEstate,landlord game,EXACT,0.75,Matches the tenancy subsystem
+DLS-US-Category-Exact,RealEstate,house flipping game,EXACT,0.75,High-intent long tail
+DLS-US-Category-Exact,RealEstate,property empire game,EXACT,0.65,Long tail
+DLS-US-Category-Exact,Crime-Underground,crime simulator,EXACT,0.90,Matches the crime/dark web subsystem
+DLS-US-Category-Exact,Crime-Underground,criminal life simulator,EXACT,0.85,Precise fit
+DLS-US-Category-Exact,Crime-Underground,crime life game,EXACT,0.80,Precise fit
+DLS-US-Category-Exact,Crime-Underground,mafia game,EXACT,0.80,Adjacent genre with strong overlap
+DLS-US-Category-Exact,Crime-Underground,gangster game,EXACT,0.75,Adjacent genre
+DLS-US-Category-Exact,Crime-Underground,drug dealer game,EXACT,0.80,High-intent; check age-rating alignment before enabling
+DLS-US-Category-Exact,Crime-Underground,dark web game,EXACT,0.70,Exact match to a named in-game system
+DLS-US-Category-Exact,Crime-Underground,hacker simulator,EXACT,0.70,Adjacent; the computer/dark web screens support the promise
+DLS-US-Category-Exact,Crime-Underground,money laundering game,EXACT,0.60,Exact match to a named in-game system
+DLS-US-Category-Exact,Crime-Underground,underworld game,EXACT,0.55,Long tail
+DLS-US-Category-Exact,Choices-Story,choices game,EXACT,0.85,Genre-adjacent with large volume
+DLS-US-Category-Exact,Choices-Story,life choices simulator,EXACT,0.80,Precise fit
+DLS-US-Category-Exact,Choices-Story,choice based game,EXACT,0.75,Genre phrasing
+DLS-US-Category-Exact,Choices-Story,decision game,EXACT,0.70,Genre phrasing
+DLS-US-Category-Exact,Choices-Story,interactive story game,EXACT,0.75,Adjacent genre; expect lower CR — monitor
+DLS-US-Category-Exact,Choices-Story,text based game,EXACT,0.70,Format match
+DLS-US-Category-Exact,Choices-Story,story simulator,EXACT,0.65,Long tail
+DLS-US-Category-Exact,Choices-Story,choose your own adventure game,EXACT,0.70,Adjacent genre

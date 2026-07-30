@@ -1,0 +1,29 @@
+ad_group,negative_keyword,match_type,owned_by,block_reason
+LifeSim-Core,tycoon game,EXACT,Business-Tycoon,Ambiguous term — one owner so the two ad groups never split the same auction data
+LifeSim-Core,business simulator,EXACT,Business-Tycoon,Ambiguous term
+LifeSim-Core,money simulator,EXACT,Money-Wealth,Ambiguous term
+LifeSim-Core,career simulator,EXACT,Career-Job,Ambiguous term
+LifeSim-Core,crime simulator,EXACT,Crime-Underground,Ambiguous term
+LifeSim-Core,choices game,EXACT,Choices-Story,Ambiguous term
+Money-Wealth,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Money-Wealth,business simulator,EXACT,Business-Tycoon,Ambiguous term
+Money-Wealth,investing game,EXACT,Investing-Stocks,Ambiguous term
+Money-Wealth,real estate game,EXACT,RealEstate,Ambiguous term
+Career-Job,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Career-Job,business simulator,EXACT,Business-Tycoon,Ambiguous term
+Career-Job,ceo simulator,EXACT,Career-Job,Owned here — listed so Business-Tycoon blocks it
+Business-Tycoon,ceo simulator,EXACT,Career-Job,Ambiguous term
+Business-Tycoon,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Business-Tycoon,real estate tycoon,EXACT,RealEstate,Ambiguous term
+Business-Tycoon,money simulator,EXACT,Money-Wealth,Ambiguous term
+Investing-Stocks,money simulator,EXACT,Money-Wealth,Ambiguous term
+Investing-Stocks,business simulator,EXACT,Business-Tycoon,Ambiguous term
+Investing-Stocks,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+RealEstate,tycoon game,EXACT,Business-Tycoon,Ambiguous term
+RealEstate,business simulator,EXACT,Business-Tycoon,Ambiguous term
+RealEstate,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Crime-Underground,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Crime-Underground,money simulator,EXACT,Money-Wealth,Ambiguous term
+Choices-Story,life simulator,EXACT,LifeSim-Core,Head term belongs to the core group
+Choices-Story,life choices game,EXACT,LifeSim-Core,Ambiguous term — owned by LifeSim-Core
+Choices-Story,life choices simulator,EXACT,Choices-Story,Owned here — listed so LifeSim-Core blocks it

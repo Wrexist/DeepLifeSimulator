@@ -1,0 +1,16 @@
+campaign,ad_group,keyword,match_type,max_cpt_usd,rationale
+DLS-US-Brand-Exact,Brand,deeplife,EXACT,0.80,Core brand token as shipped in app.config.js
+DLS-US-Brand-Exact,Brand,deep life,EXACT,0.80,Spaced spelling used in marketing/app_store_listing.md
+DLS-US-Brand-Exact,Brand,deeplife simulator,EXACT,0.80,Full brand — highest intent in the account
+DLS-US-Brand-Exact,Brand,deep life simulator,EXACT,0.80,Full brand, spaced variant
+DLS-US-Brand-Exact,Brand,deeplife sim,EXACT,0.60,Shorthand
+DLS-US-Brand-Exact,Brand,deep life sim,EXACT,0.60,Shorthand, spaced
+DLS-US-Brand-Exact,Brand,deeplife game,EXACT,0.60,Brand + category qualifier
+DLS-US-Brand-Exact,Brand,deep life game,EXACT,0.60,Brand + category qualifier
+DLS-US-Brand-Exact,Brand,deeplife simulation,EXACT,0.50,Brand + genre noun
+DLS-US-Brand-Exact,Brand,deeplife plus,EXACT,0.40,Subscription name — existing users; cheap defensive buy
+DLS-US-Brand-Exact,Brand,deeplife app,EXACT,0.40,Non-gamer phrasing of the brand
+DLS-US-Brand-Exact,Brand,deaplife,EXACT,0.35,Common misspelling (ea/ee transposition)
+DLS-US-Brand-Exact,Brand,deeplife simulater,EXACT,0.35,Common misspelling of simulator
+DLS-US-Brand-Exact,Brand,deep life simulater,EXACT,0.35,Common misspelling of simulator
+DLS-US-Brand-Exact,Brand,deeplife sumilator,EXACT,0.30,Transposition misspelling
