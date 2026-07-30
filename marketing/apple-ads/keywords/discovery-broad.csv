@@ -1,8 +1,8 @@
 campaign,ad_group,keyword,match_type,max_cpt_usd,rationale
-DLS-US-Discovery-Broad,Discovery-Broad,life simulator,BROAD,0.55,Seed — mines the life-sim long tail
-DLS-US-Discovery-Broad,Discovery-Broad,life sim game,BROAD,0.55,Seed
-DLS-US-Discovery-Broad,Discovery-Broad,get rich game,BROAD,0.55,Seed — mines wealth-fantasy phrasings
-DLS-US-Discovery-Broad,Discovery-Broad,money simulator,BROAD,0.55,Seed
+DLS-US-Discovery-Broad,Discovery-Broad,life simulator,BROAD,0.50,Seed — mines the life-sim long tail
+DLS-US-Discovery-Broad,Discovery-Broad,life sim game,BROAD,0.50,Seed
+DLS-US-Discovery-Broad,Discovery-Broad,get rich game,BROAD,0.50,Seed — mines wealth-fantasy phrasings
+DLS-US-Discovery-Broad,Discovery-Broad,money simulator,BROAD,0.50,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,career simulator,BROAD,0.50,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,business simulator,BROAD,0.50,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,tycoon game,BROAD,0.50,Seed

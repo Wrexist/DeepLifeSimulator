@@ -1,8 +1,11 @@
 # 07 — Geo strategy & 90-day budget plan
 
-Apple Ads runs per storefront. Each country is a separate auction with its own
-CPT, its own LTV, and its own language — which means a country is only worth
-opening when you have a localized listing to send it to. You already do:
+A single Apple Ads campaign *can* target several countries at once — Apple does
+not stop you. This plan deliberately does not, because each country is its own
+auction with its own CPT, LTV and language, and one campaign spanning several of
+them gets one budget, one set of bids and one negative list for markets that need
+three different ones. A country is also only worth opening once you have a
+localized listing to send it to. You already do:
 **39 locales** are written and validated in
 `marketing/app-store-localizations/`, each with a market-researched `keywords`
 field. That file is the keyword seed list for its country — do not translate the

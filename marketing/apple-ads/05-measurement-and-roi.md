@@ -26,8 +26,22 @@ user declines tracking — already carries `orgId`, `campaignId`, `adGroupId`,
 the *detailed* (ATT-consented) payload adds is `clickDate` / `impressionDate`.
 
 So **keyword-level ROAS works regardless of ATT opt-in rate.** What you lose
-without consent is the click timestamp, which matters for time-to-install
-analysis and nothing in this program depends on it.
+without consent is the click timestamp, which affects time-to-install analysis
+and nothing in this program depends on it.
+
+**One real limit: Search Match traffic.** A Search Match install was not driven
+by a keyword you chose, so its `keywordId` can come back null or absent. That
+covers the whole Discovery campaign and Maximize Conversions later. Read it this
+way:
+
+| Traffic | Finest reliable ROAS slice |
+|---|---|
+| Brand / Category / Competitor (your exact keywords) | **Keyword** |
+| Discovery broad-match seeds | Keyword, where one resolves |
+| Discovery Search Match, Maximize Conversions | **Campaign / ad group only** |
+
+That is not a defect — it is why Discovery is judged on its search-term report
+and its campaign-level CPA (`06`), never on per-keyword ROAS.
 
 That matters here: `expo-tracking-transparency` ships and ATT is prompted, but
 even for users who decline, standard ASA attribution still works.

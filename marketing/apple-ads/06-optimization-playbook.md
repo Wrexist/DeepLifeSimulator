@@ -65,7 +65,12 @@ half-open so no keyword matches two:
 | 4 | Installs ≥ 3 **and** CPA > 70% and ≤ 110% | **Leave it.** Working as intended. |
 | 5 | Installs ≥ 3 **and** CPA > 110% and ≤ 150% | **Lower bid −15%.** |
 | 6 | Installs ≥ 1 **and** CPA > 150% of target | **Lower bid −30%.** Second consecutive week in this band → pause. |
-| 7 | Spend < 1× target CPA, any result | **Leave it.** Not enough data — this is most of your long tail. |
+| 7 | **Otherwise** | **Leave it.** Not enough data yet. |
+
+Rule 7 is a genuine catch-all, and it has to be — it is where a keyword with one
+or two installs lands, and where zero installs at under 3× target CPA lands. Both
+look like signal and are not: at $30/day a single install is noise, and acting on
+it is how you delete a keyword that was about to work.
 
 Note that only rule 6 pauses on a second bad week. A keyword sitting in the
 110–150% band (rule 5) keeps getting its bid trimmed and is never auto-paused;
@@ -75,9 +80,12 @@ Constraints that keep this from oscillating:
 
 - **Never change a bid by more than 30% in one move**, and never twice in the
   same week.
-- **Never raise a Discovery bid above the lowest Category or Competitor exact
-  bid.** Brand's floor sits lower still, but Discovery cannot reach a brand
-  auction — every brand term is an exact negative there (see `02`).
+- **Keep Discovery's max CPT strictly below the lowest active Category or
+  Competitor exact bid** — and re-check it every time you lower an exact bid, not
+  just when you raise Discovery. Brand's floor sits lower still; its terms are
+  exact negatives in Discovery, but that blocks the listed terms rather than
+  every close variant, so also negative any brand-adjacent search term that shows
+  up in Discovery's report (see `02`).
 - **Never lower a Brand bid** for CPA reasons. Brand CPA should be your floor; if
   it isn't, something is misconfigured.
 
@@ -167,7 +175,9 @@ Zero impressions for 14 days?  ──yes──► raise bid 30% once
         │ no
 Spent 3× target CPA with zero installs?  ──yes──► pause
         │ no
-Is spend ≥ 1× target CPA?  ──no──► leave it alone
+Zero installs?  ──yes──► leave it alone (not enough data)
+        │ no
+Installs ≥ 3?  ──no──► leave it alone (1-2 installs is noise)
         │ yes
 Is CPA ≤ 110% of target?  ──yes──► ≤70%: raise 20% · else hold
         │ no

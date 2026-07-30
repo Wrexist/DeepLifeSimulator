@@ -89,7 +89,7 @@ trust it. Look up today's number and write it down:
 
 **If it is under 4.0 stars, or there are fewer than 30 reviews:**
 
-> **Run the Brand campaign only** (step 7, $3/day) and stop there. Fix ratings
+> **Run the Brand campaign only** (step 3, $3/day) and stop there. Fix ratings
 > first.
 
 (Why 30 reviews as well as 4.0: a 5.0 from three people moves nobody, and one

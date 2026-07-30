@@ -14,10 +14,16 @@
  * native module start fresh.
  */
 
+import type { isFeatureEnabled } from '@/lib/config/featureFlags';
+
 // Hoist-safe: `mock*`-prefixed names are allowed inside a jest.mock factory, so
 // the test can drive the flag directly instead of require()-ing the real module
-// back out at runtime.
-const mockIsFeatureEnabled = jest.fn(() => true);
+// back out at runtime. Typed from the real signature so a change to
+// isFeatureEnabled fails here at compile time rather than silently drifting.
+const mockIsFeatureEnabled = jest.fn<
+  ReturnType<typeof isFeatureEnabled>,
+  Parameters<typeof isFeatureEnabled>
+>(() => true);
 jest.mock('@/lib/config/featureFlags', () => ({
   isFeatureEnabled: mockIsFeatureEnabled,
 }));

@@ -67,6 +67,16 @@ function assertWellFormed(file, lines, header) {
   });
 }
 
+/**
+ * Quote a generated cell if it contains a comma, quote or newline.
+ * `splitRow` understands quoted cells, so anything it can read we must be able
+ * to write back — otherwise a legal source keyword silently corrupts the
+ * generated row and every column after it shifts by one.
+ */
+function csvCell(value) {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
 function fail(file, lineNo, message, line) {
   console.error(`✗ ${file}:${lineNo} ${message}\n  ${line}`);
   process.exit(1);
@@ -100,9 +110,12 @@ function collect() {
 
       if (seen.has(keyword)) return;
       seen.add(keyword);
-      rows.push(
-        `${keyword},EXACT,${campaign},Bid on in ${kind} campaign — must not re-match in Discovery`
-      );
+      rows.push([
+        keyword,
+        'EXACT',
+        campaign,
+        `Bid on in ${kind} campaign — must not re-match in Discovery`,
+      ].map(csvCell).join(','));
     });
   }
   return `${HEADER}\n${rows.join('\n')}\n`;
@@ -119,14 +132,25 @@ function validateHandMaintainedLists() {
     const all = fs.readFileSync(path.join(DIR, 'negatives', file), 'utf8').split('\n');
     const header = splitRow(all[0]).map((c) => c.trim());
     assertWellFormed(file, all.slice(1), all[0]);
-    const kwCol = header.indexOf(file === 'global-negatives.csv' ? 'keyword' : 'negative_keyword');
+    const isGlobal = file === 'global-negatives.csv';
+    const kwCol = header.indexOf(isGlobal ? 'keyword' : 'negative_keyword');
     const mtCol = header.indexOf('match_type');
+    // Every global negative must say WHY it is blocked. The weekly routine in
+    // 03-negative-keywords.md asks for a block_reason on each addition; without
+    // it, a year-old list is impossible to audit or safely prune.
+    const brCol = header.indexOf('block_reason');
+    if (isGlobal && brCol === -1) {
+      fail(file, 1, 'header is missing the required block_reason column', all[0]);
+    }
     all.slice(1).forEach((line, i) => {
       if (!line.trim()) return;
       const cols = splitRow(line).map((c) => c.trim());
       if (!cols[kwCol]) fail(file, i + 2, 'negative keyword is empty', line);
       if (cols[mtCol] !== 'EXACT') {
         fail(file, i + 2, `match_type is "${cols[mtCol]}", expected EXACT`, line);
+      }
+      if (isGlobal && !cols[brCol]) {
+        fail(file, i + 2, 'block_reason is empty — say why this term is blocked', line);
       }
     });
   }

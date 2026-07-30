@@ -196,7 +196,7 @@ taps to riches, billionaire capitalist
 ## 4 · Discovery seeds
 
 **Campaign:** `DLS-US-Discovery-Broad` → **Ad group:** `Discovery-Broad`
-**Match type: BROAD** (the only broad block) · **Max CPT bid:** $0.55 · **Search Match: ON**
+**Match type: BROAD** (the only broad block) · **Max CPT bid:** $0.50 · **Search Match: ON**
 **12 seed keywords**
 
 ```text

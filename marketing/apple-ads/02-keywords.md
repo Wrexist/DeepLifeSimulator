@@ -98,13 +98,19 @@ in `06-optimization-playbook.md`.
   the *highest* bids in the whole account despite being competitor terms, because
   the searcher is explicitly asking for what you are — that is the one competitor
   auction where you are the better answer, not the interruption.
-- **Discovery $0.40–0.55.** Deliberately below every **Category and Competitor**
-  exact bid, so Discovery can never outbid a campaign you have already optimized.
-  Brand's cheapest keywords sit lower than this ($0.30–0.40) and that is fine —
-  every brand term is an exact negative in Discovery
-  ([`negatives/discovery-graduated.csv`](negatives/discovery-graduated.csv)), so
-  Discovery cannot enter a brand auction at any bid. Keep the general rule as
-  "Discovery's max must stay under the lowest bid it can actually compete with."
+- **Discovery $0.40–0.50.** The rule: **Discovery's ceiling stays strictly below
+  the lowest active Category/Competitor exact bid.** Today that floor is $0.55
+  (`underworld game`), so Discovery caps at $0.50. Re-check this whenever you
+  lower an exact bid — if a Category keyword drops to $0.45, Discovery must come
+  down too, or it starts winning auctions your tuned campaign should have had.
+
+  **Brand is the residual risk, and it is not fully closed.** Brand's floor is
+  $0.30, below Discovery's ceiling. Every brand term is an exact negative in
+  Discovery ([`negatives/discovery-graduated.csv`](negatives/discovery-graduated.csv)),
+  but an exact negative blocks that term — it is not a guarantee against every
+  close variant or brand-adjacent phrasing. So watch Discovery's search-term
+  report for anything containing your app name and negative it on sight. At
+  brand-term volumes the exposure is small, but do not treat it as impossible.
 
 **Benchmark context for sanity-checking week 1:** global median CPT ≈ **$0.92**;
 all-category tap-to-install conversion ≈ **64%**; Games has the **lowest TTR of
