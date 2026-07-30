@@ -56,6 +56,20 @@ export interface EducationProgressionInput {
   goldFastLearner: boolean;
   /** `prevState.perks?.fastLearner` truthy. */
   perkFastLearner: boolean;
+  /**
+   * `getExperienceMultiplier(prevState.prestige?.unlockedBonuses)` — 1.0 when
+   * nothing is unlocked.
+   *
+   * Five prestige-shop entries feed this: Quick Learner (1,500 pts x3), Fast
+   * Learner (5,000 x3), Genius Learner (20,000 x3), the legendary `genius`
+   * (35,000, "+100% learning speed") and the `synergy_learning_master` synergy.
+   * `getExperienceMultiplier` had NO call sites anywhere in the repo — it was
+   * imported once, in MoneyActionsContext, and the identifier never appears
+   * again in that file. So every one of those was bought with prestige points
+   * and did nothing, while `PrestigeInfoModal` printed the advertised
+   * percentage. 2026-07-30 audit GL-1.
+   */
+  experienceMultiplier?: number;
 }
 
 export interface EducationProgressionResult {
@@ -112,10 +126,15 @@ export function applyEducationProgression(
   input: EducationProgressionInput,
   ctx: WeekContext,
 ): EducationProgressionResult {
-  // Fast Learner perk + gold upgrade speed up the decrement.
+  // Fast Learner perk + gold upgrade speed up the decrement, and so do the
+  // prestige learning bonuses (see `experienceMultiplier`).
   let educationSpeedMultiplier = 1;
   if (input.goldFastLearner) educationSpeedMultiplier *= 1.5;
   if (input.perkFastLearner) educationSpeedMultiplier *= 1.5;
+  const experienceMult = Number(input.experienceMultiplier);
+  if (Number.isFinite(experienceMult) && experienceMult > 1) {
+    educationSpeedMultiplier *= experienceMult;
+  }
   const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
 
   let pendingCampusEvent: string | undefined;

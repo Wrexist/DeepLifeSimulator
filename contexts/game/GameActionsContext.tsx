@@ -54,7 +54,7 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
-import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
@@ -688,6 +688,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    nextWeeksLived,
    goldFastLearner: Boolean(prevState.goldUpgrades?.fast_learner),
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
+   // GL-1: the prestige learning bonuses finally reach the thing they claim to
+   // speed up. `getExperienceMultiplier` had zero call sites.
+   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
  }, weeklyCtx);
  updatedEducations = progressionResult.updatedEducations;
  educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));

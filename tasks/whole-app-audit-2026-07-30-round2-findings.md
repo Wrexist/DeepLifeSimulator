@@ -38,7 +38,7 @@ source at the stated anchor. Status column is maintained as work lands.
 
 | Gate | Result |
 |---|---|
-| `npx jest` | 4,471 passed, 1 skipped, 0 failed |
+| `npx jest` | 4,480 passed, 1 skipped, 0 failed |
 | `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
 | Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
 | `npx eslint --quiet` on changed files | 0 errors |
@@ -61,9 +61,9 @@ applyAutoReinvest, weekly-event resolver.
 
 | ID | Sev | Status | Summary | Anchor |
 |---|---|---|---|---|
-| GL-1 | high | OPEN | 5 prestige "learning speed" bonuses inert — `getExperienceMultiplier` has zero call sites | `lib/prestige/applyBonuses.ts:220` |
-| GL-2 | high | OPEN | Politics education perks read `effects.education`, a key that does not exist on the returned object | `contexts/game/actions/EducationActions.ts:53-55` |
-| GL-3 | med | OPEN | Healthcare + education policy effects aggregated into `activePolicyEffects` and never read | `contexts/game/actions/PoliticalActions.ts:69-124` |
+| GL-1 | high | FIXED | 5 prestige "learning speed" bonuses inert — `getExperienceMultiplier` has zero call sites | `lib/prestige/applyBonuses.ts:220` |
+| GL-2 | high | FIXED | Politics education perks read `effects.education`, a key that does not exist on the returned object | `contexts/game/actions/EducationActions.ts:53-55` |
+| GL-3 | med | PARTIAL | Education half wired with GL-2. HEALTHCARE half still unread (`healthBonus`, `medicalCostReduction`) | `contexts/game/actions/PoliticalActions.ts:69-124` |
 | GL-4 | med | OPEN | 2 scenarios unscoreable — prestige projection strips `level`; `family_man` achievement id does not exist | `lib/prestige/prestigeExecution.ts:134,136` |
 | GL-5 | med | OPEN | "Debt Free" achievement unearnable — `progress.hasBeenInDebt` never written true | `src/features/onboarding/achievementsData.ts:1161` |
 | GL-6 | med | OPEN | Life Skills "Investing" node inert — `stockReturnMult` has zero readers (and gates `wealth_master`) | `lib/skillTrees/lifeSkillEffects.ts:166,188` |

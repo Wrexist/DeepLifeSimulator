@@ -37,26 +37,49 @@ const STUDENT_LOAN_TERM_WEEKS = 10 * 52;
  */
 const MAX_STUDY_SESSIONS_PER_WEEK = 3;
 
-/** Read politics' education perk effects. */
+const NO_EDUCATION_PERKS = { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
+
+/**
+ * Read politics' education effects — from the object that actually carries them.
+ *
+ * This used to call `getCombinedPerkEffects(careerLevel)` and read
+ * `effects.education.*`. That object has exactly six keys — loanInterestReduction,
+ * businessIncomeBonus, realEstateTaxBreak, socialMediaFollowerBonus,
+ * unlockExclusiveOpportunities, governmentContracts — and `PoliticalPerk['effects']`
+ * has no education member at all, so no perk could ever contribute one. Every
+ * read was `undefined`, every value 0, for every player who has ever held office:
+ * the "Politics fast-track −Nw" row in `EnrollModal` could not render, and
+ * `quoteScholarship` was always called with a zero discount and zero scholarship.
+ *
+ * It type-checked only because the module came in through `require()`, which
+ * degrades to `any` — the exact hazard CLAUDE.md §5 warns about. Hence the
+ * static import now.
+ *
+ * The real numbers are aggregated into `politics.activePolicyEffects.education`
+ * by `enactPolicy`, and nothing read them — the five education policies
+ * (up to $200,000 each) bought an approval bump and nothing else.
+ * 2026-07-30 audit GL-2 / GL-3.
+ *
+ * UNIT CONVERSION: policies express `costReduction` as a PERCENT clamped to 50
+ * (`policies.ts:39`, "Percentage reduction (0-50%)"), while `quoteScholarship`
+ * multiplies tuition by it as a FRACTION (`scholarships.ts:73`). Passing the raw
+ * value would have discounted 20% tuition to zero.
+ */
 function politicsEducationPerks(state: GameState): {
   weeksReduction: number;
   costReduction: number;
   scholarshipAmount: number;
 } {
-  const careerLevel = state.politics?.careerLevel ?? 0;
-  if (!careerLevel) return { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getCombinedPerkEffects } = require('@/lib/politics/perks');
-    const effects = getCombinedPerkEffects(careerLevel);
-    return {
-      weeksReduction: Math.max(0, Math.floor(effects?.education?.weeksReduction ?? 0)),
-      costReduction: Math.max(0, Math.min(1, effects?.education?.costReduction ?? 0)),
-      scholarshipAmount: Math.max(0, effects?.education?.scholarshipAmount ?? 0),
-    };
-  } catch {
-    return { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
-  }
+  const education = state.politics?.activePolicyEffects?.education;
+  if (!education) return { ...NO_EDUCATION_PERKS };
+
+  const pct = Number(education.costReduction);
+  return {
+    weeksReduction: Math.max(0, Math.floor(Number(education.weeksReduction) || 0)),
+    // percent -> fraction, then clamped to the same [0, 1] band as before.
+    costReduction: Math.max(0, Math.min(1, (Number.isFinite(pct) ? pct : 0) / 100)),
+    scholarshipAmount: Math.max(0, Number(education.scholarshipAmount) || 0),
+  };
 }
 
 /**
