@@ -39,9 +39,14 @@ data from Apple within 24 hours. From then on every RevenueCat customer carries
 their Apple Ads campaign, and revenue shows up sliced by campaign in RC Charts
 and every RC integration.
 
-**One console step remains, and without it the code does nothing:** RevenueCat
-dashboard → your project → **Integrations → Apple Search Ads → Enable**. The
-integration supports both Apple Ads Basic and Advanced.
+**Console step — done ✅.** RevenueCat dashboard → project → **Integrations →
+Apple Search Ads** is enabled (confirmed 2026-07-30). The integration supports
+both Apple Ads Basic and Advanced.
+
+**What is still outstanding:** the code only runs on real devices from a real
+store build. Until a build containing this change ships to TestFlight or the App
+Store, no attribution data exists to collect — the integration is armed but has
+nothing to receive.
 
 ### Verifying it works
 

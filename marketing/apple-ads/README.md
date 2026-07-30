@@ -10,11 +10,19 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 
 ---
 
+> ### 👉 New to app advertising? Read **[`00-START-HERE.md`](00-START-HERE.md)** instead.
+>
+> It is the same program written as a plain-language, 12-step walkthrough — what
+> the words mean, what to click, what to do each Monday, and the ten mistakes to
+> avoid. The files below are reference material you look things up in; that one
+> is the file you follow.
+
 ## Read in this order
 
 | # | File | What it gives you |
 |---|---|---|
-| 0 | **this file** | The 60-second summary and the go/no-go gate |
+| 0 | [`00-START-HERE.md`](00-START-HERE.md) | **Beginner walkthrough** — start here if this is your first ad account |
+| — | **this file** | The 60-second summary and the go/no-go gate |
 | 1 | [`01-SETUP.md`](01-SETUP.md) | Account → campaigns → ad groups, every setting, click by click |
 | 2 | [`02-keywords.md`](02-keywords.md) | Every keyword, grouped by campaign/theme, with bids and rationale |
 | 3 | [`03-negative-keywords.md`](03-negative-keywords.md) | The block lists — the single biggest ROI lever in this account |
@@ -75,8 +83,11 @@ Apple Ads sends traffic to your **product page**. The page converts, not the ad.
    `Deep Life Simulator`. Brand keywords must cover whichever is live, and both
    spellings are in the brand list for exactly this reason. Confirm the live
    name on the App Store and note it here.
-3. **Attribution live.** `Purchases.enableAdServicesAttributionTokenCollection()`
-   shipping in a released build (see `05`), otherwise no keyword-level ROAS.
+3. **Attribution live.** Code shipped ✅ and the RevenueCat → Apple Search Ads
+   integration is enabled ✅. Remaining: the build carrying
+   `Purchases.enableAdServicesAttributionTokenCollection()` must actually be
+   **released to TestFlight/App Store** — AdServices returns nothing in a
+   simulator or dev-client build (see `05`).
 4. **Screenshots/CPPs ready.** At minimum the default page's first 3 screenshots
    carry benefit headlines (`SCREENSHOT_GUIDE.md`).
 

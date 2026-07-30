@@ -1,9 +1,13 @@
 # 01 — Account & campaign setup, click by click
 
 Everything in this file happens at [ads.apple.com](https://ads.apple.com) in an
-**Apple Ads Advanced** account. Do not use Apple Ads Basic: it has no keywords,
-no negative keywords, no match types, and no search-term report — i.e. none of
-the levers this program is built on.
+**Apple Ads Advanced** account. Basic still exists and is not the right choice
+here: it has no keywords, no negative keywords, no match types, and no
+search-term report — i.e. none of the levers this program is built on — and it
+caps spend at $10,000/month. Advanced has no cap.
+
+> New to this? [`00-START-HERE.md`](00-START-HERE.md) walks the same setup in
+> plain language with the reasoning inline. This file is the settings reference.
 
 ---
 
@@ -44,8 +48,9 @@ inventory with different economics and must never share a budget with search.
 
 Every campaign: **Countries = United States** to start (see `07` for expansion),
 **no audience refinements** at launch (age/gender/customer-type filters shrink
-your learning set before you have any learning), **budget = daily budget, no
-lifetime cap**.
+your learning set before you have any learning), **daily budget** — lifetime and
+campaign-total budgets have been retired, so the daily number is the only budget
+lever that exists.
 
 ### 1.1 `DLS-US-Brand-Exact` — defend the brand
 
@@ -226,8 +231,8 @@ keyword lists in this program apply.
 
 - [ ] Apple Ads **Advanced** account, time zone + currency set deliberately
 - [ ] Go/no-go gate in [`README.md`](README.md) cleared (rating, app name, attribution, screenshots)
-- [ ] `Purchases.enableAdServicesAttributionTokenCollection()` live in a **released** build
-- [ ] RevenueCat → Apple Search Ads integration enabled in the RC dashboard
+- [x] RevenueCat → Apple Search Ads integration enabled in the RC dashboard
+- [ ] `Purchases.enableAdServicesAttributionTokenCollection()` live in a **released** build (code shipped; needs a TestFlight/App Store release)
 - [ ] 4 campaigns created, Search Results placement, US only
 - [ ] 8 Category ad groups + 3 Competitor ad groups created with the bids above
 - [ ] Keywords imported from `keywords/*.csv`, all Exact, Search Match **off**

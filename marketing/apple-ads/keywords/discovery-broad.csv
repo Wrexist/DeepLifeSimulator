@@ -11,4 +11,4 @@ DLS-US-Discovery-Broad,Discovery-Broad,real estate game,BROAD,0.50,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,crime simulator,BROAD,0.45,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,choices game,BROAD,0.45,Seed
 DLS-US-Discovery-Broad,Discovery-Broad,simulation game,BROAD,0.40,Wide seed — carries the highest waste risk; review its search terms first each week
-DLS-US-Discovery-SearchMatch,Discovery-SearchMatch,,SEARCH_MATCH,0.45,No keywords by design — Search Match matches against the product page metadata
+DLS-US-Discovery-Broad,Discovery-SearchMatch,,SEARCH_MATCH,0.45,Second ad group in the same campaign — no keywords by design; Search Match matches against the product page metadata

@@ -120,7 +120,7 @@ gta,EXACT,Different franchise
 grand theft auto,EXACT,Different franchise
 gta 5,EXACT,Different franchise
 gta san andreas,EXACT,Different franchise
-roblox,EXACT,Different franchise, enormous volume
+roblox,EXACT,Different franchise — enormous volume
 minecraft,EXACT,Different franchise
 among us,EXACT,Different franchise
 fortnite,EXACT,Different franchise
@@ -134,17 +134,17 @@ candy crush,EXACT,Different franchise
 monopoly go,EXACT,Different franchise
 sims 4,EXACT,PC title — no iOS install possible
 the sims 4,EXACT,PC title
-sims 4 cheats,EXACT,PC title, cheat intent
+sims 4 cheats,EXACT,PC title — cheat intent
 sims freeplay,EXACT,Different monetization audience; move to Competitor only if tested
 mod apk,EXACT,Piracy intent — never converts to a paying user
 mod menu,EXACT,Piracy intent
-apk download,EXACT,Piracy intent, wrong platform
+apk download,EXACT,Piracy intent — wrong platform
 apk,EXACT,Wrong platform
 unlimited money mod,EXACT,Piracy intent
 hack,EXACT,Cheat intent
 cheats,EXACT,Cheat intent
 cheat codes,EXACT,Cheat intent
-unblocked,EXACT,Browser-game intent, wrong platform
+unblocked,EXACT,Browser-game intent — wrong platform
 cracked,EXACT,Piracy intent
 free download,EXACT,Non-App-Store intent
 online,EXACT,Browser/PC intent

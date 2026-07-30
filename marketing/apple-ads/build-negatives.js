@@ -37,12 +37,35 @@ function splitRow(line) {
   return out;
 }
 
+/**
+ * Every row must have the same field count as its header.
+ * A stray comma inside a rationale silently shifts every later column, which
+ * breaks any importer reading the file positionally — and it is invisible until
+ * something downstream reads the wrong column. Catch it here instead.
+ */
+function assertWellFormed(file, lines, header) {
+  const want = splitRow(header).length;
+  lines.forEach((line, i) => {
+    if (!line.trim()) return;
+    const got = splitRow(line).length;
+    if (got !== want) {
+      console.error(
+        `✗ ${file}:${i + 2} has ${got} fields, expected ${want} — ` +
+        'a rationale probably contains an unquoted comma:\n  ' + line
+      );
+      process.exit(1);
+    }
+  });
+}
+
 function collect() {
   const rows = [];
   const seen = new Set();
   for (const file of SOURCES) {
     const full = path.join(DIR, 'keywords', file);
-    const lines = fs.readFileSync(full, 'utf8').split('\n').slice(1);
+    const all = fs.readFileSync(full, 'utf8').split('\n');
+    const lines = all.slice(1);
+    assertWellFormed(file, lines, all[0]);
     for (const line of lines) {
       if (!line.trim()) continue;
       const cols = splitRow(line);
@@ -61,6 +84,15 @@ function collect() {
   return `${HEADER}\n${rows.join('\n')}\n`;
 }
 
+/** The hand-maintained lists are not inputs here, but they share the trap. */
+function validateHandMaintainedLists() {
+  for (const file of ['global-negatives.csv', 'adgroup-crosslocks.csv']) {
+    const all = fs.readFileSync(path.join(DIR, 'negatives', file), 'utf8').split('\n');
+    assertWellFormed(file, all.slice(1), all[0]);
+  }
+}
+
+validateHandMaintainedLists();
 const generated = collect();
 const count = generated.trim().split('\n').length - 1;
 
