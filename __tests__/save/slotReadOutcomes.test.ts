@@ -43,6 +43,7 @@ import {
   doubleBufferLoad,
   readSaveSlotDetailed,
   createSaveEnvelope,
+  decodePersistedSaveEnvelope,
 } from '@/utils/saveValidation';
 import { validateSaveSlot } from '@/utils/gameEntryValidation';
 import { purgeSlotIfPhantom } from '@/utils/phantomSaveCleanup';
@@ -152,6 +153,69 @@ describe('a lost active pointer does not lose the save', () => {
 
     expect(result.source).toBe('unverified');
     expect(result.blobPresent).toBe(true);
+  });
+});
+
+describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
+  // A signed v2 envelope can sit at the bare `save_slot_N` key: it verifies
+  // under the normal rules, and every pre-double-buffer restore wrote one there
+  // via atomicSave. The migration branch re-wraps that blob into buffer A. If it
+  // wraps the RAW envelope instead of the decoded state, buffer A holds a
+  // double envelope; loading it once yields the inner envelope OBJECT, which
+  // repairs to a near-default state and autosaves over the real save — the
+  // SAVE-OW-1 wipe, reintroduced for the exact recovery cohort this serves.
+
+  const loadOnce = (blob: string) => {
+    const decoded = decodePersistedSaveEnvelope(blob, { allowLegacy: false });
+    expect(decoded.valid).toBe(true);
+    expect(typeof decoded.data).toBe('string');
+    return JSON.parse(decoded.data as string);
+  };
+
+  it('migrates a v2 envelope at the legacy key to a SINGLE (not double) envelope', async () => {
+    // A signed v2 envelope at the bare key, no buffers.
+    store.set(SLOT_KEY, envelope('Nadia'));
+
+    const result = await doubleBufferLoad(SLOT_KEY);
+
+    expect(result.migrated).toBe(true);
+    expect(result.source).toBe('legacy');
+
+    // The returned blob decodes ONCE straight to the real state — not to an
+    // inner envelope object (which would carry `v: 2` and no character).
+    const state = loadOnce(result.data as string);
+    expect(state.userProfile.firstName).toBe('Nadia');
+    expect(state.v).toBeUndefined();
+    expect(state.weeksLived).toBe(900);
+
+    // Buffer A is the canonical destination and must hold the same single
+    // envelope, decoding once to the character rather than to `{ v: 2, ... }`.
+    const bufferA = store.get(`${SLOT_KEY}_A`);
+    expect(bufferA).toBeTruthy();
+    expect(loadOnce(bufferA as string).userProfile.firstName).toBe('Nadia');
+    expect(store.get(`${SLOT_KEY}_active`)).toBe('A');
+  });
+
+  it('still migrates a raw legacy payload at the legacy key', async () => {
+    // The unsigned-legacy path must keep working: the raw state string is
+    // wrapped once into a proper envelope.
+    const raw = JSON.stringify({
+      userProfile: { firstName: 'Ione' },
+      stats: { health: 80 },
+      date: { year: 2026 },
+      weeksLived: 400,
+      version: 25,
+    });
+    store.set(SLOT_KEY, raw);
+
+    const result = await doubleBufferLoad(SLOT_KEY, undefined, { allowLegacy: true });
+
+    expect(result.migrated).toBe(true);
+    const bufferA = store.get(`${SLOT_KEY}_A`);
+    expect(bufferA).toBeTruthy();
+    const decoded = decodePersistedSaveEnvelope(bufferA as string, { allowLegacy: true });
+    expect(decoded.valid).toBe(true);
+    expect(JSON.parse(decoded.data as string).userProfile.firstName).toBe('Ione');
   });
 });
 
