@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
+import { carryAccountLevelEntitlements } from './accountEntitlements';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
@@ -223,6 +224,15 @@ function createResetGameState(
     settings: { ...initialGameState.settings },
   };
 
+  // A purchase belongs to the PLAYER, not the character. `settings` above comes
+  // from initialGameState, so without this every purchased entitlement flag —
+  // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
+  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // Carrying the DeepLife+ claim stamps also closes the printer that let a
+  // player re-mint the 500-gem welcome bonus once per prestige.
+  // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
+  carryAccountLevelEntitlements(oldState, newState);
+
   // Preserve prestige data
   newState.prestige = prestigeData;
   newState.prestigeAvailable = false; // Reset availability
@@ -438,6 +448,15 @@ function createChildGameState(
     date: { ...initialGameState.date },
     settings: { ...initialGameState.settings },
   };
+
+  // A purchase belongs to the PLAYER, not the character. `settings` above comes
+  // from initialGameState, so without this every purchased entitlement flag —
+  // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
+  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // Carrying the DeepLife+ claim stamps also closes the printer that let a
+  // player re-mint the 500-gem welcome bonus once per prestige.
+  // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
+  carryAccountLevelEntitlements(oldState, newState);
 
   // Preserve prestige data
   newState.prestige = prestigeData;
