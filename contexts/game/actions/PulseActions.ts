@@ -778,6 +778,32 @@ export const deliverBrandDealPost = (
   return result;
 };
 
+/**
+ * What breaching `dealId` costs, computed from a state snapshot.
+ *
+ * Extracted so the CONFIRM SCREEN can quote the real number and refuse up front.
+ * `breachBrandDeal` returns its outcome from inside a `setGameState` updater,
+ * and React is free to defer an updater past the point the caller reads that
+ * return — so the refusal added below could not be reported to the player
+ * through the return value alone. `BrandDealsScreen` ignored it outright, which
+ * meant a player who could not afford the penalty tapped "Breach" on a
+ * confirmation dialog and got silence. The alert also quoted `payment * 0.5`,
+ * a different number from the one actually charged.
+ *
+ * Returns `null` when the deal is not active. The updater still re-checks
+ * everything against `prev` — this is for the copy and the pre-flight, never
+ * the authority. 2026-07-30 review of ECON-R1-03.
+ */
+export const brandDealBreachPenalty = (state: GameState, dealId: string): number | null => {
+  const deal = (state.socialMedia?.activeBrandDeals ?? []).find((d) => d.id === dealId);
+  if (!deal) return null;
+  const ws = state.weeksLived ?? 0;
+  const remainingPayment = deal.weeklyPayment
+    ? Math.max(0, deal.weeklyPayment * (deal.expiresAt - ws))
+    : Math.floor(deal.payment * 0.5);
+  return Math.floor(remainingPayment * 1.5);
+};
+
 export const breachBrandDeal = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
@@ -789,10 +815,7 @@ export const breachBrandDeal = (
     const deal = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
     if (!deal) return prev;
     const ws = prev.weeksLived ?? 0;
-    const remainingPayment = deal.weeklyPayment
-      ? Math.max(0, deal.weeklyPayment * (deal.expiresAt - ws))
-      : Math.floor(deal.payment * 0.5);
-    const penalty = Math.floor(remainingPayment * 1.5);
+    const penalty = brandDealBreachPenalty(prev, dealId) ?? 0;
     sm.activeBrandDeals = (sm.activeBrandDeals ?? []).filter((d) => d.id !== dealId);
     sm.brandInbox = {
       ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),

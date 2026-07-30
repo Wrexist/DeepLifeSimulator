@@ -829,17 +829,32 @@ export class IAPService {
         const transactionId = rc.transactionId || `${productId}:rc:${Date.now()}`;
         // Same in-memory lock + persisted ledger the native path uses;
         // applyBenefit marks the transaction processed at its end.
+        // `applyBenefit` returns false when the grant did not land (no game
+        // state on disk, a write failure, an unknown product). Ignoring it told
+        // a player who had ALREADY BEEN CHARGED "Purchase successful!" while
+        // they received nothing and had no reason to hit Restore. Report the
+        // failure and leave the transaction unmarked so Restore can retry.
+        let granted = true;
         if (!this.processingTransactions.has(transactionId)) {
           this.processingTransactions.add(transactionId);
           try {
             if (!(await this.isTransactionProcessed(transactionId))) {
-              await this.applyBenefit(productId, transactionId);
+              granted = await this.applyBenefit(productId, transactionId);
             }
           } finally {
             this.processingTransactions.delete(transactionId);
           }
         }
         this.setState({ isLoading: false });
+        if (!granted) {
+          logger.error('[IAP] RevenueCat purchase succeeded but the benefit did not apply', { productId, transactionId });
+          return {
+            success: false,
+            message: 'Your purchase went through, but we could not apply it yet. Tap Restore Purchases to finish — you will not be charged again.',
+            productId,
+            transactionId,
+          };
+        }
         return { success: true, message: 'Purchase successful!', productId, transactionId };
       }
 

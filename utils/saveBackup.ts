@@ -606,7 +606,11 @@ export async function createBackup(
         // Retry creating the backup after cleanup
         try {
           const retryTimestamp = Date.now();
-          const retryBackupId = `${BACKUP_PREFIX}${slot}_${retryTimestamp}`;
+          // Through `nextBackupId`, not the raw template: this retry runs in the
+          // same millisecond as the write that just failed, so a bare
+          // `${slot}_${timestamp}` id is the MOST likely of all of them to
+          // collide with a live backup and overwrite its `reason`.
+          const retryBackupId = nextBackupId(slot, retryTimestamp);
 
           // Re-derive from the original data parameter (same as outer scope)
           const retryPayload = normalizeBackupPayload(data);

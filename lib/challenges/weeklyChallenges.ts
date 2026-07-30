@@ -210,9 +210,13 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  // `Company.employees` is a NUMBER (CompanyActions sets `employees: 0` and
  // increments it). Reading `.length` off a number yields undefined, so this
  // was always 0 — impossible. GP-2.
+ // `Number.isFinite` + a floor of 0: a corrupted save carrying NaN or a
+ // negative headcount would otherwise poison the whole sum (NaN >= 10 is
+ // false forever) or let one company subtract another's staff.
  checkCurrent: (s) =>
  (s.companies ?? []).reduce(
- (sum: number, c: Company) => sum + (typeof c.employees === 'number' ? c.employees : 0),
+ (sum: number, c: Company) =>
+ sum + (Number.isFinite(c?.employees) ? Math.max(0, Math.floor(c.employees as number)) : 0),
  0
  ),
  },
@@ -556,13 +560,40 @@ export function getOrRotateWeeklyChallenge(
  return existing.startedWeek === undefined ? { ...existing, startedWeek: weeksLived } : existing;
  }
 
- // New challenge needed
- const challengeId = getWeeklyChallengeIdForWeek(weeksLived);
+ // New challenge needed.
+ //
+ // Prefer one the player has NOT already satisfied. The scheduled challenge is
+ // the starting point; if an established player already meets every objective
+ // (a 40-week veteran satisfies "reach $10,000" the moment it appears), walk
+ // the rotation for one that is still a challenge.
+ //
+ // The alternative — minting the scheduled one pre-claimed — is what this
+ // started as, and it lies to the player: `WeeklyChallengeCard` reads
+ // `rewardClaimed` and renders "Reward collected" for gems that were never
+ // paid. Minting `rewardClaimed: false` is worse still: every 4-week rotation
+ // would hand an established player 125-300 gems for taking no action at all,
+ // a passive premium-currency faucet worth roughly 1,000-1,400 gems a year.
+ // 2026-07-30 audit GP-11 and the review of it.
+ const scheduledIndex = WEEKLY_CHALLENGES.findIndex(
+ (c) => c.id === getWeeklyChallengeIdForWeek(weeksLived),
+ );
+ const startIndex = scheduledIndex >= 0 ? scheduledIndex : 0;
+
+ let challengeId = WEEKLY_CHALLENGES[startIndex].id;
+ let progressResult = evaluateChallengeProgress(challengeId, state);
+ let allAlreadyMet = progressResult.length > 0 && progressResult.every((p) => p.completed);
+
+ for (let step = 1; allAlreadyMet && step < WEEKLY_CHALLENGES.length; step++) {
+ const candidateId = WEEKLY_CHALLENGES[(startIndex + step) % WEEKLY_CHALLENGES.length].id;
+ const candidateProgress = evaluateChallengeProgress(candidateId, state);
+ if (candidateProgress.length === 0) continue;
+ challengeId = candidateId;
+ progressResult = candidateProgress;
+ allAlreadyMet = candidateProgress.every((p) => p.completed);
+ }
+
  const def = getWeeklyChallengeDefinition(challengeId);
  if (!def) return undefined;
-
- const progressResult = evaluateChallengeProgress(challengeId, state);
- const allAlreadyMet = progressResult.every((p) => p.completed);
 
  return {
  challengeId,
@@ -575,11 +606,10 @@ export function getOrRotateWeeklyChallenge(
  met: p.completed,
  })),
  completed: allAlreadyMet,
- // A challenge whose objectives are ALREADY satisfied the moment it is
- // minted is minted pre-claimed. It used to mint `rewardClaimed: false`,
- // so every 4-week rotation handed an established player 125-300 gems for
- // taking no action at all — a passive premium-currency faucet worth
- // roughly 1,000-1,400 gems a year. 2026-07-30 audit GP-11.
+ // Only reachable when the player has outgrown EVERY challenge in the
+ // rotation. Pre-claimed so the loop above cannot pay out for no action;
+ // the card renders this case as "Already complete", not as a reward
+ // collected, because nothing was paid.
  rewardClaimed: allAlreadyMet,
  };
 }

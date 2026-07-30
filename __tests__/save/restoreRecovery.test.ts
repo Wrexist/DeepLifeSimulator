@@ -154,41 +154,42 @@ describe('the pre-prestige snapshot exists at all', () => {
     // backup call whatsoever, so a mis-tapped prestige was unrecoverable.
     // `before_prestige` was declared, protected and shown in the restore UI,
     // and nothing ever wrote one. 2026-07-29 audit BRC-4.
-    const frozen = 1_800_000_000_000;
-    const realNowForPrecious = Date.now;
-    Date.now = () => frozen;
-    const precious = await createBackup(
-      SLOT,
-      createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2231 }))),
-      'before_prestige',
-    );
-    Date.now = realNowForPrecious;
-    expect(precious).not.toBeNull();
-
-    // FREEZE the clock so every backup below shares a millisecond. The id was
+    // FREEZE the clock so EVERY backup here shares a millisecond. The id was
     // `save_backup_${slot}_${Date.now()}`, so same-millisecond writes collided
     // and the second silently overwrote the first — including its
     // rotation-exempt `reason`. In CI this surfaced as a flaky assertion; the
     // flake was the bug. Freezing makes it deterministic instead of a race.
+    //
+    // Restored in a `finally`: a bare reassignment after the assertions leaves
+    // every later test in this file — and every file sharing the worker — with
+    // a stubbed clock if anything above it throws.
     const realNow = Date.now;
     Date.now = () => 1_800_000_000_000;
-
-    const ids = new Set<string>([precious!]);
-    for (let i = 0; i < 12; i += 1) {
-      const id = await createBackup(
+    try {
+      const precious = await createBackup(
         SLOT,
-        createSaveEnvelope(JSON.stringify(alive({ weeksLived: i }))),
-        'corruption_recovery',
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2231 }))),
+        'before_prestige',
       );
-      ids.add(id!);
-    }
-    // Every backup must have its own key; a collision silently overwrites an
-    // earlier one AND its rotation-exempt reason.
-    Date.now = realNow;
+      expect(precious).not.toBeNull();
 
-    // Every backup must have its own key.
-    expect(ids.size).toBe(13);
-    expect((await listBackups(SLOT)).some((b) => b.id === precious)).toBe(true);
+      const ids = new Set<string>([precious!]);
+      for (let i = 0; i < 12; i += 1) {
+        const id = await createBackup(
+          SLOT,
+          createSaveEnvelope(JSON.stringify(alive({ weeksLived: i }))),
+          'corruption_recovery',
+        );
+        ids.add(id!);
+      }
+
+      // Every backup must have its own key; a collision silently overwrites an
+      // earlier one AND its rotation-exempt reason.
+      expect(ids.size).toBe(13);
+      expect((await listBackups(SLOT)).some((b) => b.id === precious)).toBe(true);
+    } finally {
+      Date.now = realNow;
+    }
   });
 
   it('restores the pre-prestige life as a recovery', async () => {

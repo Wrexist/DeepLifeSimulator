@@ -60,7 +60,12 @@ function AmbitionPickerCard() {
       return { ...prev, ambitionId: id };
     });
     setExpanded(false);
-    void saveGame?.(false);
+    // Deferred to a macrotask, not called inline. `saveGame` reads
+    // `gameStateRef.current`, which is synced to state in a POST-COMMIT effect,
+    // so a synchronous call here persists the snapshot from BEFORE the pick —
+    // the ambition would be silently lost on reload. Same pattern as
+    // BrandDealsScreen's `persist`.
+    setTimeout(() => { void saveGame?.(false); }, 0);
   };
 
   return (

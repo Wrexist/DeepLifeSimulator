@@ -75,28 +75,22 @@ describe('no live surface decides anything from the dead achievement flag', () =
 });
 
 describe('the surfaces that summarise a life read the live store', () => {
-  it('inheritance lists the achievements the player actually claimed', () => {
-    const state = claimer(['first_job', 'first_million', 'homeowner']);
+  // `unlockedAchievements` is a LOCAL inside `computeInheritance` — it is fed to
+  // `updateDynastyOnDeath` and never returned. Asserting on `summary.unlockedAchievements`
+  // is asserting on `undefined`; guarding that with `if (Array.isArray(...))`
+  // makes the whole assertion unreachable, which is the exact defect this file
+  // exists to catch. Read the field the summary really carries.
+  const carried = (state: GameState): string[] =>
+    computeInheritance(state).updatedDynastyStats.familyAchievements;
 
-    const summary = computeInheritance(state) as unknown as {
-      unlockedAchievements?: unknown[];
-    };
-
-    // Whatever shape the summary takes, it must not be empty for a player who
-    // has claimed three achievements — that emptiness was the bug.
-    if (Array.isArray(summary.unlockedAchievements)) {
-      expect(summary.unlockedAchievements.length).toBe(3);
-    }
+  it('inheritance carries the achievements the player actually claimed', () => {
+    expect(carried(claimer(['first_job', 'first_million', 'homeowner']))).toEqual(
+      expect.arrayContaining(['first_job', 'first_million', 'homeowner']),
+    );
   });
 
   it('reports nothing for a player who genuinely has claimed nothing', () => {
-    const summary = computeInheritance(claimer([])) as unknown as {
-      unlockedAchievements?: unknown[];
-    };
-
-    if (Array.isArray(summary.unlockedAchievements)) {
-      expect(summary.unlockedAchievements).toHaveLength(0);
-    }
+    expect(carried(claimer([]))).toEqual([]);
   });
 
   it('is not fooled by the deprecated array being populated', () => {
@@ -110,10 +104,9 @@ describe('the surfaces that summarise a life read the live store', () => {
       ] as never,
     });
 
-    const summary = computeInheritance(state) as unknown as { unlockedAchievements?: unknown[] };
-
-    if (Array.isArray(summary.unlockedAchievements)) {
-      expect(summary.unlockedAchievements).toEqual(['first_job']);
-    }
+    const result = carried(state);
+    expect(result).toContain('first_job');
+    expect(result).not.toContain('ghost_a');
+    expect(result).not.toContain('ghost_b');
   });
 });

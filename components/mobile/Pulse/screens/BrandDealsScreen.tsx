@@ -14,7 +14,7 @@ import { scale, fontScale, responsiveSpacing, getAppScreenBottomPadding } from '
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
-import { acceptBrandDeal, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
+import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
 import { Alert } from 'react-native';
 
@@ -57,17 +57,34 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
     (id: string) => {
       const deal = active.find((d) => d.id === id);
       const name = deal?.brandName ?? 'this brand';
-      const penalty = Math.floor((deal?.payment ?? 0) * 0.5);
+      // The real charge, from the same helper the action uses. The dialog used
+      // to quote `payment * 0.5` while the action charged
+      // `remaining weekly payments * 1.5` — a different, usually much larger
+      // number. And since the action now REFUSES a penalty the player cannot
+      // afford, confirming an amount they don't have would end in silence:
+      // `breachBrandDeal` reports its outcome from inside a setGameState
+      // updater, which React may run after this callback has returned.
+      const penalty = brandDealBreachPenalty(gameState, id) ?? 0;
+
+      if ((gameState.stats?.money ?? 0) < penalty) {
+        Alert.alert(
+          'Not enough cash',
+          `Breaching ${name} costs $${penalty.toLocaleString()}. Withdraw from your bank or sell something first.`,
+          [{ text: 'OK' }],
+        );
+        return;
+      }
+
       Alert.alert(
         `Breach ${name}?`,
-        `You'll lose $${penalty.toLocaleString()} (50% of total payment) and the deal will be marked as breached in your history.`,
+        `You'll lose $${penalty.toLocaleString()} and the deal will be marked as breached in your history.`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Breach', style: 'destructive', onPress: () => { breachBrandDeal(setGameState, id); persist(); } },
         ],
       );
     },
-    [setGameState, active, persist],
+    [setGameState, active, persist, gameState],
   );
 
   // Deliver-post handler: tags the player's most recent un-sponsored post as

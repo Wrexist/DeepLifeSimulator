@@ -91,7 +91,12 @@ function WeeklyChallengeCard() {
             {definition.name}
           </Text>
           <Text style={styles.sub}>
-            {claimed ? 'Reward collected' : `${met}/${total} objectives`}
+            {/* "Complete", not "Reward collected". `rewardClaimed` is also set
+                when a challenge is minted already-satisfied (see
+                getOrRotateWeeklyChallenge) — no gems are paid in that case, and
+                claiming they were is a lie the player can check against their
+                gem balance. This wording is true either way. */}
+            {claimed ? 'Complete' : `${met}/${total} objectives`}
           </Text>
         </View>
         {claimed ? (

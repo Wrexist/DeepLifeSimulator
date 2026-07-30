@@ -141,18 +141,38 @@ function build() {
   // tsconfig.tests.json into `npm run type-check` and delete this check.
   const TEST_TYPE_ERROR_BUDGET = Number(process.env.AUDIT_TEST_TYPE_ERROR_BUDGET || 186);
   if (L.exists('tsconfig.tests.json')) {
+    // No `|| true`. That swallowed the exit code, so a tsc that never LAUNCHED
+    // (missing node_modules — the documented cold-container trap — a bad
+    // tsconfig, a killed process) produced empty output, zero `error TS`
+    // matches, and a green "0/186". A ratchet that reports a perfect score when
+    // it failed to run is worse than no ratchet.
     let count = null;
+    let failedToRun = null;
     try {
       const { execSync } = require('child_process');
-      const out = execSync('npx tsc --noEmit -p tsconfig.tests.json 2>&1 || true',
+      const out = execSync('npx tsc --noEmit -p tsconfig.tests.json 2>&1',
         { cwd: process.cwd(), encoding: 'utf8', timeout: 300000, maxBuffer: 32 * 1024 * 1024 });
       count = (out.match(/error TS\d+/g) || []).length;
-    } catch {
-      count = null;
+    } catch (e) {
+      // tsc exits non-zero when it finds errors — that is the normal path here,
+      // and its diagnostics are on stdout. Only treat it as "did not run" when a
+      // non-zero exit came back with NO diagnostics to count.
+      const out = `${e?.stdout || ''}${e?.stderr || ''}`;
+      const found = (out.match(/error TS\d+/g) || []).length;
+      if (found > 0) {
+        count = found;
+      } else {
+        failedToRun = e?.signal === 'SIGTERM'
+          ? 'timed out after 300s'
+          : `exit ${e?.status ?? '?'}${out.trim() ? `: ${out.trim().split('\n')[0].slice(0, 160)}` : ' with no output'}`;
+      }
     }
 
     if (count == null) {
-      a.info('Test-tree type-check did not run', 'Skipped (tsc unavailable or timed out).', 'tsconfig.tests.json');
+      // Medium, not info: this is the check failing, not a clean skip.
+      a.medium('Test-tree type-check DID NOT RUN',
+        `tsc could not be run (${failedToRun}). The ratchet reports nothing this run — do not read it as a pass. Try \`npm install\` then \`npm run type-check:tests\`.`,
+        'tsconfig.tests.json');
     } else {
       a.assert(count <= TEST_TYPE_ERROR_BUDGET, 'medium',
         `Test-tree type errors within budget (${count}/${TEST_TYPE_ERROR_BUDGET})`,

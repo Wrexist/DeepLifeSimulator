@@ -56,35 +56,52 @@ function weekOf(id: string): number {
 }
 
 describe('a challenge that is already satisfied is not a payday', () => {
-  it('mints pre-claimed when every objective is already met', () => {
+  it('skips past a challenge the player has already satisfied', () => {
     // Deterministic: `wc_fitness_guru` is fitness 80 / health 80 / happiness 70
-    // / 1k followers, all of which an established player already has. A
-    // conditional `if (minted.completed)` would NOT discriminate — before the
-    // objective fixes, nothing ever minted complete, so the printer was masked
-    // by GP-2 rather than absent.
+    // / 1k followers, all of which an established player already has. Minting it
+    // would be either a free 150 gems (rewardClaimed: false) or a card reading
+    // "Reward collected" for gems never paid (rewardClaimed: true). Neither is
+    // acceptable, so the rotation walks on to one that is still a challenge.
     const week = weekOf('wc_fitness_guru');
     const minted = getOrRotateWeeklyChallenge(established(week));
 
     expect(minted).toBeDefined();
-    expect(minted!.challengeId).toBe('wc_fitness_guru');
-    expect(minted!.completed).toBe(true);
-    // The fix: completed-at-mint must also be claimed-at-mint, or the grant
-    // block pays 150 gems for zero player action on every 4-week rotation.
-    expect(minted!.rewardClaimed).toBe(true);
+    expect(minted!.challengeId).not.toBe('wc_fitness_guru');
+    expect(minted!.completed).toBe(false);
+    expect(minted!.rewardClaimed).toBe(false);
   });
 
   it('never mints completed-but-unclaimed, at any week in the rotation', () => {
     // Sweep the catalogue rather than trusting one week to land on a
-    // pre-satisfied challenge.
-    let completedSeen = false;
+    // pre-satisfied challenge. The grant block in the tick fires on
+    // `completed && !rewardClaimed`, so that pair must never be minted.
     for (let week = 0; week < 200; week += 1) {
       const minted = getOrRotateWeeklyChallenge(established(week));
       if (!minted) continue;
       expect(minted.completed && !minted.rewardClaimed).toBe(false);
-      completedSeen = completedSeen || !!minted.completed;
     }
-    // Guard against the sweep silently proving nothing.
-    expect(completedSeen).toBe(true);
+  });
+
+  it('gives even a maxed-out player something still open, where one exists', () => {
+    // The guard against the sweep above proving nothing: an established player
+    // must be handed a live challenge, not a pre-finished one.
+    let anyOpen = false;
+    for (let week = 0; week < 200; week += 1) {
+      const minted = getOrRotateWeeklyChallenge(established(week));
+      if (minted && !minted.completed) anyOpen = true;
+    }
+    expect(anyOpen).toBe(true);
+  });
+
+  it('always mints SOMETHING — walking the rotation must not return undefined', () => {
+    // The walk introduces a loop that could fall off the end of the catalogue.
+    // A player with no challenge at all loses the whole feature silently, which
+    // is how this system spent its life before GP-1.
+    for (const state of [established(weekOf('wc_fitness_guru')), createTestGameState({ weeksLived: 8 })]) {
+      const minted = getOrRotateWeeklyChallenge(state);
+      expect(minted).toBeDefined();
+      expect(minted!.progress.length).toBeGreaterThan(0);
+    }
   });
 
   it('still mints claimable for a player who has NOT met the objectives', () => {
