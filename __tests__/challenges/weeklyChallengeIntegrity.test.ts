@@ -27,6 +27,7 @@ import {
 } from '@/lib/challenges/weeklyChallenges';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import { netWorth } from '@/lib/progress/achievements';
 
 /** A late-game player who satisfies essentially every objective already. */
 function established(weeksLived: number): GameState {
@@ -185,9 +186,10 @@ describe('net worth is the canonical figure', () => {
     const objective = def!.objectives.find((o) => o.id.startsWith('net_worth'))!;
     const rich = established(400);
 
-    // Whatever the threshold, a player with $250M cash + $50M bank clears it —
-    // the point is that the objective agrees with the number the rest of the
-    // game shows, rather than carrying its own partial sum.
-    expect(objective.checkCurrent(rich)).toBeGreaterThan(0);
+    // Exact parity with the canonical figure, not merely "> 0" — the old partial
+    // sum also cleared zero for this fixture, so the weaker assertion did not
+    // discriminate between the two implementations at all. (Review catch.)
+    const expected = netWorth(rich) >= 1 ? 1 : 0;
+    expect(objective.checkCurrent(rich)).toBe(expected);
   });
 });

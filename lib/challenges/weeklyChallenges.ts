@@ -9,7 +9,7 @@
  * see the same challenge at the same time.
  */
 import { netWorth } from '@/lib/progress/achievements';
-import type { GameState } from '@/contexts/game/types';
+import type { Company, GameState } from '@/contexts/game/types';
 
 export interface WeeklyChallengeObjective {
  id: string;
@@ -212,7 +212,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  // was always 0 — impossible. GP-2.
  checkCurrent: (s) =>
  (s.companies ?? []).reduce(
- (sum: number, c: any) => sum + (typeof c.employees === 'number' ? c.employees : 0),
+ (sum: number, c: Company) => sum + (typeof c.employees === 'number' ? c.employees : 0),
  0
  ),
  },

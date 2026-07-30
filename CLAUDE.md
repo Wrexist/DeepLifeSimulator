@@ -33,6 +33,7 @@ Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 | `npm run test:e2e` / `test:performance` | `__tests__/e2e` / `__tests__/performance` |
 | `npm run test:coverage` / `test:ci` | Coverage (global threshold **70%** branches/functions/lines/statements) |
 | `npm run type-check` | `tsc --noEmit` over `tsconfig.typecheck.json` (app source only, excludes tests/scripts) |
+| `npm run type-check:tests` | `tsc --noEmit` over `tsconfig.tests.json` — **the test tree**, which `type-check` excludes. 186 errors outstanding; ratcheted by audit S6 so the count can only go down. A type error in a test is usually a test asserting on a field that does not exist, i.e. asserting nothing |
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |
 | `npm run preflight:quick` | routes + type-check — **run this during development** |

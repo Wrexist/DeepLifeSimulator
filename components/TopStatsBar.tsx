@@ -163,6 +163,13 @@ function TopStatsBarComponent() {
  return typeof marks?.[id] === 'number' && marks[id] === (prev.weeksLived ?? 0);
  };
 
+ // One refusal path, so the two callers below cannot drift in wording or
+ // haptic. (Review of this change flagged the duplication.)
+ const refuseWeeklyGate = () => {
+ haptic('warning');
+ info('Already done that this week — come back next week.');
+ };
+
  const apply = (
  deltas: Partial<{ health: number; happiness: number; energy: number; fitness: number; money: number }>,
  msg: string,
@@ -193,8 +200,7 @@ function TopStatsBarComponent() {
  };
  });
  if (refused) {
- haptic('warning');
- info('Already done that this week — come back next week.');
+ refuseWeeklyGate();
  return;
  }
  haptic('success');
@@ -206,8 +212,7 @@ function TopStatsBarComponent() {
  // the updater above.
  if (typeof settings?.quickActionWeeks?.[action] === 'number'
  && settings.quickActionWeeks[action] === weeksLived) {
- haptic('warning');
- info('Already done that this week — come back next week.');
+ refuseWeeklyGate();
  return;
  }
  switch (action) {

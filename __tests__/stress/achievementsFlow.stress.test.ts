@@ -108,7 +108,12 @@ function fatState(): GameState {
   s.streetJobsCompleted = 50;
   s.criminalLevel = 5;
   s.criminalXp = 200;
-  s.totalCrimesCommitted = 100;
+  // `totalCrimesCommitted` lives on `lifetimeStatistics`, not the GameState root.
+  // Writing it at the root did nothing at all — the "maximally populated" state
+  // this helper promises was silently missing the field, so anything reading it
+  // was exercised against 0. Found by type-checking the test tree for the first
+  // time (2026-07-30 audit ARCH-2).
+  s.lifetimeStatistics = { ...(s.lifetimeStatistics ?? {}), totalCrimesCommitted: 100 } as never;
   s.relationships = Array.from({ length: 15 }, (_, i) => ({
     id: `rel-${i}`, name: `Friend ${i}`, type: 'friend' as const,
     relationshipScore: 75 + (i % 25), personality: 'kind', gender: i % 2 ? 'male' : 'female' as const,

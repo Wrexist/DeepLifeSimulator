@@ -151,7 +151,11 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     expect(state.journal?.length ?? 0).toBeLessThanOrEqual(80);
     expect(state.memories?.length ?? 0).toBeLessThanOrEqual(300);
     expect(state.lifeMilestones?.length ?? 0).toBeLessThanOrEqual(300);
-    expect(state.netWorthHistory?.length ?? 0).toBeLessThanOrEqual(300);
+    // `netWorthHistory` hangs off `lifetimeStatistics`, not the root. Read at the
+    // root with `?.length ?? 0` this was permanently `0 <= 300` — an unbounded-
+    // growth guard that asserted nothing, in the very suite whose job is to prove
+    // a 2000-week save cannot soft-lock. ARCH-2.
+    expect(state.lifetimeStatistics?.netWorthHistory?.length ?? 0).toBeLessThanOrEqual(300);
   });
 
   it('H5: a corrupted state self-heals via validate(autoFix) and survives a real tick', async () => {

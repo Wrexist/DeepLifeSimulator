@@ -12,6 +12,11 @@
  *   S3  `as any` casts in contexts/game + services stay at/under budget (no new ones).
  *   S4  ErrorBoundary exists and wires AsyncStorage lazily.
  *   S5  No top-level (module-scope) `require()` of native modules in services/.
+ *   S6  The TEST tree's type-error count never rises (ratchet). ~4,300 tests were
+ *       excluded from every type-check, so a test could assert on a field that does
+ *       not exist and pass by asserting nothing — the same class of defect as the
+ *       weekly challenges that read `c.owned` and `c.employees.length` on shapes the
+ *       game never writes. 2026-07-30 audit ARCH-2.
  */
 'use strict';
 
@@ -126,6 +131,42 @@ function build() {
       'ErrorBoundary lazy-loads AsyncStorage',
       'ErrorBoundary may import AsyncStorage eagerly',
       'Eager import in the boundary defeats its purpose (the import itself can crash).', 'components/ErrorBoundary.tsx');
+  }
+
+  // --- S6: test-tree type errors, ratcheted ------------------------------
+  // Not a pass/fail gate on zero — there are 186 today and fixing them means
+  // deciding, case by case, whether the TYPE or the TEST is wrong. It IS a gate
+  // on the count going UP, which is what stops the backlog regrowing while it is
+  // burned down. Lower TEST_TYPE_ERROR_BUDGET as they clear; at zero, fold
+  // tsconfig.tests.json into `npm run type-check` and delete this check.
+  const TEST_TYPE_ERROR_BUDGET = Number(process.env.AUDIT_TEST_TYPE_ERROR_BUDGET || 186);
+  if (L.exists('tsconfig.tests.json')) {
+    let count = null;
+    try {
+      const { execSync } = require('child_process');
+      const out = execSync('npx tsc --noEmit -p tsconfig.tests.json 2>&1 || true',
+        { cwd: process.cwd(), encoding: 'utf8', timeout: 300000, maxBuffer: 32 * 1024 * 1024 });
+      count = (out.match(/error TS\d+/g) || []).length;
+    } catch {
+      count = null;
+    }
+
+    if (count == null) {
+      a.info('Test-tree type-check did not run', 'Skipped (tsc unavailable or timed out).', 'tsconfig.tests.json');
+    } else {
+      a.assert(count <= TEST_TYPE_ERROR_BUDGET, 'medium',
+        `Test-tree type errors within budget (${count}/${TEST_TYPE_ERROR_BUDGET})`,
+        `Test-tree type errors ROSE to ${count} (budget ${TEST_TYPE_ERROR_BUDGET})`,
+        'A type error in a test is often a test asserting on a field that does not exist — it passes by asserting nothing. Run `npm run type-check:tests`.',
+        'tsconfig.tests.json');
+      if (count > 0 && count <= TEST_TYPE_ERROR_BUDGET) {
+        a.info(`${count} test-tree type error(s) outstanding`,
+          'Burn down and lower AUDIT_TEST_TYPE_ERROR_BUDGET.', 'npm run type-check:tests');
+      }
+    }
+  } else {
+    a.medium('tsconfig.tests.json missing',
+      'The test tree would go back to never being type-checked.', 'tsconfig.tests.json');
   }
 
   return a;

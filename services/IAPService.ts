@@ -229,6 +229,22 @@ export function applyProductBenefitsToState(
   }
 }
 
+/**
+ * Is this product's grant NON-idempotent — i.e. does applying it twice give the
+ * player more than they bought?
+ *
+ * Restore re-applies entitlements unconditionally so it can repair a wiped one
+ * (that is the whole point of MON-11). That is safe for boolean flags and
+ * strictly unsafe for these two:
+ *   - REVIVAL_PACK banks a one-shot revive; re-granting after use mints one.
+ *   - a subscription writes `expiresTimestamp: Date.now() + duration`, so
+ *     re-applying it RENEWS the term — repeated Restore taps would have been an
+ *     unlimited free renewal. Caught in review of the MON-11 change itself.
+ */
+function isNonIdempotentGrant(productId: string): boolean {
+  return productId === IAP_PRODUCTS.REVIVAL_PACK || isSubscriptionProduct(productId);
+}
+
 export class IAPService {
   private state: IAPState = {
     isConnected: false,
@@ -1791,13 +1807,21 @@ export class IAPService {
           // RC verifies ownership server-side; dedupe so a benefit is applied at
           // most once even across repeated restores.
           const transactionId = `rc_restore:${productId}`;
-          // Only the bankable one-shot is ledger-gated; see the doc comment.
-          if (productId === IAP_PRODUCTS.REVIVAL_PACK
-            && (await this.isTransactionProcessed(transactionId))) {
+          // Ledger-gate anything whose grant is NOT idempotent. Boolean
+          // entitlement flags can be re-applied freely — that is what lets a
+          // restore repair a wiped entitlement — but two kinds cannot:
+          //   - REVIVAL_PACK banks a one-shot revive, so re-granting it after
+          //     the player spends it mints a free revive per restore;
+          //   - a SUBSCRIPTION sets `expiresTimestamp: Date.now() + duration`,
+          //     so re-applying it renews the term. Without this gate, tapping
+          //     Restore Purchases repeatedly was an unlimited free renewal.
+          if (isNonIdempotentGrant(productId) && (await this.isTransactionProcessed(transactionId))) {
             continue;
           }
-          await this.applyBenefit(productId, transactionId);
-          restoredCount++;
+          // Count only what actually landed — `applyBenefit` returns false when
+          // nothing was applied, and an inflated count would undo the whole
+          // point of reporting a real number to the player.
+          if (await this.applyBenefit(productId, transactionId)) restoredCount++;
         }
         const e = revenueCatService.cachedEntitlements();
         this.setState({ isLoading: false });
@@ -1852,14 +1876,14 @@ export class IAPService {
           const transactionId =
             purchase.transactionId ||
             `${purchase.productId}:${purchase.purchaseTime || Date.now()}`;
-          // Re-apply unconditionally. The ledger check that used to guard this
-          // is what made a restore unable to repair a wiped entitlement.
-          if (productId === IAP_PRODUCTS.REVIVAL_PACK
-            && (await this.isTransactionProcessed(transactionId))) {
+          // Idempotent entitlement flags re-apply freely — that is what makes a
+          // restore able to repair a wiped entitlement. Non-idempotent grants
+          // (banked revive, subscription term) stay ledger-gated; see the
+          // RevenueCat loop above.
+          if (isNonIdempotentGrant(productId) && (await this.isTransactionProcessed(transactionId))) {
             continue;
           }
-          await this.applyBenefit(purchase.productId, transactionId);
-          restoredCount++;
+          if (await this.applyBenefit(purchase.productId, transactionId)) restoredCount++;
         }
 
         // Update purchases list in state
