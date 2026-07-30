@@ -22,6 +22,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 | # | File | What it gives you |
 |---|---|---|
 | 0 | [`00-START-HERE.md`](00-START-HERE.md) | **Beginner walkthrough** — start here if this is your first ad account |
+| ★ | [`PASTE-BLOCKS.md`](PASTE-BLOCKS.md) | **Every keyword & negative list, comma-separated and ready to paste**, each labelled with the exact campaign/ad group it belongs in. Use this while you're actually in the console. |
 | — | **this file** | The 60-second summary and the go/no-go gate |
 | 1 | [`01-SETUP.md`](01-SETUP.md) | Account → campaigns → ad groups, every setting, click by click |
 | 2 | [`02-keywords.md`](02-keywords.md) | Every keyword, grouped by campaign/theme, with bids and rationale |

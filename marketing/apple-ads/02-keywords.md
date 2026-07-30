@@ -10,10 +10,14 @@ seeds. Machine-readable lists live in [`keywords/`](keywords/):
 | [`keywords/competitor-exact.csv`](keywords/competitor-exact.csv) | 24 | `DLS-US-Competitor-Exact` (3 ad groups) |
 | [`keywords/discovery-broad.csv`](keywords/discovery-broad.csv) | 13 | `DLS-US-Discovery-Broad` — 12 broad seeds + 1 keyword-less Search Match ad group |
 
-Columns: `campaign, ad_group, keyword, match_type, max_cpt_usd, rationale`. In
-the Apple Ads UI you paste the `keyword` column into the ad group and set the bid
-per the `max_cpt_usd` column; via the Campaign Management API the file maps
-directly.
+Columns: `campaign, ad_group, keyword, match_type, max_cpt_usd, rationale`. These
+CSVs are the **source of truth and the reference**; via the Campaign Management
+API they map directly.
+
+> 📋 **To actually paste into Apple Ads, use
+> [`PASTE-BLOCKS.md`](PASTE-BLOCKS.md)** — the same lists rendered as
+> comma-separated blocks, one per ad group, each labelled with its destination
+> and bid. It is generated from these CSVs, so the two cannot drift.
 
 ---
 

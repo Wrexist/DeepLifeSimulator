@@ -254,12 +254,13 @@ yet to justify a filter.
 
 ### Add the keywords
 
-Open **[`keywords/brand-exact.csv`](keywords/brand-exact.csv)**. Copy the
-**third column** (`keyword`) — 15 words including deliberate misspellings like
+Open **[`PASTE-BLOCKS.md`](PASTE-BLOCKS.md) § 1** and copy the whole
+comma-separated block — 15 words, including deliberate misspellings like
 `deaplife`, because people typo your name and those taps are cheap.
 
-Paste them into the ad group's keyword box. Set **match type = Exact** for all of
-them.
+Paste it straight into the ad group's keyword box; Apple splits a
+comma-separated paste into individual keywords for you. Set **match type =
+Exact** for all of them.
 
 > **Exact vs Broad, once:**
 > **Exact** = show my ad only for this specific phrase. Predictable. Use it
@@ -279,7 +280,7 @@ building and why.
 
 | Campaign | Budget | Buys | Beginner note |
 |---|---|---|---|
-| **Category** `DLS-US-Category-Exact` | $12/day | People searching the genre: "life simulator", "get rich game", "tycoon" | **Your main campaign.** 8 ad groups, one per theme — keywords in [`keywords/category-exact.csv`](keywords/category-exact.csv), split by the `ad_group` column |
+| **Category** `DLS-US-Category-Exact` | $12/day | People searching the genre: "life simulator", "get rich game", "tycoon" | **Your main campaign.** 8 ad groups, one per theme — one ready-to-paste block each in [`PASTE-BLOCKS.md`](PASTE-BLOCKS.md) § 2 |
 | **Competitor** `DLS-US-Competitor-Exact` | $6/day | People searching for BitLife and similar | Expensive and converts worst. **Do not raise this budget** until it proves itself |
 | **Discovery** `DLS-US-Discovery-Broad` | $9/day | Everything else — this one *finds* words for you | Search Match **ON** here (the one place). Its job is a report, not installs |
 
@@ -328,10 +329,10 @@ words are all traps:
 
 Without negatives you pay full price for every one of those taps and get nothing.
 
-**What to do:** open
-[`negatives/global-negatives.csv`](negatives/global-negatives.csv), copy the
-first column (169 words), and paste it into the **campaign-level negative
-keywords** box of Category, Competitor, and Discovery.
+**What to do:** open **[`PASTE-BLOCKS.md`](PASTE-BLOCKS.md) § 5**, copy the
+comma-separated block (169 words), and paste it into the **campaign-level
+negative keywords** box of Category, Competitor, and Discovery. Then do § 6
+(Discovery only) and § 7 (per ad group).
 
 **Not Brand.** Brand gets no negatives — every search reaching it is someone
 typing your app's name, so there is nothing to filter out.
