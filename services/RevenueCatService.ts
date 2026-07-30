@@ -126,6 +126,8 @@ class RevenueCatService {
   }
 
   /** Synchronous last-known entitlements (never awaits; safe default false). */
+  private everFetched = false;
+
   cachedEntitlements(): RcEntitlements {
     return this.cache;
   }
@@ -133,7 +135,20 @@ class RevenueCatService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private cacheFrom(customerInfo: any): RcEntitlements {
     this.cache = readEntitlements(customerInfo);
+    this.everFetched = true;
     return this.cache;
+  }
+
+  /**
+   * True once entitlements have been read from the SDK at least once this
+   * process. `getEntitlements()` returns all-false on ANY error (offline, SDK
+   * not configured) WITHOUT touching the cache, so a false entitlement is
+   * otherwise indistinguishable from "we could not ask" — and callers that
+   * revoke on false would revoke a paid purchase for a player who happened to
+   * launch offline. 2026-07-30 audit MON-1.
+   */
+  entitlementsEverFetched(): boolean {
+    return this.everFetched;
   }
 
   /**

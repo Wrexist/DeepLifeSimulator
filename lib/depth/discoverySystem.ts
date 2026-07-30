@@ -520,7 +520,10 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
   mark('bank', (gameState.bankSavings ?? 0) > 0 || has(s.bankAccounts));
   mark('travel', has(s.visitedCountries) || !!s.currentTrip);
   mark('realEstate', has(gameState.realEstate));
-  mark('stocks', has(gameState.stocks?.holdings) || has(s.stocks));
+  // `state.stocks` is an OBJECT (`{ holdings: [...] }`), never an array, so
+  // `has(s.stocks)` could never be true — it was dead weight, not legacy-save
+  // coverage. The real legacy shape is the `stocksOwned` map.
+  mark('stocks', has(gameState.stocks?.holdings) || Object.keys(s.stocksOwned ?? {}).length > 0);
   mark('company', has(gameState.companies) || !!s.company);
   mark('politics', has(gameState.careers?.filter?.((c: any) => c?.id === 'political')));
   mark('rd', has(s.rdProjects) || has(s.research));

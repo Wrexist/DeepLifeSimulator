@@ -75,6 +75,9 @@ function TopStatsBarComponent() {
  // Sprint 2: select only the slices this bar reads — it no longer re-renders
  // on changes to unrelated state (loans, companies, social feeds, ...).
  const setGameState = useSetGameState();
+ // saveGame only — this hook's other members are not read here, and the actions
+ // context does not carry a state subscription.
+ const { saveGame } = useGameActions();
  const stats = useGameSelector((s) => s?.stats, shallowEqual);
  const settings = useGameSelector((s) => s?.settings, shallowEqual);
  const bankSavings = useGameSelector((s) => s?.bankSavings ?? 0);
@@ -221,6 +224,12 @@ function TopStatsBarComponent() {
  });
  haptic('success');
  success(msg);
+ // Persist the grant AND the weekly marker. Without this the whole tick lives
+ // only in memory until the 2-minute autosave, so a force-kill loses the
+ // marker and re-arms the action for the same game week — the exact bypass
+ // this gate exists to close. Deferred a macrotask because saveGame reads
+ // gameStateRef.current, which is synced post-commit.
+ setTimeout(() => { void saveGame?.(false); }, 0);
  };
 
  const s = stats ?? { money: 0, energy: 0 };
@@ -254,7 +263,7 @@ function TopStatsBarComponent() {
  apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout — +6 fitness, +5 health.');
  break;
  }
- }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived]);
+ }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
 
  // Optimized stat colors with better memoization
  const statColors = useMemo(

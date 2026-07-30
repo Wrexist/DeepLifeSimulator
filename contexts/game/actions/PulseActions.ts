@@ -1203,13 +1203,27 @@ export interface AdBoostResult {
   followersGained: number;
 }
 
+/**
+ * Is the weekly ad-boost available? Checked BEFORE an ad is presented.
+ *
+ * `RewardedAdModal` used to present a full rewarded video and only then call
+ * `watchAdForFollowerBoost`, which refuses when the boost was already used this
+ * game week. So a player watched a real 30-second ad, received nothing, and was
+ * told nothing — the sheet had already been dismissed to present the ad, and
+ * the failure branch fired a haptic and dropped `result.message` on the floor.
+ * 2026-07-30 audit UX-1.
+ */
+export const canBoostFollowersWithAd = (gameState: GameState): boolean => {
+  const ws = gameState.weeksLived ?? 0;
+  const lastBoost = gameState.socialMedia?.lastAdBoostWeek ?? -Infinity;
+  return ws - lastBoost >= 1;
+};
+
 export const watchAdForFollowerBoost = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
 ): AdBoostResult => {
-  const ws = gameState.weeksLived ?? 0;
-  const lastBoost = gameState.socialMedia?.lastAdBoostWeek ?? -Infinity;
-  if (ws - lastBoost < 1) {
+  if (!canBoostFollowersWithAd(gameState)) {
     return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
   }
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;

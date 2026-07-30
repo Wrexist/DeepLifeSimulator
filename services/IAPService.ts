@@ -257,6 +257,8 @@ export class IAPService {
   private listeners: ((state: IAPState) => void)[] = [];
   private isSandboxEnvironment: boolean = false;
   // CRASH FIX (A-2): In-memory lock to prevent concurrent processing of same transaction
+  /** Set once the store's purchase ledger has actually been read. See hasAuthoritativeEntitlementSource. */
+  private purchaseLedgerLoaded = false;
   private processingTransactions: Set<string> = new Set();
   private isInitializing: boolean = false;
   private hasInitialized: boolean = false;
@@ -789,6 +791,7 @@ export class IAPService {
 
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
         logger.debug('Loaded purchases:', { count: results.length });
+        this.purchaseLedgerLoaded = true;
         this.setState({ purchases: results });
 
         // Save purchases to AsyncStorage
@@ -1048,6 +1051,7 @@ export class IAPService {
         }
         this.processingTransactions.add(transactionId);
 
+        let granted = true;
         try {
           const alreadyProcessed =
             await this.isTransactionProcessed(transactionId);
@@ -1070,8 +1074,8 @@ export class IAPService {
           if (!alreadyProcessed) {
             // Apply purchase benefits exactly once per transaction.
             logger.info('Applying purchase benefits...');
-            await this.applyBenefit(purchase.productId, transactionId);
-            logger.info('Benefits applied to game state');
+            granted = await this.applyBenefit(purchase.productId, transactionId);
+            logger.info('Benefits applied to game state', { granted });
           } else {
             logger.info(
               'Skipping duplicate entitlement grant for processed transaction',
@@ -1084,6 +1088,26 @@ export class IAPService {
         } finally {
           // CRASH FIX (A-2): Always release lock
           this.processingTransactions.delete(transactionId);
+        }
+
+        // FAIL CLOSED. This ignored `applyBenefit`'s result, finished the
+        // transaction anyway — which tells the store to stop redelivering it —
+        // and returned success. A charged native purchase could therefore be
+        // permanently acknowledged with nothing granted and no way back. Same
+        // class already fixed on the RevenueCat path; this was the other half.
+        // 2026-07-30 review of MON-6.
+        if (!granted) {
+          logger.error('[IAP] Native purchase granted nothing; leaving the transaction OPEN for store redelivery', {
+            productId: purchase.productId,
+            transactionId,
+          });
+          this.setState({ isLoading: false });
+          return {
+            success: false,
+            message: 'Your purchase went through, but we could not apply it yet. Reopen the app or tap Restore Purchases — you will not be charged again.',
+            productId: purchase.productId,
+            transactionId: purchase.transactionId,
+          };
         }
 
         // Finish transaction with store AFTER benefit is applied and persisted.
@@ -1458,7 +1482,18 @@ export class IAPService {
       }
 
       // Disk path only: persist permanent (cross-slot) perks to storage.
-      await this.persistPermanentPerks(config);
+      //
+      // FAIL CLOSED. This discarded the boolean, so a permanent perk whose
+      // cross-slot envelope never reached disk still counted as fulfilled and
+      // the transaction was marked processed — leaving the player charged, the
+      // perk gone from every other slot and the next life, and no retry path.
+      // 2026-07-30 review of SAVE-1.
+      if (!(await this.persistPermanentPerks(config))) {
+        logger.error('[IAP] Permanent perks did not persist; treating fulfilment as failed', {
+          productId: purchase.productId,
+        });
+        return false;
+      }
     }
 
     // ─── Pulse Verified Pro subscription fulfillment (v13+) ───
@@ -1592,13 +1627,15 @@ export class IAPService {
     if ('fastLearner' in config && config.fastLearner) results.push(await this.savePermanentPerk('fastLearner'));
     if ('goodCredit' in config && config.goodCredit) results.push(await this.savePermanentPerk('goodCredit'));
     if ('allPerks' in config && config.allPerks) {
-      const perkResults = await Promise.all([
-        this.savePermanentPerk('workBoost'),
-        this.savePermanentPerk('mindset'),
-        this.savePermanentPerk('fastLearner'),
-        this.savePermanentPerk('goodCredit'),
-        this.savePermanentPerk('unlockAllPerks'),
-      ]);
+      // SEQUENTIAL, not Promise.all. Every `savePermanentPerk` is a
+      // read-modify-write on the SAME envelope (loadPermanentPerks → push →
+      // persist), so five concurrent calls each read the same old list and the
+      // last write wins — four of the five perks silently lost, with all five
+      // reporting true. Awaiting in turn makes each read see the previous write.
+      const perkResults: boolean[] = [];
+      for (const perk of ['workBoost', 'mindset', 'fastLearner', 'goodCredit', 'unlockAllPerks']) {
+        perkResults.push(await this.savePermanentPerk(perk));
+      }
       const failed = perkResults.filter((ok) => !ok).length;
       if (failed > 0) logger.warn(`[IAP] ${failed}/5 permanent perk writes failed`);
       results.push(...perkResults);
@@ -1732,6 +1769,24 @@ export class IAPService {
     }
   }
 
+  /**
+   * Has anything actually populated the purchase ledger this process?
+   *
+   * `state.purchases` starts empty and is filled ONLY by `loadPurchases()`,
+   * `runPurchaseFlow` and `restorePurchases` — `initialize()` calls none of
+   * them, and `loadPurchasesFromStorage()` returns [] in production because it
+   * is gated on ALLOW_LEGACY_LOCAL_ENTITLEMENTS. So on a cold start
+   * `hasPurchased(...)` is structurally false for EVERY product, which is
+   * indistinguishable from "owns nothing" unless callers can ask this.
+   *
+   * Anything that would REVOKE an entitlement on a negative answer must check
+   * this first. 2026-07-30 audit MON-1.
+   */
+  hasAuthoritativeEntitlementSource(): boolean {
+    if (revenueCatService.isEnabled() && revenueCatService.entitlementsEverFetched()) return true;
+    return this.purchaseLedgerLoaded;
+  }
+
   // Check if user has purchased a specific product
   hasPurchased(productId: string): boolean {
     return this.state.purchases.some(
@@ -1846,6 +1901,23 @@ export class IAPService {
           if (isConsumableProduct(productId)) {
             continue;
           }
+          // Never re-apply a SUBSCRIPTION here either.
+          //
+          // `restoreProductIds()` maps `allPurchasedProductIdentifiers`, which is
+          // purchase HISTORY — it lists subscriptions that expired long ago. The
+          // ledger gate below keys on the synthetic `rc_restore:${productId}`,
+          // and that ledger lives in local storage, so on a fresh install it is
+          // empty and the FIRST restore sails through. `applyBenefit` then sets
+          // `expiresTimestamp: Date.now() + durationMs` — a full free term for a
+          // lapsed subscriber, renewable by reinstalling.
+          //
+          // Subscription state is not ours to reconstruct: RevenueCat holds the
+          // authoritative expiry, and `SubscriptionReconciler` already syncs it
+          // into game state from `cachedEntitlements()` on mount and foreground.
+          // 2026-07-30 review of MON-11.
+          if (isSubscriptionProduct(productId)) {
+            continue;
+          }
           // RC verifies ownership server-side; dedupe so a benefit is applied at
           // most once even across repeated restores.
           const transactionId = `rc_restore:${productId}`;
@@ -1929,6 +2001,7 @@ export class IAPService {
         }
 
         // Update purchases list in state
+        this.purchaseLedgerLoaded = true;
         this.setState({ purchases: results, isLoading: false });
 
         logger.info(

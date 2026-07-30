@@ -42,10 +42,30 @@ export function SubscriptionReconciler(): null {
       // Premium access via subscription OR the one-time lifetime unlock — both
       // keep ad-free + the Legacy Pass premium track.
       const plusActive = subscriptionService.hasPremiumAccess();
+
+      // Populate the purchase ledger BEFORE reading it. `initialize()` never
+      // does, so on a cold start `isAdsRemoved()` was structurally false for
+      // every player and this reconcile wrote that false over a paid Remove Ads
+      // purchase. 2026-07-30 audit MON-1.
+      if (typeof iapService.loadPurchases === 'function') {
+        try {
+          await iapService.loadPurchases();
+        } catch (loadErr) {
+          logger.warn('[SubscriptionReconciler] loadPurchases failed; treating entitlements as unknown', { error: loadErr });
+        }
+      }
+
       const ownsRemoveAds =
         typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
+      // Whether that answer means anything. FALSE = "could not ask", which must
+      // never be treated as "owns nothing".
+      const authoritative =
+        typeof iapService.hasAuthoritativeEntitlementSource === 'function'
+          ? iapService.hasAuthoritativeEntitlementSource()
+          : false;
+
       setGameState((prev) => {
-        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds);
+        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds, authoritative);
         return reconcileLegacyPassSeason(afterSub, plusActive);
       });
     } catch (err) {

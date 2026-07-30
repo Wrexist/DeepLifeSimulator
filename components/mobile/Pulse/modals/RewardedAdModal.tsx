@@ -5,7 +5,7 @@
  * Verified Pro triples the reward (50 → 150 followers).
  */
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { watchAdForFollowerBoost } from '@/contexts/game/actions/PulseActions';
+import { watchAdForFollowerBoost, canBoostFollowersWithAd } from '@/contexts/game/actions/PulseActions';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
@@ -80,6 +80,23 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       // reports the reward earned (or when there's no ad to show — dev / ad-free).
       // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
       // and lost revenue. All that logic lives in the shared `runRewardedAd`.
+      // REFUSE BEFORE THE AD PLAYS. `watchAdForFollowerBoost` enforces a
+      // one-per-game-week cooldown, but it was only consulted AFTER the ad had
+      // been presented — so a player who had already used the boost watched a
+      // full rewarded video for nothing. Checking first costs them nothing and
+      // costs us no impression that would have been wasted anyway.
+      // 2026-07-30 audit UX-1.
+      if (!canBoostFollowersWithAd(gameState)) {
+        pulseHaptics.error();
+        onDismiss();
+        Alert.alert(
+          'Already boosted this week',
+          'You have used your ad boost for this week. Come back next week.',
+          [{ text: 'OK' }],
+        );
+        return;
+      }
+
       const adsRemoved = areAdsRemoved(gameState);
       if (adsAvailable(adsRemoved)) {
         // A real fullscreen ad is about to present. Showing it over this open
@@ -90,7 +107,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
         onDismiss();
         await waitForDismissal();
       }
-      let result = { success: false };
+      let result: { success: boolean; message?: string } = { success: false };
       const outcome = await runRewardedAd(
         () => {
           result = watchAdForFollowerBoost(setGameState, gameState);
@@ -112,6 +129,19 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
         onDismiss(); // no-op when the ads path already dismissed the sheet
       } else {
         pulseHaptics.error();
+        // TELL THE PLAYER. This branch used to fire a haptic and drop
+        // `result.message` on the floor — so someone who watched a full
+        // 30-second ad and received nothing got a buzz and no explanation,
+        // with the sheet already dismissed so there was nowhere to show one.
+        // 2026-07-30 audit UX-1.
+        Alert.alert(
+          isGranted(outcome) ? 'Boost not applied' : 'No reward',
+          result.message ||
+            (isGranted(outcome)
+              ? 'The boost could not be applied right now.'
+              : 'The ad did not finish, so no reward was earned. Nothing was charged.'),
+          [{ text: 'OK' }],
+        );
       }
     } finally {
       busyRef.current = false;

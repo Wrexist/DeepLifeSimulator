@@ -200,6 +200,7 @@ describe('the pre-prestige snapshot exists at all', () => {
     // which is exactly how the first collision survived review.
     const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
     const realNow = Date.now;
+    const realSetItem = AsyncStorage.setItem;
     Date.now = () => 1_900_000_000_000;
 
     try {
@@ -218,7 +219,6 @@ describe('the pre-prestige snapshot exists at all', () => {
       // makes safeSetItem return false, which createBackup turns into the
       // quota error its cleanup + retry block is written for. The third write
       // (the retry's own) is allowed to land.
-      const realSetItem = AsyncStorage.setItem;
       let failsLeft = 0;
       AsyncStorage.setItem = jest.fn(async (k: string, v: string) => {
         if (failsLeft > 0) {
@@ -241,13 +241,14 @@ describe('the pre-prestige snapshot exists at all', () => {
         expect(id).not.toBeNull();
         retryIds.push(id!);
       }
-      AsyncStorage.setItem = realSetItem;
-
       // Same millisecond, three retries: three distinct keys, and none of them
       // is the survivor's key.
       expect(new Set(retryIds).size).toBe(3);
       expect(retryIds).not.toContain(survivor);
     } finally {
+      // Both mocks in the finally: an assertion throwing above would otherwise
+      // leak a setItem that fails twice per call into every later test here.
+      AsyncStorage.setItem = realSetItem;
       Date.now = realNow;
     }
   });

@@ -208,6 +208,23 @@ export function reconcileSubscriptionBenefits(
   state: GameState,
   plusActive: boolean,
   ownsRemoveAds: boolean,
+  /**
+   * Whether `ownsRemoveAds` was produced by a check that could actually see the
+   * player's purchases. FALSE means "unknown", not "does not own".
+   *
+   * This parameter exists because the doc above — "`ownsRemoveAds` MUST be the
+   * authoritative union" — was not true in practice. The caller passed
+   * `iapService.isAdsRemoved()`, which reads `state.purchases`, and nothing
+   * populates that on a cold start: `initialize()` never calls `loadPurchases()`,
+   * and `loadPurchasesFromStorage()` returns [] in production. So a player who
+   * had bought Remove Ads AND had ever had DeepLife+ active hit this branch on
+   * the first launch after the subscription lapsed, and had their paid purchase
+   * written to `false` — permanently, since `deepLifePlusActivated` is then
+   * false and this branch never runs again. `BannerAd.tsx` documents the same
+   * cold-start emptiness and falls back to the persisted flag; this zeroed the
+   * flag it falls back to. 2026-07-30 audit MON-1.
+   */
+  entitlementCheckAuthoritative: boolean = true,
 ): GameState {
   if (plusActive) {
     // applyDeepLifePlusBenefits is idempotent (welcome gems only on first activation).
@@ -219,14 +236,29 @@ export function reconcileSubscriptionBenefits(
     return state;
   }
 
+  // The union the doc always claimed: the Remove Ads IAP, plus the two other
+  // non-subscription entitlements that grant ad-free in
+  // `applyProductBenefitsToState` and were simply never folded in here.
+  const paidAdFree =
+    ownsRemoveAds ||
+    state.settings?.lifetimePremium === true ||
+    state.settings?.everythingUnlocked === true;
+
   return {
     ...state,
     settings: {
       ...state.settings,
       deepLifePlusActivated: false,
-      // Ad-free is derived directly from the (authoritative) entitlement so a
-      // stale `false` can't wrongly revoke a permanent Remove Ads purchase.
-      adsRemoved: ownsRemoveAds,
+      // Revoke ONLY what DeepLife+ granted. When the entitlement check could
+      // not run, keep whatever is persisted rather than guessing `false` —
+      // wrongly re-enabling ads for a lapsed non-buyer costs one launch of
+      // banner ads, wrongly revoking a purchase is permanent and unrecoverable
+      // without the player finding Restore Purchases unprompted.
+      adsRemoved: paidAdFree
+        ? true
+        : entitlementCheckAuthoritative
+          ? false
+          : state.settings?.adsRemoved === true,
     },
   };
 }

@@ -23,6 +23,7 @@ exports[`pre-tick equivalence — applyAutoReinvest appends new holding when tar
       "symbol": "AAPL",
     },
   ],
+  "spentUSD": 900,
 }
 `;
 
@@ -42,6 +43,7 @@ exports[`pre-tick equivalence — applyAutoReinvest handles unknown symbol on la
       "symbol": "GOOGL",
     },
   ],
+  "spentUSD": 200,
 }
 `;
 
@@ -55,24 +57,28 @@ exports[`pre-tick equivalence — applyAutoReinvest merges shares + recomputes a
       "symbol": "AAPL",
     },
   ],
+  "spentUSD": 450,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no purchase when sharesToBuy floors to 0 (reinvest < price) 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is 0 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is negative 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
@@ -86,6 +92,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks random stock when hold
       "symbol": "MSFT",
     },
   ],
+  "spentUSD": 300,
 }
 `;
 
@@ -111,6 +118,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks the holding with the m
       "symbol": "MSFT",
     },
   ],
+  "spentUSD": 500,
 }
 `;
 

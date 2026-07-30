@@ -2049,9 +2049,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  reinvestedAmount: stocksTickResult.dividendsUSD * 0.98,
  stockPickRoll: preRolls.stockPickRoll,
  });
- if (reinvest.reinvestedStocks.length > 0) {
+ // Debit what was SPENT, not what was offered. Only whole shares are
+ // bought, so the remainder (up to nearly one share price, plus the
+ // notional 2% fee) must stay as cash rather than vanish. And never let
+ // the reinvest push the player negative — if the tick's other fills have
+ // already taken the balance below what the shares cost, keep the
+ // dividend as cash instead.
+ const affordable = newStats.money + cashDeltaAfterReinvest >= reinvest.spentUSD;
+ if (reinvest.reinvestedStocks.length > 0 && reinvest.spentUSD > 0 && affordable) {
  stocksTickResult.holdings = reinvest.reinvestedStocks;
- cashDeltaAfterReinvest -= stocksTickResult.dividendsUSD;
+ cashDeltaAfterReinvest -= reinvest.spentUSD;
  }
  } catch (reinvestErr) {
  // A failed reinvest must leave the dividend as cash, not lose it.

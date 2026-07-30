@@ -25,7 +25,7 @@ interface Props {
 export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { setGameState } = useGame();
+  const { setGameState, saveGame } = useGame();
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
   const confirmRestart = async () => {
@@ -39,9 +39,23 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
       // banking unlocks — and the 2-minute autosave then wrote the wipe to
       // disk. The confirm dialog only ever warned about "progress".
       // 2026-07-30 audit MON-2.
-      setGameState((prev) => carryAccountLevelEntitlements(prev, initialGameState));
+      // Deep-clone FIRST. `carryAccountLevelEntitlements` mutates its second
+      // argument (its own docstring says so), so handing it the exported
+      // `initialGameState` singleton would write this life's purchases onto the
+      // shared template — permanently, for the rest of the process, so every
+      // later new game would start with them. The two prestige callers pass a
+      // freshly built object; this one had the singleton itself to hand.
+      setGameState((prev) =>
+        carryAccountLevelEntitlements(prev, JSON.parse(JSON.stringify(initialGameState)) as typeof initialGameState),
+      );
       setShowRestartConfirm(false);
       onModalClose();
+      // Persist BEFORE navigating. Without this the reset lives only in memory
+      // until the 2-minute autosave, so an app exit right after "Restart" would
+      // leave the old life on disk while the UI says it is gone. Deferred one
+      // macrotask so saveGame's post-commit ref has the reset state.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await saveGame?.(true);
       const mainMenuPath: Href = '/(onboarding)/MainMenu';
       router.push(mainMenuPath);
     } catch (error) {

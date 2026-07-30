@@ -9,7 +9,7 @@ import {
   verifySaveData,
   verifySaveEnvelopeData,
 } from './saveValidation';
-import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
+import { safeSetItem, safeSetItemResult, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
 
 const BACKUP_PREFIX = 'save_backup_';
 const PROTECTED_STATE_PREFIX = 'protected_state_';
@@ -541,12 +541,21 @@ export async function createBackup(
     // backup to make room for nothing), and returned an id for a key that does
     // not exist. The recovery tier reported success while destroying recovery
     // points. Found by the quota-retry regression test.
-    if (!(await safeSetItem(backupId, JSON.stringify(backupData)))) {
-      // Re-raise as the quota error the catch below is written for, so the
-      // aggressive cleanup + retry actually runs.
-      const quotaError: Error & { name: string } = new Error(`Storage rejected backup ${backupId}`);
-      quotaError.name = 'QuotaExceededError';
-      throw quotaError;
+    const write = await safeSetItemResult(backupId, JSON.stringify(backupData));
+    if (!write.ok) {
+      // Branch on the CAUSE. The catch below responds to a quota error by
+      // deleting backups across EVERY slot down to one apiece; running that
+      // after a transient I/O blip destroys recovery points for no reason. Only
+      // a confirmed quota failure earns the cleanup-and-retry path — anything
+      // else returns null, so the caller learns the backup did not land and
+      // rotation never runs.
+      if (write.quotaExceeded) {
+        const quotaError: Error & { name: string } = new Error(`Storage quota rejected backup ${backupId}`);
+        quotaError.name = 'QuotaExceededError';
+        throw quotaError;
+      }
+      logger.error(`Backup for slot ${slot} was rejected by storage; not rotating`);
+      return null;
     }
     logger.info(`Created backup for slot ${slot}: ${backupId} (${reason})`);
 

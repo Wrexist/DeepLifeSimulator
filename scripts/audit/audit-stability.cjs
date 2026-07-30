@@ -158,9 +158,20 @@ function build() {
       // and its diagnostics are on stdout. Only treat it as "did not run" when a
       // non-zero exit came back with NO diagnostics to count.
       const out = `${e?.stdout || ''}${e?.stderr || ''}`;
-      const found = (out.match(/error TS\d+/g) || []).length;
+      // CONFIG diagnostics are not type-check results. TS5058 ("the specified
+      // path does not exist"), TS6064 and friends match /error TS\d+/ just as
+      // well as a real type error, so a broken or missing tsconfig would count
+      // as 1 error, sail under the 186 budget, and report a PASS having
+      // type-checked nothing. Exclude them, and treat a run that produced only
+      // config diagnostics as "did not run".
+      const CONFIG_DIAGNOSTICS = /error TS(5\d{3}|6\d{3}|18003)\b/;
+      const diagnostics = out.match(/error TS\d+/g) || [];
+      const configOnly = diagnostics.length > 0 && diagnostics.every((d) => CONFIG_DIAGNOSTICS.test(d));
+      const found = configOnly ? 0 : diagnostics.length;
       if (found > 0) {
         count = found;
+      } else if (configOnly) {
+        failedToRun = `tsconfig.tests.json could not be loaded (${diagnostics[0]})`;
       } else {
         failedToRun = e?.signal === 'SIGTERM'
           ? 'timed out after 300s'

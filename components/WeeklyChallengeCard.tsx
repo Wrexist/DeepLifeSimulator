@@ -148,8 +148,12 @@ function WeeklyChallengeCard() {
       <View style={styles.footer}>
         <Timer size={scale(13)} color="#94A3B8" />
         <Text style={styles.footerText}>
+          {/* "Complete", not "gems collected" — same reason as the header. A
+              challenge minted already-satisfied carries `rewardClaimed: true`
+              with no gems paid, and this is the line the player would check
+              against their balance. */}
           {claimed
-            ? `${definition.reward} gems collected · ${weeksLeft}`
+            ? `Complete · ${weeksLeft}`
             : allMet
               ? `All objectives met — ${definition.reward} gems on the next week`
               : weeksLeft}

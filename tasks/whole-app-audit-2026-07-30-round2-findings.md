@@ -12,8 +12,8 @@ source at the stated anchor. Status column is maintained as work lands.
 | MON-2 | high | FIXED | "Restart Game" wiped every paid entitlement; 3rd `initialGameState` builder missing the carry | `components/settings/DangerZone.tsx:32` |
 | SAVE-1 | high | FIXED | Permanent-perk write swallowed storage failure; redeem code FINALIZED and burned anyway | `services/IAPService.ts:286` · `utils/redeemCodes.ts:546` |
 | ECON-1 | high | FIXED | Daily login gems gated on device-clock day-string, no monotonicity guard — unlimited farm | `app/(tabs)/home.tsx:251-283` |
-| MON-1 | high | OPEN | SubscriptionReconciler revokes paid Remove Ads using a check that is empty on cold start | `components/SubscriptionReconciler.tsx:44-50` |
-| UX-1 | high | OPEN | Pulse follower boost: full rewarded ad plays, grants nothing, says nothing | `components/mobile/Pulse/modals/RewardedAdModal.tsx:101-115` |
+| MON-1 | high | FIXED | SubscriptionReconciler revokes paid Remove Ads using a check that is empty on cold start | `components/SubscriptionReconciler.tsx:44-50` |
+| UX-1 | high | FIXED | Pulse follower boost: full rewarded ad plays, grants nothing, says nothing | `components/mobile/Pulse/modals/RewardedAdModal.tsx:101-115` |
 | PERF-1 | high | OPEN | Every saveGame builds a full backup (stringify+CRC32+HMAC) BEFORE the 60s rate limiter discards it | `utils/saveBackup.ts:509-512` |
 | PERF-2 | high | OPEN | PostCard (~60 FlatList rows) subscribes to whole GameState, unmemoized, saves on every tap | `components/mobile/Pulse/components/PostCard.tsx:55,59` |
 | ECON-2 | med | OPEN | startResearch: no in-updater re-check — bypasses lab concurrency cap, doubles breakthrough roll | `contexts/game/actions/RDActions.ts:116-152` |
@@ -33,6 +33,16 @@ source at the stated anchor. Status column is maintained as work lands.
 | PERF-6 | low | OPEN | forceSave missing the pre-serialize yield that performSave has; runs on the IAP grant path | `utils/saveQueue.ts:371-376` |
 | PERF-7 | low | OPEN | Tab-tree root and AdRewardOrb take full-state subscriptions | `app/(tabs)/_layout.tsx:111` |
 | UX-3 | low | OPEN | Hard Rule #7: decorative red left accent stripe on the company scandal banner | `components/mobile/Hustle/screens/CompanyDetailScreen.tsx:308,1213` |
+
+## Verification gates at time of writing
+
+| Gate | Result |
+|---|---|
+| `npx jest` | 4,465 passed, 1 skipped, 0 failed |
+| `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
+| Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
+| `npx eslint --quiet` on changed files | 0 errors |
+| `npm run audit:weekly` | 0 critical, 0 high; 1 pre-existing warning (`as GameState` in tests) |
 
 ## Checked and clean (do not re-tread)
 Migration↔repair parity (audit-save V8 check passes, re-verified v20–v26 by hand) ·
