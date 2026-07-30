@@ -13,11 +13,12 @@ import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
   it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(26);
-    expect(CURRENT_STATE_VERSION).toBe(26);
+    expect(STATE_VERSION).toBe(27);
+    expect(CURRENT_STATE_VERSION).toBe(27);
     expect(isMigrationVersionCovered(24)).toBe(true);
     expect(isMigrationVersionCovered(25)).toBe(true);
     expect(isMigrationVersionCovered(26)).toBe(true);
+    expect(isMigrationVersionCovered(27)).toBe(true);
   });
 
   it('ships the field in initialState so the test factory inherits it', () => {
@@ -41,7 +42,7 @@ describe('migration 24 — backfill', () => {
 
     const { state } = runMigrations(save);
 
-    expect(state.version).toBe(26);
+    expect(state.version).toBe(27);
     expect(Object.keys(state.luxuryHoldings).sort()).toEqual(['private_island', 'supercar']);
     // Stamped from the save's own week, not 0 — an island bought in a 412-week
     // life must not claim to have been owned since birth.
@@ -107,7 +108,7 @@ describe('migration 24 — backfill', () => {
 
   it('migrates a much older save all the way forward', () => {
     const { state } = runMigrations({ version: 20, weeksLived: 88, luxuryItems: ['museum_diamond'] });
-    expect(state.version).toBe(26);
+    expect(state.version).toBe(27);
     expect(state.luxuryHoldings.museum_diamond.acquiredWeek).toBe(88);
   });
 });

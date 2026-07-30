@@ -143,10 +143,10 @@ describe('a quick action is once per game week', () => {
 
 describe('the save-format rule is honoured for the new field', () => {
   it('bumped STATE_VERSION and registered a migration', () => {
-    expect(STATE_VERSION).toBe(26);
+    expect(STATE_VERSION).toBe(27);
     const { state, errors } = runMigrations({ version: 25, weeksLived: 10 });
     expect(errors).toHaveLength(0);
-    expect((state as { version?: number }).version).toBe(26);
+    expect((state as { version?: number }).version).toBe(27);
   });
 
   it('writes NO key, because an absent marker already equals the default', () => {

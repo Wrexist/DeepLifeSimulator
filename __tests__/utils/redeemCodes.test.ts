@@ -435,10 +435,22 @@ describe('reconcileRedeemClaim', () => {
 
 describe('persistRedeemedPerkEntitlements', () => {
   it('runs the same cross-slot persistence a real purchase runs for {p} rewards → true', async () => {
-    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockResolvedValue(undefined);
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockResolvedValue(true);
     await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_unlock_all_perks' })).resolves.toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith(getProductConfig('deeplife_unlock_all_perks'));
+  });
+
+  it('keeps the claim PENDING when the write is REJECTED rather than throwing', async () => {
+    // The finding. `safeSetItem` returns false on a full device — it does not
+    // throw — so `persistPermanentPerks` used to return void and this function
+    // returned an unconditional `true`. The caller then FINALIZED the claim and
+    // burned a one-time code for a perk that never reached disk. The only way
+    // this could ever report failure was an exception it could not raise.
+    // 2026-07-30 audit SAVE-1.
+    const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockResolvedValue(false);
+    await expect(persistRedeemedPerkEntitlements({ p: 'deeplife_mindset_perk' })).resolves.toBe(false);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('no-ops (true) for {m} rewards; returns false — never throws — when persistence fails', async () => {

@@ -106,6 +106,7 @@ import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
 import { getRetirementIncomeWeekly } from '@/lib/retirement';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
+import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
@@ -793,12 +794,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // logic, same NaN/Infinity guards, same logger.info on success. Empty
  // array convention preserved (downstream `reinvestedStocks.length > 0`
  // checks still work).
- const reinvestResult = applyAutoReinvest({
-   prevHoldings: prevState.stocks?.holdings || [],
-   reinvestedAmount: passiveIncomeResult.reinvested ?? 0,
-   stockPickRoll: preRolls.stockPickRoll,
- });
- const reinvestedStocks = reinvestResult.reinvestedStocks;
+ // R1-01: auto-reinvest now runs AFTER the stocks tick, on the QUARTERLY
+ // dividend, because the weekly dividend that used to feed it here was a
+ // duplicate payment and has been removed from `calcWeeklyPassiveIncome`.
+ // `passiveIncomeResult.reinvested` is therefore always undefined; the real
+ // reinvest happens in the stocks block below. Declared here because the
+ // fallback branch further down still reads it.
+ const reinvestedStocks: NonNullable<typeof prevState.stocks>['holdings'] = [];
 
  // R7 Phase 2 step 2.4c: rent + housing module + realEstate weekly tick
  // extracted into ./actions/weekly/applyRentAndHousing.ts. Same try/catch
@@ -2026,8 +2028,39 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  economyState: prevState.economy?.economyEvents?.currentState,
  rollFor: weeklyRoll,
  });
- if (stocksTickResult.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + stocksTickResult.cashDelta);
+ // AUTO-REINVEST (prestige QOL bonus) — now driven by the quarterly dividend.
+ //
+ // It used to consume a SECOND, weekly dividend computed in
+ // `calcWeeklyPassiveIncome`. That dividend was a duplicate of this one and has
+ // been removed (R1-01), so without this the bonus would have gone silently
+ // dead — the exact "built but never fires" class this audit keeps finding.
+ // Buy shares with the payout instead of banking it, and net it out of the
+ // cash credit so the dividend is spent exactly once.
+ let cashDeltaAfterReinvest = stocksTickResult.cashDelta;
+ if (
+ stocksTickResult.dividendsUSD > 0 &&
+ shouldAutoReinvestDividends(prevState.prestige?.unlockedBonuses || [])
+ ) {
+ try {
+ const reinvest = applyAutoReinvest({
+ prevHoldings: stocksTickResult.holdings,
+ // 2% transaction cost, matching the sell fee — same rate the old
+ // weekly path applied.
+ reinvestedAmount: stocksTickResult.dividendsUSD * 0.98,
+ stockPickRoll: preRolls.stockPickRoll,
+ });
+ if (reinvest.reinvestedStocks.length > 0) {
+ stocksTickResult.holdings = reinvest.reinvestedStocks;
+ cashDeltaAfterReinvest -= stocksTickResult.dividendsUSD;
+ }
+ } catch (reinvestErr) {
+ // A failed reinvest must leave the dividend as cash, not lose it.
+ logger.error('[STOCKS TICK] auto-reinvest failed:', reinvestErr);
+ }
+ }
+
+ if (cashDeltaAfterReinvest!== 0) {
+ newStats.money = Math.max(0, newStats.money + cashDeltaAfterReinvest);
  }
  // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
  // price so the move reaches the market board, Movers sort, market-order fills,

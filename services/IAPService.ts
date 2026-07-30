@@ -274,7 +274,18 @@ export class IAPService {
     );
   }
 
-  private static async persistPermanentPerks(perks: string[]): Promise<void> {
+  /**
+   * Returns FALSE when the entitlement envelope did not reach disk.
+   *
+   * This used to return void and discard `safeSetItem`'s boolean, which does
+   * not throw on a full device — it returns false. So on a device with no free
+   * storage the cross-slot perk was never written, `savePermanentPerk` logged
+   * "Saved permanent perk: …" anyway, and — worst of all — the redeem-code
+   * flow read that as success and FINALIZED the claim, burning a one-time code
+   * for a perk that existed only in the current session. The retry path built
+   * for exactly this case could never fire. 2026-07-30 audit SAVE-1.
+   */
+  private static async persistPermanentPerks(perks: string[]): Promise<boolean> {
     const sanitized = IAPService.sanitizePermanentPerkList(perks);
     const payload = JSON.stringify({
       v: 2,
@@ -283,24 +294,31 @@ export class IAPService {
 
     const { createSaveEnvelope } = await import('@/utils/saveValidation');
     const envelope = createSaveEnvelope(payload);
-    await safeSetItem(TRUSTED_PERMANENT_PERKS_KEY, envelope);
+    if (!(await safeSetItem(TRUSTED_PERMANENT_PERKS_KEY, envelope))) {
+      logger.error('[IAP] Permanent-entitlement envelope was rejected by storage');
+      return false;
+    }
 
-    // Legacy mirror is only kept in explicitly allowed environments.
+    // Legacy mirror is only kept in explicitly allowed environments. Its
+    // failure is not fatal — the v2 envelope above is the source of truth.
     if (ALLOW_LEGACY_LOCAL_ENTITLEMENTS) {
       await safeSetItem(LEGACY_PERMANENT_PERKS_KEY, JSON.stringify(sanitized));
     }
+    return true;
   }
 
-  static async savePermanentPerk(perkId: string): Promise<void> {
+  /** Returns FALSE when the perk did not reach disk — see persistPermanentPerks. */
+  static async savePermanentPerk(perkId: string): Promise<boolean> {
     const normalizedPerkId = typeof perkId === 'string' ? perkId.trim() : '';
-    if (!normalizedPerkId) return;
+    if (!normalizedPerkId) return false;
 
     const permanentPerks = await IAPService.loadPermanentPerks();
-    if (!permanentPerks.includes(normalizedPerkId)) {
-      permanentPerks.push(normalizedPerkId);
-      await IAPService.persistPermanentPerks(permanentPerks);
-      logger.info(`Saved permanent perk: ${normalizedPerkId}`);
-    }
+    if (permanentPerks.includes(normalizedPerkId)) return true;
+
+    permanentPerks.push(normalizedPerkId);
+    if (!(await IAPService.persistPermanentPerks(permanentPerks))) return false;
+    logger.info(`Saved permanent perk: ${normalizedPerkId}`);
+    return true;
   }
 
   static async hasPermanentPerk(perkId: string): Promise<boolean> {
@@ -1560,34 +1578,43 @@ export class IAPService {
    */
   public async persistPermanentPerks(
     config: NonNullable<ReturnType<typeof getProductConfig>>,
-  ): Promise<void> {
-    if ('workBoost' in config && config.workBoost) await this.savePermanentPerk('workBoost');
-    if ('mindset' in config && config.mindset) await this.savePermanentPerk('mindset');
-    if ('fastLearner' in config && config.fastLearner) await this.savePermanentPerk('fastLearner');
-    if ('goodCredit' in config && config.goodCredit) await this.savePermanentPerk('goodCredit');
+  ): Promise<boolean> {
+    // Returns FALSE if ANY perk did not reach disk, so `persistRedeemedPerkEntitlements`
+    // can keep a redeem claim PENDING instead of burning the code.
+    //
+    // The `rejected` filter that used to live in the allPerks branch was dead:
+    // `savePermanentPerk` catches everything internally and never rejects, so
+    // `failed.length` was structurally always 0. Checking the returned boolean
+    // is what actually inspects the outcome. 2026-07-30 audit SAVE-1.
+    const results: boolean[] = [];
+    if ('workBoost' in config && config.workBoost) results.push(await this.savePermanentPerk('workBoost'));
+    if ('mindset' in config && config.mindset) results.push(await this.savePermanentPerk('mindset'));
+    if ('fastLearner' in config && config.fastLearner) results.push(await this.savePermanentPerk('fastLearner'));
+    if ('goodCredit' in config && config.goodCredit) results.push(await this.savePermanentPerk('goodCredit'));
     if ('allPerks' in config && config.allPerks) {
-      // P2-11: inspect results so partial failures don't disappear silently.
-      const perkResults = await Promise.allSettled([
+      const perkResults = await Promise.all([
         this.savePermanentPerk('workBoost'),
         this.savePermanentPerk('mindset'),
         this.savePermanentPerk('fastLearner'),
         this.savePermanentPerk('goodCredit'),
         this.savePermanentPerk('unlockAllPerks'),
       ]);
-      const failed = perkResults.filter((r) => r.status === 'rejected');
-      if (failed.length > 0) {
-        logger.warn(`[IAP] ${failed.length}/5 permanent perk writes failed`, { failed });
-      }
+      const failed = perkResults.filter((ok) => !ok).length;
+      if (failed > 0) logger.warn(`[IAP] ${failed}/5 permanent perk writes failed`);
+      results.push(...perkResults);
     }
+    return results.every(Boolean);
   }
 
   // Save a permanent perk to storage (cross-slot persistence)
-  private async savePermanentPerk(perkId: string): Promise<void> {
+  private async savePermanentPerk(perkId: string): Promise<boolean> {
     try {
-      await IAPService.savePermanentPerk(perkId);
+      return await IAPService.savePermanentPerk(perkId);
     } catch (error) {
       logger.error(`Failed to save permanent perk ${perkId}:`, error);
-      // Don't throw - non-critical
+      // Still never throws — but the caller now learns it did not land, which
+      // is what stops a redeem code being burned for nothing.
+      return false;
     }
   }
 

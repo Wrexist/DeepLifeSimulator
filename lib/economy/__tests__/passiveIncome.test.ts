@@ -84,7 +84,13 @@ describe('calcWeeklyPassiveIncome', () => {
     }
     const propertyRent = property.rent ?? 0;
     const propertyUpkeep = property.upkeep ?? 0;
-    const expectedStocks = Math.round((stock.price * stock.dividendYield * 1000) / WEEKS_PER_YEAR);
+    // Stock dividends are NOT paid here. This used to expect
+    // `price × yield × shares / 52` every week, which was a duplicate of the
+    // quarterly payout in `lib/stocks/dividends.ts` — both credited money, so a
+    // holder collected 200% of the advertised yield. The quarterly system is
+    // the sole payer now. See __tests__/economy/dividendDoublePay.test.ts.
+    // 2026-07-30 audit R1-01.
+    const expectedStocks = 0;
     const tier = getUpgradeTier(property.upgradeLevel);
     const expectedRealEstate = Math.round(
       propertyRent + (tier?.rentBonus || 0) - (propertyUpkeep + (tier?.upkeepBonus || 0))

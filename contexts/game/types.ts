@@ -2440,6 +2440,13 @@ export interface GameState {
   lastLoginDate?: string;
   lastLoginRewardDate?: string;
   /**
+   * Epoch ms of the last daily-login gem claim. Anti-clock-manipulation
+   * high-water mark: `canClaimDailyGemsFor` refuses a claim when the device
+   * clock has been rewound below it. Default `undefined` — an absent key means
+   * "never claimed". 2026-07-30 audit ECON-1.
+   */
+  lastLoginRewardAt?: number;
+  /**
    * One-time Discord community reward: set true in the SAME state update that
    * adds the cash, so the money + this flag are always persisted together. It is
    * the in-state half of the exactly-once claim protocol (the durable other half

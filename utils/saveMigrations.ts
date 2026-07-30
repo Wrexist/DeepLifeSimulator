@@ -744,6 +744,17 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 26;
     return state;
   },
+
+  // Version 27: `lastLoginRewardAt` — epoch high-water mark for the daily-login
+  // gem claim, so a rewound device clock cannot re-arm it. Default is
+  // `undefined` (absent = never claimed), so this is another carve-out field:
+  // version bump, NO backfill, no repairGameState mirror. Writing a value here
+  // would be actively wrong — it would lock an existing player out of their
+  // next claim. 2026-07-30 audit ECON-1.
+  27: (state) => {
+    state.version = 27;
+    return state;
+  },
 };
 
 /**

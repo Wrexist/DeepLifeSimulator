@@ -11,6 +11,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
+import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
 import { logger } from '@/utils/logger';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -29,7 +30,16 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
 
   const confirmRestart = async () => {
     try {
-      setGameState(initialGameState);
+      // Restart is the THIRD builder that starts from `initialGameState`, and
+      // it was the one that never carried purchases. `accountEntitlements.ts`
+      // says to call this from every such builder; prestige and the heir flow
+      // do, this did not. So "Restart Game" silently destroyed Remove Ads,
+      // Lifetime Premium, all nine gem-bought permanent gold upgrades, every
+      // purchased perk, unspent Youth Pills, the Revival Pack and the four
+      // banking unlocks — and the 2-minute autosave then wrote the wipe to
+      // disk. The confirm dialog only ever warned about "progress".
+      // 2026-07-30 audit MON-2.
+      setGameState((prev) => carryAccountLevelEntitlements(prev, initialGameState));
       setShowRestartConfirm(false);
       onModalClose();
       const mainMenuPath: Href = '/(onboarding)/MainMenu';
@@ -117,7 +127,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
 
             <View style={styles.confirmContent}>
               <Text style={styles.confirmDescription}>
-                Are you sure you want to restart? All progress will be lost.
+                Are you sure you want to restart? All progress will be lost. Purchases you have paid for are kept.
               </Text>
               <View style={styles.confirmActions}>
                 <TouchableOpacity

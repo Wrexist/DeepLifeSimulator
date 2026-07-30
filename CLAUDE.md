@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 26`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 27`
 - **Binary version:** `package.json` `version` (currently `2.5.12`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -238,7 +238,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 26`** — single source of truth in
+- **Canonical `STATE_VERSION = 27`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -260,6 +260,11 @@ including the crash screen.
   HUD long-press quick actions. Default is `undefined`, so it is one of the
   carve-out fields: version bumped, NO backfill and no `repairGameState` mirror,
   because an absent key already equals "no action used this week".
+- **v27 adds `lastLoginRewardAt`** — the epoch high-water mark that stops a
+  rewound device clock re-arming the daily-login gem claim. Default `undefined`,
+  so it is another carve-out: version bumped, NO backfill and no
+  `repairGameState` mirror. Writing a value would be actively wrong — it would
+  lock an existing player out of their next legitimate claim.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
