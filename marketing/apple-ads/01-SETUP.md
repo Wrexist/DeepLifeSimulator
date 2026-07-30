@@ -246,7 +246,7 @@ keyword lists in this program apply.
 - [ ] Apple Ads **Advanced** account, time zone + currency set deliberately
 - [ ] Go/no-go gate in [`README.md`](README.md) cleared (rating, app name, attribution, screenshots)
 - [x] RevenueCat → Apple Search Ads integration enabled in the RC dashboard
-- [ ] `Purchases.enableAdServicesAttributionTokenCollection()` live in a **released** build (code shipped; needs a TestFlight/App Store release)
+- [ ] `Purchases.enableAdServicesAttributionTokenCollection()` live in a **released App Store build** (code shipped; TestFlight/sandbox results are non-production and do not prove it)
 - [ ] 4 campaigns created, Search Results placement, US only
 - [ ] 8 Category ad groups + 3 Competitor ad groups created with the bids above
 - [ ] Keywords imported from `keywords/*.csv`, all Exact, Search Match **off**

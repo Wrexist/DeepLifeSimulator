@@ -51,10 +51,10 @@ and every RC integration.
 Apple Search Ads** is enabled (confirmed 2026-07-30). The integration supports
 both Apple Ads Basic and Advanced.
 
-**What is still outstanding:** the code only runs on real devices from a real
-store build. Until a build containing this change ships to TestFlight or the App
-Store, no attribution data exists to collect — the integration is armed but has
-nothing to receive.
+**What is still outstanding:** the code only produces usable data on real
+devices from a **released App Store build**. Until a build containing this
+change ships, no trustworthy attribution data exists to collect — the
+integration is armed but has nothing to receive.
 
 ### Verifying it works
 

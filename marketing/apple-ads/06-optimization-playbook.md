@@ -75,7 +75,9 @@ Constraints that keep this from oscillating:
 
 - **Never change a bid by more than 30% in one move**, and never twice in the
   same week.
-- **Never raise a Discovery bid above the lowest exact bid** in the account.
+- **Never raise a Discovery bid above the lowest Category or Competitor exact
+  bid.** Brand's floor sits lower still, but Discovery cannot reach a brand
+  auction — every brand term is an exact negative there (see `02`).
 - **Never lower a Brand bid** for CPA reasons. Brand CPA should be your floor; if
   it isn't, something is misconfigured.
 

@@ -88,9 +88,10 @@ Apple Ads sends traffic to your **product page**. The page converts, not the ad.
    name on the App Store and note it here.
 3. **Attribution live.** Code shipped ✅ and the RevenueCat → Apple Search Ads
    integration is enabled ✅. Remaining: the build carrying
-   `Purchases.enableAdServicesAttributionTokenCollection()` must actually be
-   **released to TestFlight/App Store** — AdServices returns nothing in a
-   simulator or dev-client build (see `05`).
+   `Purchases.enableAdServicesAttributionTokenCollection()` must reach a
+   **released App Store build** — AdServices returns nothing in a simulator or
+   dev-client build, and TestFlight/sandbox can return placeholder attribution,
+   so a clean TestFlight result is not proof (see `05`).
 4. **Screenshots/CPPs ready.** At minimum the default page's first 3 screenshots
    carry benefit headlines (`SCREENSHOT_GUIDE.md`).
 

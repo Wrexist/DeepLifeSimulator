@@ -412,7 +412,8 @@ that RevenueCat is linked, verify it end to end:
 
 **If nothing shows after 7 days,** check in this order:
 
-- Is the build a real store/TestFlight build? (most common cause)
+- Is it a real released App Store build? (most common cause — a simulator, dev
+  or TestFlight build will not give you trustworthy attribution)
 - Is the RevenueCat Apple Search Ads integration switched on?
 - Is RevenueCat actually enabled in that build? It is gated behind
   `EXPO_PUBLIC_USE_REVENUECAT` and is switched off automatically in development
