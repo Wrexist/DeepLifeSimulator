@@ -8,6 +8,7 @@
  * Rotation is deterministic based on UTC week number — all players
  * see the same challenge at the same time.
  */
+import { netWorth } from '@/lib/progress/achievements';
 import type { GameState } from '@/contexts/game/types';
 
 export interface WeeklyChallengeObjective {
@@ -27,21 +28,18 @@ export interface WeeklyChallengeDefinition {
  objectives: WeeklyChallengeObjective[];
 }
 
-// Helper: rough net worth
+/**
+ * Net worth, from the CANONICAL implementation.
+ *
+ * This was a local copy summing cash + bank + stocks + realEstate only, so it
+ * omitted crypto, mining, luxury, businesses and liabilities — the same figure
+ * the prestige gate and the leaderboard read is `netWorth()` in
+ * lib/progress/achievements.ts. A challenge asking for "$1M net worth" was
+ * therefore asking for a different, larger number than every other surface in
+ * the game showed the player. 2026-07-30 audit GP-2.
+ */
 function getNetWorth(s: GameState): number {
- const cash = s.stats?.money ?? 0;
- const bank = s.bankSavings ?? 0;
- const holdings = Array.isArray(s.stocks) ? s.stocks : (s.stocks?.holdings ?? []);
- const stocks = Array.isArray(holdings)
- ? holdings.reduce(
- (sum: number, st: any) => sum + (st.shares ?? 0) * (st.currentPrice ?? 0),
- 0
- )
- : 0;
- const realEstate = Array.isArray(s.realEstate)
- ? s.realEstate.reduce((sum: number, r: any) => sum + (r.value ?? 0), 0)
- : 0;
- return cash + bank + stocks + realEstate;
+ return netWorth(s);
 }
 
 export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
@@ -194,7 +192,10 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'company_2',
  description: 'Own 2+ companies',
  target: 2,
- checkCurrent: (s) => (s.companies ?? []).filter((c: any) => c.owned).length,
+ // `Company` has no `owned` field — founding one just pushes it onto
+ // `companies`, so `.filter(c => c.owned)` was always 0 and this 250-gem
+ // challenge was mathematically impossible. GP-2.
+ checkCurrent: (s) => (s.companies ?? []).length,
  },
  {
  id: 'net_worth_1m',
@@ -206,9 +207,12 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'employees_10',
  description: 'Employ 10+ people total',
  target: 10,
+ // `Company.employees` is a NUMBER (CompanyActions sets `employees: 0` and
+ // increments it). Reading `.length` off a number yields undefined, so this
+ // was always 0 — impossible. GP-2.
  checkCurrent: (s) =>
  (s.companies ?? []).reduce(
- (sum: number, c: any) => sum + (c.employees?.length ?? 0),
+ (sum: number, c: any) => sum + (typeof c.employees === 'number' ? c.employees : 0),
  0
  ),
  },
@@ -367,8 +371,11 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'achievements_10',
  description: 'Unlock 10+ achievements',
  target: 10,
- checkCurrent: (s) =>
- (s.achievements ?? []).filter((a: any) => a.completed).length,
+ // `achievements[].completed` is the DEPRECATED store — the repo already
+ // documents that it is never set in normal play (see prestigeExecution.ts
+ // and achievementPointFarming.test.ts). The live store is
+ // `claimedProgressAchievements`. GP-2.
+ checkCurrent: (s) => (s.claimedProgressAchievements ?? []).length,
  },
  ],
  },
@@ -554,6 +561,7 @@ export function getOrRotateWeeklyChallenge(
  if (!def) return undefined;
 
  const progressResult = evaluateChallengeProgress(challengeId, state);
+ const allAlreadyMet = progressResult.every((p) => p.completed);
 
  return {
  challengeId,
@@ -565,8 +573,13 @@ export function getOrRotateWeeklyChallenge(
  target: p.target,
  met: p.completed,
  })),
- completed: progressResult.every((p) => p.completed),
- rewardClaimed: false,
+ completed: allAlreadyMet,
+ // A challenge whose objectives are ALREADY satisfied the moment it is
+ // minted is minted pre-claimed. It used to mint `rewardClaimed: false`,
+ // so every 4-week rotation handed an established player 125-300 gems for
+ // taking no action at all — a passive premium-currency faucet worth
+ // roughly 1,000-1,400 gems a year. 2026-07-30 audit GP-11.
+ rewardClaimed: allAlreadyMet,
  };
 }
 
