@@ -17,6 +17,7 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
@@ -83,6 +84,8 @@ function TopStatsBarComponent() {
  const prestigeLevel = prestige?.prestigeLevel ?? 0;
  const date = useGameSelector((s) => s?.date, shallowEqual);
  const careers = useGameSelector((s) => s?.careers);
+ // Needed by the quick-action week gate below.
+ const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  const currentJob = useGameSelector((s) => s?.currentJob);
  const educations = useGameSelector((s) => s?.educations);
  const dietPlans = useGameSelector((s) => s?.dietPlans);
@@ -144,16 +147,41 @@ function TopStatsBarComponent() {
  setShowQuickActions(null);
 
  const clamp = (v: number) => Math.max(0, Math.min(100, v));
- // Each action is a self-limiting trade (spends a resource) so none is a
- // free, spammable win — and, crucially, they actually change stats now.
+
+ // ONE USE PER ACTION PER GAME WEEK.
+ //
+ // The comment that used to sit here claimed each action was "a self-limiting
+ // trade (spends a resource) so none is a free, spammable win". That was false:
+ // `rest` had no gate of any kind, so rest -> social netted +6 energy and
+ // +5 happiness per cycle, repeatable forever from the always-visible HUD, and
+ // `exercise` then turned the free energy into free fitness and health. Energy
+ // is the currency that gates street jobs, crime, health activities and
+ // hobbies, so this was a general-purpose bypass of the whole weekly budget.
+ // 2026-07-30 audit UX-R1-02.
+ const usedThisWeek = (prev: GameState, id: string): boolean => {
+ const marks = prev?.settings?.quickActionWeeks;
+ return typeof marks?.[id] === 'number' && marks[id] === (prev.weeksLived ?? 0);
+ };
+
  const apply = (
  deltas: Partial<{ health: number; happiness: number; energy: number; fitness: number; money: number }>,
  msg: string,
  ) => {
+ let refused = false;
  setGameState(prev => {
+ // Re-check against `prev`, not the captured selector value, so two taps
+ // in the same React batch cannot both pass.
+ if (usedThisWeek(prev, action)) {
+ refused = true;
+ return prev;
+ }
  const st = prev.stats;
  return {
  ...prev,
+ settings: {
+ ...prev.settings,
+ quickActionWeeks: { ...(prev.settings?.quickActionWeeks ?? {}), [action]: prev.weeksLived ?? 0 },
+ },
  stats: {
  ...st,
  health: deltas.health != null ? clamp((st.health ?? 0) + deltas.health) : st.health,
@@ -164,11 +192,24 @@ function TopStatsBarComponent() {
  },
  };
  });
+ if (refused) {
+ haptic('warning');
+ info('Already done that this week — come back next week.');
+ return;
+ }
  haptic('success');
  success(msg);
  };
 
  const s = stats ?? { money: 0, energy: 0 };
+ // Cheap outer check for immediate feedback; the authoritative one is inside
+ // the updater above.
+ if (typeof settings?.quickActionWeeks?.[action] === 'number'
+ && settings.quickActionWeeks[action] === weeksLived) {
+ haptic('warning');
+ info('Already done that this week — come back next week.');
+ return;
+ }
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
@@ -186,7 +227,7 @@ function TopStatsBarComponent() {
  apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout — +6 fitness, +5 health.');
  break;
  }
- }, [buttonPress, haptic, success, info, setGameState, stats]);
+ }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived]);
 
  // Optimized stat colors with better memoization
  const statColors = useMemo(

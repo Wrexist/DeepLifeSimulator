@@ -735,6 +735,15 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 25;
     return state;
   },
+
+  // Version 26: `settings.quickActionWeeks` — the per-game-week marker that gates
+  // the HUD long-press quick actions. Its default is `undefined` (an absent key
+  // already means "no action used this week"), so per the save-format rule it
+  // gets a version bump and NO backfill, and no repairGameState mirror.
+  26: (state) => {
+    state.version = 26;
+    return state;
+  },
 };
 
 /**

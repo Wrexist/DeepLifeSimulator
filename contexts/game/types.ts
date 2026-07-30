@@ -1602,6 +1602,16 @@ export interface GameSettings {
   // GAME time, never a wall-clock date: a real-time key is farmable by moving
   // the device clock (2026-07-24 daily-gem lesson).
   lastAdCashBonusWeek?: number;
+  /**
+   * `weeksLived` at which each HUD quick action was last used, keyed by action
+   * id. The long-press quick actions had no gate at all on `rest`, so
+   * rest -> social netted +6 energy and +5 happiness per cycle, repeatable
+   * forever from the always-visible top bar — and energy is what gates street
+   * jobs, crime, health activities and hobbies. The module comment even claimed
+   * they were "self-limiting". Absent means nothing used yet.
+   * 2026-07-30 audit UX-R1-02.
+   */
+  quickActionWeeks?: Record<string, number>;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle
