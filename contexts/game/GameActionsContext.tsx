@@ -1542,6 +1542,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  logger.info(`[WEEKLY_CHALLENGE] Outgoing reward granted on rotation week: +${outGemReward} gems, +${LEGACY_PASS_XP.weeklyChallenge} Legacy Pass XP (${outgoingChallenge.challengeId})`);
+ // TELL THE PLAYER. This paid 125-300 gems with nothing but a logger.info, so
+ // the gem counter simply jumped and nobody knew why. 2026-07-30 audit GP-1.
+ pendingNotifications.push({
+ id: `weekly-challenge-${outgoingChallenge.challengeId}`,
+ title: '🎯 Weekly Challenge Complete',
+ message: `${outDef?.name ?? 'Challenge'} — +${outGemReward} gems`,
+ });
  }
  }
 
@@ -1576,6 +1583,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  updatedWeeklyChallenge = {...updatedWeeklyChallenge, rewardClaimed: true };
  logger.info(`[WEEKLY_CHALLENGE] Reward granted: +${gemReward} gems, +${weeklyChallengeXpToAward} Legacy Pass XP (${updatedWeeklyChallenge.challengeId})`);
+ // Same silent-grant fix as the rotation path above. GP-1.
+ pendingNotifications.push({
+ id: `weekly-challenge-${updatedWeeklyChallenge.challengeId}`,
+ title: '🎯 Weekly Challenge Complete',
+ message: `${def?.name ?? 'Challenge'} — +${gemReward} gems`,
+ });
  }
  } catch (wcErr) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);

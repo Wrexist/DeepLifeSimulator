@@ -514,7 +514,8 @@ export function isChallengeComplete(challengeId: string, state: GameState): bool
  * the month so the player has multiple ticks to complete it, and the gem reward
  * can be earned at most once per rotation.
  */
-const ROTATION_GAME_WEEKS = 4;
+/** Game weeks a challenge stays live before it rotates. */
+export const ROTATION_GAME_WEEKS = 4;
 
 /**
  * ANTI-EXPLOIT: select the challenge by absolute game week (weeksLived), not
