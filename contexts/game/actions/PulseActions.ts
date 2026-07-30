@@ -807,16 +807,38 @@ export const breachBrandDeal = (
         },
       ],
     };
+    // CHARGE INSIDE THE UPDATER, and let an unaffordable penalty REFUSE the
+    // breach rather than waive it.
+    //
+    // The penalty used to be applied afterwards via `updateMoney`, which is
+    // all-or-nothing: it returns `prev` unchanged when the debit would go
+    // negative. So the breach had already landed — deal removed, history row
+    // written — and the charge silently did nothing. A player who moved their
+    // cash into a bank account first breached every contract for FREE, kept the
+    // 25% signing bonus `acceptBrandDeal` paid up front, and was told
+    // "Contract breached. -$X" while paying nothing. 2026-07-30 audit
+    // ECON-R1-03; the gate-then-grant class this repo has shipped repeatedly.
+    const debit = applyMoneyDelta(prev, -penalty, 'Brand deal breach penalty');
+    if (!debit) {
+      outcome = {
+        success: false,
+        message: `You cannot afford the $${penalty.toLocaleString()} breach penalty. Free up cash first.`,
+        penalty,
+      };
+      return prev;
+    }
+
     pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached — $${penalty} penalty`, ws, {
       refDealId: dealId,
     });
     outcome = { success: true, message: `Contract breached. -$${penalty}, reputation -10.`, penalty };
-    return { ...prev, socialMedia: sm };
+    return {
+      ...prev,
+      ...debit,
+      socialMedia: sm,
+      stats: { ...(debit.stats ?? prev.stats), reputation: Math.max(0, (prev.stats?.reputation ?? 0) - 10) },
+    };
   });
-  if (outcome.success) {
-    updateMoney(setGameState, -outcome.penalty, `Brand deal breach penalty`);
-    updateStats(setGameState, { reputation: -10 });
-  }
   return outcome;
 };
 

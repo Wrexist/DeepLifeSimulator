@@ -88,6 +88,21 @@ const anyCareerAtTop = (s: GameState): boolean =>
 // Only real career ids — 'actor'/'influencer' don't exist (Influencer is a
 // level name inside the celebrity ladder), so they never matched.
 const FAME_CAREERS = ['celebrity', 'musician'];
+/**
+ * BOTH political ladders. There are two: `POLITICAL_CAREER` (id `'political'`,
+ * Council Member -> ... -> President) is what the Politics app drives —
+ * `runForOffice` finds/creates it and sets `currentJob: 'political'` — while
+ * `'politician'` is the separate job-board career (Campaign Volunteer ->
+ * National Party Leader). These milestones checked only `'politician'`, so a
+ * player who ran the whole election ladder and became PRESIDENT scored zero
+ * progress and forfeited $120,000 + 240 gems + 750 prestige points.
+ * 2026-07-30 audit GP-5.
+ */
+const POLITICS_CAREERS = ['political', 'politician'];
+const inAnyPoliticsCareer = (s: GameState): boolean => POLITICS_CAREERS.some((id) => inCareer(s, id));
+const politicsCareerAtLeast = (s: GameState, lvl: number): boolean =>
+  POLITICS_CAREERS.some((id) => careerAtLeast(s, id, lvl));
+const politicsCareerAtTop = (s: GameState): boolean => POLITICS_CAREERS.some((id) => careerAtTop(s, id));
 const inAnyFameCareer = (s: GameState): boolean => FAME_CAREERS.some((id) => inCareer(s, id));
 const fameCareerAtLeast = (s: GameState, lvl: number): boolean =>
   FAME_CAREERS.some((id) => careerAtLeast(s, id, lvl));
@@ -234,22 +249,22 @@ export const LIFE_AMBITIONS: LifeAmbition[] = [
         id: 'po_enter',
         title: 'Run for Office',
         description: 'Enter the politician career.',
-        checkComplete: (s) => inCareer(s, 'politician'),
-        checkProgress: (s) => (inCareer(s, 'politician') ? 1 : 0),
+        checkComplete: (s) => inAnyPoliticsCareer(s),
+        checkProgress: (s) => (inAnyPoliticsCareer(s) ? 1 : 0),
       },
       {
         id: 'po_rising',
         title: 'Career Politician',
         description: 'Reach level 3 as a politician.',
-        checkComplete: (s) => careerAtLeast(s, 'politician', 3),
-        checkProgress: (s) => (careerAtLeast(s, 'politician', 3) ? 1 : 0),
+        checkComplete: (s) => politicsCareerAtLeast(s, 3),
+        checkProgress: (s) => (politicsCareerAtLeast(s, 3) ? 1 : 0),
       },
       {
         id: 'po_top_office',
         title: 'Highest Office',
         description: 'Reach the top of the political ladder.',
-        checkComplete: (s) => careerAtTop(s, 'politician'),
-        checkProgress: (s) => (careerAtTop(s, 'politician') ? 1 : 0),
+        checkComplete: (s) => politicsCareerAtTop(s),
+        checkProgress: (s) => (politicsCareerAtTop(s) ? 1 : 0),
       },
     ],
     payoff: { money: 120_000, gems: 240, prestigePoints: 750, badge: 'Head of State' },
