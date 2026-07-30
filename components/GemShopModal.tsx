@@ -343,16 +343,21 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     setRestoring(true);
     try {
       logger.info('Starting purchase restoration...');
-      const success = await iapService.restorePurchases();
+      const { success, restoredCount } = await iapService.restorePurchases();
       if (success) {
         await iapService.loadPurchases();
-        Alert.alert('Purchases Restored', 'Your previous purchases have been restored successfully!', [
-          { text: 'OK', style: 'default' },
-        ]);
+        // Say HOW MANY. Reporting bare success on a restore that restored
+        // nothing is what made a genuinely-empty restore indistinguishable from
+        // a working one. 2026-07-30 audit MON-11.
+        Alert.alert(
+          'Purchases Restored',
+          `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
+          [{ text: 'OK', style: 'default' }],
+        );
       } else {
         Alert.alert(
-          'Could Not Restore',
-          'Purchases could not be restored at this time. Make sure you are signed in to the App Store and try again.',
+          'Nothing To Restore',
+          'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
           [{ text: 'OK', style: 'default' }],
         );
       }

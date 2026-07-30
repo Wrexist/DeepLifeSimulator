@@ -1272,7 +1272,19 @@ export class IAPService {
                     return;
                   }
 
-                  await this.applyBenefit(purchase.productId, transactionId);
+                  const granted = await this.applyBenefit(purchase.productId, transactionId);
+                  if (!granted) {
+                    // Do NOT finish the transaction. Finishing it tells the store
+                    // the purchase is fulfilled, so it stops being redelivered —
+                    // and the player has paid for something they never received.
+                    // Leaving it open is what makes a retry on the next launch
+                    // possible. 2026-07-30 audit MON-6.
+                    logger.error('[IAP listener] Grant applied nothing — leaving transaction open for redelivery', {
+                      productId: purchase.productId,
+                      transactionId,
+                    });
+                    return;
+                  }
                   await InAppPurchases.finishTransactionAsync(purchase, !isSubscriptionProduct(purchase.productId));
                 } finally {
                   // Release the in-memory lock once this path is done (the
@@ -1293,19 +1305,25 @@ export class IAPService {
     this.listenerRegistered = true;
   }
 
-  // Apply purchase benefits (Disk Fallback)
+  // Apply purchase benefits (Disk Fallback).
+  //
+  // Returns whether anything was actually APPLIED. Every bail below used to
+  // return void and the caller marked the transaction permanently processed
+  // regardless — so an unknown SKU, an unreadable save, or a slot we could not
+  // identify consumed the purchase and the player never received it.
+  // 2026-07-30 audit MON-6 / MON-8.
   private async applyBenefitToDisk(
     purchase: any,
     transactionId?: string,
     options?: { skipBenefitReapply?: boolean },
-  ): Promise<void> {
+  ): Promise<boolean> {
     const config = getProductConfig(purchase.productId);
     // Subscriptions have no one-time PRODUCT_CONFIG (they live in
     // SUBSCRIPTION_CONFIGS) but DO need disk fulfillment — the Verified-Pro
     // block below grants their perks. Only bail when the SKU is neither a
     // configured one-time product nor a known subscription.
     const isSubscription = isSubscriptionProduct(purchase.productId);
-    if (!config && !isSubscription) return;
+    if (!config && !isSubscription) return false;
 
     // Resolve authoritative slot. Prefer currentSlot, keep lastSlot fallback for legacy writes.
     const currentSlotRaw = await safeGetItem('currentSlot');
@@ -1316,10 +1334,19 @@ export class IAPService {
     const parsedLastSlot = legacyLastSlotRaw
       ? parseInt(legacyLastSlotRaw, 10)
       : NaN;
-    const slotToUse =
-      [parsedCurrentSlot, parsedLastSlot].find(
-        (slot) => slot >= 1 && slot <= 3,
-      ) || 1;
+    // No `|| 1`. When neither marker names a real slot we do not know which
+    // save this purchase belongs to, and writing to slot 1 credits the wrong
+    // character — or a character the player has not touched in months. Bail and
+    // leave the transaction unmarked so it is retried on a later launch, when a
+    // slot has actually been loaded. 2026-07-30 audit MON-8.
+    const { isWritableSlot } = await import('@/utils/slotNumber');
+    const slotToUse = [parsedCurrentSlot, parsedLastSlot].find(isWritableSlot);
+    if (slotToUse === undefined) {
+      logger.warn('Cannot apply purchase to disk: no valid save slot is known', {
+        productId: purchase.productId,
+      });
+      return false;
+    }
 
     // Get current game state from storage (slot-based)
     let gameStateJson: string | null = null;
@@ -1329,11 +1356,11 @@ export class IAPService {
       gameStateJson = await readSaveSlot(slotToUse);
     } catch (error) {
       logger.error('Failed to get game state from storage:', error);
-      return;
+      return false;
     }
     if (!gameStateJson) {
       logger.warn(`No save data found for slot ${slotToUse}`);
-      return;
+      return false;
     }
 
     let gameState;
@@ -1347,13 +1374,13 @@ export class IAPService {
         logger.error('Save envelope verification failed in IAPService', {
           error: decoded.error,
         });
-        return;
+        return false;
       }
 
       gameState = JSON.parse(decoded.data);
       if (!gameState || typeof gameState !== 'object') {
         logger.error('Invalid game state structure in IAPService');
-        return;
+        return false;
       }
       // P2-9: defensively backfill core shape — `applyBenefitToDisk` mutates
       // `gameState.stats.gems`, `.money`, `.perks.*`, `.settings.*` directly.
@@ -1366,7 +1393,7 @@ export class IAPService {
       if (!gameState.settings || typeof gameState.settings !== 'object') gameState.settings = {};
     } catch (parseError) {
       logger.error('Failed to parse game state in IAPService:', parseError);
-      return;
+      return false;
     }
 
     // Apply all config benefits via the single shared helper (same logic the
@@ -1472,7 +1499,9 @@ export class IAPService {
       const { forceSave } = await import('@/utils/saveQueue');
       await forceSave(slotToUse, gameState);
 
-      await safeSetItem('currentSlot', String(slotToUse));
+      // Deliberately NOT re-stamping `currentSlot` here. An entitlement grant is
+      // not a slot switch; writing the marker made a background purchase
+      // fulfilment repoint which save the app considers active. MON-8.
 
       logger.info('Applied purchase benefits for:', {
         productId: purchase.productId,
@@ -1487,6 +1516,8 @@ export class IAPService {
       );
       throw error; // Re-throw to let caller handle it
     }
+
+    return true;
   }
 
   /**
@@ -1723,7 +1754,22 @@ export class IAPService {
   }
 
   // Restore purchases
-  async restorePurchases(): Promise<boolean> {
+  /**
+   * Restore non-consumable purchases.
+   *
+   * Two things were wrong. (1) It reported success when it restored NOTHING, so
+   * a player with no purchases got a cheerful "Purchases restored!". (2) It
+   * skipped anything already in the transaction ledger — which is exactly the
+   * case a restore exists for: the entitlement had been wiped from game state
+   * (see the prestige wipe, MON-1) while the ledger still said "processed", so
+   * restore was structurally incapable of repairing it. Non-consumable grants
+   * are idempotent boolean flags, so re-applying them unconditionally is safe.
+   *
+   * REVIVAL_PACK is carved out: it is a bankable one-shot, so re-granting it
+   * after the player has spent it would mint a free revive per restore.
+   * 2026-07-30 audit MON-11.
+   */
+  async restorePurchases(): Promise<{ success: boolean; restoredCount: number }> {
     try {
       logger.info('=== Starting Purchase Restoration ===');
       this.setState({ isLoading: true, error: null });
@@ -1745,7 +1791,9 @@ export class IAPService {
           // RC verifies ownership server-side; dedupe so a benefit is applied at
           // most once even across repeated restores.
           const transactionId = `rc_restore:${productId}`;
-          if (await this.isTransactionProcessed(transactionId)) {
+          // Only the bankable one-shot is ledger-gated; see the doc comment.
+          if (productId === IAP_PRODUCTS.REVIVAL_PACK
+            && (await this.isTransactionProcessed(transactionId))) {
             continue;
           }
           await this.applyBenefit(productId, transactionId);
@@ -1753,14 +1801,15 @@ export class IAPService {
         }
         const e = revenueCatService.cachedEntitlements();
         this.setState({ isLoading: false });
-        return restoredCount > 0 || e.adsRemoved || e.premium;
+        const entitled = restoredCount > 0 || e.adsRemoved || e.premium;
+        return { success: entitled, restoredCount };
       }
 
       if (!loadInAppPurchasesModule() || !InAppPurchases) {
         logger.warn('IAP module not available');
         this.setState({ isLoading: false });
         // Don't show alert here - let calling component handle it
-        return false;
+        return { success: false, restoredCount: 0 };
       }
 
       logger.info('Fetching purchase history from App Store...');
@@ -1803,12 +1852,14 @@ export class IAPService {
           const transactionId =
             purchase.transactionId ||
             `${purchase.productId}:${purchase.purchaseTime || Date.now()}`;
-          const alreadyProcessed =
-            await this.isTransactionProcessed(transactionId);
-          if (!alreadyProcessed) {
-            await this.applyBenefit(purchase.productId, transactionId);
-            restoredCount++;
+          // Re-apply unconditionally. The ledger check that used to guard this
+          // is what made a restore unable to repair a wiped entitlement.
+          if (productId === IAP_PRODUCTS.REVIVAL_PACK
+            && (await this.isTransactionProcessed(transactionId))) {
+            continue;
           }
+          await this.applyBenefit(purchase.productId, transactionId);
+          restoredCount++;
         }
 
         // Update purchases list in state
@@ -1819,9 +1870,10 @@ export class IAPService {
         );
         logger.info('=== Purchase Restoration Complete ===');
 
-        // Don't show alert here - let calling component handle it
-        // This prevents double alerts
-        return true;
+        // Don't show alert here - let calling component handle it.
+        // `success` is now "we actually restored something", not "the API call
+        // did not throw" — the caller can no longer report success on nothing.
+        return { success: restoredCount > 0, restoredCount };
       } else {
         throw new Error(
           `Failed to restore purchases. Response code: ${responseCode}`,
@@ -1836,7 +1888,7 @@ export class IAPService {
 
       // Don't show alert here - let calling component handle it
       // This prevents double alerts
-      return false;
+      return { success: false, restoredCount: 0 };
     }
   }
 
@@ -1869,7 +1921,7 @@ export class IAPService {
   private async applyBenefit(
     productId: string,
     transactionId?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // 1. Try in-memory update. When the in-memory updater (IAPHandler) applies
     //    the product to live state AND persists it (saveGame) — which it does
     //    before resolving — the disk path below must NOT additively re-apply the
@@ -1890,14 +1942,31 @@ export class IAPService {
     //    transaction ledger). Re-apply the additive config benefits ONLY when
     //    the in-memory path did not already apply + persist them.
     logger.info(`Applying benefit to disk: ${productId}`);
-    await this.applyBenefitToDisk({ productId }, transactionId, {
+    const diskApplied = await this.applyBenefitToDisk({ productId }, transactionId, {
       skipBenefitReapply: inMemoryApplied,
     });
 
-    // 3. Mark transaction processed only after entitlement grant succeeds.
+    // 3. Mark the transaction processed ONLY if a grant actually landed.
+    //
+    // This used to mark unconditionally, so a purchase that applied NOTHING —
+    // unknown SKU, unreadable save, no identifiable slot — was recorded as
+    // permanently fulfilled. The ledger then suppressed every future retry, so
+    // the player had paid and could never receive it. Leaving it unmarked is
+    // what lets a later launch, with a slot loaded, complete the grant.
+    // 2026-07-30 audit MON-6.
+    const applied = inMemoryApplied || diskApplied;
+    if (!applied) {
+      logger.error('Purchase applied nothing — leaving transaction unprocessed for retry', {
+        productId,
+        transactionId,
+      });
+      return false;
+    }
+
     if (transactionId) {
       await this.markTransactionProcessed(transactionId);
     }
+    return true;
   }
 
   // Pure function to apply benefits to a game state object
