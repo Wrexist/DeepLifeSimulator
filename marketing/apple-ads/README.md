@@ -10,7 +10,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 
 ---
 
-> ### 👉 New to app advertising? Read **[`00-START-HERE.md`](00-START-HERE.md)** instead.
+> ## 👉 New to app advertising? Read **[`00-START-HERE.md`](00-START-HERE.md)** instead.
 >
 > It is the same program written as a plain-language, 12-step walkthrough — what
 > the words mean, what to click, what to do each Monday, and the ten mistakes to
@@ -26,7 +26,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 | 1 | [`01-SETUP.md`](01-SETUP.md) | Account → campaigns → ad groups, every setting, click by click |
 | 2 | [`02-keywords.md`](02-keywords.md) | Every keyword, grouped by campaign/theme, with bids and rationale |
 | 3 | [`03-negative-keywords.md`](03-negative-keywords.md) | The block lists — the single biggest ROI lever in this account |
-| 4 | [`04-custom-product-pages.md`](04-custom-product-pages.md) | 6 CPP briefs mapped to ad groups (avg **+27% TTR** in search results) |
+| 4 | [`04-custom-product-pages.md`](04-custom-product-pages.md) | 6 CPP briefs mapped to ad groups (avg **+27% TTR** in search results — MobileAction's measurement, not an Apple figure) |
 | 5 | [`05-measurement-and-roi.md`](05-measurement-and-roi.md) | Attribution wiring, the LTV→max-CPA model, ROAS targets |
 | 6 | [`06-optimization-playbook.md`](06-optimization-playbook.md) | Daily/weekly/monthly rules — exact thresholds, no judgement calls |
 | 7 | [`07-geo-and-budget-plan.md`](07-geo-and-budget-plan.md) | Country tiers, 90-day budget phasing, scale triggers |
@@ -73,11 +73,14 @@ Apple Ads sends traffic to your **product page**. The page converts, not the ad.
 
 1. **Rating ≥ 4.0 with 30+ reviews.** The last figure recorded in this repo is
    **2.3★ / 8 reviews** (`Deep_Life_Simulator_Marketing_Plan.md`, Mar 2026).
-   Verify the live number in App Store Connect. Paid traffic into a 2.3★ page
-   converts at a fraction of benchmark, so you pay full CPT for a third of the
-   installs. **If the rating is still under 4.0, spend nothing beyond the Brand
-   campaign** (branded searchers already decided) and fix ratings first — that
-   is Phase 1 of the organic marketing plan and it gates this entire program.
+   That figure is stale by construction — **re-check the live number in App
+   Store Connect immediately before enabling spend** and record what you saw.
+   Paid traffic into a 2.3★ page converts at a fraction of benchmark, so you pay
+   full CPT for a third of the installs. **If the live rating is under 4.0, or
+   there are fewer than 30 reviews, spend nothing beyond the Brand campaign**
+   (branded searchers already decided) and fix ratings first — that is Phase 1
+   of the organic marketing plan and it gates this entire program. The same gate
+   is stated in [`00-START-HERE.md`](00-START-HERE.md) §3; the two must agree.
 2. **App name mismatch — resolve before building campaigns.** `app.config.js:19`
    ships `DeepLife Simulator`; `marketing/app_store_listing.md` documents
    `Deep Life Simulator`. Brand keywords must cover whichever is live, and both

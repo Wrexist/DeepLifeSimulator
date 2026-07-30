@@ -21,9 +21,12 @@ That is what you are buying.
 
 Four things are worth understanding before you touch anything:
 
-1. **You pay per tap, not per install.** If 100 people tap your ad and 60 install
-   the app, you paid for 100 taps and got 60 installs. Your cost per install is
-   therefore always higher than your cost per tap.
+1. **You pay per tap, not per install** — in Apple Ads **Advanced**, which is
+   what this program uses (step 1). If 100 people tap your ad and 60 install the
+   app, you paid for 100 taps and got 60 installs, so your cost per install is
+   always higher than your cost per tap. (Apple Ads *Basic* is the other
+   product and charges per install instead — that difference is one reason the
+   two are not interchangeable.)
 2. **You do not upload an ad.** Apple builds the ad automatically from your App
    Store listing — your icon, name, subtitle, and screenshots. You control the
    ad by controlling your listing (and by using Custom Product Pages, step 9).
@@ -79,10 +82,19 @@ most expensive mistake available to you.
 **Check now:** App Store Connect → your app → Ratings & Reviews.
 
 The last number recorded in this repo is **2.3 stars from 8 reviews**
-(`Deep_Life_Simulator_Marketing_Plan.md`, March 2026). If it is still under 4.0:
+(`Deep_Life_Simulator_Marketing_Plan.md`, March 2026) — months old, so do not
+trust it. Look up today's number and write it down:
+
+> Live rating: `______` from `______` reviews · checked on `__________`
+
+**If it is under 4.0 stars, or there are fewer than 30 reviews:**
 
 > **Run the Brand campaign only** (step 7, $3/day) and stop there. Fix ratings
 > first.
+
+(Why 30 reviews as well as 4.0: a 5.0 from three people moves nobody, and one
+bad review can swing it back. The threshold is the same one in
+[`README.md`](README.md) — if the two ever disagree, they are both wrong.)
 
 Why this is so strict: your ad sends people to your App Store page, and the star
 rating sits right at the top of it. At 2.3 stars, most people who tap will read
@@ -110,10 +122,11 @@ This is the plumbing that tells you which keyword produced which paying player.
 - ✅ Code shipped — `services/RevenueCatService.ts` now collects Apple's
   attribution token.
 - ✅ RevenueCat → Apple Search Ads integration enabled (you did this).
-- ⬜ **Still needed:** the code has to reach real users. It works only in a
-  **TestFlight or App Store build** — never in the simulator or a dev build. So
-  the version of the app containing this change must actually be released before
-  the revenue numbers appear.
+- ⬜ **Still needed:** the code has to reach real users in a **released App
+  Store build**. It returns nothing at all in the simulator or a dev build, and
+  TestFlight/sandbox can return placeholder or empty attribution — so a clean
+  TestFlight result does not prove production attribution works. The version
+  carrying this change must actually ship before the revenue numbers appear.
 
 Verify it after your first release build, in step 11.
 
@@ -188,9 +201,16 @@ You are not expecting to need it. It is there because a mistyped bid — $50.00
 instead of $0.50 — is a thing that happens to everyone once, and this is the
 difference between noticing it on Monday and noticing it on your statement.
 
-Also useful to know: Apple only offers **daily** budgets now. Lifetime and
-campaign-total budgets were retired, so there is no "spend $500 and stop" option
-to look for. Your daily number is the only lever.
+Two things to know about how Apple budgets actually behave:
+
+- **Lifetime and campaign-total budgets were retired**, so there is no "spend
+  $500 and stop" option per campaign. Larger invoiced Advanced accounts can use
+  *budget orders* to cap total spend across campaigns, but that is not available
+  at this scale — so at the campaign level, the daily budget is your lever.
+- **The daily budget is an average, not a hard daily cap.** Apple can spend more
+  than it on a high-opportunity day and less on a quiet one. What *is* bounded is
+  the month: **daily budget × 30.4**. So $30/day is capped at about **$912/month**
+  — which is why the $1,000 account cap above is the right size.
 
 ---
 
@@ -271,7 +291,7 @@ worth and show each one the right screenshots.
 
 **How Discovery works** — this is the clever part of the whole system:
 
-```
+```text
 Discovery shows your ad for search words you never picked.
         ↓
 Every Monday you read the report of what people actually searched.
@@ -335,7 +355,8 @@ different screenshots. You can then say "people who searched *crime simulator*
 land on the crime version of my page."
 
 It works: pages matched to the search convert far better, and ads built on them
-average **+27% more taps** in search results.
+average **+27% more taps** in search results — that figure is MobileAction's
+industry measurement, not an Apple guarantee.
 
 You can make 70 of them. You need **6**. Every screenshot and headline is
 written for you in **[`04-custom-product-pages.md`](04-custom-product-pages.md)**
@@ -379,14 +400,17 @@ Put a calendar reminder 14 days out. Then close the tab.
 Attribution is what connects "this keyword" to "this player spent $4.99". Now
 that RevenueCat is linked, verify it end to end:
 
-1. Confirm a build containing the attribution change is live on **TestFlight or
-   the App Store**. It does not work in the simulator or a dev build.
-2. Open RevenueCat → **Customers**, pick a recent iOS customer, look at the
-   **Attribution** section.
-3. You are looking for **Apple Search Ads** fields with a campaign name. Data
-   arrives within **24–48 hours** of the install, not instantly.
+1. Confirm a build containing the attribution change is live on the **App
+   Store**. It returns nothing in the simulator or a dev build, and
+   TestFlight/sandbox can return placeholder data — so TestFlight passing is not
+   proof.
+2. Open RevenueCat → **Customers**, pick a recent iOS customer **who came from
+   an ad**, look at the **Attribution** section.
+3. You are looking for **Apple Search Ads** fields with a campaign name filled
+   in. Apple resolves within about 24 hours, but RevenueCat says to allow **up
+   to 7 days** for full coverage.
 
-**If nothing shows after 48 hours,** check in this order:
+**If nothing shows after 7 days,** check in this order:
 
 - Is the build a real store/TestFlight build? (most common cause)
 - Is the RevenueCat Apple Search Ads integration switched on?
@@ -394,8 +418,9 @@ that RevenueCat is linked, verify it end to end:
   `EXPO_PUBLIC_USE_REVENUECAT` and is switched off automatically in development
   builds by `BORING_BUILD_MODE`.
 
-Seeing a customer marked as **organic / no attribution** is a *success*, not a
-failure — it means the pipe works and that person simply did not come from an ad.
+A customer marked **organic / no attribution** tells you the token collection
+works — but it does *not* confirm the ad path. Only an ad-attributed customer
+with populated campaign fields proves the whole pipe end to end.
 
 ---
 

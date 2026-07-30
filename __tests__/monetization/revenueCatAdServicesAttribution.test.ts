@@ -14,8 +14,12 @@
  * native module start fresh.
  */
 
+// Hoist-safe: `mock*`-prefixed names are allowed inside a jest.mock factory, so
+// the test can drive the flag directly instead of require()-ing the real module
+// back out at runtime.
+const mockIsFeatureEnabled = jest.fn(() => true);
 jest.mock('@/lib/config/featureFlags', () => ({
-  isFeatureEnabled: jest.fn(() => true),
+  isFeatureEnabled: mockIsFeatureEnabled,
 }));
 
 const ORIGINAL_ENV = { ...process.env };
@@ -136,9 +140,7 @@ describe('RevenueCatService — AdServices attribution', () => {
   });
 
   it('does not touch the SDK at all when RevenueCat is disabled', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const flags = require('@/lib/config/featureFlags');
-    flags.isFeatureEnabled.mockReturnValue(false);
+    mockIsFeatureEnabled.mockReturnValue(false);
 
     const P = mockPurchases();
     const service = await freshService('ios');
@@ -149,6 +151,6 @@ describe('RevenueCatService — AdServices attribution', () => {
     expect(P.configure).not.toHaveBeenCalled();
     expect(P.enableAdServicesAttributionTokenCollection).not.toHaveBeenCalled();
 
-    flags.isFeatureEnabled.mockReturnValue(true);
+    mockIsFeatureEnabled.mockReturnValue(true);
   });
 });

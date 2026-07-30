@@ -18,8 +18,16 @@ Apple Ads uses **AdServices**, a deterministic first-party attribution API — n
 SKAdNetwork/AdAttributionKit probabilistic modelling. Your app requests an
 attribution token at launch; the token is exchanged with Apple for the campaign,
 ad group, and keyword that produced the install. It is exact, and **it does not
-require ATT consent** for standard attribution (campaign/ad group level). ATT
-consent only unlocks the detailed level (keyword ID and a few extra fields).
+require ATT consent**.
+
+This is better than it sounds. The *standard* payload — the one returned when a
+user declines tracking — already carries `orgId`, `campaignId`, `adGroupId`,
+`keywordId`, `adId`, `conversionType` and `countryOrRegion`. The **only** field
+the *detailed* (ATT-consented) payload adds is `clickDate` / `impressionDate`.
+
+So **keyword-level ROAS works regardless of ATT opt-in rate.** What you lose
+without consent is the click timestamp, which matters for time-to-install
+analysis and nothing in this program depends on it.
 
 That matters here: `expo-tracking-transparency` ships and ATT is prompted, but
 even for users who decline, standard ASA attribution still works.
@@ -50,14 +58,19 @@ nothing to receive.
 
 ### Verifying it works
 
-1. Ship a build containing the change to **TestFlight or the App Store** —
-   AdServices returns no token in the simulator or in a dev-client build.
-2. Install via an Apple Ads tap (or wait for the first organic cohort; organic
-   installs return a token that resolves to "no attribution", which is itself a
-   valid result and confirms the pipe works).
-3. RevenueCat → **Customer** → check the *Attribution* section for
-   `Apple Search Ads` fields within 24–48 hours.
-4. If nothing appears after 48 hours: confirm the RC integration is enabled,
+1. Ship the change in a **released App Store build**. AdServices returns no
+   token at all in the simulator, and TestFlight/sandbox builds can return
+   placeholder or empty attribution — a clean TestFlight result is *not* proof
+   the integration works in production.
+2. Install via a real Apple Ads tap. An organic install returns a token that
+   resolves to `attribution: false`, which proves token *collection* works but
+   says nothing about the ad path — only an ad-attributed customer with
+   populated campaign fields proves the whole pipe.
+3. RevenueCat → **Customer** → check the *Attribution* section for populated
+   `Apple Search Ads` campaign / ad group / keyword fields. Apple resolves
+   within ~24 hours, but RevenueCat advises allowing **up to 7 days** for full
+   coverage, so do not open an incident early.
+4. If nothing appears after 7 days: confirm the RC integration is enabled,
    confirm the build is a store build, and confirm RevenueCat is actually
    enabled in the build — `lib/config/featureFlags.ts` gates it behind
    `EXPO_PUBLIC_*` and `BORING_BUILD_MODE` disables it in `__DEV__`.
@@ -80,7 +93,7 @@ subscriptions only. Two options:
 
 **The rule that governs every bid in this account:**
 
-```
+```text
 max CPA (per install)  =  D180 net LTV  ÷  target payback multiple
 max CPT (per tap)      =  max CPA  ×  tap-to-install conversion rate
 ```
@@ -98,7 +111,7 @@ max CPT (per tap)      =  max CPA  ×  tap-to-install conversion rate
 | G | Apple's commission | **15%** under the Small Business Program (<$1M/yr), else 30% | |
 | H | Tap-to-install CR | Apple Ads (benchmark ≈ 64%) | |
 
-```
+```text
 D180 net LTV = B + (C × D + E × F) × (1 − G)
 ```
 
@@ -118,7 +131,7 @@ Connect → Business. Using 30% when you qualify for 15% understates your LTV by
 | G — commission | 15% |
 | H — tap-to-install CR | 60% |
 
-```
+```text
 D180 net LTV = 0.20 + (0.18 + 0.13) × 0.85 = $0.46
 max CPA @ 1.0× payback = $0.46
 max CPT = 0.46 × 0.60         = $0.28
@@ -141,7 +154,7 @@ hard $6/day cap precisely because the model says so.
 | G | 15% |
 | H | 65% |
 
-```
+```text
 D180 net LTV = 0.45 + (0.54 + 0.56) × 0.85 = $1.39
 max CPA @ 1.0× = $1.39   →   max CPT = $0.90
 ```
@@ -172,7 +185,7 @@ Every Monday, export from Apple Ads (**Reports → Ad Group / Keyword level, las
 7 days**) and pull the matching revenue from RevenueCat. Keep the joined result
 in one sheet, one row per keyword per week:
 
-```
+```text
 week | campaign | ad_group | keyword | impressions | taps | TTR |
 installs | CR | spend | CPT | CPA | D7 rev | D30 rev | ROAS_D30
 ```

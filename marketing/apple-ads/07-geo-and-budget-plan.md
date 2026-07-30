@@ -57,7 +57,7 @@ negatives, all of which differ. One campaign spanning five countries silently
 spends its budget wherever the auction is cheapest, which is never where your LTV
 is highest.
 
-```
+```text
 DLS-GB-Brand-Exact       ← same keywords, GB bids
 DLS-GB-Category-Exact    ← keywords from app-store-localizations/en-GB.md
 DLS-GB-Competitor-Exact

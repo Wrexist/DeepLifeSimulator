@@ -6,11 +6,19 @@ page's metadata and screenshots, and (b) **Custom Product Pages** attached to ad
 groups as **ad variations**.
 
 **Why this is worth the effort:** ad variations built on CPPs deliver **+9%
-tap-through rate on average, +27% in search results campaigns**. CPP conversion
-rates rose from 42.1% to 55.9% year over year across Apple's reporting. You may
-publish **70 CPPs** (doubled from 35 in Oct 2025) and attach up to **10 per ad
-group**. Six is the right number here — one per intent cluster, so each ad group
-lands on a page that answers the search that produced it.
+tap-through rate on average, +27% in search results campaigns** — MobileAction's
+industry measurement, not an Apple guarantee. You may publish **70 CPPs**
+(doubled from 35 in Oct 2025), all usable as ad variations.
+
+**Only one custom ad variation is active per ad group at a time.** You may
+configure several, but one serves and the others stay paused, with your default
+ad continuing to run alongside it. Six pages is the right number here — one per
+intent cluster, each owning one ad group, so every ad group lands on a page that
+answers the search that produced it.
+
+**Ad variations are a Search Results feature.** Today tab ads *require* a CPP as
+their tap destination and Search tab ads can optionally use one, but the Product
+Pages placement serves your default creative — there is no CPP to attach there.
 
 A CPP overrides screenshots, app preview videos, and the promotional text. It
 **cannot** change the app name, subtitle, icon, or description — those come from
@@ -22,9 +30,9 @@ the words in the ad itself.
 ## The six pages
 
 Build each in App Store Connect → your app → **Custom Product Pages** → (+).
-Each needs: a name, a unique URL suffix, 3–10 screenshots, optional preview
-video, and promotional text. Then attach in Apple Ads → ad group → **Ad
-variations**.
+Each needs a reference name, screenshots, an optional preview video, and
+promotional text — App Store Connect generates the unique URL itself. Then attach
+in Apple Ads → ad group → **Ad variations**.
 
 ### `CPP-LifeSim` — the genre answer
 **Ad groups:** `LifeSim-Core` · **Search terms it serves:** life simulator, life
@@ -116,7 +124,7 @@ declares, and screenshots are reviewed. If the rating does not cover it, fix the
 rating first — do not soften the page.
 
 ### `CPP-Switcher` — for people leaving another life sim
-**Ad groups:** all 3 Competitor ad groups + the `DLS-US-ProductPages` campaign ·
+**Ad groups:** all 3 Competitor ad groups (Search Results only) ·
 **Search terms:** bitlife, games like bitlife, altlife, bitlife alternative
 
 | Slot | Headline | Screenshot |
@@ -155,7 +163,7 @@ gameplay", per `docs/STORE_LISTING.md`) is a genuine advantage — say it.
 | `DLS-US-Competitor-Exact` | all 3 | `CPP-Switcher` |
 | `DLS-US-Discovery-Broad` | both | *default page* |
 | `DLS-US-TodayTab` | — | `CPP-LifeSim` (Today tab **requires** a CPP) |
-| `DLS-US-ProductPages` | — | `CPP-Switcher` |
+| `DLS-US-ProductPages` | — | *default page* — the placement has no ad variations |
 
 Discovery keeps the default page on purpose: its traffic is undefined by
 construction, so a themed page would mismatch most of it and pollute the CR

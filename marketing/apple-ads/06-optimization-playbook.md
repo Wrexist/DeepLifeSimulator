@@ -52,18 +52,24 @@ changes what you are buying rather than what you are paying.
 
 ### Step 2 — Keyword bid decisions (15 min)
 
-Work the keyword-level report top-down by spend. Exactly one rule fires per
-keyword:
+Work the keyword-level report top-down by spend. **Evaluate the rules in the
+order listed and stop at the first match** — the order matters, because a
+zero-impression keyword also satisfies the low-spend rule below it. Bands are
+half-open so no keyword matches two:
 
-| Condition (last 14 days) | Action |
-|---|---|
-| Installs ≥ 3 **and** CPA ≤ 70% of target | **Raise bid +20%.** Under-buying a winner. |
-| Installs ≥ 3 **and** CPA 70–110% of target | **Leave it.** Working as intended. |
-| Installs ≥ 3 **and** CPA 110–150% of target | **Lower bid −15%.** |
-| Installs ≥ 1 **and** CPA > 150% of target | **Lower bid −30%.** Second consecutive week in this band → pause. |
-| Spend ≥ 3× target CPA **and** zero installs | **Pause.** |
-| Spend < 1× target CPA, any result | **Leave it.** Not enough data — this is most of your long tail. |
-| Impressions = 0 for 14 days | **Raise bid +30%** once. Still zero next week → the term has no volume; remove it. |
+| # | Condition (last 14 days) | Action |
+|---|---|---|
+| 1 | Impressions = 0 for the full 14 days | **Raise bid +30%** once. Still zero next week → the term has no volume; remove it. |
+| 2 | Spend ≥ 3× target CPA **and** zero installs | **Pause.** |
+| 3 | Installs ≥ 3 **and** CPA ≤ 70% of target | **Raise bid +20%.** Under-buying a winner. |
+| 4 | Installs ≥ 3 **and** CPA > 70% and ≤ 110% | **Leave it.** Working as intended. |
+| 5 | Installs ≥ 3 **and** CPA > 110% and ≤ 150% | **Lower bid −15%.** |
+| 6 | Installs ≥ 1 **and** CPA > 150% of target | **Lower bid −30%.** Second consecutive week in this band → pause. |
+| 7 | Spend < 1× target CPA, any result | **Leave it.** Not enough data — this is most of your long tail. |
+
+Note that only rule 6 pauses on a second bad week. A keyword sitting in the
+110–150% band (rule 5) keeps getting its bid trimmed and is never auto-paused;
+that band is "too expensive", not "hopeless".
 
 Constraints that keep this from oscillating:
 
@@ -148,20 +154,26 @@ the log next to this folder.
 
 ## The one-page decision tree
 
-```
+```text
 Is attribution live?  ──no──► stop, fix 05
         │ yes
-Is the rating ≥ 4.0?  ──no──► Brand campaign only, fix ratings
+Is the rating ≥ 4.0 with 30+ reviews?  ──no──► Brand campaign only, fix ratings
         │ yes
 Did you run the search-term report this week?  ──no──► do that first
         │ yes
-For each keyword, is spend ≥ 1× target CPA?  ──no──► leave it alone
+Zero impressions for 14 days?  ──yes──► raise bid 30% once
+        │ no
+Spent 3× target CPA with zero installs?  ──yes──► pause
+        │ no
+Is spend ≥ 1× target CPA?  ──no──► leave it alone
         │ yes
 Is CPA ≤ 110% of target?  ──yes──► ≤70%: raise 20% · else hold
         │ no
-Is this the 2nd consecutive bad week?  ──yes──► pause
+Is CPA > 150% of target?  ──no──► lower the bid 15%, wait a week
+        │ yes
+Is this the 2nd consecutive week above 150%?  ──yes──► pause
         │ no
-Lower the bid 15–30%, wait a week.
+Lower the bid 30%, wait a week.
 ```
 
 ---

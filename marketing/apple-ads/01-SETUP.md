@@ -27,7 +27,7 @@ caps spend at $10,000/month. Advanced has no cap.
 
 ### Naming convention — use it from day one
 
-```
+```text
 DLS-<COUNTRY>-<Type>-<MatchType>          ← campaign
 <Theme>                                   ← ad group
 ```
@@ -146,10 +146,13 @@ prevents, and why its max CPT sits below theirs.
 ### 1.5 `DLS-US-MaxConv` — phase 3 only
 
 Do **not** create this at launch. Maximize Conversions is a target-CPA automated
-bidder; it needs conversion volume to learn from, and Apple's own guidance is a
-daily budget of **target CPA × 5 minimum, × 10 recommended**, with a **two-week**
-learning period before you judge it. A campaign getting 50 installs/day learns in
-two weeks what a 5 installs/day campaign takes ten weeks to learn.
+bidder; it needs conversion volume to learn from. **Apple's own guidance** is to
+set a daily budget allowing at least **five conversions per day** and to let the
+campaign run a **full two weeks** before judging it. The commonly cited
+**target CPA × 5 minimum / × 10 recommended** sizing is an industry heuristic
+built on top of that, not Apple's wording — useful, but don't treat it as
+official. A campaign getting 50 installs/day learns in two weeks what a
+5 installs/day campaign takes ten weeks to learn.
 
 Create it when *both* are true: the account has run ≥30 days, and Category+
 Discovery together deliver ≥5 installs/day. Then:
@@ -173,8 +176,13 @@ weeks, then tighten by ≤10% per week.
 
 Apply from `03-negative-keywords.md`:
 
-1. **Campaign-level** `negatives/global-negatives.csv` on **all** campaigns
-   except Brand. These are the cross-genre and wrong-vertical blocks
+> **Negative keywords exist only on Search Results campaigns.** The Today tab,
+> Search tab and Product Pages placements (Part 4) do not support keywords or
+> negative keywords at all — they use different targeting. Everything below
+> applies to the four Search Results campaigns only.
+
+1. **Campaign-level** `negatives/global-negatives.csv` on all **Search Results**
+   campaigns except Brand. These are the cross-genre and wrong-vertical blocks
    ("life insurance", "truck simulator", "life360") that broad match and Search
    Match will otherwise find within days.
 2. **Campaign-level** `negatives/discovery-graduated.csv` on
@@ -197,10 +205,16 @@ which product page the ad is built from and taps into, via **ad variations**
 backed by **Custom Product Pages**.
 
 This is the highest-leverage creative lever available: ad variations built on
-CPPs deliver **+9% TTR on average and +27% in search results campaigns**, and
-referring taps to a CPP instead of the default page raises conversion
-substantially. You may publish up to **70 CPPs** (raised from 35 in Oct 2025) and
-attach up to **10 per ad group**.
+CPPs deliver **+9% TTR on average and +27% in search results campaigns**
+(MobileAction's measurement, not an Apple guarantee), and referring taps to a CPP
+instead of the default page raises conversion substantially. You may publish up
+to **70 CPPs** (raised from 35 in Oct 2025), all usable as ad variations.
+
+**One custom ad variation is active per ad group at a time.** You can configure
+many in an ad group, but only one serves; the rest sit paused, and your default
+ad continues to run alongside it (it covers pre-iOS-15.2 devices and any moment
+the custom ad is paused or on hold). This is why the map below assigns exactly
+one CPP per ad group — swapping creative is a pause-and-activate, not a split.
 
 Build the six pages briefed in [`04-custom-product-pages.md`](04-custom-product-pages.md)
 in App Store Connect → your app → **Custom Product Pages**, then in Apple Ads →
@@ -219,7 +233,7 @@ Only after Search Results is profitable:
 |---|---|---|---|---|
 | `DLS-US-SearchTab` | Search tab | $3/day | Name + icon + subtitle, CPP-backed | Pre-intent; appears before the user types. Judge on CPA, expect it to be worse than search results. |
 | `DLS-US-TodayTab` | Today tab | $5/day | Requires a CPP as the tap destination | Awareness inventory, highest CPM-like cost. Only run it during a launch/update moment. |
-| `DLS-US-ProductPages` | Product Pages | $4/day | CPP-Switcher | Appears in "You Might Also Like" on other apps' pages — the closest thing to conquest without bidding on the brand term. |
+| `DLS-US-ProductPages` | Product Pages | $4/day | Default product page (CPP ad variations are a Search Results feature) | Appears in "You Might Also Like" on other apps' pages — the closest thing to conquest without bidding on the brand term. |
 
 Keep each in its own campaign. Mixing placements in one budget makes the search
 results numbers unreadable, and search results is the only placement where the

@@ -1,6 +1,6 @@
 # 02 — Keywords
 
-**126 exact-match keywords** across three campaigns plus 12 broad-match Discovery
+**126 exact-match keywords** across three campaigns, plus 12 broad-match Discovery
 seeds. Machine-readable lists live in [`keywords/`](keywords/):
 
 | File | Rows | Campaign |
@@ -8,7 +8,7 @@ seeds. Machine-readable lists live in [`keywords/`](keywords/):
 | [`keywords/brand-exact.csv`](keywords/brand-exact.csv) | 15 | `DLS-US-Brand-Exact` |
 | [`keywords/category-exact.csv`](keywords/category-exact.csv) | 87 | `DLS-US-Category-Exact` (8 ad groups) |
 | [`keywords/competitor-exact.csv`](keywords/competitor-exact.csv) | 24 | `DLS-US-Competitor-Exact` (3 ad groups) |
-| [`keywords/discovery-broad.csv`](keywords/discovery-broad.csv) | 13 | `DLS-US-Discovery-Broad` |
+| [`keywords/discovery-broad.csv`](keywords/discovery-broad.csv) | 13 | `DLS-US-Discovery-Broad` — 12 broad seeds + 1 keyword-less Search Match ad group |
 
 Columns: `campaign, ad_group, keyword, match_type, max_cpt_usd, rationale`. In
 the Apple Ads UI you paste the `keyword` column into the ad group and set the bid
@@ -94,8 +94,13 @@ in `06-optimization-playbook.md`.
   the *highest* bids in the whole account despite being competitor terms, because
   the searcher is explicitly asking for what you are — that is the one competitor
   auction where you are the better answer, not the interruption.
-- **Discovery $0.40–0.55.** Deliberately below every exact bid so Discovery can
-  never outbid a campaign you have already optimized.
+- **Discovery $0.40–0.55.** Deliberately below every **Category and Competitor**
+  exact bid, so Discovery can never outbid a campaign you have already optimized.
+  Brand's cheapest keywords sit lower than this ($0.30–0.40) and that is fine —
+  every brand term is an exact negative in Discovery
+  ([`negatives/discovery-graduated.csv`](negatives/discovery-graduated.csv)), so
+  Discovery cannot enter a brand auction at any bid. Keep the general rule as
+  "Discovery's max must stay under the lowest bid it can actually compete with."
 
 **Benchmark context for sanity-checking week 1:** global median CPT ≈ **$0.92**;
 all-category tap-to-install conversion ≈ **64%**; Games has the **lowest TTR of
@@ -109,7 +114,7 @@ near the medians, the account is healthy.
 
 This is the mechanism that makes the account compound rather than plateau.
 
-```
+```text
 Discovery (broad + Search Match)
         │  search-term report, weekly
         ▼
