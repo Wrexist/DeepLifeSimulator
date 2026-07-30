@@ -23,10 +23,10 @@ const getNetWorth = (s: GameState): number => netWorth(s);
 
 const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
 
-const getAchievementCount = (s: GameState) =>
- Array.isArray(s.achievements)
- ? s.achievements.filter((a: any) => a.completed).length
- : 0;
+// Live store, not the deprecated `achievements[].completed` flag — that never
+// gets set in play, so every achievement-gated secret event was unreachable.
+// 2026-07-30 audit GP-3.
+const getAchievementCount = (s: GameState) => (s.claimedProgressAchievements || []).length;
 
 // ─── Secret event templates ──────────────────────────────────────
 

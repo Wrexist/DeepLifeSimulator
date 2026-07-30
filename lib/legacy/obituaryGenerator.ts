@@ -70,9 +70,12 @@ export function generateObituary(state: GameState): Obituary {
   const netWorth = cash + bank + stocks + realEstate;
 
   // Achievements
-  const achievements = (state.achievements || []).filter(
-    (a: any) => a.completed
-  );
+  // `achievements[].completed` is the DEPRECATED store — 52 entries that ship
+  // `false` and are never set in normal play (`evaluateAchievements` is a
+  // documented no-op). The live store is `claimedProgressAchievements`. Reading
+  // the dead flag made this silently empty for every player. 2026-07-30 audit
+  // GP-3; same fix as lib/careers/advancedCareers.ts.
+  const achievements = [...(state.claimedProgressAchievements || [])];
 
   // Build descriptor
   let descriptor = '';

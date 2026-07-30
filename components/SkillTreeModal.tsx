@@ -422,11 +422,13 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     // Points from completed education
     const completedEducation = (gameState.educations || []).filter(e => e.completed);
     points += completedEducation.length * 2;
-    // Points from achievements
-    const achievements = (gameState.achievements || []).filter(a => a.completed);
-    points += achievements.length;
+    // Points from achievements — the LIVE claimed store. This read
+    // `achievements[].completed`, which nothing in play ever sets, so every
+    // achievement a player earned contributed ZERO skill points, for the whole
+    // game. 2026-07-30 audit GP-3.
+    points += (gameState.claimedProgressAchievements || []).length;
     return points;
-  }, [gameState.date.age, gameState.educations, gameState.achievements]);
+  }, [gameState.date.age, gameState.educations, gameState.claimedProgressAchievements]);
 
   useEffect(() => {
     if (visible) {

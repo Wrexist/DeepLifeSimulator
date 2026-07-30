@@ -226,7 +226,9 @@ export async function updateProtectedState(slot: number, gameState: any): Promis
       // Permanent achievements
       permanentAchievements: [
         ...(existing?.permanentAchievements || []),
-        ...(gameState.achievements?.filter((a: any) => a.completed && a.permanent).map((a: any) => a.id) || []),
+        // Live claimed store; the `completed` flag is never set in play, so this
+        // list was always empty. GP-3.
+        ...((gameState as { claimedProgressAchievements?: string[] }).claimedProgressAchievements || []),
       ].filter((v, i, a) => a.indexOf(v) === i), // Unique
       lastUpdated: now,
     };

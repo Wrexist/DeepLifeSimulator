@@ -430,9 +430,12 @@ function DeathPopup() {
       ? 'You passed away peacefully of natural causes.'
       : 'Your journey has ended.';
 
-  // Calculate life summary statistics
-  const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
-  const totalAchievements = completedAchievements.length;
+  // Calculate life summary statistics. Reads the LIVE claimed store — the
+  // deprecated `achievements[].completed` flag is never set in play, so the
+  // death screen told every player they had achieved nothing. GP-3.
+  const claimedIds = gameState.claimedProgressAchievements || [];
+  const completedAchievements = (gameState.achievements || []).filter((a) => claimedIds.includes(a.id));
+  const totalAchievements = claimedIds.length;
   const topAchievements = completedAchievements.slice(0, 5);
 
   const completedEducation = (gameState.educations || []).filter(e => e.completed);

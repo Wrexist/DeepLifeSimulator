@@ -545,7 +545,9 @@ function createChildGameState(
     })(),
     netWorth: currentNetWorth,
     causeOfDeath: 'Prestige',
-    achievements: (oldState.achievements || []).filter(a => a.completed).map(a => a.name),
+    // Live store — the dead flag made every obituary and legacy summary list
+    // no achievements at all. GP-3.
+    achievements: [...(oldState.claimedProgressAchievements || [])],
     gender: (oldState.userProfile?.gender || oldState.userProfile?.sex || 'male') as 'male' | 'female',
     avatarSeed: `${oldState.userProfile?.firstName}_${oldState.userProfile?.lastName}_${birthYear}`,
   };
