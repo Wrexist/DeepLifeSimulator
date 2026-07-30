@@ -38,7 +38,7 @@ source at the stated anchor. Status column is maintained as work lands.
 
 | Gate | Result |
 |---|---|
-| `npx jest` | 4,480 passed, 1 skipped, 0 failed |
+| `npx jest` | 4,488 passed, 1 skipped, 0 failed |
 | `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
 | Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
 | `npx eslint --quiet` on changed files | 0 errors |
@@ -65,6 +65,28 @@ applyAutoReinvest, weekly-event resolver.
 | GL-2 | high | FIXED | Politics education perks read `effects.education`, a key that does not exist on the returned object | `contexts/game/actions/EducationActions.ts:53-55` |
 | GL-3 | med | PARTIAL | Education half wired with GL-2. HEALTHCARE half still unread (`healthBonus`, `medicalCostReduction`) | `contexts/game/actions/PoliticalActions.ts:69-124` |
 | GL-4 | med | OPEN | 2 scenarios unscoreable — prestige projection strips `level`; `family_man` achievement id does not exist | `lib/prestige/prestigeExecution.ts:134,136` |
-| GL-5 | med | OPEN | "Debt Free" achievement unearnable — `progress.hasBeenInDebt` never written true | `src/features/onboarding/achievementsData.ts:1161` |
-| GL-6 | med | OPEN | Life Skills "Investing" node inert — `stockReturnMult` has zero readers (and gates `wealth_master`) | `lib/skillTrees/lifeSkillEffects.ts:166,188` |
-| GL-7 | med | OPEN | Auto-Rest, Skill Mastery, Achievement Hunter prestige bonuses all purchasable and inert | `lib/prestige/applyQOLBonuses.ts:34` · `applyBonuses.ts:250,319` |
+| GL-5 | med | FIXED | "Debt Free" achievement unearnable — `progress.hasBeenInDebt` never written true | `src/features/onboarding/achievementsData.ts:1161` |
+| GL-6 | med | FIXED | Life Skills "Investing" node inert — `stockReturnMult` has zero readers (and gates `wealth_master`) | `lib/skillTrees/lifeSkillEffects.ts:166,188` |
+| GL-7 | med | PARTIAL | Auto-Rest wired. Skill Mastery + Achievement Hunter still inert — need a PRODUCT DECISION, see below | `lib/prestige/applyQOLBonuses.ts:34` · `applyBonuses.ts:250,319` |
+
+## Open questions needing a product decision (not code bugs)
+
+These are verified-inert, but wiring them means inventing game balance rather
+than restoring intended behaviour, so they are left for the owner to direct.
+
+- **GL-7 `skill_gain_multiplier` ("Skill Mastery", +20% skill gain, 3,000 pts).**
+  The only XP-based skill system in the game is the DARK WEB skill tree
+  (`awardSkillXp`). Life Skills are bought with money, not earned with XP. So
+  wiring this would silently make a general-sounding prestige bonus buff one
+  niche subsystem. Options: (a) scope it to dark-web XP and reword the shop
+  copy, (b) remove the bonus, (c) introduce a broader skill-XP system.
+- **GL-7 `achievement_progress_multiplier` ("Achievement Hunter", +20%
+  achievement progress, 4,000 pts x2).** Achievements here are boolean
+  thresholds, not accumulating progress, so a "progress rate" multiplier has no
+  coherent meaning. It is not even surfaced in `PrestigeInfoModal`. Options:
+  (a) remove it from the shop (needs a refund/migration decision for anyone who
+  already bought it), (b) redefine it against a progress-based metric.
+- **MON-5 Revival Pack** (carried over from round 1) — revives only at the
+  instant of purchase, so bought while alive it is a permanent no-op. Fixing it
+  means choosing a product shape: one banked revive consumed on use, vs a
+  repeatable consumable.

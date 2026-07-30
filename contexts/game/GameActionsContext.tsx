@@ -55,6 +55,10 @@ import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice 
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
+import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
+
+/** Energy the Auto-Rest prestige bonus tops a depleted week up to. */
+const AUTO_REST_TARGET_ENERGY = 40;
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
@@ -532,6 +536,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
  newStats.energy = (newStats.energy || 0) + energyRegen;
+
+ // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
+ // points). `shouldAutoRest` had exactly one occurrence in the whole repo —
+ // its own definition — so the bonus was bought and never fired; the player
+ // still had to rest by hand. Top the tank up to the rest threshold when
+ // energy is still under 20 AFTER the week's regen, which is the state the
+ // bonus promises to prevent. Never reduces energy.
+ if (shouldAutoRest(newStats.energy || 0, unlockedBonuses)) {
+ newStats.energy = Math.max(newStats.energy || 0, AUTO_REST_TARGET_ENERGY);
+ }
 
  // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
  // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
@@ -2003,10 +2017,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const symbols: string[] = getAllStockSymbols();
  const prices: Record<string, number> = {};
  const yields: Record<string, number> = {};
+ // GL-6: the Life Skills "Investing" node advertises "+5% stock returns" and
+ // costs $2,000, is age-gated at 25, and is REQUIRED by the `wealth_master`
+ // capstone — so every player chasing that capstone is forced to buy it. Its
+ // modifier `stockReturnMult` had zero readers anywhere in the repo: the node
+ // did nothing. Scaling the yield here applies it to the quarterly dividend,
+ // which (since R1-01) is the only place stock dividends are paid.
+ const stockReturnMult = Number(lifeSkillMods.stockReturnMult);
+ const safeStockReturnMult =
+ Number.isFinite(stockReturnMult) && stockReturnMult > 1 ? stockReturnMult : 1;
  for (const sym of symbols) {
  const info = getStockInfo(sym);
  prices[sym] = info.price;
- yields[sym] = info.dividendYield;
+ yields[sym] = info.dividendYield * safeStockReturnMult;
  }
  const baseHoldings = (reinvestedStocks.length > 0 ? reinvestedStocks: (prevState.stocks?.holdings ?? []))
 .filter((h: any) => h && typeof h === 'object' && h.symbol)

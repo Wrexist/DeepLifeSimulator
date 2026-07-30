@@ -211,6 +211,12 @@ export const acceptLoan = (
       ...state,
       loans: [...(state.loans ?? []), newLoan],
       banking,
+      // GL-5: the ONLY writer of `progress.hasBeenInDebt`. It was initialised
+      // to `false` in initialState and set nowhere else in the repo, so the
+      // "Debt Free" achievement — which requires having been in debt, then
+      // clearing it — could never be met no matter how a player borrowed and
+      // repaid. It sat permanently at 0%. Taking on a loan IS entering debt.
+      progress: { ...(state.progress ?? {}), hasBeenInDebt: true },
       ...credit,
     };
   });
