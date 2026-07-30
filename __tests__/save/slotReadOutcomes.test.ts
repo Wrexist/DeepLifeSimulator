@@ -165,11 +165,19 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
   // repairs to a near-default state and autosaves over the real save — the
   // SAVE-OW-1 wipe, reintroduced for the exact recovery cohort this serves.
 
-  const loadOnce = (blob: string) => {
+  // The recovered payload should decode to a character, never to an inner
+  // envelope — so the fields we assert on are the character's, plus `v` (which
+  // is present only on the double-wrapped envelope object this guards against).
+  type DecodedState = {
+    userProfile?: { firstName?: string };
+    weeksLived?: number;
+    v?: unknown;
+  };
+  const loadOnce = (blob: string): DecodedState => {
     const decoded = decodePersistedSaveEnvelope(blob, { allowLegacy: false });
     expect(decoded.valid).toBe(true);
     expect(typeof decoded.data).toBe('string');
-    return JSON.parse(decoded.data as string);
+    return JSON.parse(decoded.data as string) as DecodedState;
   };
 
   it('migrates a v2 envelope at the legacy key to a SINGLE (not double) envelope', async () => {
@@ -184,7 +192,7 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
     // The returned blob decodes ONCE straight to the real state — not to an
     // inner envelope object (which would carry `v: 2` and no character).
     const state = loadOnce(result.data as string);
-    expect(state.userProfile.firstName).toBe('Nadia');
+    expect(state.userProfile?.firstName).toBe('Nadia');
     expect(state.v).toBeUndefined();
     expect(state.weeksLived).toBe(900);
 
@@ -192,7 +200,7 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
     // envelope, decoding once to the character rather than to `{ v: 2, ... }`.
     const bufferA = store.get(`${SLOT_KEY}_A`);
     expect(bufferA).toBeTruthy();
-    expect(loadOnce(bufferA as string).userProfile.firstName).toBe('Nadia');
+    expect(loadOnce(bufferA as string).userProfile?.firstName).toBe('Nadia');
     expect(store.get(`${SLOT_KEY}_active`)).toBe('A');
   });
 
