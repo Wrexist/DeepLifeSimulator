@@ -61,6 +61,7 @@ import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
+import { reconcileDiscoveredSystems } from '@/lib/depth/discoverySystem';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
 import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
@@ -1505,6 +1506,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.info(`[ENGAGEMENT] Legacy Points earned: +${pointsEarned} (total: ${newLegacyPoints})`);
  }
 
+ // ── DISCOVERY: reconcile which systems this life has actually touched ──
+ // `markSystemDiscovered` had no callers and `updateSystemUsage` had exactly one
+ // (hard-coded to 'streetJobs'), so `discoveredSystems` held at most ONE entry
+ // for the life of a save while the home feed rendered "1 / 20" and 40 of the
+ // 100 depth-score points came from that ratio. Derived here rather than at ~9
+ // action call sites, so existing saves get credit for what they have already
+ // done instead of waiting to re-do each thing. Pure and additive.
+ // 2026-07-30 audit GP-7.
+ let updatedDiscoveredSystems = prevState.discoveredSystems;
+ try {
+ updatedDiscoveredSystems = reconcileDiscoveredSystems({
+ ...prevState,
+ stats: newStats,
+ weeksLived: nextWeeksLived,
+ }).discoveredSystems;
+ } catch (discoveryError) {
+ logger.error('[DISCOVERY] Reconcile failed (non-critical):', discoveryError);
+ }
+
  // ── WEEKLY CHALLENGE: Update progress ──
  let updatedWeeklyChallenge = prevState.weeklyChallenge;
  // Legacy Pass XP to award if a weekly challenge reward is granted below. Folded
@@ -2348,6 +2368,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  pendingCliffhanger: newPendingCliffhanger,
  // Weekly themed challenge progress
  weeklyChallenge: updatedWeeklyChallenge,
+ discoveredSystems: updatedDiscoveredSystems,
  // Legacy Pass XP from a weekly-challenge completion this tick (0 = no-op).
  // awardLegacyPassXp touches ONLY legacyPass UNLESS it triggers a season
  // rollover that auto-collects unclaimed rewards (those land on stats/youthPills/
