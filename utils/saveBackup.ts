@@ -533,12 +533,27 @@ export async function createBackup(
       } as BackupMetadata
     };
 
-    await safeSetItem(backupId, JSON.stringify(backupData));
+    // CHECK THE RETURN. `safeSetItem` does NOT throw on a full device — it
+    // catches the quota error, tries its own cleanup, and returns `false`. So
+    // the quota branch in the catch below was unreachable dead code, and this
+    // path did all three of the wrong things on a device that could not store
+    // the backup: logged "Created backup", ROTATED (evicting a real, existing
+    // backup to make room for nothing), and returned an id for a key that does
+    // not exist. The recovery tier reported success while destroying recovery
+    // points. Found by the quota-retry regression test.
+    if (!(await safeSetItem(backupId, JSON.stringify(backupData)))) {
+      // Re-raise as the quota error the catch below is written for, so the
+      // aggressive cleanup + retry actually runs.
+      const quotaError: Error & { name: string } = new Error(`Storage rejected backup ${backupId}`);
+      quotaError.name = 'QuotaExceededError';
+      throw quotaError;
+    }
     logger.info(`Created backup for slot ${slot}: ${backupId} (${reason})`);
-    
-    // Rotate backups to keep only the latest ones
+
+    // Rotate backups to keep only the latest ones. Only ever after a CONFIRMED
+    // write — rotating for a backup that did not land is a pure net loss.
     await rotateBackups(slot);
-    
+
     return backupId;
   } catch (error: any) {
     // Handle quota exceeded error by cleaning up old backups and retrying
@@ -633,7 +648,10 @@ export async function createBackup(
             } as BackupMetadata
           };
 
-          await safeSetItem(retryBackupId, JSON.stringify(retryBackupData));
+          if (!(await safeSetItem(retryBackupId, JSON.stringify(retryBackupData)))) {
+            logger.error(`Backup for slot ${slot} still rejected by storage after cleanup`);
+            return null;
+          }
           logger.info(`Created backup for slot ${slot} after cleanup: ${retryBackupId} (${reason})`);
           return retryBackupId;
         } catch (retryError) {
@@ -984,15 +1002,21 @@ export async function createManualBackup(
       }
     };
     
-    await safeSetItem(backupId, JSON.stringify(backupData));
+    // Same unchecked-write bug as `createBackup`, and worse here: this is the
+    // player DELIBERATELY asking to protect a moment. It reported success and
+    // rotated — evicting a real backup — while storing nothing.
+    if (!(await safeSetItem(backupId, JSON.stringify(backupData)))) {
+      logger.error(`Manual backup for slot ${slot} was rejected by storage`);
+      return { success: false, error: 'Not enough storage space to save this backup. Free up space and try again.' };
+    }
 
     // Record backup time for rate limiting
     await recordBackupTime(slot);
     logger.info(`Created manual backup for slot ${slot}: ${backupId}${label ? ` (${label})` : ''}`);
-    
-    // Rotate backups to keep only the latest ones
+
+    // Only after a confirmed write — see createBackup.
     await rotateBackups(slot);
-    
+
     return { success: true, backupId };
   } catch (error: any) {
     logger.error(`Failed to create manual backup for slot ${slot}`, error);
