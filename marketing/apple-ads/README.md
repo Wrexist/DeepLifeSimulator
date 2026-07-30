@@ -10,7 +10,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 
 ---
 
-> ## 👉 New to app advertising? Read **[`00-START-HERE.md`](00-START-HERE.md)** instead.
+> ## 👉 New to app advertising? Start with [`00-START-HERE.md`](00-START-HERE.md)
 >
 > It is the same program written as a plain-language, 12-step walkthrough — what
 > the words mean, what to click, what to do each Monday, and the ten mistakes to

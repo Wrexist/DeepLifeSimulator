@@ -166,7 +166,7 @@ before advertising. `SCREENSHOT_GUIDE.md` and step 9 cover it.
 2. Sign in with the **same Apple ID** that owns the app in App Store Connect.
 3. You will be offered **Basic** or **Advanced**.
 
-> ### Choose **Advanced**.
+> ### Choose **Advanced**
 >
 > Basic is the simple version: you set a monthly budget and Apple decides
 > everything else. It is genuinely easier — but it has no keywords, no negative
