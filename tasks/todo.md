@@ -1,5 +1,37 @@
 # Task Tracker
 
+## 📣 Apple Ads (App Store Ads) — full setup & optimization (2026-07-30)
+
+Branch: `claude/app-store-ads-setup-qc9ih4`. Goal: an execution-ready Apple Ads
+program — account/campaign structure, keyword sets, negative keywords, bids,
+budgets, Custom Product Pages, measurement, and an optimization playbook — plus
+the one code change that makes ROI measurable at all.
+
+- [x] Read the existing ASO assets (`docs/STORE_LISTING.md`,
+      `marketing/app_store_listing.md`, `Deep_Life_Simulator_Marketing_Plan.md`,
+      39 locale files) so ad keywords match the shipped listings.
+- [x] Inventory monetization (gems $0.99–$99.99, DeepLife+ $4.99/mo · $49.99/yr,
+      Lifetime $79.99, perks $1.99–$12.99, AdMob interstitial + rewarded) — these
+      are the LTV inputs that set the max affordable CPA.
+- [x] Research current Apple Ads mechanics + 2026 benchmarks (campaign structure,
+      match types, Maximize Conversions, placements, CPP limits).
+- [x] Confirm the attribution gap: no MMP and no AdServices token collection, so
+      installs are visible in Apple Ads but revenue cannot be joined to keywords.
+- [x] Write `marketing/apple-ads/` (index + 7 documents + 6 bulk-upload CSVs).
+- [x] Implement AdServices attribution token collection in `RevenueCatService`
+      (iOS-only, guarded, non-fatal) + unit tests.
+- [x] Run the relevant Jest suites + type-check.
+- [x] Commit and push to `claude/app-store-ads-setup-qc9ih4`.
+
+Notes: no campaigns are created by this change — Apple Ads is an external console
+the owner controls; this ships the plan, the exact settings, and the code hook.
+Spend is gated on a **live** re-check of the App Store rating recorded
+immediately before enabling spend — the only figure in the repo (2.3★, Mar 2026)
+is a stale snapshot, not the current state. Paid traffic into a low-rated
+product page converts badly and burns budget; the gate is ≥4.0★ with 30+
+reviews, stated identically in `marketing/apple-ads/README.md` and
+`00-START-HERE.md`.
+
 ## 🎨 Vitals symmetry + Week Summary toggle + Heads Up Liquid Glass redesign (2026-07-09)
 
 Branch: `claude/vitals-ui-notifications-redesign-e3262m`. User screenshots showed

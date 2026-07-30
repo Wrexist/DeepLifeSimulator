@@ -1,1 +1,1 @@
-{"customInstructions":"Project context, conventions, and rules are in DEV.md. Agent workflows are in WORKFLOW.md. Read DEV.md at the start of every session."}
+{"customInstructions":"Project context, conventions, and rules are in CLAUDE.md (canonical). DEV.md and WORKFLOW.md are older mirrors kept for other tools; CLAUDE.md wins where they disagree. Read CLAUDE.md at the start of every session."}
