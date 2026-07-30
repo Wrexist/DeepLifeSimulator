@@ -2240,10 +2240,21 @@ export async function doubleBufferLoad(
       blobPresent = true;
       {
         const decoded = decodePersistedSaveEnvelope(legacyData, { allowLegacy });
-        if (decoded.valid) {
-          // Migrate: write to buffer A and set pointer
+        if (decoded.valid && typeof decoded.data === 'string') {
+          // Migrate: write to buffer A and set pointer.
+          //
+          // Wrap the DECODED payload, never the raw blob. `decoded.data` is the
+          // unwrapped state string for both formats — the inner `data` of a v2
+          // envelope, or the whole payload of a raw legacy save. Re-wrapping the
+          // raw blob double-wraps an already-v2 envelope (checksum computed over
+          // the envelope, not the state); loading it once yields the inner
+          // envelope object instead of a GameState, which repairs to a near-
+          // default and autosaves over the real save. That v2-at-legacy-key
+          // population is exactly what this branch exists to recover (a signed
+          // envelope verifies under the normal rules, and pre-double-buffer
+          // restores wrote one here via atomicSave). 2026-07-30 audit SEC-3b.
           try {
-            const canonicalEnvelope = createSaveEnvelope(legacyData);
+            const canonicalEnvelope = createSaveEnvelope(decoded.data);
             await storage.setItem(keyA, canonicalEnvelope);
             await storage.setItem(pointerKey, 'A');
             // Don't delete legacy key yet — keep as extra fallback until next successful save
