@@ -37,7 +37,15 @@ const STOCK_FEE = 0.02;
  * tax-wise than equity trades for no design reason. See the tax block in
  * runStocksWeeklyTick for the (documented) realization-timing choice.
  */
-const STOCK_CAPITAL_GAINS_TAX_RATE = 0.25;
+/**
+ * Withholding on realized stock gains and dividends.
+ *
+ * Exported so the MARKET-sell path in `StockActions` uses the same number: it
+ * credited full proceeds and only accumulated `stocks.realizedGains`, which
+ * nothing ever taxed, so a $1M gain kept or lost $250k purely by whether the
+ * player used the instant Sell button or a limit order (R3-M7).
+ */
+export const STOCK_CAPITAL_GAINS_TAX_RATE = 0.25;
 
 export interface StockHolding {
   symbol: string;

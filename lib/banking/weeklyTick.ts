@@ -15,7 +15,7 @@
  */
 
 import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
-import { accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
+import { accrueCreditCardInterest, accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
 import { getRateEnvironment } from './rateEnvironment';
 
 const safe = (n: number | undefined, fb = 0): number =>
@@ -183,8 +183,20 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   //     savings interest already folded into newBankSavings this week.
   //   - totalInterestPaid  += the interest serviced on the real loan-autopay
   //     path, threaded in from applyLoanAutopay(...).totalLoanInterest.
+  // 1b-cards. R3-M8: revolving card balances finally accrue their advertised
+  // APR. This was inert, so a maxed card at 17% cost the player nothing.
+  const cardAccrual = accrueCreditCardInterest(banking);
+  banking = cardAccrual.banking;
+  if (cardAccrual.totalInterest > 0) {
+    notifications.push({
+      id: `card-interest-${input.currentWeek}`,
+      title: '💳 Card Interest Charged',
+      message: `Your credit card balance grew by $${Math.round(cardAccrual.totalInterest).toLocaleString()} in interest.`,
+    });
+  }
+
   const interestEarnedThisWeek = safe(accrual.totalInterest) + safe(input.savingsInterest);
-  const interestPaidThisWeek = safe(input.loanInterestPaid);
+  const interestPaidThisWeek = safe(input.loanInterestPaid) + safe(cardAccrual.totalInterest);
   if (interestEarnedThisWeek > 0 || interestPaidThisWeek > 0) {
     banking = {
       ...banking,
