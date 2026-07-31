@@ -43,6 +43,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
+import { getRelationshipGainMultiplier } from '@/lib/prestige/applyBonuses';
 
 /** Canonical list of Life Skill node ids — must match SkillTreeModal's catalog. */
 export const LIFE_SKILL_IDS = [
@@ -211,7 +212,27 @@ export function getLifeSkillModifiers(state: GameState | null | undefined): Life
 export function applyRelationshipGain(state: GameState | null | undefined, delta: number): number {
   if (typeof delta !== 'number' || !isFinite(delta) || delta <= 0) return delta;
   const mult = getLifeSkillModifiers(state).relationshipGainMult;
-  return Math.round(delta * mult);
+
+  /**
+   * R3-P3: the prestige side of the same number.
+   *
+   * `social_master` (20,000 points, "+50% relationship gains") and
+   * `reputation_gain_multiplier` (3,500 x2 levels) both feed
+   * `getRelationshipGainMultiplier`, whose only occurrences in the repo were its
+   * own definition, an unused import, and `PrestigeInfoModal` calling it to
+   * render the very percentage the player was not receiving. This funnel — the
+   * single path every positive relationship change goes through — applied only
+   * the Life Skills multiplier, so 23,500 prestige points bought nothing.
+   *
+   * Multiplied with the skill multiplier rather than replacing it: they are
+   * independent purchases and stacking is the intent. Guarded so a corrupt
+   * bonus list cannot turn a gain into NaN or a reduction.
+   */
+  const prestigeMult = getRelationshipGainMultiplier(state?.prestige?.unlockedBonuses || []);
+  const safePrestigeMult =
+    Number.isFinite(prestigeMult) && prestigeMult > 1 ? prestigeMult : 1;
+
+  return Math.round(delta * mult * safePrestigeMult);
 }
 
 // ─── Purchasing ────────────────────────────────────────────────────────

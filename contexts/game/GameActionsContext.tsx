@@ -57,6 +57,7 @@ import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
 import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
+import { hasImmortality } from '@/lib/prestige/applyBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 
 /**
@@ -1028,7 +1029,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // skips the roll entirely (the IAP advertises "Never die of old
  // age" and now actually delivers on it).
  if (!deathTriggered && nextAge >= 80) {
- const isImmortal =!!prevState.goldUpgrades?.immortality;
+ // R3-P1: the comment above says "gold-upgrade OR perk", and the 50,000-point
+ // prestige bonus ("Never die from old age", the most expensive item in the
+ // shop) was the perk half — but this read only the gold upgrade.
+ // `hasImmortality` existed and was imported in two files without ever being
+ // invoked; the info modal used it solely to render its own description.
+ // HelpModal tells the player twice that the PRESTIGE bonus grants this.
+ const isImmortal =!!prevState.goldUpgrades?.immortality || hasImmortality(unlockedBonuses);
  if (!isImmortal) {
  const yearsPast80 = nextAge - 80;
  // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
