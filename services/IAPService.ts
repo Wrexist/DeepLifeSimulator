@@ -547,13 +547,14 @@ export class IAPService {
     }
   }
 
+  /** Returns FALSE when the dedupe ledger did not reach disk. */
   private async saveProcessedTransactions(
     transactions: Set<string>,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const trimmed = Array.from(transactions).slice(
       -MAX_PROCESSED_IAP_TRANSACTIONS,
     );
-    await safeSetItem(PROCESSED_IAP_TRANSACTIONS_KEY, JSON.stringify(trimmed));
+    return safeSetItem(PROCESSED_IAP_TRANSACTIONS_KEY, JSON.stringify(trimmed));
   }
 
   private async isTransactionProcessed(
@@ -564,13 +565,43 @@ export class IAPService {
     return transactions.has(transactionId);
   }
 
+  /**
+   * Undo a reservation when the grant it was taken for did not land.
+   *
+   * Without this, reserve-then-grant would recreate the very bug MON-6 fixed:
+   * a purchase that applied nothing would sit in the ledger as fulfilled, and
+   * every future retry would be suppressed. Best-effort — a failed release just
+   * means the grant needs a manual Restore, which is strictly better than a
+   * duplicated one.
+   */
+  private async releaseTransactionReservation(transactionId?: string): Promise<void> {
+    if (!transactionId) return;
+    try {
+      const transactions = await this.loadProcessedTransactions();
+      if (!transactions.delete(transactionId)) return;
+      await this.saveProcessedTransactions(transactions);
+    } catch (error) {
+      logger.error('[IAP] Failed to release a transaction reservation', { transactionId, error });
+    }
+  }
+
+  /**
+   * Record a transaction as fulfilled. Returns FALSE if the ledger write was
+   * rejected — the caller must decide what that means for the grant.
+   *
+   * `saveProcessedTransactions` discarded `safeSetItem`'s boolean and this
+   * returned void, so a rejected write left NO record while the purchase was
+   * reported fulfilled. The guards that read this ledger then could not fire on
+   * a later Restore or store replay, and a non-idempotent grant applied a
+   * second time. 2026-07-30 audit SAVE-3.
+   */
   private async markTransactionProcessed(
     transactionId?: string,
-  ): Promise<void> {
-    if (!transactionId) return;
+  ): Promise<boolean> {
+    if (!transactionId) return true;
     const transactions = await this.loadProcessedTransactions();
     transactions.add(transactionId);
-    await this.saveProcessedTransactions(transactions);
+    return this.saveProcessedTransactions(transactions);
   }
 
   // Initialize IAP connection
@@ -2089,6 +2120,26 @@ export class IAPService {
     productId: string,
     transactionId?: string,
   ): Promise<boolean> {
+    // 0. RESERVE BEFORE GRANTING, for grants that cannot safely happen twice.
+    //
+    // The ledger write used to happen only AFTER the grant, and its result was
+    // discarded — so a rejected write meant the grant landed with no record of
+    // it, and a later Restore or store replay re-applied it. For a
+    // non-idempotent product (a banked revive, a subscription term) that is a
+    // duplicated grant; recording FIRST turns the same failure into a refusal,
+    // which is recoverable — the transaction stays unfinished and the store
+    // redelivers it. Idempotent entitlement flags keep the original order,
+    // because re-applying one is exactly how a restore repairs a wiped
+    // entitlement. 2026-07-30 audit SAVE-3.
+    const needsReservation = transactionId != null && isNonIdempotentGrant(productId);
+    if (needsReservation && !(await this.markTransactionProcessed(transactionId))) {
+      logger.error('[IAP] Could not record the dedupe ledger; refusing a non-idempotent grant', {
+        productId,
+        transactionId,
+      });
+      return false;
+    }
+
     // 1. Try in-memory update. When the in-memory updater (IAPHandler) applies
     //    the product to live state AND persists it (saveGame) — which it does
     //    before resolving — the disk path below must NOT additively re-apply the
@@ -2123,6 +2174,9 @@ export class IAPService {
     // 2026-07-30 audit MON-6.
     const applied = inMemoryApplied || diskApplied;
     if (!applied) {
+      // Release the reservation taken in step 0, or the retry path this branch
+      // exists to preserve would be suppressed by our own ledger entry.
+      if (needsReservation) await this.releaseTransactionReservation(transactionId);
       logger.error('Purchase applied nothing — leaving transaction unprocessed for retry', {
         productId,
         transactionId,
@@ -2130,8 +2184,13 @@ export class IAPService {
       return false;
     }
 
-    if (transactionId) {
-      await this.markTransactionProcessed(transactionId);
+    if (transactionId && !needsReservation && !(await this.markTransactionProcessed(transactionId))) {
+      // The grant DID land, so we do not undo it — but the ledger has no record,
+      // which for an idempotent entitlement only risks a harmless re-apply.
+      logger.error('[IAP] Grant applied but the dedupe ledger write was rejected', {
+        productId,
+        transactionId,
+      });
     }
     return true;
   }

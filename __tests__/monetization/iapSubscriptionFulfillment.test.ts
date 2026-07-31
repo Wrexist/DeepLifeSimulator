@@ -18,7 +18,10 @@ const mockDisk: { state: any } = { state: null };
 
 jest.mock('@/utils/safeStorage', () => ({
   safeGetItem: jest.fn(async (key: string) => (key === 'currentSlot' ? '1' : null)),
-  safeSetItem: jest.fn(async () => undefined),
+  // `safeSetItem` really returns Promise<boolean>; a mock resolving undefined
+  // lies about the contract, and callers that branch on the result (the IAP
+  // dedupe-ledger reservation) then see every write as a failure.
+  safeSetItem: jest.fn(async () => true),
 }));
 
 jest.mock('@/utils/saveQueue', () => ({
