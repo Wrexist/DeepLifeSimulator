@@ -39,8 +39,25 @@ export interface LoanQuote {
 }
 
 /**
- * Read the player's politics-perk APR reduction. Returns the decimal sum of all
- * active `loanInterestReduction` effects (capped at 20% via quoteLoan).
+ * The player's politics-perk APR reduction, as a DECIMAL APR delta.
+ *
+ * The doc comment here used to claim it returned a decimal; it returned the raw
+ * percent. `PoliticalPerk.effects.loanInterestReduction` is documented at
+ * `lib/politics/perks.ts:13` as "Percentage reduction (0-100)" and carries the
+ * values 2, 5, 8, 12, 15, 20 — while `quoteLoan` consumes it as a decimal APR
+ * (`Math.min(0.2, aprReduction)`). So the SMALLEST perk, a Council Member's 2,
+ * clamped to 0.2 = twenty APR points and floored every loan type at the 0.025
+ * floor from the player's first elected office onward.
+ *
+ * The sibling fields on the very same effects object are converted correctly —
+ * `realEstateTaxBreak / 100` and `businessIncomeBonus / 100` in
+ * `lib/economy/passiveIncome.ts` — so this one was simply missed.
+ *
+ * That also broke the documented anti-arbitrage contract in
+ * `lib/banking/rateEnvironment.ts:12-21`: deposits are hard-capped at
+ * SAVINGS_APR_HARD_CAP (5.5%) precisely so the cheapest loan stays above them,
+ * and a 2.5% loan against a 5.5% CD is a risk-free carry. Hence the second
+ * clamp below. 2026-07-31 audit round 3, R3-M2.
  */
 export function politicsAprReduction(state: GameState): number {
   try {
@@ -49,13 +66,24 @@ export function politicsAprReduction(state: GameState): number {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCombinedPerkEffects } = require('@/lib/politics/perks');
     const effects = getCombinedPerkEffects(careerLevel);
-    return typeof effects.loanInterestReduction === 'number'
+    const percent = typeof effects.loanInterestReduction === 'number'
+      && Number.isFinite(effects.loanInterestReduction)
       ? Math.max(0, effects.loanInterestReduction)
       : 0;
+    return percent / 100;
   } catch {
     return 0;
   }
 }
+
+/**
+ * Floor for a politics-discounted loan APR.
+ *
+ * Holding office must not beat the paid Private Banking product, and must never
+ * cross the deposit hard cap — otherwise borrow-low/save-high pays. Matches
+ * PRIVATE_BANKING_APR_CAP; the 5.5% deposit ceiling sits safely below it.
+ */
+export const POLITICS_LOAN_APR_FLOOR = 0.06;
 
 /**
  * Private Banking IAP delivers "VIP low-APR loans" — caps every loan's offered
@@ -92,6 +120,7 @@ export function getLoanQuote(
   const result = quoteLoan(banking, state.loans ?? [], {
     ...request,
     aprReduction: politicsAprReduction(state),
+    aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
     aprCap: privateBankingAprCap(state),
     loanDelta: banking.rateEnvironment?.loanDelta,
   });
@@ -148,6 +177,7 @@ export const acceptLoan = (
       type: spec.type,
       weeklyIncome: spec.weeklyIncome,
       aprReduction: politicsAprReduction(state),
+      aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
       aprCap: privateBankingAprCap(state),
       loanDelta: state.banking.rateEnvironment?.loanDelta,
     });
@@ -350,12 +380,17 @@ export const refinanceLoan = (
       mortgage: 0.065,
     };
     const cap = privateBankingAprCap(state);
+    // Same floor as a new quote. Refinance recomputes the APR inline rather
+    // than through `quoteLoan`, so it needs the politics floor applied here or
+    // it becomes the cheaper route to the sub-deposit-cap rate. R3-M2.
+    const politicsReduction = politicsAprReduction(state);
+    const floor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
     let newAPR = Math.max(
-      0.025,
-      baseByType[loan.type] + creditScoreAPRAdjustment(state.banking.creditScore.score) - politicsAprReduction(state)
+      floor,
+      baseByType[loan.type] + creditScoreAPRAdjustment(state.banking.creditScore.score) - politicsReduction
     );
     if (typeof cap === 'number') {
-      newAPR = Math.min(newAPR, Math.max(0.025, cap));
+      newAPR = Math.min(newAPR, Math.max(floor, cap));
     }
     const newWeekly = calculatePeriodicPayment(loan.remaining, newAPR, newTermWeeks);
 

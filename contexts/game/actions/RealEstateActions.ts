@@ -35,7 +35,7 @@ import {
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
-import { politicsAprReduction } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 
 const log = logger.scope('RealEstateActions');
@@ -99,6 +99,7 @@ export function quotePropertyPurchase(
     type: 'mortgage',
     weeklyIncome,
     aprReduction: politicsAprReduction(state),
+    aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
   });
   if (quote.rejected) return { rejected: true, reason: quote.reason };
 

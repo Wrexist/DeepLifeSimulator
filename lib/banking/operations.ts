@@ -755,6 +755,16 @@ export function quoteLoan(
     weeklyIncome: number;
     /** Political-perk APR reduction (decimal, e.g. 0.05 = 5% off). Computed by the caller from gameState.politics. */
     aprReduction?: number;
+    /**
+     * Hard floor for the offered APR, overriding the default 0.025.
+     *
+     * Callers applying an `aprReduction` that could otherwise cross the deposit
+     * hard cap pass this. `SAVINGS_APR_HARD_CAP` is 5.5% and the anti-arbitrage
+     * contract (rateEnvironment.ts:12-21) requires the cheapest loan to stay
+     * strictly above it — the 0.025 default does not, so any large reduction
+     * opens a risk-free borrow-low/save-high carry. R3-M2.
+     */
+    aprFloor?: number;
     /** Hard APR cap (decimal) from the Private Banking IAP — caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
     aprCap?: number;
     /**
@@ -781,13 +791,16 @@ export function quoteLoan(
     mortgage: 0.065,
   };
   const aprReduction = Math.max(0, Math.min(0.2, safe(request.aprReduction, 0)));
+  const aprFloor = typeof request.aprFloor === 'number' && isFinite(request.aprFloor)
+    ? Math.max(0.025, request.aprFloor)
+    : 0.025;
   let offeredAPR = Math.max(
-    0.025,
+    aprFloor,
     baseByType[request.type] + creditScoreAPRAdjustment(banking.creditScore.score) - aprReduction
   );
   // Private Banking IAP caps the rate (never below the 0.025 floor).
   if (typeof request.aprCap === 'number' && isFinite(request.aprCap)) {
-    offeredAPR = Math.min(offeredAPR, Math.max(0.025, request.aprCap));
+    offeredAPR = Math.min(offeredAPR, Math.max(aprFloor, request.aprCap));
   }
   // Live rate environment: recession/crash raise the offered rate, boom cheapens
   // it. Floored at the same 0.025 floor. The rateEnvironment invariant test keeps
