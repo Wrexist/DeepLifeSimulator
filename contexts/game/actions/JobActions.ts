@@ -817,9 +817,21 @@ export const applyForJob = (
    * networking bonus intact. Still inside the existing 10-90 clamp, so a 4.0
    * cannot buy a guarantee and a poor GPA cannot lock the player out.
    */
+  /**
+   * R3-M9: the economy's `jobAvailability` finally reaches hiring.
+   *
+   * `economyEvents.modifiers.jobAvailability` (0.7 on a crash, 1.3 in a boom)
+   * was rendered in the weekly event modal as "Jobs: -20%" and read by nothing.
+   * A player told during a crash that jobs were scarce faced exactly the same
+   * acceptance odds as in a boom.
+   */
+  const jobAvailability = Number(gameState.economy?.economyEvents?.modifiers?.jobAvailability);
+  const safeJobAvailability =
+    Number.isFinite(jobAvailability) && jobAvailability > 0 ? jobAvailability : 1;
+
   const gpaMultiplier = jobOfferMultiplier(highestGpa(gameState.educations || []));
   const safeGpaMultiplier = Number.isFinite(gpaMultiplier) && gpaMultiplier > 0 ? gpaMultiplier : 1;
-  const gpaAdjustedBase = baseAcceptanceChance * safeGpaMultiplier;
+  const gpaAdjustedBase = baseAcceptanceChance * safeGpaMultiplier * safeJobAvailability;
   const acceptanceChance = cleanGuarantee
     ? 100
     : guaranteedAcceptance

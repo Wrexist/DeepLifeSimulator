@@ -37,7 +37,16 @@ export function getGiftPreferences(personality: string): { likes: string[]; disl
  // Take the first WORD (split on space). Was split('') which returns the first
  // CHARACTER, so no key ever matched and every NPC got the default preferences.
  const key = (personality || '').toLowerCase().split(' ')[0];
- return PERSONALITY_GIFT_MAP[key] || { likes: ['surprise'], dislikes: [] };
+ // R3-F7: the fallback used to name `surprise`, a gift with NO call site
+ // anywhere — ContactsApp renders exactly two gift buttons, `flowers` and
+ // `jewelry`. 33 of the 51 dating profiles use a personality outside
+ // PERSONALITY_GIFT_MAP (analytical, thoughtful, tech-savvy, passionate, …),
+ // as does the starting Dad ('strict'), so for roughly two thirds of NPCs the
+ // only gift they "liked" could not be bought and `getGiftMultiplier` returned
+ // exactly 1.0 for both purchasable options — the personality gift system, and
+ // its "adored / not their taste" flavour text, was dead for them. The default
+ // now names a gift the player can actually give.
+ return PERSONALITY_GIFT_MAP[key] || { likes: ['flowers'], dislikes: [] };
 }
 
 /**

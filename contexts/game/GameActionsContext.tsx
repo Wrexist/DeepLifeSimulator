@@ -412,9 +412,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // This prevents save/reload manipulation of stock prices
  try {
  // Get policy effects if available
+ // R3-M9: fold the ECONOMY event's volatility into the same modifier the
+ // political policy uses. `economyEvents.modifiers.stockVolatility` (1.5 on a
+ // crash, 0.8 in a boom) was rendered in the weekly event modal as "Stock
+ // Volatility: +150%" and read by nothing — `simulateWeek` only ever received
+ // the political modifier. The crash had teeth via `macroDriftFor`'s
+ // directional drift, but not the volatility the modal named.
  const policyEffects = gameState.politics?.activePolicyEffects?.stocks;
+ const eventVolatility = Number(gameState.economy?.economyEvents?.modifiers?.stockVolatility);
+ const safeEventVolatility =
+ Number.isFinite(eventVolatility) && eventVolatility > 0 ? eventVolatility : 1;
+ const combinedEffects = {
+ ...(policyEffects ?? {}),
+ volatilityModifier: (policyEffects?.volatilityModifier ?? 1) * safeEventVolatility,
+ };
  const currentWeeksLived = typeof gameState.weeksLived === 'number' ? gameState.weeksLived: 0;
- simulateWeek(policyEffects, currentWeeksLived);
+ simulateWeek(combinedEffects, currentWeeksLived);
  } catch (simError) {
  logger.error('[WEEK PROGRESSION] Stock market simulation failed:', simError);
  // Continue progression even if stock sim fails

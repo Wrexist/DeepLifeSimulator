@@ -331,7 +331,21 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     // Atomic update: money and crypto ownership in a single setGameState call
     const now = Date.now();
     setGameState(prev => {
-      const newMoney = Math.max(0, prev.stats.money - amount);
+      /**
+       * R3-M10: reject, do not floor.
+       *
+       * Affordability was checked against the stale `stateRef.current` and this
+       * updater floored with `Math.max(0, …)` while crediting the coins
+       * unconditionally — the "goods granted, money zeroed out" pattern
+       * CLAUDE.md §4.4 names as the repo's most repeated bug class. Not
+       * player-reachable today (the only non-test callers are `TestRunner`
+       * behind the `__DEV__` devtools gate; the shipping crypto UI uses the
+       * correctly-atomic `CryptoTradingActions`), but these sit on the public
+       * MoneyActions context surface with no warning, so any future UI wiring
+       * them would ship a money printer.
+       */
+      if ((prev.stats?.money ?? 0) < amount) return prev;
+      const newMoney = prev.stats.money - amount;
       const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
       const updatedStats = trackMoneySpent(currentStats, -amount);
 
@@ -385,6 +399,11 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     // Atomic update: money and crypto ownership in a single setGameState call
     const now = Date.now();
     setGameState(prev => {
+      // R3-M10: re-check the holding against `prev`. Two taps on a sell-all in
+      // one React batch both read the same stale `stateRef` amount and each
+      // credited `saleValue` for one lot of coins.
+      const prevOwned = prev.cryptos?.find(c => c.id === cryptoId)?.owned ?? 0;
+      if (prevOwned < amount) return prev;
       const newMoney = prev.stats.money + saleValue;
       const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
       const updatedStats = trackMoneyEarned(currentStats, saleValue);
