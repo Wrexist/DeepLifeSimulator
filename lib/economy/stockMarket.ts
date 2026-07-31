@@ -104,11 +104,39 @@ export function restoreStockPrices(savedPrices: Record<string, { price: number; 
     const normalizedSymbol = symbol?.toUpperCase() ?? '';
     if (stocks[normalizedSymbol] && typeof data?.price === 'number' && isFinite(data.price) && data.price > 0) {
       stocks[normalizedSymbol].price = data.price;
+      // R3-M1: a persisted yield ABOVE the catalogue default is the fingerprint
+      // of the ratchet bug — nothing in the game raises a yield any more, so a
+      // saved value can only equal the default or be inflated by it. Clamping
+      // here heals affected saves on load without a STATE_VERSION bump, since
+      // no schema changes: the field simply returns to the only value it should
+      // ever have held. Below-default values are still honoured, so a future
+      // yield-cut mechanic would not be silently reverted.
+      const catalogueYield = DEFAULT_PRICES[normalizedSymbol]?.dividendYield;
       if (typeof data.dividendYield === 'number' && isFinite(data.dividendYield) && data.dividendYield >= 0) {
-        stocks[normalizedSymbol].dividendYield = data.dividendYield;
+        stocks[normalizedSymbol].dividendYield =
+          typeof catalogueYield === 'number'
+            ? Math.min(data.dividendYield, catalogueYield)
+            : data.dividendYield;
       }
     }
   });
+}
+
+/**
+ * A stock's dividend yield with the standing policy bonus applied.
+ *
+ * Read-time, so it reflects the policies CURRENTLY in force and can never
+ * accumulate — see the note in `simulateWeek`, where this used to be a
+ * once-per-week mutation of persistent state. Capped at the same 10% the old
+ * code capped at, so the ceiling the design intended is unchanged.
+ */
+export const MAX_POLICY_DIVIDEND_YIELD = 0.1;
+
+export function policyAdjustedYield(baseYield: number, dividendBonus: number): number {
+  const base = Number.isFinite(baseYield) ? Math.max(0, baseYield) : 0;
+  if (base <= 0) return 0;
+  const bonus = Number.isFinite(dividendBonus) ? Math.max(0, dividendBonus) : 0;
+  return Math.min(MAX_POLICY_DIVIDEND_YIELD, base + bonus);
 }
 
 /**
@@ -199,10 +227,23 @@ export function simulateWeek(policyEffects?: {
     }
     stock.price = Math.max(0.01, Math.min(MAX_STOCK_PRICE, newPrice));
 
-    // Apply dividend bonus from policies
-    if (stock.dividendYield > 0 && dividendBonus > 0) {
-      stock.dividendYield = Math.min(0.1, stock.dividendYield + dividendBonus); // Cap at 10%
-    }
+    // R3-M1: the policy dividend bonus is NOT applied here any more.
+    //
+    // `dividendBonus` is a STANDING modifier — the aggregate of the enacted
+    // policies, recomputed from scratch by `calculateActivePolicyEffects` every
+    // time a policy changes. This line added it to the persistent per-stock
+    // yield once per game week, so it compounded: IBM's 4.8% reached the 10%
+    // cap in about a year of game time under a single $30k Mayor-level policy,
+    // and every dividend payer eventually sat at a permanent 10% — roughly 3x
+    // the highest real yield on the board. `getStockPricesSnapshot` persists
+    // `dividendYield`, so it survived save/reload, and nothing ever subtracted
+    // it, so repealing the policy did not undo it either. The card advertises
+    // "+0.5% bonus to dividend yields"; it delivered +0.5 points per week,
+    // cumulatively and permanently.
+    //
+    // The bonus is now applied where the yield is READ for payout, in the week
+    // loop, via `policyAdjustedYield`. That makes it a modifier again: it
+    // tracks the policies currently in force and cannot accumulate.
 
     // Round to 2 decimal places for realistic pricing
     stock.price = Math.round(stock.price * 100) / 100;

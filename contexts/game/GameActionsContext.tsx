@@ -51,7 +51,7 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // wrapping try/catch blocks disabled JIT optimization for the entire ~1500-line
 // updater function. With these as ES imports, the JIT can finally inline the
 // updater and tests can mock via jest.mock(...) at the test setup layer.
-import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice } from '@/lib/economy/stockMarket';
+import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
@@ -2056,10 +2056,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const stockReturnMult = Number(lifeSkillMods.stockReturnMult);
  const safeStockReturnMult =
  Number.isFinite(stockReturnMult) && stockReturnMult > 1 ? stockReturnMult : 1;
+ // R3-M1: the standing policy dividend bonus is applied HERE, at read time.
+ // `simulateWeek` used to add it to each stock's persistent yield once a week,
+ // which compounded to a permanent 10% on every payer and survived both
+ // save/reload and repealing the policy. As a read-time modifier it tracks the
+ // policies actually in force.
+ const policyDividendBonus = Number(prevState.politics?.activePolicyEffects?.stocks?.dividendBonus);
+ const safeDividendBonus =
+ Number.isFinite(policyDividendBonus) && policyDividendBonus > 0 ? policyDividendBonus : 0;
  for (const sym of symbols) {
  const info = getStockInfo(sym);
  prices[sym] = info.price;
- yields[sym] = info.dividendYield * safeStockReturnMult;
+ yields[sym] = policyAdjustedYield(info.dividendYield, safeDividendBonus) * safeStockReturnMult;
  }
  const baseHoldings = (reinvestedStocks.length > 0 ? reinvestedStocks: (prevState.stocks?.holdings ?? []))
 .filter((h: any) => h && typeof h === 'object' && h.symbol)
