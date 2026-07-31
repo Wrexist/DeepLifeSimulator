@@ -39,6 +39,10 @@ const MAX_STUDY_SESSIONS_PER_WEEK = 3;
 
 const NO_EDUCATION_PERKS = { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
 
+/** Upper bounds for persisted education-policy effects (corrupt-save guards). */
+const MAX_POLICY_WEEKS_REDUCTION = 26;
+const MAX_POLICY_SCHOLARSHIP_USD = 500_000;
+
 /**
  * Read politics' education effects — from the object that actually carries them.
  *
@@ -73,12 +77,21 @@ function politicsEducationPerks(state: GameState): {
   const education = state.politics?.activePolicyEffects?.education;
   if (!education) return { ...NO_EDUCATION_PERKS };
 
+  // `Number(Infinity) || 0` is Infinity, so a malformed persisted value would
+  // produce an instant degree or free tuition. Every field goes through a
+  // finite check and a bound.
+  const finite = (v: unknown, max: number): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
+  };
   const pct = Number(education.costReduction);
   return {
-    weeksReduction: Math.max(0, Math.floor(Number(education.weeksReduction) || 0)),
+    // No policy grants more than a handful of weeks; bound it well clear of a
+    // full programme so a corrupt save cannot skip a degree.
+    weeksReduction: Math.floor(finite(education.weeksReduction, MAX_POLICY_WEEKS_REDUCTION)),
     // percent -> fraction, then clamped to the same [0, 1] band as before.
     costReduction: Math.max(0, Math.min(1, (Number.isFinite(pct) ? pct : 0) / 100)),
-    scholarshipAmount: Math.max(0, Number(education.scholarshipAmount) || 0),
+    scholarshipAmount: finite(education.scholarshipAmount, MAX_POLICY_SCHOLARSHIP_USD),
   };
 }
 

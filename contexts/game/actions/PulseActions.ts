@@ -1253,6 +1253,11 @@ export const watchAdForFollowerBoost = (
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const gained = proActive ? 150 : 50;
 
+  // The trailing return used to be an unconditional success, so on the very
+  // same-batch race the re-check below exists to stop, the REJECTED call still
+  // told `RewardedAdModal` that followers were gained — and the modal now shows
+  // an alert driven by that flag. Review of the Pulse atomicity fix.
+  let granted = false;
   setGameState((prev) => {
     // Atomic gate: re-check the weekly cooldown against prev. Two same-batch
     // taps both pass the stale outer check; without this, both add followers
@@ -1260,6 +1265,7 @@ export const watchAdForFollowerBoost = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = prev.socialMedia?.lastAdBoostWeek ?? -Infinity;
     if (prevWs - prevLast < 1) return prev;
+    granted = true;
     const sm = { ...ensureSocial(prev) };
     sm.followers = (sm.followers ?? 0) + gained;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
@@ -1268,6 +1274,9 @@ export const watchAdForFollowerBoost = (
     return { ...prev, socialMedia: sm };
   });
 
+  if (!granted) {
+    return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
+  }
   return { success: true, message: `+${gained} followers from ad reward.`, followersGained: gained };
 };
 

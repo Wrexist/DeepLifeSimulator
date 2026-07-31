@@ -534,16 +534,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // since the energy ceiling is a hard 100). Bounded mult from the accessor.
  const staminaRegenMult = lifeSkillMods.energyRegenMult;
  const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
+ // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
+ // points). `shouldAutoRest` had exactly one occurrence in the whole repo —
+ // its own definition — so the bonus was bought and never fired.
+ //
+ // Decide from the energy the player ENDED the week on, before regen. Checking
+ // after regen could never fire: `baseEnergyRegen` is 40, so post-regen energy
+ // is always >= 40 and `shouldAutoRest`'s `< 20` test is unreachable — the
+ // first version of this fix was itself inert. Review of GL-7.
+ const wasExhausted = shouldAutoRest(prevState.stats?.energy || 0, unlockedBonuses);
+
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
  newStats.energy = (newStats.energy || 0) + energyRegen;
 
- // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
- // points). `shouldAutoRest` had exactly one occurrence in the whole repo —
- // its own definition — so the bonus was bought and never fired; the player
- // still had to rest by hand. Top the tank up to the rest threshold when
- // energy is still under 20 AFTER the week's regen, which is the state the
- // bonus promises to prevent. Never reduces energy.
- if (shouldAutoRest(newStats.energy || 0, unlockedBonuses)) {
+ // Top up to the rest target. Never reduces energy — a well-rested player who
+ // happens to own the bonus is untouched.
+ if (wasExhausted) {
  newStats.energy = Math.max(newStats.energy || 0, AUTO_REST_TARGET_ENERGY);
  }
 

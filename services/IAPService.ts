@@ -2006,6 +2006,18 @@ export class IAPService {
           const transactionId =
             purchase.transactionId ||
             `${purchase.productId}:${purchase.purchaseTime || Date.now()}`;
+          // NEVER re-apply a SUBSCRIPTION here — the same reason the RevenueCat
+          // loop above skips them, and the half I missed when I closed that one.
+          // `getPurchaseHistoryAsync()` returns long-expired subscriptions, and
+          // the ledger gate below lives in LOCAL storage, so a reinstall starts
+          // empty and the first restore sails through to `applyBenefit`, which
+          // stamps `expiresTimestamp: Date.now() + durationMs` — a full free
+          // term per reinstall. Subscription expiry belongs to the store;
+          // `SubscriptionService` reads it from the purchase record's term and
+          // `SubscriptionReconciler` syncs entitlement state.
+          if (isSubscriptionProduct(productId)) {
+            continue;
+          }
           // Idempotent entitlement flags re-apply freely — that is what makes a
           // restore able to repair a wiped entitlement. Non-idempotent grants
           // (banked revive, subscription term) stay ledger-gated; see the

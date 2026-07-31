@@ -133,4 +133,46 @@ describe('Auto-Rest fires for the bonus that promises it', () => {
     expect(shouldAutoRest(20, ['auto_save_energy'])).toBe(false);
     expect(shouldAutoRest(85, ['auto_save_energy'])).toBe(false);
   });
+
+  /**
+   * The predicate assertions above are NOT enough on their own.
+   *
+   * The first version of the tick wiring called `shouldAutoRest` AFTER the
+   * week's energy regen, and `baseEnergyRegen` is 40 — so post-regen energy is
+   * always at least 40 and the `< 20` test could never be true. The bonus was
+   * still completely inert while these predicate tests passed. This models the
+   * ordering the tick actually uses.
+   */
+  const AUTO_REST_TARGET = 40;
+  const BASE_REGEN = 40;
+
+  function energyAfterTick(startEnergy: number, bonuses: string[]): number {
+    // Mirrors the tick: decide from PRE-regen energy, then apply regen, then
+    // top up. Never reduces.
+    const wasExhausted = shouldAutoRest(startEnergy, bonuses);
+    let energy = startEnergy + BASE_REGEN;
+    if (wasExhausted) energy = Math.max(energy, AUTO_REST_TARGET);
+    return energy;
+  }
+
+  it('fires for a player who ended the week exhausted', () => {
+    // The decision must be made on the energy they ENDED on, not post-regen.
+    expect(shouldAutoRest(5, ['auto_save_energy'])).toBe(true);
+    expect(energyAfterTick(5, ['auto_save_energy'])).toBeGreaterThanOrEqual(AUTO_REST_TARGET);
+  });
+
+  it('would NEVER fire if the check ran after regen — the bug this replaced', () => {
+    // Post-regen energy for an exhausted player, which the old wiring tested.
+    const postRegen = 5 + BASE_REGEN;
+    expect(shouldAutoRest(postRegen, ['auto_save_energy'])).toBe(false);
+  });
+
+  it('never reduces the energy of a rested player who owns it', () => {
+    const rested = energyAfterTick(90, ['auto_save_energy']);
+    expect(rested).toBeGreaterThanOrEqual(90);
+  });
+
+  it('changes nothing for a player without the bonus', () => {
+    expect(energyAfterTick(5, [])).toBe(5 + BASE_REGEN);
+  });
 });

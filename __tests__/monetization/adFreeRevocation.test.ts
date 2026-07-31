@@ -41,7 +41,7 @@ function lapsed(settings: Record<string, unknown>): GameState {
   });
 }
 
-const adFree = (s: GameState) => s.settings?.adsRemoved === true;
+const adFree = (s: GameState): boolean => s.settings?.adsRemoved === true;
 
 describe('the cold-start case that revoked a paid purchase', () => {
   it('KEEPS ad-free when the entitlement check could not run', () => {

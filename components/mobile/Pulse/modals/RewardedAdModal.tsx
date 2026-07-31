@@ -6,6 +6,7 @@
  */
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { logger } from '@/utils/logger';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -143,6 +144,17 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
           [{ text: 'OK' }],
         );
       }
+    } catch (adErr) {
+      // `runRewardedAd` can reject (SDK error, no fill path throwing). Without
+      // this the failure UI below never ran and nothing was logged — the sheet
+      // just closed. Review of UX-1.
+      logger.error('[Pulse] Rewarded ad failed', adErr);
+      pulseHaptics.error();
+      Alert.alert(
+        'Ad unavailable',
+        'The ad could not be shown right now. Nothing was charged — try again in a moment.',
+        [{ text: 'OK' }],
+      );
     } finally {
       busyRef.current = false;
     }

@@ -31,10 +31,15 @@ describe('same-batch double-tap atomicity (2026-07-05 audit fixes)', () => {
     const r1 = watchAdForFollowerBoost(setGameState, stale);
     const r2 = watchAdForFollowerBoost(setGameState, stale);
 
-    // Both taps pass the stale outer gate (r2.success is computed from the
-    // stale snapshot) — the updater must be the authoritative gate.
+    // Both taps pass the stale OUTER gate; the updater is the authoritative
+    // one. This used to assert `r2.success === true` — i.e. it pinned the
+    // action LYING to its caller: the second tap granted nothing but reported
+    // a successful boost, and `RewardedAdModal` now drives an alert off that
+    // flag. The return value is derived from the updater's decision now.
+    // 2026-07-30 review.
     expect(r1.success).toBe(true);
-    expect(r2.success).toBe(true);
+    expect(r2.success).toBe(false);
+    expect(r2.followersGained).toBe(0);
     const followers = ref.state.socialMedia?.followers ?? 0;
     const baseline = stale.socialMedia?.followers ?? 0;
     expect(followers - baseline).toBe(r1.followersGained); // exactly ONE grant

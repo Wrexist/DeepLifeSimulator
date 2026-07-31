@@ -47,7 +47,14 @@ export function SubscriptionReconciler(): null {
       // does, so on a cold start `isAdsRemoved()` was structurally false for
       // every player and this reconcile wrote that false over a paid Remove Ads
       // purchase. 2026-07-30 audit MON-1.
-      if (typeof iapService.loadPurchases === 'function') {
+      // Only when the ledger is not already loaded — `reconcile` runs on mount,
+      // on every foreground, on every weeksLived change and on every RC
+      // entitlement callback, and each unconditional call was a fresh
+      // `getPurchaseHistoryAsync()` round trip.
+      const alreadyAuthoritative =
+        typeof iapService.hasAuthoritativeEntitlementSource === 'function' &&
+        iapService.hasAuthoritativeEntitlementSource();
+      if (!alreadyAuthoritative && typeof iapService.loadPurchases === 'function') {
         try {
           await iapService.loadPurchases();
         } catch (loadErr) {

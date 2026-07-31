@@ -131,9 +131,15 @@ export function applyEducationProgression(
   let educationSpeedMultiplier = 1;
   if (input.goldFastLearner) educationSpeedMultiplier *= 1.5;
   if (input.perkFastLearner) educationSpeedMultiplier *= 1.5;
+  // Clamped: `Number.isFinite` still admits absurd values, and a corrupted
+  // multiplier would make `educationDecrement` enormous and complete every
+  // program in one tick. The ceiling is the most the prestige shop can actually
+  // grant (3x Genius Learner at +0.5, 3x Fast Learner at +0.25, 3x Quick
+  // Learner at +0.1, `genius` at +1.0, plus the +0.2 synergy).
+  const MAX_EXPERIENCE_MULTIPLIER = 5;
   const experienceMult = Number(input.experienceMultiplier);
   if (Number.isFinite(experienceMult) && experienceMult > 1) {
-    educationSpeedMultiplier *= experienceMult;
+    educationSpeedMultiplier *= Math.min(experienceMult, MAX_EXPERIENCE_MULTIPLIER);
   }
   const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
 

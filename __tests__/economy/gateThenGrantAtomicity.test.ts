@@ -120,12 +120,18 @@ describe('ECON-3 — a lobbyist cannot be hired twice, or for free', () => {
 
   it('charges once when two taps read the same stale snapshot', () => {
     const before = player(10_000_000);
+    const results: { success: boolean }[] = [];
     const after = batch(before, (set, snapshot) => {
-      hireLobbyist(snapshot, set, 'corporate_lobbyist', { updateMoney });
+      results.push(hireLobbyist(snapshot, set, 'corporate_lobbyist', { updateMoney }));
     });
 
     expect(lobbyists(after)).toHaveLength(1);
     expect(after.stats.money).toBeLessThan(before.stats.money);
+    // The REJECTED call must say so. Asserting only on final state let a
+    // hardcoded `{ success: true }` slip through — the caller was told the
+    // lobbyist was hired when the guard had bailed.
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(false);
   });
 
   it('does not grant influence for a duplicate hire', () => {
@@ -187,12 +193,16 @@ describe('ECON-2 — research respects the lab cap and charges once', () => {
   });
 
   it('does not exceed the lab concurrency cap from one React batch', () => {
+    const results: { success: boolean }[] = [];
     const after = batch(owner(100_000_000), (set, snapshot) => {
-      startResearch(snapshot, set, 'c1', TECH, { updateMoney });
+      results.push(startResearch(snapshot, set, 'c1', TECH, { updateMoney }));
     });
 
     // A Basic lab handles ONE concurrent project. Two taps used to make two.
     expect(projects(after).length).toBeLessThanOrEqual(1);
+    // ...and the second call reports the refusal rather than claiming success.
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(false);
   });
 
   it('never starts the same technology twice', () => {

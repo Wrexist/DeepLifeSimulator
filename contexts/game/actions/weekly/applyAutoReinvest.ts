@@ -63,7 +63,15 @@ export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult 
   let reinvestedStocks: StockHolding[] = [];
   let spentUSD = 0;
 
-  if (!input.reinvestedAmount || input.reinvestedAmount <= 0) {
+  // `!Infinity` is false, so the old `!input.reinvestedAmount` check let an
+  // infinite amount through — `sharesToBuy` and `spentUSD` both became Infinity
+  // and corrupted the persisted holdings. Require a finite, bounded amount.
+  const MAX_REINVEST_USD = 1_000_000_000;
+  if (
+    !Number.isFinite(input.reinvestedAmount) ||
+    input.reinvestedAmount <= 0 ||
+    input.reinvestedAmount > MAX_REINVEST_USD
+  ) {
     return { reinvestedStocks, spentUSD };
   }
 

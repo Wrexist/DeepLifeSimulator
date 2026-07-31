@@ -68,7 +68,14 @@ export interface SafeSetResult {
 
 const isQuotaError = (error: unknown): boolean => {
   const e = error as { name?: string; message?: string } | null;
-  return e?.name === 'QuotaExceededError' || (typeof e?.message === 'string' && e.message.includes('quota'));
+  // Case-insensitive, and covers the wordings native wrappers actually use.
+  // `includes('quota')` missed "QuotaExceededError"/"Quota exceeded" when it
+  // appeared only in the message, so a genuine quota failure was reported as
+  // `quotaExceeded: false` and `createBackup` skipped its cleanup-and-retry.
+  return (
+    e?.name === 'QuotaExceededError' ||
+    (typeof e?.message === 'string' && /quota|disk is full|SQLITE_FULL|no space left/i.test(e.message))
+  );
 };
 
 export const safeSetItemResult = async (key: string, value: string): Promise<SafeSetResult> => {

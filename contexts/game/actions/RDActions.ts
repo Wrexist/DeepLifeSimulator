@@ -151,6 +151,11 @@ export const startResearch = (
   //
   // Same fix `filePatent` and `enterCompetition` in this file already carry from
   // the 2026-07-02 audit; `startResearch` was left behind. 2026-07-30 audit.
+  // Whether the updater actually applied the project. The trailing return used
+  // to be a hardcoded success, so on the very double-tap race these re-checks
+  // exist to stop, the REJECTED call still told the caller research had
+  // started. Review of ECON-2.
+  let applied = false;
   setGameState(prev => {
     const prevCompany = (prev.companies || []).find(c => c.id === companyId);
     if (!prevCompany?.rdLab) return prev;
@@ -167,6 +172,8 @@ export const startResearch = (
     // Charge inside the updater, rejecting rather than flooring.
     const spend = applyMoneyDelta(prev, -technology.researchCost, `Research: ${technology.name}`);
     if (!spend) return prev;
+
+    applied = true;
 
     // Create project inside updater to use fresh weeksLived
     const newProject = {
@@ -202,6 +209,13 @@ export const startResearch = (
         : prev.company,
     };
   });
+
+  if (!applied) {
+    return {
+      success: false,
+      message: 'Could not start that research — check your lab capacity and funds.',
+    };
+  }
 
   // Log the money update
   log.info(`Money deducted: $${technology.researchCost.toLocaleString()} for researching ${technology.name}`);
