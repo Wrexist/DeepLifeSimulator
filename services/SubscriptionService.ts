@@ -18,6 +18,44 @@ export interface Subscription {
 
 export type SubscriptionTier = 'free' | 'premium' | 'ultimate';
 
+
+/** Days in a subscription term, matching what IAPService stamps at purchase. */
+const SUBSCRIPTION_TERM_DAYS = { monthly: 30, yearly: 365 } as const;
+
+/**
+ * End of a subscription's paid term, in epoch ms — or `undefined` when unknown.
+ *
+ * `syncSubscriptions` used to mark a subscription active purely because the
+ * product was present in `iapService.hasPurchased(...)`. That reads the
+ * purchase LEDGER, which `restorePurchases` fills from
+ * `getPurchaseHistoryAsync()` — purchase history, including subscriptions that
+ * expired or were cancelled long ago. `Subscription.expiresAt` was declared and
+ * never assigned or read. So a lapsed subscriber tapped Restore Purchases and
+ * had the full premium tier restored indefinitely, for free, on any build
+ * without RevenueCat keys (which includes the `preview` EAS profile).
+ * 2026-07-30 audit MON-3.
+ *
+ * Returns `undefined` when the record carries no usable timestamp. Callers must
+ * treat that as "unknown", NOT as "expired" — revoking on a missing timestamp
+ * would strip a paying subscriber's access, the same failure mode as MON-1.
+ */
+export function subscriptionExpiryFor(
+  productId: string,
+  purchaseTime: number | undefined,
+): number | undefined {
+  const purchasedAt = Number(purchaseTime);
+  if (!Number.isFinite(purchasedAt) || purchasedAt <= 0) return undefined;
+  const termDays = /yearly|annual/i.test(productId)
+    ? SUBSCRIPTION_TERM_DAYS.yearly
+    : SUBSCRIPTION_TERM_DAYS.monthly;
+  return purchasedAt + termDays * 24 * 60 * 60 * 1000;
+}
+
+/** Is a subscription with this expiry still live at `now`? Unknown expiry = yes. */
+export function isSubscriptionActiveAt(expiresAt: number | undefined, now: number): boolean {
+  return expiresAt === undefined || now < expiresAt;
+}
+
 class SubscriptionService {
   private static instance: SubscriptionService;
   private subscriptions: Map<string, Subscription> = new Map();
@@ -107,6 +145,19 @@ class SubscriptionService {
   }
 
   /**
+   * When does this subscription's paid term end, given the ledger?
+   *
+   * Thin wrapper over the pure `subscriptionExpiryFor` so the term rule can be
+   * tested without standing up this singleton.
+   */
+  private subscriptionExpiryForProduct(productId: string): number | undefined {
+    const record = typeof iapService.getLatestPurchase === 'function'
+      ? iapService.getLatestPurchase(productId)
+      : null;
+    return subscriptionExpiryFor(productId, record?.purchaseTime);
+  }
+
+  /**
    * Sync subscriptions with IAP service
    */
   private async syncSubscriptions(): Promise<void> {
@@ -115,14 +166,34 @@ class SubscriptionService {
     for (const productId of subscriptionProductIds) {
       const productConfig = getProductConfig(productId);
       const hasPurchased = iapService.hasPurchased(productId);
-      
+
       if (hasPurchased) {
+        // ENFORCE THE TERM. `isActive` used to be `true` purely because the
+        // product appeared in `iapService.hasPurchased(...)` — which reads
+        // `state.purchases`, filled by `restorePurchases` from
+        // `getPurchaseHistoryAsync()`. That is purchase HISTORY: it lists
+        // subscriptions that expired or were cancelled long ago. `expiresAt`
+        // was declared on the Subscription type and never assigned or read
+        // anywhere in the repo.
+        //
+        // So a lapsed subscriber tapped Restore Purchases and got the whole
+        // premium tier back indefinitely — ad-free, the Legacy Pass premium
+        // track, +25% career income, the 250/day gem drop instead of 20, and
+        // 20% off gem upgrades — without paying. `syncSubscriptions` re-runs on
+        // every iapService state change, so one Restore was enough.
+        //
+        // This path is live in any build without RevenueCat keys, which
+        // includes the `preview` EAS profile. 2026-07-30 audit MON-3.
+        const expiresAt = this.subscriptionExpiryForProduct(productId);
+        const stillActive = isSubscriptionActiveAt(expiresAt, Date.now());
+
         const subscription: Subscription = {
           productId: productId,
           name: productConfig?.name || productId,
-          isActive: true,
+          isActive: stillActive,
           autoRenew: true,
           isTrial: false,
+          expiresAt,
         };
 
         this.subscriptions.set(productId, subscription);

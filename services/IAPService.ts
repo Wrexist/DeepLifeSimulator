@@ -1788,6 +1788,22 @@ export class IAPService {
   }
 
   // Check if user has purchased a specific product
+  /**
+   * The most recent purchase record for a product, or null.
+   *
+   * Exposed so `SubscriptionService` can read `purchaseTime` and enforce a
+   * subscription's term. `hasPurchased` answers "is this in the ledger", and
+   * the ledger is purchase HISTORY — it lists subscriptions that lapsed years
+   * ago. 2026-07-30 audit MON-3.
+   */
+  getLatestPurchase(productId: string): { productId: string; purchaseTime?: number } | null {
+    const matches = this.state.purchases.filter((p) => p?.productId === productId);
+    if (matches.length === 0) return null;
+    return matches.reduce((newest, p) =>
+      (Number(p?.purchaseTime) || 0) > (Number(newest?.purchaseTime) || 0) ? p : newest,
+    );
+  }
+
   hasPurchased(productId: string): boolean {
     return this.state.purchases.some(
       (purchase) => purchase.productId === productId,
