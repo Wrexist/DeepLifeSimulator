@@ -73,6 +73,7 @@ import {
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -304,11 +305,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   // Weekly income for loan DTI gating — approximation that mirrors AdvancedBankApp.
   const weeklyIncome = useMemo(() => {
     let income = 0;
-    const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
-    if (job?.levels && job.level != null) {
-      const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
-      income += job.levels[safeLevel]?.salary ?? 0;
-    }
+    // R3-M3: political salaries are ANNUAL; every other ladder is weekly. This
+    // read them all as weekly, so an elected player's borrowing capacity was
+    // inflated 52x at the DTI gate. One shared helper now encodes the rule.
+    income += weeklyCareerSalary(gameState);
     for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
     income += weeklyRentEstimate;
     return income;
