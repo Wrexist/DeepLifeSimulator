@@ -17,6 +17,11 @@ you trust, including your own work" rule stays in force.
 | R3-FIXED-1 | high | Scenario `achievement` win conditions evaluated against the DEPRECATED `gameState.achievements` array, whose `.completed` has no writer (`evaluateAchievements` is a no-op stub). Every such condition was false whichever id it named. Projection now uses the live system; progress rule deduplicated into one shared function |
 | R3-FIXED-2 | med | `isScenarioCompleted`'s type omitted `bankSavings`, so bank balances counted as $0 toward five scenarios' net-worth targets |
 | R3-FIXED-3 | low | `GameState['perks']` declared 6 keys while ~20 onboarding perk ids are written to every save; 4 test assertions on them asserted nothing |
+| R3-M2 | critical | FIXED — `loanInterestReduction` percent-as-decimal floored every loan at 2.5% from the first elected office. Converted, plus a 6% politics floor so the no-arbitrage contract holds |
+| R3-M1 | critical | FIXED — dividend policy accumulated into persistent per-stock yield every week, ratcheting every payer to a permanent 10%. Now a read-time modifier; inflated saves self-heal on load |
+| R3-M3 | high | FIXED — annual political salary read as weekly at four duplicated call sites, inflating DTI borrowing capacity 52x. One shared `weeklyCareerSalary` |
+| R3-M4 | high | FIXED — `netWorth()` omitted all crypto and all `banking.accounts`; converting cash to BTC dropped reported net worth by the full amount |
+| R3-M5 | high | FIXED — savings-goal money was destroyed. Added `withdrawFromGoal` + action + UI on both bank screens, and counted goal balances in net worth |
 
 ## Money — highest severity, all OPEN
 
