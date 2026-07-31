@@ -3039,6 +3039,14 @@ export interface PoliticsState {
   lastElectionAttemptWeek?: number;
   nextElectionWeek?: number;
   activePolicyEffects?: {
+    /**
+     * R4-X7: the policy `economy.inflationRate` was declared, priced into three
+     * policies, and rendered on the policy card as "Inflation +2.0%" — and the
+     * aggregator had no `economy` slice at all, so nothing could read it even
+     * in principle. Optional so existing saves load unchanged; absent means the
+     * base annual rate.
+     */
+    economy?: { inflationRate: number; };
     stocks?: { volatilityModifier: number; dividendBonus: number; companyBoost?: string[]; };
     realEstate?: { priceModifier: number; rentModifier: number; propertyTaxRate?: number; };
     education?: { weeksReduction: number; costReduction: number; scholarshipAmount?: number; };

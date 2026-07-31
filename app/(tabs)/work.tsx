@@ -30,7 +30,7 @@ import {
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { getStreetJobEnergyCost, MAX_TOTAL_STREET_JOBS_PER_WEEK } from '@/contexts/game/actions/JobActions';
 import { useToast } from '@/contexts/ToastContext';
-import { getMindsetFeedback } from '@/utils/mindsetFeedback';
+import { getMindsetAdjustment } from '@/utils/mindsetFeedback';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
 import {
     Briefcase,
@@ -225,17 +225,44 @@ function WorkScreenContent() {
                 let message = result.message ?? '';
                 let mindsetPenalty = false;
                 if (job && gameState.mindset?.activeTraitId) {
-                    const mindsetFeedback = getMindsetFeedback(
+                    const mindset = getMindsetAdjustment(
                         gameState,
                         job.basePayment,
                         0,
                         0
                     );
-                    if (mindsetFeedback?.message) {
+                    // R4-X1: APPLY the adjustment, don't just narrate it. This
+                    // used to call `getMindsetFeedback`, which returns the
+                    // message and discards the deltas — so the toast said
+                    // "Frugal: You saved a bit extra (+120)" and credited
+                    // nothing. This handler is the entire Mindset system's only
+                    // consumer, so the choice made on the onboarding Perks
+                    // screen (and again at heir selection) did nothing at all
+                    // except generate claims about things that had not happened.
+                    //
+                    // One updater, so the money and the happiness land together
+                    // and neither can be lost to a concurrent write. The job's
+                    // own payment has already been credited by
+                    // `performStreetJob`; these are the deltas ON TOP, exactly
+                    // the numbers the message quotes.
+                    if (mindset.moneyAdjustment !== 0 || mindset.happinessAdjustment !== 0) {
+                        setGameState(prev => ({
+                            ...prev,
+                            stats: {
+                                ...prev.stats,
+                                money: Math.max(0, (prev.stats.money ?? 0) + mindset.moneyAdjustment),
+                                happiness: Math.max(
+                                    0,
+                                    Math.min(100, (prev.stats.happiness ?? 0) + mindset.happinessAdjustment),
+                                ),
+                            },
+                        }));
+                    }
+                    if (mindset.feedback?.message) {
                         message = message
-                            ? `${message} · ${mindsetFeedback.message}`
-                            : mindsetFeedback.message;
-                        mindsetPenalty = mindsetFeedback.type === 'penalty';
+                            ? `${message} · ${mindset.feedback.message}`
+                            : mindset.feedback.message;
+                        mindsetPenalty = mindset.feedback.type === 'penalty';
                     }
                 }
                 if (mindsetPenalty) {

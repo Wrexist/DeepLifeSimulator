@@ -211,14 +211,20 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
   const sign = (n: number) => (n > 0 ? '+' : '');
   const push = (label: string, value: string, tone: 'pos' | 'neg' | 'neutral' = 'neutral') => out.push({ label, value, tone });
 
+  // R4-X7: the rows below deliberately omit `INERT_POLICY_KEYS`
+  // (lib/politics/policies.ts) — effects that are declared and priced but have
+  // no system behind them. See that constant's note for the list and reasoning.
+  //
   // effects.money is a ONE-TIME treasury delta applied at enactment
   // (PoliticalActions enactPolicy), never a weekly stream — label it honestly.
   if (e.money) push('One-time cash', `${sign(e.money)}${formatMoney(e.money)}`, e.money > 0 ? 'pos' : 'neg');
   if (e.happiness) push('Happiness', `${sign(e.happiness)}${e.happiness}`, e.happiness > 0 ? 'pos' : 'neg');
   if (e.health) push('Health', `${sign(e.health)}${e.health}`, e.health > 0 ? 'pos' : 'neg');
   if (e.reputation) push('Reputation', `${sign(e.reputation)}${e.reputation}`, e.reputation > 0 ? 'pos' : 'neg');
+  // `inflationRate` now reaches `applyWeeklyInflation` (R4-X7). `priceIndex` is
+  // NOT rendered: no policy in the catalogue carries it, and nothing consumes
+  // it, so the row could only ever have been an empty promise.
   if (e.economy?.inflationRate) push('Inflation', `${sign(e.economy.inflationRate)}${(e.economy.inflationRate * 100).toFixed(1)}%`, e.economy.inflationRate > 0 ? 'neg' : 'pos');
-  if (e.economy?.priceIndex) push('Price index', `${sign(e.economy.priceIndex)}${(e.economy.priceIndex * 100).toFixed(1)}%`, e.economy.priceIndex > 0 ? 'neg' : 'pos');
 
   const s = e.stocks;
   if (s?.volatilityModifier) push('Stock volatility', `×${s.volatilityModifier}`, s.volatilityModifier < 1 ? 'pos' : 'neg');
@@ -226,9 +232,9 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
   if (s?.companyBoost?.length) push('Boosts', s.companyBoost.join(', '), 'pos');
 
   const re = e.realEstate;
-  if (re?.priceModifier) push('Property prices', `×${re.priceModifier}`, 'neutral');
+  // `rentModifier` is live (lib/economy/passiveIncome.ts). `priceModifier` and
+  // `propertyTaxRate` are NOT rendered — see the note above `INERT_POLICY_KEYS`.
   if (re?.rentModifier) push('Rental income', `×${re.rentModifier}`, re.rentModifier >= 1 ? 'pos' : 'neg');
-  if (re?.propertyTaxRate) push('Property tax', `${sign(re.propertyTaxRate)}${(re.propertyTaxRate * 100).toFixed(0)}%`, re.propertyTaxRate < 0 ? 'pos' : 'neg');
 
   const ed = e.education;
   if (ed?.weeksReduction) push('Education time', `−${ed.weeksReduction} wks`, 'pos');
@@ -236,14 +242,11 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
   if (ed?.scholarshipAmount) push('Scholarship', formatMoney(ed.scholarshipAmount), 'pos');
 
   const c = e.crypto;
+  // `miningBonus` is live (lib/economy/passiveIncome.ts). `priceStability` and
+  // `regulationLevel` are NOT rendered — see `INERT_POLICY_KEYS`.
   if (c?.miningBonus) push('Mining rate', `+${c.miningBonus}%`, 'pos');
-  if (c?.priceStability) push('Crypto stability', `+${(c.priceStability * 100).toFixed(0)}%`, 'pos');
-  if (c?.regulationLevel) push('Regulation', `Lvl ${c.regulationLevel}`, 'neutral');
 
-  const t = e.technology;
-  if (t?.rdBonus) push('R&D efficiency', `+${t.rdBonus}%`, 'pos');
-  if (t?.patentBonus) push('Patent success', `+${t.patentBonus}%`, 'pos');
-  if (t?.innovationGrants) push('Innovation grants', formatMoney(t.innovationGrants), 'pos');
+  // The whole `technology` block is NOT rendered — see `INERT_POLICY_KEYS`.
 
   const h = e.healthcare;
   if (h?.healthBonus) push('Health / week', `+${h.healthBonus}`, 'pos');

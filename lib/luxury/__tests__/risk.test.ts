@@ -213,3 +213,104 @@ describe('a week of risk', () => {
     expect(applyLuxuryRiskForWeek(owned, null, undefined).incidents).toHaveLength(0);
   });
 });
+
+/**
+ * R4-X4 — insurance was strictly dominated by ~100×, so the "genuine call" this
+ * module was built to create never existed.
+ *
+ * `RESTORE_COST_PER_POINT_PCT` was documented as "a fraction of item value" and
+ * set to 0.006, and all three call sites then divided it by 100 as well —
+ * pricing restoration, and the insured deductible derived from it, at 1/100th
+ * of intent. The `_PCT` in the name is how the stray divide looked correct
+ * everywhere it appeared.
+ *
+ * The consequence, on the private island: an incident destroys 13.75% of its
+ * value, the premium runs 0.103% of value EVERY WEEK, and restoring the damage
+ * yourself cost 0.15% of value once. Never insuring was optimal by two orders
+ * of magnitude, and an incident was a rounding error rather than an event.
+ *
+ * The tests above are all directional ("heavy costs more than light", "cheaper
+ * than replacing"), which a 100× error passes comfortably. These pin the
+ * MAGNITUDE against the module's own stated design. 2026-07-31 audit round 4.
+ */
+describe('R4-X4 — the insurance decision is actually a decision', () => {
+  const PRISTINE: LuxuryHolding = { acquiredWeek: 0 };
+
+  it('restoring costs roughly what the damage destroyed', () => {
+    // If restoration is far cheaper than the loss, insurance is pointless and
+    // an incident has no weight. If it is far dearer, an incident is a
+    // catastrophe the player cannot insure their way out of.
+    for (const item of LUXURY_CATALOG) {
+      const risk = getLuxuryRisk(item.id)!;
+      const damaged: LuxuryHolding = { acquiredWeek: 0, condition: 100 - risk.severity };
+
+      const valueLost = item.price * (1 - conditionValueMultiplier(100 - risk.severity));
+      const restore = getRestoreCost(item, damaged);
+      const ratio = restore / valueLost;
+
+      expect(`${item.id} restore/loss ratio in [0.5, 2]: ${ratio >= 0.5 && ratio <= 2} (${ratio.toFixed(2)})`)
+        .toBe(`${item.id} restore/loss ratio in [0.5, 2]: true (${ratio.toFixed(2)})`);
+    }
+  });
+
+  it('a lifetime of premiums is the same order as the loss they cover', () => {
+    // Premiums over one expected incident interval (1/weeklyChance weeks)
+    // should sit near INSURANCE_MARGIN × the loss — that IS the margin's
+    // definition. At the old scale this held, which is why the bug survived:
+    // the premium side was always right. It is the restore side that decides
+    // whether paying those premiums is ever rational.
+    for (const item of LUXURY_CATALOG) {
+      const risk = getLuxuryRisk(item.id)!;
+      const insured: LuxuryHolding = { acquiredWeek: 0, insured: true };
+
+      const weeksPerIncident = 1 / risk.weeklyChance;
+      const premiumsPerIncident = getItemPremium(item, insured) * weeksPerIncident;
+      const valueLost = item.price * (1 - conditionValueMultiplier(100 - risk.severity));
+      const ratio = premiumsPerIncident / valueLost;
+
+      expect(`${item.id} premium/loss ≈ margin: ${Math.abs(ratio - INSURANCE_MARGIN) < 0.15}`)
+        .toBe(`${item.id} premium/loss ≈ margin: true`);
+    }
+  });
+
+  it('the deductible is a real share of the repair, not a rounding error', () => {
+    // Insured, the owner pays INSURANCE_DEDUCTIBLE_FRACTION of the repair. At
+    // the old scale that was ~0.015% of item value — indistinguishable from
+    // free, which is the other half of why the decision was not a decision.
+    const risk = getLuxuryRisk(ISLAND.id)!;
+    const insured: LuxuryHolding = { acquiredWeek: 0, insured: true };
+    const { cashOwed } = applyLuxuryRiskForWeek([ISLAND.id], { [ISLAND.id]: insured }, ALWAYS);
+    const premium = getItemPremium(ISLAND, insured);
+    const deductible = cashOwed - premium;
+
+    expect(deductible / ISLAND.price).toBeGreaterThan(0.005);
+    expect(deductible / ISLAND.price).toBeLessThan(0.05);
+  });
+
+  it('skipping insurance is not free money', () => {
+    // Passes at the old scale too — both sides were small, so the inequality
+    // held while being economically meaningless. Kept as the shape the fix must
+    // preserve; the two magnitude assertions above are the discriminators.
+    const risk = getLuxuryRisk(ISLAND.id)!;
+    const uninsured = applyLuxuryRiskForWeek([ISLAND.id], { [ISLAND.id]: PRISTINE }, ALWAYS);
+    const damagedHolding = uninsured.holdings?.[ISLAND.id];
+
+    expect(getCondition(damagedHolding)).toBe(100 - risk.severity);
+
+    const selfRepair = getRestoreCost(ISLAND, damagedHolding);
+    const insured: LuxuryHolding = { acquiredWeek: 0, insured: true };
+    const insuredCost = applyLuxuryRiskForWeek([ISLAND.id], { [ISLAND.id]: insured }, ALWAYS).cashOwed;
+
+    expect(selfRepair).toBeGreaterThan(insuredCost);
+  });
+
+  it('a wrecked item is still cheaper to restore than to replace', () => {
+    // The control in the other direction: the 100× correction must not have
+    // made restoration irrational.
+    for (const item of LUXURY_CATALOG) {
+      const wrecked = getRestoreCost(item, { acquiredWeek: 0, condition: 0 });
+
+      expect(`${item.id} restore < price: ${wrecked < item.price}`).toBe(`${item.id} restore < price: true`);
+    }
+  });
+});

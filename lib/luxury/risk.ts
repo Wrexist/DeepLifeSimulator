@@ -47,8 +47,30 @@ import { getHoldingValue } from './operations';
 export const INSURANCE_MARGIN = 1.25;
 /** Share of an insured loss the owner still pays. */
 export const INSURANCE_DEDUCTIBLE_FRACTION = 0.1;
-/** Cost to restore one condition point, as a fraction of item value. */
-export const RESTORE_COST_PER_POINT_PCT = 0.006;
+/**
+ * Cost to restore one condition point, as a FRACTION of item value.
+ *
+ * R4-X4: the three call sites divided this by 100 as well, pricing restoration
+ * — and the insured deductible derived from it — at 1/100th of intent. The
+ * effect inverted the whole system this file exists to create.
+ *
+ * Take the private island: severity 25 destroys 13.75% of its value, and the
+ * premium is 0.103% of value EVERY WEEK. Restoring the damage yourself cost
+ * 0.15% of value, once. So going uninsured was ~100× cheaper than insuring, and
+ * an incident was a rounding error rather than an event. The module's own
+ * header says the design is "insuring is slightly negative in pure cash and
+ * removes the variance ... a genuine call rather than a dominant strategy in
+ * either direction"; it was a dominant strategy, in the direction of never
+ * insuring anything.
+ *
+ * As a plain fraction the numbers land where `INSURANCE_MARGIN` says they
+ * should: 25 points of damage costs ~15% of value to restore against ~13.75%
+ * of value lost, so premiums run about 1.25× the expected loss.
+ *
+ * The old name said `_PCT` while the value was a fraction, which is how the
+ * stray `/100` looked correct at every call site. Renamed.
+ */
+export const RESTORE_COST_PER_POINT_FRACTION = 0.006;
 /** Below this, an item is visibly in trouble. */
 export const CONDITION_POOR = 60;
 
@@ -153,7 +175,7 @@ export function getTotalPremiums(
 export function getRestoreCost(item: LuxuryItem, holding: LuxuryHolding | undefined): number {
   const missing = 100 - getCondition(holding);
   if (missing <= 0) return 0;
-  return Math.round(getHoldingValue(item, holding) * (RESTORE_COST_PER_POINT_PCT / 100) * missing);
+  return Math.round(getHoldingValue(item, holding) * RESTORE_COST_PER_POINT_FRACTION * missing);
 }
 
 export interface Incident {
@@ -219,7 +241,7 @@ export function applyLuxuryRiskForWeek(
     if (insured) {
       // Made good. The owner pays a deductible on the repair, not the repair.
       const deductible = Math.round(
-        value * (RESTORE_COST_PER_POINT_PCT / 100) * risk.severity * INSURANCE_DEDUCTIBLE_FRACTION,
+        value * RESTORE_COST_PER_POINT_FRACTION * risk.severity * INSURANCE_DEDUCTIBLE_FRACTION,
       );
       cashOwed += deductible;
       incidents.push({

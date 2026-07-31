@@ -23,6 +23,7 @@ const log = logger.scope('PoliticalActions');
  */
 function calculateActivePolicyEffects(policiesEnacted: string[]): PoliticsState['activePolicyEffects'] {
   const effects: PoliticsState['activePolicyEffects'] = {
+    economy: { inflationRate: 0 },
     stocks: { volatilityModifier: 1, dividendBonus: 0 },
     realEstate: { priceModifier: 1, rentModifier: 1 },
     education: { weeksReduction: 0, costReduction: 0 },
@@ -35,6 +36,27 @@ function calculateActivePolicyEffects(policiesEnacted: string[]): PoliticsState[
   policiesEnacted.forEach(policyId => {
     const policy = getPolicyById(policyId);
     if (!policy) return;
+
+    // Aggregate economy effects.
+    //
+    // R4-X7: this block did not exist. `economy.inflationRate` was declared on
+    // the policy schema, carried by three policies (+2%, +3%, +2%) and rendered
+    // on the policy card as "Inflation +2.0%" before the player paid six
+    // figures to enact it — and the aggregator had no `economy` slice, so
+    // nothing downstream could read it even in principle.
+    //
+    // Summed and clamped to ±5 POINTS of annual rate. These are deltas on the
+    // base rate, not multipliers, and `applyWeeklyInflation` re-clamps the
+    // total to MAX_ANNUAL_INFLATION so a stack cannot run the price index away.
+    if (policy.effects.economy?.inflationRate !== undefined && effects.economy) {
+      const delta = Number(policy.effects.economy.inflationRate);
+      if (Number.isFinite(delta)) {
+        effects.economy.inflationRate = Math.max(
+          -0.05,
+          Math.min(0.05, effects.economy.inflationRate + delta),
+        );
+      }
+    }
 
     // Aggregate stock effects
     if (policy.effects.stocks && effects.stocks) {
