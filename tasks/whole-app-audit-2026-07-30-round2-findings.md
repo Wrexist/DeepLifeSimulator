@@ -15,7 +15,7 @@ source at the stated anchor. Status column is maintained as work lands.
 | MON-1 | high | FIXED | SubscriptionReconciler revokes paid Remove Ads using a check that is empty on cold start | `components/SubscriptionReconciler.tsx:44-50` |
 | UX-1 | high | FIXED | Pulse follower boost: full rewarded ad plays, grants nothing, says nothing | `components/mobile/Pulse/modals/RewardedAdModal.tsx:101-115` |
 | PERF-1 | high | FIXED | Every saveGame builds a full backup (stringify+CRC32+HMAC) BEFORE the 60s rate limiter discards it | `utils/saveBackup.ts:509-512` |
-| PERF-2 | high | OPEN | PostCard (~60 FlatList rows) subscribes to whole GameState, unmemoized, saves on every tap | `components/mobile/Pulse/components/PostCard.tsx:55,59` |
+| PERF-2 | high | FIXED | PostCard (~60 FlatList rows) subscribes to whole GameState, unmemoized, saves on every tap | `components/mobile/Pulse/components/PostCard.tsx:55,59` |
 | ECON-2 | med | FIXED | startResearch: no in-updater re-check — bypasses lab concurrency cap, doubles breakthrough roll | `contexts/game/actions/RDActions.ts:116-152` |
 | ECON-3 | med | FIXED | lobby/campaign/hireLobbyist clamp debit to 0 instead of rejecting; free lobbyist + influence | `contexts/game/actions/PoliticalActions.ts:621,750,821` |
 | ECON-4 | med | FIXED | deliverBrandDealPost counts a delivery without checking the post was already used | `contexts/game/actions/PulseActions.ts:710-715` |
@@ -38,7 +38,7 @@ source at the stated anchor. Status column is maintained as work lands.
 
 | Gate | Result |
 |---|---|
-| `npx jest` | 4,530 passed, 1 skipped, 0 failed |
+| `npx jest` | 4,538 passed, 1 skipped, 0 failed |
 | `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
 | Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
 | `npx eslint --quiet` on changed files | 0 errors |
