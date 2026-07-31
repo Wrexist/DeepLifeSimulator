@@ -1,0 +1,102 @@
+# Whole-app audit — Round 4 (2026-07-31)
+
+Five parallel Opus passes, including one **adversarial pass whose only brief was
+to break the Round 3 fixes**. That pass found four real defects in my own work,
+each with a probe. Every one of them had a Round 3 test that passed — because
+the fixture avoided the input that breaks. That is the single most useful result
+of this round and the reason the pass existed.
+
+Anchors are as-reported and should be re-read before acting (CLAUDE.md §8).
+
+---
+
+## 1. Regressions in my own Round 3 fixes (adversarial pass)
+
+All four fixed, each with a regression test proved RED against the pre-fix tree.
+
+| ID | Sev | Summary |
+|---|---|---|
+| R4-REG-1 | high | FIXED — `netWorth()` double-counted cash and savings. R3-M4 added a raw sum of every `banking.accounts` balance on top of `stats.money + bankSavings`; the mirror accounts (`checking-default`, `savings-default`) are overwritten with those exact legacy fields on step 1 of every tick. Roughly doubled the figure that gates prestige, the $10M achievement, ambitions, the leaderboard, the passive-income cap, bail and ad rewards. Now `nonMirrorDeposits`. The R3 test missed it because its fixtures used ids like `chk`/`hysa` and left both mirrors at 0 |
+| R4-REG-2 | high | FIXED — the same mirror double-count in `prestigeExecution`'s scenario projection, where the evaluator computes `money + bankSavings` itself. The five net-worth scenarios paid their one-time gems at roughly half the stated threshold |
+| R4-REG-3 | high | FIXED — `withdrawFromGoal` was a money printer. It cleared `completedWeek` on withdrawal with a comment claiming that stopped the reward being farmed; `contributeToGoal` REJECTS while that flag is set, so clearing it re-armed the payout. Fund a $25,000 goal, withdraw it all back, fund it again — unbounded at the cap per cycle. `completedWeek` is now permanent |
+| R4-REG-4 | med | FIXED — R3-M2's APR floor missed two of four call sites. `VehicleActions` and `EducationActions` both read `politicsAprReduction` and neither floored it, so a high-office player financed a car and a degree at the 2.5% minimum against a 5.5% CD. My completeness test hardcoded the two files the fix had touched; it now discovers call sites by search and asserts the rate behaviourally |
+| R4-REG-5 | med | FIXED — `netWorth` still ignored credit-card debt, which R3-M4's own finding text called out and R3-M8 then made compound weekly |
+| R4-REG-6 | low | FIXED — `nonMirrorDeposits` threw on a null account row, newly reachable now that `netWorth` calls it |
+
+**The lesson, recorded for `tasks/lessons.md`:** a regression test that passes is
+not evidence the bug is fixed. It is evidence the fixture does not contain the
+bug. Every fix in this round therefore ships with a control assertion that fails
+if the guard is too broad, and with the fixture built from the same shape the
+weekly tick actually produces.
+
+---
+
+## 2. Monetization
+
+| ID | Sev | Summary | Status |
+|---|---|---|---|
+| R4-MON-2 | high | Revive (`REVIVE_GEM_COST` 15,000 — a $49.99 pack) re-checked affordability against `prev` but not `showDeathPopup`, so a double tap charged twice for one revive | FIXED |
+| R4-MON-3 | high | `recoverFromScandal` (500 gems, or $5,000 on the lawsuit branch charged OUTSIDE the updater) and `boostProfile` (50 gems) each charged twice for one purchase in a single React batch. The R8 pass closed the "second grant is free" half; this is the other half — with gems for two, the second tap buys nothing | FIXED |
+| R4-MON-4 | critical | The Legacy Pass premium track was revoked on cold start for paying players. `SubscriptionReconciler` computed `plusActive` ABOVE the `loadPurchases()` await it added for MON-1, and `reconcileLegacyPassSeason` had no `entitlementCheckAuthoritative` guard. `premiumOwned` gates `getClaimableTiers(pass, 'premium')`, which `getUnclaimedEarnedRewards` uses — so a season boundary crossed inside that window drops every unclaimed premium reward and resets the pass. Permanent | FIXED |
+| R4-MON-5 | high | The $99.99 Mega Pack, described as "Everything Unlocked", granted neither the four perks (sold separately at $6.99) nor any of the four banking entitlements ($4.99/$2.99/$3.99/$9.99) — those were written only from a `switch (productId)`, and this product's id is `GEMS_MEGA`. ~$28 of separately-sold entitlements missing | FIXED |
+| R4-MON-6 | high | The ad orb's no-fill courtesy reward was capped by a MODULE-LEVEL boolean whose own comment said the cap exists because "a whale could farm the capped reward on every respawn with NO ad ever shown (~$10M/hr)". A module variable resets on app restart, so the farm was force-quit-and-relaunch. Now `settings.lastNoFillGrantWeek`, one grant per GAME week. **STATE_VERSION 27 → 28** | FIXED |
+| R4-MON-1 | — | Re-derived as the ordering half of MON-4 | FOLDED IN |
+
+---
+
+## 3. Cross-cutting exploits and inert systems
+
+| ID | Sev | Summary | Status |
+|---|---|---|---|
+| R4-X3 | critical | Politics transport effects are PERCENTS; `transportationMods` read them as fractions (`Math.min(1, 25) * 100` = 100%). ANY enacted transport policy — one $100,000 bill at career level 2 — made every travel destination FREE forever, turning a paid system into an unlimited happiness/intelligence/reputation farm. Four pre-existing tests encoded the fraction reading and are corrected | FIXED |
+| R4-X5 | high | `refuelVehicle`, `repairVehicle` and `getDriversLicense` each gate on the stale outer snapshot and debit with `Math.max(0, money - cost)`. A double tap charged twice for nothing; on a thin wallet the floor zeroed the player's cash rather than declining | FIXED |
+| R4-X8 | high | `acceptAcquisition` re-checked affordability and folded in reputation, but never re-checked that the offer was still pending. A double tap charged the asking price twice (seven figures), added another +3 reputation and synergy bump, and double-counted `totalAcquisitionsCompleted` | FIXED |
+| R4-X1 | high | The Mindset system narrated effects it never applied. `getMindsetFeedback` returned the message and discarded the deltas; its only caller is the only place in the app that touches Mindsets at all. The game said "Frugal: You saved a bit extra (+120)" and credited nothing | FIXED |
+| R4-X4 | high | Luxury insurance was strictly dominated by ~100×. `RESTORE_COST_PER_POINT_PCT` was documented as a fraction and divided by 100 again at all three call sites, pricing restoration and the deductible at 1/100th of intent. Never insuring was optimal by two orders of magnitude — the exact inverse of the module's stated design | FIXED |
+| R4-X7 | med | Eight policy effects declared, priced and rendered on the card the player reads before spending $100,000–$300,000, with nothing behind them. `economy.inflationRate` WIRED (inflation is a real weekly system, and the aggregator had no `economy` slice at all). The other seven listed in `INERT_POLICY_KEYS` and no longer rendered — they describe systems that do not exist | FIXED |
+| R4-X2 | med | Five automation prestige bonuses have no state writer | OPEN |
+| R4-X6 | med | An enhanced event promises five follow-ups that do not exist | OPEN |
+
+---
+
+## 4. Still open
+
+### Needs a product decision, not an audit fix
+
+The seven `INERT_POLICY_KEYS` are hidden rather than wired because the systems
+they describe are absent, not broken:
+
+- `realEstate.priceModifier`, `realEstate.propertyTaxRate` — there is no
+  property-tax system, and property prices are static.
+- `crypto.priceStability`, `crypto.regulationLevel` — nothing reads either.
+- `technology.rdBonus`, `technology.patentBonus`, `technology.innovationGrants`
+  — `lib/rd/patents.ts` has **zero production callers**. The whole R&D/patent
+  system is unreachable from the app.
+- `economy.priceIndex` — no policy in the catalogue even sets it.
+
+The keys stay on the schema and in the catalogue deliberately: deleting them
+would be a data change with no gameplay effect that also erases the record of
+what these policies were meant to do. When one of those systems lands, add its
+row back to `PoliticalApp`.
+
+`lib/crypto/marketModel.ts` is in the same position — `stepPrice`, `nextRegime`
+and `sampleRegimeDuration` have no production callers either. Worth a separate
+look at whether the crypto price walk the app actually runs is the one that was
+designed.
+
+### Carried forward, unchanged
+
+**R4-X2** — five automation prestige bonuses with no state writer.
+**R4-X6** — an enhanced event that promises five follow-ups with no
+implementation.
+**PERF-A1** — `app/_layout.tsx` root full-state subscription. Same class as the
+open PERF-7 remainder; needs device measurement, not more static analysis.
+**TICK-A2/A3/A4** — a stale challenge-evaluation snapshot, five unguarded `.map`
+loops in the tick, and the weekly recap computed before eight cash movements.
+**F1–F8** — UI-truth findings: a wrong prestige formula in `DeathPopup`, an
+unreachable `PrestigeModal`, `payBail` and passport double-charges, a
+food-price inflated/raw mismatch, Help text describing a hacks UI that does not
+exist, a Verified Pro "no ads" perk, and an evict flow with no confirmation.
+
+**ARCH-1**, **PERF-3** and the **PERF-7 remainder** stay open with the reasoning
+recorded in the round 2 file.
