@@ -631,9 +631,30 @@ export const planWedding = (
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
     );
     if (prevOtherCommitted) return prev;
+
+    /**
+     * R3-F2: re-check THIS partner too.
+     *
+     * The bigamy guard above deliberately excludes `partnerId`, and the outer
+     * `if (partner.weddingPlanned) return …` runs against the render-time
+     * `gameState`. So the one case neither covered was a double-tap on the SAME
+     * partner: both updaters passed, the deposit was charged twice, and the
+     * second write overwrote `weddingPlanned` with an identical plan — one
+     * wedding, two deposits, silently. On the Tropical Island Resort that is
+     * ~$25k charged twice. The modal's button is gated only on
+     * `!selectedVenueId || !canAfford`, with `canAfford` derived from the stale
+     * `gameState.stats.money` and no in-flight flag.
+     *
+     * The affordability re-check below cannot substitute for this: a player who
+     * can afford the deposit twice passes it twice. CLAUDE.md §4.4.
+     */
+    const thisPartnerAlreadyPlanned = (prev.relationships || []).some(
+      r => r.id === partnerId && r.weddingPlanned
+    );
+    if (thisPartnerAlreadyPlanned) return prev;
+
     // Re-check affordability inside the updater (matches proposeMarriage /
-    // executeWedding) so a same-batch double-tap can't double-charge the
-    // 25% deposit.
+    // executeWedding).
     if ((prev.stats?.money ?? 0) < deposit) return prev;
     return {
       ...prev,
@@ -1014,6 +1035,32 @@ export const fileDivorce = (
   const forcedPropertyLiquidationPaid = propertyLiquidationGained;
 
   setGameState(prev => {
+    /**
+     * R3-F1: re-check the gates against `prev`, INSIDE the updater.
+     *
+     * Everything above — the spouse lookup and the 26-week cooldown — runs
+     * against the render-time `gameState`. The updater derived money from
+     * `prev` but never re-checked either gate, so two taps in one React batch
+     * both applied the FULL settlement: `remaining = totalObligation` drained
+     * from money then savings then debt twice over, the lawyer fee landed
+     * twice, -40 happiness / -10 reputation landed twice, and the divorce loan
+     * id embeds `newLoans.length` so the second one got a different id and
+     * escaped dedupe — two "Divorce Settlement Debt" loans for one divorce.
+     * The confirm button has no in-flight guard, and the action reads
+     * `gameStateRef.current`, which is stale within a batch.
+     *
+     * This updater writes `lastDivorceWeek`, so the second tap's re-check sees
+     * the first tap's write and rejects. CLAUDE.md §4.4.
+     */
+    const stillMarried = prev.relationships?.some(r => r.id === spouseId && r.type === 'spouse');
+    if (!stillMarried) return prev;
+
+    const prevLastDivorce = prev.lastDivorceWeek || 0;
+    const prevWeeks = prev.weeksLived || 0;
+    if (prevLastDivorce > 0 && (prevWeeks - prevLastDivorce) < DIVORCE_COOLDOWN_WEEKS) {
+      return prev;
+    }
+
     // Phase 2: derive cash/loans/relationships/RNG from prev so a concurrent
     // weekly tick (or any other queued action) isn't clobbered.
     const prevMoney = Math.max(0, safeNumber(prev.stats?.money));
