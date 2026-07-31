@@ -83,6 +83,36 @@ export function useSetGameState(): GameStore['setGameState'] {
   return store.setGameState;
 }
 
+/**
+ * Read the CURRENT GameState on demand, without subscribing to it.
+ *
+ * The companion to `useSetGameState`: that one writes without re-rendering,
+ * this one reads without re-rendering. Returns a stable getter, so it is safe
+ * in a `useCallback` dependency list and in a `setTimeout` closure.
+ *
+ * For the "a timer fires later and must see fresh state" pattern. The idiom
+ * that grew up instead was a local mirror:
+ *
+ *     const gsRef = useRef(gameState);
+ *     useEffect(() => { gsRef.current = gameState; });
+ *
+ * which only stays fresh because the component re-renders on EVERY mutation —
+ * so a component that renders off two booleans still took a full-state
+ * subscription purely to keep its ref current. `AdRewardOrb` is mounted for the
+ * entire session in the tab-tree root and did exactly that. 2026-07-30 audit
+ * PERF-7.
+ *
+ * Not for rendering: a value read here does not re-render when it changes.
+ * Anything the component DISPLAYS must go through `useGameSelector`.
+ */
+export function useGameStateGetter(): () => GameState {
+  const store = useContext(GameStoreContext);
+  if (!store) {
+    throw new Error('useGameStateGetter must be used within a GameProvider');
+  }
+  return store.getSnapshot;
+}
+
 /** Shallow-equality helper for selectors that return arrays/objects of primitives. */
 export function shallowEqual<T>(a: T, b: T): boolean {
   if (Object.is(a, b)) return true;
