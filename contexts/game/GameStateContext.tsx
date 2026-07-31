@@ -162,6 +162,27 @@ export function GameStateProvider({
     const reviveCost = REVIVE_GEM_COST;
 
     wrappedSetGameState(prev => {
+      /**
+       * R4-MON-2: the character must still be DEAD.
+       *
+       * The affordability half of this gate was already re-checked against
+       * `prev`, but nothing re-checked `showDeathPopup`. `handleRevive` has no
+       * in-flight guard and its button carries only
+       * `disabled={!canAffordRevive}`, computed from a stale render snapshot —
+       * and this provider is a plain `useState`, so two taps landing in one
+       * React batch both passed the outer gate and both updaters ran. The
+       * second saw `prev.gems` still above the cost (30,000 -> 15,000 -> 0) and
+       * charged again.
+       *
+       * REVIVE_GEM_COST is 15,000 and the 15,000-gem pack retails at $49.99, so
+       * a double tap cost a player real money for one revive, with nothing in
+       * state marking the second charge as anomalous. CLAUDE.md §4.4.
+       */
+      if (!prev.showDeathPopup) {
+        logger.warn('[reviveCharacter] Ignored: character is not currently dead');
+        return prev;
+      }
+
       if ((prev.stats.gems || 0) < reviveCost) {
         logger.warn('[reviveCharacter] Not enough gems to revive');
         return prev;

@@ -535,6 +535,23 @@ export const recoverFromScandal = (
     if (method === 'gems' && (prev.stats?.gems ?? 0) < SCANDAL_GEM_COST) {
       return prev;
     }
+    /**
+     * R4-MON-3: the scandal must still be ACTIVE.
+     *
+     * The gem re-check above was added for exactly this class, but the whole
+     * body works off the `scandal` captured from the stale outer `gameState`,
+     * and nothing re-checked `prev.socialMedia?.activeScandal`.
+     * `ScandalRecoveryModal.handleChoice` has no in-flight guard and its four
+     * options are plain `Pressable`s in a ScrollView, so two taps in one React
+     * batch both cleared the same scandal: 500 gems debited twice, a duplicate
+     * `scandalHistory` entry, and `totalScandalsSurvived` double-incremented.
+     * The `lawsuit` branch was worse — it charges $5,000 through `updateMoney`
+     * OUTSIDE this updater, so a double tap was $10,000 for one clear.
+     * CLAUDE.md §4.4.
+     */
+    if (!prev.socialMedia?.activeScandal) {
+      return prev;
+    }
     const sm = { ...ensureSocial(prev) };
     const ws = prev.weeksLived ?? 0;
     if (method === 'gems') {

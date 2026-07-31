@@ -23,7 +23,7 @@ import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { highestGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { trackBudgetSpend } from '@/lib/banking/operations';
-import { politicsAprReduction } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 
 const log = logger.scope('EducationActions');
 
@@ -175,9 +175,15 @@ export const enrollInProgram = (
     // Build new loan if mode === 'loan' AND netCost > 0.
     let newLoans = prev.loans ?? [];
     if (spec.mode === 'loan' && netCost > 0) {
-      const aprAdjustment = -politicsAprReduction(prev);
+      const politicsReduction = politicsAprReduction(prev);
+      const aprAdjustment = -politicsReduction;
       const baseAPR = 0.06; // student loan baseline 6%
-      const offeredAPR = Math.max(0.025, baseAPR + aprAdjustment);
+      // R3-M2 completion: this site was missed. A student loan does not hand
+      // the player cash, but it frees the cash that would have paid tuition —
+      // so a 2.5% student loan funding a 5.5% CD is the same risk-free carry
+      // the floor exists to close.
+      const studentAprFloor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+      const offeredAPR = Math.max(studentAprFloor, baseAPR + aprAdjustment);
       const weeklyPayment = calculatePeriodicPayment(netCost, offeredAPR, STUDENT_LOAN_TERM_WEEKS);
       const loan: Loan = {
         id: `loan-student-${prev.weeksLived}-${loanIdSuffix}`,
@@ -246,6 +252,8 @@ export const enrollInProgram = (
       stats: { ...prev.stats, money: newMoney },
       educations: result.educations,
       loans: newLoans,
+      // A student loan is debt. See `debtProgress`.
+      ...debtProgress(prev, newLoans.length > (prev.loans ?? []).length),
     };
   });
 };

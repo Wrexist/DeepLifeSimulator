@@ -35,7 +35,7 @@ import {
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
-import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 
 const log = logger.scope('RealEstateActions');
@@ -257,6 +257,8 @@ export const buyPropertyWithMortgage = (
       banking,
       realEstate: updatedRealEstate,
       loans: updatedLoans,
+      // A mortgage is debt. See `debtProgress`.
+      ...debtProgress(prev, updatedLoans.length > (prev.loans ?? []).length),
     };
   });
 

@@ -755,7 +755,7 @@ import {
 } from '@/lib/vehicles/auto';
 import { quoteLoan } from '@/lib/banking/operations';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
-import { politicsAprReduction } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 import type { Loan } from '../types';
 
 const newLoanId = (): string =>
@@ -825,9 +825,17 @@ export function quoteVehiclePurchase(
     type: 'auto',
     weeklyIncome,
     aprReduction: politicsAprReduction(state),
+    // R3-M2 completion: this quote site was missed. Without the floor a
+    // high-office player financed a car at the 2.5% hard minimum while a CD
+    // pays 5.5% — the exact borrow-low/save-high carry
+    // `lib/banking/rateEnvironment.ts` caps deposits to prevent.
+    aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
   });
   if (quote.rejected) return { rejected: true, reason: quote.reason };
-  const adjustedAPR = Math.max(0.025, quote.offeredAPR + orig.aprAdjustment);
+  // The floor has to survive `orig.aprAdjustment` too, or the vehicle-specific
+  // adjustment walks the rate straight back under it.
+  const autoAprFloor = politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+  const adjustedAPR = Math.max(autoAprFloor, quote.offeredAPR + orig.aprAdjustment);
   const weekly = calculatePeriodicPayment(orig.loanPrincipal, adjustedAPR, orig.termWeeks);
 
   return {
@@ -956,6 +964,8 @@ export const purchaseVehicleWithAutoLoan = (
       vehicles,
       activeVehicleId,
       loans: updatedLoans,
+      // An auto loan is debt. See `debtProgress`.
+      ...debtProgress(prev, updatedLoans.length > (prev.loans ?? []).length),
     };
   });
   return result;

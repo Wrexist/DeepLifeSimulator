@@ -5,6 +5,7 @@ import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoint
 import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
+import { nonMirrorDeposits } from '@/lib/banking/operations';
 import { getEarnedAchievementCount, getEarnedAchievementNames, getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
@@ -164,12 +165,16 @@ export function executePrestige(
         // evaluator always read this; nothing ever passed it. Legacy pool plus
         // the modern per-account balances, which is where savings actually
         // lives since STATE_VERSION 14.
+        //
+        // R4 correction: `nonMirrorDeposits`, not a raw sum. `banking.accounts`
+        // always holds `checking-default` and `savings-default`, which
+        // `mirrorAccountsFromLegacy` overwrites with `stats.money` and
+        // `bankSavings` on every tick. The evaluator computes
+        // `stats.money + bankSavings + …`, so a raw sum counted BOTH legacy
+        // pools twice and handed out the five net-worth scenarios' gems to
+        // players at roughly half the stated threshold.
         bankSavings:
-          (gameState.bankSavings || 0) +
-          (gameState.banking?.accounts || []).reduce(
-            (sum, a) => sum + (Number.isFinite(a?.balance) ? a.balance : 0),
-            0,
-          ),
+          (gameState.bankSavings || 0) + nonMirrorDeposits(gameState.banking?.accounts ?? []),
       };
       if (isScenarioCompleted(scenario.id, scenarioState)) {
         gemsToAward += scenario.rewards?.gems || 0;

@@ -77,8 +77,11 @@ export function totalCreditCardDebt(banking: BankingState): number {
  * fields must exclude the mirrors here to avoid double-counting cash/savings.
  */
 export function nonMirrorDeposits(accounts: readonly BankAccount[]): number {
-  return accounts.reduce(
-    (sum, a) => (MIRRORED_ACCOUNT_IDS.has(a.id) ? sum : sum + safe(a.balance)),
+  // `a?.id`, not `a.id`: a corrupt save can carry a null row, and this now runs
+  // inside `netWorth` — which the leaderboard, the HUD and the prestige gate
+  // all call. A throw there is a blank screen rather than a wrong number.
+  return (accounts ?? []).reduce(
+    (sum, a) => (MIRRORED_ACCOUNT_IDS.has(a?.id) ? sum : sum + safe(a?.balance)),
     0
   );
 }
@@ -983,9 +986,9 @@ export function recomputeCreditScore(
  * to credit through the money helper.
  *
  * A COMPLETED goal can still be withdrawn from — the money is the player's, and
- * refusing would recreate the trap in a narrower form — but doing so clears
- * `completedWeek`, so the bounded completion reward cannot be farmed by
- * withdrawing and re-contributing.
+ * refusing would recreate the trap in a narrower form — and `completedWeek`
+ * SURVIVES the withdrawal, so the bounded completion reward cannot be farmed by
+ * withdrawing and re-contributing. See the comment at the assignment.
  */
 export function withdrawFromGoal(
   banking: BankingState,
@@ -1034,11 +1037,23 @@ export function withdrawFromGoal(
   nextGoals[idx] = {
     ...goal,
     currentAmount: current - withdrawn,
-    // Dropping below the target un-completes the goal, so the once-only
-    // completion reward cannot be re-earned by cycling funds through it.
-    completedWeek: current - withdrawn >= safe(goal.targetAmount) && safe(goal.targetAmount) > 0
-      ? goal.completedWeek
-      : undefined,
+    // R4 correction. The first version of this cleared `completedWeek` when the
+    // balance dropped below the target, with a comment claiming that stopped
+    // the reward being farmed. It did the exact opposite.
+    //
+    // `contributeToGoal` rejects with "Goal already completed" while
+    // `completedWeek` is a number (line 726), and `applySavingsGoals`'s weekly
+    // auto-contribute gates on the same flag. Clearing it RE-ARMS both. So:
+    // fund a $25,000 goal (+$250 reward), withdraw the whole $25,000 back,
+    // contribute it again (+$250) — an unbounded printer at
+    // GOAL_COMPLETION_REWARD_CAP per cycle, on money that never leaves the
+    // player's hands, plus GOAL_COMPLETION_HAPPINESS each time.
+    //
+    // `completedWeek` records that the reward was PAID, which withdrawing does
+    // not undo. It is now permanent. Withdrawal itself stays allowed — the
+    // money is the player's — and refusing a re-contribution to a completed
+    // goal is the behaviour that already shipped, so this adds no new trap.
+    completedWeek: goal.completedWeek,
   };
 
   return {

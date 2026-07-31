@@ -1,5 +1,6 @@
 import type { GameState } from '@/contexts/game/types';
 import type { AchievementProgress } from '@/lib/progress/achievements';
+import { PRESTIGE_BONUSES } from './prestigeBonuses';
 
 /**
  * Completed programmes required for "Educated Legacy" (R3-P11).
@@ -9,7 +10,6 @@ import type { AchievementProgress } from '@/lib/progress/achievements';
  * combination no single lifespan affords.
  */
 export const MIN_EDUCATIONS_FOR_EDUCATED_LEGACY = 4;
-import { PRESTIGE_BONUSES } from './prestigeBonuses';
 
 /**
  * Prestige-specific achievements

@@ -17,6 +17,7 @@ import {
   contributeToGoal,
   withdrawFromGoal,
   addSavingsGoal,
+  GOAL_COMPLETION_REWARD_CAP,
 } from '@/lib/banking/operations';
 import { netWorth } from '@/lib/progress/achievements';
 import { createTestGameState } from '../helpers/createTestGameState';
@@ -107,7 +108,18 @@ describe('money put into a goal can be taken back out', () => {
 });
 
 describe('the completion reward cannot be farmed by cycling funds', () => {
-  it('un-completes a goal that drops below its target', () => {
+  /**
+   * R4 correction. The first version of this asserted the OPPOSITE — that
+   * withdrawing un-completes the goal — and the implementation obliged. That is
+   * precisely the printer: `contributeToGoal` rejects while `completedWeek` is
+   * set, so clearing it re-arms the reward, and fund → withdraw → fund pays
+   * `GOAL_COMPLETION_REWARD_CAP` every cycle on money that never leaves the
+   * player's hands.
+   *
+   * The test passed because it asserted the field, not the payout. This one
+   * runs the cycle and counts the money.
+   */
+  it('survives a withdrawal with its completion still recorded', () => {
     const { banking, goalId } = bankingWithGoal(1_000);
     const funded = contributeToGoal(banking, goalId, 1_000, 10);
     expect(funded.completed).toBe(true);
@@ -116,9 +128,44 @@ describe('the completion reward cannot be farmed by cycling funds', () => {
 
     const out = withdrawFromGoal(funded.banking, goalId, 500);
 
-    // Without this, withdraw-then-recontribute would re-mint the reward, since
-    // `contributeToGoal` pays it whenever the target is newly reached.
-    expect(out.banking.savingsGoals[0].completedWeek).toBeUndefined();
+    expect(out.ok).toBe(true);
+    expect(out.banking.savingsGoals[0].completedWeek).toBe(10);
+  });
+
+  it('pays the completion reward exactly once across ten fund/withdraw cycles', () => {
+    const { banking, goalId } = bankingWithGoal(25_000);
+    let state = banking;
+    let totalReward = 0;
+    let payouts = 0;
+
+    for (let cycle = 0; cycle < 10; cycle += 1) {
+      const funded = contributeToGoal(state, goalId, 25_000, 10 + cycle);
+      if (funded.ok) {
+        state = funded.banking;
+        totalReward += funded.rewardCash;
+        if (funded.completed) payouts += 1;
+      }
+      const out = withdrawFromGoal(state, goalId, 25_000);
+      if (out.ok) state = out.banking;
+    }
+
+    // 1% of the $25,000 target, under the $500 cap.
+    const oneReward = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(25_000 * 0.01));
+
+    expect(oneReward).toBeGreaterThan(0);
+    expect(payouts).toBe(1);
+    expect(totalReward).toBe(oneReward);
+  });
+
+  it('the cycle really does return the money (so the printer would be free)', () => {
+    // The premise. If withdrawing lost the funds there would be a real cost per
+    // cycle and the finding above would not be a printer.
+    const { banking, goalId } = bankingWithGoal(25_000);
+    const funded = contributeToGoal(banking, goalId, 25_000, 10);
+    const out = withdrawFromGoal(funded.banking, goalId, 25_000);
+
+    expect(funded.cashDebit).toBe(25_000);
+    expect(out.cashCredit).toBe(25_000);
   });
 
   it('lets the player recover money from a COMPLETED goal', () => {

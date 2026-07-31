@@ -26,10 +26,9 @@ import type { GameState } from '@/contexts/game/types';
 
 function atOffice(careerLevel: number): GameState {
   const base = createTestGameState();
-  return {
-    ...base,
-    politics: { ...(base.politics ?? {}), careerLevel },
-  } as GameState;
+  return createTestGameState({
+    politics: { ...(base.politics ?? {}), careerLevel } as never,
+  });
 }
 
 const LEVELS = [1, 2, 3, 4, 5, 6];
@@ -137,23 +136,119 @@ describe('the floor is passed at every quote site', () => {
   const read = (rel: string): string =>
     fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
-  it('every aprReduction caller also passes aprFloor', () => {
-    for (const rel of [
-      'contexts/game/actions/LoanActions.ts',
-      'contexts/game/actions/RealEstateActions.ts',
-    ]) {
-      const source = read(rel);
-      const reductions = (source.match(/aprReduction: politicsAprReduction\(state\)/g) ?? []).length;
-      const floors = (source.match(/aprFloor: politicsAprReduction\(state\) > 0/g) ?? []).length;
+  /**
+   * DISCOVERED, not enumerated.
+   *
+   * The first version of this test hardcoded the two files the fix had touched,
+   * so it passed while `VehicleActions.ts` and `EducationActions.ts` — both of
+   * which call `politicsAprReduction` and neither of which floored the result —
+   * financed at the 2.5% hard minimum against a 5.5% CD. A completeness check
+   * that lists its own subjects proves nothing about completeness.
+   */
+  const importers = (): string[] => {
+    const dir = path.join(__dirname, '..', '..', 'contexts', 'game', 'actions');
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => path.join('contexts/game/actions', f))
+      .filter((rel) => /\bpoliticsAprReduction\b/.test(read(rel)))
+      // LoanActions DEFINES it; it is covered by the two tests below.
+      .filter((rel) => !rel.endsWith('LoanActions.ts'));
+  };
 
-      expect(reductions).toBeGreaterThan(0);
-      expect(floors).toBe(reductions);
+  it('finds the call sites by search rather than by list', () => {
+    // Guards the guard: a rename that broke the scan would silently empty it.
+    expect(importers().length).toBeGreaterThan(0);
+  });
+
+  it('every consumer of politicsAprReduction floors the rate it produces', () => {
+    for (const rel of importers()) {
+      // Strip the import line: it names the constant without applying it, and
+      // counting it would make this pass on a file that only imports.
+      const body = read(rel).replace(/^import[\s\S]*?from\s+'[^']*';$/gm, '');
+
+      expect(`${rel}: ${/POLITICS_LOAN_APR_FLOOR/.test(body)}`).toBe(`${rel}: true`);
     }
+  });
+
+  it('LoanActions itself floors both of its quote sites', () => {
+    const source = read('contexts/game/actions/LoanActions.ts');
+    const reductions = (source.match(/aprReduction: politicsAprReduction\(state\)/g) ?? []).length;
+    const floors = (source.match(/aprFloor: politicsAprReduction\(state\) > 0/g) ?? []).length;
+
+    expect(reductions).toBeGreaterThan(0);
+    expect(floors).toBe(reductions);
   });
 
   it('refinance applies the floor too — it recomputes APR without quoteLoan', () => {
     const source = read('contexts/game/actions/LoanActions.ts');
     expect(source).toMatch(/const floor = politicsReduction > 0 \? POLITICS_LOAN_APR_FLOOR : 0\.025;/);
     expect(source).toMatch(/newAPR = Math\.max\(\s*floor,/);
+  });
+});
+
+/**
+ * R4 completion of R3-M2 — the two call sites the original fix missed.
+ *
+ * `VehicleActions.quoteVehiclePurchase` and `EducationActions.enrollInProgram`
+ * both read `politicsAprReduction` and neither floored it, so a high-office
+ * player financed a car and a degree at the 2.5% hard minimum. A student loan
+ * does not hand the player cash, but it frees the cash that would have paid
+ * tuition — so it is the same 5.5%-CD carry, just one step removed.
+ *
+ * These assert the RATE, not the source text: the file-scan above is a
+ * completeness net, this is the thing it is a net for. 2026-07-31 audit round 4.
+ */
+import { quoteVehiclePurchase } from '@/contexts/game/actions/VehicleActions';
+import { enrollInProgram } from '@/contexts/game/actions/EducationActions';
+
+describe('R4 — the floor reaches the vehicle and education quote sites', () => {
+  /** `atOffice` leaves the starting cash, which is under the down payment. */
+  const funded = (level: number): GameState => {
+    const s = atOffice(level);
+    return createTestGameState({ ...s, stats: { ...s.stats, money: 100_000 } });
+  };
+
+  it('an auto loan for a top-office politician stays above the deposit cap', () => {
+    const quote = quoteVehiclePurchase(funded(6), 'economy_sedan', 'standard', '5y', 2_000);
+
+    if (quote.rejected) throw new Error(`auto quote rejected: ${quote.reason}`);
+    expect(quote.offeredAPR).toBeGreaterThanOrEqual(POLITICS_LOAN_APR_FLOOR);
+    expect(quote.offeredAPR).toBeGreaterThan(SAVINGS_APR_HARD_CAP);
+  });
+
+  it('a private citizen still gets the ordinary rate (not the floor for everyone)', () => {
+    // The control: flooring unconditionally would "fix" this by deleting the
+    // discount from the base game.
+    const civilian = quoteVehiclePurchase(funded(0), 'economy_sedan', 'standard', '5y', 2_000);
+    const politician = quoteVehiclePurchase(funded(6), 'economy_sedan', 'standard', '5y', 2_000);
+
+    if (civilian.rejected) throw new Error(`civilian quote rejected: ${civilian.reason}`);
+    if (politician.rejected) throw new Error(`politician quote rejected: ${politician.reason}`);
+    expect(politician.offeredAPR!).toBeLessThanOrEqual(civilian.offeredAPR!);
+  });
+
+  it('a student loan for a top-office politician stays above the deposit cap', () => {
+    let state = atOffice(6);
+    (state as unknown as { loans: unknown[] }).loans = [];
+
+    enrollInProgram(
+      (updater) => {
+        state = typeof updater === 'function' ? updater(state) : updater;
+      },
+      {
+        templateId: 'law_school',
+        name: 'Law School',
+        description: 'Law School',
+        cost: 100_000,
+        duration: 156,
+        mode: 'loan',
+      },
+    );
+
+    const loan = (state.loans ?? []).find((l) => l.name.startsWith('Student Loan'));
+    if (!loan) throw new Error('enrollInProgram created no student loan — nothing to assert on');
+    expect(loan.rateAPR).toBeGreaterThanOrEqual(POLITICS_LOAN_APR_FLOOR);
+    expect(loan.rateAPR).toBeGreaterThan(SAVINGS_APR_HARD_CAP);
   });
 });

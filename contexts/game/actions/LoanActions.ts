@@ -101,6 +101,31 @@ export function privateBankingAprCap(state: GameState): number | undefined {
 }
 
 /**
+ * Stamp `progress.hasBeenInDebt` when an updater originates a loan.
+ *
+ * R4 completion of GL-5. `acceptLoan` set the flag inline and was described as
+ * "the ONLY writer" — which was the problem, not the fix. Three other modules
+ * originate loans and none of them stamped it:
+ *
+ *   - `EducationActions.enrollInProgram` (student loan)
+ *   - `VehicleActions.purchaseVehicleWithAutoLoan` (auto loan)
+ *   - `RealEstateActions.purchaseProperty` (mortgage)
+ *
+ * So a player who financed a car or a house, paid it off and never once used
+ * the generic Loans screen had `hasBeenInDebt === false` forever. That is the
+ * gate on the "Debt Free" achievement, and on the R3-P11 "Clean Slate" prestige
+ * bonus (2,000 pts) — both of which describe exactly what that player did.
+ *
+ * Spread into the updater's return object: `...debtProgress(prev, borrowed)`.
+ * Returns the previous `progress` untouched when nothing was borrowed, so a
+ * cash purchase is a no-op.
+ */
+export function debtProgress(prev: GameState, borrowed: boolean): Pick<GameState, 'progress'> {
+  if (!borrowed) return { progress: prev.progress };
+  return { progress: { ...(prev.progress ?? {}), hasBeenInDebt: true } };
+}
+
+/**
  * Synchronous quote for the UI (read-only, doesn't mutate state).
  * Mirrors lib/banking/operations.quoteLoan but flattens the result for component use.
  */
@@ -241,12 +266,12 @@ export const acceptLoan = (
       ...state,
       loans: [...(state.loans ?? []), newLoan],
       banking,
-      // GL-5: the ONLY writer of `progress.hasBeenInDebt`. It was initialised
-      // to `false` in initialState and set nowhere else in the repo, so the
-      // "Debt Free" achievement — which requires having been in debt, then
-      // clearing it — could never be met no matter how a player borrowed and
-      // repaid. It sat permanently at 0%. Taking on a loan IS entering debt.
-      progress: { ...(state.progress ?? {}), hasBeenInDebt: true },
+      // GL-5: `progress.hasBeenInDebt` was initialised to `false` in
+      // initialState and set nowhere in the repo, so the "Debt Free"
+      // achievement — which requires having been in debt, then clearing it —
+      // could never be met no matter how a player borrowed and repaid. It sat
+      // permanently at 0%. Taking on a loan IS entering debt.
+      ...debtProgress(state, true),
       ...credit,
     };
   });

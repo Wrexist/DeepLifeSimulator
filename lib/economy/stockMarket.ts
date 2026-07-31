@@ -174,7 +174,11 @@ export function simulateWeek(policyEffects?: {
 
   // Apply policy effects
   const volatilityModifier = policyEffects?.volatilityModifier ?? 1;
-  const dividendBonus = policyEffects?.dividendBonus ?? 0;
+  // `policyEffects.dividendBonus` is deliberately NOT read here — see the R3-M1
+  // note at the end of the loop. It stays on the parameter type because callers
+  // pass the whole aggregated effects object, but it is applied at read time in
+  // the week loop (`policyAdjustedYield`) so it cannot compound into the
+  // persisted per-stock yield.
   const companyBoost = policyEffects?.companyBoost ?? [];
 
   // Use weeksLived for deterministic seeding; fall back to Math.random() only if not provided

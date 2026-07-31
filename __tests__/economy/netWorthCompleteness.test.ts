@@ -192,3 +192,138 @@ describe('the memo cache sees the new asset classes', () => {
     expect(netWorth(after)).toBe(money + 1_000);
   });
 });
+
+/**
+ * R4 correction to R3-M4 — the two things the R3 fix got wrong.
+ *
+ * 1. **Mirror double-count.** `banking.accounts` always contains
+ *    `checking-default` and `savings-default`, which the weekly tick's
+ *    `mirrorAccountsFromLegacy` overwrites with `stats.money` and `bankSavings`
+ *    on step 1 of every week. R3-M4 added a raw sum of ALL account balances on
+ *    top of `money + bankSavings`, so both legacy pools were counted twice —
+ *    roughly DOUBLING reported net worth for any cash-holding player. That
+ *    figure gates prestige availability and the prestige points award, the
+ *    $10M achievement, ambition goals, life chapters, the leaderboard, the
+ *    >$10M passive-income soft cap, bail cost and ad-reward scaling.
+ *
+ *    The repo already shipped the guard: `nonMirrorDeposits`, whose doc comment
+ *    says verbatim that anything also counting the legacy fields must exclude
+ *    the mirrors. The suite above missed it because its fixtures used ids like
+ *    `chk`/`hysa` and left both mirrors at 0 — the fixtures avoided the inputs
+ *    that break.
+ *
+ * 2. **Credit-card debt.** R3-M4's own finding text said `netWorth` "ignores
+ *    credit-card debt", and it shipped without the term. R3-M8 then made card
+ *    balances compound weekly with no minimum payment, so an unpaid card grows
+ *    without bound while staying invisible on the balance sheet.
+ *
+ * The identical mirror bug was in `prestigeExecution`'s scenario projection,
+ * where the evaluator computes `stats.money + bankSavings + …` — covered by
+ * `prestigeScenarioNetWorth.test.ts`. 2026-07-31 audit round 4.
+ */
+import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import type { BankAccount } from '@/contexts/game/types';
+
+/**
+ * A save as the weekly tick leaves it: both mirror accounts present and
+ * reflecting the legacy `stats.money` / `bankSavings` fields exactly, which is
+ * the state the double-count needed and the fixtures above never built.
+ */
+function mirroredState(spec: {
+  money: number;
+  savings: number;
+  extra?: Partial<BankAccount>[];
+}): GameState {
+  const base = createTestGameState();
+  return createTestGameState({
+    stats: { ...base.stats, money: spec.money },
+    bankSavings: spec.savings,
+    banking: {
+      ...base.banking!,
+      accounts: [
+        { id: 'checking-default', type: 'checking', name: 'Checking', balance: spec.money, baseAPR: 0 },
+        { id: 'savings-default', type: 'savings', name: 'Savings', balance: spec.savings, baseAPR: 0 },
+        ...(spec.extra ?? []),
+      ] as BankAccount[],
+    },
+  });
+}
+
+describe('R4 — the mirror accounts are not counted twice', () => {
+  it('a real save really does ship both mirror accounts (the premise)', () => {
+    // If the mirrors were ever removed, the double-count could not happen and
+    // this whole block would be testing nothing.
+    const ids = (createTestGameState().banking?.accounts ?? []).map((a) => a.id);
+
+    for (const mirrored of MIRRORED_ACCOUNT_IDS) expect(ids).toContain(mirrored);
+  });
+
+  it('cash mirrored into checking-default is counted once', () => {
+    const money = 250_000;
+    const mirrored = mirroredState({ money, savings: 0 });
+
+    expect(netWorth(mirrored)).toBe(money);
+  });
+
+  it('bankSavings mirrored into savings-default is counted once', () => {
+    const savings = 90_000;
+    const mirrored = mirroredState({ money: 1, savings });
+
+    expect(netWorth(mirrored)).toBe(1 + savings);
+  });
+
+  it('a self-opened account alongside the mirrors still counts in full', () => {
+    // The control: excluding the mirrors must not throw away real deposits.
+    const money = 10_000;
+    const state = mirroredState({
+      money,
+      savings: 0,
+      extra: [{ id: 'hysa', type: 'savings', name: 'HYSA', balance: 400_000, baseAPR: 0.045 }],
+    });
+
+    expect(netWorth(state)).toBe(money + 400_000);
+  });
+});
+
+/** A save whose only wealth is cash, carrying the given cards. */
+function cardState(money: number, creditCards: unknown[]): GameState {
+  const base = createTestGameState();
+  return createTestGameState({
+    stats: { ...base.stats, money },
+    bankSavings: 0,
+    banking: { ...base.banking!, accounts: [], creditCards: creditCards as never },
+  });
+}
+
+describe('R4 — credit-card debt is on the balance sheet', () => {
+  it('subtracts an outstanding card balance', () => {
+    const state = cardState(20_000, [{ id: 'c1', name: 'Card', balance: 5_000, limit: 10_000, apr: 0.24 }]);
+
+    expect(netWorth(state)).toBe(15_000);
+  });
+
+  it('a card carrying no balance changes nothing', () => {
+    const state = cardState(20_001, [{ id: 'c1', name: 'Card', balance: 0, limit: 10_000, apr: 0.24 }]);
+
+    expect(netWorth(state)).toBe(20_001);
+  });
+
+  it('does not throw on a partial save whose banking slice has no creditCards', () => {
+    // `totalCreditCardDebt` dereferences `.creditCards` directly, and netWorth
+    // is called from the leaderboard and the HUD — a throw here is a blank
+    // screen, not a wrong number.
+    const partial = createTestGameState({
+      stats: { ...createTestGameState().stats, money: 20_002 },
+      bankSavings: 0,
+      banking: { accounts: [] } as never,
+    });
+
+    expect(netWorth(partial)).toBe(20_002);
+  });
+
+  it('a corrupt card balance does not produce NaN', () => {
+    const corrupt = cardState(20_003, [{ id: 'a', balance: NaN }, { id: 'b', balance: Infinity }, { id: 'c' }]);
+
+    expect(netWorth(corrupt)).toBe(20_003);
+  });
+});
