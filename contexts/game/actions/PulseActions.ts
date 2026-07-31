@@ -707,6 +707,30 @@ export const deliverBrandDealPost = (
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     let completionPayout = 0;
+
+    // ONE POST COUNTS ONCE. The counter was incremented unconditionally, with
+    // the "already used" check living only in the caller's render closure —
+    // `BrandDealsScreen.handleDeliver` picks `recent.find(p =>
+    // !p.sponsoredByDealId)` from a stale snapshot, so two taps in one batch
+    // both chose the SAME post and the reducer counted two deliveries. Once
+    // `postsDelivered >= postsRequired` the deal completes early and pays every
+    // remaining installment at once, so a multi-post multi-week contract
+    // collapsed into one post and one week — not over-payment, but a large rate
+    // exploit that also churned the offer inbox far faster than designed.
+    //
+    // Every other Pulse action carries an explicit same-batch guard; this was
+    // the one that did not. 2026-07-30 audit ECON-4.
+    const alreadySponsored = (sm.recentPosts ?? []).find((p) => p.id === postId)?.sponsoredByDealId;
+    if (alreadySponsored) {
+      result = {
+        success: false,
+        message: alreadySponsored === dealId
+          ? 'That post has already been delivered for this deal.'
+          : 'That post is already sponsored by another deal.',
+      };
+      return prev;
+    }
+
     const deals = (sm.activeBrandDeals ?? []).map((d) => {
       if (d.id !== dealId) return d;
       const delivered = (d.postsDelivered ?? 0) + 1;

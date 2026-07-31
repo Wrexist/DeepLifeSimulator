@@ -137,8 +137,37 @@ export const startResearch = (
   const projectId = `research_${technologyId}_${Date.now()}`;
   const researchTime = Math.ceil(technology.researchTime / (labInfo.researchSpeedMultiplier * rdBonusMultiplier));
 
-  // Update state: deduct money AND update company in a single state update to avoid race conditions
+  // Update state: deduct money AND update company in a single state update.
+  //
+  // ECON-2: every gate above reads the STALE outer `gameState` and the updater
+  // re-checked none of them, while `Math.max(0, money - cost)` floored the debit
+  // instead of rejecting it. Two taps in one React batch — two technology rows,
+  // or the same row twice — both passed, so a Basic lab with
+  // `maxConcurrentProjects: 1` ran N projects (defeating the whole lab-tier
+  // progression gate) and the second charge silently clamped to 0. With two
+  // projects for the SAME technology, `completeResearch` appends the id twice
+  // with no dedupe and rolls `triggerBreakthrough` once per completion — two
+  // chances at a PERMANENT 2x/3x company income multiplier for one purchase.
+  //
+  // Same fix `filePatent` and `enterCompetition` in this file already carry from
+  // the 2026-07-02 audit; `startResearch` was left behind. 2026-07-30 audit.
   setGameState(prev => {
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany?.rdLab) return prev;
+
+    // Re-check the concurrency cap against `prev`.
+    const prevActive = (prevCompany.rdLab.researchProjects || []).filter(p => !p.completed);
+    const prevLabInfo = LAB_TYPES[prevCompany.rdLab.type];
+    if (prevActive.length >= prevLabInfo.maxConcurrentProjects) return prev;
+
+    // ...and that this technology is not already being researched or done.
+    if (prevActive.some(p => p.technologyId === technologyId)) return prev;
+    if ((prevCompany.unlockedTechnologies || []).includes(technologyId)) return prev;
+
+    // Charge inside the updater, rejecting rather than flooring.
+    const spend = applyMoneyDelta(prev, -technology.researchCost, `Research: ${technology.name}`);
+    if (!spend) return prev;
+
     // Create project inside updater to use fresh weeksLived
     const newProject = {
       id: projectId,
@@ -149,13 +178,9 @@ export const startResearch = (
       progress: 0,
       completed: false,
     };
-    const newMoney = Math.max(0, prev.stats.money - technology.researchCost);
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: newMoney,
-      },
+      ...spend,
       companies: (prev.companies || []).map(c => {
         if (c.id !== companyId) return c;
         return {

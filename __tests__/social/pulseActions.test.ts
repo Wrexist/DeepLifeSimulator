@@ -296,7 +296,10 @@ describe('brand deals', () => {
     addOffer(state, { postsRequired: 2 });
     const { setGameState, getState } = makeStateHarness(state);
     acceptBrandDeal(setGameState, 'offer1');
-    // Add a fake post so deliver can sponsor-tag it
+    // TWO posts, because a 2-post contract needs two. This used to deliver the
+    // SAME post ('p1') twice and expect completion — the test encoded the
+    // exploit: one post satisfied a whole multi-post contract and triggered the
+    // early-completion payout. 2026-07-30 audit ECON-4.
     getState().socialMedia!.recentPosts = [
       {
         id: 'p1',
@@ -306,11 +309,21 @@ describe('brand deals', () => {
         timestamp: 0,
         contentType: 'text',
       } as any,
+      {
+        id: 'p2',
+        content: 'sponsored again',
+        likes: 0,
+        comments: 0,
+        timestamp: 0,
+        contentType: 'text',
+      } as any,
     ];
     let r = deliverBrandDealPost(setGameState, 'offer1', 'p1');
     expect(r.success).toBe(true);
     expect(r.message).toMatch(/1\/2/);
-    r = deliverBrandDealPost(setGameState, 'offer1', 'p1');
+    // Re-submitting the same post is refused, and does NOT advance the count.
+    expect(deliverBrandDealPost(setGameState, 'offer1', 'p1').success).toBe(false);
+    r = deliverBrandDealPost(setGameState, 'offer1', 'p2');
     expect(r.message).toMatch(/completed/i);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(0);
     expect(getState().socialMedia!.brandInbox!.history).toHaveLength(1);
