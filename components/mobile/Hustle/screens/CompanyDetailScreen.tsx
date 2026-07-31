@@ -305,7 +305,7 @@ export default function CompanyDetailScreen({
           }}
           accessibilityRole="alert"
           accessibilityLabel={`Active scandal: ${scandal.headline}, severity ${scandal.severity}, tap to respond`}
-          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderLeftColor: HUSTLE_COLORS.danger }]}
+          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderColor: HUSTLE_COLORS.danger }]}
         >
           <AlertTriangle size={fontScale(16)} color={HUSTLE_COLORS.danger} />
           <View style={styles.scandalText}>
@@ -1210,7 +1210,13 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderLeftWidth: 3,
+    // Full border, not a `borderLeftWidth: 3` accent stripe. Hard Rule #7 bans
+    // a one-sided coloured border used decoratively — the product owner
+    // rejected the look, and RN curls it into a crescent artifact against
+    // `borderRadius`. The danger colour is kept, on all four sides, so the
+    // meaning survives. 2026-07-30 audit UX-3.
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.md,
   },
   scandalText: { flex: 1 },
   scandalTitle: {

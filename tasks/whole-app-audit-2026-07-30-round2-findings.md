@@ -25,20 +25,20 @@ source at the stated anchor. Status column is maintained as work lands.
 | PERF-3 | med | OPEN | Pure-JS HMAC allocates 3 full copies of the save as boxed number[]; ~96MB at the 4MB ceiling | `utils/saveValidation.ts:146,177,269` |
 | PERF-4 | med | FIXED | Full JSON deep-clone inside the setGameState updater once per game-year; audit-perf cannot see it | `lib/timeMachine/checkpointSystem.ts:99` |
 | PERF-5 | med | OPEN | Two orphaned modules covered by tests named for screens that use different code | `utils/realEstateWeekly.ts` · `utils/bankMarketAPR.ts` |
-| UX-2 | med | OPEN | "Unlock All Perks" shows Owned/unbuyable for players without Mindset (omitted from the check) | `components/GemShopModal.tsx:632` |
+| UX-2 | med | FIXED | "Unlock All Perks" shows Owned/unbuyable for players without Mindset (omitted from the check) | `components/GemShopModal.tsx:632` |
 | SAVE-4 | low | OPEN | performSave/forceSave report success though `lastSlot`/`lastSaveTime` writes are unchecked | `utils/saveQueue.ts:272,438` |
 | SAVE-5 | low | OPEN | saveGame called in the same sync segment as setGameState persists the PRE-update snapshot | `components/LifeMomentModal.tsx:92,114` +4 |
 | ECON-5 | low | OPEN | buildRDLab clamps debit, rebuilds lab from a stale snapshot (data loss, not gain) | `contexts/game/actions/RDActions.ts:43-56` |
 | ECON-6 | low | OPEN | MoneyActionsContext buy/sell/swapCrypto are unguarded printers — DevTools-only reachability | `contexts/game/MoneyActionsContext.tsx:320-462` |
 | PERF-6 | low | OPEN | forceSave missing the pre-serialize yield that performSave has; runs on the IAP grant path | `utils/saveQueue.ts:371-376` |
 | PERF-7 | low | OPEN | Tab-tree root and AdRewardOrb take full-state subscriptions | `app/(tabs)/_layout.tsx:111` |
-| UX-3 | low | OPEN | Hard Rule #7: decorative red left accent stripe on the company scandal banner | `components/mobile/Hustle/screens/CompanyDetailScreen.tsx:308,1213` |
+| UX-3 | low | FIXED | Hard Rule #7: decorative red left accent stripe on the company scandal banner | `components/mobile/Hustle/screens/CompanyDetailScreen.tsx:308,1213` |
 
 ## Verification gates at time of writing
 
 | Gate | Result |
 |---|---|
-| `npx jest` | 4,525 passed, 1 skipped, 0 failed |
+| `npx jest` | 4,530 passed, 1 skipped, 0 failed |
 | `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
 | Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
 | `npx eslint --quiet` on changed files | 0 errors |

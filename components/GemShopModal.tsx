@@ -629,7 +629,15 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     },
   ];
 
-  const allPerksOwned = Boolean(perks?.workBoost && perks?.fastLearner && perks?.goodCredit);
+  // All FOUR perks the bundle grants — `mindset` was missing, though the
+  // Mindset row two entries below reads the very same field. A player who had
+  // bought Work Pay Boost, Fast Learner and Good Credit individually saw the
+  // $6.99 bundle labelled "Owned" with a greyed-out, untappable button, so the
+  // store claimed they owned all perks when they did not, and the cheapest
+  // route to Mindset could not be purchased. 2026-07-30 audit UX-2.
+  const allPerksOwned = Boolean(
+    perks?.workBoost && perks?.mindset && perks?.fastLearner && perks?.goodCredit,
+  );
   const perkItems = [
     {
       id: IAP_PRODUCTS.UNLOCK_ALL_PERKS,
