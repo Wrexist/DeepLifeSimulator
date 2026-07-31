@@ -67,6 +67,7 @@ import {
   addBill,
   removeBill,
   contributeToSavingsGoal,
+  withdrawFromSavingsGoal,
   createSavingsGoal,
   claimAdCashBonus,
   getAdCashBonusAmount,
@@ -139,6 +140,8 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
+  const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
 
@@ -657,6 +660,7 @@ function BankAppInner({ onBack }: BankAppProps) {
               goal={g}
               darkMode={darkMode}
               onContribute={() => setContributeGoalId(g.id)}
+              onWithdraw={() => setWithdrawGoalId(g.id)}
             />
           ))
         )}
@@ -828,6 +832,24 @@ function BankAppInner({ onBack }: BankAppProps) {
             queueSave();
           }
           setContributeGoalId(null);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!withdrawGoalId}
+        title="Withdraw from goal"
+        subtitle={`Saved: ${formatMoney(banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0)}`}
+        confirmLabel="Withdraw"
+        maxAmount={banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0}
+        presets={[50, 200, 500]}
+        darkMode={darkMode}
+        onClose={() => setWithdrawGoalId(null)}
+        onConfirm={(amt) => {
+          if (withdrawGoalId) {
+            withdrawFromSavingsGoal(setGameState, withdrawGoalId, amt);
+            queueSave();
+          }
+          setWithdrawGoalId(null);
         }}
       />
 

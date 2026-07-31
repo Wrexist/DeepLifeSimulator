@@ -223,6 +223,19 @@ export const netWorth = (state: GameState): number => {
     return isFinite(balance) ? sum + balance : sum;
   }, 0);
 
+  /**
+   * R3-M5: money parked in a savings goal is still the player's. It was
+   * invisible here AND had no withdraw path, so contributing destroyed it
+   * twice over — gone from the balance sheet and gone from the game. The
+   * withdraw path now exists (`withdrawFromGoal`); this makes it count.
+   */
+  const savingsGoalsValue = (state.banking?.savingsGoals ?? []).reduce((sum, goal) => {
+    const amount = Number(goal?.currentAmount);
+    return isFinite(amount) && amount > 0 ? sum + amount : sum;
+  }, 0);
+
+  const safeSavingsGoalsValue = isFinite(savingsGoalsValue) ? savingsGoalsValue : 0;
+
   const safeCryptoValue = isFinite(cryptoValue) ? cryptoValue : 0;
   const safeBankAccountsValue = isFinite(bankAccountsValue) ? bankAccountsValue : 0;
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
@@ -231,7 +244,7 @@ export const netWorth = (state: GameState): number => {
   const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
-  const total = safeMoney + safeBank + safeBankAccountsValue + safeCryptoValue + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
+  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values

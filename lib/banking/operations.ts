@@ -935,3 +935,88 @@ export function recomputeCreditScore(
     },
   };
 }
+
+/**
+ * Take money back out of a savings goal.
+ *
+ * The counterpart `contributeToGoal` never had. Contributing debits real money
+ * — from the goal's linked account, or from `stats.money` via `cashDebit` — into
+ * `goal.currentAmount`, and there was no withdraw path, no delete-goal path, and
+ * no refund on completion beyond the bounded reward. Every reader of
+ * `currentAmount` outside the writers was display code, and `netWorth` did not
+ * count it either, so the "Contribute" button (whose modal presets `maxAmount`
+ * to the player's entire cash balance) permanently destroyed whatever it moved.
+ * Funding a $25,000 goal to completion cost $25,000 and returned $250.
+ * The weekly `autoContribute` sweep did the same silently, every week.
+ * 2026-07-31 audit round 3, R3-M5.
+ *
+ * Returns money the same way it was taken: to the linked account when there is
+ * one (assets conserved here), otherwise as `cashCredit` for the action layer
+ * to credit through the money helper.
+ *
+ * A COMPLETED goal can still be withdrawn from — the money is the player's, and
+ * refusing would recreate the trap in a narrower form — but doing so clears
+ * `completedWeek`, so the bounded completion reward cannot be farmed by
+ * withdrawing and re-contributing.
+ */
+export function withdrawFromGoal(
+  banking: BankingState,
+  goalId: string,
+  amount: number
+): {
+  banking: BankingState;
+  ok: boolean;
+  reason?: string;
+  /** Amount actually taken out of the goal. */
+  withdrawn: number;
+  /** Portion returned as cash, for the action to credit. */
+  cashCredit: number;
+} {
+  const reject = (reason: string) => ({
+    banking, ok: false, reason, withdrawn: 0, cashCredit: 0,
+  });
+
+  const idx = banking.savingsGoals.findIndex((g) => g.id === goalId);
+  if (idx === -1) return reject('Goal not found');
+
+  const requested = Math.max(0, safe(amount));
+  if (requested === 0) return reject('Amount must be positive');
+
+  const goal = banking.savingsGoals[idx];
+  const current = Math.max(0, safe(goal.currentAmount));
+  if (current <= 0) return reject('Goal has no funds to withdraw');
+
+  const withdrawn = Math.min(requested, current);
+  const accounts = [...banking.accounts];
+  let cashCredit = 0;
+
+  // Return it where it came from. Mirrored accounts are read-only cash mirrors;
+  // crediting one would print money, so those fall through to cash.
+  const linkedIdx = goal.linkedAccountId
+    ? accounts.findIndex((a) => a.id === goal.linkedAccountId && !MIRRORED_ACCOUNT_IDS.has(a.id))
+    : -1;
+  if (linkedIdx !== -1) {
+    const balance = Math.max(0, safe(accounts[linkedIdx].balance));
+    accounts[linkedIdx] = { ...accounts[linkedIdx], balance: balance + withdrawn };
+  } else {
+    cashCredit = withdrawn;
+  }
+
+  const nextGoals = [...banking.savingsGoals];
+  nextGoals[idx] = {
+    ...goal,
+    currentAmount: current - withdrawn,
+    // Dropping below the target un-completes the goal, so the once-only
+    // completion reward cannot be re-earned by cycling funds through it.
+    completedWeek: current - withdrawn >= safe(goal.targetAmount) && safe(goal.targetAmount) > 0
+      ? goal.completedWeek
+      : undefined,
+  };
+
+  return {
+    banking: { ...banking, accounts, savingsGoals: nextGoals },
+    ok: true,
+    withdrawn,
+    cashCredit,
+  };
+}

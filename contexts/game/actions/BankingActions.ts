@@ -25,6 +25,7 @@ import {
   removeBillPayRule,
   addSavingsGoal,
   contributeToGoal,
+  withdrawFromGoal,
   trackBudgetSpend,
   setBudgetTarget as setBudgetTargetOp,
   findCheckingAccount,
@@ -444,6 +445,41 @@ export const contributeToSavingsGoal = (
     if (result.happinessDelta > 0) {
       const h = typeof working.stats.happiness === 'number' && isFinite(working.stats.happiness) ? working.stats.happiness : 0;
       working = { ...working, stats: { ...working.stats, happiness: Math.max(0, Math.min(100, h + result.happinessDelta)) } };
+    }
+    return working;
+  });
+};
+
+/**
+ * Take money back out of a savings goal.
+ *
+ * The action half of R3-M5. Without this, "Contribute" was a one-way door: the
+ * cash left `stats.money`, landed in `goal.currentAmount`, and nothing could
+ * ever get it back.
+ */
+export const withdrawFromSavingsGoal = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  goalId: string,
+  amount: number
+) => {
+  setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
+    const state = ensureBanking(prev);
+    if (!state.banking) return prev;
+
+    const result = withdrawFromGoal(state.banking, goalId, amount);
+    if (!result.ok) {
+      log.warn(`Goal withdrawal failed: ${result.reason}`);
+      return prev;
+    }
+
+    let working: GameState = { ...state, banking: result.banking };
+    if (result.cashCredit > 0) {
+      const credit = applyMoneyDelta(working, result.cashCredit, 'Savings goal withdrawal');
+      // Roll back rather than move the money out of the goal and lose it — the
+      // exact failure this whole fix exists to prevent.
+      if (!credit) return prev;
+      working = { ...working, ...credit };
     }
     return working;
   });
