@@ -162,3 +162,52 @@ games:
 Option 3 is the one I would recommend: it closes two findings at once and needs
 no new UI. But which gear a generated listing maps to is a content decision, so
 it is left for the owner.
+
+
+## Final status — 34 of 37 fixed
+
+Everything mechanical is closed. What remains needs a decision, not a fix.
+
+### Product decisions (3)
+
+**R3-C1's original framing is CLOSED** — a successful `gear`/`hackingTools`
+purchase now grants the next unowned `darkWebItems` entry, so the street-job
+ladder is progressable and market purchases deliver something (that also closed
+R3-C10). What is left of it is a content question: which specific listing should
+map to which specific gear, rather than catalogue order.
+
+**R3-P5 "Property Manager" (5,000 pts)** sells automatic rent collection. Rent is
+already credited unconditionally every week, so the bonus sells nothing. It
+cannot be "wired" — there is no gate to lift.
+
+**R3-P6 `early_item_access` (4,000) and `early_real_estate` (6,000)** resolve to
+comment-only `if` bodies. There is no age gate on RealEstateApp and no unlock
+gate on the item catalogue, so there is nothing for them to bypass either.
+
+For all three the options are: remove them from the shop (which needs a refund
+decision for anyone who has already bought them), or invent a restriction for
+them to lift — making the base game worse to justify a purchase. I did not
+choose on the owner's behalf.
+
+### Copy changes for the owner (2)
+
+- **"Eventful Life"** is now live, but its description says "+25% positive event
+  frequency" and events carry no positive/negative tag anywhere in
+  `lib/events/engine.ts`. The implemented effect is overall event frequency,
+  which is what the bonus is named for. The description should drop "positive".
+- **The dark-web economy banner** no longer claims heat-decay, raid-risk and
+  traffic effects, because the tick receives no economy state at all. Wiring
+  `lib/darkweb/**` to `economyState` — the way banking and crypto already are —
+  is a design change worth considering separately.
+
+### Still open by choice
+
+**ARCH-1** (action results read out of `setGameState` updaters) remains open as
+recorded in the round 2 file. Two of its instances were fixed where they caused
+a concrete loss — R3-C11's dropped criminal XP, and the R3-F1/F2 double-charges —
+but the general contract change across the remaining sites is a cross-cutting
+refactor that should be taken deliberately.
+
+**PERF-3** (pure-JS HMAC allocation) and the **PERF-7 remainder** (the tab-tree
+root's full-state subscription) stay open with the reasoning in the round 2 file.
+Both need device measurement rather than more static analysis.
