@@ -11,6 +11,7 @@ import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalSc
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
+import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
 
 function HealthScreen() {
@@ -88,10 +89,21 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // P1-6: every other tab guards stats with optional chaining; health was the
   // outlier and would throw if `stats` is briefly undefined on degraded state.
   const canAfford = (price: number) => (gameState.stats?.money ?? 0) >= price;
+
+  /**
+   * GL-3: what this activity actually costs, after enacted healthcare policy.
+   *
+   * The same function `performHealthActivity` charges with. Quoting the list
+   * price here while the action debits the discounted one would show a locked
+   * "Need $2,000" on a hospital stay the player can afford.
+   */
+  const priceOf = (activity: HealthActivity) =>
+    policyAdjustedActivityPrice(gameState, activity.id, activity.price);
+
   const canPerformActivity = (activity: HealthActivity) => {
     const energyCost = activity.energyCost || 0;
     const hasEnoughEnergy = energyCost <= 0 || (gameState.stats?.energy ?? 0) >= energyCost;
-    const hasEnoughMoney = (gameState.stats?.money ?? 0) >= activity.price;
+    const hasEnoughMoney = (gameState.stats?.money ?? 0) >= priceOf(activity);
     return hasEnoughMoney && hasEnoughEnergy;
   };
 
@@ -219,9 +231,10 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             .filter(activity => activity.id !== 'vacation')
             .map(activity => {
               const deltas = buildActivityDeltas(activity);
+              const activityPrice = priceOf(activity);
               const locked = !canPerformActivity(activity);
-              const lockReason = !canAfford(activity.price)
-                ? `Need $${activity.price}`
+              const lockReason = !canAfford(activityPrice)
+                ? `Need $${activityPrice}`
                 : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
                   ? `Need ${activity.energyCost} energy`
                   : undefined;
@@ -243,7 +256,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                   accent="vitality"
                   title={activity.name}
                   description={description}
-                  priceLabel={activity.price > 0 ? `$${activity.price}` : 'Free'}
+                  priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
                   deltas={deltas}
                   buttonText={locked ? 'Locked' : t('health.do')}
                   onPress={() => handleHealthActivityPress(activity)}

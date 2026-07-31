@@ -56,6 +56,7 @@ import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
 import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
+import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 
 /**
  * Energy the Auto-Rest prestige bonus tops a depleted week up to.
@@ -585,6 +586,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // since max is already 100): reframe as halving the natural happiness decay.
  const happinessDecayMul = prevState.goldUpgrades?.happiness_boost ? 0.5: 1.0;
  newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6);
+
+ // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
+ // rendered "Health / week +N" for it; nothing ever added the health. Applied
+ // after decay so it reads as the offset the shop copy describes, and left
+ // uncapped here because `newStats.health` is clamped to 0-100 at line ~1483
+ // with every other stat.
+ const healthcarePolicy = healthcarePolicyPerks(prevState);
+ if (healthcarePolicy.weeklyHealthBonus > 0) {
+ newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
+ }
  newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
 
  // Fitness decay: increases the longer you don't visit the gym

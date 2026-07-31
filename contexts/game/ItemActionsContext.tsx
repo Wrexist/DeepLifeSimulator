@@ -11,6 +11,7 @@ import { clampStatByKey } from '@/utils/statUtils';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
 import { haptic } from '@/utils/haptics';
+import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 
 interface ItemActionsContextType {
   // Items & Purchases
@@ -298,8 +299,15 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         }
       }
 
+      // GL-3: medical activities are discounted by enacted healthcare policy.
+      // Computed from `prevState`, the same snapshot the affordability check
+      // and the debit below both read, so the two can never disagree — and
+      // `policyAdjustedActivityPrice` is the same function `health.tsx` uses
+      // for its lock label, so the screen quotes what is actually charged.
+      const chargedPrice = policyAdjustedActivityPrice(prevState, activityId, activity.price);
+
       // Check costs with latest state
-      if (prevState.stats.money < activity.price) {
+      if (prevState.stats.money < chargedPrice) {
         processingActivities.current.delete(activityId);
         result = { message: 'Insufficient funds for this activity' };
         return prevState;
@@ -320,7 +328,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       const currentMoney = typeof prevState.stats.money === 'number' && !isNaN(prevState.stats.money)
         ? prevState.stats.money
         : 0;
-      const newMoney = Math.max(0, currentMoney - activity.price);
+      const newMoney = Math.max(0, currentMoney - chargedPrice);
       updatedStats.money = newMoney;
       const moneyChange = newMoney - prevState.stats.money;
 
