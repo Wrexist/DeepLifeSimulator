@@ -1,7 +1,7 @@
 # Whole-app audit — Round 3 (2026-07-31)
 
 Five parallel domain passes: dark web/crime, dating/family, markets & money,
-startup/onboarding/saves, progression/careers. **37 findings reported, 9 fixed
+startup/onboarding/saves, progression/careers. **37 findings reported, 15 fixed
 so far.** Every finding below carries a file:line anchor from the pass that
 raised it; anchors are as-reported and should be re-read before acting, per
 CLAUDE.md §8.
@@ -22,6 +22,12 @@ you trust, including your own work" rule stays in force.
 | R3-M3 | high | FIXED — annual political salary read as weekly at four duplicated call sites, inflating DTI borrowing capacity 52x. One shared `weeklyCareerSalary` |
 | R3-M4 | high | FIXED — `netWorth()` omitted all crypto and all `banking.accounts`; converting cash to BTC dropped reported net worth by the full amount |
 | R3-M5 | high | FIXED — savings-goal money was destroyed. Added `withdrawFromGoal` + action + UI on both bank screens, and counted goal balances in net worth |
+| R3-P1 | high | FIXED — "Immortality" (50,000 pts) read only `goldUpgrades`; the death roll now also consults `prestige.unlockedBonuses` |
+| R3-P2 | high | FIXED — "+25 pts per maxed career" compared a 0-indexed level against `levels.length`, so it was unreachable. Also closed the free-maxed case for a career with no `levels` |
+| R3-P3 | high | FIXED — "Social Master" + "Reputation Builder" (23,500 pts) now stack into `applyRelationshipGain`, the single funnel for positive relationship changes |
+| R3-F1 | high | FIXED — `fileDivorce` re-checks spouse and cooldown against `prev`; a double-tap no longer charges the settlement twice |
+| R3-F2 | high | FIXED — `planWedding` re-checks THIS partner (the bigamy guard deliberately excluded them), so the deposit is charged once |
+| R3-C3 | high | FIXED — a flagged dark-web vendor now rebuilds reputation while sitting out and returns above a threshold, instead of the market dying permanently |
 | R3-S1 | high | FIXED — the previous life autosaved into `currentSlot` while the player was in the onboarding stack, resurrecting a deleted save and silently reverting backup restores. Ambient `saveGame` is now suspended on every exit from gameplay and resumed on every entry; explicit `forceSave` is deliberately not gated |
 
 ## Money — as originally reported (M1-M5 now FIXED, see above)
