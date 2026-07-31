@@ -141,3 +141,48 @@ touching signatures. Needs a decision before it goes in.
 The atomicity tests (`gateThenGrantAtomicity`, `doubleTapAtomicity`) drive a
 synchronous fake setter, so they prove the STATE decision and not the returned
 result. That is worth stating in them explicitly whichever way this is resolved.
+
+## Status after the 2026-07-31 pass
+
+| ID | Sev | Status | Note |
+|---|---|---|---|
+| PERF-5 | med | FIXED | 4 modules deleted (2 found by hand, 2 by the detector fix). Root cause fixed in `audit-perf.cjs`: `__tests__` was in the reference corpus, so a test-only importer read as "referenced". Now a separate, higher-graded check |
+| PERF-6 | low | FIXED | `forceSave` pre-serialize yield |
+| PERF-7 | med | PARTIAL | `AdRewardOrb` migrated off `useGame()`; `useGameStateGetter` added. Tab-tree root still OPEN, see below |
+| GL-3 | med | FIXED | Healthcare policy effects wired — both the weekly health bonus and the medical cost discount |
+| GL-4 | med | FIXED | Political Dynasty + Family Focused winnable; relationship conditions narrowed correctly |
+| ARCH-1 | high | OPEN | Action results read out of `setGameState` updaters — see above |
+
+### PERF-7 remainder — `app/(tabs)/_layout.tsx` (OPEN, medium)
+
+The tab-tree root takes a full-state subscription via `useGame()`. Every screen
+under `(tabs)` is a child, so this re-renders the whole tab tree on every
+mutation.
+
+Not fixed here, deliberately. It reads NINE distinct slices — `jailWeeks`,
+`items`, `settings.weeklySummaryEnabled`, `weeksLived`, `weekResult`,
+`showDeathPopup`, `showWeddingPopup`, `lifeMoments.pendingMoment`,
+`pendingEvents.length` — and hands the whole object to `WeeklyResultSheet`.
+Two things follow:
+
+- The payoff is smaller than it looks. Most of those slices change on the weekly
+  tick, which is when most state changes anyway. The real win is that mid-week
+  actions (money, stats) would stop re-rendering the tree — worth having, but
+  not the order-of-magnitude the `AdRewardOrb` fix was.
+- The risk is higher than it looks. It is a routing root; CLAUDE.md §10 lists
+  `app/` as a high-risk area needing `__tests__/startup`, and `app/_layout.tsx`
+  as needing TestFlight verification. This repo has shipped two launch crashes
+  from module/render changes in exactly this layer.
+
+The shape of the fix, when someone takes it with a device to hand: give
+`WeeklyResultSheet` its own `useGame()` (it is lazy and only mounts once a week,
+so its subscription costs nothing while hidden), then replace the root's
+`useGame()` with one `useGameSelector` returning a shallow-compared object of
+the nine primitives.
+
+### PERF-3 — pure-JS HMAC allocation (OPEN, low)
+
+Unchanged from the earlier entry: the pure-JS HMAC allocates three full boxed
+number copies of the save, ~96MB transient at the 4MB ceiling. Still flagged as
+not worth attempting without device measurement — the risk of breaking save
+signing exceeds the value of an unverified optimisation.
