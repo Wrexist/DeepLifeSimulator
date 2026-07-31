@@ -584,7 +584,14 @@ export const initialGameState: GameState = {
       energyCost: 20,
       cost: 500,
       successRate: 0.4,
-      requiresEducation: 'law_degree',
+      // R3-C4: was `law_degree`, an id that exists in no catalogue. Enrolled
+      // educations take `id: spec.templateId` and the law programme's template
+      // id is `law_school`, so this gate could never be satisfied — Legal
+      // Appeal (20 energy, $500, 40% early release) was unrunnable by anyone,
+      // and `JailScreen` does not pre-check `requiresEducation`, so tapping it
+      // always popped "This activity requires law_degree", leaking a raw
+      // internal id to the player.
+      requiresEducation: 'law_school',
     },
     {
       id: 'good_behavior',

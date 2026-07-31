@@ -53,10 +53,28 @@ function contextCopy(state: EconomyState, ctx: Props['context']): string {
       }
       break;
     case 'darkweb':
+      /**
+       * R3-C7: these used to promise three mechanics that do not exist.
+       *
+       * The copy told the player that a recession made heat decay faster, a
+       * crash raised police-event risk, and a boom lifted marketplace traffic.
+       * `DarkWebWeeklyTickInput` takes only `{ darkWeb, currentWeek,
+       * relationships, rollFor, inJail }` — no economy state — and the call site
+       * passes nothing economic; `grep economy lib/darkweb/` returns zero hits.
+       * `decayHeat` and `policeEventProbability` take only heat and opsec, and
+       * `refreshMarketplace` has a fixed per-vendor listing cap. So during a
+       * crash the player was told to expect higher raid risk and managed heat
+       * accordingly, while the curve was identical to normal.
+       *
+       * The sibling contexts ARE wired (banking via `rateEnvironment`, crypto
+       * via `marketModel`), so the honest fix here is to stop claiming an effect
+       * rather than to invent one. Wiring the dark web to `economyState` is a
+       * design change, recorded in the round 3 findings file.
+       */
       switch (state) {
-        case 'recession': return 'Police budgets pinched — heat decays a touch faster.';
-        case 'crash':     return 'Crackdowns rise with public anger. Higher police-event risk.';
-        case 'boom':      return 'Attention turned elsewhere. Marketplace traffic high.';
+        case 'recession': return 'Money is tight. The street trades on regardless.';
+        case 'crash':     return 'Public anger is up, but the market runs as ever.';
+        case 'boom':      return 'Everyone is flush. The street trades on regardless.';
         case 'normal':    return 'Status quo on the streets.';
       }
       break;

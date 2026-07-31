@@ -72,6 +72,15 @@ function getTransportTermsForJob(
 const log = logger.scope('JobActions');
 
 /**
+ * Crime talent-tree payoffs (R3-C2), from `TALENT_TREES[*].description`:
+ * "Each unlocked talent adds +5% success rate and +10% payment".
+ */
+const TALENT_SUCCESS_BONUS_PCT = 5;
+const TALENT_PAY_BONUS_PCT = 0.10;
+/** A fully-invested tree pays 1.5x, not unbounded. */
+const TALENT_PAY_MULTIPLIER_MAX = 1.5;
+
+/**
  * C5: criminal + crime-skill XP for a completed street job, computed as a PURE delta so it
  * can be folded into doStreetJob's atomic `setGameState` updater. These used to be separate
  * post-updater `gainCriminalXp`/`gainCrimeSkillXp` setState calls, so a same-batch double-tap
@@ -230,13 +239,36 @@ export const performStreetJob = (
   // Calculate success chance (karma affects crime success for experienced criminals)
   const baseSuccess = job.baseSuccessRate;
   const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
+
+  /**
+   * R3-C2: the 15 crime talent-tree nodes finally do something.
+   *
+   * `unlockCrimeSkillUpgrade` charges `pointsCost * 100` dollars AND a
+   * permanently-limited skill point (`availablePoints = skillLevel - 1`, max 8
+   * across 5 nodes), then appends the node id to `crimeSkills[skill].upgrades`.
+   * Every read of that array in shipping code was display or point-budget:
+   * `SkillTalentTree`'s `spentPoints` and `isNodeUnlocked`, and the Work tab's
+   * counter. The job math used `level` alone, so a player could spend money and
+   * an unrecoverable point on a node promising "+50% stealth success rate" and
+   * receive nothing.
+   *
+   * The per-node `effect` strings ("+10%" … "+50%") are DISPLAY text and
+   * disagree with the tree's own rule — `TALENT_TREES[*].description` says
+   * "Each unlocked talent adds +5% success rate and +10% payment". The rule is
+   * what is implemented here: parsing the display strings would be fragile and
+   * would also stack to +150% on a single tree.
+   */
+  const unlockedTalents = job.skill
+    ? (gameState.crimeSkills?.[job.skill]?.upgrades || []).length
+    : 0;
+  const talentSuccessBonus = unlockedTalents * TALENT_SUCCESS_BONUS_PCT;
   let karmaBonus = 0;
   if (gameState.karma) {
     const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
     const modifiers = getKarmaModifiers(gameState.karma);
     karmaBonus = Math.round(modifiers.crimeSuccessBonus * 100);
   }
-  const successChance = Math.min(95, baseSuccess + skillBonus + karmaBonus);
+  const successChance = Math.min(95, baseSuccess + skillBonus + talentSuccessBonus + karmaBonus);
   const attemptNumber = timesDoneThisWeek + 1;
   const rngCommitKeys: string[] = [];
   // RANDOMNESS FIX: Pity system for street jobs - guaranteed success after 5 failures
@@ -294,7 +326,15 @@ export const performStreetJob = (
   const transportTerms = getTransportTermsForJob(gameState, job, basePay);
   const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
 
-  const moneyGained = success ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus) : 0;
+  // R3-C2: +10% payment per unlocked talent, the other half of the tree's
+  // documented rule. Bounded so a fully-invested tree pays 1.5x, not unbounded.
+  const talentPayMultiplier = Math.min(
+    TALENT_PAY_MULTIPLIER_MAX,
+    1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
+  );
+  const moneyGained = success
+    ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier)
+    : 0;
   
   // Risk calculation — wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;

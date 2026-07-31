@@ -9,6 +9,7 @@
 import React from 'react';
 import { GameState, DarkWebMixerTier, DarkWebSkillId } from '../types';
 import { logger } from '@/utils/logger';
+import type { MarketCategory } from '@/lib/darkweb/marketplace';
 import { initialGameState } from '../initialState';
 import {
   attemptJobStage,
@@ -96,6 +97,49 @@ export const buyMarketListing = (
       return prev;
     }
     const stateAfterBtc = setBtcOwned(state, btc - result.result.spentBtc);
+
+    /**
+     * R3-C1 + R3-C10: a successful gear purchase actually DELIVERS something.
+     *
+     * Two findings closed by one wiring.
+     *
+     * C10: `attemptPurchase` removed the listing, moved reputation, added heat
+     * and (pro/elite only) awarded opsec XP — but `DarkWebState` has no
+     * purchased-items collection and nothing wrote the bought title anywhere,
+     * while the caller still reported "Delivered. <title> is yours." On a
+     * common-tier listing, which carries no `xpReward`, a successful purchase
+     * yielded exactly +1 buyer rep and +2 heat for real BTC.
+     *
+     * C1: 18 of the 19 illegal street jobs gate on `darkWebRequirements` items
+     * whose ONLY writer is `buyDarkWebItem` — a function with zero call sites
+     * anywhere in the app. The `items` catalogue cannot cover them either
+     * (it is guitar/bike/smartphone/computer/suit/bed/gym/passport). So the
+     * entire illegal-crime ladder was permanently greyed out and `criminalXp`
+     * could only come from the one unlocked job plus jail activities. The
+     * repo's own stress test already worked around it by filtering to jobs with
+     * no requirements.
+     *
+     * Gear and hacking-tool listings now grant the next unowned entry from the
+     * existing `darkWebItems` catalogue. Deterministic (first unowned in
+     * catalogue order, so the ladder unlocks predictably), needs no new content
+     * or storefront, and leaves the other listing categories — stolen accounts,
+     * carded items, fake IDs, services, data — as the pure reputation/heat
+     * plays they already are.
+     */
+    const DELIVERS_GEAR: MarketCategory[] = ['gear', 'hackingTools'];
+    if (
+      result.result.outcome === 'success' &&
+      DELIVERS_GEAR.includes(listing.category)
+    ) {
+      const items = stateAfterBtc.darkWebItems || [];
+      const nextIdx = items.findIndex((it) => it && !it.owned);
+      if (nextIdx !== -1) {
+        const nextItems = [...items];
+        nextItems[nextIdx] = { ...nextItems[nextIdx], owned: true };
+        return { ...stateAfterBtc, darkWebItems: nextItems, darkWeb: result.result.dw };
+      }
+    }
+
     return { ...stateAfterBtc, darkWeb: result.result.dw };
   });
 
