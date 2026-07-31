@@ -2959,6 +2959,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics all undefined accumula
     "peakNetWorthWeek": 10,
     "totalChildren": 1,
     "totalJailTime": 1,
+    "totalRelationships": 0,
     "totalWeeksWorked": 1,
     "weeklyEarningsHistory": [
       {
@@ -2997,6 +2998,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics full state: everything
     "totalAchievementsUnlocked": 3,
     "totalChildren": 2,
     "totalJailTime": 6,
+    "totalRelationships": 0,
     "totalWeeksWorked": 51,
     "weeklyEarningsHistory": [
       {
@@ -4126,7 +4128,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4153,7 +4155,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4180,7 +4182,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
     "id": "child_1234567890_abc_r1",
     "name": "Alex",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4217,7 +4219,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
       "id": "child_99_sfx_r1",
       "name": "Mia",
       "personality": "Energetic",
-      "relationshipScore": 100,
+      "relationshipScore": 75,
       "type": "child",
     },
     "rel": {
@@ -4245,7 +4247,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not j
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4762,6 +4764,7 @@ exports[`pre-tick equivalence — applyScheduledWedding expire: cant afford AND 
     "type": "partner",
     "weddingPlanned": {
       "budget": 50000,
+      "originalScheduledWeek": 100,
       "scheduledWeek": 104,
     },
   },
@@ -4781,6 +4784,7 @@ exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, w
       "type": "partner",
       "weddingPlanned": {
         "budget": 20000,
+        "originalScheduledWeek": 100,
         "otherDetail": "venue:A",
         "scheduledWeek": 104,
       },

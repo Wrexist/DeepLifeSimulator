@@ -2341,6 +2341,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  lifetimeStatistics: applyLifetimeStatistics({
    prevState,
    newBornChildrenCount: newBornChildren.length,
+   // R3-F4: the post-tick relationship array, so the lifetime counter can see
+   // this week's growth. Without it `totalRelationships` stayed at 0 forever
+   // and the "Social Network" achievement was unobtainable.
+   nextRelationshipCount: processedRelationships.length,
    careerSalary,
    // Political office pay is owned by passiveIncome, so `careerSalary` is 0
    // while in office — without this the work accumulators (and therefore the
@@ -2408,7 +2412,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const prevChildById = new Map((prevState.family?.children || []).map((c) => [c.id, c]));
  const children = childRels.map((rel) => {
  const existing = prevChildById.get(rel.id);
- return existing ? {...existing, ...rel }: {...rel, birthWeeksLived: nextWeeksLived };
+ // R3-F5: do NOT let the Relationship's score clobber the child's Bond.
+ // `rel` is a Relationship and carries its own `relationshipScore`, so this
+ // spread overwrote the value `applyParentingAction` writes onto
+ // `family.children[].relationshipScore` — the number the Family card shows
+ // as "Bond". Every parenting action's relationship effect was silently
+ // reverted on the next tick, including the one negative
+ // (`set_boundaries`), so the chip read a constant and the "+3 Bond" on the
+ // $1,500 Family Trip was never delivered. The child's own Bond is the
+ // parenting stat and stays authoritative.
+ if (!existing) return {...rel, birthWeeksLived: nextWeeksLived };
+ const { relationshipScore: _relScore, ...relWithoutBond } = rel;
+ return {...existing, ...relWithoutBond };
  });
  return {
 ...prevState.family,

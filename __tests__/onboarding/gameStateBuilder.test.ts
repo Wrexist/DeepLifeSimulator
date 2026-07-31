@@ -9,6 +9,8 @@ import {
 } from '@/src/features/onboarding/gameStateBuilder';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import { validateOnboardingState } from '@/utils/onboardingValidation';
+import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
+import { NURTURE_MAX } from '@/lib/parenting/catalog';
 
 // ---------------------------------------------------------------------------
 // Mock initialGameState template for tests
@@ -151,7 +153,12 @@ describe('buildChildForSingleParent', () => {
     const child = buildChildForSingleParent(5);
     expect(child.age).toBe(5);
     expect(child.type).toBe('child');
-    expect(child.relationshipScore).toBe(100);
+    // R3-F5: the single-parent child no longer starts at NURTURE_MAX. Starting
+    // at the clamp ceiling made every positive parenting action a no-op on
+    // arrival, which is what made the whole Bond half of the parenting loop
+    // inert. Asserted against the constant so the two cannot drift.
+    expect(child.relationshipScore).toBe(NEWBORN_BOND);
+    expect(NEWBORN_BOND).toBeLessThan(NURTURE_MAX);
   });
 
   it('generates a unique ID', () => {

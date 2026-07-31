@@ -146,7 +146,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  happiness += Math.floor(spouse.relationshipScore / 10);
  }
  children.forEach(child => {
- happiness += Math.floor((child.familyHappiness || 50) / 20);
+ // R3-F8: prefer `child.happiness`, the nurture stat the parenting loop
+ // actually writes. `familyHappiness` has NO writer anywhere in the repo —
+ // its would-be setter `updateChildWeekly` has zero callers — so every child
+ // contributed a constant `floor(50/20) = 2` and this headline number never
+ // responded to how the children were doing. The card at line ~779 already
+ // reads `child.happiness ?? child.familyHappiness ?? 50`; this did not.
+ happiness += Math.floor((child.happiness ?? child.familyHappiness ?? 50) / 20);
  });
  return happiness;
  }, [spouse, children]);

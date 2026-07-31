@@ -683,6 +683,18 @@ export interface WeddingPlan {
   partnerId: string;
   guestCount: number;
   scheduledWeek: number;
+  /**
+   * The week the wedding was FIRST scheduled for, in `weeksLived`.
+   *
+   * R3-F6: the 1-year expiry measured `nextWeeksLived - scheduledWeek` inside a
+   * branch gated on `scheduledWeek === nextWeeksLived`, so the age was always
+   * 0 and the branch was unreachable. The postpone path then overwrote
+   * `scheduledWeek` with `nextWeeksLived + 4`, discarding the original date, so
+   * the value could never drift either. Optional: a save written before this
+   * field existed falls back to the current `scheduledWeek`, which restarts the
+   * clock rather than expiring a plan retroactively.
+   */
+  originalScheduledWeek?: number;
   budget: number;
   catering: boolean;
   photography: boolean;

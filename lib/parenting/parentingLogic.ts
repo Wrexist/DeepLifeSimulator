@@ -23,6 +23,16 @@ import {
   PARENTING_MAX_AGE,
 } from './catalog';
 
+/**
+ * Bond a newly-arrived child starts with.
+ *
+ * Deliberately below `NURTURE_MAX`: a child created at the ceiling made every
+ * positive parenting action clamp to nothing on arrival, which is what made the
+ * whole Bond half of the parenting loop inert (R3-F5). 75 leaves real headroom
+ * while still reading as a close new family member.
+ */
+export const NEWBORN_BOND = 75;
+
 const clampNurture = (v: number): number =>
   Math.max(NURTURE_MIN, Math.min(NURTURE_MAX, Math.round(v)));
 
