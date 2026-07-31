@@ -30,6 +30,9 @@ interface NetWorthCacheKey {
   /** Holdings drift weekly through appreciation WITHOUT the id list changing,
    *  so keying on `luxuryItems` alone would serve a stale net worth forever. */
   luxuryHoldings: any;
+  /** R3-M4: crypto and the modern banking slice were absent entirely. */
+  cryptos: any;
+  banking: any;
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -52,7 +55,9 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.loans === state.loans &&
       lastCacheKey.vehicles === state.vehicles &&
       lastCacheKey.luxury === state.luxuryItems &&
-      lastCacheKey.luxuryHoldings === state.luxuryHoldings) {
+      lastCacheKey.luxuryHoldings === state.luxuryHoldings &&
+      lastCacheKey.cryptos === state.cryptos &&
+      lastCacheKey.banking === state.banking) {
     return lastNetWorthValue;
   }
 
@@ -192,13 +197,41 @@ export const netWorth = (state: GameState): number => {
   const safeMoney = isFinite(money) ? money : 0;
   const safeBank = isFinite(bank) ? bank : 0;
   const safeStockValue = isFinite(stockValue) ? stockValue : 0;
+  /**
+   * R3-M4: crypto and the modern banking slice were missing from this sum
+   * entirely — `grep crypto lib/progress/achievements.ts` returned nothing, and
+   * `bank` was only the legacy `bankSavings` pool, deprecated since
+   * STATE_VERSION 14 in favour of `banking.accounts`.
+   *
+   * So converting $1M of cash to Bitcoin DROPPED reported net worth by $1M, and
+   * every coin the mining warehouse ever produced was worth $0 on the
+   * scoreboard. Depositing into a high-yield savings account did the same. This
+   * is the canonical figure: it gates prestige, the ultra-rich passive-income
+   * soft cap, bail cost, ad-reward scaling, the identity card and the statistics
+   * history — so a crypto-heavy or deposit-heavy player could be locked out of
+   * prestige indefinitely, while also dodging the >$10M passive-income cap.
+   */
+  const cryptoValue = (state.cryptos ?? []).reduce((sum, coin) => {
+    const owned = Number(coin?.owned);
+    const price = Number(coin?.price);
+    if (!isFinite(owned) || !isFinite(price) || owned <= 0 || price <= 0) return sum;
+    return sum + owned * price;
+  }, 0);
+
+  const bankAccountsValue = (state.banking?.accounts ?? []).reduce((sum, account) => {
+    const balance = Number(account?.balance);
+    return isFinite(balance) ? sum + balance : sum;
+  }, 0);
+
+  const safeCryptoValue = isFinite(cryptoValue) ? cryptoValue : 0;
+  const safeBankAccountsValue = isFinite(bankAccountsValue) ? bankAccountsValue : 0;
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
   const safeCompanyValue = isFinite(companyValue) ? companyValue : 0;
   const safeVehicleValue = isFinite(vehicleValue) ? vehicleValue : 0;
   const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
-  const total = safeMoney + safeBank + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
+  const total = safeMoney + safeBank + safeBankAccountsValue + safeCryptoValue + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values
@@ -216,7 +249,9 @@ export const netWorth = (state: GameState): number => {
     loans: state.loans,
     vehicles: state.vehicles,
     luxury: state.luxuryItems,
-    luxuryHoldings: state.luxuryHoldings
+    luxuryHoldings: state.luxuryHoldings,
+    cryptos: state.cryptos,
+    banking: state.banking
   };
   lastNetWorthValue = clampedTotal;
 
