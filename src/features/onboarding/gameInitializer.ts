@@ -235,6 +235,39 @@ export async function initializeAndSaveGame(
     return { success: false, errorTitle: 'Save Failed', errorMessage: 'Failed to save your game. Please try again.' };
   }
 
+  /**
+   * R3-S4: roll the write back when the read-back fails.
+   *
+   * `forceSave` has already COMMITTED by this point. Without a rollback, a
+   * failed load returned "Load Failed" while the half-created character sat on
+   * disk — and the retry re-entered `resolveNewLifeSlot`, which reads the slot
+   * fresh, found `hasMeaningfulSaveData` true (the name is set) and refused:
+   * "Slot N holds <the name the player just typed> (age 18). Choose an empty
+   * slot, or delete that save first." The "Start Your Life" button could then
+   * never succeed for that slot, and the player was told their own brand-new
+   * character was in the way.
+   *
+   * Deleting is safe here and only here: the only thing in the slot is the
+   * character this call just wrote, and the caller is about to report failure.
+   */
+  const rollbackFailedInit = async (): Promise<void> => {
+    try {
+      const { deleteSaveSlot } = await import('@/utils/saveValidation');
+      await deleteSaveSlot(targetSlot);
+      await import('@/utils/saveSlotMeta')
+        .then((m) => m.deleteSaveSlotMeta(targetSlot))
+        .catch(() => {});
+      log.info('Rolled back the half-created life so the retry finds an empty slot', {
+        slot: targetSlot,
+      });
+    } catch (rollbackError) {
+      // Best effort. Reporting the original failure matters more than this.
+      log.warn('Rollback after a failed post-save load did not complete', {
+        error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+      });
+    }
+  };
+
   // Step 3: Load and re-validate
   let loadedState;
   try {
@@ -242,12 +275,14 @@ export async function initializeAndSaveGame(
   } catch (loadError) {
     log.error('loadGame failed:', loadError);
     logOnboardingValidationError('Perks', 'load_after_save_exception', {});
+    await rollbackFailedInit();
     return { success: false, errorTitle: 'Load Failed', errorMessage: 'Failed to load your game after saving. Please try again.' };
   }
 
   if (!loadedState) {
     log.error('loadGame returned null');
     logOnboardingValidationError('Perks', 'load_after_save_null', {});
+    await rollbackFailedInit();
     return {
       success: false,
       errorTitle: 'Load Failed',

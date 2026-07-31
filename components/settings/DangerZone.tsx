@@ -13,6 +13,8 @@ import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
 import { logger } from '@/utils/logger';
+import { safeRemoveItem } from '@/utils/safeStorage';
+import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
@@ -25,7 +27,7 @@ interface Props {
 export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { setGameState, saveGame } = useGame();
+  const { setGameState, currentSlot } = useGame();
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
   const confirmRestart = async () => {
@@ -50,12 +52,47 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
       );
       setShowRestartConfirm(false);
       onModalClose();
-      // Persist BEFORE navigating. Without this the reset lives only in memory
-      // until the 2-minute autosave, so an app exit right after "Restart" would
-      // leave the old life on disk while the UI says it is gone. Deferred one
-      // macrotask so saveGame's post-commit ref has the reset state.
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      await saveGame?.(true);
+
+      /**
+       * R3-S3 (round 3): the reset can never be SAVED, so it must be DELETED.
+       *
+       * The previous version awaited `saveGame(true)` here, with a comment
+       * explaining that an app exit right after Restart would otherwise leave
+       * the old life on disk. That is exactly what happened anyway: the state
+       * this handler builds comes from `initialGameState`, so it has no
+       * `scenarioId` and an empty `userProfile.firstName`/`lastName`, and
+       * `carryAccountLevelEntitlements` copies only settings, gold upgrades,
+       * perks and youth pills — never a name or a scenario. So
+       * `isPristineUnstartedState` returns true and `saveGame` bails before
+       * writing. The 2-minute autosave bails on the same guard.
+       *
+       * The wipe was therefore memory-only: `lastSlot` and the slot blob still
+       * held the old character, MainMenu's Continue card still showed their
+       * name and age, and tapping it reloaded the life the player had just
+       * confirmed destroying. With all three slots full, "New Game" also still
+       * reported "All Save Slots Full".
+       *
+       * Deleting is the correct operation and needs no pristine exemption: a
+       * pristine state must never be written (that is the phantom-save rule
+       * `isPristineUnstartedState` exists to enforce), and "restart" means the
+       * old life is gone. Same sequence as DeathPopup's new-game path.
+       */
+      const slot = typeof currentSlot === 'number' && currentSlot > 0 ? currentSlot : null;
+      if (slot != null) {
+        const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
+        await snapshotOutgoingSave(slot, 'before_overwrite').catch(() => {});
+        const { deleteSaveSlot } = await import('@/utils/saveValidation');
+        await deleteSaveSlot(slot);
+        await import('@/utils/saveSlotMeta')
+          .then((m) => m.deleteSaveSlotMeta(slot))
+          .catch(() => {});
+      }
+      await safeRemoveItem('lastSlot');
+
+      // The player is heading to the menus with a pristine state in memory;
+      // stop the ambient autosave from writing anything back (R3-S1).
+      suspendLifeAutosave('settings -> restart game');
+
       const mainMenuPath: Href = '/(onboarding)/MainMenu';
       router.push(mainMenuPath);
     } catch (error) {

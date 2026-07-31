@@ -4028,6 +4028,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  return safeState;
  } catch (error) {
+ // R3-S3: a save written by a NEWER build must not be reported as an absent
+ // one. `SaveFromFutureError` is thrown deliberately so the app refuses
+ // rather than silently downgrading and corrupting the save — but this catch
+ // had no branch for it, so it collapsed to the same `null` an EMPTY slot
+ // returns. That is precisely what the throw site's comment says must not
+ // happen. Both consumers have handlers for it (`MainMenu`, `SaveSlots`) and
+ // neither could ever be reached: the player got "Load Error" followed by
+ // "No save data found. Please try loading from Save Slots or start a new
+ // game" — an invitation to overwrite a perfectly intact save, on the one
+ // path (a TestFlight downgrade, or a device/iCloud restore onto an older
+ // build) where that is the worst possible advice. Re-thrown so the callers'
+ // existing branches run.
+ if (isSaveFromFutureError(error)) {
+ logger.warn('Refusing to load a save from a newer build', { slot });
+ throw error;
+ }
  logger.error('Failed to load game:', error);
  showError('Load Error', 'Failed to load game progress');
  return null;
