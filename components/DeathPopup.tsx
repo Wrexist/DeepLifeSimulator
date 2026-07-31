@@ -21,6 +21,7 @@ import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
+import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 const LinearGradient = LinearGradientFallback;
 
 function DeathPopup() {
@@ -350,6 +351,12 @@ function DeathPopup() {
         // belongs — the player stays in the slot they were playing. Set it
         // explicitly; the onboarding write refuses an unset slot rather than
         // guessing one.
+        // R3-S1: stop the app-wide autosave writing this dead character back
+        // into the slot we just emptied. Without it the next tick (or simply
+        // backgrounding the app mid-scenario-pick) restores the life and
+        // `lastSlot`, and `resolveNewLifeSlot` then refuses the slot because it
+        // "holds" the character the player just buried.
+        suspendLifeAutosave('death -> new life in onboarding');
         setOnboardingState((prev) => ({ ...prev, slot: currentSlot }));
         router.replace('/(onboarding)/Scenarios');
         return;
@@ -359,6 +366,7 @@ function DeathPopup() {
       // survivable): send them to the picker instead of into a write that would
       // have to guess.
       setOnboardingState((prev) => ({ ...prev, slot: NEW_LIFE_SLOT_UNSET }));
+      suspendLifeAutosave('death -> save slots');
       router.replace('/(onboarding)/SaveSlots');
     } catch (error) {
       if (__DEV__) {

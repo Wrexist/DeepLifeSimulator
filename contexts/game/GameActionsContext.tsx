@@ -9,6 +9,7 @@ import React, { createContext, useContext, useCallback, ReactNode, useRef, useEf
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
+import { isLifeAutosaveSuspended, lifeAutosaveSuspendReason, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -242,6 +243,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // phantom "Unnamed Character" save in slot 1. Applies to forced saves too.
  if (isPristineUnstartedState(currentState)) {
  logger.debug('Skipping save: no life started yet (pristine initial state)');
+ return false;
+ }
+ // R3-S1: the player is out in the pre-game stack. This provider is mounted
+ // app-wide, so without this the 2-minute timer and the background force-save
+ // write the still-loaded life back into `currentSlot` — over a slot the menus
+ // have just deleted (death -> New Game) or just restored from a backup.
+ if (isLifeAutosaveSuspended()) {
+ logger.debug(`Skipping save: autosave suspended (${lifeAutosaveSuspendReason()})`);
  return false;
  }
  const saveMutexToken = await saveLoadMutex.acquire('save');
@@ -3986,6 +3995,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  await AsyncStorage.setItem('currentSlot', String(slot));
  await AsyncStorage.setItem('lastSlot', String(slot));
 
+ // R3-S1: a life is in play again, so the ambient autosave may resume.
+ resumeLifeAutosave();
  logger.info('Game loaded successfully from slot:', { slot });
 
  // CRITICAL: Log child information if present (for debugging single parent scenario)

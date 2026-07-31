@@ -37,6 +37,7 @@ import {
   finalizeDiscordClaim,
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
+import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 const LinearGradient = LinearGradientFallback;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -600,6 +601,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accent="#60A5FA"
                   onPress={() => {
                     onClose();
+                    // R3-S1: leaving a live game for the slot picker. Without
+                    // this, a backup restored from that screen is silently
+                    // overwritten by the still-loaded pre-restore state on the
+                    // next background transition.
+                    suspendLifeAutosave('settings -> switch save slot');
                     const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
                     router.push(saveSlotsPath);
                   }}

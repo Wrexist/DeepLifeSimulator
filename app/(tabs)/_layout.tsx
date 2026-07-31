@@ -16,6 +16,7 @@ import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 import AdRewardOrb from '@/components/AdRewardOrb';
+import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
@@ -116,6 +117,16 @@ export default function TabLayout() {
   
   const { isDark } = useTheme();
   const { changes, clearChange } = useStatChanges();
+
+  // R3-S1: being inside the tab tree means a life is in play, so the ambient
+  // autosave must be live. Entering the pre-game stack suspends it; this is the
+  // counterpart that covers every way back — loading a slot, starting a new
+  // life, or simply backing out of SaveSlots without choosing anything. Without
+  // this last case the player's progress would silently stop autosaving for the
+  // rest of the session.
+  useEffect(() => {
+    resumeLifeAutosave();
+  }, []);
 
   const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
   // Hide the floating tab bar while an in-phone app runs full-screen.
