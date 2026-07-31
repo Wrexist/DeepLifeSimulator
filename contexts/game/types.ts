@@ -2411,6 +2411,21 @@ export interface GameState {
     /** Dividends paid this game-year (resets at year boundary). */
     dividendsThisYear?: number;
   };
+  /**
+   * Perk flags, keyed by perk id.
+   *
+   * Two systems share this bag. The named keys are the IAP entitlements set by
+   * `applyProductBenefitsToState` — kept explicit so a typo in a paid-perk
+   * check is still a type error. The index signature covers the ~20 ONBOARDING
+   * perks, which `gameStateBuilder` writes as `{ [perkId]: true }` for whatever
+   * the player picked, and which `applyIncome` reads back by iterating
+   * `Object.entries`. Those ids were absent from this type even though they are
+   * written to every save, so any code naming one directly was a type error and
+   * four test assertions on them silently asserted nothing.
+   *
+   * No migration: nothing new is stored. The keys were always written; only
+   * the type was wrong.
+   */
   perks?: {
     workBoost?: boolean;
     mindset?: boolean;
@@ -2418,6 +2433,7 @@ export interface GameState {
     goodCredit?: boolean;
     unlockAllPerks?: boolean;
     astute_planner?: boolean;
+    [perkId: string]: boolean | undefined;
   };
   dailySummary?: {
     moneyChange: number;

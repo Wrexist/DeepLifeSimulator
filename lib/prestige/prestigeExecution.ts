@@ -5,7 +5,7 @@ import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoint
 import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
-import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
+import { getEarnedAchievementCount, getEarnedAchievementNames, getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
@@ -143,10 +143,33 @@ export function executePrestige(
           level: c.level,
         })),
         relationships: (gameState.relationships || []).map(r => ({ type: r.type })),
-        achievements: (gameState.achievements || []).map(a => ({ id: a.id, completed: a.completed })),
+        // Project from the LIVE achievement system, not `gameState.achievements`.
+        //
+        // That array is the deprecated catalogue in `initialState.ts`; its
+        // `completed` flag has NO writer in shipping code — `evaluateAchievements`
+        // is an explicit no-op stub (`lib/progress/achievements.ts:232`). So every
+        // `type: 'achievement'` win condition evaluated against an all-false list
+        // and could never be met, whichever id it named. The real system is
+        // `src/features/onboarding/achievementsData`, where completion is derived
+        // from each achievement's `progressSpec` against current state.
+        //
+        // "Earned", not "claimed": `claimedProgressAchievements` records which
+        // rewards were collected, which is a different question from whether the
+        // life met the condition. 2026-07-31 audit round 3.
+        achievements: getSatisfiedAchievementIds(gameState).map(id => ({ id, completed: true })),
         companies: (gameState.companies || []).map(c => ({ weeklyIncome: c.weeklyIncome || 0 })),
         realEstate: (gameState.realEstate || []).map(r => ({ owned: r.owned, value: r.price || 0 })),
         weeksLived: gameState.weeksLived || 0,
+        // Bank balances count toward the five net-worth scenarios. The
+        // evaluator always read this; nothing ever passed it. Legacy pool plus
+        // the modern per-account balances, which is where savings actually
+        // lives since STATE_VERSION 14.
+        bankSavings:
+          (gameState.bankSavings || 0) +
+          (gameState.banking?.accounts || []).reduce(
+            (sum, a) => sum + (Number.isFinite(a?.balance) ? a.balance : 0),
+            0,
+          ),
       };
       if (isScenarioCompleted(scenario.id, scenarioState)) {
         gemsToAward += scenario.rewards?.gems || 0;

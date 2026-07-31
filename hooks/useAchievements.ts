@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { Achievement, achievements } from '@/src/features/onboarding/achievementsData';
+import { Achievement, achievements, achievementProgress } from '@/src/features/onboarding/achievementsData';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 
@@ -51,16 +51,12 @@ export const useAchievements = () => {
     });
 
     const enriched: EnrichedAchievement[] = filteredAchievements.map(a => {
-      let progress = 0;
-      if (a.progressSpec.kind === 'boolean') {
-        progress = a.progressSpec.met(gameState) ? 1 : 0;
-      } else if (a.progressSpec.kind === 'counter') {
-        const current = a.progressSpec.current(gameState);
-        const goal = a.progressSpec.goal;
-        // Ensure progress is calculated correctly, allowing values > 1.0 for claim detection
-        // but we'll cap it at 1.0 for display purposes in the component
-        progress = goal > 0 ? Math.max(0, current / goal) : 0;
-      }
+      // Shared with `isAchievementEarned`, which scenario scoring uses. This
+      // logic was inlined here and copied verbatim into the hook's own test, so
+      // the test could only agree with itself and no non-React caller could ask
+      // the question — which is how scenario win conditions ended up reading a
+      // different, dead catalogue. Values > 1 are kept for claim detection.
+      const progress = achievementProgress(gameState, a);
       const group = a.group ?? a.id.split('_')[0];
       const isClaimed = claimed.has(a.id);
       return { ...a, progress, claimed: isClaimed, group };

@@ -9,10 +9,15 @@
  *    `'level' in politicalCareer && politicalCareer.level >= 5`, but the
  *    prestige projection mapped careers to `{ id, accepted }` and dropped
  *    `level`. `'level' in ...` was false for every player, forever.
- * 2. Family Focused (60 gems) required achievement `family_man`. That id does
- *    not exist — its only occurrence in the entire repo was the condition
- *    itself. The catalogue has `get_married`, `first_child`, `family_builder`
- *    and `family_empire`.
+ * 2. Family Focused (60 gems) required achievement `family_man`, which exists
+ *    nowhere. The first fix swapped it for `first_child` — a REAL id, but in
+ *    the wrong catalogue, so the scenario stayed unwinnable and the test
+ *    covering it passed by checking the wrong list. `prestigeExecution`
+ *    projected `gameState.achievements`, the DEPRECATED array from
+ *    `initialState.ts`, whose `.completed` flag has no writer in shipping code
+ *    (`evaluateAchievements` is an explicit no-op stub). Every `achievement`
+ *    win condition evaluated against an all-false list whichever id it named.
+ *    The projection now derives from the live system.
  * 3. The opposite failure: `relationship` conditions narrowed on
  *    `condition.value === 'married'`, comparing a string to the NUMBER every
  *    condition actually carries. It never matched, so the filter counted all
@@ -25,6 +30,9 @@ import {
   type Scenario,
 } from '@/lib/scenarios/scenarioDefinitions';
 import { achievements } from '@/src/features/onboarding/achievementsData';
+import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
+import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 type WinState = Parameters<typeof checkScenarioWin>[1];
 
@@ -50,10 +58,23 @@ const scenario = (id: string): Scenario => {
 };
 
 describe('every achievement a scenario requires actually exists', () => {
+  // The LIVE catalogue — the one `getSatisfiedAchievementIds` searches. The
+  // first version of this suite validated against it too, but the projection
+  // fed the evaluator the deprecated `initialState.achievements` array, so
+  // agreeing with this list proved nothing. The projection assertion below is
+  // what ties the two together.
   const achievementIds = new Set(achievements.map(a => a.id));
 
   it('has a non-trivial achievement catalogue (guards the check below)', () => {
     expect(achievementIds.size).toBeGreaterThan(20);
+  });
+
+  it('is NOT the deprecated catalogue', () => {
+    // `initialState.achievements` has `parent`, not `first_child`. If a future
+    // edit points the projection back at it, this names the difference.
+    const deprecated = new Set((initialGameState.achievements || []).map(a => a.id));
+    expect(deprecated.has('first_child')).toBe(false);
+    expect(achievementIds.has('first_child')).toBe(true);
   });
 
   it('names only real achievement ids in win conditions', () => {
@@ -110,6 +131,56 @@ describe('Political Dynasty can be won', () => {
     );
 
     expect(result.won).toBe(false);
+  });
+});
+
+describe('the projection reads the LIVE achievement system', () => {
+  it('reports an achievement whose condition the player has actually met', () => {
+    // `first_child` is a counter achievement over the player's children. Build a
+    // state that satisfies it and check the projection sees it — this is the
+    // assertion that was missing, and its absence is why swapping one dead id
+    // for another looked like a fix.
+    const withChild = createTestGameState({
+      family: { children: [{ id: 'c1', name: 'Kid', age: 2 }] },
+    } as never);
+
+    expect(getSatisfiedAchievementIds(withChild)).toContain('first_child');
+  });
+
+  it('does NOT report it for a childless player', () => {
+    // The control. Without it, a projection returning every id would pass above.
+    expect(getSatisfiedAchievementIds(createTestGameState())).not.toContain('first_child');
+  });
+
+  it('counts a CLAIMED achievement even if state no longer satisfies it', () => {
+    const claimed = createTestGameState({
+      claimedProgressAchievements: ['first_child'],
+    } as never);
+
+    expect(getSatisfiedAchievementIds(claimed)).toContain('first_child');
+  });
+
+  it('prestigeExecution projects from it, not from the deprecated array', () => {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'),
+      'utf8',
+    );
+
+    expect(source).toMatch(/achievements: getSatisfiedAchievementIds\(gameState\)/);
+    expect(source).not.toMatch(/achievements: \(gameState\.achievements \|\| \[\]\)\.map/);
+  });
+
+  it('passes bank balances through for the net-worth scenarios', () => {
+    const source = require('fs').readFileSync(
+      require('path').join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'),
+      'utf8',
+    ) as string;
+
+    // The evaluator always read `bankSavings`; the wrapper's type omitted it so
+    // nothing could pass it, and savings counted as $0 toward five scenarios.
+    expect(source).toMatch(/bankSavings:/);
   });
 });
 

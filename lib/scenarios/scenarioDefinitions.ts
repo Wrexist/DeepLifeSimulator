@@ -1151,6 +1151,13 @@ export function isScenarioCompleted(
     companies: { weeklyIncome: number }[];
     realEstate: { owned: boolean; value: number }[];
     weeksLived: number;
+    /**
+     * `checkScenarioWin` reads this for every `netWorth` condition, but this
+     * wrapper's type omitted it and the sole caller therefore never passed it —
+     * so bank balances counted as $0 toward five scenarios' net-worth targets,
+     * for a game that actively encourages saving. 2026-07-31 audit round 3.
+     */
+    bankSavings?: number;
   }
 ): boolean {
   const scenario = SCENARIOS.find(s => s.id === scenarioId);
