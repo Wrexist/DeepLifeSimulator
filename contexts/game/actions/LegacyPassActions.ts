@@ -163,6 +163,29 @@ export function reconcileLegacyPassSeason(
   state: GameState,
   premiumActiveNow: boolean,
   nowMs: number = Date.now(),
+  /**
+   * Whether `premiumActiveNow` came from a check that could actually see the
+   * player's entitlements. FALSE means "unknown", not "not subscribed".
+   *
+   * R4-MON-4. This is the same hazard MON-1 fixed for `adsRemoved`, and this
+   * call site never got the guard. `hasPremiumAccess()` falls through to
+   * `hasLifetimePremium()` → `iapService.hasPurchased(...)`, which reads the
+   * purchase ledger — empty on a cold start until `loadPurchases()` runs. So a
+   * lifetime-premium owner (and any subscriber when RevenueCat is disabled) hit
+   * the downgrade branch below on first launch.
+   *
+   * That is not merely cosmetic. `premiumOwned` gates `getClaimableTiers(pass,
+   * 'premium')`, so while it is false the player cannot claim their premium
+   * rewards — and if the season boundary is crossed in that window,
+   * `rolloverLegacyPass` auto-collects via `getUnclaimedEarnedRewards`, which
+   * reads the same flag. Every unclaimed premium reward of the season is then
+   * silently dropped and the pass is reset. Permanent, for a paying player.
+   *
+   * Unknown therefore holds the persisted flag. The cost of being wrong the
+   * other way is one session in which a lapsed subscriber can still claim; the
+   * next authoritative reconcile downgrades them.
+   */
+  entitlementCheckAuthoritative: boolean = true,
 ): GameState {
   const seasonId = getCurrentSeasonId(nowMs);
   const current = state.legacyPass;
@@ -174,12 +197,16 @@ export function reconcileLegacyPassSeason(
     if (premiumActiveNow && !normalized.premiumOwned) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: true } };
     }
-    if (!premiumActiveNow && normalized.premiumOwned) {
+    if (!premiumActiveNow && normalized.premiumOwned && entitlementCheckAuthoritative) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: false } };
     }
     return normalized === current ? state : { ...state, legacyPass: normalized };
   }
-  return rolloverLegacyPass(state, seasonId, premiumActiveNow);
+  // A rollover with an unknown entitlement must not START the new season
+  // downgraded either — carry the old pass's flag until a real check lands.
+  const rolloverPremium =
+    premiumActiveNow || (!entitlementCheckAuthoritative && current?.premiumOwned === true);
+  return rolloverLegacyPass(state, seasonId, rolloverPremium);
 }
 
 /**
