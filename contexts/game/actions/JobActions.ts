@@ -12,6 +12,7 @@ import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
+import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
 
 /** Street-job requirement ids that any transport tier can satisfy. */
 const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
@@ -759,11 +760,31 @@ export const applyForJob = (
   // Life Skills: Networking (+5% job application success). Additive percentage
   // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
   const networkingBonus = getLifeSkillModifiers(gameState).jobApplicationBonus;
+  /**
+   * R3-P7: GPA finally counts toward getting hired.
+   *
+   * `jobOfferMultiplier` returns 0.85x-1.30x and documents itself as the
+   * "hiring boost (better grades -> higher chance to land first job)". Its only
+   * non-test caller was `EducationApp`, which renders "Hiring boost x1.30 on job
+   * offers" on the hero card — while this roll, the one that decides, had no GPA
+   * term at all and no file under `lib/careers/**` even mentioned `gpa`. So exam
+   * grinding (energy, study actions, exam-failure risk) was advertised on the
+   * Education screen as worth up to +30% and delivered 0%. GPA did still work
+   * for scholarships, so this was specifically the hiring half.
+   *
+   * Applied to the BASE chance rather than the final total, so it scales the
+   * part grades plausibly influence and leaves the criminal penalty and the
+   * networking bonus intact. Still inside the existing 10-90 clamp, so a 4.0
+   * cannot buy a guarantee and a poor GPA cannot lock the player out.
+   */
+  const gpaMultiplier = jobOfferMultiplier(highestGpa(gameState.educations || []));
+  const safeGpaMultiplier = Number.isFinite(gpaMultiplier) && gpaMultiplier > 0 ? gpaMultiplier : 1;
+  const gpaAdjustedBase = baseAcceptanceChance * safeGpaMultiplier;
   const acceptanceChance = cleanGuarantee
     ? 100
     : guaranteedAcceptance
       ? Math.min(90, Math.max(10, 100 - criminalPenalty + networkingBonus))
-      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
+      : Math.min(90, Math.max(10, gpaAdjustedBase + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
   const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
   const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];

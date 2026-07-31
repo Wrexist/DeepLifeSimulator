@@ -24,14 +24,19 @@ import {
 
 describe('collectNewlyEarnedPrestigeAchievements', () => {
   it('awards milestone + condition achievements that are satisfied', () => {
+    // R3-P11: "Clean Slate" means debt PAID OFF, not debt never taken. This
+    // fixture used `loans: []` with the comment "no loans", which encoded the
+    // free-mint bug — the achievement fired on the first prestige for a player
+    // who had simply never borrowed. It now needs a loan that was cleared.
     const state = createTestGameState({
       prestige: { ...defaultPrestigeData, totalPrestiges: 1 }, // prestiged once
-      loans: [], // zero debt
-    });
+      loans: [{ id: 'l1', name: 'Paid off', principal: 5000, remaining: 0, rateAPR: 0.1 }],
+      progress: { ...createTestGameState().progress, hasBeenInDebt: true },
+    } as never);
     const { newlyAwarded, pointsAwarded } = collectNewlyEarnedPrestigeAchievements(state);
     const ids = newlyAwarded.map(a => a.id);
     expect(ids).toContain('prestige_first'); // totalPrestiges >= 1
-    expect(ids).toContain('prestige_no_debt'); // no loans
+    expect(ids).toContain('prestige_no_debt'); // borrowed and repaid
     // Reward magnitudes are as designed (1000 + 2000 here).
     expect(pointsAwarded).toBe(
       newlyAwarded.reduce((s, a) => s + (a.reward?.prestigePoints ?? 0), 0),
@@ -101,12 +106,15 @@ describe('collectNewlyEarnedPrestigeAchievements', () => {
 });
 
 describe('executePrestige — prestige-achievement award pass', () => {
+  // R3-P11: `loans: []` no longer satisfies "Clean Slate" — it means the
+  // player never borrowed, not that they cleared their debt.
   const aboveThreshold = () =>
     createTestGameState({
       stats: { money: getPrestigeThreshold(0) + 5_000_000 },
       weeksLived: 4,
-      loans: [],
-    });
+      loans: [{ id: 'l1', name: 'Paid off', principal: 5000, remaining: 0, rateAPR: 0.1 }],
+      progress: { ...createTestGameState().progress, hasBeenInDebt: true },
+    } as never);
 
   it('awards points + records the claimed store on a real prestige', () => {
     const result = executePrestige(aboveThreshold(), 'reset');
@@ -159,8 +167,9 @@ describe('prestige-achievement readers use the claimed store', () => {
         totalPrestiges: 1,
         claimedPrestigeAchievements: ['prestige_first'],
       },
-      loans: [],
-    });
+      loans: [{ id: 'l1', name: 'Paid off', principal: 5000, remaining: 0, rateAPR: 0.1 }],
+      progress: { ...createTestGameState().progress, hasBeenInDebt: true },
+    } as never);
     const available = getAvailablePrestigeAchievements(state).map(a => a.id);
     expect(available).not.toContain('prestige_first'); // claimed
     expect(available).toContain('prestige_no_debt'); // satisfied, not yet claimed

@@ -121,7 +121,25 @@ function buildRewardTable(track: LegacyPassTrack): LegacyPassReward[] {
       }
     } else {
       if (tier === MAX_TIER) {
-        rewards.push({ kind: 'trait', id: `legacy_trait_s`, label: 'Heritable Legacy Trait' });
+        /**
+         * R3-P9: this was `legacy_trait_s`, an id that exists nowhere.
+         *
+         * `applyLegacyPassReward` pushes it into `state.activeTraits`, and every
+         * consumer resolves ids through `getTraitById`, which searches
+         * `GENETIC_TRAITS`. A whole-repo grep found `legacy_trait_s` only here
+         * and in one test. So the final reward of the PAID seasonal pass was
+         * dropped by every reader: `LegacyOverviewTab` filters it out so it
+         * never displayed, `inheritTraits` bails on `if (!trait) return` so it
+         * never passed to an heir despite the "Heritable" label, and
+         * `applyStatModifiers` skipped it.
+         *
+         * `strong_constitution` is a real catalogue entry, positive polarity,
+         * and — importantly — its effect is `statModifiers`, the ONLY effects
+         * key any consumer reads. Picking `genius` would have looked grander
+         * and delivered its `happiness: 0.9` downside alone, since its
+         * `skillLearningRates` and `careerIncome` have no readers.
+         */
+        rewards.push({ kind: 'trait', id: 'strong_constitution', label: 'Heritable Legacy Trait' });
       } else if (tier % 10 === 0) {
         rewards.push({ kind: 'cosmetic', id: `legacy_theme_s_${tier}`, label: 'Apartment Theme' });
       } else if (PREMIUM_COSMETIC_TIERS[tier]) {
