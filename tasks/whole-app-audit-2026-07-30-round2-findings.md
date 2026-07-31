@@ -90,3 +90,54 @@ than restoring intended behaviour, so they are left for the owner to direct.
   instant of purchase, so bought while alive it is a permanent no-op. Fixing it
   means choosing a product shape: one banked revive consumed on use, vs a
   repeatable consumable.
+
+## ARCH-1 — action results are read out of `setGameState` updaters (OPEN, high)
+
+Raised in review of this branch and **confirmed**, with one correction and one
+escalation. Recorded rather than fixed: the fix is a contract change across
+eight call sites and their callers, which is a bigger decision than an audit
+commit should make unilaterally.
+
+**The shape.** Eight actions do:
+
+```ts
+let applied = false;
+setGameState(prev => { const spend = applyMoneyDelta(prev, -amount, '…');
+                       if (!spend) return prev; applied = true; return next; });
+if (!applied) return { success: false, message: 'You cannot afford …' };
+```
+
+`contexts/game/GameStateContext.tsx:40` is a real `useState`, and React does not
+run a functional updater at dispatch time. It runs it during the next render —
+*except* for the eager-evaluation fast path, which applies only when the fiber
+has no pending work. So the updater runs synchronously for an isolated tap and
+is deferred whenever an update is already queued.
+
+**Which means it fails exactly where the guard matters.** These guards exist for
+same-batch double taps. On the second tap the first has already queued an
+update, the fiber has pending lanes, eager evaluation is skipped, `applied` stays
+false, and the caller is told the action failed.
+
+**Correction to the report.** It cannot go the other way. `applied` starts false
+and is only ever set inside the updater, so a rejected action can never report
+success. The state is also always correct — `return prev` runs whenever React
+runs the updater, and that is what closes the exploit. The money is right.
+
+**Escalation.** It is not only a wrong toast. `components/computer/PoliticalApp.tsx`
+does `if (result.success) queueSave();` at five call sites. A false negative
+therefore **skips the save**, so an action that really did apply is lost on the
+next load. That makes this a durability bug, not a cosmetic one.
+
+**Sites.** `PoliticalActions.ts:630,765,847` · `RDActions.ts:158` ·
+`PulseActions.ts:181,1007,1260`.
+
+**Why not fixed here.** Every option changes the contract: make the actions
+async and resolve post-commit (touches every caller), deliver the outcome
+through a post-commit effect, or move `queueSave()` and the user-facing message
+out of the caller's `if (result.success)`. The last is the smallest and is
+probably the right first step, since it fixes the durability half without
+touching signatures. Needs a decision before it goes in.
+
+The atomicity tests (`gateThenGrantAtomicity`, `doubleTapAtomicity`) drive a
+synchronous fake setter, so they prove the STATE decision and not the returned
+result. That is worth stating in them explicitly whichever way this is resolved.
