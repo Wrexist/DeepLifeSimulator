@@ -32,17 +32,63 @@ function build({ runTests = false } = {}) {
   const tickEntry = 'contexts/game/GameActionsContext.tsx';
   const weeklyDir = 'contexts/game/actions/weekly';
   const weeklyFiles = L.walk(weeklyDir, L.isProductionSource);
+
   const tickFiles = [tickEntry, ...weeklyFiles];
+
+  // `lib/` modules the tick calls FROM INSIDE the setGameState updater.
+  //
+  // P1 previously scanned only the tick entry and `contexts/game/actions/weekly`,
+  // so a full `JSON.parse(JSON.stringify(state))` one call deeper — in
+  // `checkpointSystem.createCheckpoint`, invoked from `applyAutoCheckpoint`
+  // inside the updater — reported "[PASS] No JSON deep-clone in the weekly tick
+  // path" while the clone shipped. A guardrail that is green because it is not
+  // looking is worse than no guardrail.
+  //
+  // Deliberately an explicit list rather than following every `@/lib` import of
+  // the tick entry: that catches modules like `prestigeExecution`, whose clones
+  // are on a once-per-life path where a deep clone is entirely appropriate, and
+  // the resulting false positives would train the reader to ignore this check.
+  // Add a module here when the weekly tick starts calling into it.
+  // 2026-07-30 audit PERF-4.
+  const TICK_PATH_LIB_MODULES = [
+    'lib/timeMachine/checkpointSystem.ts',
+  ].filter((f) => L.exists(f));
+
+  const cloneScanFiles = [...tickFiles, ...TICK_PATH_LIB_MODULES];
+
 
   // --- P1: deep clones in the hot path ------------------------------------
   const cloneRe = /JSON\.parse\(\s*JSON\.stringify/;
-  const cloneHits = L.grep(tickFiles, cloneRe, { skipComments: true });
+  const rawCloneHits = L.grep(cloneScanFiles, cloneRe, { skipComments: true });
+
+  // A clone may opt out with an `audit-allow-clone:` comment on the line above,
+  // which must carry a reason. This exists so the scan can WIDEN (see
+  // TICK_PATH_LIB_MODULES) without going noisy: a per-tick clone is the defect,
+  // a once-per-year or user-initiated one is not, and the difference is not
+  // decidable from a grep. An exemption is greppable and has to be argued for
+  // in the diff — unlike the previous state of affairs, where the check simply
+  // could not see the file at all.
+  const cloneHits = rawCloneHits.filter((h) => {
+    const src = L.read(h.file);
+    if (src == null) return true;
+    const lines = src.split('\n');
+    // 6 lines: a multi-line reason comment can sit several lines above the
+    // statement it annotates (a ternary spanning lines pushes the match down).
+    const above = lines.slice(Math.max(0, h.line - 7), h.line - 1).join(' ');
+    return !/audit-allow-clone:\s*\S/.test(above);
+  });
+  const exemptCount = rawCloneHits.length - cloneHits.length;
+  if (exemptCount > 0) {
+    a.info(`${exemptCount} deep-clone(s) exempted with a documented reason`,
+      'Each carries an `audit-allow-clone:` comment. Re-read them if the tick gets slower.',
+      'audit-allow-clone');
+  }
   a.assert(cloneHits.length === 0, 'medium',
     'No JSON deep-clone in the weekly tick path',
     `${cloneHits.length} JSON.parse(JSON.stringify(...)) clone(s) in the hot path`,
     cloneHits.slice(0, 6).map((h) => `${h.file}:${h.line}`).join(', ') +
       '. Deep-cloning whole state every tick is O(state size) on each Next Week tap.',
-    weeklyDir);
+    `${weeklyDir} + ${TICK_PATH_LIB_MODULES.length} tick-path lib module(s)`);
 
   // --- P2: subsystem resilience wrapping ----------------------------------
   // Verify each apply*/run*/process* weekly subsystem invocation in the orchestrator

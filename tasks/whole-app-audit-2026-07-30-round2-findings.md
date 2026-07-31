@@ -23,7 +23,7 @@ source at the stated anchor. Status column is maintained as work lands.
 | SAVE-2 | med | FIXED | phantomSaveCleanup imports AsyncStorage at module top level; MainMenu pulls it in eagerly | `utils/phantomSaveCleanup.ts:16` |
 | SAVE-3 | med | FIXED | IAP dedupe ledger write unchecked, then purchase reported fulfilled | `services/IAPService.ts:530-537` |
 | PERF-3 | med | OPEN | Pure-JS HMAC allocates 3 full copies of the save as boxed number[]; ~96MB at the 4MB ceiling | `utils/saveValidation.ts:146,177,269` |
-| PERF-4 | med | OPEN | Full JSON deep-clone inside the setGameState updater once per game-year; audit-perf cannot see it | `lib/timeMachine/checkpointSystem.ts:99` |
+| PERF-4 | med | FIXED | Full JSON deep-clone inside the setGameState updater once per game-year; audit-perf cannot see it | `lib/timeMachine/checkpointSystem.ts:99` |
 | PERF-5 | med | OPEN | Two orphaned modules covered by tests named for screens that use different code | `utils/realEstateWeekly.ts` · `utils/bankMarketAPR.ts` |
 | UX-2 | med | OPEN | "Unlock All Perks" shows Owned/unbuyable for players without Mindset (omitted from the check) | `components/GemShopModal.tsx:632` |
 | SAVE-4 | low | OPEN | performSave/forceSave report success though `lastSlot`/`lastSaveTime` writes are unchecked | `utils/saveQueue.ts:272,438` |

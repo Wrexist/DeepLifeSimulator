@@ -91,17 +91,38 @@ export function createCheckpoint(
   // Destructure known transient fields from GameState — remaining fields form the snapshot
   const { checkpoints, weekResult, showDeathPopup, showZeroStatPopup, pendingCliffhanger, ...snapshotData } = state;
 
+  // PRUNE FIRST, THEN CLONE.
+  //
+  // This used to deep-clone the WHOLE state and slim the clone afterwards — so
+  // the expensive pass ran over exactly the heavy, re-derivable collections it
+  // was about to throw away (eventLog up to 500 entries, lifeMilestones up to
+  // 200, memories, the Pulse feed…). And it runs INSIDE the `setGameState`
+  // updater, once per game-year, on the Next Week tap: a JS-thread stall
+  // proportional to full save size, doubled under React 19 StrictMode in dev.
+  //
+  // Slimming a shallow copy first means the clone only covers what is kept.
+  // Order is safe because `slimCheckpointSnapshot` only DELETES top-level and
+  // `socialMedia` keys — it never reads or mutates nested values — and the
+  // shallow copy below keeps `state` itself untouched.
+  // 2026-07-30 audit PERF-4.
+  const shallow: Record<string, any> = { ...snapshotData };
+  if (shallow.socialMedia && typeof shallow.socialMedia === 'object') {
+    // The one nested object slimming touches needs its own copy, or the delete
+    // would strip these keys from the LIVE state.
+    shallow.socialMedia = { ...shallow.socialMedia };
+  }
+  slimCheckpointSnapshot(shallow);
+
   // Deep-clone so the checkpoint is a point-in-time snapshot. A shallow copy
   // shares sub-object references with the live state, which means later
   // mutations would leak into the "frozen" checkpoint and break rewind.
   // We use JSON round-trip rather than structuredClone so the output is
   // guaranteed to match what save serialization will see.
-  const frozen = JSON.parse(JSON.stringify(snapshotData)) as Partial<GameState>;
-
-  // Drop heavy re-derivable history/feed collections from the (already detached)
-  // clone. The rewind path re-defaults them via repairGameState, so the snapshot
-  // stays gameplay-complete at a fraction of the size.
-  slimCheckpointSnapshot(frozen as Record<string, any>);
+  //
+  // audit-allow-clone: fires once per game-YEAR, not per tick, and only over
+  // the already-slimmed subset. A checkpoint must be detached from live state
+  // or a later mutation leaks into it and breaks rewind.
+  const frozen = JSON.parse(JSON.stringify(shallow)) as Partial<GameState>;
 
   return {
     id: `cp_${state.weeksLived ?? 0}_${Date.now()}`,
@@ -180,6 +201,8 @@ export function rewindToCheckpoint(
     // new saves store it as an object (already deep-cloned at creation time).
     // Either way, we clone on rewind so the restored state is independent of
     // the checkpoint and safe for callers to mutate.
+    // audit-allow-clone: the REWIND path — user-initiated and rare, not the
+    // weekly tick. The restored state must be independent of the checkpoint.
     const rawSnapshot: any = typeof checkpoint.snapshot === 'string'
       ? JSON.parse(checkpoint.snapshot)
       : JSON.parse(JSON.stringify(checkpoint.snapshot));
