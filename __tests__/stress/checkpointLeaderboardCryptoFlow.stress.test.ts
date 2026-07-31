@@ -1,11 +1,18 @@
 /**
- * Cross-system audit: Checkpoint pruning, Leaderboard scoring,
- * Statistics weeksLived fix, HMAC signature integrity.
+ * Cross-system audit: Checkpoint pruning, Statistics weeksLived fix,
+ * HMAC signature integrity.
+ *
+ * The leaderboard section is gone with `lib/progress/leaderboard.ts`. That
+ * module implemented a complete CLIENT-side leaderboard — scoring, sorting,
+ * rank assignment, top-N — and nothing shipped ever called it. The app's
+ * leaderboard is server-ranked: `lib/progress/cloud.ts` uploads a score and
+ * `fetchLeaderboard` returns entries already ordered, which `LeaderboardModal`
+ * renders by position (it imports its `LeaderboardEntry` from `cloud`, not from
+ * the deleted module). There is no shipping equivalent to repoint these cases
+ * at, so they are removed rather than rewritten. 2026-07-30 audit PERF-5.
  *
  * Why this file exists:
  *  - addCheckpoint must cap at MAX_CHECKPOINTS=5 — unbounded growth blows save size.
- *  - calculateLeaderboardScore touches `gameState.stats.money`, `careers`, `hobbies`,
- *    `date.age`. A partial state must NOT yield NaN/undefined (BUGFIX #22).
  *  - updateWeeklyStatistics must stamp the absolute counter `weeksLived` so the
  *    10-week snapshot interval fires (BUGFIX #21 — previously used the 1-4
  *    `week` cycle which made the snapshot trigger unreachable).
@@ -24,15 +31,6 @@ import {
   COST_MULTIPLIER,
   type Checkpoint,
 } from '@/lib/timeMachine/checkpointSystem';
-import {
-  calculateLeaderboardScore,
-  sortLeaderboardEntries,
-  assignRanks,
-  getTopEntries,
-  findUserRank,
-  type LeaderboardEntry,
-  type Leaderboard,
-} from '@/lib/progress/leaderboard';
 import {
   updateWeeklyStatistics,
   addNetWorthSnapshot,
@@ -196,113 +194,6 @@ describe('Checkpoint snapshot pruning', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Leaderboard scoring — BUGFIX #22 nil-safety
-// ---------------------------------------------------------------------------
-describe('Leaderboard scoring nil-safety', () => {
-  it('calculateLeaderboardScore: returns 0 for every category when state is empty shell', () => {
-    const empty = {} as GameState;
-    expect(calculateLeaderboardScore(empty, 'wealth')).toBe(0);
-    expect(calculateLeaderboardScore(empty, 'netWorth')).toBe(0);
-    expect(calculateLeaderboardScore(empty, 'career')).toBe(0);
-    expect(calculateLeaderboardScore(empty, 'skills')).toBe(0);
-    expect(calculateLeaderboardScore(empty, 'age')).toBe(0);
-    expect(calculateLeaderboardScore(empty, 'achievements')).toBe(0);
-  });
-
-  it('calculateLeaderboardScore: tolerates undefined nested fields without crashing', () => {
-    const partial = {
-      stats: undefined as any,
-      careers: undefined as any,
-      hobbies: undefined as any,
-      date: undefined as any,
-      achievements: undefined as any,
-    } as GameState;
-    expect(() => calculateLeaderboardScore(partial, 'wealth')).not.toThrow();
-    expect(() => calculateLeaderboardScore(partial, 'career')).not.toThrow();
-    expect(() => calculateLeaderboardScore(partial, 'skills')).not.toThrow();
-    expect(() => calculateLeaderboardScore(partial, 'age')).not.toThrow();
-  });
-
-  it('calculateLeaderboardScore: never returns NaN for any category', () => {
-    const broken = {
-      stats: { money: NaN } as any,
-      careers: [{ level: NaN }, { level: NaN }] as any,
-      hobbies: [{ skill: NaN }] as any,
-      date: { age: NaN } as any,
-      achievements: [] as any,
-    } as GameState;
-    for (const cat of ['wealth', 'netWorth', 'career', 'skills', 'age', 'achievements'] as const) {
-      const v = calculateLeaderboardScore(broken, cat);
-      expect(Number.isFinite(v)).toBe(true);
-    }
-  });
-
-  it('calculateLeaderboardScore: returns real values when state is populated', () => {
-    const populated = createTestGameState({
-      stats: { ...createTestGameState().stats, money: 12345 },
-      careers: [{ id: 'a', level: 3 } as any, { id: 'b', level: 7 } as any],
-      hobbies: [{ id: 'gym', skill: 12 } as any],
-      date: { ...createTestGameState().date, age: 42 },
-    });
-    expect(calculateLeaderboardScore(populated, 'wealth')).toBe(12345);
-    expect(calculateLeaderboardScore(populated, 'career')).toBe(7);
-    expect(calculateLeaderboardScore(populated, 'skills')).toBe(12);
-    expect(calculateLeaderboardScore(populated, 'age')).toBe(42);
-  });
-
-  it('sortLeaderboardEntries: descending score, ties broken alphabetically', () => {
-    const entries: LeaderboardEntry[] = [
-      { userId: 'a', name: 'Zoe', score: 100, rank: 0 },
-      { userId: 'b', name: 'Alice', score: 200, rank: 0 },
-      { userId: 'c', name: 'Bob', score: 200, rank: 0 },
-    ];
-    const sorted = sortLeaderboardEntries(entries);
-    expect(sorted[0].name).toBe('Alice');
-    expect(sorted[1].name).toBe('Bob');
-    expect(sorted[2].name).toBe('Zoe');
-  });
-
-  it('assignRanks: returns 1-indexed ranks in score order', () => {
-    const entries: LeaderboardEntry[] = [
-      { userId: 'a', name: 'A', score: 10, rank: 0 },
-      { userId: 'b', name: 'B', score: 30, rank: 0 },
-      { userId: 'c', name: 'C', score: 20, rank: 0 },
-    ];
-    const ranked = assignRanks(entries);
-    expect(ranked[0].rank).toBe(1);
-    expect(ranked[0].score).toBe(30);
-    expect(ranked[2].rank).toBe(3);
-    expect(ranked[2].score).toBe(10);
-  });
-
-  it('findUserRank: returns rank or undefined', () => {
-    const board: Leaderboard = {
-      category: 'wealth',
-      period: 'allTime',
-      entries: [
-        { userId: 'me', name: 'Me', score: 100, rank: 1 },
-        { userId: 'them', name: 'Them', score: 50, rank: 2 },
-      ],
-      updatedAt: Date.now(),
-    };
-    expect(findUserRank(board, 'me')).toBe(1);
-    expect(findUserRank(board, 'ghost')).toBeUndefined();
-  });
-
-  it('getTopEntries: slice never exceeds total', () => {
-    const board: Leaderboard = {
-      category: 'wealth',
-      period: 'allTime',
-      entries: Array.from({ length: 3 }, (_, i) => ({
-        userId: `u${i}`, name: `U${i}`, score: i, rank: i + 1,
-      })),
-      updatedAt: Date.now(),
-    };
-    expect(getTopEntries(board, 100).length).toBe(3);
-    expect(getTopEntries(board, 1).length).toBe(1);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Statistics tracker — BUGFIX #21: weeksLived not week
@@ -463,19 +354,6 @@ describe('Cross-system regression', () => {
       const json = JSON.stringify(cp);
       const parsed = JSON.parse(json);
       expect(parsed.id).toBe(cp.id);
-    }
-  });
-
-  it('100 leaderboard updates from random state never produce NaN', () => {
-    for (let i = 0; i < 100; i++) {
-      const state = createTestGameState({
-        stats: { ...createTestGameState().stats, money: Math.random() * 1_000_000 },
-        date: { ...createTestGameState().date, age: 18 + Math.random() * 80 },
-      });
-      const wealth = calculateLeaderboardScore(state, 'wealth');
-      const age = calculateLeaderboardScore(state, 'age');
-      expect(Number.isFinite(wealth)).toBe(true);
-      expect(Number.isFinite(age)).toBe(true);
     }
   });
 

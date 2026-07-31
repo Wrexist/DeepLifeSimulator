@@ -1,12 +1,24 @@
 /**
  * Module Loading Tests
- * 
- * Tests the module loading system including iOS compatibility checks, lazy loading, and fallbacks.
+ *
+ * Covers the iOS compatibility checks and the TurboModule lazy-load wrapper —
+ * both of which ship: `hooks/useFrameworkReady.ts` uses `turboModuleWrapper`,
+ * which in turn uses `iosCompatibility`.
+ *
+ * The `Module Loader` / `Module Dependencies` / `Fallback System` /
+ * `Error Handling` blocks are gone with `utils/moduleLoader.ts`. That module
+ * was a 221-line safe-loading layer with its own dependency graph that NOTHING
+ * shipped called — the app loads native modules with the `require()`-in-a-
+ * try/catch idiom directly (CLAUDE.md §4.6). A suite named "Module Loading
+ * Tests" asserting on it read as startup-crash coverage in a repo that has
+ * shipped two launch crashes from module init, while covering none of it.
+ * The dropped cases were shape-only (`toHaveProperty('success')`) and several
+ * were wrapped in `if (!result.success)`, so they passed vacuously anyway.
+ * 2026-07-30 audit PERF-5.
  */
 
 import { isModuleCompatible, getIOSVersion, isIOS26Beta } from '@/utils/iosCompatibility';
 import { lazyLoadTurboModule, getModuleStatus, isTurboModuleAvailable } from '@/utils/turboModuleWrapper';
-import { loadModuleSafely, getModuleLoadingHealth } from '@/utils/moduleLoader';
 
 describe('Module Loading System', () => {
   describe('iOS Compatibility', () => {
@@ -74,94 +86,5 @@ describe('Module Loading System', () => {
     }, 5000);
   });
 
-  describe('Module Loader', () => {
-    it('should load modules safely', async () => {
-      const result = await loadModuleSafely('expo-splash-screen', {
-        fallback: null,
-        required: false,
-      });
-      
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('module');
-      expect(result).toHaveProperty('skipped');
-      expect(typeof result.success).toBe('boolean');
-    }, 5000);
-
-    it('should provide error information on failure', async () => {
-      const result = await loadModuleSafely('nonexistent-module', {
-        fallback: null,
-        required: false,
-      });
-      
-      if (!result.success) {
-        expect(result).toHaveProperty('error');
-        expect(result).toHaveProperty('skipped');
-      }
-    }, 5000);
-
-    it('should get module loading health', () => {
-      const health = getModuleLoadingHealth();
-      
-      expect(health).toHaveProperty('iosVersion');
-      expect(health).toHaveProperty('isIOS26Beta');
-      expect(health).toHaveProperty('criticalModules');
-      
-      expect(typeof health.isIOS26Beta).toBe('boolean');
-      expect(typeof health.criticalModules).toBe('object');
-    });
-  });
-
-  describe('Module Dependencies', () => {
-    it('should handle module dependencies', async () => {
-      // expo-router depends on react-native-gesture-handler and react-native-screens
-      // These should be loaded first
-      const result = await loadModuleSafely('expo-router', {
-        fallback: null,
-        required: false,
-      });
-      
-      // Should handle dependencies automatically
-      expect(result).toHaveProperty('success');
-    }, 10000);
-  });
-
-  describe('Fallback System', () => {
-    it('should return fallback for unavailable modules', async () => {
-      const fallback = { test: 'fallback' };
-      const result = await loadModuleSafely('nonexistent-module', {
-        fallback,
-        required: false,
-      });
-      
-      if (!result.success && result.skipped) {
-        expect(result.module).toBe(fallback);
-      }
-    }, 5000);
-  });
-
-  describe('Error Handling', () => {
-    it('should handle load timeouts', async () => {
-      const result = await loadModuleSafely('expo-splash-screen', {
-        fallback: null,
-        required: false,
-      });
-      
-      // Should complete without throwing
-      expect(result).toHaveProperty('success');
-    }, 5000);
-
-    it('should handle load errors gracefully', async () => {
-      const result = await loadModuleSafely('invalid-module-name', {
-        fallback: null,
-        required: false,
-      });
-      
-      // Should not throw, should return error result
-      expect(result).toHaveProperty('success');
-      if (!result.success) {
-        expect(result).toHaveProperty('error');
-      }
-    }, 5000);
-  });
 });
 
