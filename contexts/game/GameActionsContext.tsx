@@ -57,8 +57,19 @@ import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeM
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
 import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
 
-/** Energy the Auto-Rest prestige bonus tops a depleted week up to. */
-const AUTO_REST_TARGET_ENERGY = 40;
+/**
+ * Energy the Auto-Rest prestige bonus tops a depleted week up to.
+ *
+ * Must sit ABOVE `baseEnergyRegen` (40) or the top-up is unreachable: an
+ * exhausted player at energy 5 already regens to 45, so a target of 40 made
+ * `Math.max(45, 40)` a no-op and the 3,000-point bonus stayed inert for anyone
+ * without a regen penalty — the second inert version of this fix. 70 is a
+ * bounded benefit: +25 at the floor, +11 at the `< 20` threshold, and still
+ * below what a well-rested player reaches on their own, so it tops up a bad
+ * week rather than replacing normal play. The manual quick-action Rest gives
+ * +14 and costs 5 happiness plus the week's one action slot.
+ */
+const AUTO_REST_TARGET_ENERGY = 70;
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
@@ -542,6 +553,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // after regen could never fire: `baseEnergyRegen` is 40, so post-regen energy
  // is always >= 40 and `shouldAutoRest`'s `< 20` test is unreachable — the
  // first version of this fix was itself inert. Review of GL-7.
+ //
+ // The TARGET has to clear 40 for the same reason; see AUTO_REST_TARGET_ENERGY.
  const wasExhausted = shouldAutoRest(prevState.stats?.energy || 0, unlockedBonuses);
 
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)

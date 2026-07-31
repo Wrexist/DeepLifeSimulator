@@ -62,7 +62,7 @@ jest.mock('@/utils/saveValidation', () => ({
 
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
-import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 /** `applyBenefit` is private; drive it the way the purchase paths do. */
 const applyBenefit = (productId: string, transactionId: string): Promise<boolean> =>
@@ -79,7 +79,7 @@ beforeEach(() => {
   writes.length = 0;
   events.length = 0;
   writesSucceed = true;
-  mockDisk.state = JSON.parse(JSON.stringify(initialGameState));
+  mockDisk.state = createTestGameState();
 });
 
 describe('the products that must not be granted twice', () => {

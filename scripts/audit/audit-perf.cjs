@@ -193,12 +193,23 @@ function build({ runTests = false } = {}) {
   // was an unreachable module (PERF-4: a second `applyLegacyBonuses` nobody
   // called; PERF-5: the only caller of the relationship-gain multiplier). Both
   // survived several audits because nothing looks for orphans. This names them.
-  const orphans = findZeroImporterModules();
+  const { orphans, testOnly } = findZeroImporterModules();
   a.assert(orphans.length === 0, 'low',
     `No zero-importer modules outside the allowlist (${REACHABILITY_ALLOWLIST.length} allowlisted)`,
     `${orphans.length} module(s) have no importer anywhere`,
     orphans.slice(0, 8).join(', ') + (orphans.length > 8 ? ' …' : '')
       + ' — delete them, or add to REACHABILITY_ALLOWLIST with a reason if they are deliberate tooling.',
+    'scripts/audit/audit-perf.cjs');
+
+  // Graded HIGHER than a plain orphan: an unreferenced module is dead weight,
+  // but a test-only module is dead weight that ALSO buys false confidence —
+  // the suite is green and the shipping path is untested. See PERF-5.
+  a.assert(testOnly.length === 0, 'medium',
+    'No module is kept alive only by its own tests',
+    `${testOnly.length} module(s) are imported from the test tree and nowhere else`,
+    testOnly.slice(0, 8).join(', ') + (testOnly.length > 8 ? ' …' : '')
+      + ' — the tests covering these assert on code that does not ship. Delete the'
+      + ' module and repoint the suite at the real path, or wire the module in.',
     'scripts/audit/audit-perf.cjs');
 
   return a;
@@ -286,7 +297,23 @@ const REACHABILITY_ALLOWLIST = [
  *     `.android` file is matched on its BASE name.
  * Entry points (app/ routes, config, scripts) are excluded — Expo Router loads
  * those by convention, not by import.
+ *
+ * Returns TWO lists, because a test is not a consumer:
+ *   - `orphans`  — referenced by nothing at all.
+ *   - `testOnly` — referenced ONLY from the test tree. This is the worse
+ *     failure of the two and it used to be invisible here, because `__tests__`
+ *     sits in the corpus so a test-only importer read as "referenced".
+ *     `utils/realEstateWeekly.ts` and `utils/bankMarketAPR.ts` hid there: both
+ *     were hand-maintained shadow copies of shipping logic that had since
+ *     diverged, kept alive by confidently-named suites ("BankApp week counter
+ *     regression") that exercised no shipping code. A real regression in the
+ *     screens they were named for passed CI green. 2026-07-30 audit PERF-5.
  */
+/** Test-tree file — both `__tests__/**` and co-located `*.test.ts`. */
+function isTestFile(file) {
+  return /__tests__|__mocks__|\.(test|spec|stress)\.(ts|tsx|js)$/.test(file);
+}
+
 function findZeroImporterModules() {
   const roots = ['lib', 'utils', 'contexts', 'hooks', 'services'];
   const candidates = L.walk(roots, L.isProductionSource)
@@ -298,6 +325,7 @@ function findZeroImporterModules() {
   const corpus = corpusFiles.map((f) => ({ file: f, src: L.read(f) || '' }));
 
   const orphans = [];
+  const testOnly = [];
   for (const file of candidates) {
     if (REACHABILITY_ALLOWLIST.includes(file)) continue;
     // Platform extensions resolve through their base name.
@@ -310,10 +338,11 @@ function findZeroImporterModules() {
     if (!needle) continue;
 
     const re = new RegExp(`['"\`][^'"\`]*\\b${needle}['"\`]|\\b${needle}\\s*}?\\s*from|['"\`][^'"\`]*/${needle}['"\`]`);
-    const referenced = corpus.some(({ file: other, src }) => other !== file && re.test(src));
-    if (!referenced) orphans.push(file);
+    const hits = corpus.filter(({ file: other, src }) => other !== file && re.test(src));
+    if (hits.length === 0) orphans.push(file);
+    else if (!hits.some((h) => !isTestFile(h.file))) testOnly.push(file);
   }
-  return orphans;
+  return { orphans, testOnly };
 }
 
 module.exports = { build };

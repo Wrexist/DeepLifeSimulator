@@ -366,7 +366,20 @@ class SaveQueue {
     }
 
     const key = `save_slot_${slot}`;
-    
+
+    // Yield before the expensive stringify, exactly as `performSave` does.
+    // `forceSave` runs on the paths where a dropped frame reads as "my purchase
+    // hung": IAP grant fulfilment, redeem codes, the death popup and onboarding
+    // perks. The mitigation existed on the periodic-autosave branch and simply
+    // was not applied to this one. 2026-07-30 audit PERF-6.
+    await new Promise<void>(resolve => {
+      if (typeof setImmediate === 'function') {
+        setImmediate(() => resolve());
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+
     // Prune save data to reduce size
     const prunedData = this.pruneSaveData(data);
     let serializedData: string;

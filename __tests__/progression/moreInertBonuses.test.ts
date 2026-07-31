@@ -19,6 +19,8 @@
  *
  * 2026-07-30 audit GL-5 / GL-6 / GL-7.
  */
+import fs from 'fs';
+import path from 'path';
 import { acceptLoan } from '@/contexts/game/actions/LoanActions';
 import { initialGameState } from '@/contexts/game/initialState';
 import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
@@ -143,8 +145,29 @@ describe('Auto-Rest fires for the bonus that promises it', () => {
    * still completely inert while these predicate tests passed. This models the
    * ordering the tick actually uses.
    */
-  const AUTO_REST_TARGET = 40;
-  const BASE_REGEN = 40;
+  /**
+   * Read BOTH numbers out of the tick rather than mirroring them by hand.
+   *
+   * A hand-mirrored `AUTO_REST_TARGET = 40` is what hid the SECOND inert
+   * version of this bonus: the target equalled `baseEnergyRegen`, so the
+   * `Math.max` top-up could never raise anything, and the assertion below —
+   * then written as `toBeGreaterThanOrEqual(AUTO_REST_TARGET)` — passed on the
+   * 45 that plain regen produces. Reading the source means the test moves when
+   * the tick moves, and the comparison below is against the no-bonus baseline
+   * rather than against a constant.
+   */
+  function constantFromTick(name: string): number {
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'contexts/game/GameActionsContext.tsx'),
+      'utf8',
+    );
+    const match = source.match(new RegExp(`${name}\\s*=\\s*(\\d+)`));
+    if (!match) throw new Error(`${name} not found in GameActionsContext`);
+    return Number(match[1]);
+  }
+
+  const AUTO_REST_TARGET = constantFromTick('AUTO_REST_TARGET_ENERGY');
+  const BASE_REGEN = constantFromTick('baseEnergyRegen');
 
   function energyAfterTick(startEnergy: number, bonuses: string[]): number {
     // Mirrors the tick: decide from PRE-regen energy, then apply regen, then
@@ -155,10 +178,26 @@ describe('Auto-Rest fires for the bonus that promises it', () => {
     return energy;
   }
 
+  it('has a target that plain regen cannot already reach', () => {
+    // The structural reason the bonus was inert. Without this, every
+    // behavioural assertion below can be satisfied by regen alone.
+    expect(AUTO_REST_TARGET).toBeGreaterThan(BASE_REGEN);
+  });
+
   it('fires for a player who ended the week exhausted', () => {
     // The decision must be made on the energy they ENDED on, not post-regen.
     expect(shouldAutoRest(5, ['auto_save_energy'])).toBe(true);
-    expect(energyAfterTick(5, ['auto_save_energy'])).toBeGreaterThanOrEqual(AUTO_REST_TARGET);
+
+    // Against the NO-BONUS baseline, not against a constant. This is the
+    // assertion that actually distinguishes a working bonus from an inert one.
+    expect(energyAfterTick(5, ['auto_save_energy'])).toBeGreaterThan(energyAfterTick(5, []));
+  });
+
+  it('still helps a player right at the < 20 threshold', () => {
+    // 19 is the worst case the bonus is meant to cover — regen alone takes it
+    // to 59, so a target of 40 or 50 would leave the edge of the band inert
+    // even if the floor case passed.
+    expect(energyAfterTick(19, ['auto_save_energy'])).toBeGreaterThan(energyAfterTick(19, []));
   });
 
   it('would NEVER fire if the check ran after regen — the bug this replaced', () => {
