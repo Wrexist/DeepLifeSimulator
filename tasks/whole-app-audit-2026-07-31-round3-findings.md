@@ -126,3 +126,33 @@ economy breaks, one is a 52× borrowing-capacity error that compounds with the
 second, and one makes an entire advertised subsystem unplayable. R3-M4 (netWorth
 omitting crypto and bank accounts) is the highest-leverage single fix, because
 it gates prestige, the passive-income cap, bail and ad rewards at once.
+
+
+## R3-C1 — needs a product decision before it can be fixed
+
+18 of 19 illegal street jobs gate on `darkWebRequirements` items whose only
+writer is `buyDarkWebItem`, which has zero call sites. Verified: the `items`
+fallback cannot cover it either (that catalogue is guitar/bike/smartphone/
+computer/suit/bed/gym/passport), and the current Onion app's Market sells
+procedurally generated `DarkWebMarketListing`s, not the legacy `darkWebItems`
+catalogue. So the whole illegal-crime ladder is permanently greyed out, and
+`criminalXp` can only come from the single unlocked job plus jail activities.
+
+This is not a mechanical fix. Three shapes are possible and they are different
+games:
+
+1. **Wire the legacy catalogue into the Onion Market** as a fixed "Gear" tab
+   alongside the generated listings. Closest to the original intent — the
+   requirements and the catalogue already exist and match — but it adds a
+   storefront and needs pricing/BTC-vs-cash decisions.
+2. **Re-gate the street jobs** on something already obtainable (criminal level,
+   heat, opsec) and retire `darkWebRequirements`. Smallest diff, but it deletes
+   a designed progression gate.
+3. **Have the generated marketplace grant the gear** — make a successful
+   purchase of a matching listing set the corresponding `darkWebItems[].owned`.
+   Ties the two systems together and gives R3-C10 (purchases deliver no item) a
+   fix at the same time.
+
+Option 3 is the one I would recommend: it closes two findings at once and needs
+no new UI. But which gear a generated listing maps to is a content decision, so
+it is left for the owner.
