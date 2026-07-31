@@ -13,7 +13,56 @@
  * Every real save has both, because onboarding requires a scenario and a
  * name before a game can exist. Unreadable/corrupt blobs are never touched.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger as _loggerForStorage } from '@/utils/logger';
+
+/**
+ * LAZY. This was the only static top-level `@react-native-async-storage`
+ * import left in the app source — every other module (`safeStorage`,
+ * `saveValidation`, `ErrorBoundary`, `bootBreadcrumbs`, …) uses this
+ * require-in-a-getter pattern, and CLAUDE.md §4.6 requires it: "Load native
+ * modules lazily via `require()` in a try/catch, never at module top level."
+ *
+ * It mattered here because `MainMenu` — the first screen the router navigates
+ * to — imports `saveSlotMetaLooksPhantom` from this file statically. That is a
+ * two-line pure function needing no storage at all, but the import dragged an
+ * eager AsyncStorage module init into MainMenu's graph. If the TurboModule is
+ * not ready at that point the failure lands during module evaluation of the
+ * first screen, which is the blank-launch / "Element type is invalid" class
+ * this repo has already shipped twice. MainMenu even imports the LAZY wrapper
+ * one line earlier for its own use. 2026-07-30 audit SAVE-2.
+ */
+let _asyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
+let _loadAttempted = false;
+
+function getAsyncStorage(): typeof import('@react-native-async-storage/async-storage').default | null {
+  if (_asyncStorage) return _asyncStorage;
+  if (_loadAttempted) return null;
+  _loadAttempted = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _asyncStorage = require('@react-native-async-storage/async-storage').default;
+    return _asyncStorage;
+  } catch {
+    _loggerForStorage.warn('[PhantomSaveCleanup] AsyncStorage unavailable');
+    return null;
+  }
+}
+
+/** Same surface the module used before, minus the eager module init. */
+const AsyncStorage = {
+  async getItem(key: string): Promise<string | null> {
+    const s = getAsyncStorage();
+    return s ? s.getItem(key) : null;
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    const s = getAsyncStorage();
+    if (s) await s.setItem(key, value);
+  },
+  async multiRemove(keys: string[]): Promise<void> {
+    const s = getAsyncStorage();
+    if (s) await s.multiRemove(keys);
+  },
+};
 import { logger } from '@/utils/logger';
 import { readSaveSlotMeta, deleteSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 

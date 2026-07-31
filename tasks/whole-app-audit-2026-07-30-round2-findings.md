@@ -20,7 +20,7 @@ source at the stated anchor. Status column is maintained as work lands.
 | ECON-3 | med | FIXED | lobby/campaign/hireLobbyist clamp debit to 0 instead of rejecting; free lobbyist + influence | `contexts/game/actions/PoliticalActions.ts:621,750,821` |
 | ECON-4 | med | FIXED | deliverBrandDealPost counts a delivery without checking the post was already used | `contexts/game/actions/PulseActions.ts:710-715` |
 | MON-3 | med | FIXED | Subscription expiry never enforced on the non-RevenueCat path; Restore re-grants premium forever | `services/SubscriptionService.ts:112-141` |
-| SAVE-2 | med | OPEN | phantomSaveCleanup imports AsyncStorage at module top level; MainMenu pulls it in eagerly | `utils/phantomSaveCleanup.ts:16` |
+| SAVE-2 | med | FIXED | phantomSaveCleanup imports AsyncStorage at module top level; MainMenu pulls it in eagerly | `utils/phantomSaveCleanup.ts:16` |
 | SAVE-3 | med | OPEN | IAP dedupe ledger write unchecked, then purchase reported fulfilled | `services/IAPService.ts:530-537` |
 | PERF-3 | med | OPEN | Pure-JS HMAC allocates 3 full copies of the save as boxed number[]; ~96MB at the 4MB ceiling | `utils/saveValidation.ts:146,177,269` |
 | PERF-4 | med | OPEN | Full JSON deep-clone inside the setGameState updater once per game-year; audit-perf cannot see it | `lib/timeMachine/checkpointSystem.ts:99` |
@@ -38,7 +38,7 @@ source at the stated anchor. Status column is maintained as work lands.
 
 | Gate | Result |
 |---|---|
-| `npx jest` | 4,510 passed, 1 skipped, 0 failed |
+| `npx jest` | 4,520 passed, 1 skipped, 0 failed |
 | `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
 | Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
 | `npx eslint --quiet` on changed files | 0 errors |
