@@ -481,9 +481,44 @@ export const getAllProductIds = () => Object.values(IAP_PRODUCTS);
 // Get all subscription IDs as an array
 export const getAllSubscriptionIds = () => Object.values(SUBSCRIPTION_PRODUCTS);
 
+/**
+ * The entitlements the $99.99 Mega Pack's `everythingUnlocked` flag implies but
+ * did not carry.
+ *
+ * R4-MON-5. `GEMS_MEGA` is the most expensive product in the store and its
+ * description reads "40,000 Gems + Unlimited Youth Pills + Everything
+ * Unlocked". `applyProductBenefitsToState`'s `everythingUnlocked` branch set
+ * `adsRemoved`, `lifetimePremium` and the nine gold upgrades — and nothing
+ * else. It did NOT grant:
+ *
+ *   - the four perks + `unlockAllPerks`, sold as UNLOCK_ALL_PERKS ($6.99)
+ *   - `premiumCreditCard` ($4.99), `financialPlanning` ($2.99),
+ *     `businessBanking` ($3.99), `privateBanking` ($9.99)
+ *
+ * So "Everything Unlocked" omitted about $28 of separately-sold entitlements.
+ *
+ * Expanding it HERE rather than in the fulfilment branch is deliberate: every
+ * consumer reads `getProductConfig`, including `persistPermanentPerks` (which
+ * keys off `config.allPerks` and is what makes perks survive a slot change) and
+ * the restore path. Patching only the state-apply branch would have granted the
+ * perks in memory and lost them on the next slot swap.
+ */
+const EVERYTHING_UNLOCKED_IMPLIES = {
+  allPerks: true,
+  premiumCreditCard: true,
+  financialPlanning: true,
+  businessBanking: true,
+  privateBanking: true,
+} as const;
+
 // Helper function to get product config
 export const getProductConfig = (productId: string) => {
-  return PRODUCT_CONFIGS[productId as keyof typeof PRODUCT_CONFIGS];
+  const config = PRODUCT_CONFIGS[productId as keyof typeof PRODUCT_CONFIGS];
+  if (config && 'everythingUnlocked' in config && config.everythingUnlocked) {
+    // Spread the implications UNDER the config so an explicit value always wins.
+    return { ...EVERYTHING_UNLOCKED_IMPLIES, ...config };
+  }
+  return config;
 };
 
 // Helper function to get a subscription config

@@ -190,6 +190,28 @@ export function applyProductBenefitsToState(
     gameState.settings.adsRemoved = true;
   }
 
+  // The four banking entitlements, driven by the CONFIG FLAG rather than only by
+  // the product id in the switch below.
+  //
+  // R4-MON-5: they were switch-only, so a bundle that implies them — the $99.99
+  // Mega Pack's "Everything Unlocked" — could never grant them, because its
+  // product id is GEMS_MEGA. `getProductConfig` now expands
+  // `everythingUnlocked` into these flags; this is what reads them. The
+  // single-product purchases still land through the switch, and setting a flag
+  // that is already true is a no-op, so the two paths cannot disagree.
+  if ('premiumCreditCard' in config && config.premiumCreditCard) {
+    gameState.settings.premiumCreditCard = true;
+  }
+  if ('financialPlanning' in config && config.financialPlanning) {
+    gameState.settings.financialPlanning = true;
+  }
+  if ('businessBanking' in config && config.businessBanking) {
+    gameState.settings.businessBanking = true;
+  }
+  if ('privateBanking' in config && config.privateBanking) {
+    gameState.settings.privateBanking = true;
+  }
+
   // Special products
   switch (productId) {
     case IAP_PRODUCTS.REMOVE_ADS:

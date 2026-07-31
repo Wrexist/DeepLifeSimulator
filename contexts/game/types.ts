@@ -1624,6 +1624,25 @@ export interface GameSettings {
    * 2026-07-30 audit UX-R1-02.
    */
   quickActionWeeks?: Record<string, number>;
+  /**
+   * `weeksLived` at which the ad orb last honoured a NO-FILL courtesy reward —
+   * a grant made with no ad shown, because ads are on for this build but there
+   * was no inventory.
+   *
+   * R4-MON-6: that courtesy was capped by a MODULE-LEVEL boolean
+   * (`noFillGrantedThisSession` in `AdRewardOrb.tsx`), whose own comment said it
+   * exists because otherwise "a whale could farm the capped reward on every
+   * respawn with NO ad ever shown (~$10M/hr)". A module variable resets on app
+   * restart, so the farm was simply "force-quit and relaunch" — and the reward
+   * scales with net worth, so it is worth most to exactly the players who can
+   * be bothered. CLAUDE.md §4.4: gate on game state, never on something the
+   * player can reset.
+   *
+   * Absent means "never granted", so this is a carve-out field: STATE_VERSION
+   * bumped, NO backfill and no `repairGameState` mirror. Game time, not wall
+   * clock — a real-time key is farmable by moving the device clock.
+   */
+  lastNoFillGrantWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle

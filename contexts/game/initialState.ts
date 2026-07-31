@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 27;
+export const STATE_VERSION = 28;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';

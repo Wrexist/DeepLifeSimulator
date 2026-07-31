@@ -107,7 +107,10 @@ describe('recoverFromScandal rejects a same-batch second tap', () => {
     recoverFromScandal(setState, snapshot, 'gems');
     const afterFirst = get();
 
-    const reArmed = { ...afterFirst, socialMedia: { ...afterFirst.socialMedia, activeScandal: { ...SCANDAL, id: 'sc-2' } } } as GameState;
+    const reArmed = createTestGameState({
+      ...afterFirst,
+      socialMedia: { ...afterFirst.socialMedia, activeScandal: { ...SCANDAL, id: 'sc-2' } } as never,
+    });
     const second = batched(reArmed);
     recoverFromScandal(second.setState, reArmed, 'gems');
 
@@ -157,7 +160,7 @@ describe('boostProfile rejects a same-batch second tap', () => {
     boostProfile(first.setState, snapshot);
     const cost = 5_000 - (first.get().stats.gems ?? 0);
 
-    const expired = { ...first.get(), weeksLived: 9_999 } as GameState;
+    const expired = createTestGameState({ ...first.get(), weeksLived: 9_999 });
     const second = batched(expired);
     boostProfile(second.setState, expired);
 

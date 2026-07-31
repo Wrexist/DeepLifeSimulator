@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 27`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 28`
 - **Binary version:** `package.json` `version` (currently `2.5.12`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -238,7 +238,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 27`** — single source of truth in
+- **Canonical `STATE_VERSION = 28`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -265,6 +265,12 @@ including the crash screen.
   so it is another carve-out: version bumped, NO backfill and no
   `repairGameState` mirror. Writing a value would be actively wrong — it would
   lock an existing player out of their next legitimate claim.
+- **v28 adds `settings.lastNoFillGrantWeek`** — the game-week marker capping the
+  ad orb's no-fill courtesy reward. It replaces a module-level boolean that reset
+  on app restart, which made the net-worth-scaled grant farmable by force-quitting.
+  Default `undefined`, so another carve-out: version bumped, NO backfill and no
+  `repairGameState` mirror — writing a value would deny an existing player their
+  first legitimate courtesy grant.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

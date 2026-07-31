@@ -28,7 +28,7 @@
  */
 import { createTestGameState } from '../helpers/createTestGameState';
 import { STATE_VERSION } from '@/contexts/game/initialState';
-import { runMigrations } from '@/utils/saveMigrations';
+import { runMigrations, isMigrationVersionCovered } from '@/utils/saveMigrations';
 import type { GameState } from '@/contexts/game/types';
 
 /** The exact predicate TopStatsBar uses. */
@@ -143,10 +143,16 @@ describe('a quick action is once per game week', () => {
 
 describe('the save-format rule is honoured for the new field', () => {
   it('bumped STATE_VERSION and registered a migration', () => {
-    expect(STATE_VERSION).toBe(27);
+    // Version-agnostic: this field arrived at v26, so what matters is that v26
+    // is registered and the chain runs clean to whatever the current version
+    // is. A hardcoded literal here just breaks on the next unrelated bump.
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(26);
+    expect(isMigrationVersionCovered(26)).toBe(true);
+
     const { state, errors } = runMigrations({ version: 25, weeksLived: 10 });
+
     expect(errors).toHaveLength(0);
-    expect((state as { version?: number }).version).toBe(27);
+    expect((state as { version?: number }).version).toBe(STATE_VERSION);
   });
 
   it('writes NO key, because an absent marker already equals the default', () => {

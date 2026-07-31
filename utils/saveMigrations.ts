@@ -755,6 +755,18 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 27;
     return state;
   },
+
+  // Version 28: `settings.lastNoFillGrantWeek` — the game-week marker that caps
+  // the ad orb's no-fill courtesy reward. It replaces a module-level boolean
+  // that reset on every app restart, making the net-worth-scaled grant farmable
+  // by force-quitting. Default is `undefined` (absent = never granted), so this
+  // is another carve-out field: version bump, NO backfill and no
+  // repairGameState mirror. Writing a value would deny an existing player their
+  // first legitimate courtesy grant. 2026-07-31 audit round 4, R4-MON-6.
+  28: (state) => {
+    state.version = 28;
+    return state;
+  },
 };
 
 /**

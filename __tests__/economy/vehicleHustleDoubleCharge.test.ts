@@ -133,10 +133,10 @@ describe('R4-X5 — vehicle upkeep charges once per tap-burst', () => {
     refuelVehicle(snapshot, first.setState, CAR.id, deps);
     const cost = 100_000 - first.get().stats.money;
 
-    const drained = {
+    const drained = createTestGameState({
       ...first.get(),
       vehicles: [{ ...first.get().vehicles![0], fuelLevel: 20 }],
-    } as GameState;
+    });
     const second = batched(drained);
     refuelVehicle(drained, second.setState, CAR.id, deps);
 
@@ -212,7 +212,7 @@ describe('R4-X8 — an acquisition closes once per tap-burst', () => {
     // The control: the guard is "this offer is gone", not "an acquisition
     // already happened".
     const snapshot = withOffer(1_000_000);
-    const withTwo = {
+    const withTwo = createTestGameState({
       ...snapshot,
       hustleApp: {
         ...snapshot.hustleApp,
@@ -225,8 +225,8 @@ describe('R4-X8 — an acquisition closes once per tap-burst', () => {
             ],
           },
         },
-      },
-    } as GameState;
+      } as never,
+    });
     const { setState, get } = batched(withTwo);
 
     acceptAcquisition(setState, withTwo, COMPANY_ID, 'acq-1');

@@ -67,14 +67,35 @@ function pickKind(): RewardKind {
   return Math.random() < 0.5 ? 'cash' : 'vitality';
 }
 
-// Session-scoped courtesy limit for no-fill grants. When ads are ON for this
-// build but there is no inventory to serve (common on TestFlight and brand-new
-// ad units), the orb still honours ONE reward per app session via grantOnNoFill.
-// Without this cap a whale could farm the capped reward on every respawn with NO
-// ad ever shown (~$10M/hr). Module-level so it survives remounts and resets only
-// on app restart; a later real-ad grant clears it (inventory has returned).
-// Ads-removed players are unaffected — their direct grant is a paid perk.
-let noFillGrantedThisSession = false;
+/**
+ * Courtesy limit for no-fill grants. When ads are ON for this build but there is
+ * no inventory to serve (common on TestFlight and brand-new ad units), the orb
+ * still honours ONE reward per period via grantOnNoFill. Without a cap a whale
+ * could farm the net-worth-scaled reward on every respawn with NO ad ever shown
+ * (~$10M/hr). Ads-removed players are unaffected — their direct grant is a paid
+ * perk, not a fallback.
+ *
+ * R4-MON-6: this used to be a module-level boolean, "per app session". A module
+ * variable resets on app restart, so the farm the comment described was simply
+ * "force-quit and relaunch" — and the reward scales with net worth, so it pays
+ * best to exactly the players who will bother. CLAUDE.md §4.4: gate on game
+ * state, never on something the player can reset. It is now
+ * `settings.lastNoFillGrantWeek`, one courtesy grant per GAME week (not a wall
+ * clock, which the device clock can rewind).
+ *
+ * A real-ad grant still clears it — inventory has returned, so the courtesy
+ * path is not what is paying out.
+ */
+const NO_FILL_COOLDOWN_WEEKS = 1;
+
+function noFillOnCooldown(state: GameState): boolean {
+  const last = state.settings?.lastNoFillGrantWeek;
+  if (typeof last !== 'number' || !Number.isFinite(last)) return false;
+  const now = state.weeksLived ?? 0;
+  // `now < last` means the save was rewound (prestige, slot swap, a restored
+  // backup). Treat that as off-cooldown rather than as an infinite lockout.
+  return now >= last && now - last < NO_FILL_COOLDOWN_WEEKS;
+}
 
 // The three stats a vitality reward refills, with their icon + accent.
 const VITALITY_ROWS = [
@@ -187,7 +208,8 @@ export default function AdRewardOrb() {
       // again (which clears the flag) — otherwise the capped reward could be
       // farmed with no ad ever shown. Ads-removed players are exempt: their
       // direct grant is a paid perk, not a no-fill fallback.
-      if (noFillGrantedThisSession && adsAvailable(areAdsRemoved(getGameState()))) {
+      const snapshot = getGameState();
+      if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
         return;
       }
       const nextKind = pickKind();
@@ -349,9 +371,19 @@ export default function AdRewardOrb() {
       // scheduler stops offering more this session; a real-ad grant means
       // inventory returned, so lift the limit again.
       if (isNoFillGrant(outcome)) {
-        noFillGrantedThisSession = true;
+        // Stamp the game week INSIDE the updater so the mark and the grant land
+        // together — a trailing write could be lost to a concurrent update, and
+        // a lost mark is an uncapped faucet.
+        setGameState((prev) => ({
+          ...prev,
+          settings: { ...prev.settings, lastNoFillGrantWeek: prev.weeksLived ?? 0 },
+        }));
       } else if (outcome === 'granted-ad') {
-        noFillGrantedThisSession = false;
+        setGameState((prev) => {
+          if (prev.settings?.lastNoFillGrantWeek === undefined) return prev;
+          const { lastNoFillGrantWeek: _cleared, ...rest } = prev.settings;
+          return { ...prev, settings: rest };
+        });
       }
       if (isGranted(outcome)) {
         // Reopen the sheet in its "Reward added!" state — a fresh present is
