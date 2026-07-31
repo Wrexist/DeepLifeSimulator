@@ -1,5 +1,35 @@
 # Task Tracker
 
+## 🔎 Weekly audit backlog — 2026-07-31 (non-blocking ⚪ low)
+
+Weekly routine audit 2026-07-31 verdict: **PASS, no blockers.** Static layer green
+(one documented 🟡: 47 `as GameState` casts in tests — tests-are-exempt review item);
+all dynamic backstops green. Deep pass found no critical/high. Two ⚪ low latent
+"clamp-and-grant" findings, filed here for a defense-in-depth sweep (not fix-now):
+
+- [ ] **econ-low-1 — legacy `buyCrypto`/`sellCrypto`/`swapCrypto` are exported footguns.**
+      `contexts/game/actions/MoneyActionsContext.tsx` (`buyCrypto` ~333-352, `swapCrypto`
+      ~449-460): updater clamps `Math.max(0, prev.stats.money - amount)` and grants crypto
+      with NO affordability re-check against `prev`. A same-batch double-tap grants twice
+      while the 2nd debit silently clamps → latent printer (crypto is cash-convertible via
+      `sellCrypto`). Low: only non-test caller is `components/TestRunner.tsx` (dev tool); the
+      production UI uses the atomic `buyCryptoMarket`/`sellCryptoMarket`. But still exported on
+      `useMoneyActions()`. Fix: route through `applyMoneyDelta(prev, -amount, …)` with
+      `if (!spend) return prev;` (mirror `buyCryptoMarket`), or delete if superseded.
+- [ ] **econ-low-2 — `PoliticalActions` siblings miss the inner re-check.**
+      `contexts/game/actions/PoliticalActions.ts`: `lobbyForPolicy` (~621-639), `fundCampaign`
+      (~750-770), `hireLobbyist` (~821-839) clamp-and-grant without a `prev`-based re-check —
+      the shape hardened in siblings `runForOffice`/`enactPolicy` in prior audits. Double-tap
+      dup-grants a capped non-cash benefit (`policyInfluence`/`approvalRating` cap at 100;
+      `campaignFunds`/lobbyists never convert to cash) — not a printer. Fix: re-check against
+      `prev`, return `prev` on failure; for `hireLobbyist` also re-check
+      `prev.politics.lobbyists.some(l => l.id === lobbyistId)`.
+- [ ] **audit-tooling — perf analyzer scopes "unguarded subsystem" by helper name, not call site.**
+      `scripts/audit/audit-perf.cjs` flagged `applyRelationshipGain`/`applyMoneyDelta` as outside
+      a tick try/catch; both are false positives (UI callbacks in `updateRelationship` /
+      `proposeToPartner`, not in `nextWeek`). Teach it to scope by enclosing function so the flag
+      isn't re-chased each cycle.
+
 ## 📣 Apple Ads (App Store Ads) — full setup & optimization (2026-07-30)
 
 Branch: `claude/app-store-ads-setup-qc9ih4`. Goal: an execution-ready Apple Ads
