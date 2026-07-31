@@ -131,7 +131,17 @@ export function executePrestige(
         stats: { money: gameState.stats.money, reputation: gameState.stats.reputation },
         age: gameState.date?.age || 18,
         education: (gameState.educations || []).map(e => ({ id: e.id, completed: e.completed })),
-        careers: (gameState.careers || []).map(c => ({ id: c.id, accepted: c.accepted })),
+        // GL-4: `level` must survive the projection. The Political Dynasty
+        // scenario's "Become President" condition is checked with
+        // `'level' in politicalCareer && politicalCareer.level >= 5`, and this
+        // map dropped the field — so `'level' in ...` was false, `isPresident`
+        // was always false, and the 200-gem expert scenario could never score
+        // at prestige no matter how the player played.
+        careers: (gameState.careers || []).map(c => ({
+          id: c.id,
+          accepted: c.accepted,
+          level: c.level,
+        })),
         relationships: (gameState.relationships || []).map(r => ({ type: r.type })),
         achievements: (gameState.achievements || []).map(a => ({ id: a.id, completed: a.completed })),
         companies: (gameState.companies || []).map(c => ({ weeklyIncome: c.weeklyIncome || 0 })),

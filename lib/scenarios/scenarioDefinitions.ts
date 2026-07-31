@@ -11,6 +11,18 @@ export interface ScenarioCondition {
   operator: '>=' | '<=' | '==' | '>';
   value: number | string;
   description: string;
+  /**
+   * Narrows a `relationship` count to one kind of relationship.
+   *
+   * `checkScenarioWin` used to narrow with `condition.value === 'married'`, but
+   * every relationship condition in the catalogue carries a NUMBER — the count
+   * to reach — so that comparison was never true and the filter counted every
+   * relationship. "Get married" (Family Focused) and "Have at least 1 child"
+   * (Single Parent) were therefore satisfied by a single friend. Omit this to
+   * count all relationships, which is what the 5+/8+/10+ conditions want.
+   * 2026-07-30 audit GL-4.
+   */
+  relationshipType?: 'parent' | 'friend' | 'partner' | 'spouse' | 'child';
 }
 
 export interface Scenario {
@@ -213,13 +225,19 @@ export const SCENARIOS: Scenario[] = [
         type: 'relationship',
         operator: '>=',
         value: 1,
+        relationshipType: 'spouse',
         description: 'Get married',
       },
       {
         type: 'achievement',
         operator: '==',
-        value: 'family_man',
-        description: 'Achieve "Family Man" achievement',
+        // GL-4: was `family_man`, which is not an achievement id anywhere in
+        // the game — the only occurrence in the repo was this line, so the
+        // condition could never be met and the scenario was unwinnable.
+        // `first_child` is the catalogue's "Have your first child" and matches
+        // the scenario's own description ("Get married, have children").
+        value: 'first_child',
+        description: 'Have your first child',
       },
     ],
     timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
@@ -254,6 +272,7 @@ export const SCENARIOS: Scenario[] = [
         type: 'relationship',
         operator: '>=',
         value: 1,
+        relationshipType: 'child',
         description: 'Have at least 1 child',
       },
       {
@@ -945,7 +964,13 @@ export function checkScenarioWin(
     stats: { money: number; reputation: number };
     age: number;
     education: { id: string; completed: boolean }[];
-    careers: { id: string; accepted: boolean }[];
+    /**
+     * `level` is REQUIRED by the 'president' win condition. It is optional on
+     * the type but callers must pass it through: `prestigeExecution` projected
+     * careers as `{ id, accepted }` and silently made Political Dynasty
+     * unwinnable. GL-4.
+     */
+    careers: { id: string; accepted: boolean; level?: number }[];
     relationships: { type: string }[];
     achievements: { id: string; completed: boolean }[];
     companies: { weeklyIncome: number }[];
@@ -996,8 +1021,13 @@ export function checkScenarioWin(
         }
         break;
       case 'relationship':
-        const relationshipCount = gameState.relationships.filter(rel => 
-          condition.value === 'married' ? rel.type === 'spouse' : true
+        // GL-4: narrow on `relationshipType`, not on `value`. The old
+        // `condition.value === 'married'` test compared against a NUMBER on
+        // every condition in the catalogue, so it never matched and every
+        // relationship was counted — "Get married" and "Have at least 1 child"
+        // both passed on a single friend.
+        const relationshipCount = gameState.relationships.filter(rel =>
+          condition.relationshipType ? rel.type === condition.relationshipType : true
         ).length;
         conditionMet = checkCondition(relationshipCount, condition.operator, condition.value as number);
         break;
@@ -1109,7 +1139,13 @@ export function isScenarioCompleted(
     stats: { money: number; reputation: number };
     age: number;
     education: { id: string; completed: boolean }[];
-    careers: { id: string; accepted: boolean }[];
+    /**
+     * `level` is REQUIRED by the 'president' win condition. It is optional on
+     * the type but callers must pass it through: `prestigeExecution` projected
+     * careers as `{ id, accepted }` and silently made Political Dynasty
+     * unwinnable. GL-4.
+     */
+    careers: { id: string; accepted: boolean; level?: number }[];
     relationships: { type: string }[];
     achievements: { id: string; completed: boolean }[];
     companies: { weeklyIncome: number }[];
