@@ -9,6 +9,7 @@ import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { familyBrandIncomeMultiplier, findFamilyBusiness } from '@/lib/business/familyBusinessEffects';
 import { 
   PROPERTY_THRESHOLD_1, 
   PROPERTY_THRESHOLD_2, 
@@ -218,6 +219,21 @@ export function calcWeeklyPassiveIncome(
     
     // CRITICAL: Validate weeklyIncome before calculation
     let weeklyIncome = typeof company.weeklyIncome === 'number' && isFinite(company.weeklyIncome) && company.weeklyIncome >= 0 ? company.weeklyIncome : 0;
+
+    /**
+     * C-2: a family business's Brand lifts its weekly income. Applied FIRST,
+     * before the political and contract bonuses below, so those keep
+     * compounding on top exactly as they did — brand scales the business, it
+     * does not reorder the existing stack.
+     *
+     * Neutral at brand 0, which is what `createFamilyBusiness` seeds, so no
+     * existing save's income moves until the player spends on marketing.
+     * Companies that are not family businesses are untouched.
+     */
+    const familyMeters = findFamilyBusiness(state.familyBusinesses, company.id);
+    if (familyMeters && weeklyIncome > 0) {
+      weeklyIncome = Math.round(weeklyIncome * familyBrandIncomeMultiplier(familyMeters.brandValue));
+    }
     
     // Apply political perks (business income bonus)
     if (state.politics && state.politics.careerLevel > 0) {

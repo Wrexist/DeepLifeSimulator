@@ -26,10 +26,10 @@ applied, and only hobby XP receives a bonus.
 `reputation`. `brandValue` is rendered as a meter and read by nothing else;
 `reputation` is read by nothing at all.
 
-- [ ] Brand scales the business's weekly income
-- [ ] Reputation shifts event/scandal odds, reusing the `hustleLogic`
+- [x] Brand scales the business's weekly income
+- [x] Reputation shifts event/scandal odds, reusing the `hustleLogic`
       `scandalSpawnChance` pattern rather than inventing one
-- [ ] Regression suite; prove red; full gate
+- [x] Regression suite; prove red; full gate — 3/18 wiring assertions red, 419 green
 
 ## C-3 — Legacy Points: a sink
 

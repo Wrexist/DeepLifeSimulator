@@ -6,6 +6,7 @@
  * these are pure functions on input data.
  */
 
+import { familyReputationScandalMultiplier } from './familyBusinessEffects';
 import type {
   GameState,
   Company,
@@ -320,6 +321,8 @@ export function rollScandalForWeek(
   company: Company,
   overlay: HustleCompanyOverlay,
   weeksLived: number,
+  /** C-2: the family-business reputation for this company, if it is one. */
+  familyReputation?: number,
 ): HustleActiveScandal | null {
   // One scandal at a time.
   if (overlay.activeScandal) return null;
@@ -334,7 +337,17 @@ export function rollScandalForWeek(
   }
 
   const brand = overlay.brand?.score ?? 50;
-  const chance = scandalSpawnChance(brand, income);
+  /**
+   * C-2: a family business's Reputation moves how much scrutiny it draws.
+   * MULTIPLIES the chance already computed from brand and size rather than
+   * replacing it, so the size gate and post-scandal cooldown above still do
+   * their work. Neutral at the seeded reputation of 50, and bounded well away
+   * from zero — reputation must not buy immunity, or the scandal system and
+   * the resolution UI built for it stop existing for anyone who invests.
+   * Companies that are not family businesses pass `undefined` and get 1.0.
+   */
+  const chance = scandalSpawnChance(brand, income)
+    * familyReputationScandalMultiplier(familyReputation);
   const seed = `hustle-scandal-roll|${company.id}|${weeksLived}`;
   if (seededRand(seed) >= chance) return null;
 
