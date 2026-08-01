@@ -1625,8 +1625,64 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let weeklyChallengeXpToAward = 0;
  try {
  // R3-A: `getOrRotateWeeklyChallenge`/`evaluateChallengeProgress` are ES imports.
- // Build a temporary state snapshot for evaluation
- const evalState = {...prevState, stats: newStats, weeksLived: nextWeeksLived };
+ /**
+  * Build a temporary state snapshot for evaluation.
+  *
+  * TICK-A2. This used to refresh only `stats` and `weeksLived`, leaving every
+  * other field at last week's value — while the objectives in
+  * `lib/challenges/weeklyChallenges.ts` read `family.spouse` (three separate
+  * challenges), `family.children`, `currentJob`, `realEstate`, `date.age` and
+  * `getNetWorth`. So a player who married, got hired, closed on a property or
+  * turned 60 ON THIS TICK was not credited for it.
+  *
+  * Usually that only delays a challenge by a week. On a ROTATION tick it is
+  * permanent: the salvage block just below is the last chance to pay out the
+  * outgoing challenge, and it evaluates against this same snapshot, so a stale
+  * read there loses a 150-300 gem reward for good.
+  *
+  * Refreshed with the fresh locals that exist at this point, using the SAME
+  * derivations the final returned state uses so the two cannot drift —
+  * `resolveFamilySpouse` in particular, because the health pass above can end a
+  * marriage mid-tick and the denormalized copy on `prevState.family` survives
+  * it (GL-5).
+  *
+  * STILL STALE, deliberately: the stocks, crypto and banking slices are
+  * computed several hundred lines below this point, so `getNetWorth` here sees
+  * this week's property values against last week's portfolio. Fixing that means
+  * moving this whole block after the subsystem ticks, which is a reordering of
+  * the week loop rather than a snapshot fix. The net-worth objectives are
+  * threshold checks ("reach $500k") that re-evaluate every tick, so the
+  * worst case there remains a one-week delay — not a lost reward, because the
+  * rotation salvage path only drops a challenge the player had ALREADY
+  * satisfied, and a threshold crossed by portfolio movement alone will still
+  * read as satisfied on the following tick.
+  */
+ const evalState = {
+   ...prevState,
+   stats: newStats,
+   weeksLived: nextWeeksLived,
+   date: { ...prevState.date, age: nextAge },
+   currentJob: newCurrentJob,
+   careers: updatedCareers,
+   realEstate: updatedRealEstate,
+   relationships: processedRelationships,
+   family: {
+     ...prevState.family,
+     spouse: resolveFamilySpouse({
+       prevSpouse: prevState.family?.spouse,
+       relationships: processedRelationships,
+       newWeddingSpouse: newWeddingSpouse ?? undefined,
+     }),
+     // An evaluation-only projection: the only thing any objective reads off
+     // this array is its LENGTH, and the child relationships are exactly the
+     // children. The full merge the returned state performs (preserving each
+     // child's parenting Bond) is not needed to count them.
+     // Null-guarded for the same reason as the returned state's copy (TICK-A3):
+     // `r.type` on a null row throws, and a throw anywhere in this updater
+     // cancels the week rather than degrading it.
+     children: processedRelationships.filter((r) => !!r && r.type === 'child'),
+   },
+ } as typeof prevState;
 
  // ── WEEKLY CHALLENGE: Rotation-week completion salvage ──
  // getOrRotateWeeklyChallenge replaces the challenge once ROTATION_GAME_WEEKS
@@ -2304,8 +2360,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
       // Apply any relationship-discovery deltas to processedRelationships in-place
  // so the canonical return picks them up.
- if (darkWebTick.relationshipDeltas.length > 0) {
- const deltasById = new Map(darkWebTick.relationshipDeltas.map((d) => [d.id, d.delta]));
+ // TICK-A3. `.length` and `.map` were read off a subsystem result assumed to
+ // be an array. A dark-web tick that bailed to a partial shape threw here and
+ // cost the whole week (§4.3).
+ const relDeltas = Array.isArray(darkWebTick.relationshipDeltas)
+   ? darkWebTick.relationshipDeltas.filter((d) => !!d && d.id != null)
+   : [];
+ if (relDeltas.length > 0) {
+ const deltasById = new Map(relDeltas.map((d) => [d.id, d.delta]));
  for (let i = 0; i < processedRelationships.length; i++) {
  const rel = processedRelationships[i];
  const delta = rel ? deltasById.get(rel.id): undefined;
@@ -2458,12 +2520,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 : (() => {
  const holdingsToUpdate = reinvestedStocks.length > 0 ? reinvestedStocks: prevState.stocks?.holdings || [];
- const validHoldings = holdingsToUpdate.filter(h => h && typeof h === 'object' && h.symbol);
+ /**
+  * TICK-A3. `h.symbol` was only checked for TRUTHINESS, then `.toUpperCase()`
+  * was called on it and `stockInfo.price` read off the result. A save whose
+  * symbol deserialised as a number (or whose symbol is not in the catalogue,
+  * making `getStockInfo` return nothing) threw here — inside the week
+  * updater's outermost try, whose catch returns `prevState` and shows
+  * "Progression Error". The week then never advances, and because the bad
+  * holding is persisted, it never advances again: a permanently stuck save
+  * from one malformed row.
+  *
+  * CLAUDE.md §4.3 — a single bad entry must not abort the tick. The row is
+  * carried through at its stored price instead.
+  */
+ const validHoldings = holdingsToUpdate.filter(
+   h => h && typeof h === 'object' && typeof h.symbol === 'string' && h.symbol.length > 0,
+ );
  const updatedHoldings = validHoldings.map(holding => {
  const stockInfo = getStockInfo(holding.symbol.toUpperCase());
+ const livePrice = typeof stockInfo?.price === 'number' && isFinite(stockInfo.price)
+   ? stockInfo.price
+   : 0;
  return {
 ...holding,
- currentPrice: stockInfo.price > 0 ? stockInfo.price: holding.currentPrice,
+ currentPrice: livePrice > 0 ? livePrice: holding.currentPrice,
  };
  });
  return {
@@ -2484,8 +2564,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // holds every child (freshly aged via applyChildAging) plus any newborns pushed
  // this tick; merge by id to preserve extra family-only fields.
  family: (() => {
- const childRels = processedRelationships.filter((r) => r.type === 'child');
- const prevChildById = new Map((prevState.family?.children || []).map((c) => [c.id, c]));
+ // TICK-A3. `r.type` and `c.id` were read off entries assumed non-null. One
+ // null row in either array threw inside the week updater, whose catch returns
+ // prevState — so the week silently refused to advance, permanently, because
+ // the bad row is persisted. A bad entry is skipped instead (§4.3).
+ const childRels = processedRelationships.filter((r) => !!r && r.type === 'child');
+ const prevChildById = new Map(
+   (prevState.family?.children || [])
+     .filter((c): c is NonNullable<typeof c> => !!c && c.id != null)
+     .map((c) => [c.id, c]),
+ );
  const children = childRels.map((rel) => {
  const existing = prevChildById.get(rel.id);
  // R3-F5: do NOT let the Relationship's score clobber the child's Bond.
@@ -2518,9 +2606,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
  // appear to all be born in the same handful of weeks.
  lifeMilestones: (() => {
- const base = newBornChildren.length > 0 ? [
+ // TICK-A3. Same shape as the two above: a null newborn made `child.id`
+ // throw and cost the whole week. Filtered rather than guarded per-field so
+ // a half-built row cannot produce a milestone with an undefined id.
+ const bornThisTick = newBornChildren.filter((c) => !!c && c.id != null);
+ const base = bornThisTick.length > 0 ? [
 ...(prevState.lifeMilestones || []),
-...newBornChildren.map(child => ({
+...bornThisTick.map(child => ({
  id: `child_birth_${nextWeeksLived}_${child.id}`,
  type: 'child_birth' as const,
  week: nextWeeksLived,
