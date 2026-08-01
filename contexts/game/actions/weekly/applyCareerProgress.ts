@@ -58,6 +58,14 @@ export interface CareerProgressInput {
   /** `prevState.perks?.mindset` truthy. */
   perkMindset: boolean;
   /**
+   * C-1: the Commitment system's career multiplier, already resolved by
+   * `getCommitmentModifiers(state, 'career').progressMultiplier`. 1 when the
+   * player has set no commitments; above 1 when career is their primary or
+   * secondary focus; below 1 when career is the neglected area. Passed in
+   * rather than read here so this stays a pure function of its input.
+   */
+  commitmentProgressMult?: number;
+  /**
    * Life Skills career-progress multiplier (Leadership +10%, Executive +15%).
    * Clamped [1, 1.5] by the accessor. Defaults to 1 (neutral) when omitted so
    * existing callers / test fixtures are unaffected.
@@ -123,7 +131,14 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
         && isFinite(input.lifeSkillCareerProgressMult) && input.lifeSkillCareerProgressMult > 0
         ? input.lifeSkillCareerProgressMult
         : 1;
-      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult);
+      // C-1: the Commitment focus the player picked. Folded into the same
+      // multiplicative chain as every other modifier and rounded once at the
+      // end, so a +30% career focus is not lost to rounding on a slow week.
+      const commitmentMult = typeof input.commitmentProgressMult === 'number'
+        && isFinite(input.commitmentProgressMult) && input.commitmentProgressMult > 0
+        ? input.commitmentProgressMult
+        : 1;
+      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult * commitmentMult);
       const newProgress = Math.min(100, (c.progress || 0) + progressRate);
       return {
         ...c,

@@ -164,6 +164,53 @@ export function canChangeCommitments(gameState: GameState): {
 }
 
 /**
+ * The one entry point gameplay should use.
+ *
+ * C-1. Everything above this line was written and then never called. The modal
+ * showed the player "+30% progress, -20% energy" for their primary focus and
+ * "-15% progress, +15% energy" for neglected areas, and the only figure that
+ * ever reached gameplay was the hobby progress bonus in `PursuitActions` —
+ * career, relationships and health got nothing, and no penalty was ever
+ * applied anywhere.
+ *
+ * Exposed as a single call so the four sites cannot drift: each asks for its
+ * area and gets the same bonuses+penalties pairing, already resolved.
+ */
+export interface CommitmentModifiers {
+  /** Energy a committed/neglected activity actually costs. Never below 1. */
+  energyCost: (baseCost: number) => number;
+  /** Progress/XP an activity actually yields, rounded. */
+  progress: (baseProgress: number) => number;
+  /**
+   * The same progress adjustment as a raw multiplier, for callers that fold it
+   * into a multiplicative rate chain rather than rounding a single value —
+   * `applyCareerProgress` multiplies five factors before rounding once.
+   */
+  progressMultiplier: number;
+  /** True when this area carries a neglect penalty right now. */
+  neglected: boolean;
+}
+
+export function getCommitmentModifiers(
+  gameState: GameState,
+  activityArea: CommitmentArea
+): CommitmentModifiers {
+  const bonuses = getCommitmentBonuses(gameState, activityArea);
+  const penalties = getCommitmentPenalties(gameState, activityArea);
+
+  const multiplier =
+    (1 + Math.max(0, bonuses.progressBonus) / 100) *
+    (1 - Math.max(0, penalties.progressPenalty) / 100);
+
+  return {
+    energyCost: (baseCost: number) => getEffectiveEnergyCost(baseCost, bonuses, penalties),
+    progress: (baseProgress: number) => getEffectiveProgressGain(baseProgress, bonuses, penalties),
+    progressMultiplier: multiplier,
+    neglected: penalties.progressPenalty > 0,
+  };
+}
+
+/**
  * Calculate effective energy cost with commitment modifiers
  */
 export function getEffectiveEnergyCost(

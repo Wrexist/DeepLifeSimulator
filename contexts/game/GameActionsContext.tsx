@@ -133,6 +133,7 @@ import { applyContentMemberships } from './actions/weekly/applyContentMembership
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { applyDietPlanForWeek } from './actions/weekly/applyDietPlan';
 import { applyCareerSalaryAndPenalty } from './actions/weekly/applyCareerSalaryAndPenalty';
 import { applyCareerApplications } from './actions/weekly/applyCareerApplications';
@@ -709,6 +710,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkMindset: Boolean(prevState.perks?.mindset),
    // Life Skills: Leadership (+10%) / Executive (+15%) promotion-progress speed.
    lifeSkillCareerProgressMult: lifeSkillMods.careerProgressMult,
+   // C-1: the Commitment focus. Resolved from prevState so it reflects the
+   // commitments in force at the start of the week the player is advancing.
+   commitmentProgressMult: getCommitmentModifiers(prevState, 'career').progressMultiplier,
  }).updatedCareers;
 
  // Progress enrolled educations automatically

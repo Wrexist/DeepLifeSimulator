@@ -13,6 +13,7 @@ import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } 
 import { haptic } from '@/utils/haptics';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 
 interface ItemActionsContextType {
   // Items & Purchases
@@ -335,7 +336,16 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         return prevState;
       }
 
-      const energyCost = activity.energyCost || 0;
+      /**
+       * C-1: the Commitment focus moves a health activity's energy cost.
+       * `getEffectiveEnergyCost` was written for this and had no caller, so a
+       * player whose primary focus was health was shown a discount they never
+       * received — and one who had deprioritised health paid no surcharge.
+       * Resolved from `prevState` so the gate and the debit below use the
+       * same figure.
+       */
+      const energyCost = getCommitmentModifiers(prevState, 'health')
+        .energyCost(activity.energyCost || 0);
       if (prevState.stats.energy < energyCost) {
         processingActivities.current.delete(activityId);
         result = { message: 'Not enough energy for this activity' };

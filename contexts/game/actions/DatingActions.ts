@@ -39,6 +39,7 @@ import {
   shouldAutoPostMilestone,
   type SparkMilestone,
 } from '@/lib/dating/sparkPulseBridge';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { composePost } from './PulseActions';
 
 const log = logger.scope('DatingActions');
@@ -215,7 +216,10 @@ export const goOnDate = (
     sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDatesGoneOn'),
     stats: {
       ...(moneyPatch?.stats ?? prev.stats),
-      energy: Math.max(0, Math.min(100, (prev.stats.energy || 0) - config.energy)),
+      // C-1: the Commitment focus moves a date's energy cost. Resolved from
+      // `prev` so it uses the commitments in force when the updater runs.
+      energy: Math.max(0, Math.min(100,
+        (prev.stats.energy || 0) - getCommitmentModifiers(prev, 'relationships').energyCost(config.energy))),
       happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
     },
     relationships: (prev.relationships || []).map(r => {
@@ -227,7 +231,16 @@ export const goOnDate = (
       // Life Skills: Charisma/Social Master (relationship gains) + Persuasion
       // (dating success) both amplify a date's relationship boost. Bounded mults.
       const dateMods = getLifeSkillModifiers(prev);
-      const datedBoost = Math.round(config.relationshipBoost * dateMods.relationshipGainMult * dateMods.datingSuccessMult);
+      // C-1: and the relationship gain itself. A player whose primary focus is
+      // relationships was promised up to +50% here and received none of it;
+      // one who had deprioritised relationships took no penalty either.
+      const relCommitment = getCommitmentModifiers(prev, 'relationships');
+      const datedBoost = Math.round(
+        config.relationshipBoost
+        * dateMods.relationshipGainMult
+        * dateMods.datingSuccessMult
+        * relCommitment.progressMultiplier,
+      );
       return {
             ...r,
             relationshipScore: clampRelationshipScore(r.relationshipScore + datedBoost + wp.bonus),
