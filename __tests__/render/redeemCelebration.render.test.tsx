@@ -25,18 +25,15 @@ import { renderWithProviders } from './helpers/renderWithProviders';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import type { ReactTestInstance } from 'react-test-renderer';
 
-/**
- * Structural stand-in for a react-test-renderer instance. The package ships no
- * declarations, so annotating predicates with its own types would add
- * TS7016/TS7006 to the test-tree ratchet.
- */
-type RTNode = { props: { pointerEvents?: unknown; style?: Record<string, unknown> } };
+// Typed with react-test-renderer's own `ReactTestInstance` now that
+// `@types/react-test-renderer` is installed; these used to be hand-written
+// structural stand-ins because the package shipped no declarations.
+const isFlake = (n: ReactTestInstance) =>
+  n.props?.pointerEvents === 'none' && n.props?.style?.position === 'absolute';
 
-const isFlake = (n: RTNode) =>
-  n.props?.pointerEvents === 'none' && (n.props?.style as { position?: unknown })?.position === 'absolute';
-
-const flakeStyle = (n: RTNode) => n.props.style as Record<string, unknown>;
+const flakeStyle = (n: ReactTestInstance) => n.props.style as Record<string, unknown>;
 
 describe('the celebration mounts at all', () => {
   it('an animated component no longer crashes the provider tree', () => {
@@ -101,7 +98,7 @@ describe('ConfettiBurst', () => {
       const { renderer, unmount } = renderWithProviders(
         <ConfettiBurst play count={6} colors={['#a', '#b']} />,
       );
-      const out = flakesIn(renderer).map((n: RTNode) => {
+      const out = flakesIn(renderer).map((n: ReactTestInstance) => {
         const st = flakeStyle(n);
         return `${st.left}:${st.width}:${st.backgroundColor}`;
       });
@@ -118,7 +115,7 @@ describe('ConfettiBurst', () => {
     const { renderer, unmount } = renderWithProviders(
       <ConfettiBurst play count={4} colors={['#111111', '#222222']} />,
     );
-    const used = new Set(flakesIn(renderer).map((n: RTNode) => flakeStyle(n).backgroundColor));
+    const used = new Set(flakesIn(renderer).map((n: ReactTestInstance) => flakeStyle(n).backgroundColor));
 
     expect(used).toEqual(new Set(['#111111', '#222222']));
     unmount();

@@ -13,6 +13,7 @@
  */
 import React from 'react';
 import { renderWithProviders, type RenderResult } from './helpers/renderWithProviders';
+import type { ReactTestInstance } from 'react-test-renderer';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 
 type Key = 'health' | 'shop' | 'stats';
@@ -20,15 +21,14 @@ type Key = 'health' | 'shop' | 'stats';
 /**
  * Every segment touchable in the tree, in render order.
  *
- * The predicate parameter is annotated structurally rather than with
- * react-test-renderer's own node type: the package ships no declarations, so
- * naming its types here would add TS7016/TS7006 to the test-tree ratchet.
+ * Typed with react-test-renderer's own `ReactTestInstance` now that
+ * `@types/react-test-renderer` is installed. This used to be a hand-written
+ * structural stand-in because the package shipped no declarations and naming
+ * its types added TS7016/TS7006 to the ratchet.
  */
-type TabNode = { props: { onPress?: unknown; accessibilityRole?: unknown } };
-
 function tabs(renderer: RenderResult['renderer']) {
   return renderer.root.findAll(
-    (n: TabNode) => typeof n.props?.onPress === 'function' && n.props?.accessibilityRole === 'tab',
+    (n: ReactTestInstance) => typeof n.props?.onPress === 'function' && n.props?.accessibilityRole === 'tab',
     { deep: true },
   );
 }
