@@ -9,9 +9,10 @@ import { useGame } from '@/contexts/GameContext';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem } from 'lucide-react-native';
-import PrestigeModal from './PrestigeModal';
 import { getCharacterImage } from '@/utils/characterImages';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
+import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
+import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { computeInheritance } from '@/lib/legacy/inheritance';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
 import { MindsetId } from '@/lib/mindset/config';
@@ -48,7 +49,6 @@ function DeathPopup() {
   const [selectedMindset] = useState<MindsetId | null>(
     (gameState.mindset?.activeTraitId as MindsetId | null) || null
   );
-  const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'legacy'>('summary');
 
   // Theme-aware styles + color tokens (lib/config/theme.ts). Rebuilt only when
@@ -397,7 +397,6 @@ function DeathPopup() {
   const handleSelectLegacyTab = useCallback(() => setActiveTab('legacy'), []);
   const handleShowLifeStory = useCallback(() => setShowLifeStory(true), []);
   const handleHideLifeStory = useCallback(() => setShowLifeStory(false), []);
-  const handleHidePrestige = useCallback(() => setShowPrestigeModal(false), []);
 
   if (!gameState.showDeathPopup) return null;
 
@@ -789,10 +788,31 @@ function DeathPopup() {
 
                   {/* ENGAGEMENT: Prestige Points Preview — reframes death as investment */}
                   {(() => {
-                    const prestigeLevel = gameState.prestige?.prestigeLevel || 0;
-                    const earnedPoints = Math.floor(
-                      (totalNetWorth / 10000) + (weeksLived / 5) + (totalAchievements * 20) + (prestigeLevel * 100)
-                    );
+                    /**
+                     * F1: quote the REAL award, not a lookalike.
+                     *
+                     * This preview used its own formula —
+                     * `(netWorth/10000) + (weeksLived/5) + (achievements*20) +
+                     * (prestigeLevel*100)` — which shares not one term with
+                     * `calculatePrestigePoints`, the function that actually
+                     * awards the points. It invented a `weeksLived/5` term and a
+                     * flat `prestigeLevel*100`, paid DOUBLE per achievement and
+                     * paid for every achievement rather than only the newly
+                     * credited ones, and omitted the generation, age, career,
+                     * property, company and child bonuses, the 1.1^level
+                     * multiplier and the +25% child-path bonus entirely.
+                     *
+                     * This number is shown at the exact moment the player
+                     * decides whether to prestige, and `PrestigeModal` already
+                     * calls the real function. The two screens quoted different
+                     * figures for the same decision.
+                     */
+                    const earnedPoints = calculatePrestigePoints(
+                      gameState,
+                      totalNetWorth,
+                      gameState.prestige || defaultPrestigeData,
+                      'reset',
+                    ).total;
                     const canBuySmallInheritance = earnedPoints >= 500;
                     const canBuyStatBoost = earnedPoints >= 1000;
                     const canBuyModestInheritance = earnedPoints >= 2000;
@@ -1143,10 +1163,19 @@ function DeathPopup() {
       </View>
     </Modal>
     <LifeStoryModal visible={showLifeStory} onClose={handleHideLifeStory} />
-    <PrestigeModal
-      visible={showPrestigeModal}
-      onClose={handleHidePrestige}
-    />
+    {/*
+      F2: `PrestigeModal` is deliberately NOT rendered here, and must not be.
+      It was — with `visible={showPrestigeModal}` against a state nothing ever
+      set to true, so it was unreachable dead wiring rather than a feature.
+
+      It should stay unreachable from this screen. `PrestigeModal` calls
+      `executePrestige(path, childId)` on confirm, which rebuilds the save; the
+      death screen already owns that transition through `startNewLifeFromLegacy`
+      and the heir picker. Two competing paths to end the same life, both live
+      at once, is how the heir flow loses a save. The points preview above now
+      quotes the real `calculatePrestigePoints` figure, which is what a player
+      opened this modal to see.
+    */}
     </>
   );
 }

@@ -93,10 +93,29 @@ implementation.
 open PERF-7 remainder; needs device measurement, not more static analysis.
 **TICK-A2/A3/A4** — a stale challenge-evaluation snapshot, five unguarded `.map`
 loops in the tick, and the weekly recap computed before eight cash movements.
-**F1, F2, F5–F8** — UI-truth findings: a wrong prestige formula in
-`DeathPopup`, an unreachable `PrestigeModal`, a food-price inflated/raw
-mismatch, Help text describing a hacks UI that does not exist, a Verified Pro
-"no ads" perk, and an evict flow with no confirmation.
+**F1 and F2 are FIXED.** The death screen's "Prestige Points Earned" preview
+used its own formula — `(netWorth/10000) + (weeksLived/5) +
+(achievements*20) + (prestigeLevel*100)` — sharing not one term with
+`calculatePrestigePoints`, the function that awards them. It invented two terms,
+paid double per achievement and paid for every achievement rather than only the
+newly credited ones (defeating the H-5 anti-farm rule), and omitted the
+generation, age, career, property, company and child bonuses, the 1.1^level
+multiplier and the +25% child-path bonus. A mid-life player with two prior
+prestiges was previewed 950 points against 658 awarded — a 44% overstatement,
+quoted at the exact moment they decide whether to prestige, while
+`PrestigeModal` was already calling the real function. Both surfaces now quote
+one number.
+
+`PrestigeModal` was rendered in `DeathPopup` against a state nothing ever set
+to true. It is now removed rather than wired to a button, and the reason is
+written at the removal site: the modal calls `executePrestige` on confirm,
+which rebuilds the save, and the death screen already owns that transition
+through `startNewLifeFromLegacy`. Two live competing paths to end one life is
+how the heir flow loses a save.
+
+**F5–F8** — remaining UI-truth findings: a food-price inflated/raw mismatch,
+Help text describing a hacks UI that does not exist, a Verified Pro "no ads"
+perk, and an evict flow with no confirmation.
 
 **F3 is FIXED** — `payBail` re-derived the cost and re-checked affordability
 against `prevState` but never re-checked `jailWeeks`, so a second tap in the
