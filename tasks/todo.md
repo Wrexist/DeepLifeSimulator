@@ -1,4 +1,4 @@
-# Active plan — three product decisions unblocked (2026-08-01)
+# Active plan — three product decisions unblocked (2026-08-01) — ALL THREE SHIPPED
 
 The owner chose the "wire it as designed" option for all three systems that
 were promising effects no code applied. Each ships as its own commit with its
@@ -35,11 +35,11 @@ applied, and only hobby XP receives a bonus.
 
 Earned every 10 weeks and from four elder activities; never spent or shown.
 
-- [ ] A small shop spending points on the heir's starting position
-- [ ] Surface the balance so the player knows they have it
-- [ ] STATE_VERSION bump only if a new stored field is required — check the
+- [x] A small shop spending points on the heir's starting position
+- [x] Surface the balance so the player knows they have it
+- [x] STATE_VERSION bump only if a new stored field is required — check the
       §7 carve-out rules before writing any migration
-- [ ] Regression suite; prove red; full gate
+- [x] Regression suite; prove red; full gate — 26 new assertions, 420 suites green
 
 ## Standing constraints
 

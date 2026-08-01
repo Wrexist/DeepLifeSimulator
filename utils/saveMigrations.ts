@@ -767,6 +767,25 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 28;
     return state;
   },
+
+  // Version 29: `legacyUpgrades` — the ids bought with legacy points (C-11).
+  //
+  // `legacyPoints` had accrued since v11 with nothing to spend them on. This
+  // adds the purchase record, so an existing save arrives at the new shop with
+  // a full balance and nothing bought — which is exactly right, since it never
+  // had the chance to buy anything.
+  //
+  // Concrete stored default (`[]`), so unlike the v26/v27/v28 carve-outs this
+  // one takes a REAL backfill and a matching `repairGameState` mirror. An
+  // absent key would work by accident today because every reader guards with
+  // `Array.isArray`, but the moment one does a bare `.includes` it breaks.
+  29: (state) => {
+    if (!Array.isArray(state.legacyUpgrades)) {
+      state.legacyUpgrades = [];
+    }
+    state.version = 29;
+    return state;
+  },
 };
 
 /**

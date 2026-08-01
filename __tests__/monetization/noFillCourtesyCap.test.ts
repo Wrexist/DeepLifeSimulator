@@ -143,9 +143,13 @@ describe('the orb is wired to the shared predicate', () => {
 });
 
 describe('the save format carries the new marker', () => {
-  it('STATE_VERSION was bumped to 28', () => {
-    expect(STATE_VERSION).toBe(28);
-    expect(CURRENT_STATE_VERSION).toBe(28);
+  it('the v28 bump shipped and the format has only moved forward since', () => {
+    // Pins the FLOOR, not the exact number. This test is about the v28 marker;
+    // pinning the current version made every later, unrelated bump fail here —
+    // C-11's v29 did exactly that. The version-is-current check belongs in the
+    // migration-chain suite, and it is there.
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(28);
+    expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
   });
 
   it('a v27 save migrates forward without gaining the key', () => {
@@ -153,7 +157,9 @@ describe('the save format carries the new marker', () => {
     // value would deny the player their first legitimate courtesy grant.
     const { state } = runMigrations({ version: 27, weeksLived: 300, settings: {} });
 
-    expect(state.version).toBe(28);
+    // Migrates to CURRENT, not to 28 — later bumps run too, and the point of
+    // this assertion is that none of them writes the carve-out key.
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(state.settings.lastNoFillGrantWeek).toBeUndefined();
   });
 

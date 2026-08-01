@@ -12,6 +12,7 @@ import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefiniti
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
+import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
 
 
 /**
@@ -291,6 +292,19 @@ function createResetGameState(
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
 
+  /**
+   * C-11: legacy points and purchases are lineage data, so they survive a
+   * prestige RESET too — otherwise prestiging would silently destroy them, the
+   * same class of bug as the entitlement wipe above (MON-1/2/3).
+   *
+   * The heir STARTING BONUSES are deliberately NOT applied here. Every upgrade
+   * is worded "Your heir starts with…", and a reset is the same character
+   * starting over, not a new generation. The purchase is not wasted — it is
+   * permanent and applies to every future heir.
+   */
+  newState.legacyPoints = oldState.legacyPoints || 0;
+  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
+
   // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
   // prestige so a reset doesn't wipe the player's battle-pass progress.
   if (oldState.legacyPass) {
@@ -513,6 +527,35 @@ function createChildGameState(
   newState.generationNumber = (oldState.generationNumber || 1) + 1; // Increment generation for child
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
+
+  /**
+   * C-11: Legacy Points and what they bought are LINEAGE data, not character
+   * data, so both carry. `legacyPoints` is the lifetime total earned and
+   * `legacyUpgrades` the ids bought; the spendable balance is the difference,
+   * so carrying both means the heir keeps accumulating rather than starting
+   * from zero with their parent's purchases already deducted.
+   *
+   * Bounded by construction: the upgrades are once-per-id unlocks, six of
+   * them, so no amount of accumulation makes generation N strictly stronger
+   * than generation N-1 forever. Compounding power is prestige's job.
+   */
+  newState.legacyPoints = oldState.legacyPoints || 0;
+  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
+
+  // ...and the heir actually starts with what was bought for them.
+  const heirBonuses = heirStartingBonuses(newState.legacyUpgrades);
+  if (heirBonuses.money > 0) {
+    newState.stats.money = (newState.stats.money || 0) + heirBonuses.money;
+  }
+  if (heirBonuses.reputation > 0) {
+    newState.stats.reputation = Math.min(100, (newState.stats.reputation || 0) + heirBonuses.reputation);
+  }
+  for (const [stat, amount] of Object.entries(heirBonuses.stats)) {
+    const current = (newState.stats as unknown as Record<string, number>)[stat];
+    if (typeof current === 'number' && typeof amount === 'number') {
+      (newState.stats as unknown as Record<string, number>)[stat] = Math.min(100, current + amount);
+    }
+  }
 
   // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
   if (oldState.legacyPass) {

@@ -10,7 +10,7 @@
 - **Stack:** React Native 0.81.5 / Expo SDK 54 / React 19.1.0
 - **Platforms:** iOS (App Store) + Android (Google Play)
 - **Build system:** EAS Build — bundle ID: `com.deeplife.simulator`
-- **Save format:** AsyncStorage + CRC32 checksums — `STATE_VERSION = 28` (canonical in `contexts/game/initialState.ts`)
+- **Save format:** AsyncStorage + CRC32 checksums — `STATE_VERSION = 29` (canonical in `contexts/game/initialState.ts`)
 
 ---
 

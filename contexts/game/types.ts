@@ -2760,6 +2760,12 @@ export interface GameState {
   };
   /** Mini-prestige currency earned every 10 weeks, spent on temporary buffs */
   legacyPoints?: number;
+  /**
+   * C-11: ids from `LEGACY_UPGRADES` bought with legacy points. Concrete
+   * stored default `[]`, so v29 backfills it and `repairGameState` mirrors it.
+   * Carried into the heir — what you bought is what your heir starts with.
+   */
+  legacyUpgrades?: string[];
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks

@@ -18,6 +18,7 @@ import {
   getBonusPurchaseCost,
   PrestigeBonusCategory,
 } from '@/lib/prestige/prestigeBonuses';
+import { legacyPointsAvailable } from '@/lib/legacy/legacyShop';
 import { scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
@@ -36,6 +37,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
 
   const prestigeData = gameState?.prestige;
   const prestigePoints = prestigeData?.prestigePoints || 0;
+  // C-11: the spendable legacy balance — lifetime earned minus what has been
+  // bought, derived rather than stored (the week loop only ever ADDS to
+  // `legacyPoints`, so it is a lifetime total, not a wallet).
+  const legacyAvailable = legacyPointsAvailable(gameState?.legacyPoints, gameState?.legacyUpgrades);
   const unlockedBonuses = prestigeData?.unlockedBonuses || [];
   const isDarkMode = gameState?.settings?.darkMode ?? false;
 
@@ -174,6 +179,18 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                     </Text>
                   </View>
                 </View>
+                {/**
+                  * C-11: Legacy Points had no readout anywhere, so a player
+                  * could accrue hundreds without ever knowing the currency
+                  * existed. Shown beside Prestige Points, and only once the
+                  * player actually has some — an always-visible zero for a
+                  * currency you cannot yet earn is noise.
+                  */}
+                {legacyAvailable > 0 && (
+                  <Text style={[styles.pointsLabel, isDarkMode && styles.pointsLabelDark, { marginTop: 6 }]}>
+                    {`Legacy Points: ${legacyAvailable.toLocaleString()}`}
+                  </Text>
+                )}
               </View>
               <TouchableOpacity 
                 onPress={onClose} 

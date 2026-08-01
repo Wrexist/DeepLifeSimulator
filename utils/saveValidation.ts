@@ -1015,6 +1015,16 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing legacyPoints to 0');
     repaired = true;
   }
+  // C-11 / v29 mirror. `legacyUpgrades` has a concrete stored default, so a
+  // partial save that never went through the migration still needs it — this
+  // is the parity CLAUDE.md §7 warns is not checked by the static audit.
+  // `repaired = true` matters: the repaired clone is only written back when
+  // that flag is set, so a backfill without it is computed and discarded.
+  if (!Array.isArray(s.legacyUpgrades)) {
+    s.legacyUpgrades = [];
+    repairs.push('Set missing legacyUpgrades to []');
+    repaired = true;
+  }
   if (s.activeChapterId === undefined) {
     s.activeChapterId = 'ch1_fresh_start';
     repairs.push('Set missing activeChapterId');
