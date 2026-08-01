@@ -39,8 +39,9 @@ const path = require('path');
  *
  * 2026-08-01: 182 → 136 (createTestGameState deep-partial overrides)
  * 2026-08-01: 136 → 108 (shared setGameState stub; dead `deps` params removed).
+ * 2026-08-01: 108 → 90 (one PreRolls + Crypto factory in subsystemEquivalence).
  */
-const BASELINE = 108;
+const BASELINE = 90;
 
 const PROJECT = 'tsconfig.tests.json';
 

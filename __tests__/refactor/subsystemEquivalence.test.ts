@@ -86,8 +86,47 @@ import type { DietPlan, Career } from '@/contexts/game/types';
 import type { StockHolding } from '@/lib/stocks/weeklyTick';
 import type { RealEstate } from '@/contexts/game/types';
 import type { Disease } from '@/contexts/game/types';
+// NOT the DOM `Crypto` global — without this import an annotation binds to
+// lib.dom's Crypto and the mismatch reads as nonsense ("Crypto is missing id").
+import type { Crypto } from '@/contexts/game/types';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 import type { PreRolls } from '@/contexts/game/actions/weekly/preTick';
+
+/**
+ * A PreRolls with every roll pinned to its zero/empty value.
+ *
+ * Twelve byte-identical literals used to be inlined across this file. When
+ * `luxuryIncident` was added to PreRolls, all twelve went stale at once — and
+ * because they were object literals in a `WeekContext`, the subsystems under
+ * test read `undefined` for that roll while the suite kept passing. An
+ * equivalence test cannot prove two implementations agree about a roll it never
+ * supplies.
+ *
+ * One factory means the next field added to PreRolls breaks compilation HERE,
+ * once, instead of silently going missing in twelve places.
+ */
+function zeroPreRolls(overrides: Partial<PreRolls> = {}): PreRolls {
+  return {
+    careerAcceptDelay: 1,
+    stockPickRoll: 0,
+    childGender: 'male',
+    childIdSuffix: 'x',
+    childPersonality: 0,
+    relBreakup: [],
+    relDisappointed: [],
+    policeEncounter: 0,
+    minerDegradation: 0,
+    diseaseComplication: [],
+    diseaseProgression: [],
+    petSickness: [],
+    petSicknessType: [],
+    vehicleAccident: [],
+    vehicleAccidentSeverity: [],
+    luxuryIncident: [],
+    timestamp: 0,
+    ...overrides,
+  };
+}
 import type { GameState, GameStats, Loan, Vehicle } from '@/contexts/game/types';
 
 import { deterministicRoll, fixtures, type FixtureName } from './helpers/weekFixtures';
@@ -321,16 +360,7 @@ function petStubCtx(stats: GameStats): WeekContext {
   return {
     newStats: stats,
     notifications: [] as WeekNotification[],
-    preRolls: {
-      careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-      childIdSuffix: 'x', childPersonality: 0,
-      relBreakup: [], relDisappointed: [],
-      policeEncounter: 0, minerDegradation: 0,
-      diseaseComplication: [], diseaseProgression: [],
-      petSickness: [], petSicknessType: [],
-      vehicleAccident: [], vehicleAccidentSeverity: [],
-      timestamp: 0,
-    },
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 100,
   };
 }
@@ -491,17 +521,10 @@ function diseaseStubCtx(stats: GameStats, week = 100): WeekContext {
   return {
     newStats: stats,
     notifications: [] as WeekNotification[],
-    preRolls: {
-      careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-      childIdSuffix: 'x', childPersonality: 0,
-      relBreakup: [], relDisappointed: [],
-      policeEncounter: 0, minerDegradation: 0,
+    preRolls: zeroPreRolls({
       diseaseComplication: Array.from({ length: 20 }, () => 0.5),
       diseaseProgression: Array.from({ length: 20 }, () => 0.5),
-      petSickness: [], petSicknessType: [],
-      vehicleAccident: [], vehicleAccidentSeverity: [],
-      timestamp: 0,
-    },
+    }),
     nextWeeksLived: week,
   };
 }
@@ -644,16 +667,7 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -896,8 +910,23 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
 
 // R7 Phase 2 step 2.6-ii-B — warehouse weekly update.
 describe('pre-tick equivalence — applyMiningWarehouse', () => {
-  function aCryptoForW(id: string, owned: number) {
-    return { id, name: id.toUpperCase(), symbol: id.toUpperCase(), price: 1000, owned, weeklyRate: 0 };
+  /**
+   * Return-typed as `Crypto` on purpose: it was inferred before, so the two
+   * fields it omits (`change`, `changePercent`) went unnoticed at all five call
+   * sites. An explicit annotation makes the next added field fail here once.
+   */
+  function aCryptoForW(id: string, owned: number): Crypto {
+    return {
+      id,
+      name: id.toUpperCase(),
+      symbol: id.toUpperCase(),
+      price: 1000,
+      owned,
+      // No `weeklyRate` — it was in this literal but exists nowhere on Crypto
+      // (or in any production reader), so it was inert padding.
+      change: 0,
+      changePercent: 0,
+    };
   }
 
   it('no warehouse: returns input warehouse (undefined)', () => {
@@ -1327,16 +1356,7 @@ describe('pre-tick equivalence — applyCrimeTick', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -1465,16 +1485,7 @@ describe('pre-tick equivalence — applyEducationStress', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -1973,16 +1984,7 @@ describe('pre-tick equivalence — applyCareerSalaryAndPenalty', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -2152,16 +2154,7 @@ describe('pre-tick equivalence — applyDietPlanForWeek', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -2650,16 +2643,7 @@ describe('pre-tick equivalence — applyRentAndHousing', () => {
         money: 10000, reputation: 50, gems: 0,
       },
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -3267,24 +3251,11 @@ describe('pre-tick equivalence — applyVehiclesForWeek', () => {
   const rollFor = deterministicRoll(8);
 
   function makeRolls(): PreRolls {
-    return {
-      careerAcceptDelay: 1,
-      stockPickRoll: 0,
-      childGender: 'male',
+    return zeroPreRolls({
       childIdSuffix: 'xxxxxx',
-      childPersonality: 0,
-      relBreakup: [],
-      relDisappointed: [],
-      policeEncounter: 0,
-      minerDegradation: 0,
-      diseaseComplication: [],
-      diseaseProgression: [],
-      petSickness: [],
-      petSicknessType: [],
       vehicleAccident: Array.from({ length: 10 }, (_, i) => rollFor(`vehicle-accident-${i}`)),
       vehicleAccidentSeverity: Array.from({ length: 10 }, (_, i) => rollFor(`vehicle-accident-sev-${i}`)),
-      timestamp: 0,
-    };
+    });
   }
 
   function makeStats(overrides: Partial<GameStats> = {}): GameStats {
@@ -3461,16 +3432,7 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived: 100,
     };
   }
@@ -3656,16 +3618,7 @@ describe('pre-tick equivalence — applyScheduledWedding', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: [], relDisappointed: [],
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls(),
       nextWeeksLived,
     };
   }
@@ -4130,16 +4083,10 @@ describe('pre-tick equivalence — applyRelationshipHealth', () => {
     return {
       newStats: stats,
       notifications: [] as WeekNotification[],
-      preRolls: {
-        careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-        childIdSuffix: 'x', childPersonality: 0,
-        relBreakup: breakupRolls, relDisappointed: disappointedRolls,
-        policeEncounter: 0, minerDegradation: 0,
-        diseaseComplication: [], diseaseProgression: [],
-        petSickness: [], petSicknessType: [],
-        vehicleAccident: [], vehicleAccidentSeverity: [],
-        timestamp: 0,
-      },
+      preRolls: zeroPreRolls({
+        relBreakup: breakupRolls,
+        relDisappointed: disappointedRolls,
+      }),
       nextWeeksLived: 100,
     };
   }
@@ -4717,10 +4664,14 @@ describe('pre-tick equivalence — applyConsequenceProgression', () => {
   });
 
   it('progression result overrides initialize fields on conflict (spread order)', () => {
-    consMod.initializeConsequenceState.mockReturnValue({ karma: 5, consequences: [] });
-    consMod.processConsequenceProgression.mockReturnValue({ karma: 10 });
+    // Probed via `hiddenTraits`, a field ConsequenceState actually has. This
+    // used to use `karma`, which is not on the type at all — so the assertion
+    // read `undefined` off a mocked object and could only ever have compared
+    // undefined to undefined had the mock not returned the same made-up key.
+    consMod.initializeConsequenceState.mockReturnValue({ hiddenTraits: ['from-init'], consequences: [] });
+    consMod.processConsequenceProgression.mockReturnValue({ hiddenTraits: ['from-progression'] });
     const result = applyConsequenceProgression({} as any);
-    expect(result.mergedConsequenceState.karma).toBe(10);
+    expect(result.mergedConsequenceState.hiddenTraits).toEqual(['from-progression']);
   });
 
   it('processConsequenceProgression throws: falls back to existing consequenceState', () => {
