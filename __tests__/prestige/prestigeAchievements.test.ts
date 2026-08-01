@@ -15,7 +15,7 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { executePrestige } from '@/lib/prestige/prestigeExecution';
 import { getPrestigeThreshold, defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
-import { PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
+import { PRESTIGE_BONUSES, PURCHASABLE_PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import {
   collectNewlyEarnedPrestigeAchievements,
   getUnlockedPrestigeAchievements,
@@ -87,21 +87,44 @@ describe('collectNewlyEarnedPrestigeAchievements', () => {
     expect(ids).not.toContain('prestige_speed_week_3');
   });
 
-  it('prestige_bonuses_all tracks the real PRESTIGE_BONUSES count', () => {
-    const allBonusIds = PRESTIGE_BONUSES.map(b => b.id);
+  /**
+   * R4-X2 changed the target this achievement measures against, so this test
+   * changed with it. It used to compare against the raw `PRESTIGE_BONUSES`
+   * catalogue; five automation entries are now hidden from the shop because
+   * they unlock a system with no state slice and no UI, and counting entries
+   * nobody can buy would make a 25,000-point achievement impossible.
+   *
+   * That trade is exactly what the first case below pins: buying everything
+   * the shop offers must still complete it.
+   */
+  const purchasableIds = PURCHASABLE_PRESTIGE_BONUSES.map(b => b.id);
+
+  it('prestige_bonuses_all completes on everything the shop actually sells', () => {
     const withAll = createTestGameState({
-      prestige: { ...defaultPrestigeData, totalPrestiges: 1, unlockedBonuses: allBonusIds },
+      prestige: { ...defaultPrestigeData, totalPrestiges: 1, unlockedBonuses: purchasableIds },
     });
+
     expect(
       collectNewlyEarnedPrestigeAchievements(withAll).newlyAwarded.map(a => a.id),
     ).toContain('prestige_bonuses_all');
+  });
 
+  it('and still does not complete one short', () => {
     const withAllButOne = createTestGameState({
-      prestige: { ...defaultPrestigeData, totalPrestiges: 1, unlockedBonuses: allBonusIds.slice(1) },
+      prestige: { ...defaultPrestigeData, totalPrestiges: 1, unlockedBonuses: purchasableIds.slice(1) },
     });
+
     expect(
       collectNewlyEarnedPrestigeAchievements(withAllButOne).newlyAwarded.map(a => a.id),
     ).not.toContain('prestige_bonuses_all');
+  });
+
+  it('the hidden entries are a real, non-empty subset (the premise)', () => {
+    // If the inert list ever empties, the two lists converge and the carve-out
+    // above stops meaning anything — which is the correct end state once the
+    // automation UI ships, but it should be a deliberate change, not a drift.
+    expect(PURCHASABLE_PRESTIGE_BONUSES.length).toBeLessThan(PRESTIGE_BONUSES.length);
+    expect(PRESTIGE_BONUSES.length - PURCHASABLE_PRESTIGE_BONUSES.length).toBe(5);
   });
 });
 

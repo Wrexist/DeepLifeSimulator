@@ -1,6 +1,6 @@
 import type { GameState } from '@/contexts/game/types';
 import type { AchievementProgress } from '@/lib/progress/achievements';
-import { PRESTIGE_BONUSES } from './prestigeBonuses';
+import { PURCHASABLE_PRESTIGE_BONUSES } from './prestigeBonuses';
 
 /**
  * Completed programmes required for "Educated Legacy" (R3-P11).
@@ -296,10 +296,15 @@ export function evaluatePrestigeAchievement(
       return new Set(unlockedBonuses).size >= 20;
     case 'prestige_bonuses_all': {
       // "Unlock all prestige bonuses." Compare distinct unlocked bonus IDs
-      // against the canonical purchasable list (PRESTIGE_BONUSES). Stackable
-      // bonuses appear multiple times in unlockedBonuses, so we de-dupe with a
-      // Set: owning at least one level of every bonus satisfies this.
-      return new Set(unlockedBonuses).size >= PRESTIGE_BONUSES.length;
+      // against the canonical purchasable list. Stackable bonuses appear
+      // multiple times in unlockedBonuses, so we de-dupe with a Set: owning at
+      // least one level of every bonus satisfies this.
+      //
+      // R4-X2: measured against PURCHASABLE_PRESTIGE_BONUSES, not the raw
+      // catalogue. Five automation entries are hidden from the shop because
+      // they unlock a system with no state slice and no UI; counting them here
+      // would make this 25,000-point achievement impossible to complete.
+      return new Set(unlockedBonuses).size >= PURCHASABLE_PRESTIGE_BONUSES.length;
     }
 
     case 'prestige_perfect_stats': {

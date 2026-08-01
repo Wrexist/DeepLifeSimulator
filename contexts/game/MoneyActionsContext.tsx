@@ -6,7 +6,7 @@ import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FO
 import { validateStats, clampStatByKey } from '@/utils/statUtils';
 import { logger } from '@/utils/logger';
 import { isIncomeReason } from './actions/MoneyActions';
-import { getBonusPurchaseCost, canPurchaseBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
+import { getBonusPurchaseCost, canPurchaseBonus, isInertBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
@@ -501,6 +501,14 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     const bonus = PRESTIGE_BONUSES.find(b => b.id === bonusId);
     if (!bonus) {
       return { success: false, message: 'Bonus not found' };
+    }
+    // R4-X2. The shop no longer renders the inert automation bonuses, but this
+    // action resolves from the RAW catalogue — so without this the id could
+    // still be bought through a stale render, a deep link, or the next caller
+    // that forgets. Refusing here is what actually stops points being spent on
+    // a system with no state slice and no UI.
+    if (isInertBonus(bonusId)) {
+      return { success: false, message: 'That bonus is not available yet.' };
     }
 
     const unlockedBonuses = state.prestige.unlockedBonuses || [];
