@@ -331,9 +331,9 @@ describe('Race-condition / anti-exploit guard audit', () => {
     const moneyBefore = captured!.state.stats.money;
 
     act(() => {
-      refuelVehicle(captured!.state, captured!.setGameState, vid, 100, { updateMoney: libUpdateMoney });
+      refuelVehicle(captured!.state, captured!.setGameState, vid);
       // Second call: vehicle now at fuelLevel=100, second refuel must reject.
-      refuelVehicle(captured!.state, captured!.setGameState, vid, 100, { updateMoney: libUpdateMoney });
+      refuelVehicle(captured!.state, captured!.setGameState, vid);
     });
 
     expect(captured!.state.vehicles?.find(v => v.id === vid)?.fuelLevel).toBe(100);

@@ -297,7 +297,16 @@ export const giveGift = (
   setGameState: Dispatch<SetStateAction<GameState>>,
   partnerId: string,
   giftType: 'flowers' | 'jewelry' | 'trip' | 'surprise' | 'luxury',
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+  /**
+   * Unused, and optional so callers need not fake it.
+   *
+   * The charge flows through `applyMoneyDelta` inside the updater — the atomic
+   * gate→debit→grant of §4.4 — so the injected `updateMoney`/`updateStats` have
+   * had no reader since that migration. Kept in position (not deleted) because
+   * production passes it and the sibling DatingActions that DO use their deps
+   * take it here; see Hard Rule #5 for why that call shape matters.
+   */
+  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {

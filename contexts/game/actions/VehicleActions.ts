@@ -84,7 +84,8 @@ export const purchaseVehicle = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   vehicleId: string,
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   // Find vehicle template
   const template = VEHICLE_TEMPLATES.find(v => v.id === vehicleId);
@@ -282,7 +283,16 @@ export const refuelVehicle = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   vehicleId: string,
-  deps: { updateMoney: typeof updateMoney }
+  /**
+   * Unused, and optional so callers need not fake it.
+   *
+   * NOTE there is no amount/litres parameter — refuelling always fills to 100,
+   * priced by `calculateFuelCost`. Several stress tests called this as
+   * `refuelVehicle(state, set, id, 100, deps)`, so the phantom `100` landed in
+   * this slot and the real deps became an ignored fifth argument. Harmless only
+   * because nothing here reads it.
+   */
+  _deps?: { updateMoney: typeof updateMoney }
 ): { success: boolean; message: string } => {
   const vehicle = (gameState.vehicles || []).find(v => v.id === vehicleId);
   if (!vehicle) {

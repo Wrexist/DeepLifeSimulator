@@ -656,7 +656,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     // Refuel the active vehicle if one exists.
     const activeId = captured!.state.activeVehicleId;
     if (activeId) {
-      act(() => { refuelVehicle(captured!.state, captured!.setGameState, activeId, 100, deps); });
+      act(() => { refuelVehicle(captured!.state, captured!.setGameState, activeId); });
       assertCleanState('Vehicles refuelVehicle');
 
       act(() => { processAccident(captured!.state, captured!.setGameState, activeId, 'minor', deps); });
