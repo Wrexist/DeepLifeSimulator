@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView 
 import { X } from 'lucide-react-native';
 import { BankAccount, BudgetCategory } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
 interface Props {
@@ -57,11 +58,17 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: theme.text }]}>Add Bill</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>

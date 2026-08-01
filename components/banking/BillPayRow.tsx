@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { Receipt, Trash2, Repeat, AlertTriangle } from 'lucide-react-native';
 import { BillPayRule } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
@@ -58,7 +59,13 @@ export default function BillPayRow({ rule, currentWeek, darkMode, onToggle, onDe
         <View style={styles.actions}>
           {onToggle && <Switch value={rule.enabled} onValueChange={onToggle} />}
           {onDelete && (
-            <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
+            <TouchableOpacity
+              onPress={onDelete}
+              style={[styles.deleteBtn, minTouchTargetStyle]}
+              hitSlop={hitSlopToMinTarget(scale(14))}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete the recurring bill ${rule.label}`}
+            >
               <Trash2 size={scale(14)} color={accent.danger} />
             </TouchableOpacity>
           )}

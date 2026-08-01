@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { scale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
@@ -109,7 +111,12 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
             <Text style={[styles.title, settings.darkMode && styles.textDark]}>
               Family Tree
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+                onPress={onClose}
+                style={[styles.closeButton, minTouchTargetStyle]}
+                hitSlop={hitSlopToMinTarget(scale(24))}
+                {...CLOSE_BUTTON_A11Y}
+              >
               <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
             </TouchableOpacity>
           </View>

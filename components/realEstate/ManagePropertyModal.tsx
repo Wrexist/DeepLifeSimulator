@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView,
 import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { maintenanceCost } from '@/lib/realEstate/operations';
 import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/housing';
@@ -91,7 +92,13 @@ export default function ManagePropertyModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -100,7 +107,7 @@ export default function ManagePropertyModal({
                 Value {formatMoney(value)} · Equity {formatMoney(equity)} · Cond. {Math.round(property.condition ?? 90)}%
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -169,7 +176,13 @@ export default function ManagePropertyModal({
                     Current tenant: <Text style={{ color: theme.text, fontWeight: '700' }}>{property.tenant.name}</Text> (
                     sat {Math.round(property.tenant.satisfaction)}%)
                   </Text>
-                  <TouchableOpacity onPress={onEvict} hitSlop={10}>
+                  <TouchableOpacity
+                    onPress={onEvict}
+                    style={minTouchTargetStyle}
+                    hitSlop={hitSlopToMinTarget(scale(14))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Evict the tenant"
+                  >
                     <Trash2 size={scale(14)} color={accent.danger} />
                   </TouchableOpacity>
                 </View>

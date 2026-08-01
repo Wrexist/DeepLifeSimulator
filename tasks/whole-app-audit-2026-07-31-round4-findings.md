@@ -167,5 +167,22 @@ C-11 to C-14.
 - Diet-plan gains advertised at 7x what the tick applies.
 - Death-screen prestige points overstated 44%.
 
-Still open: modal close-button hit targets, the Life Skills point spent with no
-confirm, HUD font size, and reputation not being viewable anywhere.
+**Modal close-button hit targets and the Life Skills confirm are FIXED.** An
+accessibility pass measured every close control and found one shape: a
+`scale()`d icon in a container with no minimum size and, where a `hitSlop`
+existed, a RAW literal beside the scaled icon. That is why nothing reached 44pt
+— `scale()` clamps at 1.3 on phones and no shipping iPhone reaches the clamp, so
+`scale(20)` is 23 and `hitSlop={10}` gives 43, one point short on the widest
+phone Apple sells. `utils/touchTargets.ts` now owns the minimum, and 25 controls
+use it: the five the player named, the four destructive icon-only buttons, and
+the 15 transaction sheets where BOTH escapes were unnamed (a full-screen
+backdrop that focused and announced nothing, plus an unlabelled X, with no iOS
+`onRequestClose` — a screen-reader user had no named way out of a sheet that
+spends money).
+
+Life Skills now confirms before spending, quoting the node's effect and cost —
+the effect string always existed, it was just shown in the SUCCESS alert after
+the unrecoverable spend. The same handler's C-10 read-out-of-updater is closed
+with it.
+
+Still open: HUD font size, and reputation not being viewable anywhere.

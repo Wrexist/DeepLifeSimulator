@@ -51,6 +51,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { scale, fontScale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
@@ -765,7 +766,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={[styles.modalTitle, settings.darkMode && styles.textDark]}>
  {child.name}
  </Text>
- <TouchableOpacity onPress={() => setShowChildModal(false)}>
+ <TouchableOpacity
+ onPress={() => setShowChildModal(false)}
+ style={minTouchTargetStyle}
+ hitSlop={hitSlopToMinTarget(scale(24))}
+ {...CLOSE_BUTTON_A11Y}
+ >
  <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  </View>
@@ -880,7 +886,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </Text>
  </View>
  {onClose && (
- <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+ <TouchableOpacity
+ onPress={onClose}
+ style={[styles.closeButton, minTouchTargetStyle]}
+ hitSlop={hitSlopToMinTarget(scale(24))}
+ {...CLOSE_BUTTON_A11Y}
+ >
  <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  )}

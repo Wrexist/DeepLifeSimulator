@@ -7,6 +7,7 @@ import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
 const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
@@ -244,7 +245,12 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={[styles.closeButton, minTouchTargetStyle]}
+                hitSlop={hitSlopToMinTarget(scale(24))}
+                {...CLOSE_BUTTON_A11Y}
+              >
                 <X size={24} color={settings.darkMode ? '#FFFFFF' : '#1E293B'} />
               </TouchableOpacity>
             </View>

@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { View, Text, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import { Shield, Bug, RotateCcw, X } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -171,7 +172,12 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
           <View style={styles.confirmModal}>
             <View style={styles.confirmHeader}>
               <Text style={styles.confirmTitle}>Restart Game</Text>
-              <TouchableOpacity onPress={() => setShowRestartConfirm(false)} style={styles.closeButton}>
+              <TouchableOpacity
+                onPress={() => setShowRestartConfirm(false)}
+                style={[styles.closeButton, minTouchTargetStyle]}
+                hitSlop={hitSlopToMinTarget(scale(24))}
+                {...CLOSE_BUTTON_A11Y}
+              >
                 <X size={24} color="#CBD5E1" />
               </TouchableOpacity>
             </View>

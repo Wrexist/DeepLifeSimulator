@@ -39,6 +39,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
@@ -492,6 +493,39 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     return true;
   }, [gameState.stats.money, gameState.date.age, isNodeUnlocked]);
 
+  /**
+   * The purchase itself, after the player has confirmed.
+   *
+   * Atomic via the shared pure reducer — deduct the real cost AND persist the
+   * unlock in ONE setGameState so two rapid taps (or React StrictMode's
+   * double-invoke) can never double-charge or grant a free / duplicate skill.
+   * Every gate is re-validated against FRESH `prev`; money only ever DECREASES
+   * (mirror-safe — no cash minted).
+   *
+   * C-10: the outcome is reported from INSIDE the updater rather than through a
+   * `let purchased` read after it. CLAUDE.md §4.1 — a value assigned inside an
+   * updater is not reliably visible outside it, and React only evaluates
+   * eagerly when the fiber has no pending lanes, which is exactly not the
+   * contended case. The old form could show no confirmation for a purchase that
+   * had in fact landed, on the screen a player uses to check a five-figure
+   * spend went through.
+   */
+  const commitUnlock = useCallback((node: SkillNode) => {
+    setGameState(prev => {
+      const result = purchaseLifeSkill(prev, {
+        id: node.id,
+        cost: node.cost,
+        levelRequired: node.levelRequired,
+        requires: node.requires,
+      });
+      if (result.purchased) {
+        haptic.success();
+        Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
+      }
+      return result.state;
+    });
+  }, [setGameState]);
+
   const handleUnlockNode = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return;
 
@@ -513,28 +547,28 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
       return;
     }
 
-    // Atomic purchase via the shared pure reducer — deduct the real cost AND
-    // persist the unlock in ONE setGameState so two rapid taps (or React
-    // StrictMode's double-invoke) can never double-charge or grant a free /
-    // duplicate skill. Every gate is re-validated against FRESH `prev`; money
-    // only ever DECREASES (mirror-safe — no cash minted).
-    let purchased = false;
-    setGameState(prev => {
-      const result = purchaseLifeSkill(prev, {
-        id: node.id,
-        cost: node.cost,
-        levelRequired: node.levelRequired,
-        requires: node.requires,
-      });
-      purchased = result.purchased;
-      return result.state;
-    });
-
-    if (purchased) {
-      haptic.success();
-      Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
-    }
-  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, setGameState]);
+    /**
+     * CONFIRM FIRST.
+     *
+     * PLAYER REPORT (1.4 bug-reports): "A QoL I would like to see is an option
+     * to see what it is I'm clicking before accepting it. Right now clicking
+     * any unlocks what it is using a point."
+     *
+     * A tap used to buy the node outright. The cost is real money AND a node in
+     * a tree the player cannot refund, so the first time they explore the
+     * screen they spend something unrecoverable on a node whose effect they
+     * have not read yet. The effect string exists — it was only ever shown in
+     * the SUCCESS alert, after the purchase.
+     */
+    Alert.alert(
+      `Unlock ${node.name}?`,
+      `${node.effect}\n\nCost: $${node.cost.toLocaleString()}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unlock', onPress: () => commitUnlock(node) },
+      ],
+    );
+  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, commitUnlock]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return 'unlocked';
@@ -792,7 +826,12 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 <Text style={styles.statBadgeText}>{unlockedSkills.length} Unlocked</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+                onPress={onClose}
+                style={[styles.closeButton, minTouchTargetStyle]}
+                hitSlop={hitSlopToMinTarget(scale(24))}
+                {...CLOSE_BUTTON_A11Y}
+              >
               <X size={24} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
             </TouchableOpacity>
           </View>

@@ -4,6 +4,7 @@ import { X, AlertCircle, Home, CheckCircle2 } from 'lucide-react-native';
 import { GameState, RealEstate } from '@/contexts/game/types';
 import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   DownPaymentTier,
@@ -72,7 +73,13 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -81,7 +88,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
                 {formatMoney(property?.price ?? 0)} · Cash on hand {formatMoney(cash)}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>

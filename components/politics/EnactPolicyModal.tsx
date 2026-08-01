@@ -17,6 +17,7 @@
  * Enact button.
  */
 import React, { useMemo, useState } from 'react';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import {
@@ -76,7 +77,7 @@ export default function EnactPolicyModal({
                 Office level: {careerLevel} · Cash: {formatMoney(cash)}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>

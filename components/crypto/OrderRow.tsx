@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Clock, X } from 'lucide-react-native';
 import { CryptoOrder } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
 interface Props {
@@ -72,7 +73,13 @@ export default function OrderRow({ order, darkMode, onCancel }: Props) {
         </View>
       </View>
       {onCancel && order.status === 'open' && (
-        <TouchableOpacity onPress={onCancel} style={styles.cancelBtn} hitSlop={10}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={[styles.cancelBtn, minTouchTargetStyle]}
+          hitSlop={hitSlopToMinTarget(scale(16))}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel this open order"
+        >
           <X size={scale(16)} color={accent.danger} />
         </TouchableOpacity>
       )}
