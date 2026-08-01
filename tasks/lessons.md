@@ -649,3 +649,58 @@ Every fix was proved RED against the pre-fix tree before being taken green, and
 every suite carries at least one control asserting the behaviour that must NOT
 change. The controls caught real over-reach twice: they were green on both
 trees while the fix assertions flipped, which is exactly the signal wanted.
+
+---
+
+## 2026-08-01 — I shipped a fix pattern, then measured it and found it unsound
+
+Working the C-9 ratchet down, I converted `PetActions` (8 functions) and then
+`VehicleActions` (9) from the C-8 shape — reject inside the updater, then
+`return { success: true }` unconditionally — to a "pessimistic capture":
+
+    let applied = false;
+    setGameState(prev => { …; applied = true; return next; });
+    if (!applied) return { success: false, … };
+
+The `VehicleActions` batch broke `vehicleSystemFlow.stress.test.ts`, which
+drives real React through `act()`. A *successful* refuel reported failure. The
+state was correct; only the report was wrong — the inverse of the bug I was
+fixing.
+
+**The measurement** (`__tests__/refactor/updaterTimingContract.test.tsx`):
+React runs the FIRST functional update of a batch **eagerly**, at call time —
+the bailout optimisation that lets it skip a render when state is unchanged.
+The SECOND update in the same batch is **deferred**. So a captured flag is
+readable sometimes and stale sometimes, split along exactly the axis these
+guards care about.
+
+**CLAUDE.md §4.1 already said this.** "Values computed inside a `setGameState`
+updater are not visible outside it — don't assign to an outer variable from
+within the updater and read it after." I read that rule, wrote a fix that
+violates it, and only caught it because an existing test drove real React
+instead of a stub. The repo's own `openAccount` /
+`purchaseVehicleWithAutoLoan` / `doTravelActivity` do the same thing, which is
+what made it look like the house pattern.
+
+**Why every test I wrote passed anyway.** Every action test in this repo drives
+`setGameState` with a synchronous stub that invokes the updater immediately.
+Under that stub the capture is ALWAYS readable. A whole suite can be green
+while the production path reports the opposite. That is the durable lesson:
+**a stub that is more obliging than the real thing turns a test suite into a
+mirror.** When a fix depends on *when* something runs, at least one test has to
+drive the real runtime.
+
+**What I kept and why.** `PetActions` and C-8 stay: for a single tap — the
+overwhelmingly common case — the eager path makes them correct, and they were
+previously wrong for *every* rejection. Strictly better, never worse.
+`VehicleActions` was reverted because a legitimate second action in a batch is
+reachable there and demonstrably regressed. The ratchet's header now points at
+the sound fix (a pure reducer over `prev`, called for both the state and the
+report — the C-10 `SkillTreeModal` shape) rather than at more capture.
+
+**The estimate was wrong twice, in both directions.** The audit said ~15
+functions; my first detector said 86; the corrected detector says 62 — the
+first version only recognised a capture literally named `result`, so ~16
+already-fixed functions were counted as broken. A ratchet that cannot see its
+own progress is worse than none. The "not stale by more than five" assertion is
+what caught it.

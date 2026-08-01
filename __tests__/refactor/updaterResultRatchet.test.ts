@@ -27,19 +27,33 @@
  * time, which is the cheap moment. Working the existing 86 down is separate,
  * deliberate work.
  *
- * The fixed shape, for anyone landing here from a failure — see
- * `buyCompanyUpgrade`, `openAccount` or `purchaseVehicleWithAutoLoan`:
+ * ── WHICH FIX TO APPLY ────────────────────────────────────────────────────
  *
- *     let result = { success: false, message: 'Could not …' };   // PESSIMISTIC
- *     setGameState(prev => {
- *       if (…) { result = { success: false, message: '…' }; return prev; }
- *       result = { success: true, message: '…' };                // from INSIDE
- *       return next;
- *     });
- *     return result;
+ * NOT the pessimistic capture used by `buyCompanyUpgrade`, `openAccount` and
+ * `purchaseVehicleWithAutoLoan`:
  *
- * The default must be failure, so an updater React discards — or never runs —
- * reports a rejection rather than a phantom success.
+ *     let result = { success: false, … };
+ *     setGameState(prev => { …; result = { success: true, … }; return next; });
+ *     return result;                       // ← only sometimes readable
+ *
+ * That shape is a strict improvement on `return { success: true }` and it is
+ * why those three are excluded below, but it is NOT sound, and
+ * `updaterTimingContract.test.tsx` measures exactly why: React runs the FIRST
+ * functional update of a batch eagerly (so the capture reads) and DEFERS the
+ * second (so it does not). Converting the nine `VehicleActions` functions to
+ * capture broke `vehicleSystemFlow.stress.test.ts`, which drives real React
+ * through `act()` — a successful refuel reported failure. That batch was
+ * reverted. Do not expand the pattern.
+ *
+ * THE SOUND FIX is to make the outcome a PURE function of `prev` and call it
+ * in both places, so no cross-updater variable exists to be stale. The worked
+ * example is the C-10 fix in `SkillTreeModal`:
+ *
+ *     const preview = purchaseLifeSkill(state, { … });   // outcome, for the UI
+ *     setGameState(prev => purchaseLifeSkill(prev, { … }).next);  // the state
+ *
+ * CLAUDE.md §4.1 has said this all along. The 62 below are the places that
+ * work around it.
  *
  * 2026-08-01 audit round 4.
  */

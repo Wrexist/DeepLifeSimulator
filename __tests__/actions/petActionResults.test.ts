@@ -16,9 +16,26 @@
  *     pre-updater roll, so a second entry in the same week — rejected by the
  *     once-per-week cap — still reported a prize the player did not receive.
  *
- * Each now captures pessimistically: the default is failure, so an updater
- * React discards, or never runs, reports a rejection rather than a phantom
- * success.
+ * Each now captures pessimistically: the default is failure, so the function
+ * cannot claim success for a path that returned `prev`.
+ *
+ * CAVEAT, added after the fact and measured in
+ * `__tests__/refactor/updaterTimingContract.test.tsx`: reading a captured flag
+ * after `setGameState` is only reliable for the FIRST update in a batch, which
+ * React runs eagerly. A second update in the same batch is deferred, so the
+ * flag reads stale. That makes this shape a strict improvement on the
+ * unconditional `return { success: true }` it replaces — which was wrong for
+ * every rejection — but not a sound general fix. The nine `VehicleActions`
+ * functions were converted the same way and had to be REVERTED: a passing
+ * stress test driving real React through `act()` caught a successful refuel
+ * reporting failure.
+ *
+ * The sound fix for the remaining 62 is a pure reducer over `prev`, called
+ * both for the state and for the report — see the C-10 fix in `SkillTreeModal`
+ * and the note at the top of `updaterResultRatchet.test.ts`.
+ *
+ * Note also that the `swallowed` cases below pass under a synchronous stub;
+ * they pin the pessimistic DEFAULT, not React's real timing.
  *
  * 2026-08-01 audit round 4.
  */
