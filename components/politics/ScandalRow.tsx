@@ -42,8 +42,13 @@ export default function ScandalRow({ scandal, darkMode, onSuppress }: Props) {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: scandal.active ? color : theme.border }]}>
-      <View style={[styles.severityStripe, { backgroundColor: color }]} />
+    // Hard Rule #7: severity used to be a scale(4) bar down the left edge,
+    // clipped by borderRadius.lg + overflow:hidden — the banned decorative
+    // stripe, in the combination that curls into a crescent. The colour moves
+    // onto the full border, which this card was already doing while a scandal
+    // was active; it now does it always, so severity reads either way. The
+    // status icon keeps the same colour.
+    <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: color }]}>
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <StatusIcon size={scale(14)} color={color} />
@@ -87,7 +92,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  severityStripe: { width: scale(4) },
   body: {
     flex: 1,
     padding: responsiveSpacing.md,

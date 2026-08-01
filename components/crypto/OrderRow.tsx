@@ -26,8 +26,11 @@ export default function OrderRow({ order, darkMode, onCancel }: Props) {
   const typeLabel = order.type === 'market' ? 'Market' : order.type === 'limit' ? 'Limit' : 'Stop';
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <View style={[styles.sideStripe, { backgroundColor: sideColor }]} />
+    // Hard Rule #7: buy/sell used to be a scale(4) bar down the left edge,
+    // clipped by borderRadius.lg + overflow:hidden. The colour moves onto the
+    // full border; the row's own title already reads "Buy BTC" / "Sell BTC",
+    // so the side is stated twice over.
+    <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: sideColor }]}>
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: theme.text }]}>
@@ -93,9 +96,6 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',
-  },
-  sideStripe: {
-    width: scale(4),
   },
   body: {
     flex: 1,

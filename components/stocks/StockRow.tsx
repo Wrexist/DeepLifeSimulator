@@ -240,10 +240,17 @@ export default function StockRow({
       activeOpacity={onPress ? 0.85 : 1}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={a11yLabel}
-      style={[getGlassCard(darkMode, 6), styles.cardOuter, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      // Hard Rule #7: the standalone card carried the sector as a scale(3) bar
+      // down its left edge, clipped by borderRadius.xl + overflow:hidden. The
+      // colour moves onto the full border. The sector chip inside the row is
+      // already tinted with the same colour, so nothing is lost.
+      //
+      // The GROUPED variant above keeps its stripe for now: it is a flat list
+      // row with no border to move a colour onto and no radius to curl against,
+      // so the rule's remedy does not apply to it as written.
+      style={[getGlassCard(darkMode, 6), styles.cardOuter, { backgroundColor: theme.surface, borderColor: sectorColor }]}
     >
       <View style={styles.cardInner}>
-        <View style={[styles.stripe, { backgroundColor: sectorColor }]} />
         {content}
       </View>
     </TouchableOpacity>
@@ -256,6 +263,8 @@ const styles = StyleSheet.create({
   // Standalone card anatomy: outer carries shadow + radius + border; inner clips the stripe.
   cardOuter: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1 },
   cardInner: { flexDirection: 'row', alignItems: 'stretch', borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
+  // Grouped-list variant only — the standalone card now carries the sector on
+  // its border instead (Hard Rule #7).
   stripe: { width: scale(3) },
   rowContent: {
     flex: 1,

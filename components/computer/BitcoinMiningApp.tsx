@@ -1224,10 +1224,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       </HeroCard>
 
       {dirtyBtc > 0 && (
-        <View style={[getGlassCard(darkMode, 6), styles.noticeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        // Hard Rule #7: the caution accent was a scale(4) amber bar down the
+        // left edge, clipped by borderRadius.xl + overflow:hidden. Its comment
+        // argued it was fine because it was thin — the rule bans the shape, not
+        // the thickness. Amber moves onto the full border, and the warning
+        // headline inside is already amber.
+        <View style={[getGlassCard(darkMode, 6), styles.noticeCard, { backgroundColor: theme.surface, borderColor: amber.solid }]}>
           <View style={styles.noticeInner}>
-            {/* thin amber caution stripe (≤4px accent — never a loud fill) */}
-            <View pointerEvents="none" style={[styles.noticeStripe, { backgroundColor: amber.solid }]} />
             <View style={styles.noticeBody}>
               <Text style={[styles.dirtyTitle, { color: amber.solid }]}>
                 ⚠️ {dirtyBtc.toFixed(4)} ₿ tainted ({formatMoney(dirtyBtcUSD)})
@@ -2144,7 +2147,6 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
   },
-  noticeStripe: { width: scale(4) },
   noticeBody: {
     flex: 1,
     padding: responsiveSpacing.md,
