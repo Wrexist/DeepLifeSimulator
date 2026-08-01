@@ -500,6 +500,22 @@ function applyCriminalXp(
     setGameState(prevState => {
       // Compute bail from prevState to avoid stale closure — same shared helper
       // JailScreen uses for display, so the charge matches what the player saw.
+      /**
+       * F3: the player must still BE in jail.
+       *
+       * The cost and the affordability check were both already re-derived from
+       * `prevState` — but nothing re-checked `jailWeeks`. `JailScreen`'s Pay
+       * Bail button has no in-flight guard, so two taps in one React batch both
+       * ran: the first set `jailWeeks: 0` and charged, and the second charged
+       * AGAIN for a player who was already out. `computeBailCost` has a $500
+       * FLOOR and scales at 0.5% of net worth up to $250,000, so at zero weeks
+       * it still returns a real bill — up to a quarter of a million dollars for
+       * nothing. CLAUDE.md §4.4.
+       */
+      if ((prevState.jailWeeks || 0) <= 0) {
+        return prevState;
+      }
+
       const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
       if (!Number.isFinite(bailCost) || (prevState.stats.money || 0) < bailCost) {
         return prevState; // Invalid cost or insufficient funds at actual state — no-op

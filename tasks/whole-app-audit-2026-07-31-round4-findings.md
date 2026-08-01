@@ -93,10 +93,19 @@ implementation.
 open PERF-7 remainder; needs device measurement, not more static analysis.
 **TICK-A2/A3/A4** — a stale challenge-evaluation snapshot, five unguarded `.map`
 loops in the tick, and the weekly recap computed before eight cash movements.
-**F1–F8** — UI-truth findings: a wrong prestige formula in `DeathPopup`, an
-unreachable `PrestigeModal`, `payBail` and passport double-charges, a
-food-price inflated/raw mismatch, Help text describing a hacks UI that does not
-exist, a Verified Pro "no ads" perk, and an evict flow with no confirmation.
+**F1, F2, F5–F8** — UI-truth findings: a wrong prestige formula in
+`DeathPopup`, an unreachable `PrestigeModal`, a food-price inflated/raw
+mismatch, Help text describing a hacks UI that does not exist, a Verified Pro
+"no ads" perk, and an evict flow with no confirmation.
+
+**F3 is FIXED** — `payBail` re-derived the cost and re-checked affordability
+against `prevState` but never re-checked `jailWeeks`, so a second tap in the
+same batch charged a player who was already out. `computeBailCost` has a $500
+floor and scales to a $250,000 cap, so at zero weeks it still bills.
+
+**F4 was checked and is already correct** — `purchasePassport` re-checks
+ownership against `prev` and debits through `applyMoneyDelta`. Pinned with
+tests rather than left to be re-found.
 
 **ARCH-1**, **PERF-3** and the **PERF-7 remainder** stay open with the reasoning
 recorded in the round 2 file.
