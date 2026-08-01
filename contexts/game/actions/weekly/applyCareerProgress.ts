@@ -39,7 +39,12 @@ import { calculatePerformance as calcPerf } from '@/lib/events/careerEvents';
 
 export interface CareerProgressInput {
   /** Careers AFTER step 2.5b-ii's application processing. */
-  prevCareers: Career[];
+  /**
+   * The tick passes `prevState.careers` straight through, and a partial save
+   * can omit it — so the type must admit what the caller can actually send.
+   * Declaring it non-optional here made the missing `|| []` below look safe.
+   */
+  prevCareers: Career[] | undefined | null;
   /** Current job ID (may have just been set by application processing). */
   currentJob: string | undefined;
   /** Absolute week counter for THIS tick. */
@@ -65,15 +70,25 @@ export interface CareerProgressResult {
 }
 
 export function applyCareerProgress(input: CareerProgressInput): CareerProgressResult {
+  // Normalise ONCE, up front, and use it everywhere below.
+  //
+  // CRASH GUARD: the tick passes `prevState.careers` straight through and a
+  // partial save can omit it. This function already had the `Array.isArray`
+  // normalisation, but only used it for the `.find()` — the two early returns
+  // and the `.map()` all read `input.prevCareers` raw, so the guard protected
+  // the one path that could not throw and none of the three that could. An
+  // unguarded `.map()` inside the weekly updater is a permanently stuck
+  // "Next Week" for that save (CLAUDE.md §4.3).
+  const careers: Career[] = Array.isArray(input.prevCareers) ? input.prevCareers : [];
+
   if (!input.currentJob) {
-    return { updatedCareers: input.prevCareers };
+    return { updatedCareers: careers };
   }
 
   // Find the career again (currentCareer from the salary block is out of scope here).
-  const careers = Array.isArray(input.prevCareers) ? input.prevCareers : [];
   const activeCareer = careers.find((c) => c && c.id === input.currentJob && c.accepted);
   if (!activeCareer) {
-    return { updatedCareers: input.prevCareers };
+    return { updatedCareers: careers };
   }
 
   // Calculate performance from current stats.
@@ -81,7 +96,7 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
 
   const nextWeeksLived = input.nextWeeksLived || 0;
 
-  const updatedCareers = input.prevCareers.map((c) => {
+  const updatedCareers = careers.map((c) => {
     if (c.id === input.currentJob && c.accepted) {
       // ENGAGEMENT: Early career acceleration — faster promotions in first career.
       const baseProgressRate = 5;
