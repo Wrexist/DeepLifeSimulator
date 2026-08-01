@@ -433,3 +433,98 @@ describe('the phone grid gates too, not just the computer', () => {
     expect(PHONE).toMatch(/accessibilityState=\{\{ disabled: locked \}\}/);
   });
 });
+
+describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
+  // These three shipped in the first pass at tiers 1/1/2, which was a trap.
+  // Nothing read them, so no player was ever affected — but the moment
+  // anything did, a player who bought a phone in week 2 would have been locked
+  // out of the device they had just paid for. Chapter 1 is "earn $500, get
+  // hired, survive 4 weeks"; none of that is buying a phone.
+  const fresh = () => createTestGameState({
+    weeksLived: 1, completedChapters: [], currentJob: undefined,
+    stats: { ...createTestGameState().stats, money: 0 },
+    bankSavings: 0,
+  });
+
+  it('a brand-new player who somehow owns a phone can open it', () => {
+    for (const id of ['tab:apps', 'tab:mobile', 'tab:computer']) {
+      expect(`${id}: ${isFeatureUnlocked(fresh(), id)}`).toBe(`${id}: true`);
+    }
+  });
+
+  it('and the table says so — tier 0, no requirement text', () => {
+    for (const id of ['tab:apps', 'tab:mobile', 'tab:computer']) {
+      const row = FEATURE_UNLOCKS.find((f) => f.id === id);
+      expect(`${id}: ${row?.tier} ${JSON.stringify(row?.requirement)}`).toBe(`${id}: 0 ""`);
+    }
+  });
+
+  it('the real gate still lives in the layout (the control)', () => {
+    // If this ever disappears, the Apps tab becomes ungated entirely and the
+    // tier-0 rows above stop being safe.
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const layout = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'app/(tabs)/_layout.tsx'), 'utf8',
+    );
+
+    expect(layout).toMatch(/const ownsAnyDevice = ownsSmartphone \|\| ownsComputer;/);
+    expect(layout).toMatch(/href: \(isInPrison \|\| !ownsAnyDevice\) \? null : undefined/);
+  });
+
+  it('the app GRID inside them is still tier-gated (the control)', () => {
+    // Moving the tab to tier 0 must not have unlocked its contents.
+    expect(isFeatureUnlocked(fresh(), 'app:onion')).toBe(false);
+    expect(isFeatureUnlocked(fresh(), 'app:stocks')).toBe(false);
+    expect(isFeatureUnlocked(fresh(), 'app:bank')).toBe(false);
+  });
+});
+
+describe("Life's Stats segment is the one gated surface outside the grids", () => {
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const LIFE = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'app/(tabs)/life.tsx'), 'utf8',
+  );
+
+  it('it reads the same table everything else reads', () => {
+    expect(LIFE).toMatch(/isFeatureUnlocked\(gameState, 'tab:progression'\)/);
+    expect(LIFE).toMatch(/unlockRequirement\(gameState, 'tab:progression'\)/);
+    expect(LIFE).toMatch(/locked: statsLocked, lockReason: statsReason/);
+  });
+
+  it('and explains itself on tap rather than dying quietly', () => {
+    expect(LIFE).toMatch(/onLockedPress=\{\([\s\S]{0,120}Alert\.alert\('Stats', reason/);
+  });
+
+  it('a fresh player cannot reach it; a chapter-1 player can', () => {
+    const fresh = createTestGameState({
+      weeksLived: 1, completedChapters: [], currentJob: undefined,
+      stats: { ...createTestGameState().stats, money: 0 },
+      bankSavings: 0,
+    });
+    // Deliberately identical to `fresh` EXCEPT the chapter flag — otherwise a
+    // weeksLived of 6 alone clears the milestone fallback and this would pass
+    // without the chapter signal ever being read.
+    const settled = createTestGameState({
+      weeksLived: 1, completedChapters: ['ch1_fresh_start'], currentJob: undefined,
+      stats: { ...createTestGameState().stats, money: 0 },
+      bankSavings: 0,
+    });
+
+    expect(isFeatureUnlocked(fresh, 'tab:progression')).toBe(false);
+    expect(unlockRequirement(fresh, 'tab:progression')).toBe('Finish Chapter 1: Fresh Start');
+    expect(isFeatureUnlocked(settled, 'tab:progression')).toBe(true);
+  });
+
+  it('Health and Market are NEVER gated (the control)', () => {
+    // Health decays from week 1 and food is in Market. Locking either could
+    // strand a player with no way to recover — the one unsafe gate here.
+    expect(LIFE).not.toMatch(/key: 'health'[^}]*locked/);
+    expect(LIFE).not.toMatch(/key: 'shop'[^}]*locked/);
+
+    const fresh = createTestGameState({ weeksLived: 1, completedChapters: [] });
+    expect(isFeatureUnlocked(fresh, 'tab:health')).toBe(true);
+    expect(isFeatureUnlocked(fresh, 'tab:market')).toBe(true);
+  });
+});

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { Alert, Modal, StyleSheet, View } from 'react-native';
 import { Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import { responsivePadding, scale } from '@/utils/scaling';
+import { useGame } from '@/contexts/GameContext';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { HealthScreenContent } from './health';
 import { MarketScreenContent } from './market';
 import { ProgressionScreenContent } from './progression';
@@ -27,6 +29,11 @@ import FamilyTab from '@/components/FamilyTab';
  * philosophy): keeping all three heavy screens live at once would undo the
  * whole point of trimming the tab bar. Switching segments remounts, which is
  * the same reset you'd get switching bottom tabs before.
+ *
+ * Stats is the one segment behind a progressive-disclosure gate. It holds
+ * achievements, prestige and legacy — dense, and none of it actionable in
+ * week 1. Health and Market are never gated: health decays from week 1 and
+ * food lives in Market, so locking either could strand a player.
  */
 type LifeSegment = 'health' | 'shop' | 'stats';
 type LifeControl = LifeSegment | 'family';
@@ -34,6 +41,13 @@ type LifeControl = LifeSegment | 'family';
 function LifeScreen() {
   const [segment, setSegment] = useState<LifeSegment>('health');
   const [showFamily, setShowFamily] = useState(false);
+  // This shell re-renders with game state, but all three of its children are
+  // already subscribed and only one is mounted, so the added cost is a
+  // 4-segment control — not a screen's worth of work.
+  const { gameState } = useGame();
+
+  const statsLocked = !isFeatureUnlocked(gameState, 'tab:progression');
+  const statsReason = unlockRequirement(gameState, 'tab:progression');
 
   return (
     <ErrorBoundary>
@@ -50,10 +64,13 @@ function LifeScreen() {
                 setSegment(next);
               }
             }}
+            onLockedPress={(_key, reason) => {
+              Alert.alert('Stats', reason || 'Keep playing to unlock this.');
+            }}
             segments={[
               { key: 'health', label: 'Health', icon: Heart },
               { key: 'shop', label: 'Market', icon: ShoppingCart },
-              { key: 'stats', label: 'Stats', icon: Trophy },
+              { key: 'stats', label: 'Stats', icon: Trophy, locked: statsLocked, lockReason: statsReason },
               { key: 'family', label: 'Family', icon: Users },
             ]}
           />

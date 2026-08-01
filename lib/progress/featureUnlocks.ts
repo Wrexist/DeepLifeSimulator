@@ -51,12 +51,33 @@ export interface FeatureUnlock {
 }
 
 /**
- * The tabs a brand-new player sees: enough to look at yourself, do something,
- * take a job, and stay alive.
+ * ── What the navigation actually looks like ───────────────────────────────
  *
- * `market` is tier 0 too, deliberately. Food and the gym live there and health
- * decays from week 1, so gating it behind a chapter could strand a player with
- * no way to eat — the one genuinely unsafe gate in this whole table.
+ * Worth stating, because it is not what the route files suggest. There are
+ * only FOUR bottom-bar entries — Home, Work, Life, Apps. The other five route
+ * files (`mobile`, `computer`, `market`, `health`, `progression`) are
+ * registered with `href: null` in `(tabs)/_layout.tsx`: reachable by router
+ * and deep link, never rendered as a tab button. Market, Health and
+ * Progression are the three segments of Life's sub-menu; mobile and computer
+ * are the two launchers inside Apps.
+ *
+ * So a `tab:` row here means "a navigable surface", not "a bar button", and a
+ * tier on one of them only does something once a screen reads it.
+ *
+ * ── Why the device surfaces are tier 0 ────────────────────────────────────
+ *
+ * `apps`, `mobile` and `computer` were originally written here at tiers 1/1/2
+ * and that was a trap. The Apps tab's real gate is already in the layout, and
+ * it is a better one: `ownsAnyDevice`. Chapter 1 is "earn $500, get hired,
+ * survive 4 weeks", none of which is buying a phone — so a player who bought a
+ * phone in week 2 would have been locked out of the device they had just paid
+ * for. An ownership gate cannot desynchronise from the fiction the way a
+ * chapter tier can. The tier gating that matters for devices is on the app
+ * GRID inside them, which is where it already is.
+ *
+ * `market` is tier 0 for a related reason. Food and the gym live there and
+ * health decays from week 1, so gating it behind a chapter could strand a
+ * player with no way to eat — the one genuinely unsafe gate in this table.
  */
 export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   // ── Tier 0 — the first session ──────────────────────────────────────────
@@ -65,16 +86,19 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'tab:work', tier: 0, requirement: '' },
   { id: 'tab:health', tier: 0, requirement: '' },
   { id: 'tab:market', tier: 0, requirement: '' },
+  // Gated on owning the device, in `(tabs)/_layout.tsx` — see the note above.
+  { id: 'tab:apps', tier: 0, requirement: '' },
+  { id: 'tab:mobile', tier: 0, requirement: '' },
+  { id: 'tab:computer', tier: 0, requirement: '' },
 
   // ── Tier 1 — Fresh Start done: earned $500, got hired, survived 4 weeks ──
+  // Life → Stats: achievements, prestige and legacy. Dense, and none of it is
+  // actionable in week 1. The only tier-gated surface outside the app grids.
   { id: 'tab:progression', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
-  { id: 'tab:apps', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
-  { id: 'tab:mobile', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
   { id: 'app:contacts', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
   { id: 'app:bank', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
 
   // ── Tier 2 — Settling In done: promotion, $2k saved, a phone, a friend ───
-  { id: 'tab:computer', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:social', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:tinder', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:education', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
