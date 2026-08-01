@@ -7,6 +7,7 @@ import {
   getAllProductIds,
   getAllSubscriptionIds,
   isConsumableProduct,
+  hasPermanentEntitlements,
   isSubscriptionProduct,
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
@@ -94,20 +95,41 @@ export function applyProductBenefitsToState(
   gameState: GameState,
   config: NonNullable<ReturnType<typeof getProductConfig>>,
   productId: string,
+  opts: {
+    /**
+     * Apply only the PERMANENT entitlements — skip every quantity grant (gems,
+     * money, youth pills, the one-shot skill boost).
+     *
+     * For RESTORE. A restore must never re-grant a consumable, which is why
+     * both restore loops skip `isConsumableProduct` entirely. That was correct
+     * while consumables carried nothing but quantities — and stopped being
+     * correct when R4-MON-5 taught the $99.99 Mega Pack to grant the four perks
+     * and the four banking entitlements. `GEMS_MEGA` is (rightly) a consumable
+     * because of its 40,000 gems, so those permanent unlocks could never be
+     * restored, while the very same entitlements bought a la carte restore
+     * fine. Reinstall, tap Restore Purchases, get nothing.
+     *
+     * Skipping the whole product was the wrong granularity: the product is
+     * mixed, so the restore has to be too.
+     */
+    entitlementsOnly?: boolean;
+  } = {},
 ): void {
-  if (config.gems) {
+  const { entitlementsOnly = false } = opts;
+
+  if (config.gems && !entitlementsOnly) {
     gameState.stats.gems = (gameState.stats.gems || 0) + config.gems;
   }
 
-  if (config.money) {
+  if (config.money && !entitlementsOnly) {
     gameState.stats.money = (gameState.stats.money || 0) + config.money;
   }
 
-  if (config.youthPills) {
+  if (config.youthPills && !entitlementsOnly) {
     gameState.youthPills = (gameState.youthPills || 0) + config.youthPills;
   }
 
-  if (config.skillBoost) {
+  if (config.skillBoost && !entitlementsOnly) {
     // Bump every hobby's skillLevel (hobbies are the game's skill system).
     if (gameState.hobbies) {
       for (const hobby of gameState.hobbies) {
@@ -1441,7 +1463,7 @@ export class IAPService {
   private async applyBenefitToDisk(
     purchase: any,
     transactionId?: string,
-    options?: { skipBenefitReapply?: boolean },
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
   ): Promise<boolean> {
     const config = getProductConfig(purchase.productId);
     // Subscriptions have no one-time PRODUCT_CONFIG (they live in
@@ -1531,7 +1553,9 @@ export class IAPService {
     // block below, so skip the one-time-product benefit/perk application.
     if (config) {
       if (!options?.skipBenefitReapply) {
-        applyProductBenefitsToState(gameState, config, purchase.productId);
+        applyProductBenefitsToState(gameState, config, purchase.productId, {
+          entitlementsOnly: options?.entitlementsOnly,
+        });
       }
 
       // Disk path only: persist permanent (cross-slot) perks to storage.
@@ -1967,7 +1991,14 @@ export class IAPService {
         let restoredCount = 0;
         for (const productId of restoredIds) {
           // Never restore consumables (gems / money) — prevents re-granting them.
-          if (isConsumableProduct(productId)) {
+          // A consumable can still carry PERMANENT entitlements — the $99.99
+          // Mega Pack is a consumable because of its 40,000 gems and also
+          // grants the four perks and the four banking unlocks (R4-MON-5).
+          // Skipping the whole product made those unrestorable while the same
+          // entitlements bought a la carte restored fine. Restore the permanent
+          // half; `entitlementsOnly` drops every quantity grant, so no currency
+          // is ever re-granted.
+          if (isConsumableProduct(productId) && !hasPermanentEntitlements(productId)) {
             continue;
           }
           // Never re-apply a SUBSCRIPTION here either.
@@ -2004,7 +2035,7 @@ export class IAPService {
           // Count only what actually landed — `applyBenefit` returns false when
           // nothing was applied, and an inflated count would undo the whole
           // point of reporting a real number to the player.
-          if (await this.applyBenefit(productId, transactionId)) restoredCount++;
+          if (await this.applyBenefit(productId, transactionId, isConsumableProduct(productId))) restoredCount++;
         }
         const e = revenueCatService.cachedEntitlements();
         this.setState({ isLoading: false });
@@ -2033,8 +2064,15 @@ export class IAPService {
 
           // Only restore non-consumable products (perks, lifetime features)
           // Don't restore consumables (gems, money) to prevent exploitation
-          if (isConsumableProduct(productId)) {
-            logger.debug(`â­ï¸ Skipping consumable: ${productId}`);
+          // A consumable can still carry PERMANENT entitlements — the $99.99
+          // Mega Pack is a consumable because of its 40,000 gems and also
+          // grants the four perks and the four banking unlocks (R4-MON-5).
+          // Skipping the whole product made those unrestorable while the same
+          // entitlements bought a la carte restored fine. Restore the permanent
+          // half; `entitlementsOnly` drops every quantity grant, so no currency
+          // is ever re-granted.
+          if (isConsumableProduct(productId) && !hasPermanentEntitlements(productId)) {
+            logger.debug(`Skipping consumable: ${productId}`);
             continue;
           }
 
@@ -2078,7 +2116,13 @@ export class IAPService {
           if (isNonIdempotentGrant(productId) && (await this.isTransactionProcessed(transactionId))) {
             continue;
           }
-          if (await this.applyBenefit(purchase.productId, transactionId)) restoredCount++;
+          if (
+            await this.applyBenefit(
+              purchase.productId,
+              transactionId,
+              isConsumableProduct(purchase.productId),
+            )
+          ) restoredCount++;
         }
 
         // Update purchases list in state
@@ -2129,10 +2173,14 @@ export class IAPService {
   }
 
   // Hook for in-memory state updates
-  private stateUpdater: ((productId: string) => Promise<boolean>) | null = null;
+  private stateUpdater:
+    | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+    | null = null;
 
   public setStateUpdater(
-    updater: ((productId: string) => Promise<boolean>) | null,
+    updater:
+      | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+      | null,
   ) {
     this.stateUpdater = updater;
   }
@@ -2141,6 +2189,15 @@ export class IAPService {
   private async applyBenefit(
     productId: string,
     transactionId?: string,
+    /**
+     * RESTORE of a MIXED product — one that is a consumable (so its quantities
+     * must never be re-granted) but also carries permanent entitlements (so
+     * those must). See `hasPermanentEntitlements`. Threaded through BOTH the
+     * in-memory updater and the disk path, because either one re-granting
+     * 40,000 gems on every Restore Purchases tap would be far worse than the
+     * bug this exists to fix.
+     */
+    entitlementsOnly = false,
   ): Promise<boolean> {
     // 0. RESERVE BEFORE GRANTING, for grants that cannot safely happen twice.
     //
@@ -2170,7 +2227,7 @@ export class IAPService {
     let inMemoryApplied = false;
     if (this.stateUpdater) {
       try {
-        inMemoryApplied = (await this.stateUpdater(productId)) === true;
+        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly })) === true;
         logger.info(` Benefit applied via in-memory updater: ${productId}`);
       } catch (error) {
         logger.error('Error in state updater:', error);
@@ -2184,6 +2241,7 @@ export class IAPService {
     logger.info(`Applying benefit to disk: ${productId}`);
     const diskApplied = await this.applyBenefitToDisk({ productId }, transactionId, {
       skipBenefitReapply: inMemoryApplied,
+      entitlementsOnly,
     });
 
     // 3. Mark the transaction processed ONLY if a grant actually landed.
@@ -2222,11 +2280,15 @@ export class IAPService {
   /**
    * Mutates`gameState`in place (legacy pattern). Prefer tightening callers to pass a full`GameState`.
    */
-  public applyProductToState(gameState: GameState, productId: string): boolean {
+  public applyProductToState(
+    gameState: GameState,
+    productId: string,
+    opts: { entitlementsOnly?: boolean } = {},
+  ): boolean {
     const config = getProductConfig(productId);
     if (!config) return false;
 
-    applyProductBenefitsToState(gameState, config, productId);
+    applyProductBenefitsToState(gameState, config, productId, opts);
     return true;
   }
 }

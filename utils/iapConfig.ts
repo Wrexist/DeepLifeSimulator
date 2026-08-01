@@ -589,6 +589,35 @@ export const isConsumableProduct = (productId: string): boolean => {
   return CONSUMABLE_PRODUCTS.includes(productId);
 };
 
+/**
+ * Permanent-entitlement flags a product config can carry. Every one of these
+ * unlocks something forever, so a restore MUST re-apply them.
+ */
+const PERMANENT_ENTITLEMENT_FLAGS = [
+  'allPerks', 'workBoost', 'mindset', 'fastLearner', 'goodCredit',
+  'premiumCreditCard', 'financialPlanning', 'businessBanking', 'privateBanking',
+  'everythingUnlocked', 'lifetimePremium', 'removeAds', 'moneyMultiplier',
+  'allUpgrades', 'unlimitedYouthPills',
+] as const;
+
+/**
+ * Does this product unlock anything permanent, on top of any quantities?
+ *
+ * A CONSUMABLE product can still carry permanent entitlements — the $99.99
+ * Mega Pack is a consumable because of its 40,000 gems, and also grants the
+ * four perks and the four banking unlocks. Restore skips consumables wholesale
+ * to avoid re-granting currency, which silently made those unlocks
+ * unrestorable while the same entitlements bought separately restored fine.
+ *
+ * Restore uses this to tell "nothing to restore here" from "restore the
+ * permanent half and skip the quantities". 2026-08-01, R4-MON-5 follow-up.
+ */
+export const hasPermanentEntitlements = (productId: string): boolean => {
+  const config = getProductConfig(productId) as Record<string, unknown> | undefined;
+  if (!config) return false;
+  return PERMANENT_ENTITLEMENT_FLAGS.some((flag) => config[flag] === true);
+};
+
 // Helper function to check if product is non-consumable
 export const isNonConsumableProduct = (productId: string): boolean => {
   return NON_CONSUMABLE_PRODUCTS.includes(productId);

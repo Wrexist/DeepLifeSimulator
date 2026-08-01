@@ -18,7 +18,7 @@ export function IAPHandler() {
         logger.info('IAPHandler: Registering state updater');
 
         // Register updater
-        iapService.setStateUpdater(async (productId) => {
+        iapService.setStateUpdater(async (productId, opts) => {
             logger.info(`IAPHandler: Updating in-memory state for ${productId}`);
 
             return new Promise<boolean>((resolve) => {
@@ -44,7 +44,11 @@ export function IAPHandler() {
                     }
 
                     // Apply logic using the shared helper
-                    const applied = iapService.applyProductToState(newState as GameState, productId);
+                    // `opts.entitlementsOnly` is set when RESTORING a mixed product —
+                    // a consumable that also carries permanent entitlements. It drops
+                    // every quantity grant so a Restore Purchases tap can never
+                    // re-credit the Mega Pack's 40,000 gems.
+                    const applied = iapService.applyProductToState(newState as GameState, productId, opts);
 
                     if (applied) {
                         logger.info('IAPHandler: State updated successfully');
