@@ -21,6 +21,7 @@
     "lint:errors": "eslint . --ext .ts,.tsx --quiet",
     "type-check": "tsc --noEmit --pretty -p tsconfig.typecheck.json",
     "type-check:tests": "tsc --noEmit -p tsconfig.tests.json",
+    "type-check:tests:ratchet": "node scripts/check-test-types.js",
     "check:routes": "node scripts/check-route-conflicts.cjs",
     "preflight:ios": "npm run check:routes && node scripts/preflight-check.js --platform ios",
     "preflight": "npm run check:routes && node scripts/preflight-check.js --platform ios && npm run lint:errors",

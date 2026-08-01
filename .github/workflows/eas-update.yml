@@ -42,6 +42,14 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      # The step above covers APP SOURCE only — tsconfig.typecheck.json excludes
+      # tests and scripts. The test tree has a standing backlog that audit S6
+      # froze so it could only go down, but nothing enforced that until now, so
+      # the count was held up by whoever remembered to run it by hand. This
+      # fails on regression (and on a stale baseline). See the script header.
+      - name: Type check (test tree — ratchet)
+        run: npm run type-check:tests:ratchet
+
       - name: Lint
         run: npm run lint
 
