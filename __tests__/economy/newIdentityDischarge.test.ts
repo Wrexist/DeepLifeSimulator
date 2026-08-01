@@ -6,16 +6,11 @@
  * fee), so walking away from debt costs nearly as much as repaying it.
  */
 import { createTestGameState } from '../helpers/createTestGameState';
+import { applyWithSetState as apply } from '../helpers/setGameStateStub';
 import { acquireNewIdentity, NEW_IDENTITY_COST_BTC } from '@/contexts/game/actions/CrimeActions';
 import { GameState, Loan } from '@/contexts/game/types';
 
-function apply(state: GameState, action: (set: (u: (p: GameState) => GameState) => void) => void): GameState {
-  let captured = state;
-  action((updater) => {
-    captured = updater(captured);
-  });
-  return captured;
-}
+
 
 const personalLoan = (remaining: number): Loan => ({
   id: 'pl1', name: 'Personal Loan', principal: remaining, remaining,

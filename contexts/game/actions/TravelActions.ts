@@ -286,7 +286,16 @@ export const unlockBusinessOpportunity = (
 export const purchasePassport = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  deps: { updateMoney: typeof updateMoney }
+  /**
+   * Unused, and optional so tests need not fake it.
+   *
+   * This charges through `applyMoneyDelta` INSIDE the updater — the atomic
+   * gate→debit→grant §4.4 requires — so it never needs the injected
+   * `updateMoney`. The parameter is kept (renamed, like `_deps` above) rather
+   * than deleted because `TravelApp` passes it and the sibling travel actions
+   * that DO use their deps take it in the same position.
+   */
+  _deps?: { updateMoney: typeof updateMoney }
 ) => {
   const passportCost = 500;
 
@@ -331,7 +340,8 @@ export const investInBusinessOpportunity = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   opportunityId: string,
-  deps: { updateMoney: typeof updateMoney }
+  /** Unused — charges atomically via `applyMoneyDelta`. See `purchasePassport`. */
+  _deps?: { updateMoney: typeof updateMoney }
 ) => {
   const travel = gameState.travel;
   if (!travel) {

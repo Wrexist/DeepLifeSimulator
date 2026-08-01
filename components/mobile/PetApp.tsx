@@ -262,7 +262,6 @@ export default function PetApp({ onBack }: PetAppProps) {
         setGameState,
         petId,
         compId,
-        { updateMoney },
         Math.random()
       );
       if (r.success) {

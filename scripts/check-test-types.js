@@ -37,9 +37,10 @@ const path = require('path');
 /**
  * The frozen error count. LOWER THIS when you fix errors — never raise it.
  *
- * 2026-08-01: 182 → 136 (createTestGameState deep-partial overrides).
+ * 2026-08-01: 182 → 136 (createTestGameState deep-partial overrides)
+ * 2026-08-01: 136 → 108 (shared setGameState stub; dead `deps` params removed).
  */
-const BASELINE = 136;
+const BASELINE = 108;
 
 const PROJECT = 'tsconfig.tests.json';
 

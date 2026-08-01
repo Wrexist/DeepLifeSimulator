@@ -400,7 +400,16 @@ export function enterCompetition(
   setGameState: SetGS,
   petId: string,
   competitionId: string,
-  _deps: { updateMoney: typeof updateMoney },
+  /**
+   * The competition roll, injected so the outcome is testable.
+   *
+   * A dead `_deps: { updateMoney }` used to sit BETWEEN this and the ids — the
+   * fee charges through applyMoneyDelta inside the updater (§4.4), so it was
+   * never read. It was not harmless: `exploitFixes.test.ts` passed `0` in that
+   * slot, commented "Force a win on the first entry (roll 0 < winProbability)",
+   * and the 0 landed on `_deps` while `roll` arrived undefined — so the test
+   * that claimed to force a win was rolling `undefined` and forcing nothing.
+   */
   roll: number
 ): { success: boolean; message: string; won?: boolean; payout?: number } {
   const pet = gameState.pets?.find((p) => p.id === petId);

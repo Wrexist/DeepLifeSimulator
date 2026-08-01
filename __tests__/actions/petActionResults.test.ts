@@ -135,9 +135,9 @@ describe('C-9 — enterCompetition no longer reports a prize it did not pay', ()
     const snapshot = withPet();
     const { setState, get } = batched(snapshot);
 
-    const first = enterCompetition(snapshot, setState, 'p1', 'agility', deps, 0);
+    const first = enterCompetition(snapshot, setState, 'p1', 'agility', 0);
     const moneyAfterFirst = get().stats.money;
-    const second = enterCompetition(snapshot, setState, 'p1', 'agility', deps, 0);
+    const second = enterCompetition(snapshot, setState, 'p1', 'agility', 0);
 
     expect(first.success).toBe(true);
     expect(second.success).toBe(false);
@@ -152,15 +152,15 @@ describe('C-9 — enterCompetition no longer reports a prize it did not pay', ()
     const snapshot = withPet();
     const { setState, get } = batched(snapshot);
 
-    enterCompetition(snapshot, setState, 'p1', 'agility', deps, 0);
-    expect(enterCompetition(get(), setState, 'p1', 'agility', deps, 0).success).toBe(false);
+    enterCompetition(snapshot, setState, 'p1', 'agility', 0);
+    expect(enterCompetition(get(), setState, 'p1', 'agility', 0).success).toBe(false);
   });
 
   it('the first entry still reports its real result (the control)', () => {
     const snapshot = withPet();
     const { setState } = batched(snapshot);
 
-    const r = enterCompetition(snapshot, setState, 'p1', 'agility', deps, 0);
+    const r = enterCompetition(snapshot, setState, 'p1', 'agility', 0);
 
     if (!r.success) return;
     expect(typeof r.won).toBe('boolean');
