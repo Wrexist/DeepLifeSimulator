@@ -38,6 +38,24 @@ export const buildRDLab = (
   }
 
   const currentLabType = company.rdLab?.type || null;
+
+  /**
+   * C-9, and my own C-3 fix's loose end. C-3 added an inner
+   * `if (prevLabType === labType) return prev` so a double tap could not be
+   * charged twice for one lab — but left the unconditional success return
+   * below, and added no OUTER equivalent. So a single tap on the tier the
+   * company already has reported "Built the Advanced Lab", charged nothing,
+   * and changed nothing.
+   *
+   * An outer guard rather than an outcome capture: a capture is only readable
+   * for the FIRST update in a React batch (measured in
+   * `__tests__/refactor/updaterTimingContract.test.tsx`). The inner check stays
+   * as the race guard C-3 introduced it as.
+   */
+  if (currentLabType === labType) {
+    return { success: false, message: `This company already has the ${labType} lab.` };
+  }
+
   const cost = getLabUpgradeCost(currentLabType, labType);
 
   if (gameState.stats.money < cost) {

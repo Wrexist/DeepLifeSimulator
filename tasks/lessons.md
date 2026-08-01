@@ -704,3 +704,40 @@ first version only recognised a capture literally named `result`, so ~16
 already-fixed functions were counted as broken. A ratchet that cannot see its
 own progress is worse than none. The "not stale by more than five" assertion is
 what caught it.
+
+---
+
+## 2026-08-01 — 62 instances of a bad shape turned out to be 2 bugs
+
+Follow-up to the C-9 ratchet. Having established that pessimistic capture is
+unsound, I went looking for the subset worth fixing a different way: functions
+whose inner `return prev` has NO outer counterpart, so a plain single tap
+reaches it and gets told the action succeeded.
+
+A regex sweep flagged 39 candidates. **Reading them dropped it to 2.**
+`publishVideo`, `buyAccessory`, `buyMinerUpgrade`, `claimStakingRewards`,
+`purchasePassport`, `launchIPO` and most of the rest all test the condition
+OUTSIDE first and return a real failure; the inner copy is the same-batch race
+guard, reachable only by a second tap in one batch — where reporting failure is
+correct anyway. The unconditional success return is therefore RIGHT on the
+single tap that is nearly all real play.
+
+The two genuine ones were `upgradeEnergySystem` (tap "Solar" while already on
+Solar → "Upgraded to Solar Panels", no charge, no change) and `buildRDLab` —
+and the second was **mine**: my own C-3 fix earlier the same day added the
+inner already-this-tier check to stop a double charge and left the success
+return alone without adding an outer guard. A fix that closes one hole and
+opens a smaller one is still a regression; check the RETURN when you add a
+rejection.
+
+Both fixed with an outer guard, which has no timing dependency, rather than a
+capture, which does.
+
+**The generalisable lesson: a count of a code SHAPE is not a count of BUGS.**
+I twice quoted 86, then 62, as though it were a defect backlog, and wrote
+commit messages around that framing. The honest number of player-visible
+defects in that population was 2. The sweep was worth running — it found the
+two — but presenting its raw output as severity would have justified a 62-site
+refactor of critical action code for almost no player benefit, which is exactly
+the kind of churn the priority order (Correctness → Simplicity → Root causes)
+is meant to prevent. Read the candidates before quoting the number.

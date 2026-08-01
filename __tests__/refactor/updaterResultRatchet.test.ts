@@ -55,6 +55,28 @@
  * CLAUDE.md §4.1 has said this all along. The 62 below are the places that
  * work around it.
  *
+ * ── HOW MUCH OF THIS IS ACTUALLY A BUG ────────────────────────────────────
+ *
+ * 62 reads alarming. A function-by-function survey says it mostly is not, and
+ * `__tests__/actions/innerOnlyRejections.test.ts` pins the survey.
+ *
+ * For all but two, the inner `return prev` MIRRORS an outer guard that already
+ * returns a real failure — `publishVideo`'s weekly cap, `buyAccessory`'s
+ * already-owned check, `buyMinerUpgrade`'s max level, `claimStakingRewards`'
+ * empty positions, `purchasePassport`'s ownership, `launchIPO`'s already-public
+ * check. The inner copy is the same-batch race guard, reachable only by a
+ * second tap in one React batch — where reporting failure is the right answer
+ * anyway. So the unconditional success return is CORRECT on the single tap
+ * that is almost all real play.
+ *
+ * The two that were not mirrored (`upgradeEnergySystem`, `buildRDLab`) are
+ * fixed, with an outer guard rather than a capture.
+ *
+ * So this ratchet counts a SHAPE worth not adding more of, not 62 live bugs.
+ * Anyone working it down should check for the outer guard FIRST — most entries
+ * need no behavioural change at all, only the refactor to a pure reducer if
+ * the shape itself is to be retired.
+ *
  * 2026-08-01 audit round 4.
  */
 import fs from 'fs';
