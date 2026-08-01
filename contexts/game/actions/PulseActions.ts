@@ -845,6 +845,33 @@ export const brandDealBreachPenalty = (state: GameState, dealId: string): number
   return Math.floor(remainingPayment * 1.5);
 };
 
+/**
+ * Breach `dealId`, charging the penalty atomically.
+ *
+ * ⚠️ DO NOT TRUST THE RETURN VALUE. It is assembled inside the `setGameState`
+ * updater, and React may run that updater after this function has already
+ * returned — in which case the caller sees the initial
+ * `{ success: false, message: 'Deal not found.' }` for a breach that then
+ * succeeds. Measured, not assumed: `__tests__/refactor/updaterTimingContract`
+ * shows the first updater of a batch runs eagerly and a second one in the same
+ * batch is deferred, so this is unreliable rather than simply broken.
+ *
+ * The STATE TRANSITION is correct regardless — the penalty is charged inside
+ * the updater and an unaffordable one refuses by returning `prev`, per §4.4.
+ * It is only the report to the caller that is unreliable.
+ *
+ * That is why nothing in production reads it: `BrandDealsScreen` calls this for
+ * its effect only, and does its affordability check up front with
+ * `brandDealBreachPenalty` so the player is refused BEFORE the confirm dialog.
+ * Anything that needs the outcome must pre-flight the same way. Tests may read
+ * the return, but only because their dispatcher is a synchronous stub — that
+ * is a property of the stub, not a guarantee of React.
+ *
+ * The shape is counted branch-wide by `__tests__/refactor/updaterResultRatchet`;
+ * the fix when this is refactored is a pure reducer with an explicit result,
+ * not a pessimistic capture (that was tried on VehicleActions and reverted —
+ * it made a successful refuel report failure).
+ */
 export const breachBrandDeal = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
