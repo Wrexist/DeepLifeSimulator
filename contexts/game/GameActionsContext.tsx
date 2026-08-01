@@ -1738,6 +1738,43 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  cliffhangerTeaser: undefined as string | undefined,
  };
 
+ /**
+  * TICK-A4. The recap is built HERE, but eight cash movements happen after it:
+  * subscriptions, the hustle tick, the crypto tick, banking late fees, banking
+  * bills, channel memberships, savings goals, and auto-reinvest. Only the
+  * subscription fee folded itself back in (see just below), so a week whose
+  * whole story was "the mining rig paid out and the bills came due" reported
+  * neither, and `netChange` did not match the money the player watched change.
+  *
+  * This is the third instance of the same class in this one object —
+  * `luxuryRiskCost` and `luxuryYield` were both fixed the same way for the same
+  * reason (recap-1). The remaining six sites now report through this helper.
+  *
+  * Takes the ACTUAL applied delta, not the nominal one. Every site floors with
+  * `Math.max(0, …)`, so on a broke week the nominal overstates what really
+  * left the wallet — the same correction `petFoodCharged` and `luxuryCharged`
+  * already make above.
+  *
+  * DISPLAY fields only. `totalIncome` is computed far earlier and feeds
+  * `calculateIncomeTax`, so folding these in there would retroactively tax
+  * them — a balance change, not a reporting fix.
+  */
+ const recordRecapCash = (applied: number): void => {
+   if (!isFinite(applied)) return;
+   const rounded = Math.round(applied);
+   if (rounded === 0) return;
+   if (rounded > 0) weekResult.incomeEarned += rounded;
+   else weekResult.expensesPaid += -rounded;
+   weekResult.netChange += rounded;
+ };
+
+ /** Apply a cash delta to the wallet and report what actually moved. */
+ const applyCashAndRecord = (delta: number): void => {
+   const before = newStats.money;
+   newStats.money = Math.max(0, before + delta);
+   recordRecapCash(newStats.money - before);
+ };
+
  // R7 Phase 2 step 2.10: end-of-week cliffhanger roll extracted into
  // ./actions/weekly/applyCliffhangerRoll.ts. Same roll, same seed
  // (nextWeeksLived), same `setWeeksLived: nextWeeksLived + 1`, same
@@ -1848,7 +1885,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // apply campaign spend / revenue lift / scandal drag to money.
  const hustleAppNext = hustleTickResult?.hustleApp ?? prevState.hustleApp;
  if (hustleTickResult && hustleTickResult.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + hustleTickResult.cashDelta);
+ applyCashAndRecord(hustleTickResult.cashDelta); // TICK-A4
  }
 
  // Crypto market tick (STATE_VERSION 16, BitcoinMiningApp remake).
@@ -1889,7 +1926,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  finalCryptoMarket = cryptoTick.market;
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + cryptoTick.cashDelta);
+ applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
  }
  for (const note of cryptoTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1960,13 +1997,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  }
  if (bankingTick.lateFeesDeducted > 0) {
- newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
+ applyCashAndRecord(-bankingTick.lateFeesDeducted); // TICK-A4
  }
  // Bills paid from a mirrored (checking-default) account must hit real cash —
  // the mirror's balance is overwritten from stats.money every tick, so without
  // this a "paid" bill cost the player nothing (inverted bill-pay).
  if (bankingTick.billsPaidFromCash > 0) {
- newStats.money = Math.max(0, newStats.money - bankingTick.billsPaidFromCash);
+ applyCashAndRecord(-bankingTick.billsPaidFromCash); // TICK-A4
  }
  for (const note of bankingTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1992,7 +2029,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  nextGamingStreaming = membershipsResult.gamingStreaming;
  if (membershipsResult.cashDelta > 0) {
- newStats.money = Math.max(0, newStats.money + membershipsResult.cashDelta);
+ applyCashAndRecord(membershipsResult.cashDelta); // TICK-A4
  logger.info(`[MEMBERSHIPS] +$${membershipsResult.cashDelta} (${membershipsResult.reason}, ${membershipsResult.paidMembers} members)`);
  }
  // Persist level from experience (shared creatorLevel) so the badge advances.
@@ -2022,6 +2059,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  nextBankingSlice = goalsResult.banking ?? nextBankingSlice;
  newStats.money = Math.max(0, goalsResult.cash + goalsResult.rewardCash);
+ // TICK-A4, with a deliberate carve-out. Only `rewardCash` is reported: it is
+ // genuinely new money. The transfer half (`goalsResult.cash` moving between
+ // the wallet and a linked account) conserves assets — the player still has
+ // it — so booking it as an "expense" would report a $5,000 loss on a week
+ // they lost nothing. It is a cash-position change, not income or expense.
+ //
+ // This IS asymmetric with loan autopay above, which books principal as an
+ // expense even though it also conserves net worth. That asymmetry is
+ // intended: players read paying a loan as spending and read saving as
+ // saving. Noted here so it does not get "fixed" in either direction.
+ recordRecapCash(goalsResult.rewardCash);
  if (goalsResult.happinessDelta > 0) {
  newStats.happiness = Math.max(0, Math.min(100, (newStats.happiness ?? 0) + goalsResult.happinessDelta));
  }
@@ -2175,7 +2223,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  if (cashDeltaAfterReinvest!== 0) {
- newStats.money = Math.max(0, newStats.money + cashDeltaAfterReinvest);
+ applyCashAndRecord(cashDeltaAfterReinvest); // TICK-A4
  }
  // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
  // price so the move reaches the market board, Movers sort, market-order fills,
