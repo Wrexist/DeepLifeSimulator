@@ -62,6 +62,20 @@ export function buyPet(
   // add two pets for one payment (the prior grant-then-charge added the pet
   // unconditionally, then charged in a separate updater that could reject).
   setGameState((prev) => {
+    /**
+     * The id is built OUTSIDE this updater, so a same-batch double tap appends
+     * the SAME object twice — two roster rows sharing one id. Every later
+     * `pets.map(p => p.id === petId ? … : p)` then matches both: one feed feeds
+     * both, one vet visit heals both, and the weekly food cost is charged for
+     * two pets the player paid for once.
+     *
+     * `applyMoneyDelta` alone does not catch it — a player with cash for two
+     * pets passes it twice, which is the same half of the gate-then-grant class
+     * the R8 pass left open elsewhere. Rejecting on a duplicate id closes it
+     * without needing the id to be regenerated per invocation.
+     */
+    if ((prev.pets ?? []).some((p) => p?.id === id)) return prev;
+
     const spend = applyMoneyDelta(prev, -breed.price, `Bought ${breed.name}`);
     if (!spend) return prev; // race guard: an earlier same-batch buy drained the cash
     return { ...prev, ...spend, pets: [...(prev.pets ?? []), pet] };
@@ -260,6 +274,28 @@ export function payForVet(
   }
   // M-batch-A (R8): atomic debit + grant.
   setGameState((prev) => {
+    /**
+     * Re-check the PRECONDITION, not just affordability.
+     *
+     * R8 made the debit atomic; it did not stop a second tap being charged for
+     * a visit that does nothing. `health` is already clamped at 100 and
+     * `isSick` is already false after the first, so the second tap buys
+     * nothing — up to $1,500 for Surgery, or an infection's full treatment
+     * cost. Anti-player, same shape as the vehicle actions in R4-X5.
+     *
+     * "Nothing left to do" means: the pet is at full health AND this service
+     * has no sickness to treat and no vaccination to give. A visit that would
+     * still change something is allowed through.
+     */
+    const prevPet = (prev.pets ?? []).find((p) => p?.id === petId);
+    if (!prevPet || prevPet.isDead) return prev;
+
+    const wouldHeal = safe(prevPet.health, 0) < 100 && service.healthBonus > 0;
+    const wouldTreat = !!service.treatsSickness && !!prevPet.isSick;
+    const wouldVaccinate = !!service.vaccinates && !prevPet.vaccinated;
+    const wouldCheer = (service.happinessBonus ?? 0) > 0 && safe(prevPet.happiness, 0) < 100;
+    if (!wouldHeal && !wouldTreat && !wouldVaccinate && !wouldCheer) return prev;
+
     const spend = applyMoneyDelta(prev, -price, `${service.name} for ${pet.name}`);
     if (!spend) return prev; // race guard
     return {

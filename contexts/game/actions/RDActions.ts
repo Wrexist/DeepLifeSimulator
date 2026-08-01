@@ -49,13 +49,42 @@ export const buildRDLab = (
 
   // Update state: deduct money AND update company in a single state update to avoid race conditions
   setGameState(prev => {
-    const newMoney = Math.max(0, prev.stats.money - cost);
+    /**
+     * Re-check EVERYTHING against `prev`.
+     *
+     * This updater re-checked nothing: not funds, not which lab the company
+     * already had — and it debited with `Math.max(0, …)`, which floors instead
+     * of rejecting. Its three siblings in this file (`startResearch`,
+     * `filePatent`, `enterCompetition`) all carry the fix and cite it in
+     * comments; this one was left behind.
+     *
+     * `CompanyDetailScreen` renders all three lab tiers as separate live
+     * buttons when no lab exists, with no processing latch and a `disabled`
+     * computed from the same stale snapshot. So one React batch could tap
+     * Advanced ($200,000) then Cutting-edge ($1,000,000), be charged
+     * $1,200,000, and end with one lab. On a thin wallet the floor zeroed the
+     * player's cash rather than declining. CLAUDE.md §4.4.
+     *
+     * The cost is re-derived from `prev`'s lab too — an upgrade is priced
+     * against what the company currently HAS, so a stale `currentLabType` would
+     * charge the wrong amount even when only one tap lands.
+     */
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany) return prev;
+
+    const prevLabType = prevCompany.rdLab?.type || null;
+    if (prevLabType === labType) return prev; // already built this tier
+
+    const freshCost = getLabUpgradeCost(prevLabType, labType);
+    if ((prev.stats?.money ?? 0) < freshCost) return prev;
+
+    const newMoney = prev.stats.money - freshCost;
     // Create lab object inside updater to use fresh weeksLived
     const newLab: RDLab = {
       type: labType,
       builtWeek: prev.weeksLived || 0,
-      researchProjects: company.rdLab?.researchProjects || [],
-      completedResearch: company.rdLab?.completedResearch || [],
+      researchProjects: prevCompany.rdLab?.researchProjects || [],
+      completedResearch: prevCompany.rdLab?.completedResearch || [],
     };
     return {
       ...prev,

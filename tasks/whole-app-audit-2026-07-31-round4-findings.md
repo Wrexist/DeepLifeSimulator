@@ -129,3 +129,43 @@ tests rather than left to be re-found.
 
 **ARCH-1**, **PERF-3** and the **PERF-7 remainder** stay open with the reasoning
 recorded in the round 2 file.
+
+---
+
+## 5. Endemic-classes sweep (2026-08-01)
+
+A cross-cutting pass over the modules rounds 1-4 had not visited. Money bugs
+closed so far:
+
+| ID | Sev | Summary | Status |
+|---|---|---|---|
+| C-3 | high | `buildRDLab` was the textbook gate-then-grant: affordability read from the stale snapshot, the updater re-checked NOTHING, and the debit floored with `Math.max(0, …)`. Its three siblings in the same file all carry the fix and cite it. `CompanyDetailScreen` renders all three lab tiers as live buttons at once with no latch, so one batch could be charged $1,200,000 and end with one lab. The updater now re-derives the cost from `prev`'s lab, rejects an already-built tier, and rejects rather than flooring | FIXED |
+| C-7 | med | `buyPet` builds the id OUTSIDE the updater, so a re-invoked updater (StrictMode replays it) appends the SAME object twice — two roster rows sharing one id, after which one feed feeds both and weekly food is charged twice for a pet bought once. Rejects on a duplicate id | FIXED |
+| C-6 | med | `payForVet` re-checked affordability but no precondition, so a tap on a pet the visit cannot help was still charged, up to $1,500 for Surgery | FIXED |
+
+**Two of the three findings were mis-stated by the sweep, and my first tests
+encoded the mis-statement.** C-7 was reported as "two taps add two pets for one
+payment" and C-6 as "two taps charge twice". Two `buyPet` CALLS legitimately buy
+two pets and charge for two; a second checkup on a 40-health pet genuinely heals
+more. Both tests failed, and the failing side was mine, not the code's. The
+fixes are scoped to what is actually wrong and the controls now assert the
+behaviour I first mistook for the bug, so it cannot be "fixed" later.
+
+Still open from the sweep: C-1 (Commitment system inert — needs a product
+decision), C-2 (family-business brand/reputation, same), C-4 (Weekly Modifiers
+card asserts a Sickness penalty no system applies), C-8/C-9/C-10 (the
+read-out-of-updater idiom, ~15 action modules — messaging lies, money is safe),
+C-11 to C-14.
+
+### Player reports (1.4 bug-reports), fixed
+
+- Savings unopenable and undepositable — the one-account-per-type rule counted
+  the mirror accounts, and the failure was silent.
+- Family Income shown at 28x what the player receives.
+- Political promotion bypassed the office age gate from the Work tab, and left
+  the two screens reporting different ranks.
+- Diet-plan gains advertised at 7x what the tick applies.
+- Death-screen prestige points overstated 44%.
+
+Still open: modal close-button hit targets, the Life Skills point spent with no
+confirm, HUD font size, and reputation not being viewable anywhere.
