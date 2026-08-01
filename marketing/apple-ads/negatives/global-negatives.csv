@@ -1,0 +1,170 @@
+keyword,match_type,block_reason
+life insurance,EXACT,Wrong vertical — "life" pulls insurance intent
+term life insurance,EXACT,Wrong vertical
+whole life insurance,EXACT,Wrong vertical
+life insurance quotes,EXACT,Wrong vertical
+life insurance calculator,EXACT,Wrong vertical
+life360,EXACT,Family-locator app; huge volume on "life"
+life 360,EXACT,Family-locator app
+half life,EXACT,Different franchise
+half life 2,EXACT,Different franchise
+life is strange,EXACT,Different franchise
+still life,EXACT,Unrelated meaning of "life"
+shelf life,EXACT,Unrelated meaning
+wildlife,EXACT,Unrelated meaning
+wild life,EXACT,Unrelated meaning
+sea life,EXACT,Unrelated meaning
+night life,EXACT,Unrelated meaning
+nightlife,EXACT,Unrelated meaning
+afterlife,EXACT,Unrelated meaning
+plant life,EXACT,Unrelated meaning
+life cycle,EXACT,Educational intent
+life coach,EXACT,Self-help vertical
+life planner,EXACT,Productivity vertical
+daily life planner,EXACT,Productivity vertical
+life expectancy calculator,EXACT,Health vertical
+healthy life,EXACT,Health vertical
+my talking tom,EXACT,Different franchise that ranks on virtual-pet life terms
+flight simulator,EXACT,Simulator trap — different genre
+truck simulator,EXACT,Simulator trap
+euro truck simulator,EXACT,Simulator trap
+bus simulator,EXACT,Simulator trap
+farming simulator,EXACT,Simulator trap
+train simulator,EXACT,Simulator trap
+car simulator,EXACT,Simulator trap
+driving simulator,EXACT,Simulator trap
+car parking simulator,EXACT,Simulator trap
+drift simulator,EXACT,Simulator trap
+plane simulator,EXACT,Simulator trap
+ship simulator,EXACT,Simulator trap
+forklift simulator,EXACT,Simulator trap
+tractor simulator,EXACT,Simulator trap
+snow plow simulator,EXACT,Simulator trap
+lawn mowing simulator,EXACT,Simulator trap
+power wash simulator,EXACT,Simulator trap
+pc building simulator,EXACT,Simulator trap
+cooking simulator,EXACT,Simulator trap
+fishing simulator,EXACT,Simulator trap
+surgeon simulator,EXACT,Simulator trap
+police simulator,EXACT,Simulator trap
+army simulator,EXACT,Simulator trap
+war simulator,EXACT,Simulator trap
+gun simulator,EXACT,Simulator trap
+zombie simulator,EXACT,Simulator trap
+goat simulator,EXACT,Simulator trap
+animal simulator,EXACT,Animal-sim trap
+cat simulator,EXACT,Animal-sim trap
+dog simulator,EXACT,Animal-sim trap
+horse simulator,EXACT,Animal-sim trap
+wolf simulator,EXACT,Animal-sim trap
+lion simulator,EXACT,Animal-sim trap
+tiger simulator,EXACT,Animal-sim trap
+shark simulator,EXACT,Animal-sim trap
+spider simulator,EXACT,Animal-sim trap
+dinosaur simulator,EXACT,Animal-sim trap
+bee simulator,EXACT,Animal-sim trap
+ant simulator,EXACT,Animal-sim trap
+anime dating simulator,EXACT,Different genre and content rating
+dating simulator anime,EXACT,Different genre and content rating
+cash app,EXACT,Real fintech intent — will never install a game
+paypal,EXACT,Real fintech intent
+venmo,EXACT,Real fintech intent
+money transfer,EXACT,Real fintech intent
+send money,EXACT,Real fintech intent
+money manager,EXACT,Real finance-app intent
+budget app,EXACT,Real finance-app intent
+expense tracker,EXACT,Real finance-app intent
+loan app,EXACT,Real finance-app intent
+payday loan,EXACT,Real finance-app intent
+borrow money,EXACT,Real finance-app intent
+credit score,EXACT,Real finance-app intent
+make money online,EXACT,Earn-money-app intent; also a refund/complaint magnet
+earn money app,EXACT,Earn-money-app intent
+money making apps,EXACT,Earn-money-app intent
+get paid to play games,EXACT,Earn-money-app intent — mismatched expectation
+real money games,EXACT,Gambling/earn intent — mismatched expectation
+win real money,EXACT,Gambling/earn intent
+robinhood,EXACT,Real brokerage intent
+webull,EXACT,Real brokerage intent
+coinbase,EXACT,Real exchange intent
+binance,EXACT,Real exchange intent
+etoro,EXACT,Real brokerage intent
+tradingview,EXACT,Real trading tool intent
+forex trading,EXACT,Real trading intent
+stock tracker,EXACT,Real portfolio-tool intent
+stock portfolio tracker,EXACT,Real portfolio-tool intent
+crypto wallet,EXACT,Real wallet intent
+bitcoin wallet,EXACT,Real wallet intent
+buy bitcoin,EXACT,Real exchange intent
+resume builder,EXACT,Career-tool intent
+resume,EXACT,Career-tool intent
+cv maker,EXACT,Career-tool intent
+indeed,EXACT,Job-board intent
+linkedin,EXACT,Job-board intent
+job search,EXACT,Job-board intent
+job finder,EXACT,Job-board intent
+interview prep,EXACT,Career-tool intent
+zillow,EXACT,Real-estate portal intent
+redfin,EXACT,Real-estate portal intent
+realtor,EXACT,Real-estate portal intent
+apartments for rent,EXACT,Real-estate portal intent
+houses for sale,EXACT,Real-estate portal intent
+mortgage calculator,EXACT,Real finance-tool intent
+property management,EXACT,B2B software intent
+tinder,EXACT,Real dating-app intent
+bumble,EXACT,Real dating-app intent
+hinge,EXACT,Real dating-app intent
+dating app,EXACT,Real dating-app intent
+meet singles,EXACT,Real dating-app intent
+gta,EXACT,Different franchise
+grand theft auto,EXACT,Different franchise
+gta 5,EXACT,Different franchise
+gta san andreas,EXACT,Different franchise
+roblox,EXACT,Different franchise — enormous volume
+minecraft,EXACT,Different franchise
+among us,EXACT,Different franchise
+fortnite,EXACT,Different franchise
+free fire,EXACT,Different franchise
+pubg,EXACT,Different franchise
+call of duty,EXACT,Different franchise
+clash of clans,EXACT,Different franchise
+brawl stars,EXACT,Different franchise
+subway surfers,EXACT,Different franchise
+candy crush,EXACT,Different franchise
+monopoly go,EXACT,Different franchise
+sims 4,EXACT,PC title — no iOS install possible
+the sims 4,EXACT,PC title
+sims 4 cheats,EXACT,PC title — cheat intent
+sims freeplay,EXACT,Different monetization audience; move to Competitor only if tested
+mod apk,EXACT,Piracy intent — never converts to a paying user
+mod menu,EXACT,Piracy intent
+apk download,EXACT,Piracy intent — wrong platform
+apk,EXACT,Wrong platform
+unlimited money mod,EXACT,Piracy intent
+hack,EXACT,Cheat intent
+cheats,EXACT,Cheat intent
+cheat codes,EXACT,Cheat intent
+unblocked,EXACT,Browser-game intent — wrong platform
+cracked,EXACT,Piracy intent
+free download,EXACT,Non-App-Store intent
+online,EXACT,Browser/PC intent
+pc game,EXACT,Wrong platform
+steam,EXACT,Wrong platform
+xbox,EXACT,Wrong platform
+playstation,EXACT,Wrong platform
+ps5,EXACT,Wrong platform
+nintendo switch,EXACT,Wrong platform
+emulator,EXACT,Wrong platform
+movie,EXACT,Media intent
+netflix,EXACT,Media intent
+anime,EXACT,Media intent
+manga,EXACT,Media intent
+wallpaper,EXACT,Media intent
+ringtone,EXACT,Media intent
+quotes,EXACT,Media intent
+audiobook,EXACT,Media intent
+kids games,EXACT,Age mismatch — the app has crime and dark-web content
+games for kids,EXACT,Age mismatch and review risk
+toddler games,EXACT,Age mismatch
+baby games,EXACT,Age mismatch
+preschool games,EXACT,Age mismatch

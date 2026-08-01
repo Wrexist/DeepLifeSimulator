@@ -168,10 +168,45 @@ class RevenueCatService {
       P.configure({ apiKey: key });
       this.configured = true;
       log.info('configured');
+      this.enableAppleAdsAttribution(P);
       return true;
     } catch (error) {
       log.warn('configure failed', { error });
       return false;
+    }
+  }
+
+  /**
+   * Ask the SDK to collect Apple's AdServices attribution token (iOS only).
+   *
+   * This is what joins an Apple Ads (App Store Ads) install to the revenue that
+   * install later produces: RevenueCat exchanges the token with Apple within 24h
+   * and every customer then carries their campaign / ad group. Without it, Apple
+   * Ads reports installs and RevenueCat reports revenue and nothing connects the
+   * two — see marketing/apple-ads/05-measurement-and-roi.md.
+   *
+   * AdServices does NOT require ATT consent for standard (campaign-level)
+   * attribution, so this runs regardless of the tracking permission. The
+   * RevenueCat dashboard's Apple Search Ads integration must also be enabled or
+   * the collected token goes nowhere.
+   *
+   * Fire-and-forget and fully guarded: an older SDK without the method, a
+   * rejected promise, or a throw must never affect a purchase flow.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private enableAppleAdsAttribution(P: any): void {
+    if (Platform.OS !== 'ios') return;
+    try {
+      const enable = P?.enableAdServicesAttributionTokenCollection;
+      if (typeof enable !== 'function') {
+        log.info('AdServices attribution unavailable in this SDK version');
+        return;
+      }
+      Promise.resolve(enable.call(P))
+        .then(() => log.info('AdServices attribution token collection enabled'))
+        .catch((error: unknown) => log.warn('AdServices attribution failed', { error }));
+    } catch (error) {
+      log.warn('AdServices attribution threw', { error });
     }
   }
 
