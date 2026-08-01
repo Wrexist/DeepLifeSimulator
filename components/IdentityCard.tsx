@@ -342,13 +342,24 @@ function IdentityCard() {
 
     const activeDietPlan = (dietPlans || []).find(plan => plan.active);
     if (activeDietPlan) {
+      /**
+       * The COST is per day and the tick charges seven of them; the GAINS are
+       * already per week and the tick applies each exactly once
+       * (`applyDietPlan.ts`, one call site per tick). Multiplying both by 7 was
+       * right for one and wrong for the other three.
+       *
+       * The Athlete Diet ($10,000/day) advertised "+84 health, +56 energy, +35
+       * happiness per week" against an actual +12 / +8 / +5 — a stat pump one
+       * seventh the size of the number on the card, at a correctly-stated
+       * price. Same shape as the Family Income x7 a player reported.
+       */
       const changes: Record<string, number> = {
         money: -activeDietPlan.dailyCost * 7,
-        health: activeDietPlan.healthGain * 7,
-        energy: activeDietPlan.energyGain * 7,
+        health: activeDietPlan.healthGain,
+        energy: activeDietPlan.energyGain,
       };
       if (activeDietPlan.happinessGain) {
-        changes.happiness = activeDietPlan.happinessGain * 7;
+        changes.happiness = activeDietPlan.happinessGain;
       }
       modifiers.push({
         label: `${activeDietPlan.name} Diet`,

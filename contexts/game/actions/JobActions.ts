@@ -13,6 +13,7 @@ import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
+import { politicalPromotionBlocker } from '@/lib/careers/political';
 
 /** Street-job requirement ids that any transport tier can satisfy. */
 const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
@@ -954,6 +955,37 @@ export const promoteCareer = (
     return { success: false, message: 'Invalid career level' };
   }
 
+  /**
+   * PLAYER REPORT (1.4 bug-reports): the political ladder had two doors and
+   * only one of them was locked.
+   *
+   * `getPromotionEligibility` covers acceptance, progress, performance and
+   * tenure — and knows nothing about `POLITICAL_CAREER_REQUIREMENTS`. So the
+   * Politics app correctly refused a 27-year-old running for Mayor ("You must
+   * be at least 30 years old") while this path promoted them into the very same
+   * office from the Work tab. The two screens then disagreed about the player's
+   * rank, because only `runForOffice` maintains `politics.careerLevel`.
+   *
+   * The office requirements now apply wherever the promotion comes from.
+   */
+  const politicalBlocker = careerId === 'political'
+    ? politicalPromotionBlocker({
+        targetLevel: newLevel,
+        age: gameState.date?.age ?? 0,
+        reputation: gameState.stats?.reputation ?? 0,
+        currentLevel: career.level,
+        weeksInCurrentLevel: Math.max(
+          0,
+          (gameState.weeksLived ?? 0) - (career.startedWeeksLived ?? 0),
+        ),
+        hasEducation: (id: string) =>
+          (gameState.educations || []).some((e) => e.id === id && e.completed),
+      })
+    : null;
+  if (politicalBlocker) {
+    return { success: false, message: politicalBlocker };
+  }
+
   // R4-K-style guard: re-validate against fresh `prev` INSIDE the updater. The
   // checks above read the stale `gameState` snapshot, so two promote taps in one
   // React batch would both pass and skip a level / over-grant salary. Re-running
@@ -966,6 +998,24 @@ export const promoteCareer = (
     if (!getPromotionEligibility(cur, prev.weeksLived).eligible) return prev;
     const promotedLevel = cur.level + 1;
     if (!cur.levels[promotedLevel]) return prev;
+    // Re-run the office gate against `prev` too — the check above read the
+    // stale snapshot, and age/reputation can both move between them.
+    if (careerId === 'political') {
+      const blocked = politicalPromotionBlocker({
+        targetLevel: promotedLevel,
+        age: prev.date?.age ?? 0,
+        reputation: prev.stats?.reputation ?? 0,
+        currentLevel: cur.level,
+        weeksInCurrentLevel: Math.max(
+          0,
+          (prev.weeksLived ?? 0) - (cur.startedWeeksLived ?? 0),
+        ),
+        hasEducation: (id: string) =>
+          (prev.educations || []).some((e) => e.id === id && e.completed),
+      });
+      if (blocked) return prev;
+    }
+
     const updatedCareers = prev.careers.map(c => {
       if (c.id !== careerId) return c;
 
@@ -979,6 +1029,21 @@ export const promoteCareer = (
     return {
       ...prev,
       careers: updatedCareers,
+      // Keep the Politics app's rank in step. `politics.careerLevel` is the
+      // 1-based office RANK (0 = Citizen), maintained by `runForOffice` — so
+      // promoting from the Work tab used to leave it stale and the two screens
+      // reported different offices for the same player.
+      // Only patch an EXISTING politics slice — `PoliticsState` has required
+      // fields, and fabricating a partial one here would be worse than a stale
+      // rank. A player holding political office always has it.
+      ...(careerId === 'political' && prev.politics
+        ? {
+            politics: {
+              ...prev.politics,
+              careerLevel: Math.max(prev.politics.careerLevel ?? 0, promotedLevel + 1),
+            },
+          }
+        : {}),
     };
   });
 
