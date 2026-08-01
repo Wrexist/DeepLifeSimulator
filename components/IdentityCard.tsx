@@ -207,7 +207,17 @@ function IdentityCard() {
     ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
   // Reputation standing (Unknown → Icon) — makes the hidden reputation stat legible.
-  const reputationStanding = getReputationStanding(stats?.reputation ?? 0);
+  //
+  // PLAYER REPORT (1.4): "Reputation stat is not viewable anywhere". The tier
+  // word alone was not what they asked for and not what the game gates on:
+  // the political ladder needs 30 for council, 50 for mayor, 95 for president,
+  // and vehicles have their own thresholds. "Respected" cannot tell a player
+  // whether the next office is one week away or forty, so the raw 0-100 value
+  // is shown beside the word.
+  const reputationValue = Math.max(0, Math.round(
+    typeof stats?.reputation === 'number' && Number.isFinite(stats.reputation) ? stats.reputation : 0,
+  ));
+  const reputationStanding = getReputationStanding(reputationValue);
 
   // The CANONICAL net worth — the same figure prestige, the leaderboard,
   // ambitions, bail cost and the stats screen read.
@@ -561,13 +571,13 @@ function IdentityCard() {
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
-              Standing
+              Reputation
             </Text>
             <Text
               style={[styles.statValue, styles.statValueDark, { color: reputationStanding.color }]}
               numberOfLines={1}
             >
-              {reputationStanding.label}
+              {reputationValue} · {reputationStanding.label}
             </Text>
           </View>
         </View>
