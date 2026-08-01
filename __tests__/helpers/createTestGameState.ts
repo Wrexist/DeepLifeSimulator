@@ -10,13 +10,47 @@
 
 import { GameState } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
+import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
+
+/**
+ * The keys this factory DEEP-merges one level down, so an override may name a
+ * few fields instead of rebuilding the whole sub-object.
+ *
+ * `banking`, `cryptoMarket` and `darkWeb` are deep-merged too but are NOT here:
+ * they merge through optional chaining against possibly-absent defaults, so
+ * typing them as partial would force casts inside the factory — the exact thing
+ * this type exists to remove from callers. They keep their full types.
+ */
+type DeepMergedKey =
+  'stats' | 'date' | 'settings' | 'social' | 'economy' | 'family' | 'prestige';
+
+/**
+ * What `createTestGameState` accepts.
+ *
+ * `Partial<GameState>` is SHALLOW: it makes each top-level key optional but
+ * still demands a complete value. So `{ stats: { money: 5000 } }` — the usage
+ * this file's own `@example` has always shown, and what the implementation has
+ * always deep-merged — did not type-check.
+ *
+ * That gap is why the test tree carried a large block of TS2740 "missing the
+ * following properties from type 'GameStats'" errors, and why callers reached
+ * for `as never` / `as GameState` to silence them. Those casts then defeated
+ * Hard Rule #3: a cast state does not fail to compile when GameState changes,
+ * which is the whole point of routing tests through this factory.
+ *
+ * The type now says what the function already did.
+ */
+export type TestGameStateOverrides =
+  Omit<Partial<GameState>, DeepMergedKey>
+  & { [K in DeepMergedKey]?: Partial<GameState[K]> };
 
 /**
  * Creates a valid GameState for testing
- * 
- * @param overrides - Partial GameState to override default values
+ *
+ * @param overrides - Partial GameState to override default values. Nested
+ *   objects listed in `DeepMergedKey` may themselves be partial.
  * @returns Complete, valid GameState object
- * 
+ *
  * @example
  * ```typescript
  * const state = createTestGameState({
@@ -25,7 +59,7 @@ import { initialGameState } from '@/contexts/game/initialState';
  * });
  * ```
  */
-export function createTestGameState(overrides: Partial<GameState> = {}): GameState {
+export function createTestGameState(overrides: TestGameStateOverrides = {}): GameState {
   // Start with actual initial state to ensure all required properties exist
   // This guarantees type safety - if GameState changes, tests will fail at compile time
   return {
@@ -55,6 +89,19 @@ export function createTestGameState(overrides: Partial<GameState> = {}): GameSta
     family: {
       ...initialGameState.family,
       ...(overrides.family || {}),
+    },
+    // Merged rather than replaced, because `prestige` is OPTIONAL on GameState:
+    // a caller wanting to change one field had to spread the default by hand,
+    // and spreading a `PrestigeData | undefined` widens EVERY field to
+    // optional, so the result no longer assigns back to PrestigeData. Tests
+    // reached for `as never` to escape that.
+    //
+    // The base is `defaultPrestigeData` rather than `initialGameState.prestige`
+    // for the same reason: they are the same object at runtime, but only the
+    // former is TYPED as a complete PrestigeData, so this merge needs no cast.
+    prestige: {
+      ...defaultPrestigeData,
+      ...(overrides.prestige || {}),
     },
     banking: overrides.banking
       ? {

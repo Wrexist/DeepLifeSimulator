@@ -35,14 +35,14 @@ const fresh = (): GameState => createTestGameState({
   completedChapters: [],
   stats: { ...createTestGameState().stats, money: 0 },
   bankSavings: 0,
-  prestige: { ...createTestGameState().prestige, totalPrestiges: 0 },
+  prestige: { totalPrestiges: 0 },
   generationNumber: 1,
-} as never);
+});
 
 const withChapters = (n: number): GameState => createTestGameState({
   ...fresh(),
   completedChapters: LIFE_CHAPTERS.slice(0, n).map((c) => c.id),
-} as never);
+});
 
 describe('a brand-new player sees a first session, not the whole game', () => {
   it('starts at tier 0', () => {
@@ -115,7 +115,7 @@ describe('finishing a chapter opens the next layer', () => {
     const skipped = createTestGameState({
       ...fresh(),
       completedChapters: [LIFE_CHAPTERS[2].id],
-    } as never);
+    });
 
     expect(unlockTier(skipped)).toBe(0);
   });
@@ -133,7 +133,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
       ...fresh(),
       weeksLived: 300,
       completedChapters: [],
-    } as never);
+    });
 
     expect(unlockTier(veteran)).toBe(5);
     for (const feature of FEATURE_UNLOCKS) {
@@ -146,14 +146,14 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
     const prestiged = createTestGameState({
       ...fresh(),
       weeksLived: 2,
-      prestige: { ...createTestGameState().prestige, totalPrestiges: 1 },
-    } as never);
+      prestige: { totalPrestiges: 1 },
+    });
 
     expect(unlockTier(prestiged)).toBe(5);
   });
 
   it('an heir in generation 2 has everything', () => {
-    const heir = createTestGameState({ ...fresh(), generationNumber: 2 } as never);
+    const heir = createTestGameState({ ...fresh(), generationNumber: 2 });
 
     expect(unlockTier(heir)).toBe(5);
   });
@@ -163,7 +163,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
       ...fresh(),
       weeksLived: 40,
       stats: { ...createTestGameState().stats, money: 60_000 },
-    } as never);
+    });
 
     expect(unlockTier(rich)).toBeGreaterThanOrEqual(4);
     expect(isFeatureUnlocked(rich, 'app:company')).toBe(true);
@@ -172,7 +172,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
   it('savings count toward that, not just cash', () => {
     const saver = createTestGameState({
       ...fresh(), weeksLived: 20, bankSavings: 12_000,
-    } as never);
+    });
 
     expect(unlockTier(saver)).toBeGreaterThanOrEqual(3);
   });
@@ -180,7 +180,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
   it('the tier is the MAX of the signals — a rich player with no chapters keeps it', () => {
     const rich = createTestGameState({
       ...fresh(), weeksLived: 30, stats: { ...createTestGameState().stats, money: 250_000 },
-    } as never);
+    });
 
     expect(unlockTier(rich)).toBe(5);
   });
@@ -192,7 +192,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
       ...withChapters(4),
       stats: { ...createTestGameState().stats, money: 0 },
       bankSavings: 0,
-    } as never);
+    });
 
     expect(unlockTier(brokeButExperienced)).toBe(4);
     expect(isFeatureUnlocked(brokeButExperienced, 'app:company')).toBe(true);
@@ -248,7 +248,7 @@ describe('the table itself', () => {
       weeksLived: NaN,
       completedChapters: undefined,
       stats: { ...createTestGameState().stats, money: NaN },
-    } as never);
+    });
     expect(unlockTier(corrupt)).toBe(0);
   });
 });
@@ -305,7 +305,7 @@ describe('the week tick completes chapters, not a button', () => {
     weeksLived: 6,
     currentJob: 'job-1',
     stats: { ...createTestGameState().stats, money: 5_000 },
-  } as never);
+  });
 
   it('a finished chapter completes on the tick', () => {
     const result = applyChapterProgress({ state: chapterOneDone() });
@@ -342,7 +342,7 @@ describe('the week tick completes chapters, not a button', () => {
     const paid = createTestGameState({
       ...chapterOneDone(),
       completedChapters: [LIFE_CHAPTERS[0].id],
-    } as never);
+    });
 
     expect(applyChapterProgress({ state: paid }).newlyCompleted).toEqual([]);
   });
@@ -355,7 +355,7 @@ describe('the week tick completes chapters, not a button', () => {
       weeksLived: 30,
       currentJob: 'job-1',
       stats: { ...createTestGameState().stats, money: 5_000_000 },
-    } as never);
+    });
 
     expect(applyChapterProgress({ state: veryRich }).newlyCompleted.length)
       .toBeLessThanOrEqual(1);
