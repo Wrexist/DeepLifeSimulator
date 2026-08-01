@@ -27,11 +27,26 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 
 const LinearGradient = LinearGradientFallback;
 
+/**
+ * F7. "No ads in feed — Cleaner browsing experience" used to sit in this list.
+ *
+ * There are no ads in the Pulse feed. `PulseApp` renders posts, stories and
+ * trending chips; there is no ad unit, sponsored row or promoted post anywhere
+ * in the feed to remove. The one ad in Pulse is the OPT-IN rewarded video in
+ * `RewardedAdModal`, which Verified Pro does not remove — it triples its
+ * reward, and that perk really is implemented.
+ *
+ * Removed rather than delivered: adding an in-feed ad so a subscription could
+ * take it away would be inventing an ad placement to justify the copy, which
+ * is worse than the bug. The other four perks below are all real — the badge,
+ * the 1.25x tick multiplier and reduced follower decay, the analytics screen,
+ * and the 500-character compose limit.
+ */
 const PERKS: { title: string; subtitle: string }[] = [
   { title: 'Blue checkmark', subtitle: 'Verified across every Pulse surface' },
   { title: '+25% post boost', subtitle: 'More followers and revenue per post' },
   { title: 'Advanced analytics', subtitle: 'See per-post performance trends' },
-  { title: 'No ads in feed', subtitle: 'Cleaner browsing experience' },
+  { title: 'Slower follower decay', subtitle: 'Your audience sticks around longer' },
   { title: 'Longer posts', subtitle: '500-character limit vs 280' },
 ];
 
@@ -66,7 +81,8 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
   const handleCancel = useCallback(() => {
     Alert.alert(
       'Cancel Verified Pro?',
-      'You will lose the blue check, post boost, analytics, ad-free feed, and longer posts. You can resubscribe any time.',
+      // F7: "ad-free feed" removed here too — there is no in-feed ad to lose.
+      'You will lose the blue check, post boost, analytics, slower follower decay, and longer posts. You can resubscribe any time.',
       [
         { text: 'Keep it', style: 'cancel' },
         {

@@ -12,6 +12,7 @@ import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisti
 import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
 import { haptic } from '@/utils/haptics';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
+import { getInflatedPrice } from '@/lib/economy/inflation';
 
 interface ItemActionsContextType {
   // Items & Purchases
@@ -209,15 +210,36 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       return;
     }
 
-    if (state.stats.money < food.price) {
-      logger.error('Insufficient funds for food purchase:', { needed: food.price, have: state.stats.money });
+    /**
+     * F5. Food was the only purchasable in the app charged at its RAW price.
+     *
+     * `market.tsx` showed `${food.price}` raw and this charged raw — but the
+     * button's disabled state ran through `canAfford`, which applies
+     * `getInflatedPrice`. So all three disagreed, and the player-visible
+     * symptom was a greyed-out button on food they could plainly afford at the
+     * price printed beside it.
+     *
+     * Resolved by inflating, not by dropping the gate: every other item on that
+     * same screen is inflated at display, gate and charge, and `JailScreen`
+     * already inflates food explicitly. Leaving food alone was also an economy
+     * hole that widens for the whole game — inflation compounds at up to 50%
+     * annually, so food was drifting towards free in real terms.
+     *
+     * This does raise what food costs, in step with everything else.
+     */
+    const price = getInflatedPrice(food.price, state.economy?.priceIndex ?? 1);
+
+    if (state.stats.money < price) {
+      logger.error('Insufficient funds for food purchase:', { needed: price, have: state.stats.money });
       return;
     }
 
     // Calculate happiness restore (healthRestore / 2, minimum 1)
     const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
 
-    updateMoney(-food.price, `Food purchase: ${food.name}`);
+    // `updateMoney` re-checks affordability against `prev` and rejects an
+    // overdraw outright, so the stale read above is a fast path, not the gate.
+    updateMoney(-price, `Food purchase: ${food.name}`);
     StatsActions.updateStats(setGameState, {
       health: food.healthRestore,
       energy: food.energyRestore,
@@ -227,7 +249,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     logger.info('Food purchase completed:', {
       foodId,
       name: food.name,
-      price: food.price,
+      price,
       healthGain: food.healthRestore,
       energyGain: food.energyRestore,
       happinessGain: happinessRestore

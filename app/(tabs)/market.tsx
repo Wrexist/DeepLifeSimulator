@@ -349,7 +349,16 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{food.name}</Text>
-          <Text style={styles.itemPrice}>${food.price}</Text>
+          {/**
+            * F5. This printed the RAW price while the button beside it was
+            * disabled off `canAfford`, which inflates — so affordable food
+            * showed an unusable button. Every item row on this screen already
+            * displays the inflated price; food is now consistent with them and
+            * with what `buyFood` charges.
+            */}
+          <Text style={styles.itemPrice}>
+            ${getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1).toFixed(2)}
+          </Text>
 
           <View style={styles.bonusInfo}>
             <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.restores')}</Text>

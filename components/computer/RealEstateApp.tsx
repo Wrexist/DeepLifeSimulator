@@ -1038,10 +1038,31 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           setManageTarget(null);
         }}
         onEvict={() => {
-          if (manageTarget) {
-            evictTenant(setGameState, manageTarget.id);
-            queueSave();
-          }
+          if (!manageTarget) return;
+          /**
+           * F8. This fired on a single tap of an icon-only button, with no
+           * confirmation. Eviction is not reversible: `kickTenant` clears the
+           * tenant and resets `weeksVacant`, so the rent stops and the property
+           * has to find a new tenant from scratch. Every other destructive
+           * action in this file at least reports its outcome; this one just
+           * silently emptied the unit.
+           */
+          const tenantName = manageTarget.tenant?.name ?? 'your tenant';
+          Alert.alert(
+            'Evict tenant?',
+            `${tenantName} will be removed from ${manageTarget.name ?? 'this property'} and the rent stops immediately. You will have to wait for a new tenant.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Evict',
+                style: 'destructive',
+                onPress: () => {
+                  evictTenant(setGameState, manageTarget.id);
+                  queueSave();
+                },
+              },
+            ],
+          );
         }}
         onMaintain={() => {
           if (manageTarget) {
