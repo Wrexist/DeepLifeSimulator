@@ -210,4 +210,26 @@ describe('carryAccountLevelEntitlements in isolation', () => {
 
     expect(() => carryAccountLevelEntitlements(old, fresh)).not.toThrow();
   });
+
+  it('never writes through into the settings object it was handed', () => {
+    // This function mutates `newState` by design — that is how it drops into
+    // the existing builder style. But it must not write into the settings
+    // OBJECT it received, because both builders happen to pass a fresh
+    // `{ ...initialGameState.settings }` and one future caller passing a
+    // shallow `{ ...initialGameState }` would be handing over the singleton's
+    // own settings object. One player's purchases would then be stamped onto
+    // the template every later new game is built from — permanently, in
+    // memory, with no save involved.
+    //
+    // Nobody has made that mistake; this makes it unmakeable.
+    const old = bigSpender();
+    const shared = createTestGameState().settings;
+    const fresh = createTestGameState();
+    fresh.settings = shared; // the aliasing a careless caller would create
+
+    carryAccountLevelEntitlements(old, fresh);
+
+    expect(settingsOf(fresh).adsRemoved).toBe(true); // the copy still happened
+    expect('adsRemoved' in shared && shared.adsRemoved === true).toBe(false);
+  });
 });

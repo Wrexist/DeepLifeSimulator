@@ -77,7 +77,14 @@ export const PURCHASED_STATE_KEYS = ['goldUpgrades', 'perks', 'youthPills'] as c
  */
 export function carryAccountLevelEntitlements(oldState: GameState, newState: GameState): GameState {
   const oldSettings = (oldState?.settings ?? {}) as unknown as Record<string, unknown>;
-  const newSettings = (newState.settings ?? {}) as unknown as Record<string, unknown>;
+  // Cloned, not written through. Both builders already hand us a fresh
+  // `{ ...initialGameState.settings }`, so this changes nothing today — but
+  // writing into whatever object arrived means one future caller passing
+  // `initialGameState` (or a shallow `{ ...initialGameState }`, whose `settings`
+  // is still the singleton's own object) would permanently stamp one player's
+  // purchases onto the template every later new game is built from. Cheap to
+  // make impossible; expensive to debug if it ever happened.
+  const newSettings = { ...(newState.settings ?? {}) } as unknown as Record<string, unknown>;
 
   for (const key of PURCHASED_SETTINGS_KEYS) {
     const value = oldSettings[key];
