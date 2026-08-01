@@ -1262,6 +1262,30 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // Use useGameState directly instead of useGame to avoid GameActionsProvider dependency
   // This component only needs gameState, not actions
   // Add defensive check - if hook fails, ErrorBoundary will catch it
+  //
+  /**
+   * PERF-A1, OPEN — analysed, deliberately not changed here.
+   *
+   * This subscribes to the WHOLE game state and sits at the root, so it
+   * re-renders on every money change and every weekly stat decay, and its
+   * SafeAreaView wraps the app. What it actually reads is narrow:
+   * `settings.darkMode`, the presence of `stats`, and four popup flags.
+   *
+   * It is not a simple selector swap, for two reasons. `setGameState` is
+   * needed by `dismissPopupOnError`, and taking it from `useGameState()` is
+   * itself the documented full-state re-subscription (CLAUDE.md §4.1,
+   * tasks/lessons.md 2026-06-09) — so narrowing the reads alone would change
+   * nothing. And the AI debug getter needs the whole state, via the ref below.
+   * A real fix means splitting this into a narrow presentational part and a
+   * render-nothing leaf that owns the writer and the debug getter.
+   *
+   * Left alone because the payoff is unmeasured and the risk is not: this is
+   * `app/_layout.tsx`, the file the v2.5.0 launch crash came out of, and the
+   * PR checklist requires TestFlight verification for changes to it. The
+   * round-4 audit reached the same conclusion — "needs device measurement, not
+   * more static analysis". Recorded here so the next pass starts from the
+   * analysis instead of re-deriving it.
+   */
   const { gameState, setGameState } = useGameState();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
   // full-screen — but NOT the critical popups below, which keep `showStatsBar`.

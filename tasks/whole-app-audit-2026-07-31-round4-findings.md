@@ -55,8 +55,8 @@ weekly tick actually produces.
 | R4-X1 | high | The Mindset system narrated effects it never applied. `getMindsetFeedback` returned the message and discarded the deltas; its only caller is the only place in the app that touches Mindsets at all. The game said "Frugal: You saved a bit extra (+120)" and credited nothing | FIXED |
 | R4-X4 | high | Luxury insurance was strictly dominated by ~100×. `RESTORE_COST_PER_POINT_PCT` was documented as a fraction and divided by 100 again at all three call sites, pricing restoration and the deductible at 1/100th of intent. Never insuring was optimal by two orders of magnitude — the exact inverse of the module's stated design | FIXED |
 | R4-X7 | med | Eight policy effects declared, priced and rendered on the card the player reads before spending $100,000–$300,000, with nothing behind them. `economy.inflationRate` WIRED (inflation is a real weekly system, and the aggregator had no `economy` slice at all). The other seven listed in `INERT_POLICY_KEYS` and no longer rendered — they describe systems that do not exist | FIXED |
-| R4-X2 | med | Five automation prestige bonuses have no state writer | OPEN |
-| R4-X6 | med | An enhanced event promises five follow-ups that do not exist | OPEN |
+| R4-X2 | med | Five automation prestige bonuses have no state writer. Worse than reported: `automation` is not in `initialState.ts` at all, so the tick's execution block returns early for every player, and nothing anywhere writes a rule (`createDefaultAutomationState` has zero callers). 16,500 points plus up to 10,000 in slots, for nothing. HIDDEN from the shop rather than implemented (a rule builder is a feature) and rather than deleted (the same call R4-X7 made for `INERT_POLICY_KEYS`); `prestige_bonuses_all` re-pointed at `PURCHASABLE_PRESTIGE_BONUSES` so hiding them could not make a 25,000-point achievement impossible | FIXED |
+| R4-X6 | med | An enhanced event promises five follow-ups that do not exist. Four written as payoff templates in the shape the earlier lifeMoments pass established; the fifth (`exam_results`) removed instead — a NEGATIVE weight modifier, which `weightPayoffReady` can never fire on, for an effect the choice's 20-energy cost already delivers through `runExam`. Guarded generically: the test sweeps every template in the pool for unresolvable follow-up targets | FIXED |
 
 ---
 
@@ -85,15 +85,49 @@ and `sampleRegimeDuration` have no production callers either. Worth a separate
 look at whether the crypto price walk the app actually runs is the one that was
 designed.
 
+### Closed since (2026-08-01)
+
+**R4-X2**, **R4-X6**, **TICK-A2/A3/A4**, **C-3/C-4/C-6/C-7/C-8/C-12/C-13/C-14**
+and **F5-F8** are all FIXED — see the rows above and the commits on
+`claude/unfixed-audit-findings-4iaed3`. Two corrections to what this file
+previously recorded:
+
+- **C-13 was over-graded.** It was reported as a ~4.3x payout error (a monthly
+  membership rate paid out weekly). It is not. The tick's clamp band is
+  documented in `$/member/week`, `initialState` seeds 4.99 so the displayed
+  "Members/wk" matches the payout, and the UI figure and the payout are the
+  same call. One JSDoc line said "Monthly". The line is what changed — the
+  tempting "fix" was a 4.33x income nerf justified by a stale comment.
+- **C-9/ARCH-1 was undercounted.** Reported as ~15 modules; the actual sweep
+  finds **86 functions** in `contexts/game/actions/` that reject from inside a
+  `setGameState` updater and then return an unconditional success.
+
 ### Carried forward, unchanged
 
-**R4-X2** — five automation prestige bonuses with no state writer.
-**R4-X6** — an enhanced event that promises five follow-ups with no
-implementation.
 **PERF-A1** — `app/_layout.tsx` root full-state subscription. Same class as the
-open PERF-7 remainder; needs device measurement, not more static analysis.
-**TICK-A2/A3/A4** — a stale challenge-evaluation snapshot, five unguarded `.map`
-loops in the tick, and the weekly recap computed before eight cash movements.
+open PERF-7 remainder; needs device measurement, not more static analysis. The
+analysis is now recorded at the site: it is not a selector swap, because
+`setGameState` is itself the full-state re-subscription and the AI debug getter
+needs the whole state. A real fix splits the component. Not attempted blind in
+the file the v2.5.0 launch crash came from.
+
+**C-9 / ARCH-1** — 86 functions, ratcheted rather than blind-fixed
+(`__tests__/refactor/updaterResultRatchet.test.ts`). Too many to fix without
+reading each one's reachable rejection paths, and several are certainly fine
+(an outer guard already returned a failure). The ratchet stops the 87th and
+makes working the existing set down deliberate, separate work — the same
+discipline as the test-tree type-error ratchet.
+
+**C-11** — `legacyPoints` accrues from two sources, is persisted, migrated and
+repaired, and is read by nothing. Annotated at the tick site rather than
+removed or surfaced: what a legacy point should BUY is a product decision.
+Balances keep accruing so a later sink finds a real number waiting.
+
+### Still blocked on a product decision
+
+**C-1** (the Commitment system) and **C-2** (family-business brand/reputation)
+both promise effects no code applies. Asked twice with no answer; not guessed
+at. **C-11** above and the seven `INERT_POLICY_KEYS` are in the same category.
 **F1 and F2 are FIXED.** The death screen's "Prestige Points Earned" preview
 used its own formula — `(netWorth/10000) + (weeksLived/5) +
 (achievements*20) + (prestigeLevel*100)` — sharing not one term with

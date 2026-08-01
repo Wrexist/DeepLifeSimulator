@@ -596,3 +596,56 @@
 - **Ordering inside an async reconcile is a correctness property.** MON-1 taught `SubscriptionReconciler` to `await iapService.loadPurchases()` before reading `isAdsRemoved()`. The `plusActive` read one line ABOVE that await was left alone — and `hasPremiumAccess()` falls through to `hasLifetimePremium()` → `hasPurchased()`, reading the very ledger the load populates. So a lifetime-premium owner was "not premium" on every cold start, and `reconcileLegacyPassSeason` (which never got MON-1's `entitlementCheckAuthoritative` guard) stripped their paid Legacy Pass premium track. Because `premiumOwned` gates `getClaimableTiers(pass, 'premium')`, a season boundary crossed in that window makes the rollover auto-collect skip every premium reward and reset the pass — permanently. Rule: when a fix adds an await to populate a source, re-read EVERY consumer of that source in the same function, and give every downstream reconciler the same unknown-vs-false distinction rather than only the one the finding named.
 - **"Displayed but unread" recurs, and the honest fix is sometimes to stop displaying.** R3-M9 wired two policy modifiers that were rendered and read by nothing. Round 4 found eight more on the same card — the one a player reads before spending $100,000-$300,000. One (`economy.inflationRate`) was wired, because inflation is a real weekly system and the aggregator simply had no `economy` slice. The other seven describe systems that DO NOT EXIST: `lib/rd/patents.ts` has zero production callers, there is no property-tax system, nothing reads crypto regulation. Those rows were removed and the keys kept on the schema in an exported `INERT_POLICY_KEYS` with the reasoning, so the record of intent survives. Rule: before wiring an inert effect, check whether the system it names exists. If it does not, wiring it is building a feature under an audit's cover — hide the claim, write down why, and let the product owner decide.
 - **The Mindset case is the sharpest version of inert: the game asserted the effect had happened.** `applyMindsetEffects` correctly returns adjusted deltas AND a message; `getMindsetFeedback` returned the message and discarded the deltas, and its single caller is the only place in the app that touches Mindsets at all. So the toast said "Frugal: You saved a bit extra (+120)" and credited nothing. Rule: a helper that returns one half of a computed pair should be named for what it drops, or it will be used as if it returned both — and a test should assert the number in the message equals the number applied.
+
+---
+
+## 2026-08-01 — Audit round 4 remediation: three ways a finding can be wrong
+
+Working the round-4 backlog, three findings were materially mis-stated. All
+three would have caused harm if implemented as written.
+
+**Over-graded (C-13).** Reported as a 4.3x payout error: `BASE_MEMBERSHIP_RATE`
+is documented "Monthly" and paid out weekly. Every actual consumer treats it as
+weekly — the tick's clamp band is documented in `$/member/week`, `initialState`
+seeds 4.99 specifically so the displayed "Members/wk" matches the payout, and
+the UI figure and the payout are literally the same function call. One JSDoc
+line was wrong. "Fixing the economy" would have been a 4.33x income nerf to
+every content creator, justified by a stale comment. **Read what CONSUMES a
+constant before repricing it.**
+
+**Under-counted (C-9/ARCH-1).** Reported as ~15 modules reading their outcome
+out of an updater. The real sweep finds 86 functions. Blind-fixing 86 is worse
+than fixing none: each needs its own reading of which rejection paths are
+reachable only from inside the updater, and several are fine because an outer
+guard already returned. Ratcheted instead, like the test-tree type errors.
+**When a finding's true scope is 5x its estimate, the fix strategy changes, not
+just the effort.**
+
+**Right, but the obvious fix was wrong (C-4).** The Weekly Modifiers card
+promised a Sickness penalty no tick applies. Implementing it to match the label
+would have introduced a compounding death spiral at 30 health that no save has
+ever had — a balance change wearing a bug fix's clothes. Removed instead; the
+same condition already had an honest warning a few lines down. Compare GL-3,
+where the promised effect WAS implemented — the difference is that GL-3 was a
+benefit the player had paid for, and this was a penalty they had never been
+charged. **For UI-lies, ask which direction the correction moves the player.**
+
+### The tests were wrong three times too
+
+- An `indexOf` that returned -1 made `slice(i, -1)` run to end-of-file, so a
+  field-presence assertion matched unrelated code and passed on the PRE-fix
+  tree. **Assert that a slice's terminator exists.**
+- Two suites asserted a removed string was absent, and matched the fix's own
+  explanatory comment — which necessarily quotes the string to explain the
+  removal. **Strip comments before asserting on live copy.**
+- A structural guard I wrote caught a gap in my own fix: the `evalState`
+  children projection reproduced the very unguarded `.filter` the guard existed
+  to ban. **A guard that only covers the reported instances is worth less than
+  one that sweeps the shape.**
+
+### What worked
+
+Every fix was proved RED against the pre-fix tree before being taken green, and
+every suite carries at least one control asserting the behaviour that must NOT
+change. The controls caught real over-reach twice: they were green on both
+trees while the fix assertions flipped, which is exactly the signal wanted.

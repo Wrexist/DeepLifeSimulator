@@ -28,7 +28,6 @@
 import { eventTemplates } from '@/lib/events/engine';
 import { enhancedEventTemplates } from '@/lib/events/enhancedEvents';
 import { createTestGameState } from '../helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
 
 const templateIds = new Set(eventTemplates.map((t) => t.id));
 
@@ -91,7 +90,7 @@ describe('R4-X6 — the four missing payoffs now exist', () => {
   it('an unlock_event payoff fires once the flag is set', () => {
     const unlocked = createTestGameState({
       consequenceState: { unlockedEvents: ['friend_helps_study'], choiceHistory: [] },
-    } as never) as GameState;
+    } as never);
 
     const t = eventTemplates.find((x) => x.id === 'friend_helps_study')!;
     expect(t.condition?.(unlocked)).toBe(true);
@@ -105,7 +104,7 @@ describe('R4-X6 — the four missing payoffs now exist', () => {
         unlockedEvents: ['friend_helps_study'],
         choiceHistory: [{ eventId: 'friend_helps_study', choiceId: 'accept' }],
       },
-    } as never) as GameState;
+    } as never);
 
     expect(eventTemplates.find((x) => x.id === 'friend_helps_study')!.condition?.(resolved))
       .toBe(false);
@@ -114,7 +113,7 @@ describe('R4-X6 — the four missing payoffs now exist', () => {
   it('the weight-gated payoff fires on a POSITIVE modifier', () => {
     const flagged = createTestGameState({
       consequenceState: { eventWeightModifiers: { friend_distant: 0.2 }, choiceHistory: [] },
-    } as never) as GameState;
+    } as never);
 
     expect(eventTemplates.find((x) => x.id === 'friend_distant')!.condition?.(flagged)).toBe(true);
   });
