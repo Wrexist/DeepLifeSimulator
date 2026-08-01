@@ -17,16 +17,19 @@ function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
-const TIER_GRADIENT: Record<string, [string, string]> = {
-  starter: ['#64748b', '#94a3b8'],
-  standard: [accent.info, '#60a5fa'],
-  gold: ['#ca8a04', '#facc15'],
-  platinum: ['#0f172a', '#475569'],
+// One colour per tier. This was a [dark, light] gradient pair when the tier was
+// a two-tone side stripe; with the stripe gone the second tone had no reader,
+// so the pair became dead data rather than a design intent.
+const TIER_COLOR: Record<string, string> = {
+  starter: '#64748b',
+  standard: accent.info,
+  gold: '#ca8a04',
+  platinum: '#475569',
 };
 
 export default function CreditCardRow({ card, darkMode, onPress }: Props) {
   const theme = getThemeColors(darkMode);
-  const [c1, c2] = TIER_GRADIENT[card.tier] ?? TIER_GRADIENT.standard;
+  const c1 = TIER_COLOR[card.tier] ?? TIER_COLOR.standard;
   const utilization = card.creditLimit > 0 ? card.balance / card.creditLimit : 0;
   const utilizationPct = Math.max(0, Math.min(1, utilization));
 
@@ -34,14 +37,21 @@ export default function CreditCardRow({ card, darkMode, onPress }: Props) {
     <TouchableOpacity
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
-      // Recipe A depth: shadow + border live on the outer view (no overflow:hidden
-      // here or the shadow clips on iOS); the inner view clips the tier stripe.
-      style={[getGlassCard(darkMode, 6), { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
+      // Hard Rule #7: the tier used to read as a scale(6) coloured bar down the
+      // left edge. That is the banned decorative side stripe — and because the
+      // wrapper clipped it with borderRadius.xl + overflow:hidden, RN curled it
+      // into the crescent artifact the rule warns about, which is what a player
+      // photographed and filed as "the UI for credit cards is broken".
+      //
+      // The tier keeps its colour; it just wears it the way the rule allows —
+      // a full border on all four sides, plus the card icon that was already
+      // tinted. Nothing about which tier you are looking at is lost.
+      style={[
+        getGlassCard(darkMode, 6),
+        { backgroundColor: theme.surface, borderColor: c1, borderWidth: 1, borderRadius: responsiveBorderRadius.xl },
+      ]}
     >
       <View style={styles.inner}>
-        <View style={[styles.tierStripe, { backgroundColor: c1 }]}>
-          <View style={[styles.tierStripeAccent, { backgroundColor: c2 }]} />
-        </View>
         <View style={styles.body}>
           <View style={styles.headerRow}>
             <CardIcon size={scale(16)} color={c1} />
@@ -82,14 +92,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
-  },
-  tierStripe: {
-    width: scale(6),
-  },
-  tierStripeAccent: {
-    width: scale(2),
-    height: '50%',
-    alignSelf: 'flex-end',
   },
   body: {
     flex: 1,

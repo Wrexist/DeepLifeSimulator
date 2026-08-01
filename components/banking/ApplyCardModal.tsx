@@ -61,7 +61,11 @@ const PRODUCTS: CardProduct[] = [
     rewardsRate: 0.03,
     minCreditScore: 800,
     annualFee: 495,
-    color: '#0f172a',
+    // Was #0f172a — near-black, which read as "no colour at all" against the
+    // dark surface even on the icon. Now the tier colour is also the row's
+    // border it has to actually be visible, so this uses the lighter slate
+    // that CreditCardRow already switched to for the same reason.
+    color: '#475569',
   },
 ];
 
@@ -114,17 +118,22 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
                   key={p.tier}
                   onPress={() => setSelected(p)}
                   disabled={!eligible}
+                  // Hard Rule #7: the tier read as a scale(6) coloured bar down
+                  // the left edge, same banned stripe as CreditCardRow. The
+                  // colour moves to a full border on all four sides — which
+                  // this row was already doing when selected — so the tier is
+                  // still legible at a glance and selection still reads as the
+                  // heavier rim.
                   style={[
                     styles.product,
                     {
                       backgroundColor: theme.surfaceElevated,
-                      borderColor: active ? p.color : theme.border,
+                      borderColor: p.color,
                       borderWidth: active ? 2 : 1,
                       opacity: eligible ? 1 : 0.5,
                     },
                   ]}
                 >
-                  <View style={[styles.tierStripe, { backgroundColor: p.color }]} />
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={styles.productHeader}>
                       <View style={styles.productHeadLeft}>
@@ -216,9 +225,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: responsiveBorderRadius.lg,
-  },
-  tierStripe: {
-    width: scale(6),
   },
   productHeader: {
     flexDirection: 'row',

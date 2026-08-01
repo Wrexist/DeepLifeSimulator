@@ -11,6 +11,8 @@ import {
   listStarterAvatars,
   avatarSexFromId,
   getAvatarPortrait,
+  HERO_FACE_SEX,
+  _avatarSlot,
 } from '@/utils/facePool';
 
 describe('facePool', () => {
@@ -149,8 +151,12 @@ describe('facePool', () => {
       expect(POOL_SIZES.m_ad).toBe(6);
       expect(POOL_SIZES.f_mid).toBe(5);
       expect(POOL_SIZES.m_mid).toBe(6); // 5 + boss
-      expect(POOL_SIZES.f_sr).toBe(5); // 4 + grandparent
-      expect(POOL_SIZES.m_sr).toBe(5); // 4 + mentor
+      // f_sr lost `hero_grandparent` — a neutral filename for a portrait of an
+      // elderly MAN. This assertion previously read "4 + grandparent" and was
+      // green the whole time the bug was live: it counted the bucket without
+      // ever asking who was in it.
+      expect(POOL_SIZES.f_sr).toBe(4);
+      expect(POOL_SIZES.m_sr).toBe(6); // 4 + mentor + grandparent
       expect(POOL_SIZES.f_tn).toBe(3);
       expect(POOL_SIZES.f_kid).toBe(3);
       expect(POOL_SIZES.baby).toBe(3);
@@ -200,5 +206,168 @@ describe('facePool', () => {
       expect(getAvatarPortrait('', 25, 'Ada', 'male')).toBeTruthy();
       expect(getAvatarPortrait('garbage', 25, 'Ada', 'male')).toBeTruthy();
     });
+  });
+});
+
+/**
+ * Player report, 2026-08-01: "Parents age into different genders." Mom turned
+ * into an elderly man the week she crossed 56.
+ *
+ * Root cause: `hero_grandparent.png` depicts an elderly MAN, but its filename
+ * says only "grandparent", and it had been folded into the `f_sr` bucket. Mom's
+ * seed (`parent1`) hashes onto exactly that slot. The same asset also caught
+ * the player directly — `getAvatarPortrait` clamped to the LAST slot of a
+ * bucket, and `hero_grandparent` was the last entry in `f_sr`.
+ *
+ * Why the existing suite missed it: every portrait assertion above is
+ * `toBeTruthy()`. A face was always returned, so the tests were green while the
+ * wrong person was on screen. These check WHO, not just whether.
+ */
+describe('a portrait never changes the character sex', () => {
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const SRC = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'utils/facePool.ts'), 'utf8',
+  );
+
+  /** bucket key → the asset basenames listed under it in the POOL literal. */
+  function bucketContents(): Record<string, string[]> {
+    const pool = SRC.slice(SRC.indexOf('const POOL'), SRC.indexOf('export const HERO_FACE_SEX'));
+    const out: Record<string, string[]> = {};
+    const bucketRe = /^ {2}([a-z_]+): \[([\s\S]*?)^ {2}\],$/gm;
+    let m: RegExpExecArray | null;
+    while ((m = bucketRe.exec(pool)) !== null) {
+      out[m[1]] = [...m[2].matchAll(/pool\/([a-z0-9_]+)\.png/g)].map((a) => a[1]);
+    }
+    return out;
+  }
+
+  it('the parser actually found the buckets (the control)', () => {
+    // A regex that matched nothing would make every assertion below vacuous.
+    const buckets = bucketContents();
+    expect(Object.keys(buckets).length).toBe(Object.keys(POOL_SIZES).length);
+    for (const [key, size] of Object.entries(POOL_SIZES)) {
+      expect(`${key}: ${buckets[key]?.length}`).toBe(`${key}: ${size}`);
+    }
+  });
+
+  it('every sex-named asset sits in the bucket its name claims', () => {
+    for (const [key, names] of Object.entries(bucketContents())) {
+      if (key === 'baby') continue; // babies are sex-neutral by design
+      const wanted = key[0]; // 'f' or 'm'
+      for (const name of names) {
+        if (!/^[fm]_/.test(name)) continue; // hero faces handled below
+        expect(`${key} contains ${name}`).toBe(`${key} contains ${name.startsWith(wanted) ? name : `${wanted}${name.slice(1)}`}`);
+      }
+    }
+  });
+
+  it('every hero face sits in the bucket its DEPICTED sex requires', () => {
+    // The hero files are named for a role, not a person, so the name cannot be
+    // trusted. HERO_FACE_SEX is the written-down answer; this holds the table
+    // and the buckets to each other.
+    for (const [key, names] of Object.entries(bucketContents())) {
+      if (key === 'baby') continue;
+      for (const name of names) {
+        if (!name.startsWith('hero_')) continue;
+        expect(`${name} in ${key}`).toBe(`${name} in ${HERO_FACE_SEX[name]}_${key.split('_')[1]}`);
+      }
+    }
+  });
+
+  it('hero_grandparent is declared male and lives in m_sr', () => {
+    // The specific regression. Named explicitly so a future re-shuffle has to
+    // delete a sentence about a real player report, not just move a line.
+    expect(HERO_FACE_SEX.hero_grandparent).toBe('m');
+    expect(bucketContents().f_sr).not.toContain('hero_grandparent');
+    expect(bucketContents().m_sr).toContain('hero_grandparent');
+  });
+
+  it('Mom resolves to a female bucket at every age past the hero years', () => {
+    // parent1 is Mom's seeded id in initialState, and the seed that hashed onto
+    // the bad slot — so she is the case that matters.
+    //
+    // Asserted as a BUCKET, not by comparing images: jest maps every PNG to one
+    // shared file mock, so `getParentPortrait(...) === getParentPortrait(...)`
+    // is true for any two characters and proves nothing. The bucket plus the
+    // source assertions above (only female assets live in f_*) are the real
+    // guarantee.
+    for (const age of [30, 45, 55, 56, 65, 80, 100]) {
+      const label = _parentUsesHero(age)
+        ? 'hero_mom'
+        : _portraitSlot('parent1', age, 'female')!.key;
+      expect(`age ${age}: ${label}`)
+        .toBe(`age ${age}: ${_parentUsesHero(age) ? 'hero_mom' : `f_${bandForAge(age)}`}`);
+    }
+  });
+
+  it('and every seeded woman lands in a female bucket, never a male one', () => {
+    // Not just Mom: no seed, at any age, may route a woman into an m_ bucket.
+    for (let i = 0; i < 300; i++) {
+      for (const age of [8, 15, 24, 34, 48, 70]) {
+        const key = _portraitSlot(`w${i}`, age, 'female')!.key;
+        expect(`w${i}@${age}: ${key.startsWith('m_') ? 'MALE BUCKET' : 'ok'}`)
+          .toBe(`w${i}@${age}: ok`);
+      }
+    }
+  });
+
+  it('and the senior women spread over the whole bucket (the control)', () => {
+    // Guards against "always female" being satisfied by always returning slot 0.
+    const indices = new Set(
+      Array.from({ length: 300 }, (_, i) => _portraitSlot(`w${i}`, 70, 'female')!.index),
+    );
+    expect(indices.size).toBe(POOL_SIZES.f_sr);
+  });
+});
+
+describe('the player keeps their own face as they age', () => {
+  it('two women who picked different starter faces never become the same person', () => {
+    // The clamp bug: `Math.min(index, len - 1)` collapsed every pick from 5
+    // upward onto ONE slot, so most players aged into an identical stranger —
+    // and into each other. Read as slots, because jest gives every PNG the same
+    // file mock and comparing the images would report 1 distinct face either way.
+    const starters = listStarterAvatars('female', 25);
+    expect(starters.length).toBeGreaterThan(POOL_SIZES.f_sr); // the clamp's precondition
+
+    for (const age of [34, 48, 70]) {
+      const bucketSize = POOL_SIZES[`f_${bandForAge(age)}`];
+      const occupancy = new Map<number, number>();
+      for (const a of starters) {
+        const i = _avatarSlot(a.id, age)!.index;
+        occupancy.set(i, (occupancy.get(i) ?? 0) + 1);
+      }
+      // COVERAGE is the wrong property and would pass either way: clamping
+      // min(i, len-1) across ids 0..11 still touches every slot. What clamping
+      // actually did was pile ids 4..11 onto the LAST slot — eight of twelve
+      // women sharing one face. So assert the heaviest slot instead.
+      const worst = Math.max(...occupancy.values());
+      expect(`age ${age}: worst ${worst}`)
+        .toBe(`age ${age}: worst ${Math.ceil(starters.length / bucketSize)}`);
+    }
+  });
+
+  it('a chosen face is stable — same pick, same age, same slot', () => {
+    for (const age of [18, 34, 70]) {
+      expect(_avatarSlot('f7', age)).toEqual(_avatarSlot('f7', age));
+    }
+    // And the image the slot resolves to is returned without throwing.
+    expect(getAvatarPortrait('f7', 34, 'Ada', 'female')).toBeTruthy();
+  });
+
+  it('and it never changes sex on the player', () => {
+    for (const a of listStarterAvatars('female', 25)) {
+      for (const age of [25, 34, 48, 70]) {
+        const key = _avatarSlot(a.id, age)!.key;
+        expect(`${a.id} at ${age}: ${key.startsWith('m_') ? 'MALE BUCKET' : 'ok'}`)
+          .toBe(`${a.id} at ${age}: ok`);
+      }
+    }
+  });
+
+  it('an out-of-range or junk avatar id still resolves (the control)', () => {
+    expect(getAvatarPortrait('f999', 30, 'Ada', 'female')).toBeTruthy();
+    expect(getAvatarPortrait('garbage', 25, 'Ada', 'male')).toBeTruthy();
+    expect(getAvatarPortrait(undefined, 25, 'Ada', 'female')).toBeTruthy();
   });
 });
