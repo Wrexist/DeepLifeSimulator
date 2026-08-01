@@ -8,8 +8,10 @@ import {
   Dimensions,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
   Monitor,
   Bitcoin,
@@ -29,8 +31,7 @@ import {
   BarChart3,
   Car,
   Video,
-  Crown,
-} from 'lucide-react-native';
+  Crown, Lock } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -342,11 +343,26 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
     ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'].includes(app.id)
   ), [appsList]);
   
-  // Get apps for current category - filter by available status
+  /**
+   * Get apps for current category.
+   *
+   * PROGRESSIVE DISCLOSURE: a locked app stays in the grid, dimmed with a
+   * padlock and its requirement, rather than disappearing. Hiding them would
+   * be cleaner but makes the game look thin and reshuffles the grid every time
+   * something unlocks; showing them teaches the shape of the game from week 1.
+   * `available: false` still removes an app outright — that flag means "does
+   * not exist for this save", which is a different thing from "not yet".
+   */
   const displayedApps = useMemo(() => {
     const apps = appCategory === 'desktop' ? desktopApps : mobileApps;
-    return apps.filter(app => app.available !== false);
-  }, [appCategory, desktopApps, mobileApps]);
+    return apps
+      .filter(app => app.available !== false)
+      .map(app => ({
+        ...app,
+        locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
+        lockReason: unlockRequirement(gameState, `app:${app.id}`),
+      }));
+  }, [appCategory, desktopApps, mobileApps, gameState]);
 
   // Per-app "needs attention" badge counts — computed before any early return.
   const appBadges = useMemo(
@@ -456,19 +472,43 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
                 style={[
                   styles.appCardGlass,
                   { width: cardWidth },
-                  isHighlighted && styles.highlightedCardGlass
+                  isHighlighted && styles.highlightedCardGlass,
+                  // Dim rather than hide — the card still teaches what exists.
+                  app.locked && { opacity: 0.45 },
                 ]}
-                onPress={() => { buttonPress(); setActiveApp(app.id); }}
+                onPress={() => {
+                  buttonPress();
+                  if (app.locked) {
+                    // Tapping a locked app explains itself rather than doing
+                    // nothing — a dead tap reads as a bug, not a gate.
+                    Alert.alert(app.name, app.lockReason || 'Not available yet.');
+                    return;
+                  }
+                  setActiveApp(app.id);
+                }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={`Open ${app.name}`}
-                accessibilityHint={app.description ?? `Launch the ${app.name} app`}
+                accessibilityLabel={app.locked ? `${app.name}, locked` : `Open ${app.name}`}
+                accessibilityHint={
+                  app.locked
+                    ? app.lockReason || 'Not available yet'
+                    : (app.description ?? `Launch the ${app.name} app`)
+                }
+                accessibilityState={{ disabled: !!app.locked }}
               >
                 <View style={[
                   styles.appCardGlassInner,
                   settings.darkMode && styles.appCardGlassInnerDark
                 ]}>
                   <View style={styles.appIconGlassContainer}>
+                    {/* Padlock badge — reads as locked before the card is
+                        tapped, so the dim alone is not carrying the meaning
+                        (dim also reads as "disabled" or just low contrast). */}
+                    {app.locked && (
+                      <View style={styles.appLockBadge}>
+                        <Lock size={scale(12)} color="#FFFFFF" />
+                      </View>
+                    )}
                     {getAppIconAsset(app.id) ? (
                       // Custom designed icon (full-bleed PNG, gradient baked in).
                       <Image
@@ -582,6 +622,19 @@ const styles = StyleSheet.create({
   },
   appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
+  },
+  /** Padlock badge on a not-yet-unlocked app icon. */
+  appLockBadge: {
+    position: 'absolute',
+    top: -scale(2),
+    right: -scale(2),
+    zIndex: 1,
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(15,23,42,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Custom PNG icon — same footprint as the gradient circle, but a rounded
   // square (iOS-style squircle) since the assets are full-bleed app icons.
