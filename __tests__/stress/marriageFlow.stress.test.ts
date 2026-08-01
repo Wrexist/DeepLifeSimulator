@@ -596,7 +596,13 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
       ],
     })));
 
-    let result: { success: boolean; message: string } | void;
+    // `!` because the assignment happens inside an `act()` callback, which
+    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // callback synchronously, so the variable really is assigned before it is
+    // read, and the `expect(...).toBeDefined()` below is the runtime proof.
+    // (Initialising to `undefined` instead narrows the variable to `void` and
+    // breaks every downstream cast — measured, not guessed.)
+    let result!: { success: boolean; message: string } | void;
     act(() => { result = captured!.game.moveInTogether('lover_bob'); });
     expect(result).toBeDefined();
     expect((result as { success: boolean; message: string }).success).toBe(false);
