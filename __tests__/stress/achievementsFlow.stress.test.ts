@@ -148,6 +148,27 @@ function fatState(): GameState {
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
+
+/**
+ * Remove keys from a state the way a truncated or hand-edited save would, so
+ * the accessors below face genuinely absent collections.
+ *
+ * Ten `delete (state as Record<string, unknown>).field` lines used to do this
+ * inline. Two problems with that shape, beyond the ten casts: the assertion
+ * `as Record<string, unknown>` is one TypeScript rejects outright (GameState
+ * has no index signature), and — worse — a MISTYPED field name would delete
+ * nothing at all, silently leaving the state intact while the test went on to
+ * "prove" every accessor survives a stripping that never happened.
+ *
+ * `keyof GameState` makes a typo a compile error, and the single unavoidable
+ * cast lives here rather than at each call.
+ */
+function stripFields(state: GameState, ...keys: (keyof GameState)[]): GameState {
+  const bag = state as unknown as Record<string, unknown>;
+  for (const key of keys) delete bag[key as string];
+  return state;
+}
+
 describe('Achievement / Progress audit', () => {
   jest.setTimeout(120_000);
   let mounted: { root: any } | null = null;
@@ -237,17 +258,19 @@ describe('Achievement / Progress audit', () => {
   // ── ACCESSOR SAFETY: null/undefined-laden state ────────────────────────
   it('All accessors survive a state where every optional collection is undefined', () => {
     // Defensively strip the fields most accessors guard against.
-    const state = freshState();
-    delete (state as Record<string, unknown>).relationships;
-    delete (state as Record<string, unknown>).items;
-    delete (state as Record<string, unknown>).companies;
-    delete (state as Record<string, unknown>).stocks;
-    delete (state as Record<string, unknown>).realEstate;
-    delete (state as Record<string, unknown>).family;
-    delete (state as Record<string, unknown>).achievements;
-    delete (state as Record<string, unknown>).hobbies;
-    delete (state as Record<string, unknown>).careers;
-    delete (state as Record<string, unknown>).educations;
+    const STRIPPED = [
+      'relationships', 'items', 'companies', 'stocks', 'realEstate',
+      'family', 'achievements', 'hobbies', 'careers', 'educations',
+    ] as const;
+    const state = stripFields(freshState(), ...STRIPPED);
+
+    // The strip is the whole premise, so check it happened. Without this the
+    // suite passes identically against a state that was never touched — which
+    // is exactly what a mistyped key used to produce, silently.
+    for (const key of STRIPPED) {
+      expect(`${key}: ${key in (state as unknown as Record<string, unknown>)}`)
+        .toBe(`${key}: false`);
+    }
 
     const failures: Array<{ id: string; error: string }> = [];
     for (const a of achievements) {

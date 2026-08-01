@@ -49,8 +49,9 @@ const path = require('path');
  * 2026-08-01: 90 → 72 (dead `deps` params made optional; phantom refuel amount).
  * 2026-08-01: 72 → 60 (@types/react-test-renderer installed).
  * 2026-08-01: 60 → 49 (definite-assignment on act()-assigned result vars).
+ * 2026-08-01: 49 → 39 (typed stripFields helper replaces ten hand-written casts).
  */
-const BASELINE = 49;
+const BASELINE = 39;
 
 // Exported so the weekly audit can read the same number. Guarded below so a
 // `require()` for the constant does not also launch a 5-minute tsc run.
