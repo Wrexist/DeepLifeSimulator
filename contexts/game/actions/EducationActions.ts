@@ -16,7 +16,11 @@ import {
   setStudyGroup as setStudyGroupPure,
   withdraw as withdrawPure,
 } from '@/lib/education/operations';
-import { mapClassIdsToEnrolled, STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
+import {
+  mapClassIdsToEnrolled,
+  STUDY_GROUP_BENEFITS,
+  STUDY_GROUP_JOIN_COST,
+} from '@/lib/education/educationSystem';
 import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
@@ -375,7 +379,23 @@ export const studyExtra = (
         ...(prev.weeklyStudySessions ?? {}),
         [educationId]: sessionsThisWeek + 1,
       },
-      educations: applyStudySession(prev.educations ?? [], educationId, 1),
+      /**
+       * C-12. `STUDY_GROUP_BENEFITS.extraProgress` has documented "+1 extra
+       * week progress per study action" since the constant was written, and
+       * `applyStudySession` has always taken a `progressBoost` parameter for
+       * exactly this — but every caller passed a literal 1, so the constant was
+       * never read by anything. Half a feature, fully plumbed, never connected.
+       *
+       * Bounded by the same `MAX_STUDY_SESSIONS_PER_WEEK` cap as before: a
+       * study-group member gets 6 weeks of progress per game week from studying
+       * rather than 3, for 45 energy, 15 happiness, the group's own -3
+       * energy/week and its one-off join fee. It cannot be farmed past the cap.
+       */
+      educations: applyStudySession(
+        prev.educations ?? [],
+        educationId,
+        1 + (ed.studyGroupActive ? STUDY_GROUP_BENEFITS.extraProgress : 0),
+      ),
     };
   });
 };

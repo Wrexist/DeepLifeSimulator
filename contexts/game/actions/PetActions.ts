@@ -186,6 +186,12 @@ export function buyToy(
   return { success: true, message: `${pet.name} loves the new ${toy.name}.` };
 }
 
+/**
+ * What playing with a pet costs the PLAYER. The gate in `playWithPet` has
+ * always tested this figure; until C-14 nothing ever deducted it.
+ */
+const PLAY_PLAYER_ENERGY_COST = 10;
+
 export function playWithPet(
   gameState: GameState,
   setGameState: SetGS,
@@ -197,7 +203,7 @@ export function playWithPet(
   if (safe(pet.energy, 0) < 20) {
     return { success: false, message: `${pet.name} is too tired — let them sleep.` };
   }
-  if (safe(gameState.stats?.energy, 0) < 10) {
+  if (safe(gameState.stats?.energy, 0) < PLAY_PLAYER_ENERGY_COST) {
     return { success: false, message: 'You are too tired to play.' };
   }
   const ownedToys = pet.toys ?? [];
@@ -205,14 +211,39 @@ export function playWithPet(
     .map(findToy)
     .filter((t): t is NonNullable<ReturnType<typeof findToy>> => !!t)
     .reduce<number>((max, t) => Math.max(max, t.fun), 25);
-  updatePet(setGameState, petId, (p) => {
-    // Re-check the energy gate on fresh `p`: the precondition above reads the
-    // stale snapshot, so a rapid double-tap would otherwise apply the buff twice.
-    if (safe(p.energy, 0) < 20) return p;
+
+  /**
+   * C-14. This used to call `updatePet`, which only touches the pets array —
+   * so the "You are too tired to play" gate above tested an energy cost that
+   * was never charged. The pet paid 20 energy; the player paid nothing. A
+   * player sitting on exactly 10 energy could play forever without ever
+   * falling below the threshold that was supposed to stop them, so the pet's
+   * happiness was free and the gate was decoration.
+   *
+   * Written as one updater rather than `updatePet` so the pet's energy and the
+   * player's are spent in the SAME transition, and both gates are re-checked
+   * against `prev` (CLAUDE.md §4.4). The pet gate was already re-checked; the
+   * player gate had nothing to re-check.
+   */
+  setGameState((prev) => {
+    const target = (prev.pets ?? []).find((p) => p.id === petId);
+    if (!target || target.isDead) return prev;
+    if (safe(target.energy, 0) < 20) return prev;
+    const playerEnergy = safe(prev.stats?.energy, 0);
+    if (playerEnergy < PLAY_PLAYER_ENERGY_COST) return prev;
+
     return {
-      ...p,
-      happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
-      energy: clamp01(safe(p.energy, 0) - 20),
+      ...prev,
+      stats: { ...prev.stats, energy: clamp01(playerEnergy - PLAY_PLAYER_ENERGY_COST) },
+      pets: (prev.pets ?? []).map((p) =>
+        p.id === petId
+          ? {
+              ...p,
+              happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
+              energy: clamp01(safe(p.energy, 0) - 20),
+            }
+          : p,
+      ),
     };
   });
   return { success: true, message: `Had a great time with ${pet.name}.` };

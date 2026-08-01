@@ -49,6 +49,7 @@ import {
   withdrawFromProgram,
 } from '@/contexts/game/actions/EducationActions';
 import {
+  STUDY_GROUP_BENEFITS,
   STUDY_GROUP_JOIN_COST,
   getRandomCampusEvent,
   type CampusEvent,
@@ -1203,6 +1204,17 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
             canAfford={canAffordStudyGroup}
             onPress={onToggleStudyGroup}
           />
+          {/**
+           * C-12. The button asked for money and named no benefit, which is
+           * partly why nobody noticed `extraProgress` was never wired up. Read
+           * from the constant so the copy cannot drift from the effect.
+           */}
+          <Text style={[styles.aboutText, { color: theme.textMuted }]}>
+            {`Study group: +${Math.round(STUDY_GROUP_BENEFITS.examBonus * 100)}% exam pass chance, `}
+            {`+${STUDY_GROUP_BENEFITS.extraProgress} extra week per study session, `}
+            {`+${STUDY_GROUP_BENEFITS.weeklyHappiness} happiness and `}
+            {`−${STUDY_GROUP_BENEFITS.weeklyEnergyCost} energy each week.`}
+          </Text>
 
           <View style={styles.actionRow}>
             <TouchableOpacity

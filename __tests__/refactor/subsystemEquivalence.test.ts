@@ -575,6 +575,12 @@ jest.mock('@/lib/education/educationSystem', () => ({
   EXAM_INTERVAL_WEEKS: 13,
   CAMPUS_EVENT_MIN_INTERVAL: 4,
   CAMPUS_EVENT_MAX_INTERVAL: 8,
+  // C-12 wired the tick's study-group happiness/energy figures to this
+  // constant instead of repeating 2 and 3 as magic numbers. Taken from the
+  // REAL module rather than restated here, so this mock cannot drift from the
+  // values the equivalence expectations below are written against.
+  STUDY_GROUP_BENEFITS: jest.requireActual('@/lib/education/educationSystem')
+    .STUDY_GROUP_BENEFITS,
 }));
 
 // Mock the NPC depth module so applyNPCDepthTick tests are fully deterministic.

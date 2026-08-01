@@ -45,6 +45,7 @@ import {
   updateGPA,
   shouldTriggerCampusEvent,
   computeSemesterNumber,
+  STUDY_GROUP_BENEFITS,
 } from '@/lib/education/educationSystem';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { WeekContext } from './weekContext';
@@ -178,10 +179,17 @@ export function applyEducationProgression(
         semesterNumber: computeSemesterNumber(edu.duration, newWeeksRemaining),
       };
 
-      // Study group weekly bonuses.
+      // Study group weekly bonuses. Read from the constant rather than
+      // repeating 2 and 3 — see C-12 in `educationSystem.ts`.
       if (edu.studyGroupActive) {
-        ctx.newStats.happiness = Math.min(100, ctx.newStats.happiness + 2);
-        ctx.newStats.energy = Math.max(0, ctx.newStats.energy - 3);
+        ctx.newStats.happiness = Math.min(
+          100,
+          ctx.newStats.happiness + STUDY_GROUP_BENEFITS.weeklyHappiness,
+        );
+        ctx.newStats.energy = Math.max(
+          0,
+          ctx.newStats.energy - STUDY_GROUP_BENEFITS.weeklyEnergyCost,
+        );
       }
 
       // Student loan weekly payment.

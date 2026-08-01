@@ -1576,6 +1576,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
 
  // ── ENGAGEMENT: Legacy Points (mini-prestige every 10 weeks) ──
+ //
+ // C-11. NOTHING READS THIS. Legacy Points are earned here every 10 weeks and
+ // again from four elder activities (`lib/retirement/elderActivities.ts`),
+ // persisted, migrated (v11) and repaired — and then never spent, displayed,
+ // or checked by any mechanic. It is a currency with no sink and no readout.
+ //
+ // Deliberately left accruing rather than removed or surfaced. Removing a
+ // persisted field costs a migration for no player-visible gain, and showing a
+ // number that buys nothing is worse than showing none. What it SHOULD buy is
+ // a product decision, not one to invent here — flagged for the owner
+ // alongside the Commitment and family-business-brand systems, which have the
+ // same shape.
+ //
+ // The saved balances are correct and keep accruing, so whatever sink is
+ // chosen later will find a meaningful number waiting rather than a zero.
  let newLegacyPoints = prevState.legacyPoints || 0;
  if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
  const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
