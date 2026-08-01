@@ -33,6 +33,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
+import { noFillOnCooldown, stampNoFillGrant } from '@/lib/ads/noFillCourtesy';
 
 const LinearGradient = LinearGradientFallback;
 const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
@@ -65,36 +66,6 @@ function rand([lo, hi]: [number, number]) {
 
 function pickKind(): RewardKind {
   return Math.random() < 0.5 ? 'cash' : 'vitality';
-}
-
-/**
- * Courtesy limit for no-fill grants. When ads are ON for this build but there is
- * no inventory to serve (common on TestFlight and brand-new ad units), the orb
- * still honours ONE reward per period via grantOnNoFill. Without a cap a whale
- * could farm the net-worth-scaled reward on every respawn with NO ad ever shown
- * (~$10M/hr). Ads-removed players are unaffected — their direct grant is a paid
- * perk, not a fallback.
- *
- * R4-MON-6: this used to be a module-level boolean, "per app session". A module
- * variable resets on app restart, so the farm the comment described was simply
- * "force-quit and relaunch" — and the reward scales with net worth, so it pays
- * best to exactly the players who will bother. CLAUDE.md §4.4: gate on game
- * state, never on something the player can reset. It is now
- * `settings.lastNoFillGrantWeek`, one courtesy grant per GAME week (not a wall
- * clock, which the device clock can rewind).
- *
- * A real-ad grant still clears it — inventory has returned, so the courtesy
- * path is not what is paying out.
- */
-const NO_FILL_COOLDOWN_WEEKS = 1;
-
-function noFillOnCooldown(state: GameState): boolean {
-  const last = state.settings?.lastNoFillGrantWeek;
-  if (typeof last !== 'number' || !Number.isFinite(last)) return false;
-  const now = state.weeksLived ?? 0;
-  // `now < last` means the save was rewound (prestige, slot swap, a restored
-  // backup). Treat that as off-cooldown rather than as an infinite lockout.
-  return now >= last && now - last < NO_FILL_COOLDOWN_WEEKS;
 }
 
 // The three stats a vitality reward refills, with their icon + accent.
@@ -376,7 +347,7 @@ export default function AdRewardOrb() {
         // a lost mark is an uncapped faucet.
         setGameState((prev) => ({
           ...prev,
-          settings: { ...prev.settings, lastNoFillGrantWeek: prev.weeksLived ?? 0 },
+          settings: { ...prev.settings, ...stampNoFillGrant(prev.weeksLived) },
         }));
       } else if (outcome === 'granted-ad') {
         setGameState((prev) => {

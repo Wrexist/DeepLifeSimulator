@@ -17,7 +17,7 @@ import {
   getRestoreCost,
   getTotalPremiums,
 } from '../risk';
-import { LUXURY_CATALOG, getLuxuryItem, getTotalLuxuryMarketValue } from '../index';
+import { LUXURY_CATALOG, getLuxuryItem, getLuxuryHoldingValue, getTotalLuxuryMarketValue } from '../index';
 import type { LuxuryHolding } from '@/contexts/game/types';
 
 const ISLAND = getLuxuryItem('private_island')!;
@@ -236,20 +236,49 @@ describe('a week of risk', () => {
 describe('R4-X4 — the insurance decision is actually a decision', () => {
   const PRISTINE: LuxuryHolding = { acquiredWeek: 0 };
 
-  it('restoring costs roughly what the damage destroyed', () => {
-    // If restoration is far cheaper than the loss, insurance is pointless and
-    // an incident has no weight. If it is far dearer, an incident is a
-    // catastrophe the player cannot insure their way out of.
+  it('restoring costs what the repair is WORTH, on the same basis net worth uses', () => {
+    /**
+     * The assertion that should have been written the first time.
+     *
+     * The original compared restore cost against `item.price * (1 - cvm)` — the
+     * RAW item value. Net worth counts `getLuxuryHoldingValue`, which is
+     * `rawValue * LUXURY_RESALE_FRACTION * cvm`. Pricing off one basis and
+     * valuing off the other made restoring cost a flat 1.818x what it returned,
+     * for every item at every condition, and the loose `[0.5, 2]` band I used
+     * accepted that quite happily. Comparing against the value the player
+     * actually gets back is the only comparison that means anything.
+     */
     for (const item of LUXURY_CATALOG) {
       const risk = getLuxuryRisk(item.id)!;
       const damaged: LuxuryHolding = { acquiredWeek: 0, condition: 100 - risk.severity };
 
-      const valueLost = item.price * (1 - conditionValueMultiplier(100 - risk.severity));
-      const restore = getRestoreCost(item, damaged);
-      const ratio = restore / valueLost;
+      const recovered = getLuxuryHoldingValue(item, { acquiredWeek: 0 })
+        - getLuxuryHoldingValue(item, damaged);
+      const cost = getRestoreCost(item, damaged);
+      const ratio = cost / recovered;
 
-      expect(`${item.id} restore/loss ratio in [0.5, 2]: ${ratio >= 0.5 && ratio <= 2} (${ratio.toFixed(2)})`)
-        .toBe(`${item.id} restore/loss ratio in [0.5, 2]: true (${ratio.toFixed(2)})`);
+      expect(`${item.id} cost/recovered within 2% of 1: ${Math.abs(ratio - 1) < 0.02} (${ratio.toFixed(3)})`)
+        .toBe(`${item.id} cost/recovered within 2% of 1: true (${ratio.toFixed(3)})`);
+    }
+  });
+
+  it('restoring is never a net loss the UI invites the player into', () => {
+    /**
+     * The player-facing form. `LuxuryApp` renders a "Restore — $X" button; if X
+     * exceeds the net worth the restore returns, that button is a trap, and it
+     * was one for every item: restore a damaged private island for $18,000,000
+     * and gain $9,900,000.
+     */
+    for (const item of LUXURY_CATALOG) {
+      for (const condition of [0, 25, 50, 75, 99]) {
+        const damaged: LuxuryHolding = { acquiredWeek: 0, condition };
+        const recovered = getLuxuryHoldingValue(item, { acquiredWeek: 0 })
+          - getLuxuryHoldingValue(item, damaged);
+        const cost = getRestoreCost(item, damaged);
+
+        expect(`${item.id}@${condition} cost <= recovered + 1%: ${cost <= recovered * 1.01}`)
+          .toBe(`${item.id}@${condition} cost <= recovered + 1%: true`);
+      }
     }
   });
 

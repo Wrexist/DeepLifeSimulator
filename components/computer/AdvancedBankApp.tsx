@@ -1207,7 +1207,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         currentWeek={gameState.weeksLived}
         onClose={() => setShowOpenAccount(false)}
         onOpen={(spec) => {
-          openNewAccount(setGameState, spec);
+          // Player report (1.4 bug-reports): "Can't create a new savings."
+          // `openNewAccount` used to return void and this closed the sheet
+          // regardless, so a rejection was indistinguishable from success —
+          // the player tapped Open, the sheet closed, and no account appeared.
+          const result = openNewAccount(setGameState, spec);
+          if (!result.success) {
+            Alert.alert('Could not open account', result.message);
+            return;
+          }
           queueSave();
           setShowOpenAccount(false);
         }}

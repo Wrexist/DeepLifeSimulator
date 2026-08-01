@@ -32,7 +32,7 @@
  */
 
 import type { LuxuryHolding } from '@/contexts/game/types';
-import { LUXURY_CATALOG, type LuxuryItem } from './catalog';
+import { LUXURY_CATALOG, LUXURY_RESALE_FRACTION, type LuxuryItem } from './catalog';
 import { getHoldingValue } from './operations';
 
 /**
@@ -48,29 +48,33 @@ export const INSURANCE_MARGIN = 1.25;
 /** Share of an insured loss the owner still pays. */
 export const INSURANCE_DEDUCTIBLE_FRACTION = 0.1;
 /**
- * Cost to restore one condition point, as a FRACTION of item value.
+ * What restoring costs, as a multiple of the NET WORTH it gives back.
  *
- * R4-X4: the three call sites divided this by 100 as well, pricing restoration
- * — and the insured deductible derived from it — at 1/100th of intent. The
- * effect inverted the whole system this file exists to create.
+ * R4-X4 fixed a 100x under-price here (a `_PCT`-named constant holding a
+ * fraction, divided by 100 again at all three call sites) and then over-shot in
+ * the other direction. The correction priced restoration off `getHoldingValue`,
+ * the RAW item value — but net worth counts `getLuxuryHoldingValue`, which is
+ * `getHoldingValue * LUXURY_RESALE_FRACTION * conditionValueMultiplier`. The
+ * 0.6 resale fraction was in the value and not in the price, so restoring cost
+ * a flat 1.818x the net worth it returned, for every item at every condition:
+ * restore a damaged private island for $18,000,000 and gain $9,900,000. Never
+ * restoring became the dominant strategy — the same inversion R4-X4 set out to
+ * fix, pointing the other way.
  *
- * Take the private island: severity 25 destroys 13.75% of its value, and the
- * premium is 0.103% of value EVERY WEEK. Restoring the damage yourself cost
- * 0.15% of value, once. So going uninsured was ~100× cheaper than insuring, and
- * an incident was a rounding error rather than an event. The module's own
- * header says the design is "insuring is slightly negative in pure cash and
- * removes the variance ... a genuine call rather than a dominant strategy in
- * either direction"; it was a dominant strategy, in the direction of never
- * insuring anything.
+ * The fix is to stop expressing this as a fraction of "value" at all, since
+ * there are two different values in play and the bug was picking the wrong one.
+ * `getRestoreCost` now computes the value actually recovered and charges this
+ * multiple of it, so the two can never drift again — including if
+ * `LUXURY_RESALE_FRACTION` or the condition curve is ever retuned.
  *
- * As a plain fraction the numbers land where `INSURANCE_MARGIN` says they
- * should: 25 points of damage costs ~15% of value to restore against ~13.75%
- * of value lost, so premiums run about 1.25× the expected loss.
- *
- * The old name said `_PCT` while the value was a fraction, which is how the
- * stray `/100` looked correct at every call site. Renamed.
+ * At 1.0 an incident costs the owner, in cash, exactly the net worth it
+ * destroyed. That is what makes the insurance decision the one the module
+ * header describes: insured, you pay `INSURANCE_DEDUCTIBLE_FRACTION` of that
+ * and are made good; uninsured, you eat the whole thing; and premiums run
+ * `INSURANCE_MARGIN` times the expected loss, so insuring is slightly negative
+ * in pure cash and removes the variance.
  */
-export const RESTORE_COST_PER_POINT_FRACTION = 0.006;
+export const RESTORE_COST_MULTIPLE_OF_VALUE_RECOVERED = 1.0;
 /** Below this, an item is visibly in trouble. */
 export const CONDITION_POOR = 60;
 
@@ -171,11 +175,36 @@ export function getTotalPremiums(
   return total;
 }
 
-/** Cash needed to restore an item to pristine. */
+/**
+ * Net worth a repair from `fromCondition` back to pristine would give back.
+ *
+ * Deliberately computed the same way `getLuxuryHoldingValue` computes the
+ * value itself — raw value, times `LUXURY_RESALE_FRACTION`, times the condition
+ * curve — so the price of a repair and the worth of a repair cannot drift.
+ * Pricing off the RAW value while net worth counted the resale-adjusted value
+ * is what made restoring cost 1.818x what it returned.
+ */
+export function valueRecoveredByRestoring(
+  item: LuxuryItem,
+  holding: LuxuryHolding | undefined,
+): number {
+  const from = getCondition(holding);
+  if (from >= 100) return 0;
+  const raw = getHoldingValue(item, holding);
+  const gain = conditionValueMultiplier(100) - conditionValueMultiplier(from);
+  return raw * LUXURY_RESALE_FRACTION * gain;
+}
+
+/**
+ * Cash needed to restore an item to pristine.
+ *
+ * Charged as a multiple of the net worth the repair returns, NOT as a fraction
+ * of the item's raw value — see `RESTORE_COST_MULTIPLE_OF_VALUE_RECOVERED`.
+ */
 export function getRestoreCost(item: LuxuryItem, holding: LuxuryHolding | undefined): number {
-  const missing = 100 - getCondition(holding);
-  if (missing <= 0) return 0;
-  return Math.round(getHoldingValue(item, holding) * RESTORE_COST_PER_POINT_FRACTION * missing);
+  const recovered = valueRecoveredByRestoring(item, holding);
+  if (recovered <= 0) return 0;
+  return Math.round(recovered * RESTORE_COST_MULTIPLE_OF_VALUE_RECOVERED);
 }
 
 export interface Incident {
@@ -240,9 +269,13 @@ export function applyLuxuryRiskForWeek(
 
     if (insured) {
       // Made good. The owner pays a deductible on the repair, not the repair.
-      const deductible = Math.round(
-        value * RESTORE_COST_PER_POINT_FRACTION * risk.severity * INSURANCE_DEDUCTIBLE_FRACTION,
-      );
+      // A share of the REPAIR, priced exactly as an uninsured owner would pay
+      // for it — so "insured costs you a tenth of the damage" is literally true.
+      const repairCost = getRestoreCost(item, {
+        ...(holding ?? { acquiredWeek: 0 }),
+        condition: Math.max(0, before - risk.severity),
+      });
+      const deductible = Math.round(repairCost * INSURANCE_DEDUCTIBLE_FRACTION);
       cashOwed += deductible;
       incidents.push({
         itemId: item.id,
