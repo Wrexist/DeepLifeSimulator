@@ -8,12 +8,18 @@
  * bottom. The money was right; the player was told they had bought something
  * they had not.
  *
- * Sweeping for that shape across `contexts/game/actions/` finds 86 functions,
- * not the ~15 the audit estimated. That is too many to fix blind: each needs
- * its own reading of which rejection paths are actually reachable from inside
- * the updater only, and each needs a regression test. Several are almost
- * certainly fine — an outer guard already returned a failure before the
+ * Sweeping for that shape across `contexts/game/actions/` finds **62**
+ * functions, not the ~15 the audit estimated. That is too many to fix blind:
+ * each needs its own reading of which rejection paths are actually reachable
+ * from inside the updater only, and each needs a regression test. Several are
+ * almost certainly fine — an outer guard already returned a failure before the
  * updater ran, so the inner `return prev` is belt-and-braces.
+ *
+ * (The first version of this file said 86. That was the detector, not the
+ * codebase: it only recognised a capture literally named `result`, so ~16
+ * functions already using the fixed shape under another name — `applied`,
+ * `granted`, `didManage` — were counted as broken. Corrected below, and the
+ * "not stale" check is what caught it.)
  *
  * So this file does what the repo already does for the test-tree type errors:
  * it PINS the number, so the count can only go down. A new action written in
@@ -66,8 +72,28 @@ function suspects(): string[] {
 
       if (!body.includes('setGameState')) continue;
       if (!/return prev(?:State)?;/.test(body)) continue;
-      if (body.includes('let result')) continue; // already uses the fixed shape
-      if (!/\n\s*return \{\s*\n?\s*success: true/.test(body.slice(-800))) continue;
+      if (!/\n\s*return \{\s*\n?\s*success: true/.test(body.slice(-900))) continue;
+
+      /**
+       * Exclude anything already using the fixed shape.
+       *
+       * The first version of this detector only recognised a capture literally
+       * named `result`, so the first batch of fixes — which use `bought`,
+       * `fed`, `played`, `treated`, `entered` — did not move the number at all.
+       * A ratchet that cannot see its own progress is worse than none: it
+       * would have sat at 86 forever while the work happened.
+       *
+       * The shape that counts as fixed is a captured flag or object that is
+       * GUARDED before the success return: `if (!x)` or `return x;`. A `let`
+       * assigned inside the updater and never checked is not a fix.
+       */
+      const captures = body.match(/let\s+(\w+)\s*(?::[^=]+)?=\s*(?:false|\{)/g) ?? [];
+      const guarded = captures.some((c) => {
+        const v = /let\s+(\w+)/.exec(c)![1];
+        return new RegExp(`if\\s*\\(\\s*!${v}\\s*\\)`).test(body)
+          || new RegExp(`return\\s+${v}\\s*;`).test(body);
+      });
+      if (guarded) continue;
 
       found.push(`${file}::${name}`);
     }
@@ -82,7 +108,7 @@ function suspects(): string[] {
  * If you are here because you added an action and this failed: use the
  * pessimistic-capture shape in the header comment. Do not raise the number.
  */
-const RATCHET = 86;
+const RATCHET = 62;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
