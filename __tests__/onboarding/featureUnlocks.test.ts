@@ -286,3 +286,150 @@ describe('the grid shows locked apps rather than hiding them', () => {
     expect(SRC).toMatch(/\.filter\(app => app\.available !== false\)/);
   });
 });
+
+/**
+ * The unlock spine has to run without the player's help.
+ *
+ * Chapter completion used to live ONLY in `LifeChapterCard`, behind a Claim
+ * button. Since `completedChapters` is what `unlockTier` reads, that meant the
+ * whole progressive-disclosure system depended on a screen the player might
+ * never open — and the milestone fallbacks were quietly carrying it.
+ */
+describe('the week tick completes chapters, not a button', () => {
+  const { applyChapterProgress, unlockAnnouncement } =
+    require('@/contexts/game/actions/weekly/applyChapterProgress');
+
+  /** A state that satisfies every goal of chapter 1. */
+  const chapterOneDone = (): GameState => createTestGameState({
+    ...fresh(),
+    weeksLived: 6,
+    currentJob: 'job-1',
+    stats: { ...createTestGameState().stats, money: 5_000 },
+  } as never);
+
+  it('a finished chapter completes on the tick', () => {
+    const result = applyChapterProgress({ state: chapterOneDone() });
+
+    expect(result.newlyCompleted).toHaveLength(1);
+    expect(result.newlyCompleted[0]).toBe(LIFE_CHAPTERS[0].id);
+  });
+
+  it('and pays its reward', () => {
+    const result = applyChapterProgress({ state: chapterOneDone() });
+
+    expect(result.moneyReward).toBeGreaterThan(0);
+    expect(result.gemReward).toBeGreaterThan(0);
+  });
+
+  it('the notification names what was unlocked, not just the money', () => {
+    // The unlock is the real reward; money and gems are the garnish.
+    const [note] = applyChapterProgress({ state: chapterOneDone() }).notifications;
+
+    expect(note.title).toMatch(/Fresh Start/);
+    expect(note.message).toMatch(/available|unlocked/i);
+  });
+
+  it('an unfinished chapter completes nothing (the control)', () => {
+    const result = applyChapterProgress({ state: fresh() });
+
+    expect(result.newlyCompleted).toEqual([]);
+    expect(result.moneyReward).toBe(0);
+    expect(result.gemReward).toBe(0);
+    expect(result.notifications).toEqual([]);
+  });
+
+  it('an already-completed chapter is not paid twice', () => {
+    const paid = createTestGameState({
+      ...chapterOneDone(),
+      completedChapters: [LIFE_CHAPTERS[0].id],
+    } as never);
+
+    expect(applyChapterProgress({ state: paid }).newlyCompleted).toEqual([]);
+  });
+
+  it('at most ONE chapter completes per tick', () => {
+    // A returning player crossing several thresholds at once must not dump
+    // four chapters of rewards and notifications into one Next Week.
+    const veryRich = createTestGameState({
+      ...fresh(),
+      weeksLived: 30,
+      currentJob: 'job-1',
+      stats: { ...createTestGameState().stats, money: 5_000_000 },
+    } as never);
+
+    expect(applyChapterProgress({ state: veryRich }).newlyCompleted.length)
+      .toBeLessThanOrEqual(1);
+  });
+
+  it('survives a null state without throwing (the control)', () => {
+    expect(applyChapterProgress({ state: undefined as never }).newlyCompleted).toEqual([]);
+  });
+
+  it('the announcement only promises what the grid actually unlocks', () => {
+    // Reads the same table the gating reads, so the copy cannot drift.
+    for (const tier of [1, 2, 3, 4, 5] as const) {
+      expect(`tier ${tier}: ${unlockAnnouncement(tier).length > 0}`)
+        .toBe(`tier ${tier}: true`);
+    }
+  });
+});
+
+describe('the tick owns completion, and the card no longer does', () => {
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const read = (rel: string) =>
+    fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
+
+  it('the week loop calls it, inside a try/catch', () => {
+    // CLAUDE.md §4.3 — an unguarded subsystem turns one throw into a lost week.
+    const loop = read('contexts/game/GameActionsContext.tsx');
+
+    expect(loop).toMatch(/try \{\s*\n\s*const chapterResult = applyChapterProgress\(\{/);
+    expect(loop).toMatch(/catch \(chapterErr\)/);
+  });
+
+  it('and folds the completions into the returned state', () => {
+    expect(read('contexts/game/GameActionsContext.tsx'))
+      .toMatch(/completedChapters: newlyCompletedChapters\.length > 0/);
+  });
+
+  it('the card has NO second granting path', () => {
+    // Leaving a claim handler in the component would be one re-wire away from
+    // paying the reward twice.
+    const card = read('components/LifeChapterCard.tsx');
+
+    expect(card).not.toMatch(/const claim = \(\) =>/);
+    expect(card).not.toMatch(/completedChapters: \[\.\.\./);
+    expect(card).not.toMatch(/applyMoneyDelta/);
+  });
+
+  it('but still shows the goals and their progress (the control)', () => {
+    // Read-only is the point; blank is not.
+    const card = read('components/LifeChapterCard.tsx');
+
+    expect(card).toMatch(/getChapterProgress/);
+    expect(card).toMatch(/getActiveChapter/);
+  });
+});
+
+describe('the phone grid gates too, not just the computer', () => {
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const PHONE = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'app/(tabs)/mobile.tsx'), 'utf8',
+  );
+
+  it('a phone-only save sees locks', () => {
+    // The first pass gated only computer.tsx, so a player who had not bought a
+    // computer still saw every app unlocked.
+    expect(PHONE).toMatch(/const locked = !isFeatureUnlocked\(gameState, `app:\$\{app\.id\}`\)/);
+    expect(PHONE).toMatch(/const lockReason = unlockRequirement\(gameState, `app:\$\{app\.id\}`\)/);
+  });
+
+  it('with the same dim, badge and explain-on-tap as the computer', () => {
+    expect(PHONE).toMatch(/locked && \{ opacity: 0\.45 \}/);
+    expect(PHONE).toMatch(/locked && \(\s*<View style=\{styles\.appLockBadge\}>/);
+    expect(PHONE).toMatch(/if \(locked\) \{[\s\S]{0,200}Alert\.alert\(app\.name, lockReason/);
+    expect(PHONE).toMatch(/accessibilityState=\{\{ disabled: locked \}\}/);
+  });
+});

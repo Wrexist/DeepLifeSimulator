@@ -8,8 +8,10 @@ import {
   Dimensions,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
   Smartphone,
   Flame,
@@ -19,7 +21,8 @@ import {
   CreditCard,
   GraduationCap,
   Building,
-  PawPrint
+  PawPrint,
+  Lock,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
@@ -292,25 +295,46 @@ export function MobileScreenContent({ embedded = false }: { embedded?: boolean }
         {/* Macro economy strip — null in normal times. */}
         <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
-          {appsList.map((app) => (
+          {/* PROGRESSIVE DISCLOSURE — mirrors the computer grid. A locked app
+              stays visible, dimmed with a padlock, so the shape of the game is
+              legible from week 1 and the grid does not reshuffle as things
+              unlock. Tapping one explains itself; a dead tap reads as a bug. */}
+          {appsList.map((app) => {
+            const locked = !isFeatureUnlocked(gameState, `app:${app.id}`);
+            const lockReason = unlockRequirement(gameState, `app:${app.id}`);
+            return (
             <TouchableOpacity
               key={app.id}
-              style={[styles.appCardGlass, { width: cardWidth }]}
+              style={[styles.appCardGlass, { width: cardWidth }, locked && { opacity: 0.45 }]}
               onPress={() => {
                 buttonPress();
                 haptic('light');
+                if (locked) {
+                  Alert.alert(app.name, lockReason || 'Not available yet.');
+                  return;
+                }
                 setActiveApp(app.id);
               }}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Open ${app.name}`}
-              accessibilityHint={app.description ?? `Launch the ${app.name} app`}
+              accessibilityLabel={locked ? `${app.name}, locked` : `Open ${app.name}`}
+              accessibilityHint={
+                locked
+                  ? lockReason || 'Not available yet'
+                  : (app.description ?? `Launch the ${app.name} app`)
+              }
+              accessibilityState={{ disabled: locked }}
             >
               <View style={[
                 styles.appCardGlassInner,
                 settings.darkMode && styles.appCardGlassInnerDark
               ]}>
                 <View style={styles.appIconGlassContainer}>
+                  {locked && (
+                    <View style={styles.appLockBadge}>
+                      <Lock size={scale(12)} color="#FFFFFF" />
+                    </View>
+                  )}
                   {getAppIconAsset(app.id) ? (
                     // Custom designed icon (full-bleed PNG, gradient baked in).
                     <Image
@@ -345,7 +369,8 @@ export function MobileScreenContent({ embedded = false }: { embedded?: boolean }
               </View>
               <ClaimableBadge count={appBadges[app.id] ?? 0} />
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </LinearGradient>
@@ -440,6 +465,19 @@ const styles = StyleSheet.create({
   },
   appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
+  },
+  /** Padlock badge on a not-yet-unlocked app icon (mirrors computer.tsx). */
+  appLockBadge: {
+    position: 'absolute',
+    top: -scale(2),
+    right: -scale(2),
+    zIndex: 1,
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(15,23,42,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Custom PNG icon — same footprint as the gradient circle, but a rounded
   // square (iOS-style squircle) since the assets are full-bleed app icons.

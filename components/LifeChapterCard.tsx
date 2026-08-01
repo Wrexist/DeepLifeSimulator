@@ -2,21 +2,20 @@
  * LifeChapterCard — the front door for the Life Chapters spine.
  *
  * The chapter system (lib/progress/lifeChapters.ts) was fully built — chapters,
- * goals, progress, rewards — but had NO UI and never granted anything
- * (`completedChapters` was initialised and never written). This card shows the
- * active chapter's goals with live progress and lets the player claim the
- * chapter reward once every goal is done, advancing to the next chapter.
+ * goals, progress, rewards — but had NO UI and never granted anything. This
+ * card shows the active chapter's goals with live progress.
+ *
+ * It is now READ-ONLY. Chapter completion drives progressive disclosure
+ * (`lib/progress/featureUnlocks.ts` reads `completedChapters`), so it cannot
+ * depend on the player finding this card and tapping a button — the week tick
+ * owns it, in `actions/weekly/applyChapterProgress.ts`, and grants the reward
+ * with a notification naming what was unlocked.
  */
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { BookOpen, Check, Gift } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { useSetGameState } from '@/contexts/game/useGameSelector';
-import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { useToast } from '@/contexts/ToastContext';
-import { haptic } from '@/utils/haptics';
 import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
-import { applyMoneyDelta, MONEY_CEILING } from '@/contexts/game/actions/MoneyActions';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
@@ -24,9 +23,6 @@ function LifeChapterCard() {
   // Chapter goals read arbitrary state fields, so select the whole snapshot for
   // this one card. It re-renders on state change but the computation is cheap.
   const state = useGameSelector((s) => s) as GameState;
-  const setGameState = useSetGameState();
-  const { saveGame } = useGameActions();
-  const { showSuccess } = useToast();
 
   const chapterData = useMemo(() => {
     if (!state) return null;
@@ -42,35 +38,12 @@ function LifeChapterCard() {
     gems: chapter.completionReward.gems + chapter.perGoalReward.gems * progress.totalGoals,
   };
 
-  const claim = () => {
-    haptic.success();
-    setGameState((prev) => {
-      // Atomic: re-check completion + not-already-claimed against prev.
-      const active = getActiveChapter(prev);
-      if (!active || active.id !== chapter.id) return prev;
-      const prog = getChapterProgress(active, prev);
-      if (!prog.isComplete) return prev;
-      if ((prev.completedChapters || []).includes(active.id)) return prev;
-
-      const totalGoals = active.goals.length;
-      const money = active.completionReward.money + active.perGoalReward.money * totalGoals;
-      const gems = active.completionReward.gems + active.perGoalReward.gems * totalGoals;
-
-      const spend = applyMoneyDelta(prev, money, `Chapter reward: ${active.subtitle}`);
-      const nextStats = spend
-        ? { ...spend.stats, gems: Math.min(MONEY_CEILING, (prev.stats?.gems ?? 0) + gems) }
-        : { ...prev.stats, gems: Math.min(MONEY_CEILING, (prev.stats?.gems ?? 0) + gems) };
-
-      return {
-        ...prev,
-        ...(spend ? { dailySummary: spend.dailySummary } : {}),
-        stats: nextStats,
-        completedChapters: [...(prev.completedChapters || []), active.id],
-      };
-    });
-    showSuccess(`Chapter complete! +$${reward.money.toLocaleString()}, +${reward.gems} gems`);
-    void saveGame?.(false);
-  };
+  /**
+   * The claim handler used to live here. It is GONE, not disabled: the week
+   * tick now completes chapters and grants the reward
+   * (`actions/weekly/applyChapterProgress.ts`), and leaving a second granting
+   * path in the component would be one re-wire away from paying twice.
+   */
 
   return (
     <View style={styles.card}>
@@ -112,13 +85,24 @@ function LifeChapterCard() {
         })}
       </View>
 
+      {/**
+        * Progressive disclosure: the WEEK TICK now completes chapters and
+        * grants the reward (`applyChapterProgress`). It has to — chapter
+        * completions drive what the player can see, and gating that on finding
+        * this card and tapping a button meant the unlock spine depended on a
+        * screen they might never open.
+        *
+        * So this is a status line, not a button. It shows on the tick where
+        * the goals are all met and the tick has not yet run; the reward
+        * arrives on Next Week with a notification naming what it unlocked.
+        */}
       {progress.isComplete ? (
-        <TouchableOpacity style={styles.claimBtn} onPress={claim} activeOpacity={0.85}>
+        <View style={styles.claimBtn}>
           <Gift size={scale(15)} color="#0F172A" />
           <Text style={styles.claimText}>
-            Claim +${reward.money.toLocaleString()} · +{reward.gems} gems
+            Complete! +${reward.money.toLocaleString()} · +{reward.gems} gems next week
           </Text>
-        </TouchableOpacity>
+        </View>
       ) : (
         <View style={styles.rewardHint}>
           <Gift size={scale(13)} color="#94A3B8" />

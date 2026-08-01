@@ -130,6 +130,7 @@ import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
+import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
@@ -1819,6 +1820,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   * `calculateIncomeTax`, so folding these in there would retroactively tax
   * them — a balance change, not a reporting fix.
   */
+ /** Chapter ids completed by this tick (progressive disclosure spine). */
+ let newlyCompletedChapters: string[] = [];
+
  const recordRecapCash = (applied: number): void => {
    if (!isFinite(applied)) return;
    const rounded = Math.round(applied);
@@ -2284,6 +2288,47 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  if (cashDeltaAfterReinvest!== 0) {
  applyCashAndRecord(cashDeltaAfterReinvest); // TICK-A4
+
+ /**
+  * Life-chapter completion — the spine of progressive disclosure.
+  *
+  * Ran only inside `LifeChapterCard`, and only when the player found that card
+  * and tapped Claim, so the unlock spine depended on a screen they might never
+  * open. Now the tick detects it, grants the reward and records it.
+  *
+  * Placed HERE, after every cash movement and subsystem tick, because the
+  * chapter goals read money, savings, career level, relationships and
+  * education — evaluating earlier would judge the player on a half-finished
+  * week. Guarded like every other subsystem (§4.3): a throw here must not cost
+  * the whole week.
+  */
+ try {
+   const chapterResult = applyChapterProgress({
+     state: {
+...prevState,
+       stats: newStats,
+       weeksLived: nextWeeksLived,
+       bankSavings: newBankSavings,
+       currentJob: newCurrentJob,
+       careers: updatedCareers,
+       relationships: processedRelationships,
+       educations: updatedEducations,
+       completedChapters: prevState.completedChapters ?? [],
+     } as typeof prevState,
+   });
+   if (chapterResult.newlyCompleted.length > 0) {
+     newlyCompletedChapters = chapterResult.newlyCompleted;
+     if (chapterResult.moneyReward > 0) applyCashAndRecord(chapterResult.moneyReward);
+     if (chapterResult.gemReward > 0) {
+       newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0)
+         + chapterResult.gemReward;
+     }
+     for (const note of chapterResult.notifications) pendingNotifications.push(note);
+     logger.info(`[CHAPTER] Completed ${chapterResult.newlyCompleted.join(', ')}`);
+   }
+ } catch (chapterErr) {
+   logger.error('[CHAPTER TICK] failed:', chapterErr);
+ }
  }
  // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
  // price so the move reaches the market board, Movers sort, market-order fills,
@@ -2671,6 +2716,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  playStreak: updatedPlayStreak,
  weekResult,
  legacyPoints: newLegacyPoints,
+ // Progressive disclosure: chapter completions drive what the player can see.
+ completedChapters: newlyCompletedChapters.length > 0
+   ? [...(prevState.completedChapters ?? []), ...newlyCompletedChapters]
+   : prevState.completedChapters,
  // Cliffhanger: clear if resolved, set if new one rolled
  pendingCliffhanger: newPendingCliffhanger,
  // Weekly themed challenge progress
