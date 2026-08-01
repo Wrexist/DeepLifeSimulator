@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { Crown, TrendingUp } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
 import { playSound } from '@/utils/soundManager';
@@ -45,7 +46,7 @@ import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 import type { PromotionDetails } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const { width: SCREEN_W } = Dimensions.get('window');
 
 /** Gold leaf → deep amber. The "premium" read comes from this ramp + the hairline border. */
 const GOLD_LIGHT = '#FDE9B0';
@@ -61,65 +62,6 @@ export interface PromotionCelebrationModalProps {
   visible: boolean;
   promotion: PromotionDetails | null;
   onClose: () => void;
-}
-
-/** One confetti flake. Native-driver friendly: only transform + opacity. */
-function Flake({ index, play }: { index: number; play: boolean }) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  // Deterministic per-index scatter — no Math.random, so the layout is stable
-  // across re-renders (and identical in screenshots/tests).
-  const spread = ((index * 37) % 100) / 100;
-  const startX = spread * SCREEN_W;
-  const drift = ((index % 5) - 2) * scale(26);
-  const delay = (index % 7) * 55;
-  const size = scale(6 + (index % 3) * 3);
-  const color = CONFETTI_COLORS[index % CONFETTI_COLORS.length];
-
-  useEffect(() => {
-    if (!play) return;
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 2600 + (index % 4) * 420,
-      delay,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [play, progress, delay, index]);
-
-  if (!play) return null;
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: -scale(40),
-        left: startX,
-        width: size,
-        height: size * 1.6,
-        borderRadius: 1,
-        backgroundColor: color,
-        opacity: progress.interpolate({ inputRange: [0, 0.1, 0.75, 1], outputRange: [0, 1, 1, 0] }),
-        transform: [
-          {
-            translateY: progress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, SCREEN_H * 0.72],
-            }),
-          },
-          { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, drift] }) },
-          {
-            rotate: progress.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0deg', `${540 + index * 30}deg`],
-            }),
-          },
-        ],
-      }}
-    />
-  );
 }
 
 export default function PromotionCelebrationModal({
@@ -309,7 +251,7 @@ export default function PromotionCelebrationModal({
     <Modal visible transparent animationType="none" onRequestClose={handleClose}>
       <Animated.View style={[styles.backdrop, { opacity: reducedMotion ? 1 : backdrop }]}>
         {animate
-          ? Array.from({ length: CONFETTI_COUNT }, (_, i) => <Flake key={i} index={i} play />)
+          ? <ConfettiBurst play count={CONFETTI_COUNT} colors={CONFETTI_COLORS} />
           : null}
 
         <Animated.View
