@@ -37,11 +37,21 @@ const path = require('path');
 /**
  * The frozen error count. LOWER THIS when you fix errors — never raise it.
  *
+ * THE single source of truth. `scripts/audit/audit-stability.cjs` §S6 imports
+ * it rather than carrying its own copy: it used to hardcode 186, and once this
+ * ratchet burned the real count down to 90 the audit still reported a cheerful
+ * "within budget (90/186)" — a second ratchet that would have admitted 96 new
+ * errors before objecting, while its comment insisted "there are 186 today".
+ *
  * 2026-08-01: 182 → 136 (createTestGameState deep-partial overrides)
  * 2026-08-01: 136 → 108 (shared setGameState stub; dead `deps` params removed).
  * 2026-08-01: 108 → 90 (one PreRolls + Crypto factory in subsystemEquivalence).
  */
 const BASELINE = 90;
+
+// Exported so the weekly audit can read the same number. Guarded below so a
+// `require()` for the constant does not also launch a 5-minute tsc run.
+module.exports = { BASELINE };
 
 const PROJECT = 'tsconfig.tests.json';
 
@@ -108,4 +118,6 @@ function fail(message) {
   process.exit(1);
 }
 
-main();
+// Only run the check when invoked as a script — importing it for BASELINE must
+// not spawn tsc.
+if (require.main === module) main();

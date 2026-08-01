@@ -92,3 +92,34 @@ describe('a broken run cannot read as a passing ratchet', () => {
     expect(SCRIPT).toMatch(/function sample\(/);
   });
 });
+
+describe('there is exactly ONE baseline', () => {
+  const AUDIT = read('scripts/audit/audit-stability.cjs');
+
+  it('the weekly audit imports the ratchet baseline rather than restating it', () => {
+    // It used to hardcode 186. Once the CI ratchet burned the real count to 90,
+    // the audit still reported "within budget (90/186)" — a second ratchet that
+    // would have admitted 96 new errors while claiming to guard the same thing.
+    expect(AUDIT).toMatch(/require\('\.\.\/check-test-types\.js'\)/);
+    expect(AUDIT).toMatch(/BASELINE: RATCHET_BASELINE/);
+  });
+
+  it('and carries no second hardcoded number', () => {
+    expect(AUDIT).not.toMatch(/AUDIT_TEST_TYPE_ERROR_BUDGET \|\| \d+/);
+  });
+
+  it('the ratchet exports BASELINE and does not run on import (the control)', () => {
+    // Importing it for the constant must not spawn a five-minute tsc.
+    expect(SCRIPT).toMatch(/module\.exports = \{ BASELINE \}/);
+    expect(SCRIPT).toMatch(/if \(require\.main === module\) main\(\)/);
+  });
+
+  it('importing it really is side-effect free (the control)', () => {
+    // Asserted by doing it: a bare require must return the number and nothing
+    // else should happen.
+    const mod = require('../../scripts/check-test-types.js') as { BASELINE: number };
+
+    expect(typeof mod.BASELINE).toBe('number');
+    expect(mod.BASELINE).toBe(baseline());
+  });
+});

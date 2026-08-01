@@ -134,12 +134,20 @@ function build() {
   }
 
   // --- S6: test-tree type errors, ratcheted ------------------------------
-  // Not a pass/fail gate on zero — there are 186 today and fixing them means
-  // deciding, case by case, whether the TYPE or the TEST is wrong. It IS a gate
-  // on the count going UP, which is what stops the backlog regrowing while it is
-  // burned down. Lower TEST_TYPE_ERROR_BUDGET as they clear; at zero, fold
-  // tsconfig.tests.json into `npm run type-check` and delete this check.
-  const TEST_TYPE_ERROR_BUDGET = Number(process.env.AUDIT_TEST_TYPE_ERROR_BUDGET || 186);
+  // Not a pass/fail gate on zero — fixing them means deciding, case by case,
+  // whether the TYPE or the TEST is wrong. It IS a gate on the count going UP,
+  // which is what stops the backlog regrowing while it is burned down. At zero,
+  // fold tsconfig.tests.json into `npm run type-check` and delete this check.
+  //
+  // The budget is IMPORTED, not restated. It was hardcoded at 186 here while
+  // `scripts/check-test-types.js` (the CI gate) burned the real count to 90 —
+  // so this check reported a comfortable "within budget (90/186)" and would
+  // have waved through 96 new errors, with a comment still claiming 186 was
+  // current. Two ratchets with two numbers is one ratchet and one decoration.
+  const { BASELINE: RATCHET_BASELINE } = require('../check-test-types.js');
+  const TEST_TYPE_ERROR_BUDGET = Number(
+    process.env.AUDIT_TEST_TYPE_ERROR_BUDGET || RATCHET_BASELINE,
+  );
   if (L.exists('tsconfig.tests.json')) {
     // No `|| true`. That swallowed the exit code, so a tsc that never LAUNCHED
     // (missing node_modules — the documented cold-container trap — a bad
