@@ -343,13 +343,26 @@ function IdentityCard() {
   const weeklyModifiers = useMemo(() => {
     const modifiers: { label: string; changes: Record<string, number> }[] = [];
 
-    if (stats.health <= 30) {
-      modifiers.push({
-        label: 'Sickness',
-        changes: { health: -10, energy: -15, happiness: -10 },
-      });
-    }
-
+    /**
+     * C-4. There used to be a "Sickness" row here, claiming -10 health,
+     * -15 energy and -10 happiness per week whenever health fell to 30.
+     *
+     * No tick ever applied it. The weekly health change is a flat decay
+     * (`effectiveDecayRate * 0.6` in the week loop) that does not vary with
+     * how low health already is, and the only health-driven death is health
+     * at ZERO for four consecutive weeks. Nothing in `actions/weekly/`, in
+     * `applyDiseases`, or in the week loop keys off a 30 threshold at all.
+     *
+     * It is removed rather than implemented. A -10 health/week penalty that
+     * switches on at 30 is a compounding death spiral, and no save has ever
+     * behaved that way — inventing it to match a label would be a balance
+     * change disguised as a bug fix. The card also warns about this exact
+     * state honestly a few lines down: `healthIssues` raises "Low health"
+     * on the SAME `health <= 30` test, with the fix attached and no invented
+     * numbers. This row was false and redundant with it.
+     *
+     * Everything left in this list is a real, applied weekly effect.
+     */
     const activeDietPlan = (dietPlans || []).find(plan => plan.active);
     if (activeDietPlan) {
       /**
@@ -378,7 +391,10 @@ function IdentityCard() {
     }
 
     return modifiers;
-  }, [stats.health, dietPlans]);
+    // `stats.health` was a dependency only for the removed Sickness row. It
+    // decays every tick, so keeping it here rebuilt this list on every week
+    // advance for a body that no longer reads it.
+  }, [dietPlans]);
 
   // Health issues surfaced passively on the player card. This replaces the
   // interruptive week-advance popups (sickness modal + zero-stat warning):
