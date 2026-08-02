@@ -19,6 +19,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { displayedDepositAPR, depositAPRNote } from '@/lib/banking/displayRates';
 import {
   View,
   Text,
@@ -238,7 +239,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   // Blended deposit APY (weighted by balance) — a fact the flat account list hid.
   const blendedAPY = totalBank > 0
-    ? banking.accounts.reduce((s, a) => s + a.baseAPR * a.balance, 0) / totalBank
+    ? banking.accounts.reduce((s, a) => s + displayedDepositAPR(a.baseAPR, banking.rateEnvironment) * a.balance, 0) / totalBank
     : 0;
 
   const queueSave = useCallback(() => {
@@ -514,7 +515,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           {banking.accounts.map((acct, i) => {
             const pal = accountPalette(acct.type);
             const locked = acct.lockUntilWeek != null && gameState.weeksLived < acct.lockUntilWeek;
-            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acct.baseAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
+            const acctAPR = displayedDepositAPR(acct.baseAPR, banking.rateEnvironment);
+            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acctAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
             return (
               <LedgerRow
                 key={acct.id}
@@ -892,7 +894,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 {account.baseAPR > 0 && (
                   <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
                     <TrendingUp size={scale(11)} color={pal.hex} />
-                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(account.baseAPR * 100).toFixed(2)}% APR</Text>
+                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR</Text>
                   </View>
                 )}
                 <View style={[styles.statusChip, { backgroundColor: isLocked ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', borderColor: isLocked ? 'rgba(245, 158, 11, 0.30)' : 'rgba(16, 185, 129, 0.30)' }]}>
@@ -957,7 +959,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.factsGrid}>
               <FactCell theme={theme} icon={Glyph} tint={pal.hex} label="Type" value={accountTypeLabel(account.type)} />
-              <FactCell theme={theme} icon={Percent} label="Interest APR" value={`${(account.baseAPR * 100).toFixed(2)}%`} />
+              {/* Label carries the attribution: a rate moved by the economy must
+                  say so, or a reduced number reads as the bank re-pricing and
+                  the "yields drift down" event banner looks cosmetic. */}
+              <FactCell
+                theme={theme}
+                icon={Percent}
+                label={depositAPRNote(banking.rateEnvironment) ? `Interest APR · ${depositAPRNote(banking.rateEnvironment)}` : 'Interest APR'}
+                value={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`}
+              />
               <FactCell theme={theme} icon={Coins} label="Balance" value={formatMoneyExact(account.balance)} />
               <FactCell theme={theme} icon={Calendar} label="Opened" value={`Week ${account.openedWeek}`} />
               <FactCell theme={theme} icon={Clock} label="Age" value={ageLabel} />

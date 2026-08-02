@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { displayedDepositAPR, depositAPRNote } from '@/lib/banking/displayRates';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import {
@@ -265,7 +266,17 @@ function BankAppInner({ onBack }: BankAppProps) {
                 {account.baseAPR > 0 && (
                   <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
                     <TrendingUp size={scale(11)} color={pal.hex} />
-                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(account.baseAPR * 100).toFixed(2)}% APR</Text>
+                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR</Text>
+                  </View>
+                )}
+                {/* Attribute a moved rate to the economy. Without this a reduced
+                    number reads as the bank changing its offer, and the
+                    "savings yields drift down" event banner looks cosmetic. */}
+                {account.baseAPR > 0 && depositAPRNote(banking.rateEnvironment) && (
+                  <View style={[styles.statusChip, { backgroundColor: `rgba(${pal.rgb}, 0.12)`, borderColor: `rgba(${pal.rgb}, 0.25)` }]}>
+                    <Text style={[styles.statusText, { color: pal.hex }]}>
+                      {depositAPRNote(banking.rateEnvironment)}
+                    </Text>
                   </View>
                 )}
                 <View style={[styles.statusChip, { backgroundColor: isLocked ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', borderColor: isLocked ? 'rgba(245, 158, 11, 0.30)' : 'rgba(16, 185, 129, 0.30)' }]}>
@@ -330,7 +341,12 @@ function BankAppInner({ onBack }: BankAppProps) {
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.factsGrid}>
               <FactCell theme={theme} icon={Wallet} tint={pal.hex} label="Type" value={accountTypeLabel(account.type)} />
-              <FactCell theme={theme} icon={Percent} label="Interest APR" value={`${(account.baseAPR * 100).toFixed(2)}%`} />
+              <FactCell
+                theme={theme}
+                icon={Percent}
+                label={depositAPRNote(banking.rateEnvironment) ? `Interest APR · ${depositAPRNote(banking.rateEnvironment)}` : 'Interest APR'}
+                value={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`}
+              />
               <FactCell theme={theme} icon={Coins} label="Balance" value={formatMoneyExact(account.balance)} />
               <FactCell theme={theme} icon={Calendar} label="Opened" value={`Week ${account.openedWeek}`} />
               <FactCell theme={theme} icon={Clock} label="Age" value={ageLabel} />
