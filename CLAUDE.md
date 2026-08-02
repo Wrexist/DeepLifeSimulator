@@ -33,7 +33,7 @@ Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 | `npm run test:e2e` / `test:performance` | `__tests__/e2e` / `__tests__/performance` |
 | `npm run test:coverage` / `test:ci` | Coverage (global threshold **70%** branches/functions/lines/statements) |
 | `npm run type-check` | `tsc --noEmit` over `tsconfig.typecheck.json` (app source only, excludes tests/scripts) |
-| `npm run type-check:tests` | `tsc --noEmit` over `tsconfig.tests.json` — **the test tree**, which `type-check` excludes. 25 errors outstanding. A type error in a test is usually a test asserting on a field that does not exist, i.e. asserting nothing |
+| `npm run type-check:tests` | `tsc --noEmit` over `tsconfig.tests.json` — **the test tree**, which `type-check` excludes. 19 errors outstanding. A type error in a test is usually a test asserting on a field that does not exist, i.e. asserting nothing |
 | `npm run type-check:tests:ratchet` | The above as a **CI gate**: fails if the count goes UP, and also if it goes DOWN (tighten the baseline — a stale one lets errors creep back to it unnoticed). Baseline lives in `scripts/check-test-types.js`. Runs on every PR via `eas-update.yml`; until 2026-08-01 the ratchet was a convention nothing enforced |
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |

@@ -54,8 +54,9 @@ const path = require('path');
  * 2026-08-02: 36 → 30 (phantom `ribbons` field; two stale @ts-expect-error).
  * 2026-08-02: 30 → 27 (phantom `isInJail` and top-level `reputation`; dead ??).
  * 2026-08-02: 27 → 25 (dead legacyPass import; NPCLifeEvent from the wrong module).
+ * 2026-08-02: 25 → 19 (UserProfile literals spread the default; NODE_ENV accessor).
  */
-const BASELINE = 25;
+const BASELINE = 19;
 
 // Exported so the weekly audit can read the same number. Guarded below so a
 // `require()` for the constant does not also launch a 5-minute tsc run.
