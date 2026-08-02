@@ -84,7 +84,7 @@ function mountGame() {
 }
 
 function freshState(over: Partial<GameState> = {}): GameState {
-  const base = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  const base = structuredClone(initialGameState);
   return { ...base, ...over };
 }
 

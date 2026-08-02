@@ -122,7 +122,7 @@ function mountGame(): { root: any } {
 
 /** Persist a valid, signed save into the given slot via the real envelope path. */
 async function seedSlot(slot: number): Promise<void> {
-  const state: GameState = JSON.parse(JSON.stringify(initialGameState));
+  const state: GameState = structuredClone(initialGameState);
   const serialized = JSON.stringify({ ...state, version: STATE_VERSION });
   const envelope = createSaveEnvelope(serialized);
   const result = await doubleBufferSave(`save_slot_${slot}`, envelope);

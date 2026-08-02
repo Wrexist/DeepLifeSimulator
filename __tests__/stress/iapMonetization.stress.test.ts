@@ -71,7 +71,7 @@ function mountGame() {
 }
 
 function freshState(): GameState {
-  return JSON.parse(JSON.stringify(initialGameState));
+  return structuredClone(initialGameState);
 }
 
 function deepCheck(state: unknown, path = 'root'): string[] {

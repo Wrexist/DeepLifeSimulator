@@ -466,7 +466,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
     const { initialGameState } = await import('@/contexts/game/initialState');
     const { IAP_PRODUCTS } = await import('@/utils/iapConfig');
 
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = structuredClone(initialGameState);
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);
     iapService.applyProductToState(state, IAP_PRODUCTS.REMOVE_ADS);

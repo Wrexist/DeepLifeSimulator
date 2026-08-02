@@ -43,7 +43,7 @@ describe('R3-S2 — a restarted game is DELETED, because it can never be saved',
 
     const restarted = carryAccountLevelEntitlements(
       live,
-      JSON.parse(JSON.stringify(initialGameState)) as GameState,
+      structuredClone(initialGameState),
     );
 
     expect(isPristineUnstartedState(live)).toBe(false);

@@ -49,12 +49,12 @@ function channel(overrides: Partial<GamingStreamingState> = {}): GamingStreaming
 }
 
 function baseState(ch: GamingStreamingState): GameState {
-  return {
+  return createTestGameState({
     // High energy so multi-stream streak tests aren't gated by the energy cost.
     stats: { money: 1000, energy: 100_000 },
     weeksLived: 5,
     gamingStreaming: ch,
-  } as unknown as GameState;
+  });
 }
 
 /**
@@ -144,7 +144,7 @@ describe('runStream — hype streak', () => {
 
 describe('live streaming — start / tick / finalize', () => {
   const lowEnergy = (ch: GamingStreamingState, energy: number, money = 1000): GameState =>
-    ({ stats: { money, energy }, weeksLived: 5, gamingStreaming: ch } as unknown as GameState);
+    createTestGameState({ stats: { money, energy }, weeksLived: 5, gamingStreaming: ch });
 
   it('startLiveStream goes live, reserves one weekly slot, and does NOT charge energy up-front', () => {
     const store = makeStore(baseState(channel({ followers: 1000 })));
@@ -245,7 +245,7 @@ describe('upgradePCComponent — tier cap (anti-exploit)', () => {
     const ch = channel({
       pcUpgradeLevels: { cpu: MAX_PC_TIER, gpu: 0, ram: 0, ssd: 0, motherboard: 0, cooling: 0, psu: 0, case: 0, network: 0 },
     });
-    const store = makeStore({ stats: { money: 1_000_000_000, energy: 100_000 }, weeksLived: 5, gamingStreaming: ch } as unknown as GameState);
+    const store = makeStore(createTestGameState({ stats: { money: 1_000_000_000, energy: 100_000 }, weeksLived: 5, gamingStreaming: ch }));
     const before = store.get().stats.money;
     const r = upgradePCComponent(store.get(), store.setState, 'cpu', PC_BASE_PRICES.cpu);
     expect(r.success).toBe(false);

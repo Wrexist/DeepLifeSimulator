@@ -400,7 +400,7 @@ describe('Statistics Tracker audit', () => {
   it('Round-trip: lifetimeStatistics preserved through save/parse', async () => {
     const { createSaveData, parseSaveData } = await import('@/utils/saveValidation');
     const { STATE_VERSION } = await import('@/contexts/game/initialState');
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = structuredClone(initialGameState);
     state.lifetimeStatistics = {
       ...(state.lifetimeStatistics || getDefaultStatistics()),
       totalMoneyEarned: 1_234_567,

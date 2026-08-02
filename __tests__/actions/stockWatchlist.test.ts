@@ -24,9 +24,9 @@ function makeSetState(initial: GameState) {
 }
 
 function baseState(): GameState {
-  return {
+  return createTestGameState({
     stocks: { holdings: [], watchlist: [], realizedGains: 0 },
-  } as unknown as GameState;
+  });
 }
 
 describe('toggleStockWatchlist', () => {
@@ -57,7 +57,12 @@ describe('toggleStockWatchlist', () => {
   });
 
   it('initializes the stocks slice when absent (no crash on a fresh save)', () => {
-    const store = makeSetState({} as unknown as GameState);
+    // A real state with the slice REMOVED, not a bare `{}`. The old fixture
+    // asserted an empty object was a GameState, which tests less than it looks
+    // like: nothing else on the state exists either, so a crash anywhere in the
+    // function would have been attributed to the missing `stocks`. `stocks` is
+    // optional on GameState, so this needs no cast.
+    const store = makeSetState(createTestGameState({ stocks: undefined }));
     toggleStockWatchlist(store.setState, 'MSFT');
     expect(store.get().stocks?.watchlist).toEqual(['MSFT']);
   });

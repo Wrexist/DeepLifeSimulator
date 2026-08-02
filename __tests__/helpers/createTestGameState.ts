@@ -91,7 +91,7 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
   // the price of tests that cannot silently corrupt each other, paid in a test
   // helper rather than in production code.
   //
-  // NOTE for anyone tidying up: `JSON.parse(JSON.stringify(initialGameState))`
+  // NOTE for anyone tidying up: `structuredClone(initialGameState)`
   // appears in several stress suites that mutate nested state in place. Those
   // are deep clones ON PURPOSE — do not "simplify" them into a bare
   // `createTestGameState()` call unless this clone is still here.

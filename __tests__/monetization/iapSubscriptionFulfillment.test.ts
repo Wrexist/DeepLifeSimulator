@@ -47,7 +47,7 @@ const PREMIUM_MONTHLY = SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY;
 const PREMIUM_YEARLY = SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY;
 
 function freshDisk(): void {
-  mockDisk.state = JSON.parse(JSON.stringify(initialGameState));
+  mockDisk.state = structuredClone(initialGameState);
   if (mockDisk.state.socialMedia) mockDisk.state.socialMedia.verifiedPro = undefined;
 }
 

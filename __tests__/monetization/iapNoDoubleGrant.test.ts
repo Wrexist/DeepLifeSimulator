@@ -52,7 +52,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 const GEMS_500 = IAP_PRODUCTS.GEMS_500;
 
 function freshDisk(): void {
-  mockDisk.state = JSON.parse(JSON.stringify(initialGameState));
+  mockDisk.state = structuredClone(initialGameState);
   mockDisk.state.stats.gems = 0;
 }
 

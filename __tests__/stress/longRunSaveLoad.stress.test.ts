@@ -34,7 +34,7 @@ import { expectNoNaN, expectNoInfinity } from './helpers/assertions';
 
 function freshState(): GameState {
   // Deep clone so mutations during one test do not bleed into another.
-  return JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  return structuredClone(initialGameState);
 }
 
 /** Recursively check for JSON-unsafe values (undefined inside objects is OK,
