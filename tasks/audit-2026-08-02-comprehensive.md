@@ -90,7 +90,7 @@ has already cost two bug reports.
 The class that produced five of today's seven reports. Ordered by how much the
 player is affected by something they cannot see.
 
-### 2A — HIGH: `wantedLevel`
+### 2A — HIGH: `wantedLevel` — DONE 2026-08-02
 
 38 references in logic, **0 in any component**. It gates police/crisis events
 (`engine.ts:196,211`) and it **quadruples** the personal-crisis rate:
@@ -101,10 +101,17 @@ dark web has a *separate*, visible `heat` stat (`lib/darkweb/heat.ts` says it
 "replaces the binary wantedLevel"), so a player reasonably assumes heat is the
 whole picture. It is not.
 
-**Open question for the owner:** is a hidden wanted level deliberate (you should
-not know how hot you are)? If so it needs no fix — but then the 4× crisis swing
-should probably be softened, because an unknowable modifier that large reads as
-random bad luck.
+**Resolved without needing the owner.** The game already displays the direct
+analogue: `lib/darkweb/heat.ts` says in its own header that heat "replaces the
+binary wantedLevel ticker", and heat has a band, a label and a meter. Heat only
+ever covered dark-web work, so street crime kept feeding a meter nothing showed.
+Consistency settles it — display it.
+
+Shipped: `lib/crime/criminalRecord.ts` owns the arithmetic, `JobActions` reads it
+instead of three inline expressions, and the Street Jobs tab states all three
+costs (and shows nothing for a clean player). The worst of the three was the
+least guessable — a background check costing up to 30% on LEGITIMATE career
+applications, caused by a stat on another screen.
 
 ### 2B — HIGH: `criminalXp` / `criminalLevel` progression
 

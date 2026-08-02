@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { summarizeCriminalRecord } from '@/lib/crime/criminalRecord';
 import { View,
     Text,
     ScrollView,
@@ -138,6 +139,13 @@ function WorkScreenContent() {
             criminalStreetJobs: jobs.filter(job => job.illegal === true && !CREATIVE_HOBBY_JOB_IDS.includes(job.id)),
         };
     }, [gameState.streetJobs]);
+
+    // Derived from the SAME helper JobActions uses, so the numbers shown here
+    // cannot drift from the numbers applied.
+    const record = useMemo(
+        () => summarizeCriminalRecord(gameState.wantedLevel, gameState.criminalLevel),
+        [gameState.wantedLevel, gameState.criminalLevel],
+    );
 
     // State for negative stats popup
 
@@ -1006,6 +1014,36 @@ function WorkScreenContent() {
                                     <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
                                         Street work this week: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK}
                                     </Text>
+                                    {/* The criminal record, stated for the same reason as
+                                        the weekly cap above (UX-4): it is enforced either
+                                        way, and showing it is what stops the player
+                                        discovering it by being refused.
+
+                                        `wantedLevel` was read in three places in
+                                        JobActions and displayed in NONE. Its worst effect
+                                        is the one furthest from this screen — a
+                                        background check that quietly costs up to 30% on
+                                        LEGITIMATE career applications. The dark web
+                                        already shows its equivalent (`heat`), so this was
+                                        the only crime meter a player could not see. */}
+                                    {record.wantedLevel > 0 || record.criminalLevel > 0 ? (
+                                        <View style={local.recordCard}>
+                                            <Text style={local.recordTitle}>
+                                                {record.bandLabel}
+                                                {record.wantedLevel > 0 ? ` · wanted ${record.wantedLevel}` : ''}
+                                                {record.criminalLevel > 0 ? ` · criminal lv ${record.criminalLevel}` : ''}
+                                            </Text>
+                                            {record.arrestBonusPct > 0 && (
+                                                <Text style={local.recordLine}>+{record.arrestBonusPct}% chance of being caught on illegal work</Text>
+                                            )}
+                                            {record.hiringPenaltyPct > 0 && (
+                                                <Text style={local.recordLine}>−{record.hiringPenaltyPct}% on legitimate job applications (background check)</Text>
+                                            )}
+                                            {record.raisesCrisisRate && (
+                                                <Text style={local.recordLine}>Bad luck events are far more likely while you are wanted</Text>
+                                            )}
+                                        </View>
+                                    ) : null}
                                     {/* Transport gates delivery work, so it belongs
                                         above the gig list rather than buried in a
                                         vehicles screen the player has no money for. */}
@@ -1262,6 +1300,25 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
+    recordCard: {
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.35)',
+        backgroundColor: 'rgba(239, 68, 68, 0.10)',
+        borderRadius: scale(10),
+        padding: scale(10),
+        marginBottom: scale(10),
+        gap: scale(2),
+    },
+    recordTitle: {
+        fontSize: fontScale(12),
+        fontWeight: '800',
+        color: '#EF4444',
+    },
+    recordLine: {
+        fontSize: fontScale(11),
+        fontWeight: '600',
+        color: 'rgba(148, 163, 184, 0.95)',
+    },
     boardNote: {
         fontSize: fontScale(12),
         fontWeight: '600',

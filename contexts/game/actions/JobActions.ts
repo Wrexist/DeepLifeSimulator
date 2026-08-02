@@ -2,6 +2,7 @@
  * Job & Career Actions
  */
 import React from 'react';
+import { wantedArrestBonus, hiringPenalty } from '@/lib/crime/criminalRecord';
 import { GameState, CrimeSkillId, PromotionDetails } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
@@ -340,7 +341,9 @@ export const performStreetJob = (
   // Risk calculation — wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;
   const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
-  const wantedBonus = job.illegal ? Math.min(25, wantedLevel * 3) : 0; // +3% per wanted level, cap 25%
+  // Shared with the UI (lib/crime/criminalRecord) so the Street Jobs screen can
+  // state this number instead of the player inferring it from arrest streaks.
+  const wantedBonus = wantedArrestBonus(wantedLevel, !!job.illegal);
   const caughtChance = Math.min(80, baseCaughtChance + wantedBonus); // Cap at 80%
   const caughtRollKey = `street_job_caught:${gameState.weeksLived || 0}:${jobId}:attempt:${attemptNumber}`;
   const caughtRoll = caughtChance > 0 ? getDeterministicRoll(gameState, caughtRollKey) : null;
@@ -787,7 +790,10 @@ export const applyForJob = (
   // Represents employers doing background checks
   const criminalLevel = gameState.criminalLevel || 0;
   const wantedLevel = gameState.wantedLevel || 0;
-  const criminalPenalty = Math.min(30, criminalLevel * 5 + wantedLevel * 2);
+  // Same shared helper. This one is the least guessable of the record's
+  // effects — it makes LEGITIMATE career applications fail more often, with the
+  // cause sitting in a street-crime stat on a different screen.
+  const criminalPenalty = hiringPenalty(criminalLevel, wantedLevel);
 
   // Base acceptance chance (50% for first attempt, increases with attempts)
   const baseAcceptanceChance = 50;
