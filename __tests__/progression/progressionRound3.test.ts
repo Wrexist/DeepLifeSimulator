@@ -24,7 +24,6 @@ import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import { getEventFrequencyBoost } from '@/lib/prestige/applyBonuses';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
 import { GENETIC_TRAITS } from '@/lib/legacy/geneticTraits';
-import { buildLegacyPassRewards } from '@/lib/legacyPass/legacyPass';
 import { MIN_EDUCATIONS_FOR_EDUCATED_LEGACY } from '@/lib/prestige/prestigeAchievements';
 import fs from 'fs';
 import path from 'path';
