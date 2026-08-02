@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { askRentOverage } from '@/lib/realEstate/askRentGuidance';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert } from 'react-native';
 import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
@@ -151,6 +152,20 @@ export default function ManagePropertyModal({
                 />
                 <Text style={[styles.inputSuffix, { color: theme.textMuted }]}>/wk</Text>
               </View>
+
+              {/* An over-ask is accepted and then clamped by `effectiveAskRent`
+                  at payout. Stating the collectable amount only when the ask
+                  exceeds the cap keeps this out of the way on a normal ask —
+                  a warning shown every time is noise. */}
+              {(() => {
+                const over = askRentOverage(rent, value);
+                if (!over) return null;
+                return (
+                  <Text style={[styles.capNote, { color: accent.warning }]}>
+                    Tenants top out at ${Math.round(over.collected).toLocaleString()}/wk for this property — asking more collects the same.
+                  </Text>
+                );
+              })()}
 
               <View style={styles.btnRow}>
                 <TouchableOpacity
@@ -402,6 +417,7 @@ const styles = StyleSheet.create({
   },
   inputPrefix: { fontSize: responsiveFontSize.md, fontWeight: '700' },
   inputSuffix: { fontSize: responsiveFontSize.xs },
+  capNote: { fontSize: responsiveFontSize.xs, marginTop: responsiveSpacing.xs, lineHeight: responsiveFontSize.md },
   input: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600', paddingVertical: responsiveSpacing.sm },
   btnRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
   btn: { flex: 1, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.lg, alignItems: 'center' },
