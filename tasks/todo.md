@@ -1,73 +1,94 @@
-# Active plan — three product decisions unblocked (2026-08-01) — ALL THREE SHIPPED
+# Active plan — four owner decisions (2026-08-02)
 
-The owner chose the "wire it as designed" option for all three systems that
-were promising effects no code applied. Each ships as its own commit with its
-own regression suite, proved red against the pre-fix tree.
+Previous plan (C-1 … C-4, 2026-08-01) shipped in full; superseded here.
 
-## C-1 — Commitment system: wire the promised bonuses and penalties
+---
 
-The modal already shows the player concrete percentages. `commitmentSystem.ts`
-already computes them. Only the call sites are missing: `getEffectiveEnergyCost`
-and `getEffectiveProgressGain` have zero production callers, penalties are never
-applied, and only hobby XP receives a bonus.
+## 1. Hard Rule #7 — the two remaining side accent bars
 
-- [x] Add one shared entry point to `commitmentSystem.ts` so all four areas
-      resolve bonuses+penalties identically (and a plain multiplier form for
-      the career rate chain, which is multiplicative not integer).
-- [x] career → `applyCareerProgress.ts` progress rate
-- [x] hobbies → `PursuitActions.ts` energy cost (progress already wired)
-- [x] relationships → `DatingActions.ts` date energy + relationship boost
-- [x] health → `ItemActionsContext.performHealthActivity` energy cost
-- [x] Regression suite; prove red; full gate — 15/20 red pre-fix, 418 suites green
+**Decision: tinted background, no border.**
 
-## C-2 — Family business: make Brand and Reputation do something
+Correction to my own earlier report: I described these as "one-sided colored
+borders". They are not. They are 3px-wide `<View>` stripes
+(`stripe: { width: scale(3) }`) with a semantic `backgroundColor`. The rule bans
+"side accent bars" by name, so the flag stands — but a `borderLeftWidth` grep
+never would have found them, and the `borderBottomWidth` lines in the same rows
+are neutral `theme.border` hairline dividers, which the rule explicitly allows
+and which stay.
 
-`manageFamilyBusiness` charges for three actions that raise `brandValue` and
-`reputation`. `brandValue` is rendered as a meter and read by nothing else;
-`reputation` is read by nothing at all.
+- [x] `components/stocks/StockRow.tsx:231` — sector-colored stripe → tinted row background
+- [x] `components/mobile/StocksApp.tsx:944` — buy/sell-colored stripe → tinted row background
+- [x] Regression test: no stripe view remains in either row, and the semantic
+      color still varies with sector / side, so the fix does not silently drop
+      the meaning it was carrying
 
-- [x] Brand scales the business's weekly income
-- [x] Reputation shifts event/scandal odds, reusing the `hustleLogic`
-      `scandalSpawnChance` pattern rather than inventing one
-- [x] Regression suite; prove red; full gate — 3/18 wiring assertions red, 419 green
+## 2. Credit-card screen — "list won't scroll at all"
 
-## C-3 — Legacy Points: a sink
+Read all four credit-card surfaces. `AdvancedBankApp` (main + credit detail) and
+mobile `BankApp` are structurally correct: a `flex: 1` ScrollView under a
+`flex: 1` root, with proper bottom padding.
 
-Earned every 10 weeks and from four elder activities; never spent or shown.
+`components/banking/ApplyCardModal.tsx:112` is not:
 
-- [x] A small shop spending points on the heir's starting position
-- [x] Surface the balance so the player knows they have it
-- [x] STATE_VERSION bump only if a new stored field is required — check the
-      §7 carve-out rules before writing any migration
-- [x] Regression suite; prove red; full gate — 26 new assertions, 420 suites green
+    <ScrollView style={{ maxHeight: scale(360) }}>   // fixed cap, no flexShrink
 
-## C-4 — Progressive disclosure (owner decision, 2026-08-01)
+inside a sheet with `maxHeight: '90%'` holding a column of header + subtitle +
+list + conditional reject notice + Apply button. A fixed `maxHeight` cannot give
+space back, so on a short screen the column overflows the sheet and the Apply
+button is pushed outside it — with nothing scrollable to reach it, because only
+the inner list scrolls and the sheet itself does not.
 
-Pace unlocks by the five life chapters; show locked features with their
-requirement rather than hiding them; a new player starts on Home / Life /
-Work / Health.
+- [x] Replace the fixed `maxHeight` with `flexShrink: 1` so the list takes
+      whatever is left after the header and button, at any screen size
+- [x] Regression test: the modal declares no fixed-height list, and the Apply
+      button is a sibling of the list rather than inside it
 
-- [x] `lib/progress/featureUnlocks.ts` — the table + a DERIVED tier (never
-      stored, monotonic, three signals with the max winning)
-- [x] Computer and phone app grids gate per app: dim, padlock, explain on tap
-- [x] Chapter completion moved into the week tick (`applyChapterProgress.ts`)
-      so the unlock spine no longer depends on the player opening a card
-- [x] `LifeChapterCard` made read-only, claim handler deleted
-- [x] Corrected `tab:apps` / `tab:mobile` / `tab:computer` from tiers 1/1/2 to
-      tier 0 — the layout's `ownsAnyDevice` gate is the right one, and a
-      chapter tier would have locked a player out of a phone they had bought
-- [x] Life → Stats gated at tier 1 via new optional lock support on the shared
-      `SegmentedControl`; Health and Market never gated
-- [x] Regression suites; proved red (4 + 3 assertions); full gate
+**Not confirmed as the reported screen.** This is a real defect on its own merits
+and it matches the symptom, but there are four card surfaces and I do not know
+which one the screenshot showed. Report it that way — do not claim the player's
+report is closed.
 
-Remaining, deliberately not done: nothing further. The four bottom-bar entries
-are Home / Work / Life / Apps, and Apps is correctly gated on device
-ownership, so the owner's "week 1 shows Home/Life/Work/Health" is satisfied —
-Health is Life's default segment.
+## 3. Player portrait — "age, keep identity"
+
+**Decision: portrait moves through age brackets, same person and gender.**
+
+The parents-aging-into-the-wrong-gender bug is already fixed (`utils/facePool.ts`
+— `hero_grandparent.png` moved to the male bucket, `HERO_FACE_SEX` added,
+`getAvatarPortrait` switched from `Math.min` to `index % bucket.length`).
+
+- [ ] Verify the player's own avatar resolves through the same age-bracket path
+- [ ] Verify identity is stable: same avatarId keeps one sex across all brackets
+- [ ] Regression test: sweep one avatarId across the full age range; assert the
+      sex never changes and the bracket does
+
+## 4. MON-5 Revival Pack — "one banked revive, consumed on death"
+
+The $2.99 pack currently revives only at the instant of purchase, so buying it
+while alive is a permanent no-op. Biggest item here: it needs new state.
+
+- [ ] `contexts/game/types.ts` — add the banked-revive field
+- [ ] `contexts/game/initialState.ts` — default + `STATE_VERSION` 29 → 30
+- [ ] `utils/saveMigrations.ts` — v30 migration
+- [ ] `utils/saveValidation.ts` — `repairGameState` mirror **if** the default is
+      concrete; skip both if it is `undefined` (the v26/v27/v28 carve-out).
+      Decide from the chosen shape; whatever is written must set `repaired = true`
+- [ ] `__tests__/helpers/createTestGameState.ts` — include the field
+- [ ] IAP grant path — bank a revive instead of reviving inline
+- [ ] Death flow — consume exactly one, atomically (§4.4: gate and decrement in
+      the SAME updater, or a double-tap prints lives)
+- [ ] Re-examine the `REVIVAL_PACK` restore carve-out once it is no longer a no-op
+- [ ] Docs: `CLAUDE.md` §7 v30 entry, `DEV.md` / `WORKFLOW.md` STATE_VERSION sync
+
+**Not device-verifiable here.** The StoreKit sandbox needs a TestFlight build;
+everything below the IAP boundary is testable in Jest.
+
+---
 
 ## Standing constraints
 
 - Every behavioural fix proved RED against the pre-fix tree before green.
 - Every suite carries a control asserting what must NOT change.
-- Gate before each commit: `tsc` on both configs (test ratchet 182),
-  `eslint --quiet`, full Jest, `npm run audit:weekly` (standing warning 64).
+- Gate before each commit: `tsc` on both configs (test ratchet now **0**),
+  `eslint --quiet`, full Jest, `npm run audit:weekly`.
+- PR #100 check-ins until merged or closed.
+- `as GameState` sweep (Hard Rule #3): 64 → 23 done, 23 remain.

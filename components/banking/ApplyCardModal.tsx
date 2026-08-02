@@ -109,7 +109,21 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
             Your credit score: <Text style={{ color: theme.text, fontWeight: '700' }}>{creditScore}</Text>
           </Text>
 
-          <ScrollView style={{ maxHeight: scale(360) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          {/*
+            `flexShrink: 1`, not a fixed `maxHeight: scale(360)`.
+
+            The sheet is `maxHeight: '90%'` and holds a column: header, subtitle,
+            this list, a conditional rejection notice, and the Apply button. A
+            fixed max-height cannot give space back when that column is taller
+            than the sheet, so on a short screen the button is pushed outside the
+            sheet's bounds — and there is nothing to scroll to reach it, because
+            only this inner list scrolls and the sheet itself does not.
+
+            Shrinking instead means the list takes whatever is left after the
+            header and the button on any screen size: the button stays reachable,
+            and the list scrolls exactly when it needs to.
+          */}
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {PRODUCTS.map((p) => {
               const active = selected?.tier === p.tier;
               const eligible = creditScore >= p.minCreditScore;

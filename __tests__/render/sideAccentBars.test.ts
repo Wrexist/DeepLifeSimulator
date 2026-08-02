@@ -85,16 +85,20 @@ describe('the swept card surfaces have no side accent bar', () => {
     expect(code(read('components/stocks/StockRow.tsx'))).toMatch(/borderColor: sectorColor/);
   });
 
-  it('StockRow dropped the stripe from its CARD but kept it in the list row', () => {
-    // The standalone card is the one with a radius and a border; the grouped
-    // variant is a flat row and is left for a design call.
+  it('StockRow has no stripe left in EITHER variant', () => {
+    // This used to assert exactly one survivor: the standalone card had moved
+    // its sector onto a full border, and the grouped list row was held back
+    // pending a design call, because a flat row has no border to move a colour
+    // onto and no radius to curl against.
+    //
+    // The owner made that call on 2026-08-02 — tinted background, no border —
+    // so the survivor is gone and the count is zero. See
+    // `__tests__/render/rule7StockRows.test.ts` for the replacement's own
+    // assertions, including that the sector colour still reaches the row.
     const src = code(read('components/stocks/StockRow.tsx'));
-    const stripes = src.match(/styles\.stripe/g) ?? [];
 
-    expect(stripes.length).toBe(1);
-    // The survivor is the grouped branch — it sits before the standalone card's
-    // `getGlassCard` call in the file.
-    expect(src.indexOf('styles.stripe')).toBeLessThan(src.indexOf('getGlassCard(darkMode, 6)'));
+    expect(src.match(/styles\.stripe/g) ?? []).toHaveLength(0);
+    expect(src).not.toMatch(/stripe:\s*\{\s*width:/);
   });
 });
 
