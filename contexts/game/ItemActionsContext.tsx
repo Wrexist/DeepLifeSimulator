@@ -397,7 +397,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       let updatedDiseases = [...(prevState.diseases || [])];
       const curedDiseases: string[] = [];
       let showCureSuccessModal = prevState.showCureSuccessModal;
-      let updatedCuredDiseases = [...(prevState.curedDiseases || [])];
       let updatedDiseaseHistory = prevState.diseaseHistory || {
         diseases: [],
         totalDiseases: 0,
@@ -431,7 +430,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
             if (cureRoll < 0.5) {
               // Disease cured
               curedDiseases.push(disease.name);
-              updatedCuredDiseases.push(disease.name);
               updatedDiseases = updatedDiseases.filter(d => d.id !== disease.id);
               
               // Add immunity if applicable
@@ -496,7 +494,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         diseasesToCure.forEach((disease) => {
           curedDiseaseIds.add(disease.id);
           curedDiseases.push(disease.name);
-          updatedCuredDiseases.push(disease.name);
           
           // Add immunity if applicable
           // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -558,7 +555,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         );
         criticalDiseases.forEach(disease => {
           curedDiseases.push(disease.name);
-          updatedCuredDiseases.push(disease.name);
           
           // Update disease history
           updatedDiseaseHistory = {
@@ -652,10 +648,23 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         dailySummary,
         lifetimeStatistics: updatedLifetimeStats,
         diseases: updatedDiseases,
-        // R2-B: dedupe + cap to 30. Without this the same disease cured
-        // multiple times duplicates entries forever, and the CureSuccessModal
-        // renders the full list.
-        curedDiseases: Array.from(new Set(updatedCuredDiseases)).slice(-30),
+        // THIS treatment's cures only — not the lifetime list.
+        //
+        // Player report: "When fixing a current ailment, all previous ailments
+        // are mentioned." Curing one condition showed "CURED · 9" listing every
+        // disease the character had ever recovered from, because this field
+        // accumulated (`[...prev, ...new]`, deduped, capped at 30) and
+        // `CureSuccessModal` renders all of it.
+        //
+        // Safe to narrow: that modal is the field's ONLY reader anywhere in the
+        // app, and the lifetime tally already lives in
+        // `diseaseHistory.totalCured`, which is updated just below. So no new
+        // GameState field and no STATE_VERSION bump — an existing save simply
+        // shows the correct short list on its next treatment.
+        //
+        // Still deduped: a single visit can cure the same-named condition from
+        // two sources, and listing it twice reads as a bug of its own.
+        curedDiseases: Array.from(new Set(curedDiseases)),
         showCureSuccessModal: showCureSuccessModal,
         diseaseHistory: updatedDiseaseHistory,
         diseaseImmunities: updatedImmunities,

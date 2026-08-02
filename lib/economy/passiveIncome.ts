@@ -1,6 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { getStockInfo } from './stockMarket';
-import { namedHirePerformanceFactor } from '@/lib/business/hustleLogic';
+import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
@@ -273,19 +273,15 @@ export function calcWeeklyPassiveIncome(
     // [0.75, 1.6] — the COMBINED multiplier stays within the existing cap.
     // Older saves without a hustleApp overlay get a neutral 1.0.
     try {
+      // The arithmetic moved to `companyIncomeFactors` so the Hustle UI can
+      // show the SAME number the player is paid. It used to live here only,
+      // which is why brand / share / hires / acquisitions were all invisible on
+      // the company card and got reported as doing nothing.
       const overlay = state.hustleApp?.companies?.[company.id];
       if (overlay) {
-        const brandScore = typeof overlay.brand?.score === 'number' && isFinite(overlay.brand.score)
-          ? overlay.brand.score
-          : 50;
-        const marketShare = typeof overlay.marketSharePercent === 'number' && isFinite(overlay.marketSharePercent)
-          ? overlay.marketSharePercent
-          : 0;
-        const hireFactor = namedHirePerformanceFactor(overlay.hiringPipeline?.namedHires);
-        const rawFactor = 1 + (brandScore - 50) / 200 + marketShare / 200 + hireFactor;
-        const brandFactor = Math.min(1.6, Math.max(0.75, rawFactor));
-        if (isFinite(brandFactor) && brandFactor > 0) {
-          weeklyIncome = Math.round(weeklyIncome * brandFactor);
+        const { multiplier } = companyIncomeFactors(overlay);
+        if (isFinite(multiplier) && multiplier > 0) {
+          weeklyIncome = Math.round(weeklyIncome * multiplier);
         }
       }
     } catch {

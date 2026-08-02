@@ -421,6 +421,47 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   // (defaults to the current mining target).
   const autoRepairEnabled = !!gameState.warehouse?.autoRepairEnabled;
   const autoRepairCryptoId = gameState.warehouse?.autoRepairCryptoId ?? mineTargetId;
+
+  // What auto-repair will actually do on the next tick, mirroring
+  // `applyMiningWarehouse`: only rigs under 50%, paid cheapest-first out of the
+  // funding coin's USD worth.
+  const autoRepairStatus = React.useMemo(() => {
+    const eligible = MINER_TIERS.filter(
+      (t) => (ownedMiners[t.id] ?? 0) > 0 && (minerDurability[t.id] ?? 100) < 50,
+    );
+    const coin = cryptos.find((c) => c.id === autoRepairCryptoId);
+    const owned = coin && isFinite(coin.owned) && coin.owned > 0 ? coin.owned : 0;
+    const price = coin && isFinite(coin.price) && coin.price > 0 ? coin.price : 0;
+    const budgetUsd = owned * price;
+
+    if (eligible.length === 0) {
+      return {
+        ok: true,
+        message: `Nothing to repair — no rig is under 50% health yet. Fleet is at ${fleetHealth}%.`,
+      };
+    }
+    const bill = eligible.reduce((sum, t) => {
+      const dur = minerDurability[t.id] ?? 100;
+      return sum + (MINER_REPAIR_COSTS[t.id] || 0) * ((100 - dur) / 100) * (ownedMiners[t.id] ?? 0);
+    }, 0);
+
+    if (budgetUsd <= 0) {
+      return {
+        ok: false,
+        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need repair (~$${Math.round(bill).toLocaleString()}), but you hold no ${autoRepairCryptoId.toUpperCase()} to pay with.`,
+      };
+    }
+    if (budgetUsd < bill) {
+      return {
+        ok: false,
+        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need ~$${Math.round(bill).toLocaleString()}; your ${autoRepairCryptoId.toUpperCase()} covers $${Math.round(budgetUsd).toLocaleString()}, so they will be partly repaired.`,
+      };
+    }
+    return {
+      ok: true,
+      message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} will be fully repaired next week for ~$${Math.round(bill).toLocaleString()} in ${autoRepairCryptoId.toUpperCase()}.`,
+    };
+  }, [ownedMiners, minerDurability, cryptos, autoRepairCryptoId, fleetHealth]);
   const handleToggleAutoRepair = () => {
     const res = setAutoRepair(gameState, setGameState, {
       enabled: !autoRepairEnabled,
@@ -703,9 +744,30 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </View>
         <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
           {autoRepairEnabled
-            ? `Each week, rigs below 50% health are restored to 100%, billed in ${autoRepairCryptoId.toUpperCase()}.`
+            ? `Each week, rigs below 50% health are repaired — cheapest first — for as much as your ${autoRepairCryptoId.toUpperCase()} balance covers.`
             : 'Rigs degrade 2–5% per week. Enable to auto-restore worn rigs from a crypto of your choice.'}
         </Text>
+        {/*
+          Player report: "Auto repair in the crypto page does not work."
+          It does, but two things made it look broken and neither was visible:
+
+            1. It only touches rigs UNDER 50% health. At 2-5% decay per week
+               that is 10-25 weeks of arming the toggle and watching nothing
+               happen.
+            2. It is BUDGETED by the funding coin. With a zero balance of the
+               selected crypto it silently repairs nothing — no message, no
+               log, no difference from the feature being broken.
+
+          The caption above also used to promise rigs were "restored to 100%",
+          which is only true when the balance covers the full bill.
+
+          So state, every week, exactly what will happen next tick.
+        */}
+        {autoRepairEnabled && (
+          <Text style={[styles.mineCaption, { color: autoRepairStatus.ok ? theme.textMuted : amber.solid }]}>
+            {autoRepairStatus.message}
+          </Text>
+        )}
         {autoRepairEnabled && (
           <View style={styles.chipRow}>
             {cryptos.map((c) => {

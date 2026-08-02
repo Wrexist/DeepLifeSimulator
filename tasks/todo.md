@@ -109,3 +109,64 @@ Nothing blocking. Two things are informational:
   App Store Connect first; not a code change.
 - **MON-5 is not device-verified.** StoreKit sandbox needs a TestFlight build.
   Buy while alive, then die and spend, is the flow.
+
+---
+
+# Player bug reports, 2026-08-02 (Discord #bug-reports, 4 screenshots)
+
+Seven reports. Investigated each against source BEFORE deciding a fix; three
+turned out to be one shared root cause, and one is not reproducible.
+
+## ROOT CAUSE A — the Hustle UI shows the raw stored income, not the real one
+
+`CompanyTile` renders `company.weeklyIncome` / `baseWeeklyIncome`. But
+`calcWeeklyPassiveIncome` (passiveIncome.ts:275-292) multiplies that by a
+factor built from **brand score, market share and named-hire performance**
+before paying the player. Those three inputs never touch `weeklyIncome`, so the
+card cannot show them.
+
+That single gap produces three of the reports:
+
+- [x] "Shares and brand do not effect anything" — they do: `1 + (brand-50)/200 +
+      share/200`, clamped [0.75, 1.6]. The player's own evidence is two
+      restaurants at 10.8% vs 32.9% share showing identical revenue, which is
+      exactly what a base-only display looks like.
+- [x] "Key hires do not effect anything" — `namedHirePerformanceFactor` is in
+      the same multiplier, ±8%.
+- [x] "Acquisitions change nothing" — `acceptAcquisition` raises
+      `marketSharePercent` by `synergyBonusPercent / 4`, which feeds the above.
+
+Fix: one exported multiplier used by BOTH the income path and the UI, so the
+card shows what the player is actually paid, with the contributions broken out.
+
+## ROOT CAUSE B — `company.money` is a dead field rendered as "Cash"
+
+- [x] `createCompany` never sets `money`, and nothing writes it afterwards. The
+      tile and the detail KPI both render `company.money ?? 0`, so every company
+      shows **CASH $0** forever. Confirmed by grep: the only two readers are
+      those two UI lines.
+
+This also explains the campaign report:
+
+- [x] "Marketing campaigns do not count against you — I did a 300k and there was
+      no expense." **NOT REPRODUCIBLE as written.** Measured: $1,000,000 →
+      $700,000 on a $300k campaign, and the weekly spend is charged again in
+      `hustleTick`. What the player was almost certainly looking at is the
+      company's CASH $0, which never moves whatever they spend.
+
+## The rest
+
+- [x] "Ask for a raise doesn't apply to income. It stays flat rate." The raise IS
+      applied at payout (`applyCareerSalaryAndPenalty.ts:79`,
+      `salary * raisePremium`). NO component reads `raiseMultiplier` — every
+      salary shown in `CareerPathCard` is the base. Same class as root cause A.
+- [x] "When fixing a current ailment, all previous ailments are mentioned."
+      `curedDiseases` is a cumulative lifetime list (deduped, last 30);
+      `CureSuccessModal` renders all of it, hence "CURED · 9" for one treatment.
+      The modal is its ONLY reader and the lifetime tally already lives in
+      `diseaseHistory.totalCured`, so it can hold just this treatment's cures —
+      no new field, no STATE_VERSION bump.
+- [x] "Auto repair in the crypto page does not work."
+      `applyMiningWarehouse.ts:133` skips any rig at `durability >= 50`. At
+      2-5%/week decay that is 10-25 weeks of visibly nothing happening, with the
+      threshold stated nowhere.
