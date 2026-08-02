@@ -71,24 +71,56 @@ function checkStep(name, command, options = {}) {
 // Main preflight checks
 logSection('🚀 PREFLIGHT CHECK - MANDATORY RELEASE CHECKS');
 
-// 1. TypeScript Compilation Check (Non-blocking for type errors, blocking for syntax)
+// 1. TypeScript Compilation Check (BLOCKING — see note)
 logSection('1. TypeScript Type Checking');
-log('⚠️  NOTE: TypeScript type errors are non-blocking.', YELLOW);
-log('   Syntax errors will still fail the build. Focus on syntax first.\n', YELLOW);
-log('[CHECK] TypeScript compilation...', YELLOW);
+
+/*
+ * This used to run bare `npx tsc --noEmit` and treat every result as a
+ * non-blocking warning, with the comment "many exist, focus on syntax".
+ *
+ * Two things made that wrong as of 2026-08-02:
+ *
+ *   1. Bare tsc resolves `tsconfig.json`, which has `noUnusedLocals` ON and
+ *      includes the test tree. The project deliberately disables that in BOTH
+ *      of its real configs — an unused import in a test is lint's job. So the
+ *      214 "errors" it reported were 214 unused-symbol notices (TS6133/6192/
+ *      6196/6198) and ZERO type errors.
+ *   2. Both real gates now pass at zero: `tsconfig.typecheck.json` (app source,
+ *      what `npm run type-check` and CI enforce) and `tsconfig.tests.json`
+ *      (the test tree, ratcheted from 182 to 0).
+ *
+ * The old shape meant a genuine app type error would appear as one more line
+ * among 214 and still not block a release. That is the same failure mode as a
+ * permanently-red audit check: noise trains you to skim it.
+ *
+ * So: run the two configs the project actually gates on, and BLOCK on them.
+ */
+log('[CHECK] App source (tsconfig.typecheck.json)...', YELLOW);
 try {
-  execSync('npx tsc --noEmit --pretty', {
+  execSync('npx tsc --noEmit -p tsconfig.typecheck.json --pretty', {
     stdio: 'inherit',
     cwd: process.cwd(),
     env: { ...process.env, FORCE_COLOR: '1' }
   });
-  log('[PASS] TypeScript compilation', GREEN);
+  log('[PASS] App source type-checks clean', GREEN);
 } catch (error) {
-  // TypeScript errors are non-blocking (many exist, focus on syntax)
-  log('[WARN] TypeScript errors found (non-blocking)', YELLOW);
-  log('   Run: npx tsc --noEmit to see detailed errors', YELLOW);
-  log('   Priority: Fix syntax errors and runtime-blocking type errors first.\n', YELLOW);
-  // Don't set hasErrors - type errors don't block builds
+  log('[FAIL] App source has type errors', RED);
+  log('   Run: npm run type-check', RED);
+  hasErrors = true;
+}
+
+log('\n[CHECK] Test tree (ratchet)...', YELLOW);
+try {
+  execSync('node scripts/check-test-types.js', {
+    stdio: 'inherit',
+    cwd: process.cwd(),
+    env: { ...process.env, FORCE_COLOR: '1' }
+  });
+  log('[PASS] Test tree holds at its baseline', GREEN);
+} catch (error) {
+  log('[FAIL] Test-tree type errors moved off the baseline', RED);
+  log('   Run: npm run type-check:tests', RED);
+  hasErrors = true;
 }
 
 // 2. Linter Check (if configured) - Non-blocking
