@@ -34,7 +34,15 @@ function established(weeksLived: number): GameState {
   const base = createTestGameState();
   return createTestGameState({
     weeksLived,
-    stats: { ...base.stats, money: 250_000_000, happiness: 100, health: 100, energy: 100, fitness: 100 },
+    // `reputation` belongs on `stats`. It used to sit at the top level of this
+    // override, where GameState has no such field — so this "satisfies every
+    // objective" fixture carried the DEFAULT reputation, and any challenge
+    // gated on it was being measured against the wrong number.
+    stats: {
+      ...base.stats,
+      money: 250_000_000, happiness: 100, health: 100, energy: 100, fitness: 100,
+      reputation: 100,
+    },
     bankSavings: 50_000_000,
     companies: [
       { id: 'tech', name: 'A', type: 'tech', employees: 40 },
@@ -43,7 +51,6 @@ function established(weeksLived: number): GameState {
     ] as never,
     claimedProgressAchievements: Array.from({ length: 40 }, (_, i) => `ach_${i}`),
     socialMedia: { ...(base.socialMedia ?? {}), followers: 250_000, posts: 200 } as never,
-    reputation: 100,
   });
 }
 

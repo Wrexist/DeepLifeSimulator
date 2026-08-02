@@ -292,6 +292,9 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     expect(disabled).toBe(true);
     // Sanity: a healthy pet is not disabled.
     const okPet = { energy: 80 };
-    expect((okPet.energy ?? 100) < 20 || (50 ?? 100) < 15).toBe(false);
+    // `50 ?? 100` — a literal is never nullish, so the fallback was dead code
+    // (TS2869). In a suite whose whole subject is fallback operators, a `??`
+    // that can never fire is worth not writing.
+    expect((okPet.energy ?? 100) < 20 || 50 < 15).toBe(false);
   });
 });
