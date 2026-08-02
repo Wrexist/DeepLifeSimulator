@@ -2,7 +2,7 @@
  * Job & Career Actions
  */
 import React from 'react';
-import { wantedArrestBonus, hiringPenalty } from '@/lib/crime/criminalRecord';
+import { wantedArrestBonus, hiringPenalty, criminalXpForNextLevel, CRIMINAL_XP_PER_ILLEGAL_JOB } from '@/lib/crime/criminalRecord';
 import { GameState, CrimeSkillId, PromotionDetails } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
@@ -96,8 +96,10 @@ function applyStreetJobXp(
 ): Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> {
   const out: Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> = {};
   if (job.illegal) {
-    const newXp = (prev.criminalXp || 0) + 10;
-    const nextLevelXp = (prev.criminalLevel || 1) * 100;
+    // Shared with the UI (lib/crime/criminalRecord) so the progress meter on the
+    // Street Jobs tab cannot drift from the curve that actually levels you up.
+    const newXp = (prev.criminalXp || 0) + CRIMINAL_XP_PER_ILLEGAL_JOB;
+    const nextLevelXp = criminalXpForNextLevel(prev.criminalLevel);
     if (newXp >= nextLevelXp) {
       out.criminalXp = newXp - nextLevelXp;
       out.criminalLevel = (prev.criminalLevel || 1) + 1;

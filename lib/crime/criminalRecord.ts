@@ -114,3 +114,56 @@ export function summarizeCriminalRecord(
     raisesCrisisRate: w > 0,
   };
 }
+
+// ── Criminal progression (2B) ─────────────────────────────────────────────
+
+/**
+ * XP needed to reach the next criminal level.
+ *
+ * The curve is `criminalLevel * 100`, earned at +10 per completed illegal job.
+ * It lived inline in `applyStreetJobXp` and, like the record above, appeared in
+ * no component — so a player had no idea a criminal level existed, let alone
+ * how close they were to the next one.
+ *
+ * That matters because the level is a GATE, not a vanity number:
+ *   - street jobs carry `criminalLevelReq` and refuse below it
+ *   - two ambitions complete at level 3 and level 6 (`lib/ambitions/catalog`)
+ *   - a life ribbon triggers at level 4 (`lib/legacy/ribbonSystem`)
+ *
+ * A gate the player cannot see their progress toward is a gate they experience
+ * as an arbitrary refusal.
+ */
+export const CRIMINAL_XP_PER_LEVEL = 100;
+export const CRIMINAL_XP_PER_ILLEGAL_JOB = 10;
+
+export function criminalXpForNextLevel(criminalLevel: unknown): number {
+  // `|| 1` mirrors `applyStreetJobXp`: level 0 and level 1 both need 100.
+  const lvl = safe(criminalLevel) || 1;
+  return lvl * CRIMINAL_XP_PER_LEVEL;
+}
+
+export interface CriminalProgress {
+  level: number;
+  xp: number;
+  xpForNext: number;
+  /** 0-1, for a meter. Clamped, so a corrupt XP value cannot overflow the bar. */
+  fraction: number;
+  /** Illegal jobs still needed at +10 XP each. */
+  jobsToNextLevel: number;
+}
+
+export function criminalProgress(
+  criminalLevel: unknown,
+  criminalXp: unknown,
+): CriminalProgress {
+  const level = safe(criminalLevel) || 1;
+  const xpForNext = criminalXpForNextLevel(level);
+  const xp = Math.min(safe(criminalXp), xpForNext);
+  return {
+    level,
+    xp,
+    xpForNext,
+    fraction: xpForNext > 0 ? Math.max(0, Math.min(1, xp / xpForNext)) : 0,
+    jobsToNextLevel: Math.max(0, Math.ceil((xpForNext - xp) / CRIMINAL_XP_PER_ILLEGAL_JOB)),
+  };
+}

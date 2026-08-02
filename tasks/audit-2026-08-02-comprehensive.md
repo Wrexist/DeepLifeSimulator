@@ -113,20 +113,29 @@ costs (and shows nothing for a clean player). The worst of the three was the
 least guessable — a background check costing up to 30% on LEGITIMATE career
 applications, caused by a stat on another screen.
 
-### 2B — HIGH: `criminalXp` / `criminalLevel` progression
+### 2B — HIGH: `criminalXp` / `criminalLevel` progression — DONE 2026-08-02
 
 18 refs, 0 in UI. The player levels up a criminal track with no progress
 display.
 
-### 2C — MEDIUM: protection the player cannot check
+### 2C — MEDIUM: protection the player cannot check — DONE 2026-08-02
 
 `diseaseImmunities` (8 refs), `vaccinations` (13 refs) — both drive real
 outcomes; neither is visible. A player who paid for a vaccination has no way to
 confirm they have it.
 
-### 2D — MEDIUM: `legacyBuffs` (8), `dynastyStats` (6)
+### 2D — MEDIUM: `legacyBuffs` — DONE 2026-08-02 · `dynastyStats` — no change
 
-Heir bonuses and dynasty totals, invisible. This is the prestige loop's payoff.
+`legacyBuffs` holds two TIMED buffs — `mentor` (+50% career progress) and
+`luckyCharm` (+10% luck) — each just an expiry week, displayed nowhere. A timed
+buff nobody can see is worse than a permanent one: you cannot tell it is
+running, when it lapses, or plan around either. Now shown as chips on the Work
+tab (which is what `mentor` accelerates), sharing the tick's own `>` comparison
+so a buff the tick no longer applies is never advertised.
+
+`dynastyStats` left alone: it is a rich prestige record, but it is carried and
+aggregated rather than acted on per-week, and building a dynasty screen is a
+feature rather than an audit fix.
 
 ### 2E — LOW: status flags with no surface
 
@@ -134,8 +143,19 @@ Heir bonuses and dynasty totals, invisible. This is the prestige loop's payoff.
 `zeroStatType`, `discoveredSecrets`, `retiredAtWeek`, `escapedFromJail`,
 `computerPreviouslyOwned`, `lastDivorceWeek`, `socialPosts`, `seasonalEvents`
 
-Several are internal bookkeeping and correctly invisible. Each needs a one-line
-judgement rather than a blanket fix.
+**TRIAGED 2026-08-02 — deliberately NO code change.** Eleven are internal
+bookkeeping a player has no reason to see: event gates (`weeksInPoverty`,
+`computerPreviouslyOwned`), milestone timing (`retiredAtWeek`), simulator-only
+(`zeroStatType`), scheduling data (`socialPosts`, `seasonalEvents`), and
+prestige carry (`discoveredSecrets`).
+
+The twelfth, `lastDivorceWeek`, enforces a 26-week cooldown and WOULD be the
+UX-4 "discovered by being refused" problem — except the refusal already states
+the remaining wait. Verified by assertion rather than by prose, because "I
+checked and it was fine" is worth exactly as much as the check behind it.
+
+Recording the no-change matters: without it the next audit re-derives the same
+twelve names and cannot tell "not looked at" from "looked at and left alone".
 
 ---
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { summarizeCriminalRecord } from '@/lib/crime/criminalRecord';
+import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
+import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
     Text,
     ScrollView,
@@ -145,6 +146,22 @@ function WorkScreenContent() {
     const record = useMemo(
         () => summarizeCriminalRecord(gameState.wantedLevel, gameState.criminalLevel),
         [gameState.wantedLevel, gameState.criminalLevel],
+    );
+
+    // Criminal progression. The level GATES street jobs (`criminalLevelReq`),
+    // two ambitions and a life ribbon — but nothing displayed it, so hitting a
+    // requirement read as an arbitrary refusal.
+    const crimeProgress = useMemo(
+        () => criminalProgress(gameState.criminalLevel, gameState.criminalXp),
+        [gameState.criminalLevel, gameState.criminalXp],
+    );
+
+    // Timed legacy buffs. `mentor` is +50% CAREER PROGRESS, which is exactly
+    // what this screen is about — and it was invisible, so a player could not
+    // tell it was running or when it lapsed.
+    const buffs = useMemo(
+        () => activeLegacyBuffs(gameState),
+        [gameState.legacyBuffs, gameState.weeksLived],
     );
 
     // State for negative stats popup
@@ -996,6 +1013,17 @@ function WorkScreenContent() {
                         />
 
                         <View style={local.tabContent}>
+                            {buffs.length > 0 && (
+                                <View style={local.buffRow}>
+                                    {buffs.map((b) => (
+                                        <View key={b.id} style={local.buffChip}>
+                                            <Text style={local.buffChipText}>
+                                                {b.label} · {b.effect} · {b.weeksLeft}w left
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                             {activeTab === 'street' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
@@ -1026,6 +1054,22 @@ function WorkScreenContent() {
                                         LEGITIMATE career applications. The dark web
                                         already shows its equivalent (`heat`), so this was
                                         the only crime meter a player could not see. */}
+                                    {/* Criminal level + progress to the next one. Shown
+                                        whenever the player has done any illegal work,
+                                        which is exactly when the gates start mattering. */}
+                                    {(gameState.criminalXp ?? 0) > 0 || record.criminalLevel > 1 ? (
+                                        <View style={local.progressCard}>
+                                            <Text style={local.progressTitle}>
+                                                Criminal level {crimeProgress.level}
+                                            </Text>
+                                            <View style={local.progressTrack}>
+                                                <View style={[local.progressFill, { width: `${Math.round(crimeProgress.fraction * 100)}%` }]} />
+                                            </View>
+                                            <Text style={local.recordLine}>
+                                                {crimeProgress.xp}/{crimeProgress.xpForNext} XP · {crimeProgress.jobsToNextLevel} more illegal job{crimeProgress.jobsToNextLevel === 1 ? '' : 's'} to level {crimeProgress.level + 1}
+                                            </Text>
+                                        </View>
+                                    ) : null}
                                     {record.wantedLevel > 0 || record.criminalLevel > 0 ? (
                                         <View style={local.recordCard}>
                                             <Text style={local.recordTitle}>
@@ -1300,6 +1344,50 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
+    buffRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: scale(6),
+        marginBottom: scale(10),
+    },
+    buffChip: {
+        borderWidth: 1,
+        borderColor: 'rgba(168, 85, 247, 0.40)',
+        backgroundColor: 'rgba(168, 85, 247, 0.12)',
+        borderRadius: 999,
+        paddingHorizontal: scale(10),
+        paddingVertical: scale(4),
+    },
+    buffChipText: {
+        fontSize: fontScale(11),
+        fontWeight: '700',
+        color: '#C084FC',
+    },
+    progressCard: {
+        borderWidth: 1,
+        borderColor: 'rgba(148, 163, 184, 0.35)',
+        backgroundColor: 'rgba(148, 163, 184, 0.10)',
+        borderRadius: scale(10),
+        padding: scale(10),
+        marginBottom: scale(8),
+        gap: scale(4),
+    },
+    progressTitle: {
+        fontSize: fontScale(12),
+        fontWeight: '800',
+        color: 'rgba(203, 213, 225, 0.95)',
+    },
+    progressTrack: {
+        height: scale(5),
+        borderRadius: 999,
+        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 999,
+        backgroundColor: '#94A3B8',
+    },
     recordCard: {
         borderWidth: 1,
         borderColor: 'rgba(239, 68, 68, 0.35)',
