@@ -29,6 +29,11 @@ function mark(value: any, mode: Mode) {
 export function installAnimatedDriverGuard() {
   if (!isDev) return;
 
+  // Only `timing` still needs a suppression: RN's types declare it in a way
+  // that rejects the assignment, while `spring` and `decay` do not. Their
+  // directives were removed after TypeScript reported them as suppressing
+  // nothing (TS2578) — a stale `@ts-expect-error` is worse than none, because
+  // it will silently swallow a REAL error that appears on that line later.
   const origTiming = Animated.timing;
   // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.timing method to instrument native-driver usage
   Animated.timing = (value: any, config: any) => {
@@ -37,14 +42,12 @@ export function installAnimatedDriverGuard() {
   };
 
   const origSpring = Animated.spring;
-  // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.spring method to instrument native-driver usage
   Animated.spring = (value: any, config: any) => {
     mark(value, config?.useNativeDriver ? 'native' : 'js');
     return origSpring(value, config);
   };
 
   const origDecay = Animated.decay;
-  // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.decay method to instrument native-driver usage
   Animated.decay = (value: any, config: any) => {
     mark(value, config?.useNativeDriver ? 'native' : 'js');
     return origDecay(value, config);

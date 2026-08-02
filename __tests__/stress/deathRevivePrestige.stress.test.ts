@@ -214,7 +214,7 @@ describe('Death → Revive → Prestige cycle', () => {
     mounted = mountGame();
     seedZeroHealth();
 
-    const ribbonsBefore = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsBefore = (captured!.state.ribbonCollection?.earned || []).length;
 
     for (let i = 0; i < 4; i++) {
       await tick();
@@ -222,8 +222,13 @@ describe('Death → Revive → Prestige cycle', () => {
 
     expect(captured!.state.showDeathPopup).toBe(true);
     // A new ribbon should have been added (life classification on death).
-    const ribbonsAfter = (captured!.state.ribbonCollection?.ribbons || []).length;
-    expect(ribbonsAfter).toBeGreaterThanOrEqual(ribbonsBefore);
+    //
+    // Strictly greater, not `>=`. Both counts used to read `.ribbons`, a field
+    // ribbonCollection does not have, so both were `(undefined || []).length`
+    // and this asserted `0 >= 0` — it passed whether or not death ever
+    // classified a life.
+    const ribbonsAfter = (captured!.state.ribbonCollection?.earned || []).length;
+    expect(ribbonsAfter).toBeGreaterThan(ribbonsBefore);
     assertClean('ribbon on death');
   });
 
@@ -478,13 +483,13 @@ describe('Death → Revive → Prestige cycle', () => {
   it('Idempotent death: nextWeek on already-dead character does not double-classify ribbon', async () => {
     mounted = mountGame();
     seedDead('health', 0);
-    const ribbonsBefore = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsBefore = (captured!.state.ribbonCollection?.earned || []).length;
 
     // Tick while dead — should not add new ribbons each tick.
     for (let i = 0; i < 3; i++) {
       await tick();
     }
-    const ribbonsAfter = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsAfter = (captured!.state.ribbonCollection?.earned || []).length;
     expect(ribbonsAfter).toBe(ribbonsBefore);
     assertClean('idempotent death ribbon');
   });

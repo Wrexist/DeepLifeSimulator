@@ -51,8 +51,9 @@ const path = require('path');
  * 2026-08-01: 60 → 49 (definite-assignment on act()-assigned result vars).
  * 2026-08-01: 49 → 39 (typed stripFields helper replaces ten hand-written casts).
  * 2026-08-01: 39 → 36 (shared zeroPreRolls; four literals that lied about their type).
+ * 2026-08-02: 36 → 30 (phantom `ribbons` field; two stale @ts-expect-error).
  */
-const BASELINE = 36;
+const BASELINE = 30;
 
 // Exported so the weekly audit can read the same number. Guarded below so a
 // `require()` for the constant does not also launch a 5-minute tsc run.
