@@ -61,10 +61,14 @@ function marriedState(over: Partial<GameState> = {}): GameState {
     bankSavings: 0,
     loans: [],
     relationships: [
-      { id: 'sp1', name: 'Alex', type: 'spouse', relationshipScore: 70, age: 35 },
+      // `personality` and `gender` are required on Relationship; the old
+      // `as GameState` on the whole state absorbed their absence. The divorce
+      // path does not read either, so this is shape hygiene, not a fix.
+      { id: 'sp1', name: 'Alex', type: 'spouse', relationshipScore: 70, age: 35,
+        personality: 'kind', gender: 'female' },
     ],
     ...over,
-  } as GameState;
+  };
 }
 
 describe('R3-F1 — a second divorce tap cannot charge again', () => {
@@ -157,9 +161,10 @@ describe('R3-F2 — a second wedding-plan tap cannot charge the deposit again', 
       weeksLived: 300,
       stats: { ...base.stats, money: 5_000_000 },
       relationships: [
-        { id: 'p1', name: 'Sam', type: 'partner', relationshipScore: 90, age: 30, engagementWeek: 290 },
+        { id: 'p1', name: 'Sam', type: 'partner', relationshipScore: 90, age: 30,
+          engagementWeek: 290, personality: 'kind', gender: 'male' },
       ],
-    } as GameState;
+    };
   }
 
   function planTwice(): { spent: number; plannedCount: number } {

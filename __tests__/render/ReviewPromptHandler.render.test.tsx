@@ -10,6 +10,7 @@ import {
   __resetCelebrationGateForTests,
 } from '@/utils/celebrationGate';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '../helpers/createTestGameState';
 
 // The frequency gating has its own suite (utils/__tests__/ratingPrompt.test.ts)
 // and the timing rules have theirs (utils/__tests__/reviewMoments.test.ts).
@@ -28,14 +29,14 @@ const ladder = (id: string, level: number) => ({
   levels: Array.from({ length: 6 }, (_, i) => ({ name: `L${i}`, salary: 100 })),
 });
 
-const makeState = (overrides: Partial<GameState> = {}): GameState =>
-  ({
+const makeState = (overrides: TestGameStateOverrides = {}): GameState =>
+  createTestGameState({
     weeksLived: 100,
     stats: { money: 10000, health: 80 },
     careers: [],
     pendingEvents: [],
     ...overrides,
-  }) as unknown as GameState;
+  });
 
 /** A peak-intensity promotion: level 4 → 5 on a 6-rung ladder. */
 const beforePromotion = () => makeState({ careers: [ladder('dev', 4)] as never });

@@ -276,10 +276,10 @@ describe('Achievement / Progress audit', () => {
     for (const a of achievements) {
       try {
         if (a.progressSpec.kind === 'counter') {
-          const v = a.progressSpec.current(state as GameState);
+          const v = a.progressSpec.current(state);
           if (!Number.isFinite(v) || Number.isNaN(v)) failures.push({ id: a.id, error: `current()=${v}` });
         } else {
-          a.progressSpec.met(state as GameState);
+          a.progressSpec.met(state);
         }
       } catch (e) {
         failures.push({ id: a.id, error: e instanceof Error ? e.message : String(e) });

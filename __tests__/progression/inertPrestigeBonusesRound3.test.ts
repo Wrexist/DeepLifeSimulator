@@ -27,14 +27,29 @@ import { applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import { hasImmortality, getRelationshipGainMultiplier } from '@/lib/prestige/applyBonuses';
 import { PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { createTestGameState } from '../helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
+
+/** A complete `Career`. The two literals below carried 3 of its 8 required fields. */
+function makeCareer(over: Partial<Career> = {}): Career {
+  return {
+    id: 'dev',
+    levels: [{ name: 'Junior', salary: 1_000 }],
+    level: 0,
+    description: '',
+    requirements: {} as Career['requirements'],
+    progress: 0,
+    applied: true,
+    accepted: true,
+    ...over,
+  };
+}
 
 function withBonuses(ids: string[]): GameState {
+  // `createTestGameState` always returns a complete `prestige`, so spread it
+  // directly. The `?? {}` widened every required field to optional, which is
+  // what forced the `as GameState` on the whole object.
   const base = createTestGameState();
-  return {
-    ...base,
-    prestige: { ...(base.prestige ?? {}), unlockedBonuses: ids },
-  } as GameState;
+  return { ...base, prestige: { ...base.prestige!, unlockedBonuses: ids } };
 }
 
 describe('R3-P1 — Immortality is honoured from the prestige shop', () => {
@@ -74,8 +89,8 @@ describe('R3-P2 — a maxed career is actually reachable', () => {
     const state = withBonuses([]);
     const withCareer = {
       ...state,
-      careers: [{ id: 'dev', accepted: true, level, levels: LEVELS }],
-    } as GameState;
+      careers: [makeCareer({ level, levels: LEVELS })],
+    };
     return calculatePrestigePoints(withCareer, 1_000_000, withCareer.prestige!, 'reset').total;
   }
 
@@ -95,8 +110,12 @@ describe('R3-P2 — a maxed career is actually reachable', () => {
     const state = withBonuses([]);
     const broken = {
       ...state,
-      careers: [{ id: 'broken', accepted: true, level: 0 }],
-    } as GameState;
+      // Deliberately malformed: `levels` REMOVED, which is the corruption under
+      // test. Built from the real factory and then broken, so the break is one
+      // named field rather than a whole hand-rolled object standing in for a
+      // Career — the rest of the shape is still checked.
+      careers: [{ ...makeCareer({ level: 0 }), levels: undefined as unknown as Career['levels'] }],
+    };
     const empty = { ...state, careers: [] };
 
     expect(calculatePrestigePoints(broken, 1_000_000, state.prestige!, 'reset').total).toBe(
@@ -138,6 +157,11 @@ describe('R3-P3 — the relationship multiplier reaches relationship gains', () 
   });
 
   it('survives a corrupt bonus list without producing NaN', () => {
+    // DELIBERATE CORRUPTION — one of the two `as GameState` casts left in the
+    // test tree, and the reason the audit's Hard Rule #3 count floors at 2
+    // rather than 0. A test that proves the code survives garbage has to be
+    // able to construct garbage; `null` is not assignable to `string[]`, which
+    // is precisely the state a truncated save can carry.
     const corrupt = { ...withBonuses([]), prestige: { unlockedBonuses: null } } as unknown as GameState;
 
     const out = applyRelationshipGain(corrupt, 10);

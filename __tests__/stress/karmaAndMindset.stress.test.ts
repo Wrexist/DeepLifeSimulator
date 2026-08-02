@@ -37,7 +37,7 @@ import type { GameState } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
 
 function makeState(over: Partial<GameState> = {}): GameState {
-  return { ...structuredClone(initialGameState), ...over } as GameState;
+  return { ...structuredClone(initialGameState), ...over };
 }
 
 function deepCheck(state: unknown): string[] {

@@ -11,9 +11,12 @@
 
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 
-const make = (money: number): GameState =>
-  (global as any).createTestGameState({ stats: { money } }) as GameState;
+// The imported factory, not `(global as any).createTestGameState`. The global
+// shim forwards to this same function, but reaching it through `any` discarded
+// the types on the way in AND on the way out — hence the trailing cast.
+const make = (money: number): GameState => createTestGameState({ stats: { money } });
 
 describe('Money conservation invariant (applyMoneyDelta)', () => {
   it('end balance == start + Σ(accepted deltas) for a non-clamping sequence', () => {

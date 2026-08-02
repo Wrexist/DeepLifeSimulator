@@ -192,7 +192,7 @@ describe('goal balances count as net worth', () => {
       ...base,
       stats: { ...base.stats, money: 0 },
       banking: funded.banking,
-    } as GameState;
+    };
 
     expect(netWorth(parked)).toBe(netWorth(held));
   });

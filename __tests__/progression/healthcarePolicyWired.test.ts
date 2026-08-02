@@ -20,17 +20,27 @@ import {
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
+/**
+ * Both fields are REQUIRED on `activePolicyEffects.healthcare`. This helper
+ * used to declare them optional and the result was cast `as GameState`, so five
+ * call sites below passed `{ medicalCostReduction: N }` alone — a shape
+ * production cannot produce. `healthcarePolicyPerks` is defensive enough that
+ * it read as 0 rather than throwing, so nothing broke; the tests were simply
+ * describing a state that does not exist. They now pass the real shape.
+ */
 function withHealthcarePolicy(
-  healthcare: { healthBonus?: number; medicalCostReduction?: number } | undefined,
+  healthcare: { healthBonus: number; medicalCostReduction: number } | undefined,
 ): GameState {
   const base = createTestGameState();
   return {
     ...base,
     politics: {
-      ...(base.politics ?? {}),
+      // `politics` is optional on GameState but always present in initialState,
+      // so spreading it through `?? {}` widened every required field to optional.
+      ...base.politics!,
       activePolicyEffects: healthcare ? { healthcare } : undefined,
     },
-  } as GameState;
+  };
 }
 
 describe('the healthcare effects are readable at all', () => {
@@ -67,7 +77,7 @@ describe('the healthcare effects are readable at all', () => {
 
 describe('the discount reaches the price the player is charged', () => {
   it('takes 25% off a hospital stay', () => {
-    const state = withHealthcarePolicy({ medicalCostReduction: 25 });
+    const state = withHealthcarePolicy({ healthBonus: 0, medicalCostReduction: 25 });
 
     expect(policyAdjustedActivityPrice(state, 'hospital', 2000)).toBe(1500);
   });
@@ -81,7 +91,7 @@ describe('the discount reaches the price the player is charged', () => {
   });
 
   it('discounts every medical activity and no wellness one', () => {
-    const state = withHealthcarePolicy({ medicalCostReduction: 50 });
+    const state = withHealthcarePolicy({ healthBonus: 0, medicalCostReduction: 50 });
 
     for (const id of POLICY_DISCOUNTED_ACTIVITY_IDS) {
       expect(policyAdjustedActivityPrice(state, id, 1000)).toBe(500);
@@ -93,14 +103,14 @@ describe('the discount reaches the price the player is charged', () => {
   });
 
   it('rounds down, so the discount is never worse than advertised', () => {
-    const state = withHealthcarePolicy({ medicalCostReduction: 15 });
+    const state = withHealthcarePolicy({ healthBonus: 0, medicalCostReduction: 15 });
 
     // 999 * 0.85 = 849.15
     expect(policyAdjustedActivityPrice(state, 'doctor', 999)).toBe(849);
   });
 
   it('never returns a negative or non-finite price', () => {
-    const state = withHealthcarePolicy({ medicalCostReduction: 50 });
+    const state = withHealthcarePolicy({ healthBonus: 0, medicalCostReduction: 50 });
 
     for (const price of [0, -100, NaN, Infinity]) {
       const out = policyAdjustedActivityPrice(state, 'doctor', price);

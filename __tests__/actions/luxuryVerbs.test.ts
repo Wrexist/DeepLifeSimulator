@@ -71,7 +71,7 @@ describe('performLuxuryVerb', () => {
     const replayed = {
       ...state,
       luxuryHoldings: { ...state.luxuryHoldings, racehorse: { acquiredWeek: 0 } },
-    } as GameState;
+    };
     const { result: second } = run(replayed, 'race_horse');
 
     expect(second.outcome!.message).toBe(first.outcome!.message);

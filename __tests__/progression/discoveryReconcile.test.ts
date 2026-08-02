@@ -128,7 +128,7 @@ describe('it is safe to run every tick', () => {
   it('survives a garbage or minimal state without throwing', () => {
     expect(() => reconcileDiscoveredSystems(createTestGameState())).not.toThrow();
     expect(() =>
-      reconcileDiscoveredSystems({ weeksLived: 5 } as unknown as GameState),
+      reconcileDiscoveredSystems(createTestGameState({ weeksLived: 5, discoveredSystems: undefined })),
     ).not.toThrow();
   });
 });

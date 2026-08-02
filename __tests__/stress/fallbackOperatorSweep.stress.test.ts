@@ -32,6 +32,7 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, Pet, Vehicle, Relationship } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 import { calculatePerformance } from '@/lib/events/careerEvents';
 
 const { act } = TestRenderer;
@@ -230,10 +231,10 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     expect(burnout).toBeDefined();
 
     // Build a state with literal 0 energy and a current job.
-    const state = {
+    const state = createTestGameState({
       stats: { energy: 0, happiness: 0, health: 100, fitness: 50, money: 1000, reputation: 50, gems: 0 },
       currentJob: 'doctor',
-    } as unknown as GameState;
+    });
 
     // Before fix: (0 || 100) < 30 → 100 < 30 → false (event NEVER fires).
     // After fix: (0 ?? 100) < 30 → 0 < 30 → true.
@@ -246,12 +247,12 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     // Build a young, 0-health state. Before the fix, this would hit the
     // "healthy + young" low-risk path because 0 || 100 = 100 > 80.
     // After the fix, 0 ?? 100 = 0, so the path is correctly skipped.
-    const state = {
+    const state = createTestGameState({
       stats: { health: 0, energy: 100, happiness: 100, fitness: 50, money: 100, reputation: 50, gems: 0 },
       date: { age: 22, year: 2030, week: 1, month: 'January' },
       weeksLived: 200,
       lastDiseaseWeek: undefined,
-    } as unknown as GameState;
+    });
 
     // Run many rolls; before the fix, the 0-health young player would be
     // incorrectly disease-resistant via the early return. After the fix, they

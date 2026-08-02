@@ -25,6 +25,15 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import { createSetGameStateStub } from '../helpers/setGameStateStub';
 import type { GameState } from '@/contexts/game/types';
 
+/**
+ * `runMigrations` and `repairGameState` both take a raw parsed save, so their
+ * state is not typed as a GameState. Reading one field back through four
+ * separate `as unknown as GameState` casts said nothing except "trust me" —
+ * this names the one field these tests care about instead.
+ */
+const bankedRevive = (state: unknown): unknown =>
+  (state as { revivalPack?: unknown }).revivalPack;
+
 // ── The consume path, lifted from GameStateContext ─────────────────────────
 //
 // `reviveWithPack` lives in a provider, so driving it here would need the whole
@@ -180,7 +189,7 @@ describe('v30 — the field is finally registered', () => {
 
     const { state } = runMigrations(old as never);
 
-    expect((state as unknown as GameState).revivalPack).toBe(false);
+    expect(bankedRevive(state)).toBe(false);
     expect(state.version).toBe(30);
   });
 
@@ -195,7 +204,7 @@ describe('v30 — the field is finally registered', () => {
 
     const { state } = runMigrations(old as never);
 
-    expect((state as unknown as GameState).revivalPack).toBe(false);
+    expect(bankedRevive(state)).toBe(false);
   });
 
   it('a banked charge already present is not clobbered by the migration', () => {
@@ -203,7 +212,7 @@ describe('v30 — the field is finally registered', () => {
 
     const { state } = runMigrations(old as never);
 
-    expect((state as unknown as GameState).revivalPack).toBe(true);
+    expect(bankedRevive(state)).toBe(true);
   });
 
   it('repairGameState mirrors the backfill for a partial save', () => {
@@ -214,7 +223,7 @@ describe('v30 — the field is finally registered', () => {
 
     repairGameState(partial as never);
 
-    expect((partial as unknown as GameState).revivalPack).toBe(false);
+    expect(bankedRevive(partial)).toBe(false);
   });
 
   it('and the repair actually writes back — `repaired = true` was set (the control)', () => {
