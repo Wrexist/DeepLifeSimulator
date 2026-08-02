@@ -184,7 +184,7 @@ describe('the completion reward cannot be farmed by cycling funds', () => {
 describe('goal balances count as net worth', () => {
   it('does not drop net worth when cash moves into a goal', () => {
     const base = createTestGameState();
-    const held = { ...base, stats: { ...base.stats, money: 50_000 } } as GameState;
+    const held = { ...base, stats: { ...base.stats, money: 50_000 } };
 
     const { banking, goalId } = bankingWithGoal(50_000);
     const funded = contributeToGoal(banking, goalId, 50_000, 10);

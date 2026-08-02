@@ -97,7 +97,7 @@ describe('R3-P2 — a maxed career is actually reachable', () => {
       ...state,
       careers: [{ id: 'broken', accepted: true, level: 0 }],
     } as GameState;
-    const empty = { ...state, careers: [] } as GameState;
+    const empty = { ...state, careers: [] };
 
     expect(calculatePrestigePoints(broken, 1_000_000, state.prestige!, 'reset').total).toBe(
       calculatePrestigePoints(empty, 1_000_000, state.prestige!, 'reset').total,

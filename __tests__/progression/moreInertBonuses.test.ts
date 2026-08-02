@@ -99,7 +99,7 @@ describe('taking on debt is recorded, so "Debt Free" can be earned', () => {
     });
 
     // Clearing the debt is what the achievement rewards; the flag must survive.
-    const repaid = { ...after, loans: [] } as GameState;
+    const repaid = { ...after, loans: [] };
     expect(repaid.progress?.hasBeenInDebt).toBe(true);
   });
 });

@@ -62,32 +62,66 @@ export type TestGameStateOverrides =
 export function createTestGameState(overrides: TestGameStateOverrides = {}): GameState {
   // Start with actual initial state to ensure all required properties exist
   // This guarantees type safety - if GameState changes, tests will fail at compile time
+  //
+  // ── Why this CLONES rather than spreading the singleton ──────────────────
+  //
+  // `{ ...initialGameState }` is shallow. Only the keys deep-merged below got a
+  // fresh object; every other nested value — `items`, `userProfile`, `sparkApp`,
+  // `socialMedia`, `relationships`, … — was returned BY REFERENCE, shared with
+  // the module-level `initialGameState` and with every other state this factory
+  // had ever handed out.
+  //
+  // So `state.userProfile.handle = 'lucky-seed'` in one test did not modify that
+  // test's state. It modified the singleton, permanently, for every later test
+  // in the same Jest worker. Reproduced directly: mutate in test A, and test B —
+  // which calls the factory fresh and touches nothing — reads back
+  // `handle=lucky-seed`, as does `initialGameState` itself.
+  //
+  // Two suites had independently noticed a symptom and hand-rolled a partial
+  // clone in a local `freshState`, covering different field lists: one
+  // `sparkApp`/`stats`/`relationships`, the other `socialMedia`/`userProfile`/
+  // `stats`. Only the second happened to cover the field it went on to mutate.
+  // `__tests__/utils/saveValidation.test.ts` cloned nothing and mutated
+  // `userProfile.verified`, `socialMedia.verifiedPro` and `sparkApp.premium`
+  // straight through. That divergence — three files, three different answers,
+  // two of them wrong — is the argument for fixing it here instead of patching
+  // field lists forever.
+  //
+  // Cost, measured back to back on the full suite: 78s → 85s (~8.5%). That is
+  // the price of tests that cannot silently corrupt each other, paid in a test
+  // helper rather than in production code.
+  //
+  // NOTE for anyone tidying up: `JSON.parse(JSON.stringify(initialGameState))`
+  // appears in several stress suites that mutate nested state in place. Those
+  // are deep clones ON PURPOSE — do not "simplify" them into a bare
+  // `createTestGameState()` call unless this clone is still here.
+  const base = structuredClone(initialGameState);
   return {
-    ...initialGameState,
+    ...base,
     ...overrides,
     // Deep merge for nested objects to avoid losing properties
     stats: {
-      ...initialGameState.stats,
+      ...base.stats,
       ...(overrides.stats || {}),
     },
     date: {
-      ...initialGameState.date,
+      ...base.date,
       ...(overrides.date || {}),
     },
     settings: {
-      ...initialGameState.settings,
+      ...base.settings,
       ...(overrides.settings || {}),
     },
     social: {
-      ...initialGameState.social,
+      ...base.social,
       ...(overrides.social || {}),
     },
     economy: {
-      ...initialGameState.economy,
+      ...base.economy,
       ...(overrides.economy || {}),
     },
     family: {
-      ...initialGameState.family,
+      ...base.family,
       ...(overrides.family || {}),
     },
     // Merged rather than replaced, because `prestige` is OPTIONAL on GameState:
@@ -105,42 +139,42 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
     },
     banking: overrides.banking
       ? {
-          ...(initialGameState.banking ?? {}),
+          ...(base.banking ?? {}),
           ...overrides.banking,
           creditScore: {
-            ...(initialGameState.banking?.creditScore ?? {}),
+            ...(base.banking?.creditScore ?? {}),
             ...(overrides.banking?.creditScore ?? {}),
             componentBreakdown: {
-              ...(initialGameState.banking?.creditScore?.componentBreakdown ?? {}),
+              ...(base.banking?.creditScore?.componentBreakdown ?? {}),
               ...(overrides.banking?.creditScore?.componentBreakdown ?? {}),
             },
           },
         }
-      : initialGameState.banking,
+      : base.banking,
     cryptoMarket: overrides.cryptoMarket
       ? {
-          ...(initialGameState.cryptoMarket ?? {}),
+          ...(base.cryptoMarket ?? {}),
           ...overrides.cryptoMarket,
           coinMarkets: {
-            ...(initialGameState.cryptoMarket?.coinMarkets ?? {}),
+            ...(base.cryptoMarket?.coinMarkets ?? {}),
             ...(overrides.cryptoMarket?.coinMarkets ?? {}),
           },
           costBasis: {
-            ...(initialGameState.cryptoMarket?.costBasis ?? {}),
+            ...(base.cryptoMarket?.costBasis ?? {}),
             ...(overrides.cryptoMarket?.costBasis ?? {}),
           },
         }
-      : initialGameState.cryptoMarket,
+      : base.cryptoMarket,
     darkWeb: overrides.darkWeb
       ? {
-          ...(initialGameState.darkWeb ?? {}),
+          ...(base.darkWeb ?? {}),
           ...overrides.darkWeb,
           skills: {
-            ...(initialGameState.darkWeb?.skills ?? {}),
+            ...(base.darkWeb?.skills ?? {}),
             ...(overrides.darkWeb?.skills ?? {}),
           },
         }
-      : initialGameState.darkWeb,
+      : base.darkWeb,
   };
 }
 

@@ -23,11 +23,11 @@ import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import { calculateMatchProbability } from '@/lib/dating/sparkLogic';
 
 function freshState(overrides: Partial<GameState> = {}): GameState {
-  const s = createTestGameState(overrides);
-  if (s.sparkApp) s.sparkApp = JSON.parse(JSON.stringify(s.sparkApp));
-  if (s.stats) s.stats = { ...s.stats };
-  if (s.relationships) s.relationships = s.relationships.map((r) => ({ ...r }));
-  return s;
+  // The re-clones that used to live here (sparkApp / stats / relationships)
+  // are gone: `createTestGameState` now deep-clones its base. This list had
+  // MISSED `userProfile`, which the swipe tests below mutate — so that write
+  // went straight through to the module singleton. See the factory's note.
+  return createTestGameState(overrides);
 }
 
 function makeHarness(initial: GameState) {
