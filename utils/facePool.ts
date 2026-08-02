@@ -276,18 +276,39 @@ export function avatarSexFromId(avatarId: string | undefined | null): 'male' | '
  * The player's face. If they picked an avatar, keep that pick's sex + slot and
  * follow their age band; otherwise fall back to the seeded portrait by name.
  *
- * ── Why the slot wraps instead of clamping ────────────────────────────────
+ * ── How the slot maps across bands ────────────────────────────────────────
  *
  * The starter buckets are much bigger than the later ones — 12 young-adult
- * female faces against 6 adult, 5 middle-aged, 4 senior. This used to resolve
- * with `Math.min(index, len - 1)`, which meant every pick from 5 upward landed
- * on the SAME last slot from age 30 on: seven of the twelve women who chose a
- * starter face aged into one identical stranger, and so did each other.
+ * female faces against 6 adult, 5 middle-aged, 4 senior, and only 3 as a teen.
  *
- * Wrapping spreads them across the whole bucket instead, so two players who
- * chose differently still look different at 40. It is still deterministic and
- * still stable for a given player — the same pick always resolves to the same
- * face in a given band.
+ * This has now been wrong twice, in opposite directions:
+ *
+ * 1. `Math.min(index, len - 1)` CLAMPED, so every pick from 5 upward landed on
+ *    the same last slot from age 30 on — seven of the twelve women who chose a
+ *    starter face aged into one identical stranger, and into each other.
+ *
+ * 2. `index % len` WRAPPED, which spread them out but scrambled the order:
+ *    `f7` resolved to slot 1 as a teen, 7 as a young adult, 1 again as an
+ *    adult, then 2, then 3. Nine of the twelve starter faces changed slot at
+ *    every band boundary with no relationship between one band and the next.
+ *    That is the player report — "my character turns into someone else" —
+ *    surviving the fix for (1).
+ *
+ * Now it maps PROPORTIONALLY: a pick sits at the same relative position in
+ * every bucket, so ordering is preserved end to end. Someone who picked the
+ * third face of twelve stays an early face at every age instead of jumping
+ * around, and two players who picked adjacent faces stay adjacent.
+ *
+ * ── What this still cannot do ─────────────────────────────────────────────
+ *
+ * It cannot give twelve distinct people twelve distinct faces in a band that
+ * holds three. Collisions in the small bands are forced by the ASSETS, not by
+ * this function: 12 → 3 means four picks share each teen face no matter how
+ * the mapping is written. Making identity truly stable needs more art in the
+ * kid/teen/senior buckets — a product decision, not a code one.
+ *
+ * What is fixed here is the part that was arbitrary. What remains is the part
+ * that is arithmetic.
  */
 export function getAvatarPortrait(
   avatarId: string | undefined | null,
@@ -321,6 +342,31 @@ export function _avatarSlot(
   const key = band === 'baby' ? 'baby' : `${p.letter}_${band}`;
   const bucket = POOL[key];
   if (!bucket || bucket.length === 0) return null;
-  // `parseAvatarId` only matches \d+, so the index is already non-negative.
-  return { key, index: p.index % bucket.length };
+
+  // Proportional, not modular. `parseAvatarId` only matches \d+, so the index
+  // is already non-negative.
+  //
+  // The pick space is the LARGEST bucket for this sex — the young-adult one,
+  // which is where the starter picker offers its faces. Scaling through that
+  // keeps a pick at the same relative position in every band, so ordering
+  // survives the band change instead of being scrambled by a modulus.
+  //
+  // A pick beyond the space (a legacy id, or a scenario that started the player
+  // in a smaller band) clamps to the end rather than wrapping around to the
+  // front, which is what made `%` jump `f7` from slot 7 back to slot 1.
+  const space = pickSpaceFor(p.letter);
+  const ratio = Math.min(p.index, space - 1) / space;
+  const index = Math.min(bucket.length - 1, Math.floor(ratio * bucket.length));
+  return { key, index };
+}
+
+/**
+ * The size of the bucket a starter pick is chosen FROM, per sex.
+ *
+ * Computed from the pool rather than hardcoded, so adding art to the
+ * young-adult bucket cannot silently desync this from `listStarterAvatars`.
+ */
+function pickSpaceFor(letter: 'm' | 'f'): number {
+  const SEXED_BANDS: Band[] = ['kid', 'tn', 'ya', 'ad', 'mid', 'sr'];
+  return Math.max(1, ...SEXED_BANDS.map((b) => POOL[`${letter}_${b}`]?.length ?? 0));
 }

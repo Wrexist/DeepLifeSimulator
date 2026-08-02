@@ -365,6 +365,63 @@ describe('the player keeps their own face as they age', () => {
     }
   });
 
+  // ── Owner decision, 2026-08-02: "age, keep identity" ────────────────────
+  //
+  // The player's own portrait SHOULD change as they get older, but it must
+  // stay the same person — the complaint behind the report was seeing yourself
+  // turn into someone else.
+  //
+  // The two halves pull against each other, so both are asserted. A fix for
+  // "stops changing sex" that froze the portrait would pass the stability tests
+  // above and silently deliver the "one portrait for life" option the owner did
+  // NOT choose.
+
+  it('the player portrait advances through every band as they age', () => {
+    // Not "changes at least once" — that would pass if it moved a single time
+    // and then froze. Every band boundary must be crossed, in order.
+    const id = 'f3';
+    const seen = [5, 13, 18, 30, 40, 56].map((age) => _avatarSlot(id, age)!.key);
+
+    expect(seen).toEqual(['f_kid', 'f_tn', 'f_ya', 'f_ad', 'f_mid', 'f_sr']);
+    expect(new Set(seen).size).toBe(seen.length); // all distinct
+  });
+
+  it('a pick keeps its RELATIVE position in every band', () => {
+    // The identity half of the decision, and the assertion that actually
+    // catches the reported bug.
+    //
+    // Buckets are different sizes (f: 3 teen, 12 young-adult, 4 senior), so an
+    // absolute index cannot be stable — 12 people cannot have 12 distinct faces
+    // in a band holding 3. What CAN hold is ordering: someone who picked an
+    // early face must stay early at every age.
+    //
+    // `index % bucket.length` did not. `f7` went 1 → 7 → 1 → 2 → 3 across the
+    // lifespan, unrelated band to band. That is the player report.
+    const ages = [6, 14, 20, 34, 45, 70];
+
+    for (const sex of ['male', 'female'] as const) {
+      const ids = listStarterAvatars(sex, 18).map((a) => a.id);
+
+      for (const age of ages) {
+        const slots = ids.map((id) => _avatarSlot(id, age)!.index);
+        // Non-decreasing: picks may COLLIDE in a small bucket, but must never
+        // cross over each other.
+        const sorted = [...slots].sort((a, b) => a - b);
+        expect(`${sex}@${age}: ${slots.join(',')}`).toBe(`${sex}@${age}: ${sorted.join(',')}`);
+      }
+    }
+  });
+
+  it('the starter picker still offers distinct faces at the pick age (the control)', () => {
+    // The collisions above are only acceptable in the SMALL bands. At the age
+    // the player actually chooses, every offered face must still be its own
+    // slot — otherwise the picker is showing duplicates.
+    for (const sex of ['male', 'female'] as const) {
+      const slots = listStarterAvatars(sex, 18).map((a) => _avatarSlot(a.id, 18)!.index);
+      expect(new Set(slots).size).toBe(slots.length);
+    }
+  });
+
   it('an out-of-range or junk avatar id still resolves (the control)', () => {
     expect(getAvatarPortrait('f999', 30, 'Ada', 'female')).toBeTruthy();
     expect(getAvatarPortrait('garbage', 25, 'Ada', 'male')).toBeTruthy();

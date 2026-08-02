@@ -56,10 +56,14 @@ The parents-aging-into-the-wrong-gender bug is already fixed (`utils/facePool.ts
 — `hero_grandparent.png` moved to the male bucket, `HERO_FACE_SEX` added,
 `getAvatarPortrait` switched from `Math.min` to `index % bucket.length`).
 
-- [ ] Verify the player's own avatar resolves through the same age-bracket path
-- [ ] Verify identity is stable: same avatarId keeps one sex across all brackets
-- [ ] Regression test: sweep one avatarId across the full age range; assert the
+- [x] Verify the player's own avatar resolves through the same age-bracket path
+- [x] Verify identity is stable: same avatarId keeps one sex across all brackets
+- [x] Regression test: sweep one avatarId across the full age range; assert the
       sex never changes and the bracket does
+- [x] FOUND AND FIXED: `index % bucket.length` scrambled slot ordering across
+      bands (`f7` → 1,7,1,2,3). Now proportional, so ordering survives.
+- [ ] ASSET GAP for the owner: 12 starter faces vs 3 kid/teen faces means
+      collisions in the small bands are forced by art, not by code.
 
 ## 4. MON-5 Revival Pack — "one banked revive, consumed on death"
 
