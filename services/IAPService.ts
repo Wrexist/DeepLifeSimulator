@@ -253,13 +253,24 @@ export function applyProductBenefitsToState(
       gameState.settings.privateBanking = true;
       break;
     case IAP_PRODUCTS.REVIVAL_PACK:
-      gameState.showDeathPopup = false;
-      gameState.deathReason = undefined;
-      gameState.stats.health = 100;
-      gameState.stats.happiness = 100;
-      gameState.stats.energy = 100;
-      gameState.happinessZeroWeeks = 0;
-      gameState.healthZeroWeeks = 0;
+      // MON-5. This used to revive at the INSTANT of purchase — writing
+      // health/happiness/energy and clearing `showDeathPopup` right here.
+      //
+      // The store is reachable while ALIVE, which is when almost everyone buys
+      // it. Bought then, every line of that did nothing: the stats were already
+      // full and there was no death popup to clear. The player paid $2.99 and
+      // received a permanent no-op, with `hasRevivalPack` recording that they
+      // had been given something.
+      //
+      // Owner decision (2026-08-02): one banked revive, consumed on death. So
+      // the grant BANKS it and `reviveWithPack` in GameStateContext spends it.
+      // `revivalPack` has been on GameState since the beginning, defaulting to
+      // false and read by nothing — this is the field finally being used.
+      gameState.revivalPack = true;
+      // Kept in step: `settings.hasRevivalPack` is the entitlement record that
+      // survives prestige (lib/prestige/accountEntitlements.ts), while
+      // `revivalPack` is the unspent charge. They answer different questions —
+      // "did they buy it" vs "do they still have one" — so both are written.
       gameState.settings.hasRevivalPack = true;
       break;
   }

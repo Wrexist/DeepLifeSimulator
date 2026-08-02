@@ -26,7 +26,7 @@ import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 const LinearGradient = LinearGradientFallback;
 
 function DeathPopup() {
-  const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, currentSlot, saveGame } = useGame();
+  const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, reviveWithPack, currentSlot, saveGame } = useGame();
   const router = useRouter();
   // The new life has to be told which slot it belongs in. This screen used to
   // navigate into onboarding without setting one, so the flow fell back to the
@@ -217,6 +217,14 @@ function DeathPopup() {
       reviveCharacter();
     }
   }, [gameState, reviveCharacter]);
+
+  // MON-5: spend the banked Revival Pack. Offered ABOVE the gem revive because
+  // it is already paid for — making someone spend 15,000 gems while holding an
+  // unused pack would be the second way this product could take money for
+  // nothing.
+  const handleReviveWithPack = useCallback(() => {
+    reviveWithPack();
+  }, [reviveWithPack]);
 
   // ── Store bridge (stacked-modal safety) ────────────────────────────────────
   // The gem store is an app-root RN Modal. Opening it while THIS death Modal is
@@ -473,6 +481,7 @@ function DeathPopup() {
     : null;
 
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
+  const hasBankedRevive = gameState.revivalPack === true;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 
@@ -863,6 +872,24 @@ function DeathPopup() {
 
                 {/* Summary footer — revive / rewind THIS life, or start fresh */}
                 <View style={styles.footer}>
+                  {hasBankedRevive && (
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={handleReviveWithPack}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Use your Revival Pack to come back to life"
+                    >
+                      <LinearGradient
+                        colors={[accent.success, '#059669']}
+                        style={styles.buttonGradient}
+                      >
+                        <Heart size={18} color="#FFF" />
+                        <Text style={styles.buttonText}>Use Revival Pack</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+
                   <TouchableOpacity
                     style={[styles.actionButton, !canAffordRevive && styles.disabledButton]}
                     onPress={handleRevive}

@@ -163,9 +163,13 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
 });
 
 describe('C-11 — the save format', () => {
-  it('STATE_VERSION is 29 and the field ships in initialState', () => {
-    expect(STATE_VERSION).toBe(29);
-    expect(CURRENT_STATE_VERSION).toBe(29);
+  it('the field ships in initialState, and v29 is still on the ladder', () => {
+    // This used to pin STATE_VERSION === 29. That made it a tripwire for every
+    // LATER bump rather than a test of C-11 — v30 (revivalPack) broke it while
+    // changing nothing about legacyUpgrades. `luxuryHoldingsMigration.test.ts`
+    // owns the current-version assertion; this file owns its own field.
+    expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(29);
     expect(initialGameState.legacyUpgrades).toEqual([]);
   });
 
@@ -179,7 +183,9 @@ describe('C-11 — the save format', () => {
     // bare `.includes` would break on an absent key.
     const { state } = runMigrations({ version: 28, legacyPoints: 40 });
 
-    expect(state.version).toBe(29);
+    // Runs the whole remaining ladder, so assert the CURRENT version rather
+    // than a hardcoded 29 — the point here is the backfill, not the endpoint.
+    expect(state.version).toBe(STATE_VERSION);
     expect(state.legacyUpgrades).toEqual([]);
     expect(state.legacyPoints).toBe(40);
   });

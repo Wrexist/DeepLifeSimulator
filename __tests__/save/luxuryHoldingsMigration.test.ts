@@ -13,9 +13,9 @@ import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
   it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(29);
-    expect(CURRENT_STATE_VERSION).toBe(29);
-    for (const v of [24, 25, 26, 27, 28, 29]) {
+    expect(STATE_VERSION).toBe(30);
+    expect(CURRENT_STATE_VERSION).toBe(30);
+    for (const v of [24, 25, 26, 27, 28, 29, 30]) {
       expect(`v${v} covered: ${isMigrationVersionCovered(v)}`).toBe(`v${v} covered: true`);
     }
   });

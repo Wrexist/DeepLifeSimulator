@@ -786,6 +786,35 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 29;
     return state;
   },
+
+  // Version 30: `revivalPack` — the unspent charge from the $2.99 Revival Pack
+  // (MON-5).
+  //
+  // The field is NOT new. It has been on GameState and in `initialState` since
+  // the beginning, defaulting to `false`, read by nothing and written by
+  // nothing — a dead field, and a standing instance of exactly the drift Hard
+  // Rule #3 exists to catch: a concrete stored default that never shipped a
+  // migration. It is registered here now because it has become load-bearing:
+  // the IAP grant banks a charge into it and `reviveWithPack` spends one.
+  //
+  // Functionally a no-op backfill — an absent key is falsy, which already means
+  // "no banked revive", and that is the correct answer for every save written
+  // before the pack could be banked. It is a REAL migration rather than a
+  // member of the intentional-no-op set because the default is concrete
+  // (`false`, not `undefined`), so §7 wants the key written and mirrored in
+  // `repairGameState`.
+  //
+  // Deliberately does NOT consult `settings.hasRevivalPack`. That records the
+  // PURCHASE and survives prestige; this records the unspent CHARGE. Granting a
+  // charge to everyone who ever bought the pack would hand a free life to every
+  // player who already had their instant-revive at purchase time.
+  30: (state) => {
+    if (typeof state.revivalPack !== 'boolean') {
+      state.revivalPack = false;
+    }
+    state.version = 30;
+    return state;
+  },
 };
 
 /**

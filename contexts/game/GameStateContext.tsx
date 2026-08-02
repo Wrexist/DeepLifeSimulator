@@ -14,6 +14,8 @@ interface GameStateContextType {
   setCurrentSlot: (slot: number) => void;
   startNewLifeFromLegacy: (childId: string) => void;
   reviveCharacter: () => void;
+  /** Spend a banked Revival Pack (MON-5). No-op unless dead AND one is banked. */
+  reviveWithPack: () => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -211,6 +213,59 @@ export function GameStateProvider({
     });
   }, [wrappedSetGameState]);
 
+  /**
+   * Spend a banked Revival Pack instead of gems (MON-5).
+   *
+   * The $2.99 pack used to revive at the INSTANT of purchase: `applyBenefit`
+   * wrote health/happiness/energy straight onto the state and cleared the death
+   * popup. Bought while alive — which is when the store is reachable — that was
+   * a permanent no-op. The player paid and received nothing, forever.
+   *
+   * `revivalPack: boolean` has been on GameState since the beginning with a
+   * default of `false`, read by nothing and written by nothing. It is exactly
+   * the shape the owner chose (2026-08-02: one banked revive, consumed on
+   * death), so the fix is to start using the field rather than adding one.
+   *
+   * Atomic in the same way `reviveCharacter` above is, and for the same reason
+   * (§4.4): BOTH gates and the decrement live inside one updater. This provider
+   * is a plain `useState`, so two taps in one React batch both clear the outer
+   * render's `disabled` check — and a pack consumed twice is a free extra life,
+   * the mirror of the double-charge bug that shape already caused here once.
+   */
+  const reviveWithPack = useCallback(() => {
+    wrappedSetGameState(prev => {
+      if (!prev.showDeathPopup) {
+        logger.warn('[reviveWithPack] Ignored: character is not currently dead');
+        return prev;
+      }
+
+      if (!prev.revivalPack) {
+        logger.warn('[reviveWithPack] Ignored: no banked Revival Pack');
+        return prev;
+      }
+
+      logger.info('[reviveWithPack] Revival Pack consumed');
+      return {
+        ...prev,
+        revivalPack: false,
+        showDeathPopup: false,
+        deathReason: undefined,
+        // Same P2-3 disease cure as the gem revive. Without it the disease that
+        // killed the player re-applies its lethal penalty on the next tick and
+        // eats the revive for nothing — which for a PAID one-shot is worse.
+        diseases: [],
+        stats: {
+          ...prev.stats,
+          health: 100,
+          happiness: 100,
+          energy: 100,
+        },
+        happinessZeroWeeks: 0,
+        healthZeroWeeks: 0,
+      };
+    });
+  }, [wrappedSetGameState]);
+
   const value = useMemo<GameStateContextType>(() => ({
     gameState,
     setGameState: wrappedSetGameState,
@@ -219,7 +274,8 @@ export function GameStateProvider({
     setCurrentSlot: setCurrentSlotSafe,
     startNewLifeFromLegacy,
     reviveCharacter,
-  }), [gameState, wrappedSetGameState, updateGameState, currentSlot, setCurrentSlotSafe, startNewLifeFromLegacy, reviveCharacter]);
+    reviveWithPack,
+  }), [gameState, wrappedSetGameState, updateGameState, currentSlot, setCurrentSlotSafe, startNewLifeFromLegacy, reviveCharacter, reviveWithPack]);
 
   return (
     <GameStoreContext.Provider value={storeRef.current}>

@@ -213,7 +213,14 @@ describe('IAP / Monetization audit', () => {
   });
 
   // ── REVIVAL PACK ───────────────────────────────────────────────────────
-  it('REVIVAL_PACK: clears death state and restores all vitals', () => {
+  it('REVIVAL_PACK: banks a charge rather than reviving inline (MON-5)', () => {
+    // This test used to set up an already-DEAD player and assert the grant
+    // revived them — which it did. What it never covered is the case that
+    // actually happens: the store is reachable while ALIVE, so that is when
+    // people buy. Bought alive, every write in the old grant was a no-op
+    // (stats already full, no death popup to clear) and the player got
+    // nothing, permanently. A test that only ever exercised the dead path
+    // could not see that.
     const state = freshState();
     state.showDeathPopup = true;
     state.deathReason = 'health';
@@ -225,14 +232,24 @@ describe('IAP / Monetization audit', () => {
 
     iapService.applyProductToState(state, IAP_PRODUCTS.REVIVAL_PACK);
 
-    expect(state.showDeathPopup).toBe(false);
-    expect(state.deathReason).toBeUndefined();
-    expect(state.stats.health).toBe(100);
-    expect(state.stats.happiness).toBe(100);
-    expect(state.stats.energy).toBe(100);
-    expect(state.healthZeroWeeks).toBe(0);
-    expect(state.happinessZeroWeeks).toBe(0);
+    // The charge is banked; the grant does NOT revive.
+    expect(state.revivalPack).toBe(true);
     expect(state.settings?.hasRevivalPack).toBe(true);
+    // Still dead — `reviveWithPack` is what spends it, from the death screen.
+    expect(state.showDeathPopup).toBe(true);
+    expect(state.stats.health).toBe(0);
+  });
+
+  it('REVIVAL_PACK: bought ALIVE, the player still receives something', () => {
+    // The regression proper. Under the old grant this state came back
+    // byte-identical to how it went in.
+    const state = freshState();
+    state.showDeathPopup = false;
+
+    iapService.applyProductToState(state, IAP_PRODUCTS.REVIVAL_PACK);
+
+    expect(state.revivalPack).toBe(true);
+    expect(state.showDeathPopup).toBe(false); // and it did not fake a death
   });
 
   // ── BANKING PRODUCTS ───────────────────────────────────────────────────

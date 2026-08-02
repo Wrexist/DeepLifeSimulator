@@ -62,7 +62,7 @@ The parents-aging-into-the-wrong-gender bug is already fixed (`utils/facePool.ts
       sex never changes and the bracket does
 - [x] FOUND AND FIXED: `index % bucket.length` scrambled slot ordering across
       bands (`f7` → 1,7,1,2,3). Now proportional, so ordering survives.
-- [ ] ASSET GAP for the owner: 12 starter faces vs 3 kid/teen faces means
+- [ ] OPEN — ASSET GAP for the owner: 12 starter faces vs 3 kid/teen faces means
       collisions in the small bands are forced by art, not by code.
 
 ## 4. MON-5 Revival Pack — "one banked revive, consumed on death"
@@ -70,18 +70,18 @@ The parents-aging-into-the-wrong-gender bug is already fixed (`utils/facePool.ts
 The $2.99 pack currently revives only at the instant of purchase, so buying it
 while alive is a permanent no-op. Biggest item here: it needs new state.
 
-- [ ] `contexts/game/types.ts` — add the banked-revive field
-- [ ] `contexts/game/initialState.ts` — default + `STATE_VERSION` 29 → 30
-- [ ] `utils/saveMigrations.ts` — v30 migration
-- [ ] `utils/saveValidation.ts` — `repairGameState` mirror **if** the default is
+- [x] `contexts/game/types.ts` — field ALREADY existed (`revivalPack: boolean`), dead since day one
+- [x] `contexts/game/initialState.ts` — default already `false`; `STATE_VERSION` 29 → 30
+- [x] `utils/saveMigrations.ts` — v30 migration
+- [x] `utils/saveValidation.ts` — `repairGameState` mirror **if** the default is
       concrete; skip both if it is `undefined` (the v26/v27/v28 carve-out).
       Decide from the chosen shape; whatever is written must set `repaired = true`
-- [ ] `__tests__/helpers/createTestGameState.ts` — include the field
-- [ ] IAP grant path — bank a revive instead of reviving inline
-- [ ] Death flow — consume exactly one, atomically (§4.4: gate and decrement in
+- [x] `__tests__/helpers/createTestGameState.ts` — already listed in requiredFields
+- [x] IAP grant path — banks instead of reviving inline
+- [x] Death flow — `reviveWithPack`, both gates + spend in one updater (§4.4: gate and decrement in
       the SAME updater, or a double-tap prints lives)
-- [ ] Re-examine the `REVIVAL_PACK` restore carve-out once it is no longer a no-op
-- [ ] Docs: `CLAUDE.md` §7 v30 entry, `DEV.md` / `WORKFLOW.md` STATE_VERSION sync
+- [x] Restore carve-out KEPT — now correct for the right reason: re-granting a bankable one-shot on every restore would mint a life each time
+- [x] Docs: `CLAUDE.md` §7 v30 entry, `DEV.md` / `WORKFLOW.md` synced
 
 **Not device-verifiable here.** The StoreKit sandbox needs a TestFlight build;
 everything below the IAP boundary is testable in Jest.
@@ -96,3 +96,18 @@ everything below the IAP boundary is testable in Jest.
   `eslint --quiet`, full Jest, `npm run audit:weekly`.
 - PR #100 check-ins until merged or closed.
 - `as GameState` sweep (Hard Rule #3): 64 → 23 done, 23 remain.
+
+## Open for the owner
+
+- **Portrait asset gap.** 12 starter faces vs 3 kid/teen faces — collisions in
+  the small bands are forced by art, not code. Needs more portraits, or fewer
+  starter picks.
+- **Revival Pack is non-consumable** (`iapConfig.ts`), so it is one revive ever.
+  That matches the decision literally. Making it repeatable means changing the
+  product to a consumable in App Store Connect first — not a code-only change.
+- **`SparkProfileEditModal` / `SparkPremiumUpsellModal`** carry the same
+  fixed-height list as ApplyCardModal did, but their sheets have no percentage
+  maxHeight, so `flexShrink` has nothing to shrink within. They need a sheet
+  bound added — a layout change I will not make without seeing it.
+- **Which credit-card screen** the scroll report was about, so I can confirm
+  the ApplyCardModal fix addresses it.

@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 29`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 30`
 - **Binary version:** `package.json` `version` (currently `2.5.12`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -239,7 +239,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 29`** — single source of truth in
+- **Canonical `STATE_VERSION = 30`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -279,6 +279,18 @@ including the crash screen.
   this one takes a REAL backfill **and** a `repairGameState` mirror. The
   spendable balance is derived (lifetime earned − spent) rather than
   decremented, because the week loop only ever ADDS to `legacyPoints`.
+- **v30 registers `revivalPack`** — the unspent charge from the $2.99 Revival
+  Pack (MON-5). The field is NOT new: it has sat on `GameState` and in
+  `initialState` since the beginning with a `false` default, read by nothing and
+  written by nothing. It was a standing instance of the very drift Hard Rule #3
+  exists to catch — a concrete stored default that never shipped a migration —
+  and it is registered now because it became load-bearing (the IAP grant banks a
+  charge, `reviveWithPack` spends one). Concrete default, so a REAL backfill
+  **and** a `repairGameState` mirror, both writing `false`. Functionally a no-op
+  (an absent key is already falsy = "no banked revive"), which is also the only
+  safe answer: inventing a charge would hand out a paid one-shot for free. The
+  migration deliberately does NOT read `settings.hasRevivalPack` — that records
+  the PURCHASE and survives prestige, while this records the unspent CHARGE.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

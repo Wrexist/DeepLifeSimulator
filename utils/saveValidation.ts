@@ -1025,6 +1025,15 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing legacyUpgrades to []');
     repaired = true;
   }
+  // MON-5 / v30 mirror. Same reasoning as legacyUpgrades above: a concrete
+  // stored default (`false`) needs the partial-save path too, not just the
+  // migration. `false` is also the only safe repair — inventing a banked revive
+  // for a save that lost the key would hand out a paid one-shot for free.
+  if (typeof s.revivalPack !== 'boolean') {
+    s.revivalPack = false;
+    repairs.push('Set missing revivalPack to false');
+    repaired = true;
+  }
   if (s.activeChapterId === undefined) {
     s.activeChapterId = 'ch1_fresh_start';
     repairs.push('Set missing activeChapterId');
