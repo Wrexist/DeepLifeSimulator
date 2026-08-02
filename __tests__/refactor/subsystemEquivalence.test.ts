@@ -91,42 +91,8 @@ import type { Disease } from '@/contexts/game/types';
 import type { Crypto } from '@/contexts/game/types';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 import type { PreRolls } from '@/contexts/game/actions/weekly/preTick';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
-/**
- * A PreRolls with every roll pinned to its zero/empty value.
- *
- * Twelve byte-identical literals used to be inlined across this file. When
- * `luxuryIncident` was added to PreRolls, all twelve went stale at once — and
- * because they were object literals in a `WeekContext`, the subsystems under
- * test read `undefined` for that roll while the suite kept passing. An
- * equivalence test cannot prove two implementations agree about a roll it never
- * supplies.
- *
- * One factory means the next field added to PreRolls breaks compilation HERE,
- * once, instead of silently going missing in twelve places.
- */
-function zeroPreRolls(overrides: Partial<PreRolls> = {}): PreRolls {
-  return {
-    careerAcceptDelay: 1,
-    stockPickRoll: 0,
-    childGender: 'male',
-    childIdSuffix: 'x',
-    childPersonality: 0,
-    relBreakup: [],
-    relDisappointed: [],
-    policeEncounter: 0,
-    minerDegradation: 0,
-    diseaseComplication: [],
-    diseaseProgression: [],
-    petSickness: [],
-    petSicknessType: [],
-    vehicleAccident: [],
-    vehicleAccidentSeverity: [],
-    luxuryIncident: [],
-    timestamp: 0,
-    ...overrides,
-  };
-}
 import type { GameState, GameStats, Loan, Vehicle } from '@/contexts/game/types';
 
 import { deterministicRoll, fixtures, type FixtureName } from './helpers/weekFixtures';

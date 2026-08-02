@@ -96,7 +96,10 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
       mounted = mountGame();
       const totaled: Vehicle = {
         id: 'wreck',
-        type: 'sedan_basic' as never,
+        // Vehicle['type'] is 'car' | 'motorcycle' | 'bicycle' | 'boat' | 'plane'.
+        // This said `'sedan_basic' as never`, which is not a member of that union
+        // — the `as never` was the only thing letting it compile.
+        type: 'car',
         name: 'Wreck',
         condition: 0,
         mileage: 200_000,

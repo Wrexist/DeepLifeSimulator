@@ -246,7 +246,9 @@ describe('IAP / Monetization audit', () => {
     for (const [productId, flag] of tests) {
       const state = freshState();
       iapService.applyProductToState(state, productId);
-      expect((state.settings as Record<string, unknown>)?.[flag as string]).toBe(true);
+      // `as unknown as` because GameSettings has no index signature — TS
+      // rejects the single-step assertion outright.
+      expect((state.settings as unknown as Record<string, unknown>)?.[flag as string]).toBe(true);
     }
   });
 

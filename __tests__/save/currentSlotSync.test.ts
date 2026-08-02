@@ -99,7 +99,9 @@ function ProbeComponent() {
   captured = {
     currentSlot,
     loadGame: actions.loadGame as (slot: number) => Promise<GameState | null>,
-    saveGame: actions.saveGame as (force?: boolean) => Promise<void>,
+    // `Promise<boolean>`, not `void` — saveGame resolves true only once the
+    // write is verified on disk, which is the whole point of `force`.
+    saveGame: actions.saveGame as (force?: boolean) => Promise<boolean>,
   };
   return null;
 }
