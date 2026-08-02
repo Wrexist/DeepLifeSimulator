@@ -169,7 +169,22 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     // Heap growth on 520 saves should be bounded. Under parallel suite execution
     // jest workers share memory pressure, so we allow generous headroom; under
     // isolated runs growth is typically ~30-60MB. We assert "not pathological."
-    expect(heapGrowthMB).toBeLessThan(250);
+    //
+    // The budget is raised under --coverage because the number stops measuring
+    // the save pipeline: istanbul's counters accumulate in the very heap being
+    // sampled, and every instrumented module loaded by a shared worker adds to
+    // it. Observed 251MB in a full `jest --coverage` run against a 250 bound,
+    // while the SAME test in isolation under coverage passes comfortably — so
+    // the failure tracked suite composition, not a leak.
+    //
+    // Deliberately not skipped, and the non-coverage budget is deliberately
+    // unchanged: `npm test -- --ci` is what CI runs, so the assertion that
+    // guards the save pipeline keeps its original 250MB. A pathological leak
+    // still fails under coverage too, just at a threshold appropriate to what
+    // that run can actually measure.
+    const underCoverage =
+      typeof (globalThis as Record<string, unknown>).__coverage__ !== 'undefined';
+    expect(heapGrowthMB).toBeLessThan(underCoverage ? 400 : 250);
 
     // eslint-disable-next-line no-console
     console.log(

@@ -116,6 +116,15 @@ players paying for it, but the underlying choice is a product one:
   or a generational income bonus) → neither takes anything away nor strands
   points, but it is designing a feature rather than auditing one
 
+**Second decision: what to do about the coverage threshold.** `jest.config.js`
+requires 70% but actual is statements 48.93 / branches 30.45 / lines 50.24 /
+functions 38.83, and has been under since the threshold landed 2026-07-11. CI
+does not run coverage, so nothing is blocked. Options: leave 70 as a stated
+goal, or convert it to a ratchet (baseline at today's numbers, failing on any
+DROP) like the test-type gate, so it enforces "no regression" without
+pretending the bar is met. Lowering the numbers to make it green is the one
+option to avoid — that turns an honest gap into a false all-clear.
+
 Two things are informational:
 
 - **Revival Pack is a non-consumable**, so it is one revive ever — which is what
