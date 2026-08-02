@@ -62,7 +62,7 @@ export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onS
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: scale(420) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {JOB_TEMPLATES.map((tpl) => {
               const alreadyRunning = isTemplateActive(tpl);
               const eligible = meetsSkillReqs(tpl) && !alreadyRunning;

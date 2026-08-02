@@ -299,16 +299,22 @@ export function avatarSexFromId(avatarId: string | undefined | null): 'male' | '
  * third face of twelve stays an early face at every age instead of jumping
  * around, and two players who picked adjacent faces stay adjacent.
  *
- * ── What this still cannot do ─────────────────────────────────────────────
+ * ── What this deliberately does NOT try to fix ────────────────────────────
  *
- * It cannot give twelve distinct people twelve distinct faces in a band that
- * holds three. Collisions in the small bands are forced by the ASSETS, not by
- * this function: 12 → 3 means four picks share each teen face no matter how
- * the mapping is written. Making identity truly stable needs more art in the
- * kid/teen/senior buckets — a product decision, not a code one.
+ * Two different picks can land on the same face in a small band — 12 picks
+ * through a 3-face teen bucket must collide. That is arithmetic, not a defect,
+ * and it is worth being clear about why it does not matter:
  *
- * What is fixed here is the part that was arbitrary. What remains is the part
- * that is arithmetic.
+ *   - This is single-player. Two PLAYERS sharing a face is unobservable.
+ *   - NPCs already share the same finite buckets by `hashSeed(seed) % len`
+ *     (`_portraitSlot`), so any five seniors in one save collide regardless.
+ *     That predates all of this and is inherent to a fixed pool.
+ *
+ * The property that IS player-visible — one character staying coherent as they
+ * age — is what the proportional mapping delivers, and what
+ * `__tests__/utils/facePool.test.ts` pins. An earlier version of this comment
+ * called the collisions an asset gap needing a product decision; that
+ * over-graded them.
  */
 export function getAvatarPortrait(
   avatarId: string | undefined | null,

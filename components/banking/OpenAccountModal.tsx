@@ -113,7 +113,7 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: scale(360) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {PRODUCTS.map((p) => {
               const active = selected?.type === p.type;
               const Icon = p.icon;
@@ -221,11 +221,17 @@ const styles = StyleSheet.create({
   backdropTouch: {
     ...StyleSheet.absoluteFillObject,
   },
+  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
+  // no height bound grows to fit its content, so on a short screen its footer
+  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
+  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     padding: responsiveSpacing.lg,
     gap: responsiveSpacing.md,
+    maxHeight: '90%',
   },
   headerRow: {
     flexDirection: 'row',
