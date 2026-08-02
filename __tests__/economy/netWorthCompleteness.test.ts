@@ -19,6 +19,7 @@
  */
 import { netWorth } from '@/lib/progress/achievements';
 import { createTestGameState } from '../helpers/createTestGameState';
+import { makeBankAccount, makeCrypto, makeLoan } from '../helpers/makeFinance';
 import type { GameState } from '@/contexts/game/types';
 
 /**
@@ -26,20 +27,43 @@ import type { GameState } from '@/contexts/game/types';
  * plus object identity — cannot serve a stale figure between assertions.
  */
 let uniqueMoney = 1_000;
-function stateWith(over: Record<string, unknown>): GameState {
+function stateWith(over: Partial<GameState>): GameState {
   uniqueMoney += 1;
   const base = createTestGameState();
   return {
     ...base,
     stats: { ...base.stats, money: uniqueMoney },
     ...over,
-  } as GameState;
+  };
+}
+
+/**
+ * The same thing, for the three cases that deliberately feed MALFORMED rows.
+ *
+ * Kept separate on purpose. `stateWith` used to take `Record<string, unknown>`
+ * and cast its result `as GameState`, which meant nothing any caller passed was
+ * checked — the well-formed fixtures were getting exactly as much verification
+ * as the corrupt ones, i.e. none. That is how `cryptos` rows missing `name` /
+ * `change` / `changePercent` and accounts missing `openedWeek` survived.
+ *
+ * Splitting them makes the corruption a deliberate, visible act: everything
+ * else must now be a real `Partial<GameState>`, and the cast that permits
+ * garbage lives here with a reason attached rather than on every fixture.
+ */
+function corruptStateWith(over: Record<string, unknown>): GameState {
+  uniqueMoney += 1;
+  const base = createTestGameState();
+  return {
+    ...base,
+    stats: { ...base.stats, money: uniqueMoney },
+    ...over,
+  } as unknown as GameState;
 }
 
 describe('crypto counts toward net worth', () => {
   it('adds owned coins at their current price', () => {
     const withCoins = stateWith({
-      cryptos: [{ id: 'btc', symbol: 'BTC', owned: 2, price: 50_000 }],
+      cryptos: [makeCrypto({ owned: 2, price: 50_000 })],
     });
 
     expect(netWorth(withCoins)).toBe(withCoins.stats.money + 100_000);
@@ -51,22 +75,22 @@ describe('crypto counts toward net worth', () => {
     const converted = {
       ...cash,
       stats: { ...cash.stats, money: 0 },
-      cryptos: [{ id: 'btc', symbol: 'BTC', owned: 1, price: cash.stats.money }],
-    } as GameState;
+      cryptos: [makeCrypto({ owned: 1, price: cash.stats.money })],
+    };
 
     expect(netWorth(converted)).toBe(netWorth(cash));
   });
 
   it('ignores unowned coins rather than counting the whole market', () => {
     const noPosition = stateWith({
-      cryptos: [{ id: 'btc', symbol: 'BTC', owned: 0, price: 50_000 }],
+      cryptos: [makeCrypto({ owned: 0, price: 50_000 })],
     });
 
     expect(netWorth(noPosition)).toBe(noPosition.stats.money);
   });
 
   it('survives corrupt coin rows without producing NaN', () => {
-    const corrupt = stateWith({
+    const corrupt = corruptStateWith({
       cryptos: [
         { id: 'a', owned: NaN, price: 100 },
         { id: 'b', owned: 1, price: Infinity },
@@ -87,10 +111,10 @@ describe('modern bank accounts count toward net worth', () => {
     const base = createTestGameState();
     const withAccounts = stateWith({
       banking: {
-        ...base.banking,
+        ...base.banking!,
         accounts: [
-          { id: 'chk', type: 'checking', name: 'Checking', balance: 5_000, baseAPR: 0 },
-          { id: 'hysa', type: 'savings', name: 'HYSA', balance: 500_000, baseAPR: 0.045 },
+          makeBankAccount({ id: 'chk', type: 'checking', name: 'Checking', balance: 5_000 }),
+          makeBankAccount({ id: 'hysa', name: 'HYSA', balance: 500_000, baseAPR: 0.045 }),
         ],
       },
     });
@@ -100,26 +124,26 @@ describe('modern bank accounts count toward net worth', () => {
 
   it('depositing cash does not reduce net worth', () => {
     const base = createTestGameState();
-    const held = stateWith({ banking: { ...base.banking, accounts: [] } });
+    const held = stateWith({ banking: { ...base.banking!, accounts: [] } });
     const deposited = {
       ...held,
       stats: { ...held.stats, money: 0 },
       banking: {
-        ...base.banking,
+        ...base.banking!,
         accounts: [
-          { id: 'hysa', type: 'savings', name: 'HYSA', balance: held.stats.money, baseAPR: 0.045 },
+          makeBankAccount({ id: 'hysa', name: 'HYSA', balance: held.stats.money, baseAPR: 0.045 }),
         ],
       },
-    } as GameState;
+    };
 
     expect(netWorth(deposited)).toBe(netWorth(held));
   });
 
   it('survives corrupt account rows', () => {
     const base = createTestGameState();
-    const corrupt = stateWith({
+    const corrupt = corruptStateWith({
       banking: {
-        ...base.banking,
+        ...base.banking!,
         accounts: [
           { id: 'a', balance: NaN },
           { id: 'b', balance: Infinity },
@@ -141,7 +165,7 @@ describe('nothing that already counted stopped counting', () => {
 
   it('still subtracts loans', () => {
     const withLoan = stateWith({
-      loans: [{ id: 'l1', name: 'Loan', remaining: 500, principal: 500, rateAPR: 0.1 }],
+      loans: [makeLoan({ id: 'l1', principal: 500 })],
     });
 
     expect(netWorth(withLoan)).toBe(withLoan.stats.money - 500);
@@ -160,12 +184,12 @@ describe('the memo cache sees the new asset classes', () => {
     // exactly like the bug this fixes.
     const money = 7_777;
     const base = createTestGameState();
-    const before = { ...base, stats: { ...base.stats, money }, cryptos: [] } as GameState;
+    const before = { ...base, stats: { ...base.stats, money }, cryptos: [] };
     const after = {
       ...base,
       stats: { ...base.stats, money },
-      cryptos: [{ id: 'btc', symbol: 'BTC', owned: 1, price: 30_000 }],
-    } as GameState;
+      cryptos: [makeCrypto({ owned: 1, price: 30_000 })],
+    };
 
     expect(netWorth(before)).toBe(money);
     expect(netWorth(after)).toBe(money + 30_000);
@@ -177,16 +201,16 @@ describe('the memo cache sees the new asset classes', () => {
     const before = {
       ...base,
       stats: { ...base.stats, money },
-      banking: { ...base.banking, accounts: [] },
-    } as GameState;
+      banking: { ...base.banking!, accounts: [] },
+    };
     const after = {
       ...base,
       stats: { ...base.stats, money },
       banking: {
-        ...base.banking,
-        accounts: [{ id: 'a', type: 'savings', name: 'S', balance: 1_000, baseAPR: 0 }],
+        ...base.banking!,
+        accounts: [makeBankAccount({ id: 'a', name: 'S', balance: 1_000 })],
       },
-    } as GameState;
+    };
 
     expect(netWorth(before)).toBe(money);
     expect(netWorth(after)).toBe(money + 1_000);
@@ -278,7 +302,7 @@ describe('R4 — the mirror accounts are not counted twice', () => {
     const state = mirroredState({
       money,
       savings: 0,
-      extra: [{ id: 'hysa', type: 'savings', name: 'HYSA', balance: 400_000, baseAPR: 0.045 }],
+      extra: [makeBankAccount({ id: 'hysa', name: 'HYSA', balance: 400_000, baseAPR: 0.045 })],
     });
 
     expect(netWorth(state)).toBe(money + 400_000);
