@@ -709,55 +709,32 @@ try {
 // without it.
 logSection('9. IAP Receipt Verification (production)');
 try {
-  const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false';
   const isProductionBuild = process.argv.includes('--platform')
     && (platform === 'ios' || platform === 'android')
     && !process.argv.includes('--dev');
   const verifyUrl = (process.env.EXPO_PUBLIC_IAP_VERIFY_URL || '').trim();
 
-  /*
-   * RevenueCat is an ALTERNATIVE verification path, not a bypass.
-   *
-   * `IAPService.purchaseProduct` says so at the branch itself: "RC verifies the
-   * receipt server-side and finishes the transaction itself, so we skip the
-   * expo-iap purchase + self-hosted verify + finishTransaction". When RC is
-   * live, `verifyReceiptWithServer` is never called, so demanding a self-hosted
-   * verify URL blocks a release for a server that would never be contacted.
-   *
-   * `eas.json` sets EXPO_PUBLIC_USE_REVENUECAT=true for production, so this
-   * check was failing every production preflight for a legacy path the build
-   * does not use.
-   *
-   * But RC only takes over when `revenueCatService.isEnabled()` is true, and
-   * that needs the flag AND an API key AND the SDK. A flag set without a key
-   * silently falls back to the native path — where a missing verify URL means
-   * `verifyReceiptWithServer` returns FALSE and every purchase is refused. So
-   * this accepts RC as the verification path only when it is genuinely
-   * configured, and otherwise still demands the URL.
-   */
-  const rcFlag = process.env.EXPO_PUBLIC_USE_REVENUECAT === 'true';
-  const rcKey = (
-    process.env.EXPO_PUBLIC_RC_IOS_KEY
-    || process.env.EXPO_PUBLIC_RC_ANDROID_KEY
-    || process.env.EXPO_PUBLIC_RC_API_KEY
-    || ''
-  ).trim();
-  const rcHandlesVerification = rcFlag && !!rcKey;
+  // The decision lives in scripts/lib/receiptVerification.js so it can be
+  // TESTED. Its branches are subtle and the cost of getting one wrong is a
+  // release that refuses every purchase, which is not something to leave on
+  // "it read correctly at the time".
+  const { resolveVerificationPath } = require('./lib/receiptVerification');
+  const { verdict } = resolveVerificationPath(process.env, { isProductionBuild });
 
-  if (!iapEnabled) {
+  if (verdict === 'skip-iap-disabled') {
     log('[SKIP] IAP disabled (EXPO_PUBLIC_ENABLE_IAP=false)', YELLOW);
-  } else if (!isProductionBuild) {
+  } else if (verdict === 'skip-not-production') {
     log('[SKIP] Non-production build — verify URL not required', YELLOW);
-  } else if (rcHandlesVerification) {
+  } else if (verdict === 'revenuecat') {
     log('[PASS] RevenueCat verifies receipts server-side (self-hosted verify URL not needed)', GREEN);
-  } else if (rcFlag && !rcKey) {
+  } else if (verdict === 'rc-flag-without-key') {
     log('[FAIL] EXPO_PUBLIC_USE_REVENUECAT=true but no RevenueCat API key is set.', RED);
     log('   Without a key `revenueCatService.isEnabled()` is false, so the build', RED);
     log('   silently falls back to the self-hosted path — where a missing verify', RED);
     log('   URL makes verifyReceiptWithServer return FALSE and every purchase is', RED);
     log('   REFUSED. Set EXPO_PUBLIC_RC_IOS_KEY / EXPO_PUBLIC_RC_ANDROID_KEY.', RED);
     hasErrors = true;
-  } else if (!verifyUrl) {
+  } else if (verdict === 'none') {
     log('[FAIL] No receipt verification configured for a production build.', RED);
     log('   Pick ONE:', RED);
     log('     a) RevenueCat (recommended, and what eas.json production expects):', RED);
