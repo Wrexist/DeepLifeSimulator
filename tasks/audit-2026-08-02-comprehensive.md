@@ -188,3 +188,62 @@ it stops reporting `applyRelationshipGain` / `applyMoneyDelta` as unguarded.
 3. **Phase 1** (dead fields — mechanical once the guard exists)
 4. **Phase 2** (invisible gameplay — largest, needs judgement per field, and
    2A carries an owner question)
+
+---
+
+## Round 2 — the "advertised ≠ actual" sweep (2026-08-02, later)
+
+Phase 3's UI-truth guard was planned as a registry over `*Multiplier`-shaped
+helpers. **That shape was abandoned after measuring it:** a name-pattern scan
+returns 29 helpers and ~25 are internal computation with no reason to be shown.
+A guard firing 25 false positives is the phantom-finding trap, not a guard.
+
+The tractable invariant is narrower: **a component renders a stored field that
+the payout adjusts.** Sweeping for that found five real defects.
+
+| # | Defect | Status |
+|---|---|---|
+| 1 | Company income — UI showed stored base, payout applied brand/share/hires | fixed (earlier) |
+| 2 | `raiseMultiplier` — FOUR different clamps across writer/payout/UI | fixed `a3a54e3` |
+| 3 | Savings APR — displayed `baseAPR`, paid `effectiveDepositAPR` (65% in a crash) | fixed `4226f28` |
+| 4 | Asking rent — over-ask accepted then silently clamped | fixed `4efcc6e` |
+| 5 | Prestige income cap — 3.35x advertised, 1.50x granted | fixed `c96932b` |
+| 6 | `legacy_business` — 30,000 pts, wired to NOTHING | flagged `a985a97`, **owner decision open** |
+
+Guard shipped for #6's class: `__tests__/tooling/prestigeBonusReaders.test.ts`
+(`f9bf97e`). Scoped to prestige bonuses ONLY — see below for why.
+
+### Dimensions verified CLEAN this round (do not re-derive)
+
+| Dimension | Method | Result |
+|---|---|---|
+| Gold upgrades (9, 5k–150k gems) | each id traced to a reader | **all wired**; uncapped, stack multiplicatively, descriptions accurate |
+| Onboarding perks (20; 9 income) | cap reachability computed | `MAX_PERK_INCOME_BONUS` 2.0 is **unreachable** — all nine active product to 1.5614. No perk purchase is ever wasted |
+| Luxury items (12) | unread-id scan | 0 unread |
+| Loan APR | traced origination | `effectiveLoanAPR` applied at origination and STORED, so displaying `loan.rateAPR` raw is correct. Pattern-matched the bug class; is not one |
+| `applyBreakthroughEffects` | read the writer | WRITES the stored field, so the UI reading it is right. Not an instance |
+
+### Scans that DO NOT generalise (recorded so nobody rebuilds them)
+
+The unread-id scan works on prestige bonuses because `applyBonuses` consumes
+each by name. It is useless elsewhere:
+
+- **ambitions** 40 ids, 38 "unread" — milestones are iterated generically
+  (`ambition.milestones.map(...)`), so an id is never a literal. All false.
+- **achievements** 21 ids, 19 "unread" — the evaluator is a
+  `switch (achievement.id)` in the SAME file as the catalogue, which the scan
+  excluded wholesale. A bug in the scan, not a finding.
+
+Comment-stripping is mandatory for this scan and was nearly missed: the
+explanatory comment added alongside the fix wraps `legacy_business` in
+backticks, which the scan would have counted as a reader — silently passing on
+the exact bug it exists to catch. Prose must never satisfy a wiring check;
+that is *how* #6 survived an earlier pass in the first place.
+
+### Open for the owner
+
+**`legacy_business` needs a product decision.** Every option changes design:
+gating inheritance removes behaviour players have today and undoes a
+deliberate bug fix; deleting the bonus strands spent points; giving it a new
+effect is designing a feature. The shop now states it has no effect, so no
+further player is charged for nothing while the decision is open.

@@ -102,7 +102,21 @@ everything below the IAP boundary is testable in Jest.
 
 ## Open for the owner
 
-Nothing blocking. Two things are informational:
+**One decision now blocks nothing but should be made: `legacy_business`.**
+"Family Business Legacy" (legendary, 30,000 prestige points, "Future
+generations inherit family businesses") is wired to NOTHING. Family businesses
+pass to the heir unconditionally in `prestigeExecution`, so the purchase is
+consumed and changes nothing. The shop now says so, which stops further
+players paying for it, but the underlying choice is a product one:
+
+- gate inheritance on the bonus → removes behaviour every existing player has
+  today, and undoes a deliberate "BUG FIX: Preserve family businesses" change
+- delete the bonus → strands the points of anyone who already bought it
+- give it a new additive effect (e.g. inherited businesses keep their upgrades,
+  or a generational income bonus) → neither takes anything away nor strands
+  points, but it is designing a feature rather than auditing one
+
+Two things are informational:
 
 - **Revival Pack is a non-consumable**, so it is one revive ever — which is what
   was chosen. Making it repeatable needs the product changed to a consumable in
