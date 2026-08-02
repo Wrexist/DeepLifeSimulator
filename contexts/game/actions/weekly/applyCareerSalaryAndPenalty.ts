@@ -26,6 +26,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { applyRaisePremium } from '@/lib/careers/raisePremium';
 import { logger } from '@/utils/logger';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { DEEP_LIFE_PLUS_INCOME_MULTIPLIER, hasDeepLifePlusEntitlement } from '@/lib/subscription/deepLifePlus';
@@ -72,11 +73,10 @@ export function applyCareerSalaryAndPenalty(
       } else if (levelData && typeof levelData.salary === 'number' && levelData.salary > 0) {
         // Salary is stored as weekly amount (e.g., 55 = $55/week). Apply any
         // negotiated raise premium (raiseMultiplier, 1 = base) from the
-        // "Ask for a raise" action — clamped defensively to [1, 3].
-        const raisePremium = typeof currentCareer.raiseMultiplier === 'number' && isFinite(currentCareer.raiseMultiplier)
-          ? Math.max(1, Math.min(3, currentCareer.raiseMultiplier))
-          : 1;
-        careerSalary = Math.round(levelData.salary * raisePremium);
+        // "Ask for a raise" action. The clamp lives in the shared helper: this
+        // site used to allow up to 3x while the writer caps at 2x, so a save
+        // carrying an out-of-range value paid a premium the game never grants.
+        careerSalary = applyRaisePremium(levelData.salary, currentCareer.raiseMultiplier);
 
         // Work Pay Boost perk (+50% earnings). The $1.99 perks.workBoost IAP
         // previously set the flag with no callsite consuming it — paying users

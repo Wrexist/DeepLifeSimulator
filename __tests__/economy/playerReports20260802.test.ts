@@ -148,9 +148,19 @@ describe('a negotiated raise is visible on the career card', () => {
   });
 
   it('clamps the premium the same way the payout does (the control)', () => {
-    // The payout clamps to [1, 3]. A display that did not would promise a
-    // salary the tick refuses to pay.
-    expect(src).toMatch(/Math\.max\(1, Math\.min\(3, career\.raiseMultiplier\)\)/);
+    // The intent here was always right — a display that clamped differently
+    // from the payout would promise a salary the tick refuses to pay. But this
+    // originally pinned `Math.max(1, Math.min(3, …))`, agreeing with the weekly
+    // payout against a ceiling of 3 that `requestRaise` never grants: the
+    // writer caps at RAISE_PREMIUM_CAP = 2. Four sites held four opinions.
+    //
+    // Asserting a shared helper instead of a literal is what makes the control
+    // hold: the number can now only be changed in one place, so display and
+    // payout cannot drift apart again without this failing.
+    // See __tests__/economy/raisePremiumConsistency.test.ts.
+    expect(src).toMatch(/resolveRaisePremium\(career\.raiseMultiplier\)/);
+    expect(src).toMatch(/from '@\/lib\/careers\/raisePremium'/);
+    expect(src).not.toMatch(/Math\.min\(3,/);
   });
 });
 

@@ -6,6 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { applyRaisePremium, resolveRaisePremium } from '@/lib/careers/raisePremium';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import {
     Briefcase,
@@ -96,10 +97,8 @@ function CareerItem({
     // who successfully asked for a raise saw the exact same number afterwards.
     // Reported as "Ask for a raise doesn't apply to the income. It stays flat
     // rate." The raise was real; it was just never displayed.
-    const raiseMult = typeof career.raiseMultiplier === 'number' && isFinite(career.raiseMultiplier)
-        ? Math.max(1, Math.min(3, career.raiseMultiplier))
-        : 1;
-    const paidSalary = (base: number | undefined) => Math.round((base ?? 0) * raiseMult);
+    const raiseMult = resolveRaisePremium(career.raiseMultiplier);
+    const paidSalary = (base: number | undefined) => applyRaisePremium(base ?? 0, career.raiseMultiplier);
     const hasRaise = raiseMult > 1;
     const tier = getCareerTier(career.level, career.levels ? career.levels.length : 1);
     const tierInfo = CAREER_TIERS[tier];
@@ -310,10 +309,8 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
         const nextLevel = currentCareer.levels && currentCareer.levels[currentCareer.level + 1];
         // Same raise premium as the expanded card above — this compact summary
         // is what the player sees first, so it must not disagree with it.
-        const raiseMult = typeof currentCareer.raiseMultiplier === 'number' && isFinite(currentCareer.raiseMultiplier)
-            ? Math.max(1, Math.min(3, currentCareer.raiseMultiplier))
-            : 1;
-        const paidSalary = (base: number | undefined) => Math.round((base ?? 0) * raiseMult);
+        const raiseMult = resolveRaisePremium(currentCareer.raiseMultiplier);
+        const paidSalary = (base: number | undefined) => applyRaisePremium(base ?? 0, currentCareer.raiseMultiplier);
         const canPromote = !!nextLevel && getPromotionEligibility(currentCareer, gameState.weeksLived).eligible;
         const careerDisplayName = formatCareerName(currentCareer.id);
 

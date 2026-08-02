@@ -11,6 +11,13 @@ import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import {
+  applyRaisePremium,
+  raisePremiumPct,
+  isRaisePremiumMaxed,
+  nextRaisePremium,
+  resolveRaisePremium,
+} from '@/lib/careers/raisePremium';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
@@ -1061,8 +1068,7 @@ export const promoteCareer = (
   // moment both rungs are known — `career` is the pre-promotion snapshot, so
   // once state commits the old title and salary are unrecoverable.
   const previousLevelData = career.levels[career.level];
-  const raiseMultiplier = career.raiseMultiplier ?? 1;
-  const paid = (base: number) => Math.round((base || 0) * raiseMultiplier);
+  const paid = (base: number) => applyRaisePremium(base, career.raiseMultiplier);
   const topLevel = Math.max(0, career.levels.length - 1);
 
   return {
@@ -1087,8 +1093,6 @@ export const promoteCareer = (
 // well-kept your stats are) + a cooldown. Real risk: a denial bruises your
 // standing (happiness) and can draw a formal warning (3 = fired).
 export const RAISE_COOLDOWN_WEEKS = 8;
-const RAISE_STEP = 0.08; // +8% of base salary per successful raise
-const RAISE_CAP = 2.0; // negotiated premium tops out at +100%
 const RAISE_MIN_PERFORMANCE = 45;
 
 export const requestRaise = (
@@ -1109,8 +1113,7 @@ export const requestRaise = (
     return { success: false, message: `Too soon — wait ${wait} more week${wait === 1 ? '' : 's'} before asking again.` };
   }
 
-  const premium = career.raiseMultiplier ?? 1;
-  if (premium >= RAISE_CAP) {
+  if (isRaisePremiumMaxed(career.raiseMultiplier)) {
     return { success: false, message: "You're already at the top of this role's pay band." };
   }
 
@@ -1135,14 +1138,14 @@ export const requestRaise = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = cur.lastRaiseWeeksLived ?? cur.startedWeeksLived ?? -Infinity;
     if (prevWs - prevLast < RAISE_COOLDOWN_WEEKS) return prev;
-    if ((cur.raiseMultiplier ?? 1) >= RAISE_CAP) return prev;
+    if (isRaisePremiumMaxed(cur.raiseMultiplier)) return prev;
 
     const updatedCareers = (prev.careers || []).map(c => {
       if (c.id !== careerId) return c;
       if (approved) {
         return {
           ...c,
-          raiseMultiplier: Math.min(RAISE_CAP, (c.raiseMultiplier ?? 1) + RAISE_STEP),
+          raiseMultiplier: nextRaisePremium(c.raiseMultiplier),
           lastRaiseWeeksLived: prevWs,
         };
       }
@@ -1164,8 +1167,7 @@ export const requestRaise = (
   });
 
   if (approved) {
-    const newPremium = Math.min(RAISE_CAP, premium + RAISE_STEP);
-    const pct = Math.round((newPremium - 1) * 100);
+    const pct = raisePremiumPct(nextRaisePremium(career.raiseMultiplier));
     log.info(`Raise approved for ${careerId}: premium now +${pct}%`);
     return { success: true, approved: true, message: `Raise approved! Your salary premium is now +${pct}%.` };
   }

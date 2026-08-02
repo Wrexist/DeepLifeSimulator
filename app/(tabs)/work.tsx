@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { raisePremiumPct } from '@/lib/careers/raisePremium';
 import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
 import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
@@ -726,7 +727,7 @@ function WorkScreenContent() {
                 else showSuccess(result.message);
             };
         } else if (isEmployedHere) {
-            const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
+            const premiumPct = raisePremiumPct(career.raiseMultiplier);
             buttonText = premiumPct > 0 ? `Manage Job (+${premiumPct}%)` : 'Manage Job';
             onPress = () => setManageJobId(career.id);
             buttonAccent = 'career';
@@ -939,7 +940,7 @@ function WorkScreenContent() {
         : undefined;
     const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
     const currentJobSalary = currentJobLevel?.salary ?? 0;
-    const currentJobRaisePct = currentJob ? Math.round(((currentJob.raiseMultiplier ?? 1) - 1) * 100) : 0;
+    const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
     const workScreenGradient = settings.darkMode
