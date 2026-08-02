@@ -379,8 +379,15 @@ export function applyLegacyBonuses(
     newState.stats.reputation = (newState.stats.reputation || 0) + 20;
   }
 
-  // (Removed dead hasFamilyBusinessLegacy write: the flag was set here but no
-  // system ever read it. The live legacy_business path is familyBusinesses[].)
+  // NOTE: `legacy_business` is NOT handled here, or anywhere. A previous edit
+  // removed a dead `hasFamilyBusinessLegacy` write and recorded that "the live
+  // legacy_business path is familyBusinesses[]" — that reads as though the
+  // bonus is wired through that path, and it is not wired at all.
+  // `prestigeExecution` inherits familyBusinesses[] UNCONDITIONALLY, for every
+  // player, bought or not. So the 30,000-point legendary is consumed and
+  // changes nothing. Tracked in `lib/prestige/inertBonuses.ts`, which the shop
+  // reads to warn before the purchase; the product decision (gate it, drop it,
+  // or give it a real effect) is open.
 
   return newState;
 }

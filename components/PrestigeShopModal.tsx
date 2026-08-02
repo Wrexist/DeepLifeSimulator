@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { incomeGainFromPurchase, incomeMultiplierHeadroom, isIncomeBonusWasted } from '@/lib/prestige/incomeHeadroom';
+import { inertBonusReason } from '@/lib/prestige/inertBonuses';
 import {
   Modal,
   View,
@@ -267,6 +268,9 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   // legendary bought at the cap advertised +100% and gave 0.
                   const realIncomeGain = incomeGainFromPurchase(unlockedBonuses, bonus.id);
                   const incomeWasted = isIncomeBonusWasted(unlockedBonuses, bonus.id);
+                  // Separate from the income cap: this one never does anything
+                  // at any point, for any player.
+                  const inertReason = inertBonusReason(bonus.id);
                   const canAfford = prestigePoints >= cost;
                   const isAtMaxLevel = bonus.maxLevel ? currentLevel >= bonus.maxLevel : currentLevel > 0;
                   const hasAnyLevel = currentLevel > 0;
@@ -328,7 +332,11 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                                 was the bug. State the real effect whenever it
                                 differs from the headline — including the case
                                 where it is zero. */}
-                            {incomeWasted ? (
+                            {inertReason ? (
+                              <Text style={[styles.capNote, { color: '#f59e0b' }]}>
+                                No effect — {inertReason}
+                              </Text>
+                            ) : incomeWasted ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
                                 No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% cap
                               </Text>
