@@ -180,6 +180,12 @@ export function applyStartingBonuses(
 }
 
 /**
+ * Hard ceiling on the combined prestige income multiplier (1.5 = +50%).
+ * Exported so the prestige shop can state it rather than re-deriving it.
+ */
+export const INCOME_MULTIPLIER_CAP = 1.5;
+
+/**
  * Get income multiplier from prestige bonuses
  * @param unlockedBonuses Array of unlocked bonus IDs
  * @returns Total income multiplier (1.0 = no bonus)
@@ -206,10 +212,13 @@ export function getIncomeMultiplier(unlockedBonuses: string[]): number {
     multiplier += 0.15; // +15% bonus
   }
 
-  // ANTI-EXPLOIT: Cap total income multiplier at 1.5x (50% bonus max)
+  // ANTI-EXPLOIT: Cap total income multiplier (50% bonus max)
   // Without cap, stacking all bonuses gives 2.35x+ which makes each prestige cycle faster
-  // than the last, creating an exponential snowball
-  return Math.min(1.5, multiplier);
+  // than the last, creating an exponential snowball.
+  // The cap is EXPORTED because the shop has to show it: every income bonus
+  // advertised its headline number regardless of headroom, so a legendary
+  // bought at the cap was consumed and granted nothing.
+  return Math.min(INCOME_MULTIPLIER_CAP, multiplier);
 }
 
 /**

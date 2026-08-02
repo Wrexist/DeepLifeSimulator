@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { incomeGainFromPurchase, incomeMultiplierHeadroom, isIncomeBonusWasted } from '@/lib/prestige/incomeHeadroom';
 import {
   Modal,
   View,
@@ -42,6 +43,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   // `legacyPoints`, so it is a lifetime total, not a wallet).
   const legacyAvailable = legacyPointsAvailable(gameState?.legacyPoints, gameState?.legacyUpgrades);
   const unlockedBonuses = prestigeData?.unlockedBonuses || [];
+  const incomeHeadroom = incomeMultiplierHeadroom(unlockedBonuses);
   const isDarkMode = gameState?.settings?.darkMode ?? false;
 
   const categories: PrestigeBonusCategory[] = ['starting', 'multiplier', 'unlock', 'qol', 'special'];
@@ -260,6 +262,11 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   const currentLevel = getBonusLevel(bonus.id, unlockedBonuses);
                   const canPurchase = canPurchaseBonus(bonus, unlockedBonuses);
                   const cost = getBonusPurchaseCost(bonus, unlockedBonuses);
+                  // What this card would ACTUALLY grant. `bonus.description`
+                  // is a fixed headline that ignores the income cap, so a
+                  // legendary bought at the cap advertised +100% and gave 0.
+                  const realIncomeGain = incomeGainFromPurchase(unlockedBonuses, bonus.id);
+                  const incomeWasted = isIncomeBonusWasted(unlockedBonuses, bonus.id);
                   const canAfford = prestigePoints >= cost;
                   const isAtMaxLevel = bonus.maxLevel ? currentLevel >= bonus.maxLevel : currentLevel > 0;
                   const hasAnyLevel = currentLevel > 0;
@@ -317,6 +324,19 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             >
                               {bonus.description}
                             </Text>
+                            {/* The cap is deliberate anti-snowball; the silence
+                                was the bug. State the real effect whenever it
+                                differs from the headline — including the case
+                                where it is zero. */}
+                            {incomeWasted ? (
+                              <Text style={[styles.capNote, { color: '#f59e0b' }]}>
+                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% cap
+                              </Text>
+                            ) : realIncomeGain > 0 ? (
+                              <Text style={[styles.capNote, { color: '#10b981' }]}>
+                                Actually grants +{Math.round(realIncomeGain * 100)}% income
+                              </Text>
+                            ) : null}
                             {bonus.maxLevel && (
                               <View style={styles.levelContainer}>
                                 <Text
@@ -618,6 +638,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(8),
     marginTop: scale(4),
   },
+  capNote: { fontSize: 11, marginTop: 4, fontWeight: '600' },
   bonusDescriptionDark: {
     color: '#CBD5E1',
   },
