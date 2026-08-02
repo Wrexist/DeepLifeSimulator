@@ -2297,13 +2297,6 @@ export interface GameState {
   youthPills: number;
   showWelcomePopup: boolean;
   hasSeenJobTutorial: boolean;
-  hasSeenInvestmentTutorial: boolean;
-  hasSeenDatingTutorial: boolean;
-  hasSeenHealthWarning: boolean;
-  hasSeenEnergyWarning: boolean;
-  hasSeenMoneyManagementTutorial: boolean;
-  hasSeenSocialMediaTutorial: boolean;
-  hasSeenRealEstateTutorial: boolean;
   settings: GameSettings;
   cryptos: Crypto[];
   /** Extended crypto market state (STATE_VERSION 16) — regimes, order book, DCA, tax. */
@@ -2571,14 +2564,12 @@ export interface GameState {
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
   healthWeeks: number;
-  perfectWeeks?: number; // consecutive weeks with all stats > 90 (Perfectionist achievement)
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
   deathReason?: 'happiness' | 'health' | 'age';
   showWeddingPopup: boolean;
   weddingPartnerName?: string;
-  debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system
   bankruptcyTriggered?: boolean; // STABILITY FIX: Track if bankruptcy has been triggered
   weeksInPoverty?: number; // STABILITY FIX: Track weeks in poverty for scholarship event
   showSicknessModal: boolean;
@@ -2603,7 +2594,6 @@ export interface GameState {
   diseaseImmunities?: string[]; // Diseases player has immunity to (from previous infections)
   vaccinations?: string[]; // Vaccinations player has received
   goals: Goal[];
-  goalProgress: Record<string, GoalProgress>;
   completedGoals: string[];
   // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
   // socialGroups, socialInteractions, lastEventTimes) and the old
@@ -2676,10 +2666,7 @@ export interface GameState {
    * top of the existing `companies[]` array. Per-company keyed by Company.id.
    */
   hustleApp?: HustleAppState;
-  _checksum?: string;
-  _saveVersion?: number;
   _appVersion?: string; // TESTFLIGHT FIX: App version when save was created (for compatibility tracking)
-  _buildNumber?: string | number; // TESTFLIGHT FIX: Build number when save was created (for compatibility tracking)
   travel?: TravelState;
   /**
    * v22 Wave A: capped real-estate portfolio activity timeline (~40 entries).
@@ -2772,12 +2759,7 @@ export interface GameState {
     mentor?: { expiresWeeksLived: number }; // +50% career progress for 3 weeks
   };
   /** Daily challenge completion streak */
-  challengeStreak?: {
-    count: number;
-    lastCompletionDayKey: string;
-  };
   /** Life chapters — themed goal groups that unlock based on weeksLived */
-  activeChapterId?: string;
   completedChapters?: string[];
   /**
    * Life Ambition (v22.x, additive/optional) — a lifelong aspiration chosen at
@@ -2822,7 +2804,6 @@ export interface GameState {
   pursuits?: Record<string, PlayerPursuit>;
   weeklyPursuitPractice?: Record<string, number>;
   /** Tutorial step completion tracking for rewards */
-  completedTutorialSteps?: string[];
 
   // ── Wave 2: Addiction Mechanics ────────────────────────────────
   /** Secrets/Easter eggs discovered this life */

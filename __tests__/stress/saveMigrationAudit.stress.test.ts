@@ -184,15 +184,19 @@ describe('Save migration deep audit', () => {
   });
 
   // ── INDIVIDUAL MIGRATION CONTRACTS ─────────────────────────────────────
-  it('v11: backfills playStreak, legacyPoints, completedChapters, activeChapterId', () => {
+  it('v11: backfills playStreak, legacyPoints, completedChapters', () => {
     const state = makeV10State();
     const result = runMigrations(state);
     expect(result.state.playStreak).toBeDefined();
     expect(result.state.playStreak.count).toBe(0);
     expect(result.state.legacyPoints).toBe(0);
     expect(result.state.completedChapters).toEqual([]);
-    expect(result.state.activeChapterId).toBe('ch1_fresh_start');
-    expect(result.state.completedTutorialSteps).toEqual([]);
+    // `activeChapterId` was backfilled here until 2026-08-02. It is gone —
+    // `getCurrentChapter()` derives the active chapter from `completedChapters`,
+    // so the stored field had no reader anywhere and the pipeline was
+    // maintaining it on every load for nobody. `completedChapters`, which IS
+    // read, is still asserted above. `completedTutorialSteps` went the same way
+    // in the same change, for the same reason.
   });
 
   it('v11: backfills startedWeeksLived on existing careers', () => {

@@ -94,7 +94,31 @@ function build({ runTests = false } = {}) {
   // Verify each apply*/run*/process* weekly subsystem invocation in the orchestrator
   // is *actually positioned inside* a try/catch block (brace-matched), not merely that
   // some try exists in the file. A single throwing subsystem must not abort the week.
-  const ctx = L.read(tickEntry) || '';
+  const fullCtx = L.read(tickEntry) || '';
+
+  // Scope to the WEEK LOOP, not the whole orchestrator file.
+  //
+  // This used to scan every `apply*`/`run*`/`process*` call in
+  // GameActionsContext.tsx, which is ~4,400 lines and holds dozens of USER
+  // actions alongside the tick. So it permanently reported
+  // `applyRelationshipGain` and `applyMoneyDelta` as "unwrapped weekly-tick
+  // subsystems" — both are user actions (a karma-adjusted relationship change
+  // and an engagement-ring purchase), neither is in the tick, and no amount of
+  // fixing the tick could ever clear them.
+  //
+  // A permanent phantom finding is worse than no finding: it trains the reader
+  // to skim the line, which is precisely how a REAL unguarded subsystem would
+  // get missed. Bound the scan to `nextWeek`'s body and the count means what it
+  // says. Falls back to the whole file if the boundary cannot be located, so a
+  // refactor degrades to the old (noisy) behaviour rather than to silence.
+  const tickStart = fullCtx.search(/const nextWeek\s*=\s*useCallback\(/);
+  let ctx = fullCtx;
+  if (tickStart >= 0) {
+    const rest = fullCtx.slice(tickStart);
+    const endRel = rest.search(/\n\s*\}, \[/);
+    if (endRel > 0) ctx = rest.slice(0, endRel);
+  }
+
   const ranges = L.tryRanges(ctx);
   const cleanCtx = L.stripNoise(ctx);
   const callRe = /\b(?:apply|run|process|tick|compute)[A-Z]\w*\s*\(/g;

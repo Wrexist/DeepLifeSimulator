@@ -83,22 +83,12 @@ const migrations: Record<number, (state: any) => any> = {
       state.legacyBuffs = undefined; // Explicitly set (no-op but makes intent clear)
     }
 
-    // Challenge streak — initialize with defaults for saves that had daily challenges
-    if (state.challengeStreak === undefined && state.dailyChallenges?.lastCompletionDay) {
-      state.challengeStreak = { count: 0, lastCompletionDayKey: '' };
-    }
-
-    // Life chapters
-    if (state.activeChapterId === undefined) {
-      state.activeChapterId = 'ch1_fresh_start';
-    }
+    // Life chapters. `activeChapterId` used to be backfilled here too; it was
+    // removed because `getCurrentChapter()` DERIVES the active chapter from
+    // `completedChapters`, so the stored field had no reader and every load was
+    // maintaining it for nobody.
     if (state.completedChapters === undefined) {
       state.completedChapters = [];
-    }
-
-    // Tutorial step completion
-    if (state.completedTutorialSteps === undefined) {
-      state.completedTutorialSteps = [];
     }
 
     // Career startedWeeksLived — backfill for existing careers

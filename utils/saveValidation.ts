@@ -1034,19 +1034,9 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing revivalPack to false');
     repaired = true;
   }
-  if (s.activeChapterId === undefined) {
-    s.activeChapterId = 'ch1_fresh_start';
-    repairs.push('Set missing activeChapterId');
-    repaired = true;
-  }
   if (!Array.isArray(s.completedChapters)) {
     s.completedChapters = [];
     repairs.push('Created missing completedChapters array');
-    repaired = true;
-  }
-  if (!Array.isArray(s.completedTutorialSteps)) {
-    s.completedTutorialSteps = [];
-    repairs.push('Created missing completedTutorialSteps array');
     repaired = true;
   }
   if (!Array.isArray(s.discoveredSecrets)) {

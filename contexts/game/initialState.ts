@@ -1191,13 +1191,6 @@ export const initialGameState: GameState = {
   company: undefined,
   showWelcomePopup: true,
   hasSeenJobTutorial: false,
-  hasSeenInvestmentTutorial: false,
-  hasSeenDatingTutorial: false,
-  hasSeenHealthWarning: false,
-  hasSeenEnergyWarning: false,
-  hasSeenMoneyManagementTutorial: false,
-  hasSeenSocialMediaTutorial: false,
-  hasSeenRealEstateTutorial: false,
   achievements: [
     // Money
     { id: 'first_dollar', name: 'First Payday', description: 'Earn your first hard-earned dollar', category: 'money', completed: false },
@@ -1405,7 +1398,6 @@ export const initialGameState: GameState = {
   vaccinations: [],
   // Goal System
   goals: [],
-  goalProgress: {},
   completedGoals: [],
   hasPhone: false,
   computerPreviouslyOwned: false,
@@ -1722,14 +1714,11 @@ export const initialGameState: GameState = {
   legacyPoints: 0,
   legacyUpgrades: [],
   legacyBuffs: undefined,
-  challengeStreak: undefined,
-  activeChapterId: 'ch1_fresh_start',
   completedChapters: [],
   // Life Ambition (additive/optional) — set from onboarding; absent = freeform life.
   ambitionId: undefined,
   ambitionCompletedMilestones: [],
   ambitionRewardClaimed: false,
-  completedTutorialSteps: [],
 
   // Wave 2: Addiction Mechanics
   discoveredSecrets: [],
