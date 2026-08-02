@@ -23,24 +23,26 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { execFileSync } from 'child_process';
 
 const repoRoot = path.join(__dirname, '..', '..');
 
 /**
- * Known-dead fields. LOWER THIS LIST as they are deleted or wired; never add.
+ * Files where a field may appear without that counting as a READER.
  *
- * Grouped by why they are dead, because the fix differs:
- *   - tutorial flags: no tutorial ever read them
- *   - save metadata:  reads as though saves are verified through `_checksum`;
- *                     the real primitives (CRC32, HMAC) never touch it
- *   - pipeline-maintained: WORSE than the others — `saveMigrations` backfills
- *                     and `repairGameState` mirrors these, so every load pays
- *                     for state nothing consumes. `activeChapterId` is the
- *                     clearest: `getCurrentChapter()` derives the active
- *                     chapter from `completedChapters`, so the stored field was
- *                     superseded and never removed.
+ * The save pipeline is in here deliberately. `saveMigrations` backfilling a
+ * field and `repairGameState` mirroring it are not consumption — they are the
+ * pipeline maintaining state on behalf of a consumer that may not exist. Three
+ * of the sixteen fields deleted on 2026-08-02 were exactly that case, and they
+ * were the worst of the group: every load paid for them and nothing read the
+ * result.
+ *
+ * The cost of this choice: a legacy field being deliberately migrated AWAY
+ * would flag here. That is the right trade — such a field should be named with
+ * a reason, not invisible.
  */
+const PLUMBING =
+  /contexts[/\\]game[/\\]types\.ts|contexts[/\\]game[/\\]initialState\.ts|__tests__|tasks[/\\]|utils[/\\]saveMigrations\.ts|utils[/\\]saveValidation\.ts/;
+
 /**
  * Known-dead fields. LOWER THIS LIST as they are deleted or wired; never add.
  *
@@ -54,23 +56,71 @@ const repoRoot = path.join(__dirname, '..', '..');
  * An empty list makes this a plain gate: GameState carries no dead field. If you
  * are adding one, wire it in the same change or do not add it.
  */
-const KNOWN_DEAD: string[] = [].sort();
+const KNOWN_DEAD: string[] = [];
+
+const SCAN_DIRS = ['app', 'components', 'contexts', 'hooks', 'lib', 'services', 'src', 'utils'];
+const SKIP_DIR = /node_modules|\.git|\.expo|coverage|android|ios/;
 
 /**
- * Files where a field may appear without that counting as a READER.
+ * Identifier frequency across all NON-plumbing source, built in ONE pass.
  *
- * The save pipeline is in here deliberately. `saveMigrations` backfilling a
- * field and `repairGameState` mirroring it are not consumption — they are the
- * pipeline maintaining state on behalf of a consumer that may not exist. Three
- * of the sixteen below are exactly that case, and they are the worst of the
- * group: every load pays for them and nothing reads the result.
+ * ── Why this does not shell out to ripgrep ────────────────────────────────
  *
- * The cost of this choice: a legacy field being deliberately migrated AWAY
- * would flag here. That is the right trade — such a field should be on the list
- * with a note, not invisible.
+ * It used to. `execFileSync('rg', …)` inside a `try { } catch { }` that treated
+ * a failure as "no matches". Ripgrep is not installed on the CI runner, so
+ * every call threw ENOENT, every field came back with zero references, and the
+ * suite reported the entire GameState as dead.
+ *
+ * That is the same shape as the cold-container trap `scripts/check-test-types.js`
+ * guards against — a run that never happened reading as a clean result — and I
+ * reintroduced it here. A pure-Node scan has no tool to be missing.
+ *
+ * One pass over the tree, tokenised into a count map, rather than one search
+ * per field: ~190 fields against ~800 files would otherwise mean scanning the
+ * whole source tree 190 times.
  */
-const PLUMBING =
-  /contexts\/game\/types\.ts|contexts\/game\/initialState\.ts|__tests__|tasks\/|utils\/saveMigrations\.ts|utils\/saveValidation\.ts/;
+function buildIdentifierCounts(): Map<string, number> {
+  const counts = new Map<string, number>();
+  const walk = (dir: string) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!SKIP_DIR.test(entry.name)) walk(full);
+        continue;
+      }
+      if (!/\.tsx?$/.test(entry.name)) continue;
+      const rel = path.relative(repoRoot, full);
+      if (PLUMBING.test(rel)) continue;
+      const src = fs.readFileSync(full, 'utf8');
+      for (const m of src.matchAll(/[A-Za-z_$][\w$]*/g)) {
+        counts.set(m[0], (counts.get(m[0]) ?? 0) + 1);
+      }
+    }
+  };
+  for (const d of SCAN_DIRS) walk(path.join(repoRoot, d));
+
+  // A scan that found nothing must FAIL, not report a clean tree.
+  //
+  // This is the specific mistake that broke CI: the previous implementation
+  // swallowed a missing-binary error and returned "no references", which reads
+  // exactly like "every field is dead". Whatever replaces this scan, the
+  // not-run case and the nothing-found case must never be the same value.
+  if (counts.size < 1000) {
+    throw new Error(
+      `Source scan collected only ${counts.size} identifiers — it did not run properly. ` +
+      'Do not read this as "no references found".',
+    );
+  }
+  return counts;
+}
+
+const IDENTIFIERS = buildIdentifierCounts();
 
 function gameStateFields(): string[] {
   const types = fs.readFileSync(path.join(repoRoot, 'contexts/game/types.ts'), 'utf8');
@@ -80,24 +130,13 @@ function gameStateFields(): string[] {
   return [...body.matchAll(/^ {2}(\w+)\??:/gm)].map((m) => m[1]);
 }
 
-/** Word-boundary search, so `money` does not match `moneyChange`. */
-function referencesOutsidePlumbing(field: string): string[] {
-  let out = '';
-  try {
-    out = execFileSync(
-      'rg',
-      ['-n', '--no-heading', '-g', '!node_modules', '-g', '*.ts', '-g', '*.tsx', '-w', field, '.'],
-      { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-    );
-  } catch {
-    // rg exits 1 on no matches — that is the interesting case, not an error.
-  }
-  return out.split('\n').filter(Boolean).filter((l) => !PLUMBING.test(l));
+/** How many times `field` appears as a whole word outside plumbing. */
+function referenceCount(field: string): number {
+  return IDENTIFIERS.get(field) ?? 0;
 }
 
 describe('GameState has no NEW dead field', () => {
-  // One rg per field over the whole repo; keep the suite's own budget honest.
-  jest.setTimeout(180_000);
+  jest.setTimeout(120_000);
 
   const fields = gameStateFields();
 
@@ -110,7 +149,7 @@ describe('GameState has no NEW dead field', () => {
   });
 
   it('no field outside the known list is unreferenced', () => {
-    const dead = fields.filter((f) => referencesOutsidePlumbing(f).length === 0);
+    const dead = fields.filter((f) => referenceCount(f) === 0);
     const unexpected = dead.filter((f) => !KNOWN_DEAD.includes(f));
 
     expect(unexpected).toEqual([]);
@@ -120,7 +159,7 @@ describe('GameState has no NEW dead field', () => {
     // The other half of the ratchet. A field that is no longer dead — deleted,
     // or finally wired — must leave the list, or the list starts protecting
     // fields that do not need it and the count stops meaning anything.
-    const dead = fields.filter((f) => referencesOutsidePlumbing(f).length === 0);
+    const dead = fields.filter((f) => referenceCount(f) === 0);
     const noLongerDead = KNOWN_DEAD.filter((f) => !dead.includes(f));
 
     expect(noLongerDead).toEqual([]);
@@ -130,6 +169,6 @@ describe('GameState has no NEW dead field', () => {
     // Proves the detector can tell live from dead at all. `weeksLived` is read
     // everywhere; if this ever came back empty the sweep would be reporting
     // every field as dead and the assertions above would be meaningless.
-    expect(referencesOutsidePlumbing('weeksLived').length).toBeGreaterThan(10);
+    expect(referenceCount('weeksLived')).toBeGreaterThan(10);
   });
 });
