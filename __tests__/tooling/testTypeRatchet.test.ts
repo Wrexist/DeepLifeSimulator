@@ -55,8 +55,20 @@ describe('the ratchet is actually wired into CI', () => {
 describe('the baseline is honest', () => {
   it('matches what CLAUDE.md tells a developer to expect', () => {
     // Doc drift here is worse than useless: it sends someone chasing a
-    // regression that is actually the documented backlog.
-    expect(read('CLAUDE.md')).toMatch(new RegExp(`${baseline()} errors outstanding`));
+    // regression that is actually the documented backlog — or, now that the
+    // backlog is gone, dismissing a REAL regression as "the known 19".
+    //
+    // Two states, because the backlog reached 0 on 2026-08-02:
+    //   baseline > 0 → the doc must name the exact count.
+    //   baseline = 0 → the doc must say the tree is clean, and must NOT still
+    //                  be advertising a backlog that no longer exists.
+    const doc = read('CLAUDE.md');
+    if (baseline() > 0) {
+      expect(doc).toMatch(new RegExp(`${baseline()} errors outstanding`));
+    } else {
+      expect(doc).toMatch(/type-check:tests`.*\*\*Clean as of/);
+      expect(doc).not.toMatch(/\d+ errors outstanding/);
+    }
   });
 
   it('is a plain literal, not computed from the current run', () => {

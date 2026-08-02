@@ -44,6 +44,7 @@ import { useGameState, useGameActions, useMoneyActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
+import { makeRealEstate } from '../helpers/makeRealEstate';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -346,21 +347,16 @@ describe('Economy flow — stocks + crypto + real estate', () => {
   it('Housing: processWeeklyHousing keeps property currentValue finite', async () => {
     const { processWeeklyHousing } = await import('@/lib/realEstate/housing');
 
-    let realEstate = [{
+    let realEstate = [makeRealEstate({
       id: 'starter_apt',
       name: 'Starter Apt',
-      type: 'apartment' as const,
       price: 100_000,
       currentValue: 100_000,
-      owned: true,
-      status: 'rented' as const,
+      status: 'rented',
       rent: 800,
       upkeep: 200,
       purchasedWeek: 50,
-      upgradeLevel: 0,
-      installedDecor: [],
-      installedRooms: [],
-    }];
+    })];
 
     for (let week = 1; week <= 100; week++) {
       const result = processWeeklyHousing(realEstate, week);
@@ -377,21 +373,13 @@ describe('Economy flow — stocks + crypto + real estate', () => {
   it('Housing: property appreciates over 100 weeks (currentValue >= base)', async () => {
     const { processWeeklyHousing } = await import('@/lib/realEstate/housing');
 
-    let realEstate = [{
+    let realEstate = [makeRealEstate({
       id: 'home_x',
       name: 'Home X',
-      type: 'house' as const,
       price: 250_000,
       currentValue: 250_000,
-      owned: true,
-      status: 'owned' as const,
-      rent: 0,
       upkeep: 500,
-      purchasedWeek: 0,
-      upgradeLevel: 0,
-      installedDecor: [],
-      installedRooms: [],
-    }];
+    })];
 
     for (let week = 1; week <= 200; week++) {
       realEstate = processWeeklyHousing(realEstate, week).properties;
@@ -444,12 +432,11 @@ describe('Economy flow — stocks + crypto + real estate', () => {
         holdings: [{ symbol: 'TECH', shares: 100, averagePrice: 100, currentPrice: 120 }],
         watchlist: prev.stocks?.watchlist || [],
       },
-      realEstate: [{
-        id: 'rented_apt', name: 'Rented Apt', type: 'apartment' as const,
-        price: 200_000, currentValue: 200_000, owned: true, status: 'rented' as const,
-        rent: 1500, upkeep: 300, purchasedWeek: 50, upgradeLevel: 0,
-        installedDecor: [], installedRooms: [],
-      }],
+      realEstate: [makeRealEstate({
+        id: 'rented_apt', name: 'Rented Apt',
+        price: 200_000, currentValue: 200_000, status: 'rented',
+        rent: 1500, upkeep: 300, purchasedWeek: 50,
+      })],
     })));
 
     const result = calcWeeklyPassiveIncome(captured!.state);

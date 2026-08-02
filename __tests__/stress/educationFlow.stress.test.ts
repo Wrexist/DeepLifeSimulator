@@ -400,7 +400,7 @@ describe('Education flow audit', () => {
         ...prev,
         weeksLived: 100, // past the beginner-luck window → no luck income
         isRetired: false,
-        currentJob: null,
+        currentJob: undefined, // `currentJob?: string` — "no job" is absence, not null
         careers: [],
         loans: [],
         realEstate: [],
@@ -408,7 +408,7 @@ describe('Education flow audit', () => {
         stocks: { holdings: [], watchlist: [], realizedGains: 0 } as never,
         stocksOwned: {},
         relationships: [],
-        dietPlans: undefined,
+        dietPlans: [], // `undefined` before — not assignable; every consumer coalesces to [] anyway
         bankSavings: 0,
         stats: { ...prev.stats, money: 50_000, health: 100, happiness: 100, energy: 100, fitness: 80, reputation: 50, gems: 0 },
         educations: [fakeEdu({

@@ -128,7 +128,12 @@ describe('a restore keeps a way back', () => {
     const after = await listBackups(SLOT);
     const undo = after.find((b) => b.reason === 'before_restore');
     expect(undo).toBeDefined();
-    expect(undo!.gameInfo.characterName).toContain('Replaced');
+    // `gameInfo` is optional on a backup entry, so assert it survived the
+    // round-trip before reading through it — otherwise an undo point written
+    // WITHOUT its metadata would fail here as a TypeError rather than as the
+    // missing-metadata assertion it actually is.
+    expect(undo!.gameInfo).toBeDefined();
+    expect(undo!.gameInfo!.characterName).toContain('Replaced');
   });
 
   it('makes that undo point itself restorable', async () => {

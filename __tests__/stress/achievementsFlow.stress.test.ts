@@ -39,6 +39,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth, evaluateAchievements } from '@/lib/progress/achievements';
 import { achievements } from '@/src/features/onboarding/achievementsData';
 import { validateGameState } from '@/utils/saveValidation';
+import { makeRealEstate } from '../helpers/makeRealEstate';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -137,12 +138,11 @@ function fatState(): GameState {
     holdings: [{ symbol: 'TECH', shares: 1000, averagePrice: 100, currentPrice: 200 }],
     watchlist: [],
   } as never;
-  s.realEstate = [{
-    id: 'home', name: 'Home', type: 'house' as never,
-    price: 500_000, currentValue: 600_000, owned: true, status: 'owned' as never,
-    rent: 0, upkeep: 1000, purchasedWeek: 100, upgradeLevel: 2,
-    installedDecor: [], installedRooms: [],
-  } as never];
+  s.realEstate = [makeRealEstate({
+    id: 'home', name: 'Home',
+    price: 500_000, currentValue: 600_000,
+    upkeep: 1000, purchasedWeek: 100, upgradeLevel: 2,
+  })];
   return s;
 }
 

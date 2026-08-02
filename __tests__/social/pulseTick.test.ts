@@ -110,8 +110,17 @@ describe('processPulseWeeklyTick', () => {
       resolutionMethod: 'apology',
     };
     const r = processPulseWeeklyTick(state, 6);
-    // 30 - 25 (apology bonus) = 5, but the decay is 25 absolute, so >= 25 drop.
-    expect(r.socialMedia.activeScandal === null || r.socialMedia.activeScandal.severity <= 5).toBe(true);
+    // 30 - 25 (apology bonus) = 5, and the scandal SURVIVES at that severity.
+    //
+    // This was written as `activeScandal === null || activeScandal.severity <= 5`
+    // asserted `.toBe(true)`. Two problems with that shape: the disjunction
+    // passes on the null branch while proving nothing about the decay arithmetic
+    // the comment describes, and `=== null` does not narrow the type at all
+    // because `activeScandal` is OPTIONAL (`PulseActiveScandal | null | undefined`)
+    // — an absent scandal would have fallen through to `.severity` and thrown.
+    // Measured: the tick leaves it non-null at exactly 5, so assert that.
+    expect(r.socialMedia.activeScandal).not.toBeNull();
+    expect(r.socialMedia.activeScandal?.severity).toBe(5);
   });
 
   it('auto-clears scandal when severity reaches 0 and folds to history', () => {

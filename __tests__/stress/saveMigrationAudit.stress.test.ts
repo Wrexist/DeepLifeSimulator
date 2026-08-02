@@ -103,6 +103,10 @@ function makeV10State() {
     perks: {},
     goldUpgrades: {},
     prestige: undefined,
+    // Present so the v17 test can populate it. Without the key the assignment
+    // `state.companies = […]` was a type error, i.e. the one migration test
+    // that needs a company to migrate was the one that could not compile.
+    companies: [] as unknown[],
   };
 }
 

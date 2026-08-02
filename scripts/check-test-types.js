@@ -55,8 +55,29 @@ const path = require('path');
  * 2026-08-02: 30 → 27 (phantom `isInJail` and top-level `reputation`; dead ??).
  * 2026-08-02: 27 → 25 (dead legacyPass import; NPCLifeEvent from the wrong module).
  * 2026-08-02: 25 → 19 (UserProfile literals spread the default; NODE_ENV accessor).
+ * 2026-08-02: 19 → 15 (DatingProfile fixture claimed a 'middle' wealth tier).
+ * 2026-08-02: 15 → 10 (shared makeRealEstate; `installedDecor`/`installedRooms`
+ *             were LOCAL VARIABLE names inside calculatePropertyHappiness, never
+ *             fields — four fixtures had copied them from each other).
+ * 2026-08-02: 10 → 0  (last inline PreRolls literal; a stale `Promise<void>`
+ *             alias; a scandal assertion whose `=== null` guard could not narrow
+ *             an OPTIONAL field; a Vehicle literal that `as Vehicle` had let
+ *             miss seven required fields).
+ *
+ * ── 0. The backlog is gone ────────────────────────────────────────────────
+ *
+ * From here this is no longer a ratchet in any meaningful sense — it is a plain
+ * gate that says the test tree type-checks. The DOWN branch below is now
+ * unreachable, and that is the intended end state: leave the mechanism in place
+ * so the failure message on a REGRESSION still explains itself, but there is no
+ * budget left to spend.
+ *
+ * If you are adding a test and this fails, the error is in your test, not here.
+ * Do not raise this number to get unblocked — it took 182 fixes to reach 0, and
+ * every one of them was a test that had been asserting on a field that did not
+ * exist.
  */
-const BASELINE = 19;
+const BASELINE = 0;
 
 // Exported so the weekly audit can read the same number. Guarded below so a
 // `require()` for the constant does not also launch a 5-minute tsc run.

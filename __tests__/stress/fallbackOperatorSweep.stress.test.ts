@@ -104,13 +104,26 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
         condition: 0,
         mileage: 200_000,
         fuelLevel: 100,
-        maxFuel: 100,
         owned: true,
-        speedBonus: 0,
-        purchasedWeek: 50,
         weeklyMaintenanceCost: 0,
         weeklyFuelCost: 0,
-      } as Vehicle;
+        // `maxFuel` and `purchasedWeek` used to sit here; neither is a field of
+        // `Vehicle` (the real name is `fuelCapacity`, and there is no
+        // purchase-week field at all). The trailing `as Vehicle` was what let
+        // the literal miss seven REQUIRED fields while carrying two invented
+        // ones. applyVehicles reads only `condition`, `mileage` and `type`, so
+        // nothing about this test's result changes; the literal simply now
+        // describes a real vehicle.
+        speedBonus: 0,
+        brand: 'Generic',
+        model: 'Wreck',
+        year: 2010,
+        price: 5_000,
+        fuelCapacity: 100,
+        fuelEfficiency: 25,
+        maxSpeed: 120,
+        reputationBonus: 0,
+      };
       act(() => captured!.setGameState(prev => ({
         ...prev,
         weeksLived: 100,
