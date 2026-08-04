@@ -741,3 +741,25 @@ two — but presenting its raw output as severity would have justified a 62-site
 refactor of critical action code for almost no player benefit, which is exactly
 the kind of churn the priority order (Correctness → Simplicity → Root causes)
 is meant to prevent. Read the candidates before quoting the number.
+
+---
+
+## 2026-08-04 — Weekly audit: the device-clock faucet class isn't finished
+
+The v27 (`lastLoginRewardAt`, daily gems) and v28 (`lastNoFillGrantWeek`, no-fill
+orb) fixes hardened two device-clock-gated grants against forward/rewind clock
+jumps — but the **welcome-back cash bonus** (`app/(tabs)/home.tsx` on
+`WelcomeBackPopup` close, up to `weeklySalary × 3.5` untaxed) was left on the same
+`Date.now() - lastLogin > 24h` gate with no `weeksLived` anchor and no high-water
+mark. Same class, same file family, missed in the earlier sweep.
+
+Lesson: when you harden one instance of a documented anti-pattern (§4.4
+"anything gated on a device-clock day-string is farmable"), grep the whole
+population before calling the class closed. `lastLogin` / `Date.now()` gates on a
+*grant* are the fingerprint — the daily-gem and no-fill fixes each anchored to a
+`weeksLived`-derived marker; the welcome-back grant still needs the same.
+
+Filed medium (single-player offline; player only cheats their own save; the
+proper fix is a v31 schema change to a protected file with an owner-level design
+tradeoff), not auto-fixed in the routine. Recorded in the 2026-08-04 audit report
+and todo backlog.

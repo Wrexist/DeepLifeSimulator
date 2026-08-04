@@ -193,3 +193,18 @@ This also explains the campaign report:
       `applyMiningWarehouse.ts:133` skips any rig at `durability >= 50`. At
       2-5%/week decay that is 10-25 weeks of visibly nothing happening, with the
       threshold stated nowhere.
+
+## Weekly audit backlog (2026-08-04)
+
+- [ ] 🟡 **Welcome-back bonus is a device-clock faucet.** `app/(tabs)/home.tsx:772-787`
+      grants up to `weeklySalary × 3.5` untaxed, gated only on
+      `Date.now() - lastLogin > 24h`. Farmable by close → clock +7d → reopen →
+      collect → repeat (§4.4 anti-pattern). Fix = anchor to `weeksLived` like v28
+      `lastNoFillGrantWeek`: new `settings.lastWelcomeBackWeek`, STATE_VERSION → v31,
+      migration + `repairGameState` mirror + `createTestGameState`. Owner call on how
+      hard to gate an inherently-wall-clock reward. Details in
+      `tasks/weekly-audit-2026-08-04.md`.
+- [ ] 🟡 Two `as GameState` casts remain in tests (`netWorthCompleteness.test.ts:60`,
+      `inertPrestigeBonusesRound3.test.ts:165`) — intentional corruption-path
+      fixtures; the Hard Rule #3 ratchet floors at 2 because of them. Leave as-is
+      unless a cleaner `Partial<GameState>` corruption helper is worth it.
