@@ -4,6 +4,70 @@
 
 ## Patterns to Watch For
 
+### 2026-08-04 - Critical review: a zero-drift random walk, a system with no callers, and three of my own mistakes
+
+- **A zero-mean ARITHMETIC return is a negative GEOMETRIC one.** `simulateWeek`
+  stepped stock prices with `price *= (1 + z·σ)` and no drift term, which is
+  `E[log ratio] ≈ −σ²/2` per week. At the 8% weekly vol on TSLA/NVDA/META/NFLX
+  that is −0.32%/week: driving the real pipeline for ten game years left 22 of 25
+  symbols down with the median at 0.32×, and at forty years four symbols sat on
+  the $0.01 clamp. Because the walk is seeded on `weeksLived`, this was not
+  variance — it was the same guaranteed collapse in every save on every device.
+  Fixed with a log-normal step (`exp(μ + σz)`) plus a volatility-scaled risk
+  premium, so more volatility now earns more expected return instead of less.
+  Rule: any multiplicative random walk needs its drift stated explicitly, and the
+  test that guards it must assert the OUTCOME after N steps, not that the output
+  is finite. The old suite checked prices stayed positive and inside the clamp —
+  all true of a market on its way to zero.
+- **"Is it called?" is a different question from "does it work?", and only one
+  of them had a test.** `applyWeeklyInflation` had ZERO production callers:
+  `MoneyActionsContext` imported it and used it nowhere. So `economy.priceIndex`
+  was frozen at 1 forever, every `getInflatedPrice(x, 1)` was a no-op, and the
+  R4-X7 change that routed policy `inflationRate` into it connected a pipe to a
+  dead function. `policyEffectsHonesty.test.ts` was green throughout because it
+  calls the leaf helper directly — the exact failure the `applyBenefit`
+  post-mortem (2026-06-30) already recorded. Same for `resetStockPrices`, whose
+  docstring said "used on prestige/new game" while its only callers were tests,
+  so a new life inherited the previous life's market. Rule: for any helper whose
+  value depends on being INVOKED, one test must assert reachability from the
+  entry point. A grep for the symbol across non-test files is a valid assertion
+  and takes one line.
+- **A cap derived from the thing it caps is not a cap.** My first arrears
+  implementation compounded a weekly surcharge on the standing debt and bounded
+  it with `Math.max(carried, …) * 3` — a ceiling that grew with the balance. A
+  player with no income watched $1 000 reach $144 755 over ten years. Replaced
+  with a flat late fee on what was MISSED that week, so the balance can only grow
+  on a week the player actually failed to pay. Rule: a bound must be anchored to
+  something that does not move.
+- **Two constants describing one thing will disagree.** `WEEKS_PER_MONTH = 4`
+  and `WEEKS_PER_YEAR = 52` (4 × 12 = 48), and the tick used one for the week
+  label and the other for the month, so they desynchronised on the first month
+  and drifted a step every third. Fixed by deriving both from one divisor in
+  `resolveCalendar`. My first version then reintroduced the identical off-by-one
+  one line down by flooring the month-start week instead of ceiling it — caught
+  only because the test sweeps all 200 weeks asserting "label is 1 IFF the month
+  changed" rather than spot-checking a few values.
+- **Three of my own errors this session, all caught by tests I wrote before
+  believing the code:** the arrears ceiling above; a 0.02 risk premium that
+  compounded to ~8 000× over a life; and an empirical "volatile names pay more"
+  assertion that was really a coin flip, and failed for a third reason entirely
+  (at a 200-year horizon every symbol was resting on `MAX_STOCK_PRICE`, so it was
+  comparing opening prices). Rule: when the property is a relationship between
+  parameters, assert it on the FUNCTION, not on a simulated sample where
+  dispersion drowns the signal.
+- **Repo weight and download weight are different numbers.** I reported 67 MB of
+  unreferenced assets as a shipping problem. It is not: Metro bundles only what a
+  static `require()` reaches, verified by diffing a real `expo export` against
+  the tree. The actual problem was the 234 MB that DOES ship — over Google Play's
+  200 MB base-AAB limit — and no preflight section looked at it. Rule: measure
+  the artifact, not the source tree, and validate any static estimate against one
+  real build (234.0 MB predicted vs 234 MB bundled).
+- **`setGameState`'s updater does not run at the call.** I tried to thread the
+  real confiscated amount out of a `setGameState(prev => …)` into a message built
+  on the next line; the variable is still unset there. When the honest number is
+  unavailable at message time, state the RULE ("10% of your cash") rather than a
+  figure that can be wrong.
+
 ### 2026-07-20 - Weekly audit: GameState schema drift — 4 fields added to initialState AFTER the version bump, no migration/repair
 
 - What went wrong: `luxuryItems` (Luxury & Collectibles, commit `5e3cdf1`) and `ambitionId` /

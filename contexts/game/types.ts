@@ -2487,6 +2487,49 @@ export interface GameState {
    */
   lastLoginRewardAt?: number;
   /**
+   * `weeksLived` at the last daily-login gem claim. The gate that actually
+   * holds.
+   *
+   * The two clock guards beside this field (`lastLoginRewardDate`,
+   * `lastLoginRewardAt`) both only refuse a claim when the device clock moves
+   * BACKWARD. Moving it forward one day at a time passes both, and the 48-hour
+   * streak grace keeps the streak climbing, so the 25→500 gem cycle could be
+   * farmed indefinitely on the premium currency that is otherwise an IAP.
+   *
+   * No amount of day-key cleverness closes that: React Native has no monotonic
+   * wall clock without a native module, so every device-time signal moves with
+   * the scrub. The only trustworthy clock here is the GAME's — `weeksLived`
+   * advances solely by playing. Requiring it to move between claims costs a real
+   * player nothing (open the app, play a week) and bounds a scrubber to exactly
+   * one claim per week actually played.
+   *
+   * Default `undefined` — an absent key means "never claimed", which is already
+   * the correct default, so v31 bumps the version without backfilling this.
+   */
+  lastLoginRewardWeek?: number;
+  /**
+   * Unpaid mandatory outgoings carried into next week, in dollars.
+   *
+   * The weekly tick used to compute cash as
+   * `Math.max(0, income − tax − rent − upkeep − diet − tuition)`, so any bill a
+   * player could not cover was silently FORGIVEN. Together with the hard 0 floor
+   * on `stats.money` and the absence of any baseline cost of living, that left
+   * the money axis with no failure state at all: you could not go into debt, be
+   * evicted, or go under. `BANKRUPTCY_FLOOR` names a bankruptcy the game cannot
+   * reach.
+   *
+   * Letting `stats.money` go negative was the alternative and is not viable —
+   * roughly forty call sites depend on the non-negative invariant, including
+   * `updateMoney`'s overdraft reject. So the shortfall is booked HERE instead: it
+   * is settled off the top of next week's income before anything else, and it
+   * drags the credit score while it stands.
+   *
+   * Concrete stored default (`0`), so unlike the v26/v27/v28/v31-login
+   * carve-outs this one takes a REAL migration backfill and a `repairGameState`
+   * mirror.
+   */
+  overdueBalance?: number;
+  /**
    * One-time Discord community reward: set true in the SAME state update that
    * adds the cash, so the money + this flag are always persisted together. It is
    * the in-state half of the exactly-once claim protocol (the durable other half

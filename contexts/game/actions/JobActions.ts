@@ -426,7 +426,18 @@ export const performStreetJob = (
       return {
         ...prev,
         ...applyStreetJobXp(prev, job, success),
-        jailWeeks: Math.min(52, job.jailWeeks || 1),
+        // ADDS to any sentence already standing rather than replacing it.
+        //
+        // This was `Math.min(52, job.jailWeeks || 1)` — an assignment. Every
+        // other writer accumulates (the weekly tick adds
+        // `darkWebTick.jailWeeksAdded` on top of the decayed base), so a bare
+        // `=` here meant getting caught could SHORTEN a sentence. It happens not
+        // to be reachable today only because `app/(tabs)/work.tsx` swaps the
+        // whole Work tab for `JailScreen` while `jailWeeks > 0` — an invariant
+        // enforced in a UI file, three modules away, by coincidence. The next
+        // surface that can hand out a sentence without also hiding Work turns
+        // "get arrested" into a jailbreak.
+        jailWeeks: Math.min(52, (prev.jailWeeks || 0) + (job.jailWeeks || 1)),
         wantedLevel: prev.wantedLevel + (job.wantedIncrease || 1),
         streetJobFailureCount: newFailureCount,
         streetJobsCompleted: prev.streetJobsCompleted || 0, // Don't count caught jobs as completed
@@ -442,9 +453,24 @@ export const performStreetJob = (
     });
 
     // Set caught message with penalty info
+    // States the RULE rather than a figure.
+    //
+    // It used to quote `moneyLost`, computed from the render-time snapshot,
+    // while the deduction used `freshMoneyLost` recomputed from `prev` inside
+    // the updater. That recompute is correct — it is what stops a same-batch
+    // double-tap charging twice — but it left the message as a second, divergent
+    // source of truth, so the toast could name an amount never actually taken.
+    // (And the updater's energy re-check can reject the whole action, in which
+    // case the old message announced a confiscation that never happened at all.)
+    //
+    // Threading the real number back out is not possible here: `setGameState`'s
+    // updater runs during the next render, not at the call, so anything it
+    // assigns is still unset when this line executes. So say the thing that is
+    // true under every ordering. Same lesson as the Legacy Pass claim toast
+    // (lessons.md, 2026-06-24) — report what happened, not what you predicted.
     const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
-    if (moneyLost > 0) {
-      message = `Caught! Jailed for ${job.jailWeeks} weeks. Lost $${moneyLost} in confiscated money. ${penaltyText}`;
+    if (moneyBeforeJob > 0) {
+      message = `Caught! Jailed for ${job.jailWeeks} weeks. The police confiscated 10% of your cash. ${penaltyText}`;
     } else {
       message = `Caught! Jailed for ${job.jailWeeks} weeks. ${penaltyText}`;
     }

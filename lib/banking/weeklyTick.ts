@@ -35,6 +35,13 @@ export interface WeeklyBankingTickInput {
   economyState?: 'normal' | 'recession' | 'boom' | 'crash';
   currentWeek: number;
   /**
+   * Standing arrears (v31 `overdueBalance`) — mandatory weekly bills the player
+   * could not cover. Feeds the credit-score recompute as late-payment
+   * equivalents, so falling behind on rent and tax reads on the credit report
+   * the same way missing a loan payment does. Optional; defaults to no drag.
+   */
+  overdueBalance?: number;
+  /**
    * Categorized cash outflows already deducted by the legacy weekly pipeline
    * (rent, upkeep, diet, taxes, pet food, vehicle running costs, loan autopay…).
    * Recorded into banking.budgetSpend so the Budget tab reflects real spending.
@@ -254,7 +261,7 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   );
 
   // 4. Recompute credit score from the freshly synced loans + accounts + cards.
-  banking = recomputeCreditScore(banking, loansWithTrackers, input.currentWeek);
+  banking = recomputeCreditScore(banking, loansWithTrackers, input.currentWeek, input.overdueBalance);
 
   // 5. Detect economy-state changes → surface a notification.
   if (input.economyState && input.economyState !== banking.lastEconomyState) {

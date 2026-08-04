@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 30`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 31`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -240,7 +240,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 30`** — single source of truth in
+- **Canonical `STATE_VERSION = 31`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -292,6 +292,19 @@ including the crash screen.
   safe answer: inventing a charge would hand out a paid one-shot for free. The
   migration deliberately does NOT read `settings.hasRevivalPack` — that records
   the PURCHASE and survives prestige, while this records the unspent CHARGE.
+- **v31 adds `overdueBalance` and `lastLoginRewardWeek`** — one bump, two fields
+  with opposite treatment, which is exactly why they are worth reading together.
+  `overdueBalance` is the arrears bucket that replaced the silent forgiveness of
+  unpayable weekly bills (the cash line was one `Math.max(0, …)`), so the money
+  axis finally has a failure state. Concrete stored default (`0`) → REAL backfill
+  **and** a `repairGameState` mirror; parity matters more than usual because the
+  value is arithmetic in the weekly cash line, so an absent key would produce
+  `cash - undefined` = NaN and poison `stats.money` for the rest of the life.
+  `lastLoginRewardWeek` is the game-week gate that finally closes the
+  forward-clock daily-gem farm (both existing guards only refuse a REWOUND
+  clock). Default `undefined`, so it is another carve-out: version bumped, NO
+  backfill and no mirror — stamping the current week would deny an existing
+  player their next legitimate claim.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

@@ -178,9 +178,14 @@ describe('the real action keeps both gates inside the updater', () => {
 });
 
 describe('v30 — the field is finally registered', () => {
-  it('STATE_VERSION is 30 and the migration ladder covers it', () => {
-    expect(STATE_VERSION).toBe(30);
+  // Asserted against the live constants, not the literal 30. What this suite
+  // cares about is that the v30 registration still WORKS, not what the current
+  // version number happens to be — pinning the literal made an unrelated bump
+  // (v31, the arrears field) fail here and taught the next person to edit the
+  // number rather than read the test.
+  it('the migration ladder still reaches the current version', () => {
     expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(30);
   });
 
   it('a pre-v30 save without the key arrives with no banked revive', () => {
@@ -190,7 +195,9 @@ describe('v30 — the field is finally registered', () => {
     const { state } = runMigrations(old as never);
 
     expect(bankedRevive(state)).toBe(false);
-    expect(state.version).toBe(30);
+    // Migrated all the way forward, not merely to 30 — a chain that halts early is
+    // the failure this is really watching for.
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
   });
 
   it('and does NOT get one just for having bought the pack before', () => {

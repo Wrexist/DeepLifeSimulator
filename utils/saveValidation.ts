@@ -1034,6 +1034,17 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing revivalPack to false');
     repaired = true;
   }
+  // v31 mirror for `overdueBalance` — the arrears bucket. Migration ↔ repair
+  // parity matters more than usual here: this value is ARITHMETIC in the weekly
+  // cash line, so a partial/CloudSync save that arrives without the key would
+  // produce `cash - undefined` = NaN and poison `stats.money` for the rest of
+  // the life. `0` is also the only safe repair — inventing a debt for a save
+  // that merely lost the key would charge the player for nothing.
+  if (typeof s.overdueBalance !== 'number' || !isFinite(s.overdueBalance) || s.overdueBalance < 0) {
+    s.overdueBalance = 0;
+    repairs.push('Set missing/invalid overdueBalance to 0');
+    repaired = true;
+  }
   if (!Array.isArray(s.completedChapters)) {
     s.completedChapters = [];
     repairs.push('Created missing completedChapters array');

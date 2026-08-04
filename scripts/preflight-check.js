@@ -864,6 +864,61 @@ try {
   hasErrors = true;
 }
 
+// ============================================================================
+// SECTION 11: Shipped image payload
+// ============================================================================
+//
+// The one number that decides whether the app can be distributed on Android,
+// and nothing here looked at it. Measured 2026-08-04: 234.0 MB of images reach
+// the bundle, against Google Play's 200 MB base-AAB limit — so a release build
+// was already over a hard wall while ten sections of preflight reported green.
+//
+// Counts only assets reachable through a static require(), because that is what
+// Metro bundles; unreferenced files in assets/ cost repo size, not download size.
+// See scripts/lib/assetBudget.js for why that distinction matters.
+logSection('11. SHIPPED IMAGE PAYLOAD');
+try {
+  const { measureAssets, evaluateAssetBudget, toMB } = require('./lib/assetBudget');
+  const measurement = measureAssets(process.cwd());
+  const verdict = evaluateAssetBudget(measurement, platform);
+
+  log(`   ${measurement.shippedCount} images ship, ${toMB(measurement.shippedBytes).toFixed(1)} MB`);
+  const formats = Object.entries(measurement.byFormat)
+    .map(([ext, bytes]) => `${ext} ${toMB(bytes).toFixed(1)} MB`)
+    .join(', ');
+  log(`   By format: ${formats}`);
+
+  if (verdict.blocksThisPlatform) {
+    log(`[FAIL] ${verdict.message}`, RED);
+    log('   An Android build cannot exceed the base-AAB limit in a single artifact.', RED);
+    log(`   Fix: ${verdict.fix}`, RED);
+    log('   Or split the art out with Play Asset Delivery.', RED);
+    hasErrors = true;
+  } else if (verdict.overBudget) {
+    log(`[FAIL] ${verdict.message}`, RED);
+    log('   The payload GREW past the recorded ceiling. Shrink what you added —', RED);
+    log('   do not raise ASSET_BUDGET_MB to get the build unstuck.', RED);
+    hasErrors = true;
+  } else if (verdict.overPlayLimit) {
+    // iOS can carry it; Android cannot. Surfaced every run so it stays visible
+    // rather than becoming the thing everyone has stopped reading.
+    log(`[WARN] ${verdict.message}`, YELLOW);
+    log('   iOS ships fine at this size, but an Android single-AAB release cannot.', YELLOW);
+    log(`   Fix: ${verdict.fix}`, YELLOW);
+  } else {
+    log(`[PASS] ${verdict.message}`, GREEN);
+  }
+
+  if (measurement.unreferenced.length > 0) {
+    log(`[WARN] ${measurement.unreferenced.length} image(s) in assets/ are referenced by nothing`, YELLOW);
+    log('   They do NOT ship (Metro only bundles static requires) — this is repo', YELLOW);
+    log('   weight and clone time, not download size.', YELLOW);
+  }
+} catch (error) {
+  log('[FAIL] Asset payload check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 // Final Summary
 logSection('PREFLIGHT CHECK SUMMARY');
 

@@ -39,12 +39,49 @@ const COVERAGE_GOAL = 70;
  * Floors, a hair under the measured values. The margin absorbs istanbul's
  * per-file rounding (hundredths of a point as unrelated files are added); a
  * gate that trips on noise is one people learn to re-run until it passes.
+ *
+ * ── Re-baselined 2026-08-04 when the SCOPE widened ────────────────────────
+ *
+ * `collectCoverageFrom` did not include `app/`, `services/` or `src/`, so the
+ * old numbers (48.92 / 30.45 / 38.83 / 50.23) excluded the highest-risk code in
+ * the repo: the whole expo-router tree, all of IAPService/RevenueCat/AdMob/cloud
+ * sync, and onboarding. The figure was not the app's coverage, it was the
+ * coverage of the easiest part of it, and payments could never trip this gate no
+ * matter how far they regressed.
+ *
+ * Widening the scope added ~6 500 statements at low coverage and moved the
+ * measurement to 47.55 / 30.41 / 38.36 / 48.77. These floors follow it.
+ *
+ * That is a DROP in the printed number and an increase in what it actually
+ * covers, which is the point: the floors follow the scope, never the reverse.
+ * Lowering a floor is legitimate only when the measured surface changed — never
+ * to get a build unstuck.
  */
 const COVERAGE_FLOORS = {
-  statements: 48.5,
+  statements: 47.2,
   branches: 30.0,
-  functions: 38.5,
-  lines: 49.8,
+  functions: 38.0,
+  lines: 48.4,
+};
+
+/**
+ * The measurement the floors above were derived from, over the CURRENT
+ * `collectCoverageFrom` scope.
+ *
+ * Exported so the accompanying suite can assert the relationship — "each floor
+ * is at or just under what the codebase achieves" — against one source of truth
+ * instead of a second copy of these numbers pasted into the test. That copy
+ * existed, still held the pre-widening figures, and failed the moment the scope
+ * changed: the third time this session that a hardcoded literal in a test turned
+ * a deliberate change into a chase.
+ *
+ * Re-measure and update BOTH this and the floors in the same commit.
+ */
+const MEASURED_COVERAGE = {
+  statements: 47.55,
+  branches: 30.41,
+  functions: 38.36,
+  lines: 48.77,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];
@@ -75,4 +112,10 @@ function evaluateCoverage(totals) {
   return { ok: failures.length === 0, failures, atGoal };
 }
 
-module.exports = { COVERAGE_FLOORS, COVERAGE_GOAL, METRICS, evaluateCoverage };
+module.exports = {
+  COVERAGE_FLOORS,
+  COVERAGE_GOAL,
+  MEASURED_COVERAGE,
+  METRICS,
+  evaluateCoverage,
+};

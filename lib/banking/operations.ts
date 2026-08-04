@@ -917,10 +917,25 @@ export function applyLoanPayment(
 export function recomputeCreditScore(
   banking: BankingState,
   loans: Loan[],
-  currentWeek: number
+  currentWeek: number,
+  /**
+   * Standing arrears (v31 `overdueBalance`) — mandatory weekly bills the player
+   * could not cover. Optional so the three other call sites keep their exact
+   * behaviour; the weekly tick passes it.
+   */
+  overdueBalance = 0
 ): BankingState {
   const onTime = (loans ?? []).reduce((s, l) => s + safe(l.onTimePayments), 0);
-  const late = (loans ?? []).reduce((s, l) => s + safe(l.latePayments), 0);
+  const loanLate = (loans ?? []).reduce((s, l) => s + safe(l.latePayments), 0);
+  // Unpaid bills read as late payments, scaled by how deep the hole is.
+  //
+  // DERIVED from the standing balance rather than accumulated in a counter, so
+  // it is self-correcting: the drag grows as the debt grows and disappears the
+  // week it is cleared, with no separate state to drift out of sync. Capped so a
+  // large one-off shortfall cannot floor the component on its own — arrears
+  // should press on the player, not brick their credit.
+  const arrearsLate = Math.min(6, Math.floor(Math.max(0, safe(overdueBalance)) / 500));
+  const late = loanLate + arrearsLate;
 
   const ages = banking.accounts.map((a) => Math.max(0, currentWeek - safe(a.openedWeek)));
   const avgAge = ages.length === 0 ? 0 : ages.reduce((s, a) => s + a, 0) / ages.length;

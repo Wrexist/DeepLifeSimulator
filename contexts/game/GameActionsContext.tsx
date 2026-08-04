@@ -52,7 +52,7 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // wrapping try/catch blocks disabled JIT optimization for the entire ~1500-line
 // updater function. With these as ES imports, the JIT can finally inline the
 // updater and tests can mock via jest.mock(...) at the test setup layer.
-import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
+import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
@@ -128,6 +128,10 @@ import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
+import { applyArrears } from './actions/weekly/applyArrears';
+import { applyWeeklyInflation } from '@/lib/economy/inflation';
+import { resolveCalendar } from '@/utils/weekCounters';
+import { guardTick } from './actions/weekly/guardTick';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -409,6 +413,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  logger.info(`[WEEK PROGRESSION] Net worth: $${netWorth}, Decay rate: ${effectiveDecayRate}, Grace factor: ${graceFactor.toFixed(2)}, Prestige multiplier: ${prestigeMultiplier}`);
 
+ // A life with no persisted market opens on the catalogue, not on whatever the
+ // previous life left on the board.
+ //
+ // The board (`lib/economy/stockMarket`) is module-level state created once per
+ // app launch and shared by every slot, life and generation. `resetStockPrices`
+ // existed for exactly this and had ZERO production callers — its own docstring
+ // said "used on prestige/new game" — so prestiging or starting a new game
+ // in-session inherited the old market, and the snapshot written below made the
+ // inheritance permanent. Since the walk now has real drift, that meant an heir
+ // opening on a market that had compounded for sixty years while holding a
+ // starter wallet.
+ //
+ // Checked here rather than at each life-transition callsite because this is the
+ // one choke point every transition must pass through before the market can
+ // matter, so a future transition cannot forget it. Idempotent, and outside the
+ // updater like every other module mutation, so StrictMode double-invoke is safe.
+ if (!gameState.stocks?.savedMarketPrices) {
+   resetStockPrices();
+   logger.info('[WEEK PROGRESSION] No persisted market on this save — opened the board on catalogue prices');
+ }
+
  // CRITICAL: Simulate stock market price changes for the week
  // ANTI-EXPLOIT: Pass weeksLived so seeded PRNG produces deterministic prices per week
  // This prevents save/reload manipulation of stock prices
@@ -474,8 +499,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? prevState.weeksLived
 : 0;
  const nextWeeksLived = currentWeeksLived + 1;
- // Keep week as UI-only week-of-month. Absolute time is weeksLived.
- const nextWeek = ((nextWeeksLived % 4) + 1);
 
  const currentAge = typeof prevState.date?.age === 'number' &&!isNaN(prevState.date.age) && isFinite(prevState.date.age) && prevState.date.age >= 0
  ? prevState.date.age
@@ -499,11 +522,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  return monthMap[month] || 1;
  };
+ // Month AND week-of-month from one divisor — see utils/weekCounters.resolveCalendar.
+ //
+ // These used to be computed from two DIFFERENT constants: the displayed week
+ // cycled on WEEKS_PER_MONTH (4) while the month advanced on WEEKS_PER_YEAR/12
+ // (4.333). 4 x 12 = 48, not 52, so they desynchronised on the very first month
+ // and drifted a further step every third month — "Week 1" stopped meaning the
+ // first week of the month printed beside it. Deriving both from the same
+ // divisor makes that impossible by construction.
  const currentMonthNum = getMonthNumber(prevState.date?.month || 'January');
- const weeksPerMonth = WEEKS_PER_YEAR / 12;
- const baseMonthIndex = currentMonthNum - 1 - Math.floor(currentWeeksLived / weeksPerMonth);
- const monthsElapsed = Math.floor(nextWeeksLived / weeksPerMonth);
- const nextMonthNum = ((((baseMonthIndex + monthsElapsed) % 12) + 12) % 12) + 1;
+ // The month the life STARTED in — reconstructed so the calendar is a pure
+ // function of weeksLived and cannot accumulate rounding drift tick over tick.
+ const startMonthNum = ((((currentMonthNum - 1 - resolveCalendar(currentWeeksLived).monthsElapsed) % 12) + 12) % 12) + 1;
+ const calendar = resolveCalendar(nextWeeksLived, startMonthNum);
+ const nextWeek = calendar.weekOfMonth;
+ const nextMonthNum = calendar.monthNumber;
  const nextMonth = monthNames[nextMonthNum - 1] || 'January';
  // R7 Phase 2 step 2.8-A: consequence progression extracted into
  // ./actions/weekly/applyConsequenceProgression.ts. Same merge semantics
@@ -659,7 +692,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ./actions/weekly/applyCareerSalaryAndPenalty.ts. Mutates
  // ctx.newStats.{happiness, health}; returns the three scalars
  // (salary, happiness penalty, health penalty) used downstream.
- const careerResult = applyCareerSalaryAndPenalty(prevState, weeklyCtx);
+ const careerResult = guardTick('careerSalary', () => applyCareerSalaryAndPenalty(prevState, weeklyCtx),
+   { careerSalary: 0, careerHappinessPenalty: 0, careerHealthPenalty: 0 });
  const careerSalary = careerResult.careerSalary;
  const careerHappinessPenalty = careerResult.careerHappinessPenalty;
  const careerHealthPenalty = careerResult.careerHealthPenalty;
@@ -676,7 +710,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // and overwrites newStats.money — so without this the diet cost was silently
  // discarded and the diet plan was effectively free.
  const moneyBeforeDiet = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
- const dietResult = applyDietPlanForWeek(prevState.dietPlans, weeklyCtx);
+ const dietResult = guardTick('dietPlan', () => applyDietPlanForWeek(prevState.dietPlans, weeklyCtx), { logMessage: '' });
  const dietWeeklyCost = Math.max(0, moneyBeforeDiet - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (dietResult.logMessage) {
    logger.info(dietResult.logMessage);
@@ -686,12 +720,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // into ./actions/weekly/applyCareerApplications.ts. Same find-first
  // semantics, same accept-after-N-weeks logic (N from preRolls), same
  // log message format. Pure function — no ctx mutation.
- const applicationResult = applyCareerApplications({
+ const applicationResult = guardTick('careerApplications', () => applyCareerApplications({
    prevCareers: prevState.careers,
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
    prevIsRetired: prevState.isRetired,
- });
+ }), { updatedCareers: prevState.careers || [], newCurrentJob: prevState.currentJob, logMessage: '' });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
  if (applicationResult.logMessage) {
@@ -701,7 +735,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R7 Phase 2 step 2.5b-iii: career progress extracted into
  // ./actions/weekly/applyCareerProgress.ts. Same 5-factor multiplicative
  // formula (base × early × mentor × perf × mindset), same 100 cap.
- updatedCareers = applyCareerProgress({
+ updatedCareers = guardTick('careerProgress', () => applyCareerProgress({
    prevCareers: updatedCareers,
    currentJob: newCurrentJob,
    nextWeeksLived,
@@ -714,7 +748,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // C-1: the Commitment focus. Resolved from prevState so it reflects the
    // commitments in force at the start of the week the player is advancing.
    commitmentProgressMult: getCommitmentModifiers(prevState, 'career').progressMultiplier,
- }).updatedCareers;
+ }).updatedCareers, updatedCareers);
 
  // Progress enrolled educations automatically
  let pendingCampusEvent: string | undefined;
@@ -731,7 +765,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ./actions/weekly/applyEducationStress.ts. Mutates ctx.newStats.{happiness,
  // health, energy} and returns the active count + log message. The
  // per-education map block below is still inline pending step 2.5c-ii.
- const educationStressResult = applyEducationStress(prevState.educations, weeklyCtx);
+ const educationStressResult = guardTick('educationStress',
+   () => applyEducationStress(prevState.educations, weeklyCtx),
+   { numActiveEducations: 0, logMessage: '' });
  if (educationStressResult.logMessage) {
    logger.info(educationStressResult.logMessage);
  }
@@ -891,13 +927,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // R7 step 2.5a: `weeklyCtx` was further hoisted to the diet block above
  // so all reducers (diet, rent, disease, pet, vehicle) share one instance.
- const rentAndHousingResult = applyRentAndHousing(
+ const rentAndHousingResult = guardTick('rentAndHousing', () => applyRentAndHousing(
    prevState.realEstate,
    nextWeeksLived,
    makeWeeklyRoll(nextWeeksLived),
    weeklyCtx,
    prevState.realEstateActivity,
- );
+ ), {
+   weeklyRent: 0,
+   updatedRealEstate: prevState.realEstate || [],
+   housingHappinessBonus: 0,
+   housingRentalIncome: 0,
+   housingUpkeep: 0,
+   realEstateActivity: prevState.realEstateActivity || [],
+ });
  const {
    weeklyRent,
    housingHappinessBonus,
@@ -932,10 +975,38 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // normalization (>1 = percent, else decimal), same weekly-rate math,
  // same bankruptcy-floor + breathing-room logic, same missed-payment
  // compounding penalty.
- const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost - educationWeeklyCost);
- const loanResult = applyLoanAutopay({
+ // Mandatory outgoings are now SETTLED, not clamped away.
+ //
+ // This line used to be one `Math.max(0, income − tax − rent − upkeep − diet −
+ // tuition)`, so any bill the player could not cover was silently forgiven —
+ // no record, no consequence, no way to go under. `applyArrears` books the
+ // shortfall as a debt that is paid off the top of next week's income and drags
+ // the credit score while it stands. Cash still never goes negative; the
+ // non-negative invariant that ~40 call sites depend on is untouched.
+ const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
+ const arrears = applyArrears({
+   availableCash: currentMoney + totalIncome + housingRentalIncome,
+   billsDue: weeklyBillsDue,
+   previousOverdue: prevState.overdueBalance,
+ });
+ const cashBeforeLoans = arrears.cashAfter;
+ if (arrears.newShortfall > 0) {
+   logger.info(`[ARREARS] Short $${arrears.newShortfall} on this week's bills — carried forward (balance now $${arrears.overdueBalance})`);
+   pendingNotifications.push({
+     id: `arrears-${nextWeeksLived}`,
+     title: 'Bills Overdue',
+     message: `You came up $${arrears.newShortfall.toLocaleString()} short this week. $${arrears.overdueBalance.toLocaleString()} is now overdue and comes out of next week's income first.`,
+   });
+ }
+ const loanResult = guardTick('loanAutopay', () => applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,
+ }), {
+   cashAfter: cashBeforeLoans,
+   totalLoanAutoPaid: 0,
+   totalLoanPenalty: 0,
+   totalLoanInterest: 0,
+   processedLoans: prevState.loans || [],
  });
  let cashAfterIncomeAndRent = loanResult.cashAfter;
  const totalLoanAutoPaid = loanResult.totalLoanAutoPaid;
@@ -1220,11 +1291,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // R7 Phase 2 step 2.6-i: wanted-level decay + police-encounter roll
  // extracted into ./actions/weekly/applyCrimeTick.ts. Same 5%-per-level
  // chance ramp, same 30% cap, same min(4, ceil/3) jail-weeks cap.
- const crimeResult = applyCrimeTick({
+ const crimeResult = guardTick('crime', () => applyCrimeTick({
    prevWantedLevel: prevState.wantedLevel,
    prevJailWeeks: prevState.jailWeeks,
+   // Price the fine off wealth, not off the wallet — see computePoliceFine.
+   // `netWorth` is the pre-tick figure computed by computeDecayInputs above.
+   netWorth,
    policeEncounterRoll: preRolls.policeEncounter,
- }, weeklyCtx);
+ }, weeklyCtx), { newWantedLevel: prevState.wantedLevel || 0, policeEncounterJailWeeks: 0 });
  const newWantedLevel = crimeResult.newWantedLevel;
  const policeEncounterJailWeeks = crimeResult.policeEncounterJailWeeks;
 
@@ -1232,25 +1306,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // into ./actions/weekly/applyMiningCryptos.ts. Same 8-tier miner catalog,
  // same calculateMiningEarnings call, same BTC halving, same auto-repair
  // deduction (both earning-path and zero-earning-path).
- const updatedCryptos = applyMiningCryptos({
+ const updatedCryptos = guardTick('miningCryptos', () => applyMiningCryptos({
    prevWarehouse: prevState.warehouse,
    prevCryptos: prevState.cryptos || [],
    halvingCount: prevState.cryptoMarket?.halvingCount ?? 0,
    // Charge auto-repair on POST-degradation durability (same roll the warehouse
    // pass uses) so a miner crossing below 50% this tick isn't repaired for $0.
    minerDegradationRoll: preRolls.minerDegradation,
- }).updatedCryptos;
+ }).updatedCryptos, prevState.cryptos || []);
 
  // R7 Phase 2 step 2.6-ii-B: warehouse update extracted into
  // ./actions/weekly/applyMiningWarehouse.ts. Same difficulty / durability /
  // auto-repair logic. The legacy `lastDifficultyUpdate` cyclic-vs-absolute
  // migration is preserved verbatim.
- const updatedWarehouse = applyMiningWarehouse({
+ const updatedWarehouse = guardTick('miningWarehouse', () => applyMiningWarehouse({
    prevWarehouse: prevState.warehouse,
    prevCryptos: prevState.cryptos || [],
    weeksLived: prevState.weeksLived || 0,
    minerDegradationRoll: preRolls.minerDegradation,
- }).updatedWarehouse;
+ }).updatedWarehouse, prevState.warehouse);
 
  // Generate weekly events (economic, personal crisis, seasonal, regular).
  // R3-A: event-engine helpers are ES imports.
@@ -1258,7 +1332,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // R7 Phase 2 step 2.7-A: economic event roll extracted into
  // ./actions/weekly/applyEconomicEvent.ts. Same shouldTrigger gate,
  // same merge into economyEvents, same try/catch swallow on failure.
- let updatedEconomy = applyEconomicEvent(prevState).updatedEconomy;
+ let updatedEconomy = guardTick('economicEvent', () => applyEconomicEvent(prevState).updatedEconomy, prevState.economy);
+
+ // Advance the price index. THE ONLY CALLER of `applyWeeklyInflation`.
+ //
+ // Before this line the inflation system did not run at all. The function had
+ // zero production callers — `MoneyActionsContext` imported it and never used
+ // it — so `economy.priceIndex` sat permanently at its initial `1` for every
+ // player, forever. That made `getInflatedPrice(x, 1) === x` at all eight of its
+ // real call sites (company founding, mining upgrades), so every
+ // "inflation-adjusted" price in the game was the raw catalogue price, and
+ // `inflationRateAnnual: 0.03` was a dead field. The R4-X7 change that routed
+ // policy `inflationRate` into this function connected a pipe to a function
+ // nobody called, and `policyEffectsHonesty.test.ts` stayed green because it
+ // calls the leaf helper directly — the same leaf-vs-entry-point failure the
+ // `applyBenefit` post-mortem records (lessons.md, 2026-06-30).
+ //
+ // Guarded like every other subsystem: a throw here must not cost the week.
+ try {
+   const inflated = applyWeeklyInflation({ ...prevState, economy: updatedEconomy });
+   if (inflated.economy) updatedEconomy = inflated.economy;
+ } catch (inflErr) {
+   logger.error('[INFLATION] Weekly price-index advance failed:', inflErr);
+ }
 
  // R7 Phase 2 step 2.7-B: weekly events generation + cap extracted into
  // ./actions/weekly/applyWeeklyEvents.ts. Same synthetic state build,
@@ -1266,12 +1362,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // MAX_PENDING_EVENTS=100 anti-bloat cap. `newEventCount` is the
  // count of events generated BEFORE stamping/capping — used by the pity
  // system to reset `lastEventWeeksLived` only on a tick that fired.
- const weeklyEventsResult = applyWeeklyEvents({
+ const weeklyEventsResult = guardTick('weeklyEvents', () => applyWeeklyEvents({
    prevState,
    updatedEconomy,
    nextWeeksLived,
    nextWeek,
- });
+ }), { updatedPendingEvents: prevState.pendingEvents || [], newEventCount: 0 });
  let updatedPendingEvents = weeklyEventsResult.updatedPendingEvents;
  const newEventCount = weeklyEventsResult.newEventCount;
 
@@ -1335,10 +1431,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ./actions/weekly/applyLifeMoment.ts. Same generator call, same merge
  // semantics (preserve existing slice OR initialize when none), same
  // try/catch swallow.
- const updatedLifeMoments = applyLifeMoment({
+ const updatedLifeMoments = guardTick('lifeMoment', () => applyLifeMoment({
    prevState,
    nextWeeksLived,
- }).updatedLifeMoments;
+ }).updatedLifeMoments, lifeMoments);
 
  // ============================================================
  // DISEASE SYSTEM — R7 Phase 2 step 2.3
@@ -2021,6 +2117,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newMoney: newStats.money,
  economyState: prevState.economy?.economyEvents?.currentState,
  currentWeek: nextWeeksLived,
+ // v31: unpaid bills read on the credit report the way missed loan payments
+ // already do, so falling behind on rent and tax has the same consequence as
+ // falling behind on debt. Derived from the standing balance, so it lifts the
+ // moment the debt is cleared.
+ overdueBalance: arrears.overdueBalance,
  // v22 Wave A interest ledgers: legacy savings interest credited this week +
  // interest serviced on the real loan-autopay path. Feed the previously-$0
  // totalInterestEarned / totalInterestPaid chips and crossSystemSummary.
@@ -2543,6 +2644,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }).updatedLifetimeStatistics,
  // Wanted level decay
  wantedLevel: newWantedLevel,
+ // v31: unpaid bills carried into next week. Written unconditionally so a
+ // cleared debt actually clears — a `&&` guard here would leave the last
+ // non-zero value stuck on the save forever.
+ overdueBalance: arrears.overdueBalance,
  // Stocks: prefer the Remake 6 tick result (includes sector tilt,
  // dividends, fills); fall back to legacy refresh if tick failed.
  stocks: stocksTickResult
@@ -4204,14 +4309,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // ANTI-EXPLOIT: Restore stock market prices from saved state to prevent
- // module-level prices from resetting to defaults on app restart
+ // module-level prices from resetting to defaults on app restart.
+ //
+ // Called UNCONDITIONALLY. The board is module-level state shared by every slot
+ // in the session, so skipping the call when a save carries no prices left the
+ // previous save's market in place — and the next tick would snapshot it into
+ // this save. `restoreStockPrices(undefined)` now means "this life has no
+ // market yet, open on the catalogue", which is the only correct reading.
  try {
  // R3-A: `restoreStockPrices` is an ES import.
- const savedMarketPrices = safeState.stocks?.savedMarketPrices;
- if (savedMarketPrices && typeof savedMarketPrices === 'object') {
- restoreStockPrices(savedMarketPrices);
- logger.debug('[LOAD_GAME] Restored stock market prices from save');
- }
+ restoreStockPrices(safeState.stocks?.savedMarketPrices);
+ logger.debug('[LOAD_GAME] Synced stock market prices to the loaded save');
  } catch (err) {
  logger.warn('[LOAD_GAME] Failed to restore stock prices (non-critical):', { error: err });
  }
@@ -4541,6 +4649,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return;
  }
  const newGameState = awardLegacyPassXp(prestigedState, LEGACY_PASS_XP.prestige);
+ // The new life carries no persisted market (both prestige paths spread
+ // `initialGameState`), so open the shared module board on catalogue prices
+ // immediately instead of waiting for the first tick's guard — otherwise the
+ // market screen shows the PREVIOUS life's prices until a week is advanced.
+ resetStockPrices();
  setGameState(newGameState);
  logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
 

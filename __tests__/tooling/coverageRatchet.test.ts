@@ -36,7 +36,7 @@ const repoRoot = path.join(__dirname, '..', '..');
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { COVERAGE_FLOORS, COVERAGE_GOAL, evaluateCoverage } = require('@/scripts/lib/coverageRatchet');
+const { COVERAGE_FLOORS, COVERAGE_GOAL, MEASURED_COVERAGE, evaluateCoverage } = require('@/scripts/lib/coverageRatchet');
 
 describe('the floors match what the codebase actually achieves', () => {
   it('every metric has a floor', () => {
@@ -44,10 +44,15 @@ describe('the floors match what the codebase actually achieves', () => {
       .toEqual(['branches', 'functions', 'lines', 'statements']);
   });
 
+  // Both assertions read MEASURED_COVERAGE from the ratchet module rather than
+  // carrying their own copy of the numbers. The copy that used to live here still
+  // held the pre-2026-08-04 figures, from before `collectCoverageFrom` was
+  // widened to include app/, services/ and src/ — so a deliberate re-baseline
+  // failed here for no reason except that the literals had to be chased. One
+  // source of truth; the test asserts the RELATIONSHIP.
   it('each floor is at or below the measured value, never above', () => {
     // A floor above reality is the broken gate again, in miniature.
-    const measured = { statements: 48.92, branches: 30.45, functions: 38.83, lines: 50.23 };
-    for (const [k, v] of Object.entries(measured)) {
+    for (const [k, v] of Object.entries(MEASURED_COVERAGE as Record<string, number>)) {
       expect(COVERAGE_FLOORS[k]).toBeLessThanOrEqual(v);
     }
   });
@@ -55,9 +60,18 @@ describe('the floors match what the codebase actually achieves', () => {
   it('and close enough to it to be meaningful (the control)', () => {
     // A floor of 0 would "pass" forever. The margin exists for rounding noise,
     // not to make the gate toothless.
-    const measured: Record<string, number> = { statements: 48.92, branches: 30.45, functions: 38.83, lines: 50.23 };
-    for (const [k, v] of Object.entries(measured)) {
+    for (const [k, v] of Object.entries(MEASURED_COVERAGE as Record<string, number>)) {
       expect(v - COVERAGE_FLOORS[k]).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('the recorded measurement is not stale beyond a re-baseline', () => {
+    // Guards the new single source of truth: if someone edits the floors without
+    // re-measuring, the two drift apart and the control above stops meaning
+    // anything. Every metric must be a plausible percentage.
+    for (const v of Object.values(MEASURED_COVERAGE as Record<string, number>)) {
+      expect(v).toBeGreaterThan(0);
+      expect(v).toBeLessThanOrEqual(100);
     }
   });
 

@@ -805,6 +805,30 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 30;
     return state;
   },
+  /**
+   * v31 — `overdueBalance` (+ `lastLoginRewardWeek`, which is a carve-out).
+   *
+   * `overdueBalance` is the arrears bucket that replaced the silent forgiveness
+   * of unpayable weekly bills (`Math.max(0, …)` on the cash line). Concrete
+   * stored default of `0`, so it takes a REAL backfill here and a matching
+   * `repairGameState` mirror — a partial save that reaches a consumer with
+   * `undefined` would arithmetic its way to NaN and poison `stats.money`.
+   *
+   * Only-if-missing, so re-running the ladder can never wipe a real debt.
+   *
+   * `lastLoginRewardWeek` is deliberately NOT written. Its default is
+   * `undefined`, an absent key already equals "never claimed", and writing a
+   * value would be actively wrong: stamping the current week would deny an
+   * existing player their next legitimate daily claim until they played another
+   * week. Same reasoning as the v26/v27/v28 carve-outs.
+   */
+  31: (state) => {
+    if (typeof state.overdueBalance !== 'number' || !isFinite(state.overdueBalance)) {
+      state.overdueBalance = 0;
+    }
+    state.version = 31;
+    return state;
+  },
 };
 
 /**

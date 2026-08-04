@@ -15,12 +15,29 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
     '^.+\\.(png|jpg|jpeg|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.ts',
   },
+  // Scope note (2026-08-04): `app/`, `services/` and `src/` were NOT in this list.
+  //
+  // That silently excluded the highest-risk code in the repo from every coverage
+  // number and from the ratchet floors derived from them: the whole expo-router
+  // tree (`_layout.tsx` boot/providers, `work.tsx`, `home.tsx`), all of
+  // `services/` (IAPService, RevenueCat, AdMob, Firebase, cloud sync), and the
+  // onboarding flow. The reported figure was not the app's coverage — it was the
+  // coverage of the part that is easiest to test, and payments and boot could
+  // never trip the gate no matter how far they regressed.
+  //
+  // Widening the scope MOVES the measured numbers, so the floors in
+  // `scripts/lib/coverageRatchet.js` were re-measured in the same change. That
+  // is the honest direction: the floors follow the scope, never the other way
+  // round.
   collectCoverageFrom: [
     'lib/**/*.{ts,tsx}',
     'components/**/*.{ts,tsx}',
     'contexts/**/*.{ts,tsx}',
     'hooks/**/*.{ts,tsx}',
     'utils/**/*.{ts,tsx}',
+    'app/**/*.{ts,tsx}',
+    'services/**/*.{ts,tsx}',
+    'src/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/__tests__/**',

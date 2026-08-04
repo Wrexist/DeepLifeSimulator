@@ -31,6 +31,42 @@ export interface CrimeTickInput {
   prevJailWeeks: number | undefined;
   /** From `preRolls.policeEncounter` — deterministic 0-1 value. */
   policeEncounterRoll: number;
+  /**
+   * Total net worth, so the fine is priced off WEALTH rather than off whatever
+   * happens to be sitting in the wallet. Optional so legacy/test callers that
+   * omit it fall back to the cash-only behaviour.
+   */
+  netWorth?: number;
+}
+
+/** Share of net worth the court takes, per point of wanted level above 4. */
+const FINE_RATE_PER_WANTED_LEVEL = 0.005;
+
+/** Hard cap on the net-worth share a single encounter can cost. */
+const MAX_FINE_RATE = 0.05;
+
+/**
+ * Price one police encounter.
+ *
+ * Two bounds, both load-bearing:
+ *  - the RATE is capped, so a high wanted level cannot confiscate an estate;
+ *  - the CHARGE is capped by cash on hand, so an illiquid player is never driven
+ *    to a negative balance (which nothing downstream in this game supports).
+ *
+ * The floor keeps the old behaviour meaningful for an early-game player whose
+ * net worth is basically their wallet.
+ */
+export function computePoliceFine(cash: number, netWorth: number | undefined, wantedLevel: number): number {
+  const safeCash = typeof cash === 'number' && isFinite(cash) && cash > 0 ? cash : 0;
+  if (safeCash <= 0) return 0;
+  const safeNetWorth =
+    typeof netWorth === 'number' && isFinite(netWorth) && netWorth > 0 ? netWorth : safeCash;
+  const rate = Math.min(MAX_FINE_RATE, Math.max(0, wantedLevel - 4) * FINE_RATE_PER_WANTED_LEVEL);
+  const wealthBased = Math.round(safeNetWorth * rate);
+  // Never less than the old flat-5%-of-cash charge, so this can only tighten
+  // the consequence, never loosen it for the player it already applied to.
+  const cashBased = Math.round(safeCash * 0.05);
+  return Math.min(safeCash, Math.max(cashBased, wealthBased));
 }
 
 export interface CrimeTickResult {
@@ -55,7 +91,16 @@ export function applyCrimeTick(input: CrimeTickInput, ctx: WeekContext): CrimeTi
     if (input.policeEncounterRoll < encounterChance) {
       policeEncounterJailWeeks = Math.min(4, Math.ceil(newWantedLevel / 3));
       ctx.newStats.happiness = Math.max(0, ctx.newStats.happiness - 15);
-      const fine = Math.min(ctx.newStats.money, Math.round(ctx.newStats.money * 0.05));
+      // The fine is priced off NET WORTH, then taken from cash.
+      //
+      // It used to be a flat 5% of the wallet, which made crime free for anyone
+      // wealthy: a player holding $10M in property, stocks and companies but
+      // $2 000 in cash paid a $100 fine and lost four weeks. The court does not
+      // care which pocket the money is in. Pricing on net worth and capping the
+      // rate keeps it meaningful at the top without being able to wipe out a
+      // player whose wealth is illiquid — the charge is still bounded by cash on
+      // hand, so it can never drive the balance negative.
+      const fine = computePoliceFine(ctx.newStats.money, input.netWorth, newWantedLevel);
       ctx.newStats.money = Math.max(0, ctx.newStats.money - fine);
       logger.info(`[POLICE] Random encounter! Wanted ${newWantedLevel}, jailed ${policeEncounterJailWeeks} weeks, fined $${fine}`);
       ctx.notifications.push({
