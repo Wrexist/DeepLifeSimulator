@@ -6,6 +6,7 @@
  * these are pure functions on input data.
  */
 
+import { familyReputationScandalMultiplier } from './familyBusinessEffects';
 import type {
   GameState,
   Company,
@@ -320,6 +321,8 @@ export function rollScandalForWeek(
   company: Company,
   overlay: HustleCompanyOverlay,
   weeksLived: number,
+  /** C-2: the family-business reputation for this company, if it is one. */
+  familyReputation?: number,
 ): HustleActiveScandal | null {
   // One scandal at a time.
   if (overlay.activeScandal) return null;
@@ -334,7 +337,17 @@ export function rollScandalForWeek(
   }
 
   const brand = overlay.brand?.score ?? 50;
-  const chance = scandalSpawnChance(brand, income);
+  /**
+   * C-2: a family business's Reputation moves how much scrutiny it draws.
+   * MULTIPLIES the chance already computed from brand and size rather than
+   * replacing it, so the size gate and post-scandal cooldown above still do
+   * their work. Neutral at the seeded reputation of 50, and bounded well away
+   * from zero — reputation must not buy immunity, or the scandal system and
+   * the resolution UI built for it stop existing for anyone who invests.
+   * Companies that are not family businesses pass `undefined` and get 1.0.
+   */
+  const chance = scandalSpawnChance(brand, income)
+    * familyReputationScandalMultiplier(familyReputation);
   const seed = `hustle-scandal-roll|${company.id}|${weeksLived}`;
   if (seededRand(seed) >= chance) return null;
 
@@ -641,4 +654,80 @@ export function computeBrandTrend(
   if (diff > 1) return 'rising';
   if (diff < -1) return 'declining';
   return 'flat';
+}
+
+// ── The company income multiplier — ONE definition ────────────────────────
+
+/**
+ * How much a company's overlay lifts (or drags) its base weekly income.
+ *
+ * This arithmetic used to live inline in `calcWeeklyPassiveIncome`, and that is
+ * precisely why three player reports landed on the same day saying brand,
+ * market share, key hires and acquisitions "do not effect anything":
+ *
+ *   - `CompanyTile` and `CompanyDetailScreen` render `company.weeklyIncome`,
+ *     the stored BASE. None of these four inputs writes that field.
+ *   - The multiplier was applied only at payout time, inside passiveIncome.
+ *
+ * So all four features worked, and none of them were visible anywhere. The
+ * player's own evidence was two restaurants at 10.8% and 32.9% market share
+ * showing byte-identical revenue — exactly what a base-only display looks like.
+ *
+ * Exporting it means the card can show the number the player is actually paid,
+ * broken down, from the SAME source the payment uses. A UI that recomputed this
+ * independently would drift, which is the failure one layer up from the one
+ * being fixed.
+ *
+ * Returns the components as well as the product so the UI can attribute the
+ * lift without re-deriving anything.
+ */
+export interface CompanyIncomeFactors {
+  /** Contribution from brand score (50 is neutral). */
+  brand: number;
+  /** Contribution from market share. */
+  share: number;
+  /** Contribution from the named-hire roster's performance. */
+  hires: number;
+  /** The clamped multiplier actually applied to base weekly income. */
+  multiplier: number;
+  /** True when the raw factor hit the [0.75, 1.6] clamp. */
+  clamped: boolean;
+}
+
+export const COMPANY_FACTOR_MIN = 0.75;
+export const COMPANY_FACTOR_MAX = 1.6;
+
+export function companyIncomeFactors(
+  overlay: Pick<HustleCompanyOverlay, 'brand' | 'marketSharePercent' | 'hiringPipeline'> | undefined,
+): CompanyIncomeFactors {
+  const neutral: CompanyIncomeFactors = {
+    brand: 0, share: 0, hires: 0, multiplier: 1, clamped: false,
+  };
+  if (!overlay) return neutral;
+
+  const brandScore = typeof overlay.brand?.score === 'number' && isFinite(overlay.brand.score)
+    ? overlay.brand.score
+    : 50;
+  const marketShare = typeof overlay.marketSharePercent === 'number' && isFinite(overlay.marketSharePercent)
+    ? overlay.marketSharePercent
+    : 0;
+
+  const brand = (brandScore - 50) / 200;
+  const share = marketShare / 200;
+  const hires = namedHirePerformanceFactor(overlay.hiringPipeline?.namedHires);
+
+  const raw = 1 + brand + share + hires;
+  if (!isFinite(raw) || raw <= 0) return neutral;
+
+  const multiplier = Math.min(COMPANY_FACTOR_MAX, Math.max(COMPANY_FACTOR_MIN, raw));
+  return { brand, share, hires, multiplier, clamped: multiplier !== raw };
+}
+
+/** Base weekly income after the overlay multiplier — what the player is paid. */
+export function effectiveWeeklyIncome(
+  baseWeeklyIncome: number | undefined,
+  overlay: Parameters<typeof companyIncomeFactors>[0],
+): number {
+  const base = typeof baseWeeklyIncome === 'number' && isFinite(baseWeeklyIncome) ? baseWeeklyIncome : 0;
+  return Math.round(base * companyIncomeFactors(overlay).multiplier);
 }

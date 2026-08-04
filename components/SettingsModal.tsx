@@ -37,6 +37,7 @@ import {
   finalizeDiscordClaim,
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
+import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 const LinearGradient = LinearGradientFallback;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -257,21 +258,22 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     
     try {
       logger.info('Starting purchase restoration from Settings...');
-      const success = await iapService.restorePurchases();
+      const { success, restoredCount } = await iapService.restorePurchases();
       
       if (success) {
         // Reload IAP state to refresh purchases
         await iapService.loadPurchases();
 
+        // Say HOW MANY — see MON-11.
         Alert.alert(
           'Purchases Restored',
-          'Your previous purchases have been restored successfully!',
+          `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
           [{ text: 'OK', style: 'default' }]
         );
       } else {
         Alert.alert(
-          'Could Not Restore',
-          'Purchases could not be restored at this time. Make sure you are signed in to the App Store and try again.',
+          'Nothing To Restore',
+          'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
           [{ text: 'OK', style: 'default' }]
         );
       }
@@ -599,6 +601,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accent="#60A5FA"
                   onPress={() => {
                     onClose();
+                    // R3-S1: leaving a live game for the slot picker. Without
+                    // this, a backup restored from that screen is silently
+                    // overwritten by the still-loaded pre-restore state on the
+                    // next background transition.
+                    suspendLifeAutosave('settings -> switch save slot');
                     const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
                     router.push(saveSlotsPath);
                   }}

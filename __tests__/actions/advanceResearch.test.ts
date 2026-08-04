@@ -126,7 +126,11 @@ describe('advanceResearch — weekly R&D tick', () => {
 
     // Tick 1: duration 2 → 1, still active and paying.
     advanceResearch(get(), setState);
-    expect(getCo(get())!.patents[0].duration).toBe(1);
+    // The patent must still BE there — `patents[0]?.duration` alone would read
+    // `undefined` on an empty array and this assertion would then be checking
+    // that a dropped patent has no duration, which is the opposite of the point.
+    expect(getCo(get())!.patents).toHaveLength(1);
+    expect(getCo(get())!.patents![0]!.duration).toBe(1);
     expect(calcWeeklyPassiveIncome(get()).breakdown.patents).toBe(1000);
 
     // Tick 2: duration 1 → 0 → dropped. Expired patent pays nothing.

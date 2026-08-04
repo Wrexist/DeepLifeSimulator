@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,16 @@ import {
   StyleSheet,
   Keyboard,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Gift, X, CheckCircle, AlertCircle } from 'lucide-react-native';
+import ConfettiBurst from '@/components/ui/ConfettiBurst';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { haptic } from '@/utils/haptics';
+import { playSound } from '@/utils/soundManager';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle) — same import shape SettingsModal's existing flows use.
 import { useGameState } from '@/contexts/game/GameStateContext';
@@ -27,6 +35,21 @@ import {
   canAttemptRedeem,
   recordRedeemAttempt,
 } from '@/utils/redeemCodes';
+import type { RedeemReward } from '@/utils/redeemCodes';
+
+/** Cool blues + a mint accent — the sheet's own palette, not the promotion gold. */
+const REDEEM_CONFETTI = ['#60A5FA', '#BFDBFE', '#34D399', '#A78BFA', '#F0F4FF'];
+
+const COUNT_UP_MS = 900;
+
+/**
+ * Hard Rule #2 — read the union through an `in` guard, never a cast.
+ * `RedeemReward` is `{ p: string } | { m: number }`; only the cash arm has an
+ * amount worth counting up to.
+ */
+function hasCashAmount(reward: RedeemReward): reward is { m: number } {
+  return 'm' in reward && typeof reward.m === 'number' && Number.isFinite(reward.m);
+}
 
 interface RedeemCodeModalProps {
   visible: boolean;
@@ -60,6 +83,66 @@ const STATUS_MESSAGE: Record<Exclude<RedeemStatus, 'idle' | 'submitting' | 'succ
 };
 
 /**
+ * Cash rewards count UP to their value rather than appearing at it.
+ *
+ * The promotion celebration already established why: the number is the thing
+ * the player actually cares about, and watching it climb reads as an event
+ * where reading it reads as a receipt. Ticking haptics ride the climb.
+ *
+ * Product rewards (gem packs, permanent perks) have no number to count, so they
+ * just spring in — `amount` is null and the label renders as-is.
+ */
+function RewardValue({
+  amount,
+  label,
+  animate,
+}: {
+  amount: number | null;
+  label: string;
+  animate: boolean;
+}) {
+  const [shown, setShown] = useState(() => (animate && amount != null ? 0 : amount));
+
+  useEffect(() => {
+    if (amount == null || !animate) {
+      setShown(amount);
+      return;
+    }
+    const started = Date.now();
+    let raf: ReturnType<typeof setInterval> | null = null;
+    let lastTick = 0;
+
+    raf = setInterval(() => {
+      const t = Math.min(1, (Date.now() - started) / COUNT_UP_MS);
+      // Ease-out so it decelerates into the final number instead of stopping dead.
+      const eased = 1 - Math.pow(1 - t, 3);
+      setShown(Math.round(amount * eased));
+      // A tick every ~8 frames — enough to feel the climb, not enough to buzz.
+      const tick = Math.floor(t * 8);
+      if (tick !== lastTick) {
+        lastTick = tick;
+        haptic.selection();
+      }
+      if (t >= 1 && raf) {
+        clearInterval(raf);
+        raf = null;
+        setShown(amount);
+      }
+    }, 32);
+
+    return () => {
+      if (raf) clearInterval(raf);
+    };
+  }, [amount, animate]);
+
+  return (
+    <Text style={styles.rewardPillText}>
+      {amount == null ? label : formatMoney(shown ?? amount)}
+    </Text>
+  );
+}
+
+/**
  * "Redeem Code" sheet. Rendered NESTED inside SettingsModal's already-presented
  * Modal tree (mirrors the DevToolsModal nesting) — never a sibling root-level
  * Modal, which would trip the iOS stacked-modal hazard.
@@ -76,6 +159,53 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
   const [value, setValue] = useState('');
   const [status, setStatus] = useState<RedeemStatus>('idle');
   const [successLabel, setSuccessLabel] = useState('');
+  const [successAmount, setSuccessAmount] = useState<number | null>(null);
+
+  const reducedMotion = useReducedMotion();
+  const celebrating = status === 'success';
+  const animate = celebrating && !reducedMotion;
+
+  // ── The staged reveal ────────────────────────────────────────────────────
+  // Beats rather than all-at-once: a reveal that lands in stages reads as an
+  // event, everything-at-once reads as a dialog. Same reasoning (and the same
+  // vocabulary) as the promotion celebration.
+  //
+  //   0ms    badge springs in, ring blooms, confetti falls, success haptic
+  //   180ms  "Reward unlocked!" rises
+  //   340ms  the reward springs in and starts counting
+  //   620ms  Done fades up — deliberately last, so the moment is not
+  //          immediately dismissible before it has played
+  //
+  // With Reduce Motion on, all four land at their end state instantly and no
+  // confetti mounts at all.
+  const badge = useRef(new Animated.Value(0)).current;
+  const headline = useRef(new Animated.Value(0)).current;
+  const rewardAnim = useRef(new Animated.Value(0)).current;
+  const done = useRef(new Animated.Value(0)).current;
+
+  const runReveal = useCallback(() => {
+    const stages: [Animated.Value, number][] = [
+      [badge, 0], [headline, 180], [rewardAnim, 340], [done, 620],
+    ];
+    if (reducedMotion) {
+      for (const [v] of stages) v.setValue(1);
+      return;
+    }
+    for (const [v] of stages) v.setValue(0);
+    Animated.parallel(
+      stages.map(([v, delay], i) =>
+        i === 0
+          ? Animated.spring(v, { toValue: 1, friction: 5, tension: 160, useNativeDriver: true })
+          : Animated.timing(v, {
+              toValue: 1,
+              duration: 260,
+              delay,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+      ),
+    ).start();
+  }, [badge, headline, rewardAnim, done, reducedMotion]);
 
   // Fresh slate each time the sheet opens.
   useEffect(() => {
@@ -83,8 +213,20 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
       setValue('');
       setStatus('idle');
       setSuccessLabel('');
+      setSuccessAmount(null);
     }
   }, [visible]);
+
+  // Fire the celebration when the success state arrives, and hold the
+  // celebration gate while it is up so the review prompt waits its turn.
+  useEffect(() => {
+    if (!celebrating) return;
+    beginCelebration();
+    haptic.success();
+    playSound('success');
+    runReveal();
+    return () => endCelebration();
+  }, [celebrating, runReveal]);
 
   const normalized = normalizeRedeemCode(value);
   const shapeComplete = normalized.length === 16 && normalized.startsWith('DEEP');
@@ -163,6 +305,9 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
       });
     }
     setSuccessLabel(rewardLabel(reward));
+    // Only a cash reward has a number to count up to; a product reward
+    // (gem pack, permanent perk) shows its name.
+    setSuccessAmount(hasCashAmount(reward) ? reward.m : null);
     setStatus('success');
   };
 
@@ -174,6 +319,9 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
+        {/* Confetti falls over the whole sheet, behind the card so it never
+            covers the reward. Gated on Reduce Motion by `animate`. */}
+        <ConfettiBurst play={animate} count={18} colors={REDEEM_CONFETTI} fallFraction={0.85} />
         <View style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
@@ -196,22 +344,66 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
 
           {status === 'success' ? (
             <View style={styles.successBody}>
-              <View style={styles.successIcon}>
-                <CheckCircle size={40} color="#10B981" />
-              </View>
-              <Text style={styles.successTitle}>Reward unlocked!</Text>
-              <View style={styles.rewardPill}>
-                <Text style={styles.rewardPillText}>{successLabel}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Done"
-                testID="redeem-done"
+              <Animated.View
+                style={[
+                  styles.successIcon,
+                  { opacity: badge, transform: [{ scale: badge }] },
+                ]}
               >
-                <Text style={styles.primaryButtonText}>Done</Text>
-              </TouchableOpacity>
+                {/* Bloom ring — scales OUT past the badge and fades, so the
+                    badge reads as landing rather than just appearing. */}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.successBloom,
+                    {
+                      opacity: badge.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.9, 0.35, 0] }),
+                      transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.7] }) }],
+                    },
+                  ]}
+                />
+                <CheckCircle size={40} color="#10B981" />
+              </Animated.View>
+
+              <Animated.Text
+                style={[
+                  styles.successTitle,
+                  {
+                    opacity: headline,
+                    transform: [{ translateY: headline.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+                  },
+                ]}
+              >
+                Reward unlocked!
+              </Animated.Text>
+
+              <Animated.View
+                style={[
+                  styles.rewardPill,
+                  {
+                    opacity: rewardAnim,
+                    transform: [{ scale: rewardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
+                  },
+                ]}
+              >
+                <RewardValue amount={successAmount} label={successLabel} animate={animate} />
+              </Animated.View>
+
+              {/* Full width: `successBody` centres its children, and the button
+                  carried no width of its own — so "Done" collapsed to a tiny
+                  square around its label, while the same style rendered full
+                  width in the input branch where the card stretches it. */}
+              <Animated.View style={[styles.doneWrap, { opacity: done }]}>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={onClose}
+                  accessibilityRole="button"
+                  accessibilityLabel="Done"
+                  testID="redeem-done"
+                >
+                  <Text style={styles.primaryButtonText}>Done</Text>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           ) : (
             <>
@@ -380,25 +572,39 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.35)',
     marginBottom: 14,
   },
+  successBloom: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: 'rgba(16, 185, 129, 0.55)',
+  },
   successTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: '#F9FAFB',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   rewardPill: {
     backgroundColor: 'rgba(59, 130, 246, 0.16)',
-    borderColor: 'rgba(96, 165, 250, 0.35)',
+    borderColor: 'rgba(96, 165, 250, 0.45)',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 26,
   },
   rewardPillText: {
-    color: '#BFDBFE',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#DBEAFE',
+    // The payoff line — it gets to be the biggest text in the sheet.
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: 0.5,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  // `successBody` centres its children, so the button needs its own width or it
+  // shrinks to fit "Done". See the note at the call site.
+  doneWrap: {
+    alignSelf: 'stretch',
   },
 });
 

@@ -15,8 +15,14 @@ describe('repairGameState backfills entry-required catalog arrays', () => {
   it.each(catalogs)('restores a missing %s catalog so the save can still be entered', (field) => {
     // A name is required for entry; set one so the catalog array is the only
     // thing standing between the save and a successful load.
+    // Spread the default: `userProfile` is REPLACED wholesale by an override
+    // (it is not one of createTestGameState's deep-merged keys), so a bare
+    // `{ firstName, lastName }` was leaving the profile with no `name`,
+    // `handle` or `gender` at all. Harmless here — validateGameEntry reads
+    // firstName/lastName — but a profile missing everything else is not what
+    // this fixture means to describe.
     const base = createTestGameState({
-      userProfile: { firstName: 'Test', lastName: 'Player' },
+      userProfile: { ...createTestGameState().userProfile, firstName: 'Test', lastName: 'Player' },
     });
     const state = base as unknown as Record<string, unknown>;
     expect(validateGameEntry(state as never).canEnter).toBe(true); // valid baseline

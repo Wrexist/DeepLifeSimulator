@@ -1674,3 +1674,37 @@ export const achievements: Achievement[] = [
     group: 'retirement',
   },
 ];
+
+/**
+ * Fraction of an achievement's goal the player has reached, 0..n.
+ *
+ * The single implementation of the rule. It was inlined in
+ * `hooks/useAchievements.ts` and copied verbatim into
+ * `hooks/useAchievements.test.ts`, so the test could only ever agree with
+ * itself, and no non-React caller could ask the question at all — which is why
+ * `checkScenarioWin` ended up reading a different, dead catalogue instead.
+ * 2026-07-31 audit round 3.
+ *
+ * Values above 1 are meaningful (claim detection); callers cap for display.
+ */
+export function achievementProgress(gs: GameState, achievement: Achievement): number {
+  if (achievement.progressSpec.kind === 'boolean') {
+    return achievement.progressSpec.met(gs) ? 1 : 0;
+  }
+  const current = achievement.progressSpec.current(gs);
+  const goal = achievement.progressSpec.goal;
+  return goal > 0 ? Math.max(0, current / goal) : 0;
+}
+
+/** Whether the player has met this achievement's condition (claimed or not). */
+export function isAchievementEarned(gs: GameState, achievementId: string): boolean {
+  const achievement = achievements.find(a => a.id === achievementId);
+  if (!achievement) return false;
+  try {
+    return achievementProgress(gs, achievement) >= 1;
+  } catch {
+    // A progressSpec closure reaching into a partial/legacy state must not take
+    // down whatever asked — scenario scoring runs inside the prestige flow.
+    return false;
+  }
+}

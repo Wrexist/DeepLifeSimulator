@@ -1015,19 +1015,28 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing legacyPoints to 0');
     repaired = true;
   }
-  if (s.activeChapterId === undefined) {
-    s.activeChapterId = 'ch1_fresh_start';
-    repairs.push('Set missing activeChapterId');
+  // C-11 / v29 mirror. `legacyUpgrades` has a concrete stored default, so a
+  // partial save that never went through the migration still needs it — this
+  // is the parity CLAUDE.md §7 warns is not checked by the static audit.
+  // `repaired = true` matters: the repaired clone is only written back when
+  // that flag is set, so a backfill without it is computed and discarded.
+  if (!Array.isArray(s.legacyUpgrades)) {
+    s.legacyUpgrades = [];
+    repairs.push('Set missing legacyUpgrades to []');
+    repaired = true;
+  }
+  // MON-5 / v30 mirror. Same reasoning as legacyUpgrades above: a concrete
+  // stored default (`false`) needs the partial-save path too, not just the
+  // migration. `false` is also the only safe repair — inventing a banked revive
+  // for a save that lost the key would hand out a paid one-shot for free.
+  if (typeof s.revivalPack !== 'boolean') {
+    s.revivalPack = false;
+    repairs.push('Set missing revivalPack to false');
     repaired = true;
   }
   if (!Array.isArray(s.completedChapters)) {
     s.completedChapters = [];
     repairs.push('Created missing completedChapters array');
-    repaired = true;
-  }
-  if (!Array.isArray(s.completedTutorialSteps)) {
-    s.completedTutorialSteps = [];
-    repairs.push('Created missing completedTutorialSteps array');
     repaired = true;
   }
   if (!Array.isArray(s.discoveredSecrets)) {

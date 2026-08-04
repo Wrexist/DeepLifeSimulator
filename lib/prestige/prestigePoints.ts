@@ -66,7 +66,17 @@ export function calculatePrestigePoints(
   // Career bonus: +25 points per maxed career
   const maxedCareers = (gameState.careers || []).filter(c => {
     const maxLevel = c.levels?.length || 0;
-    return c.level >= maxLevel;
+    // R3-P2: `level` is 0-INDEXED and capped at `levels.length - 1` everywhere
+    // else — `promotionGating` returns `max_level` at exactly that point, and
+    // the promotion updater bails unless `levels[level + 1]` exists. So
+    // `level >= levels.length` could never be true for a real career and both
+    // this +25/career bonus and `lifetimeStats.careersMaxed` were permanently
+    // zero, with `PrestigeModal` hiding the breakdown row on `careerBonus > 0`.
+    //
+    // The `maxLevel > 0` guard closes the mirror hazard: a save whose career
+    // entry lacks a `levels` array gave `maxLevel = 0`, and `level 0 >= 0` would
+    // now count it as maxed for free.
+    return maxLevel > 0 && c.level >= maxLevel - 1;
   });
   const careerBonus = maxedCareers.length * 25;
 
@@ -134,7 +144,17 @@ export function calculateLifetimeStats(
   const completedAchievementsCount = getEarnedAchievementCount(gameState);
   const maxedCareers = (gameState.careers || []).filter(c => {
     const maxLevel = c.levels?.length || 0;
-    return c.level >= maxLevel;
+    // R3-P2: `level` is 0-INDEXED and capped at `levels.length - 1` everywhere
+    // else — `promotionGating` returns `max_level` at exactly that point, and
+    // the promotion updater bails unless `levels[level + 1]` exists. So
+    // `level >= levels.length` could never be true for a real career and both
+    // this +25/career bonus and `lifetimeStats.careersMaxed` were permanently
+    // zero, with `PrestigeModal` hiding the breakdown row on `careerBonus > 0`.
+    //
+    // The `maxLevel > 0` guard closes the mirror hazard: a save whose career
+    // entry lacks a `levels` array gave `maxLevel = 0`, and `level 0 >= 0` would
+    // now count it as maxed for free.
+    return maxLevel > 0 && c.level >= maxLevel - 1;
   });
   const ownedProperties = (gameState.realEstate || []).filter(p => p.owned);
   const children = gameState.family?.children || [];

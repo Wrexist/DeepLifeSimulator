@@ -40,6 +40,12 @@ export interface LifetimeStatisticsInput {
   /** `prevState.jailWeeks > 0 ? 1 : 0` — caller already knows the gate but
    * we read from prevState directly to keep the helper testable in isolation. */
   newBornChildrenCount: number;
+  /**
+   * Relationship count AFTER this week's changes. Optional — when absent the
+   * growth term is 0, so a caller that has not been updated cannot corrupt the
+   * counter. R3-F4.
+   */
+  nextRelationshipCount?: number;
   careerSalary: number;
   /**
    * Weekly pay from holding political office, 0 when not in office.
@@ -109,11 +115,39 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
       ]
     : (ls.weeklyEarningsHistory ?? []);
 
+  /**
+   * Growth in the relationship list this tick (R3-F4). `prevState` holds the
+   * count before the week's changes; `input.nextRelationshipCount` is what the
+   * caller has just produced.
+   */
+  const relationshipGrowth =
+    (input.nextRelationshipCount ?? (input.prevState.relationships ?? []).length) -
+    (input.prevState.relationships ?? []).length;
+
   return {
     updatedLifetimeStatistics: {
       ...ls,
       totalJailTime: (ls.totalJailTime ?? 0) + (jailedThisWeek ? 1 : 0),
       totalChildren: (ls.totalChildren ?? 0) + input.newBornChildrenCount,
+      /**
+       * R3-F4: `totalRelationships` had NO writer in shipping code.
+       * `trackNewRelationship` exists but its only caller is a stress test, and
+       * this accumulator incremented `totalChildren` and `totalWeeksWorked`
+       * while leaving this at its seeded 0. The "Social Network — form 25 total
+       * relationships in your lifetime" achievement reads
+       * `gs.lifetimeStatistics?.totalRelationships ?? gs.relationships?.length`,
+       * and because the field is PRESENT as 0 the `??` chain never fell
+       * through — so it sat at 0/25 forever and its 50 gold was unobtainable.
+       * `StatisticsApp` also hid the Relationships row entirely on
+       * `totalRelationships > 0`.
+       *
+       * Counted as the weekly GROWTH in the relationship list, so it is
+       * monotonic and never decreases when someone leaves — which is what
+       * "total ... in your lifetime" means. No new state: the previous count is
+       * right here on `prevState`.
+       */
+      totalRelationships:
+        (ls.totalRelationships ?? 0) + Math.max(0, relationshipGrowth),
       totalWeeksWorked: (ls.totalWeeksWorked ?? 0) + (workedThisWeek ? 1 : 0),
       highestSalary: Math.max(ls.highestSalary ?? 0, effectiveSalary),
       careerHistory,

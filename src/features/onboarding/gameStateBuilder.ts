@@ -9,6 +9,7 @@ import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gam
 import type { MindsetId } from '@/lib/mindset/config';
 import { avatarSexFromId } from '@/utils/facePool';
 import { perks as perksCatalog } from './perksData';
+import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -121,7 +122,8 @@ export function buildChildForSingleParent(childAge: number): any {
     id: `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     name: childNames[Math.floor(Math.random() * childNames.length)],
     type: 'child' as const,
-    relationshipScore: 100,
+    // R3-F5: headroom, so parenting actions are not clamped away on arrival.
+    relationshipScore: NEWBORN_BOND,
     personality: personalities[Math.floor(Math.random() * personalities.length)],
     gender: childGenders[Math.floor(Math.random() * childGenders.length)],
     age: childAge,

@@ -98,6 +98,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const { buyGoldUpgrade } = useMoneyActions();
   const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
+  // MON-5: whether a Revival Pack CHARGE is currently banked. Distinct from
+  // `settings.hasRevivalPack`, which records the purchase and never clears.
+  const revivalCharged = useGameSelector((s) => s.revivalPack === true);
   const goldUpgrades = useGameSelector((s) => s.goldUpgrades);
   const perks = useGameSelector((s) => s.perks);
   const gems = useGameSelector((s) => s.stats?.gems ?? 0);
@@ -196,15 +199,15 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   };
 
   // Real-money CTA label — the real price is unmistakable on every buy button.
-  const buyLabel = (id: string, owned: boolean, displayPrice: string, available: boolean): string => {
-    if (owned) return 'Owned';
+  const buyLabel = (id: string, owned: boolean, displayPrice: string, available: boolean, ownedLabel?: string): string => {
+    if (owned) return ownedLabel ?? 'Owned';
     if (!available) return 'Unavailable';
     if (purchasingId === id) return 'Processing…';
     return displayPrice ? `Buy · ${displayPrice}` : 'Buy';
   };
 
-  const ctaA11y = (id: string, name: string, displayPrice: string, owned: boolean, available: boolean): string => {
-    if (owned) return `${name}, already owned`;
+  const ctaA11y = (id: string, name: string, displayPrice: string, owned: boolean, available: boolean, ownedLabel?: string): string => {
+    if (owned) return ownedLabel ? `${name}, ${ownedLabel.toLowerCase()}` : `${name}, already owned`;
     if (!available) return `${name}, unavailable`;
     if (purchasingId === id) return `Purchasing ${name}, please wait`;
     return `Buy ${name}${displayPrice ? ` for ${displayPrice}` : ''}`;
@@ -343,16 +346,21 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     setRestoring(true);
     try {
       logger.info('Starting purchase restoration...');
-      const success = await iapService.restorePurchases();
+      const { success, restoredCount } = await iapService.restorePurchases();
       if (success) {
         await iapService.loadPurchases();
-        Alert.alert('Purchases Restored', 'Your previous purchases have been restored successfully!', [
-          { text: 'OK', style: 'default' },
-        ]);
+        // Say HOW MANY. Reporting bare success on a restore that restored
+        // nothing is what made a genuinely-empty restore indistinguishable from
+        // a working one. 2026-07-30 audit MON-11.
+        Alert.alert(
+          'Purchases Restored',
+          `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
+          [{ text: 'OK', style: 'default' }],
+        );
       } else {
         Alert.alert(
-          'Could Not Restore',
-          'Purchases could not be restored at this time. Make sure you are signed in to the App Store and try again.',
+          'Nothing To Restore',
+          'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
           [{ text: 'OK', style: 'default' }],
         );
       }
@@ -415,6 +423,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     valueLine?: string;
     badges?: ShopBadge[];
     owned: boolean;
+    /** Replaces the word "Owned" on the CTA. See the Revival Pack entry. */
+    ownedLabel?: string;
   }) => {
     const displayPrice = resolveDisplayPrice(item.id);
     const available = isProductAvailable(item.id);
@@ -432,8 +442,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         priceKind="money"
         badges={item.badges}
         owned={item.owned}
-        buttonText={buyLabel(item.id, item.owned, displayPrice, available)}
-        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, item.owned, available)}
+        buttonText={buyLabel(item.id, item.owned, displayPrice, available, item.ownedLabel)}
+        accessibilityLabel={ctaA11y(item.id, item.title, displayPrice, item.owned, available, item.ownedLabel)}
         onPress={() => handlePurchase(item.id, item.title, displayPrice)}
         locked={!available || iapBusy || item.owned}
       />
@@ -624,7 +634,15 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     },
   ];
 
-  const allPerksOwned = Boolean(perks?.workBoost && perks?.fastLearner && perks?.goodCredit);
+  // All FOUR perks the bundle grants — `mindset` was missing, though the
+  // Mindset row two entries below reads the very same field. A player who had
+  // bought Work Pay Boost, Fast Learner and Good Credit individually saw the
+  // $6.99 bundle labelled "Owned" with a greyed-out, untappable button, so the
+  // store claimed they owned all perks when they did not, and the cheapest
+  // route to Mindset could not be purchased. 2026-07-30 audit UX-2.
+  const allPerksOwned = Boolean(
+    perks?.workBoost && perks?.mindset && perks?.fastLearner && perks?.goodCredit,
+  );
   const perkItems = [
     {
       id: IAP_PRODUCTS.UNLOCK_ALL_PERKS,
@@ -675,6 +693,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       image: require('@/assets/images/iap/items/youth_pill_single.png'),
       title: 'Revival Pack',
       owned: settings?.hasRevivalPack === true,
+      // The pack is a NON-CONSUMABLE, so once bought it can never be bought
+      // again — "Owned" is accurate but says nothing about whether a charge is
+      // left. After the revive is spent that reads as though the player still
+      // has one. "Ready" / "Used" tells the truth without pretending the
+      // product can be repurchased.
+      ownedLabel: revivalCharged ? 'Ready' : 'Used',
     },
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,

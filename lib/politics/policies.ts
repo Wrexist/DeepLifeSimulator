@@ -61,6 +61,46 @@ export interface Policy {
   duration?: number; // Weeks the policy is active (undefined = permanent)
 }
 
+/**
+ * R4-X7 — policy effects that are DECLARED, PRICED and were RENDERED, but have
+ * no system behind them.
+ *
+ * Every row on a policy card is read by the player before they spend $100,000
+ * to $300,000 enacting it, so a row for an effect nothing consumes is a
+ * straightforward false claim about what the money buys. R3-M9 fixed the same
+ * shape for `stockVolatility` / `jobAvailability` by WIRING them; these cannot
+ * be wired, because the systems they describe do not exist:
+ *
+ *   realEstate.priceModifier    — nothing reads it; property prices are static
+ *   realEstate.propertyTaxRate  — aggregated, but there is no property-tax system
+ *   crypto.priceStability       — nothing reads it
+ *   crypto.regulationLevel      — aggregated, but nothing reads it
+ *   technology.rdBonus          — `lib/rd/patents.ts` has ZERO production callers
+ *   technology.patentBonus      — same; the R&D/patent system is unreachable
+ *   technology.innovationGrants — aggregated, but nothing reads it
+ *   economy.priceIndex          — no policy in the catalogue even sets it
+ *
+ * They are no longer rendered. The keys stay on the schema and in the
+ * catalogue: deleting them would be a data change with no gameplay effect and
+ * would erase the record of what these policies were meant to do. Building the
+ * property-tax, crypto-regulation and R&D systems is a product decision, not an
+ * audit fix — when one lands, add its row back here.
+ *
+ * `economy.inflationRate` was in this list and is not any more: inflation is a
+ * real system (`lib/economy/inflation.ts` runs every week), so R4-X7 wired it
+ * rather than hiding it. 2026-07-31 audit round 4.
+ */
+export const INERT_POLICY_KEYS = [
+  'realEstate.priceModifier',
+  'realEstate.propertyTaxRate',
+  'crypto.priceStability',
+  'crypto.regulationLevel',
+  'technology.rdBonus',
+  'technology.patentBonus',
+  'technology.innovationGrants',
+  'economy.priceIndex',
+] as const;
+
 export const POLICIES: Policy[] = [
   // Level 0 Policies (Available immediately)
   {

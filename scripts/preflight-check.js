@@ -71,24 +71,56 @@ function checkStep(name, command, options = {}) {
 // Main preflight checks
 logSection('🚀 PREFLIGHT CHECK - MANDATORY RELEASE CHECKS');
 
-// 1. TypeScript Compilation Check (Non-blocking for type errors, blocking for syntax)
+// 1. TypeScript Compilation Check (BLOCKING — see note)
 logSection('1. TypeScript Type Checking');
-log('⚠️  NOTE: TypeScript type errors are non-blocking.', YELLOW);
-log('   Syntax errors will still fail the build. Focus on syntax first.\n', YELLOW);
-log('[CHECK] TypeScript compilation...', YELLOW);
+
+/*
+ * This used to run bare `npx tsc --noEmit` and treat every result as a
+ * non-blocking warning, with the comment "many exist, focus on syntax".
+ *
+ * Two things made that wrong as of 2026-08-02:
+ *
+ *   1. Bare tsc resolves `tsconfig.json`, which has `noUnusedLocals` ON and
+ *      includes the test tree. The project deliberately disables that in BOTH
+ *      of its real configs — an unused import in a test is lint's job. So the
+ *      214 "errors" it reported were 214 unused-symbol notices (TS6133/6192/
+ *      6196/6198) and ZERO type errors.
+ *   2. Both real gates now pass at zero: `tsconfig.typecheck.json` (app source,
+ *      what `npm run type-check` and CI enforce) and `tsconfig.tests.json`
+ *      (the test tree, ratcheted from 182 to 0).
+ *
+ * The old shape meant a genuine app type error would appear as one more line
+ * among 214 and still not block a release. That is the same failure mode as a
+ * permanently-red audit check: noise trains you to skim it.
+ *
+ * So: run the two configs the project actually gates on, and BLOCK on them.
+ */
+log('[CHECK] App source (tsconfig.typecheck.json)...', YELLOW);
 try {
-  execSync('npx tsc --noEmit --pretty', {
+  execSync('npx tsc --noEmit -p tsconfig.typecheck.json --pretty', {
     stdio: 'inherit',
     cwd: process.cwd(),
     env: { ...process.env, FORCE_COLOR: '1' }
   });
-  log('[PASS] TypeScript compilation', GREEN);
+  log('[PASS] App source type-checks clean', GREEN);
 } catch (error) {
-  // TypeScript errors are non-blocking (many exist, focus on syntax)
-  log('[WARN] TypeScript errors found (non-blocking)', YELLOW);
-  log('   Run: npx tsc --noEmit to see detailed errors', YELLOW);
-  log('   Priority: Fix syntax errors and runtime-blocking type errors first.\n', YELLOW);
-  // Don't set hasErrors - type errors don't block builds
+  log('[FAIL] App source has type errors', RED);
+  log('   Run: npm run type-check', RED);
+  hasErrors = true;
+}
+
+log('\n[CHECK] Test tree (ratchet)...', YELLOW);
+try {
+  execSync('node scripts/check-test-types.js', {
+    stdio: 'inherit',
+    cwd: process.cwd(),
+    env: { ...process.env, FORCE_COLOR: '1' }
+  });
+  log('[PASS] Test tree holds at its baseline', GREEN);
+} catch (error) {
+  log('[FAIL] Test-tree type errors moved off the baseline', RED);
+  log('   Run: npm run type-check:tests', RED);
+  hasErrors = true;
 }
 
 // 2. Linter Check (if configured) - Non-blocking
@@ -677,23 +709,41 @@ try {
 // without it.
 logSection('9. IAP Receipt Verification (production)');
 try {
-  const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false';
   const isProductionBuild = process.argv.includes('--platform')
     && (platform === 'ios' || platform === 'android')
     && !process.argv.includes('--dev');
   const verifyUrl = (process.env.EXPO_PUBLIC_IAP_VERIFY_URL || '').trim();
 
-  if (!iapEnabled) {
+  // The decision lives in scripts/lib/receiptVerification.js so it can be
+  // TESTED. Its branches are subtle and the cost of getting one wrong is a
+  // release that refuses every purchase, which is not something to leave on
+  // "it read correctly at the time".
+  const { resolveVerificationPath } = require('./lib/receiptVerification');
+  const { verdict } = resolveVerificationPath(process.env, { isProductionBuild });
+
+  if (verdict === 'skip-iap-disabled') {
     log('[SKIP] IAP disabled (EXPO_PUBLIC_ENABLE_IAP=false)', YELLOW);
-  } else if (!isProductionBuild) {
+  } else if (verdict === 'skip-not-production') {
     log('[SKIP] Non-production build — verify URL not required', YELLOW);
-  } else if (!verifyUrl) {
-    log('[FAIL] EXPO_PUBLIC_IAP_VERIFY_URL not set for production build', RED);
-    log('   IAPService.verifyReceiptWithServer falls through to `return true`', RED);
-    log('   when no URL is configured — every purchase passes without server', RED);
-    log('   verification. This is a revenue-leak and likely App Store rejection.', RED);
-    log('   Configure via EAS secret:', RED);
-    log('     eas secret:create --scope project --name EXPO_PUBLIC_IAP_VERIFY_URL --value <url>', RED);
+  } else if (verdict === 'revenuecat') {
+    log('[PASS] RevenueCat verifies receipts server-side (self-hosted verify URL not needed)', GREEN);
+  } else if (verdict === 'rc-flag-without-key') {
+    log('[FAIL] EXPO_PUBLIC_USE_REVENUECAT=true but no RevenueCat API key is set.', RED);
+    log('   Without a key `revenueCatService.isEnabled()` is false, so the build', RED);
+    log('   silently falls back to the self-hosted path — where a missing verify', RED);
+    log('   URL makes verifyReceiptWithServer return FALSE and every purchase is', RED);
+    log('   REFUSED. Set EXPO_PUBLIC_RC_IOS_KEY / EXPO_PUBLIC_RC_ANDROID_KEY.', RED);
+    hasErrors = true;
+  } else if (verdict === 'none') {
+    log('[FAIL] No receipt verification configured for a production build.', RED);
+    log('   Pick ONE:', RED);
+    log('     a) RevenueCat (recommended, and what eas.json production expects):', RED);
+    log('        set EXPO_PUBLIC_USE_REVENUECAT=true + EXPO_PUBLIC_RC_IOS_KEY', RED);
+    log('     b) self-hosted: eas env:create --scope project \\', RED);
+    log('          --name EXPO_PUBLIC_IAP_VERIFY_URL --value <https url> \\', RED);
+    log('          --environment production --visibility sensitive', RED);
+    log('   With neither, verifyReceiptWithServer returns false and every', RED);
+    log('   purchase is refused — paying players receive nothing.', RED);
     hasErrors = true;
   } else if (!/^https:\/\//.test(verifyUrl)) {
     log(`[FAIL] EXPO_PUBLIC_IAP_VERIFY_URL must be https:// (got: ${verifyUrl})`, RED);

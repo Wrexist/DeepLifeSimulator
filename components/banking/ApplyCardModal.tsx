@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { X, CreditCard, Gift, AlertCircle } from 'lucide-react-native';
 import { CreditCardTier } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
 interface CardProduct {
@@ -60,7 +61,11 @@ const PRODUCTS: CardProduct[] = [
     rewardsRate: 0.03,
     minCreditScore: 800,
     annualFee: 495,
-    color: '#0f172a',
+    // Was #0f172a — near-black, which read as "no colour at all" against the
+    // dark surface even on the icon. Now the tier colour is also the row's
+    // border it has to actually be visible, so this uses the lighter slate
+    // that CreditCardRow already switched to for the same reason.
+    color: '#475569',
   },
 ];
 
@@ -85,11 +90,17 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: theme.text }]}>Apply for a Credit Card</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -98,7 +109,21 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
             Your credit score: <Text style={{ color: theme.text, fontWeight: '700' }}>{creditScore}</Text>
           </Text>
 
-          <ScrollView style={{ maxHeight: scale(360) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          {/*
+            `flexShrink: 1`, not a fixed `maxHeight: scale(360)`.
+
+            The sheet is `maxHeight: '90%'` and holds a column: header, subtitle,
+            this list, a conditional rejection notice, and the Apply button. A
+            fixed max-height cannot give space back when that column is taller
+            than the sheet, so on a short screen the button is pushed outside the
+            sheet's bounds — and there is nothing to scroll to reach it, because
+            only this inner list scrolls and the sheet itself does not.
+
+            Shrinking instead means the list takes whatever is left after the
+            header and the button on any screen size: the button stays reachable,
+            and the list scrolls exactly when it needs to.
+          */}
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {PRODUCTS.map((p) => {
               const active = selected?.tier === p.tier;
               const eligible = creditScore >= p.minCreditScore;
@@ -107,17 +132,22 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
                   key={p.tier}
                   onPress={() => setSelected(p)}
                   disabled={!eligible}
+                  // Hard Rule #7: the tier read as a scale(6) coloured bar down
+                  // the left edge, same banned stripe as CreditCardRow. The
+                  // colour moves to a full border on all four sides — which
+                  // this row was already doing when selected — so the tier is
+                  // still legible at a glance and selection still reads as the
+                  // heavier rim.
                   style={[
                     styles.product,
                     {
                       backgroundColor: theme.surfaceElevated,
-                      borderColor: active ? p.color : theme.border,
+                      borderColor: p.color,
                       borderWidth: active ? 2 : 1,
                       opacity: eligible ? 1 : 0.5,
                     },
                   ]}
                 >
-                  <View style={[styles.tierStripe, { backgroundColor: p.color }]} />
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={styles.productHeader}>
                       <View style={styles.productHeadLeft}>
@@ -209,9 +239,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: responsiveBorderRadius.lg,
-  },
-  tierStripe: {
-    width: scale(6),
   },
   productHeader: {
     flexDirection: 'row',

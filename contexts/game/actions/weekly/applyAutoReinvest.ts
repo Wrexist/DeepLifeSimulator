@@ -48,13 +48,31 @@ export interface AutoReinvestResult {
    * `.length > 0`). Otherwise the new holdings array post-purchase.
    */
   reinvestedStocks: StockHolding[];
+  /**
+   * Cash ACTUALLY spent — `sharesBought × price`, always <= `reinvestedAmount`.
+   *
+   * Only whole shares are bought, so up to nearly one share price is left over.
+   * A caller that debits the full amount it passed in silently destroys that
+   * remainder; on a small dividend against a high-priced holding it can be most
+   * of the payout. Deduct THIS. 2026-07-30 review of R1-01.
+   */
+  spentUSD: number;
 }
 
 export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult {
   let reinvestedStocks: StockHolding[] = [];
+  let spentUSD = 0;
 
-  if (!input.reinvestedAmount || input.reinvestedAmount <= 0) {
-    return { reinvestedStocks };
+  // `!Infinity` is false, so the old `!input.reinvestedAmount` check let an
+  // infinite amount through — `sharesToBuy` and `spentUSD` both became Infinity
+  // and corrupted the persisted holdings. Require a finite, bounded amount.
+  const MAX_REINVEST_USD = 1_000_000_000;
+  if (
+    !Number.isFinite(input.reinvestedAmount) ||
+    input.reinvestedAmount <= 0 ||
+    input.reinvestedAmount > MAX_REINVEST_USD
+  ) {
+    return { reinvestedStocks, spentUSD };
   }
 
   const holdings = input.prevHoldings || [];
@@ -92,6 +110,7 @@ export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult 
   if (targetStock && targetStock.price > 0) {
     const sharesToBuy = Math.floor(input.reinvestedAmount / targetStock.price);
     if (sharesToBuy > 0) {
+      spentUSD = sharesToBuy * targetStock.price;
       const existingHolding = validHoldings.find(
         (h) => h?.symbol && h.symbol.toUpperCase() === targetStock!.symbol.toUpperCase(),
       );
@@ -121,5 +140,5 @@ export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult 
     }
   }
 
-  return { reinvestedStocks };
+  return { reinvestedStocks, spentUSD };
 }

@@ -6,19 +6,27 @@
  */
 import { toggleStockWatchlist } from '@/contexts/game/actions/StockActions';
 import type { GameState } from '@/contexts/game/types';
+import { createSetGameStateStub } from '../helpers/setGameStateStub';
 
+/**
+ * Thin adapter over the shared stub in `helpers/setGameStateStub`.
+ *
+ * This was one of eight byte-identical hand-rolled copies. Each took
+ * `(update: unknown)` and cast twice — `update as GameState` on the value
+ * branch, then the whole function `as React.Dispatch<SetStateAction<GameState>>`
+ * — which is exactly the shape that makes a stub's behaviour unverifiable:
+ * `unknown` in means nothing about the dispatch is checked, and the outer cast
+ * asserts the result matches React's type without anything proving it does.
+ */
 function makeSetState(initial: GameState) {
-  let state = initial;
-  const setState = ((update: unknown) => {
-    state = typeof update === 'function' ? update(state) : (update as GameState);
-  }) as React.Dispatch<React.SetStateAction<GameState>>;
-  return { setState, get: () => state };
+  const stub = createSetGameStateStub(initial);
+  return { setState: stub.setGameState, get: stub.current };
 }
 
 function baseState(): GameState {
-  return {
+  return createTestGameState({
     stocks: { holdings: [], watchlist: [], realizedGains: 0 },
-  } as unknown as GameState;
+  });
 }
 
 describe('toggleStockWatchlist', () => {
@@ -49,7 +57,12 @@ describe('toggleStockWatchlist', () => {
   });
 
   it('initializes the stocks slice when absent (no crash on a fresh save)', () => {
-    const store = makeSetState({} as unknown as GameState);
+    // A real state with the slice REMOVED, not a bare `{}`. The old fixture
+    // asserted an empty object was a GameState, which tests less than it looks
+    // like: nothing else on the state exists either, so a crash anywhere in the
+    // function would have been attributed to the missing `stocks`. `stocks` is
+    // optional on GameState, so this needs no cast.
+    const store = makeSetState(createTestGameState({ stocks: undefined }));
     toggleStockWatchlist(store.setState, 'MSFT');
     expect(store.get().stocks?.watchlist).toEqual(['MSFT']);
   });

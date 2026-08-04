@@ -36,7 +36,12 @@ export interface DiscoveryProgress {
 /**
  * All discoverable systems in the game
  */
-const DISCOVERABLE_SYSTEMS: Record<string, {
+/**
+ * Exported so a test can assert `reconcileDiscoveredSystems` never records an id
+ * outside the catalogue — an unknown id would render as a raw slug in the
+ * Discovery meter and inflate the denominator-free count.
+ */
+export const DISCOVERABLE_SYSTEMS: Record<string, {
   name: string;
   category: 'core' | 'advanced' | 'premium';
   unlockRequirements?: SystemUnlockRequirements;
@@ -474,3 +479,67 @@ function getActiveSystems(gameState: GameState): string[] {
   return systems;
 }
 
+
+/**
+ * Derive which systems this life has actually touched, from observable state.
+ *
+ * `markSystemDiscovered` had NO callers, and `updateSystemUsage` had exactly one
+ * — hard-coded to `'streetJobs'`. So `discoveredSystems` could hold at most one
+ * entry for the life of a save, while `DiscoveryIndicator` (mounted full-size on
+ * the home feed after week 5) rendered "1 / 20" and `calculateDepthScore` drew
+ * 40 of its 100 points from that ratio. A player running companies, stocks,
+ * real estate, politics and R&D who had prestiged twice still saw 5%.
+ * 2026-07-30 audit GP-7.
+ *
+ * Deliberately derived rather than sprinkled across ~9 action entry points:
+ *
+ *  - it CREDITS EXISTING SAVES. A per-call-site approach only counts systems
+ *    touched after the update, so a 2000-week veteran would still read 1/20
+ *    until they happened to re-do each thing.
+ *  - a new system cannot forget to call it; it is one function to extend.
+ *  - it is pure and idempotent, so the tick can run it every week.
+ *
+ * Only ever ADDS. Selling your last property does not un-discover real estate —
+ * discovery is "you have seen this", not "you currently own this".
+ */
+export function reconcileDiscoveredSystems(gameState: GameState): GameState {
+  const has = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
+  const s = gameState as unknown as Record<string, any>;
+
+  const touched: string[] = [];
+  const mark = (id: string, seen: unknown) => {
+    if (seen) touched.push(id);
+  };
+
+  mark('career', !!gameState.currentJob || has(gameState.careers?.filter?.((c: any) => c?.accepted)));
+  mark('relationships', has(gameState.relationships));
+  mark('health', (gameState.stats?.fitness ?? 0) > 0 && (gameState.weeksLived ?? 0) > 0);
+  mark('hobbies', has(gameState.hobbies) || has(s.pursuits));
+  mark('education', has(gameState.educations));
+  mark('items', has(gameState.items?.filter?.((i: any) => i?.owned)));
+  mark('bank', (gameState.bankSavings ?? 0) > 0 || has(s.bankAccounts));
+  mark('travel', has(s.visitedCountries) || !!s.currentTrip);
+  mark('realEstate', has(gameState.realEstate));
+  // `state.stocks` is an OBJECT (`{ holdings: [...] }`), never an array, so
+  // `has(s.stocks)` could never be true — it was dead weight, not legacy-save
+  // coverage. The real legacy shape is the `stocksOwned` map.
+  mark('stocks', has(gameState.stocks?.holdings) || Object.keys(s.stocksOwned ?? {}).length > 0);
+  mark('company', has(gameState.companies) || !!s.company);
+  mark('politics', has(gameState.careers?.filter?.((c: any) => c?.id === 'political')));
+  mark('rd', has(s.rdProjects) || has(s.research));
+  mark('socialMedia', (gameState.socialMedia?.followers ?? 0) > 0 || has(s.socialMedia?.posts));
+  mark('streetJobs', (s.streetJobsCompleted ?? 0) > 0);
+  mark('darkWeb', (s.criminalLevel ?? 0) > 0 || has(s.darkWebPurchases));
+  mark('gamingStreaming', has(s.gamingStreaming?.streams) || (s.gamingStreaming?.subscribers ?? 0) > 0);
+  mark('prestige', (gameState.prestige?.prestigeLevel ?? 0) > 0);
+  mark('dynasty', (gameState.generationNumber ?? 1) > 1);
+  mark('legacy', has(gameState.ancestors) || has(gameState.family?.children));
+
+  let next = gameState;
+  for (const id of touched) {
+    const already = (next.discoveredSystems || []).some((d) => d.systemId === id);
+    if (already) continue;
+    next = markSystemDiscovered(id, next);
+  }
+  return next;
+}

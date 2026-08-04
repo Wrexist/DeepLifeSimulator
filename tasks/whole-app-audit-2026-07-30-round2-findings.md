@@ -1,0 +1,188 @@
+# Whole-app audit — Round 2 findings (2026-07-30)
+
+Five parallel domain passes. Every finding was verified by the agent reading the
+source at the stated anchor. Status column is maintained as work lands.
+
+## Status legend
+`FIXED` landed on this branch · `OPEN` verified, not yet fixed · `WONTFIX` with reason
+
+| ID | Sev | Status | Summary | Anchor |
+|---|---|---|---|---|
+| R1-01 | high | FIXED | Stock dividends paid TWICE — weekly in passiveIncome + quarterly in lib/stocks. 200% of advertised yield | `lib/economy/passiveIncome.ts` / `lib/stocks/dividends.ts` |
+| MON-2 | high | FIXED | "Restart Game" wiped every paid entitlement; 3rd `initialGameState` builder missing the carry | `components/settings/DangerZone.tsx:32` |
+| SAVE-1 | high | FIXED | Permanent-perk write swallowed storage failure; redeem code FINALIZED and burned anyway | `services/IAPService.ts:286` · `utils/redeemCodes.ts:546` |
+| ECON-1 | high | FIXED | Daily login gems gated on device-clock day-string, no monotonicity guard — unlimited farm | `app/(tabs)/home.tsx:251-283` |
+| MON-1 | high | FIXED | SubscriptionReconciler revokes paid Remove Ads using a check that is empty on cold start | `components/SubscriptionReconciler.tsx:44-50` |
+| UX-1 | high | FIXED | Pulse follower boost: full rewarded ad plays, grants nothing, says nothing | `components/mobile/Pulse/modals/RewardedAdModal.tsx:101-115` |
+| PERF-1 | high | FIXED | Every saveGame builds a full backup (stringify+CRC32+HMAC) BEFORE the 60s rate limiter discards it | `utils/saveBackup.ts:509-512` |
+| PERF-2 | high | FIXED | PostCard (~60 FlatList rows) subscribes to whole GameState, unmemoized, saves on every tap | `components/mobile/Pulse/components/PostCard.tsx:55,59` |
+| ECON-2 | med | FIXED | startResearch: no in-updater re-check — bypasses lab concurrency cap, doubles breakthrough roll | `contexts/game/actions/RDActions.ts:116-152` |
+| ECON-3 | med | FIXED | lobby/campaign/hireLobbyist clamp debit to 0 instead of rejecting; free lobbyist + influence | `contexts/game/actions/PoliticalActions.ts:621,750,821` |
+| ECON-4 | med | FIXED | deliverBrandDealPost counts a delivery without checking the post was already used | `contexts/game/actions/PulseActions.ts:710-715` |
+| MON-3 | med | FIXED | Subscription expiry never enforced on the non-RevenueCat path; Restore re-grants premium forever | `services/SubscriptionService.ts:112-141` |
+| SAVE-2 | med | FIXED | phantomSaveCleanup imports AsyncStorage at module top level; MainMenu pulls it in eagerly | `utils/phantomSaveCleanup.ts:16` |
+| SAVE-3 | med | FIXED | IAP dedupe ledger write unchecked, then purchase reported fulfilled | `services/IAPService.ts:530-537` |
+| PERF-3 | med | OPEN | Pure-JS HMAC allocates 3 full copies of the save as boxed number[]; ~96MB at the 4MB ceiling | `utils/saveValidation.ts:146,177,269` |
+| PERF-4 | med | FIXED | Full JSON deep-clone inside the setGameState updater once per game-year; audit-perf cannot see it | `lib/timeMachine/checkpointSystem.ts:99` |
+| PERF-5 | med | OPEN | Two orphaned modules covered by tests named for screens that use different code | `utils/realEstateWeekly.ts` · `utils/bankMarketAPR.ts` |
+| UX-2 | med | FIXED | "Unlock All Perks" shows Owned/unbuyable for players without Mindset (omitted from the check) | `components/GemShopModal.tsx:632` |
+| SAVE-4 | low | OPEN | performSave/forceSave report success though `lastSlot`/`lastSaveTime` writes are unchecked | `utils/saveQueue.ts:272,438` |
+| SAVE-5 | low | OPEN | saveGame called in the same sync segment as setGameState persists the PRE-update snapshot | `components/LifeMomentModal.tsx:92,114` +4 |
+| ECON-5 | low | OPEN | buildRDLab clamps debit, rebuilds lab from a stale snapshot (data loss, not gain) | `contexts/game/actions/RDActions.ts:43-56` |
+| ECON-6 | low | OPEN | MoneyActionsContext buy/sell/swapCrypto are unguarded printers — DevTools-only reachability | `contexts/game/MoneyActionsContext.tsx:320-462` |
+| PERF-6 | low | OPEN | forceSave missing the pre-serialize yield that performSave has; runs on the IAP grant path | `utils/saveQueue.ts:371-376` |
+| PERF-7 | low | OPEN | Tab-tree root and AdRewardOrb take full-state subscriptions | `app/(tabs)/_layout.tsx:111` |
+| UX-3 | low | FIXED | Hard Rule #7: decorative red left accent stripe on the company scandal banner | `components/mobile/Hustle/screens/CompanyDetailScreen.tsx:308,1213` |
+
+## Verification gates at time of writing
+
+| Gate | Result |
+|---|---|
+| `npx jest` | 4,538 passed, 1 skipped, 0 failed |
+| `npx tsc --noEmit -p tsconfig.typecheck.json` | 0 errors |
+| Test-tree ratchet (`tsconfig.tests.json`) | **186 current / 186 baseline / delta 0 → PASS** (non-blocking; fails only on an increase) |
+| `npx eslint --quiet` on changed files | 0 errors |
+| `npm run audit:weekly` | 0 critical, 0 high; 1 pre-existing warning (`as GameState` in tests) |
+
+## Checked and clean (do not re-tread)
+Migration↔repair parity (audit-save V8 check passes, re-verified v20–v26 by hand) ·
+rewarded-ad grant path in `lib/ads/rewardedAd.ts` · prestige/heir entitlement survival ·
+`isNonIdempotentGrant` ledger gating · the paywall's +25% income claim · save-slot
+delete + Restart confirmations · `as any` count in contexts/game and services (5, all
+benign) · unbounded-growth check on eventLog/lifeMilestones/memories/priceHistory/
+npcMemories/netWorthHistory (all capped) · ItemActions, LuxuryActions, VehicleActions,
+StockActions, CryptoTradingActions, BankingActions, MiningActions, PetActions,
+ContactsActions, DatingActions, TravelActions, EducationActions, SparkActions,
+HustleActions IPO, CompanyActions, filePatent, enterCompetition, achievement gem mint,
+LifeChapterCard, AmbitionCard, RedeemCodeModal, claimDailyGems, applySavingsInterest,
+applyAutoReinvest, weekly-event resolver.
+
+## Game-logic domain (same round, reported separately)
+
+| ID | Sev | Status | Summary | Anchor |
+|---|---|---|---|---|
+| GL-1 | high | FIXED | 5 prestige "learning speed" bonuses inert — `getExperienceMultiplier` has zero call sites | `lib/prestige/applyBonuses.ts:220` |
+| GL-2 | high | FIXED | Politics education perks read `effects.education`, a key that does not exist on the returned object | `contexts/game/actions/EducationActions.ts:53-55` |
+| GL-3 | med | PARTIAL | Education half wired with GL-2. HEALTHCARE half still unread (`healthBonus`, `medicalCostReduction`) | `contexts/game/actions/PoliticalActions.ts:69-124` |
+| GL-4 | med | OPEN | 2 scenarios unscoreable — prestige projection strips `level`; `family_man` achievement id does not exist | `lib/prestige/prestigeExecution.ts:134,136` |
+| GL-5 | med | FIXED | "Debt Free" achievement unearnable — `progress.hasBeenInDebt` never written true | `src/features/onboarding/achievementsData.ts:1161` |
+| GL-6 | med | FIXED | Life Skills "Investing" node inert — `stockReturnMult` has zero readers (and gates `wealth_master`) | `lib/skillTrees/lifeSkillEffects.ts:166,188` |
+| GL-7 | med | PARTIAL | Auto-Rest wired. Skill Mastery + Achievement Hunter still inert — need a PRODUCT DECISION, see below | `lib/prestige/applyQOLBonuses.ts:34` · `applyBonuses.ts:250,319` |
+
+## Open questions needing a product decision (not code bugs)
+
+These are verified-inert, but wiring them means inventing game balance rather
+than restoring intended behaviour, so they are left for the owner to direct.
+
+- **GL-7 `skill_gain_multiplier` ("Skill Mastery", +20% skill gain, 3,000 pts).**
+  The only XP-based skill system in the game is the DARK WEB skill tree
+  (`awardSkillXp`). Life Skills are bought with money, not earned with XP. So
+  wiring this would silently make a general-sounding prestige bonus buff one
+  niche subsystem. Options: (a) scope it to dark-web XP and reword the shop
+  copy, (b) remove the bonus, (c) introduce a broader skill-XP system.
+- **GL-7 `achievement_progress_multiplier` ("Achievement Hunter", +20%
+  achievement progress, 4,000 pts x2).** Achievements here are boolean
+  thresholds, not accumulating progress, so a "progress rate" multiplier has no
+  coherent meaning. It is not even surfaced in `PrestigeInfoModal`. Options:
+  (a) remove it from the shop (needs a refund/migration decision for anyone who
+  already bought it), (b) redefine it against a progress-based metric.
+- **MON-5 Revival Pack** (carried over from round 1) — revives only at the
+  instant of purchase, so bought while alive it is a permanent no-op. Fixing it
+  means choosing a product shape: one banked revive consumed on use, vs a
+  repeatable consumable.
+
+## ARCH-1 — action results are read out of `setGameState` updaters (OPEN, high)
+
+Raised in review of this branch and **confirmed**, with one correction and one
+escalation. Recorded rather than fixed: the fix is a contract change across
+eight call sites and their callers, which is a bigger decision than an audit
+commit should make unilaterally.
+
+**The shape.** Eight actions do:
+
+```ts
+let applied = false;
+setGameState(prev => { const spend = applyMoneyDelta(prev, -amount, '…');
+                       if (!spend) return prev; applied = true; return next; });
+if (!applied) return { success: false, message: 'You cannot afford …' };
+```
+
+`contexts/game/GameStateContext.tsx:40` is a real `useState`, and React does not
+run a functional updater at dispatch time. It runs it during the next render —
+*except* for the eager-evaluation fast path, which applies only when the fiber
+has no pending work. So the updater runs synchronously for an isolated tap and
+is deferred whenever an update is already queued.
+
+**Which means it fails exactly where the guard matters.** These guards exist for
+same-batch double taps. On the second tap the first has already queued an
+update, the fiber has pending lanes, eager evaluation is skipped, `applied` stays
+false, and the caller is told the action failed.
+
+**Correction to the report.** It cannot go the other way. `applied` starts false
+and is only ever set inside the updater, so a rejected action can never report
+success. The state is also always correct — `return prev` runs whenever React
+runs the updater, and that is what closes the exploit. The money is right.
+
+**Escalation.** It is not only a wrong toast. `components/computer/PoliticalApp.tsx`
+does `if (result.success) queueSave();` at five call sites. A false negative
+therefore **skips the save**, so an action that really did apply is lost on the
+next load. That makes this a durability bug, not a cosmetic one.
+
+**Sites.** `PoliticalActions.ts:630,765,847` · `RDActions.ts:158` ·
+`PulseActions.ts:181,1007,1260`.
+
+**Why not fixed here.** Every option changes the contract: make the actions
+async and resolve post-commit (touches every caller), deliver the outcome
+through a post-commit effect, or move `queueSave()` and the user-facing message
+out of the caller's `if (result.success)`. The last is the smallest and is
+probably the right first step, since it fixes the durability half without
+touching signatures. Needs a decision before it goes in.
+
+The atomicity tests (`gateThenGrantAtomicity`, `doubleTapAtomicity`) drive a
+synchronous fake setter, so they prove the STATE decision and not the returned
+result. That is worth stating in them explicitly whichever way this is resolved.
+
+## Status after the 2026-07-31 pass
+
+| ID | Sev | Status | Note |
+|---|---|---|---|
+| PERF-5 | med | FIXED | 4 modules deleted (2 found by hand, 2 by the detector fix). Root cause fixed in `audit-perf.cjs`: `__tests__` was in the reference corpus, so a test-only importer read as "referenced". Now a separate, higher-graded check |
+| PERF-6 | low | FIXED | `forceSave` pre-serialize yield |
+| PERF-7 | med | PARTIAL | `AdRewardOrb` migrated off `useGame()`; `useGameStateGetter` added. Tab-tree root still OPEN, see below |
+| GL-3 | med | FIXED | Healthcare policy effects wired — both the weekly health bonus and the medical cost discount |
+| GL-4 | med | FIXED | Political Dynasty + Family Focused winnable; relationship conditions narrowed correctly |
+| ARCH-1 | high | OPEN | Action results read out of `setGameState` updaters — see above |
+
+### PERF-7 remainder — `app/(tabs)/_layout.tsx` (OPEN, medium)
+
+The tab-tree root takes a full-state subscription via `useGame()`. Every screen
+under `(tabs)` is a child, so this re-renders the whole tab tree on every
+mutation.
+
+Not fixed here, deliberately. It reads NINE distinct slices — `jailWeeks`,
+`items`, `settings.weeklySummaryEnabled`, `weeksLived`, `weekResult`,
+`showDeathPopup`, `showWeddingPopup`, `lifeMoments.pendingMoment`,
+`pendingEvents.length` — and hands the whole object to `WeeklyResultSheet`.
+Two things follow:
+
+- The payoff is smaller than it looks. Most of those slices change on the weekly
+  tick, which is when most state changes anyway. The real win is that mid-week
+  actions (money, stats) would stop re-rendering the tree — worth having, but
+  not the order-of-magnitude the `AdRewardOrb` fix was.
+- The risk is higher than it looks. It is a routing root; CLAUDE.md §10 lists
+  `app/` as a high-risk area needing `__tests__/startup`, and `app/_layout.tsx`
+  as needing TestFlight verification. This repo has shipped two launch crashes
+  from module/render changes in exactly this layer.
+
+The shape of the fix, when someone takes it with a device to hand: give
+`WeeklyResultSheet` its own `useGame()` (it is lazy and only mounts once a week,
+so its subscription costs nothing while hidden), then replace the root's
+`useGame()` with one `useGameSelector` returning a shallow-compared object of
+the nine primitives.
+
+### PERF-3 — pure-JS HMAC allocation (OPEN, low)
+
+Unchanged from the earlier entry: the pure-JS HMAC allocates three full boxed
+number copies of the save, ~96MB transient at the 4MB ceiling. Still flagged as
+not worth attempting without device measurement — the risk of breaking save
+signing exceeds the value of an unverified optimisation.

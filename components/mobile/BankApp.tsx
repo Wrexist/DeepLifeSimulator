@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { displayedDepositAPR, depositAPRNote } from '@/lib/banking/displayRates';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import {
@@ -67,6 +68,7 @@ import {
   addBill,
   removeBill,
   contributeToSavingsGoal,
+  withdrawFromSavingsGoal,
   createSavingsGoal,
   claimAdCashBonus,
   getAdCashBonusAmount,
@@ -75,6 +77,7 @@ import {
 import { acceptLoan, prepayLoan } from '@/contexts/game/actions/LoanActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import WatchAdRewardButton from '@/components/WatchAdRewardButton';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -138,6 +141,8 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
+  const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
 
@@ -165,11 +170,10 @@ function BankAppInner({ onBack }: BankAppProps) {
 
   const weeklyIncome = useMemo(() => {
     let income = 0;
-    const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
-    if (job?.levels && job.level != null) {
-      const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
-      income += job.levels[safeLevel]?.salary ?? 0;
-    }
+    // R3-M3: political salaries are ANNUAL; every other ladder is weekly. This
+    // read them all as weekly, so an elected player's borrowing capacity was
+    // inflated 52x at the DTI gate. One shared helper now encodes the rule.
+    income += weeklyCareerSalary(gameState);
     for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies]);
@@ -262,7 +266,17 @@ function BankAppInner({ onBack }: BankAppProps) {
                 {account.baseAPR > 0 && (
                   <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
                     <TrendingUp size={scale(11)} color={pal.hex} />
-                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(account.baseAPR * 100).toFixed(2)}% APR</Text>
+                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR</Text>
+                  </View>
+                )}
+                {/* Attribute a moved rate to the economy. Without this a reduced
+                    number reads as the bank changing its offer, and the
+                    "savings yields drift down" event banner looks cosmetic. */}
+                {account.baseAPR > 0 && depositAPRNote(banking.rateEnvironment) && (
+                  <View style={[styles.statusChip, { backgroundColor: `rgba(${pal.rgb}, 0.12)`, borderColor: `rgba(${pal.rgb}, 0.25)` }]}>
+                    <Text style={[styles.statusText, { color: pal.hex }]}>
+                      {depositAPRNote(banking.rateEnvironment)}
+                    </Text>
                   </View>
                 )}
                 <View style={[styles.statusChip, { backgroundColor: isLocked ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', borderColor: isLocked ? 'rgba(245, 158, 11, 0.30)' : 'rgba(16, 185, 129, 0.30)' }]}>
@@ -327,7 +341,12 @@ function BankAppInner({ onBack }: BankAppProps) {
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.factsGrid}>
               <FactCell theme={theme} icon={Wallet} tint={pal.hex} label="Type" value={accountTypeLabel(account.type)} />
-              <FactCell theme={theme} icon={Percent} label="Interest APR" value={`${(account.baseAPR * 100).toFixed(2)}%`} />
+              <FactCell
+                theme={theme}
+                icon={Percent}
+                label={depositAPRNote(banking.rateEnvironment) ? `Interest APR · ${depositAPRNote(banking.rateEnvironment)}` : 'Interest APR'}
+                value={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`}
+              />
               <FactCell theme={theme} icon={Coins} label="Balance" value={formatMoneyExact(account.balance)} />
               <FactCell theme={theme} icon={Calendar} label="Opened" value={`Week ${account.openedWeek}`} />
               <FactCell theme={theme} icon={Clock} label="Age" value={ageLabel} />
@@ -657,6 +676,7 @@ function BankAppInner({ onBack }: BankAppProps) {
               goal={g}
               darkMode={darkMode}
               onContribute={() => setContributeGoalId(g.id)}
+              onWithdraw={() => setWithdrawGoalId(g.id)}
             />
           ))
         )}
@@ -740,7 +760,14 @@ function BankAppInner({ onBack }: BankAppProps) {
         currentWeek={gameState.weeksLived}
         onClose={() => setShowOpenAccount(false)}
         onOpen={(spec) => {
-          openNewAccount(setGameState, spec);
+          // Same as AdvancedBankApp: a rejection used to close the sheet
+          // silently, so "Can't create a new savings" looked like nothing
+          // happening at all.
+          const result = openNewAccount(setGameState, spec);
+          if (!result.success) {
+            Alert.alert('Could not open account', result.message);
+            return;
+          }
           queueSave();
           setShowOpenAccount(false);
         }}
@@ -828,6 +855,24 @@ function BankAppInner({ onBack }: BankAppProps) {
             queueSave();
           }
           setContributeGoalId(null);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!withdrawGoalId}
+        title="Withdraw from goal"
+        subtitle={`Saved: ${formatMoney(banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0)}`}
+        confirmLabel="Withdraw"
+        maxAmount={banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0}
+        presets={[50, 200, 500]}
+        darkMode={darkMode}
+        onClose={() => setWithdrawGoalId(null)}
+        onConfirm={(amt) => {
+          if (withdrawGoalId) {
+            withdrawFromSavingsGoal(setGameState, withdrawGoalId, amt);
+            queueSave();
+          }
+          setWithdrawGoalId(null);
         }}
       />
 

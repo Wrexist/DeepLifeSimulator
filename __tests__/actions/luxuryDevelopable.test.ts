@@ -10,22 +10,31 @@ import { purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/Luxu
 import { createTestGameState } from '../helpers/createTestGameState';
 import { luxuryPropertyId, getLuxuryItem } from '@/lib/luxury';
 import type { GameState } from '@/contexts/game/types';
+import type { Dispatch, SetStateAction } from 'react';
+import { createSetGameStateStub } from '../helpers/setGameStateStub';
 
 const ISLAND_ID = 'private_island';
 const ISLAND = getLuxuryItem(ISLAND_ID)!;
 const PROPERTY_ID = luxuryPropertyId(ISLAND_ID);
 
-/** Drive the action against a mutable state, like the real setGameState does. */
+/**
+ * Drive the action against a mutable state, like the real setGameState does.
+ *
+ * The setter is React's own `Dispatch<SetStateAction<GameState>>`, via the
+ * shared stub. It used to be a hand-rolled updater-only function forced through
+ * with `as never`, which would have silently swallowed any `setGameState(next)`
+ * the action made — see the note in `helpers/setGameStateStub`.
+ */
 function run(
   state: GameState,
-  action: (s: GameState, set: (u: (p: GameState) => GameState) => void) => { success: boolean; message: string },
+  action: (
+    s: GameState,
+    set: Dispatch<SetStateAction<GameState>>,
+  ) => { success: boolean; message: string },
 ) {
-  let current = state;
-  const setGameState = (updater: (prev: GameState) => GameState) => {
-    current = updater(current);
-  };
-  const result = action(current, setGameState as never);
-  return { result, state: current };
+  const stub = createSetGameStateStub(state);
+  const result = action(stub.current(), stub.setGameState);
+  return { result, state: stub.current() };
 }
 
 function richState(overrides: Partial<GameState> = {}): GameState {
@@ -94,13 +103,13 @@ describe('buying a developable luxury item', () => {
 
   it('cannot mint twice on a double-tap', () => {
     // Both taps read the same stale snapshot; the second must be a full no-op.
+    // One stub across both calls, so the second updater sees the first's
+    // result even though the action was handed the stale `start` twice.
     const start = richState();
-    let current = start;
-    const set = (u: (p: GameState) => GameState) => {
-      current = u(current);
-    };
-    purchaseLuxuryItem(start, set as never, ISLAND_ID);
-    purchaseLuxuryItem(start, set as never, ISLAND_ID);
+    const stub = createSetGameStateStub(start);
+    purchaseLuxuryItem(start, stub.setGameState, ISLAND_ID);
+    purchaseLuxuryItem(start, stub.setGameState, ISLAND_ID);
+    const current = stub.current();
 
     expect(current.luxuryItems!.filter((id) => id === ISLAND_ID)).toHaveLength(1);
     expect((current.realEstate || []).filter((p) => p.id === PROPERTY_ID)).toHaveLength(1);

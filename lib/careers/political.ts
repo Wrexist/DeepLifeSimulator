@@ -101,3 +101,81 @@ export function canRunForOffice(
   return true;
 }
 
+
+/**
+ * Office keys in ladder order — index matches `POLITICAL_CAREER.levels`.
+ *
+ * The two were always parallel and never actually joined, which is the bug
+ * below.
+ */
+export const POLITICAL_OFFICE_ORDER = [
+  'council_member',
+  'mayor',
+  'state_representative',
+  'governor',
+  'senator',
+  'president',
+] as const;
+
+/** The office a given 0-based career level corresponds to. */
+export function officeForLevel(level: number): (typeof POLITICAL_OFFICE_ORDER)[number] | undefined {
+  return POLITICAL_OFFICE_ORDER[level];
+}
+
+/**
+ * Why a political promotion is refused, or `null` when it is allowed.
+ *
+ * PLAYER REPORT (1.4 bug-reports): "Able to promote political on the career
+ * page when the political page stops you due to age. After promotion the career
+ * page will list you as mayor, state rep, etc; while political page says you're
+ * a council member."
+ *
+ * `promoteCareer` gated on `getPromotionEligibility` — accepted, progress 100%,
+ * performance, tenure — and knew nothing about `POLITICAL_CAREER_REQUIREMENTS`.
+ * So the Politics app correctly refused a 27-year-old running for Mayor
+ * ("You must be at least 30 years old") while the Work tab happily promoted
+ * them into the same office, and `politics.careerLevel` was left behind because
+ * only `runForOffice` maintains it. Two ladders, one of them with no gates.
+ *
+ * Returns the SAME kind of message the Politics app shows, so the two screens
+ * agree about the reason as well as the answer.
+ */
+export function politicalPromotionBlocker(input: {
+  targetLevel: number;
+  age: number;
+  reputation: number;
+  currentLevel: number;
+  weeksInCurrentLevel: number;
+  hasEducation: (id: string) => boolean;
+}): string | null {
+  const office = officeForLevel(input.targetLevel);
+  if (!office) return null; // Not a political rung — nothing to enforce.
+
+  const requirements = POLITICAL_CAREER_REQUIREMENTS[office];
+  if (!requirements) return null;
+
+  if (input.age < requirements.minAge) {
+    return `You must be at least ${requirements.minAge} years old to hold this office. You are ${Math.floor(input.age)}.`;
+  }
+  if (input.reputation < requirements.minReputation) {
+    return `This office needs ${requirements.minReputation} reputation. You have ${Math.floor(input.reputation)}.`;
+  }
+
+  const ok = canRunForOffice(
+    office,
+    input.age,
+    input.reputation,
+    input.currentLevel,
+    input.weeksInCurrentLevel,
+    input.hasEducation,
+  );
+  if (!ok) {
+    if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious !== undefined) {
+      const years = Math.round(requirements.minWeeksInPrevious / WEEKS_PER_YEAR);
+      return `You need ${years} year${years === 1 ? '' : 's'} in your current office before running for this one.`;
+    }
+    return 'You do not meet the requirements for this office yet.';
+  }
+
+  return null;
+}

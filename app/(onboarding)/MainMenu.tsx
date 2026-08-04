@@ -451,6 +451,12 @@ export default function MainMenu() {
       try {
         loadedState = await loadGame(slotNumber);
       } catch (loadError) {
+        // R3-S3: this inner catch sat between `loadGame` and the
+        // `isSaveFromFutureError` branch below, so it swallowed the refusal and
+        // showed the generic "or start a new game" message over an intact save
+        // from a newer build — the exact advice the outer handler exists to
+        // avoid. Re-throw that one case so it reaches its handler.
+        if (isSaveFromFutureError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },

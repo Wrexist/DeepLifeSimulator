@@ -41,11 +41,19 @@ export const friendInvitationExam: EventTemplate = {
             weeksUntilActive: 2,
             description: 'Your friend remembers your sacrifice and offers to help you study.',
           },
-          {
-            type: 'modify_weight',
-            targetEventId: 'exam_results',
-            weightModifier: -0.3, // Less likely to get good exam results
-          },
+          /**
+           * R4-X6. A `modify_weight` of -0.3 on `exam_results` used to sit
+           * here. It was inert twice over: no `exam_results` template has ever
+           * existed, and `weightPayoffReady` only fires on a POSITIVE modifier,
+           * so it could not have gated anything even if one did.
+           *
+           * Removed rather than given a template, because the effect it wanted
+           * is already delivered — and delivered properly. The choice costs 20
+           * energy, and `runExam` reads energy directly (`< 30` is -10% pass
+           * chance). "Worse exam performance", which this choice's own tradeoff
+           * card promises the player, is the energy cost doing its job. This
+           * was a second, non-functional attempt at the same thing.
+           */
         ],
         emotionalImpact: 'medium',
         createsMemory: true,

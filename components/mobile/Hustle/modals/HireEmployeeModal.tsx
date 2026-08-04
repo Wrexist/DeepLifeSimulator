@@ -118,7 +118,7 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
             </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(420) }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
             {/* Named hires */}
             {namedHires.length > 0 ? (
               <>

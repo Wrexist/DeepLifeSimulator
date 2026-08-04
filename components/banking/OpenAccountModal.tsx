@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView 
 import { X, PiggyBank, Lock, TrendingUp, Briefcase } from 'lucide-react-native';
 import { BankAccountType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { formatMoney } from '@/utils/moneyFormatting';
 
@@ -97,16 +98,22 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: theme.text }]}>Open Account</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: scale(360) }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {PRODUCTS.map((p) => {
               const active = selected?.type === p.type;
               const Icon = p.icon;
@@ -214,11 +221,17 @@ const styles = StyleSheet.create({
   backdropTouch: {
     ...StyleSheet.absoluteFillObject,
   },
+  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
+  // no height bound grows to fit its content, so on a short screen its footer
+  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
+  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     padding: responsiveSpacing.lg,
     gap: responsiveSpacing.md,
+    maxHeight: '90%',
   },
   headerRow: {
     flexDirection: 'row',

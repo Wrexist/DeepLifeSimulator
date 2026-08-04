@@ -29,11 +29,16 @@ const mockSetItem = AsyncStorage.setItem as jest.Mock;
 // Minimal GameState stub — applyDiscordRewardGrant only touches stats.money,
 // dailySummary and the discordRewardGranted flag (via applyMoneyDelta).
 function stubState(money = 1000, granted?: boolean): GameState {
-  return {
-    stats: { health: 50, happiness: 50, energy: 50, fitness: 50, money, reputation: 50, gems: 0 },
-    dailySummary: {},
+  // Was a three-field object asserted whole. `applyDiscordRewardGrant` only
+  // reads stats.money / dailySummary / discordRewardGranted today — but the
+  // cast is what let that stay true silently, and a real state costs nothing.
+  return createTestGameState({
+    stats: { money },
+    // `dailySummary` requires moneyChange / statsChange / events. `{}` only
+    // compiled because the whole state was cast.
+    dailySummary: { moneyChange: 0, statsChange: {}, events: [] },
     discordRewardGranted: granted,
-  } as unknown as GameState;
+  });
 }
 
 describe('discordRewardClaim — exactly-once claim protocol', () => {

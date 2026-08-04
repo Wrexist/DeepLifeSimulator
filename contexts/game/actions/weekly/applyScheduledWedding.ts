@@ -103,7 +103,17 @@ export function applyScheduledWedding(
       };
     }
     // Can't afford wedding - postpone by 4 weeks, but expire after WEEKS_PER_YEAR weeks from original date
-    const originalScheduled = rel.weddingPlanned.scheduledWeek || nextWeeksLived;
+    // R3-F6: measure from the ORIGINAL date. This read `scheduledWeek`, which
+    // the enclosing gate has just asserted equals `nextWeeksLived` — so
+    // `weddingAge` was always 0 and the expiry below was unreachable. The
+    // postpone path then rewrote `scheduledWeek` to `nextWeeksLived + 4`,
+    // discarding the original, so a player who could not afford the balance was
+    // postponed +4 weeks indefinitely — holding the engagement slot forever,
+    // which `findCommittedPartner` and `planWedding`'s bigamy gate then use to
+    // block any other engagement. The documented "expires after 1 year, deposit
+    // forfeited" anti-exploit never fired once.
+    const originalScheduled =
+      rel.weddingPlanned.originalScheduledWeek ?? rel.weddingPlanned.scheduledWeek ?? nextWeeksLived;
     const weddingAge = nextWeeksLived - originalScheduled;
     if (weddingAge >= WEEKS_PER_YEAR) {
       // ANTI-EXPLOIT: Wedding plan expires after 1 year - deposit forfeited
@@ -126,7 +136,13 @@ export function applyScheduledWedding(
     return {
       rel: {
         ...rel,
-        weddingPlanned: { ...rel.weddingPlanned, scheduledWeek: nextWeeksLived + 4 },
+        weddingPlanned: {
+          ...rel.weddingPlanned,
+          scheduledWeek: nextWeeksLived + 4,
+          // Stamp it on the first postponement for a legacy plan, so the
+          // expiry clock starts running instead of never starting.
+          originalScheduledWeek: originalScheduled,
+        },
       },
       weddingPopup: null,
       familySpouse: null,

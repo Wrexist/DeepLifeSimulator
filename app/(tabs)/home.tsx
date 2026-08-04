@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspens
 import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
+import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
@@ -31,6 +32,8 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
+import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
@@ -246,9 +249,23 @@ function HomeScreenContent() {
     if ((gameState.weeksLived || 0) < 1 || !hasCompletedTutorial) return undefined;
     if (gameState.showDailyRewardPopup) return undefined;
 
+    // FARMABLE ON THE DEVICE CLOCK. The only gate here was
+    // `lastRewardDate === today`, a raw string compare against a device-clock
+    // day key — so moving the date to ANY other day, forward or back, re-armed
+    // the claim. Repeat indefinitely: DAILY_LOGIN_REWARDS cycles 25→500 and the
+    // 48h streak grace keeps the streak climbing, so ~157 gems per clock change
+    // on the premium currency that is otherwise sold as an IAP.
+    //
+    // Reuse `canClaimDailyGemsFor`, the guard the OTHER daily gem faucet in this
+    // app already uses (SubscriptionActions), rather than writing a second one:
+    // strictly-increasing day keys (never the current or an earlier day) plus an
+    // epoch high-water mark that refuses a clock rewound below the last claim.
+    // 2026-07-30 audit ECON-1.
     const today = new Date().toISOString().split('T')[0];
-    const lastRewardDate = gameState.lastLoginRewardDate;
-    if (lastRewardDate === today) return undefined;
+    const nowMs = Date.now();
+    if (!canClaimDailyGemsFor(gameState.lastLoginRewardDate, gameState.lastLoginRewardAt, today, nowMs)) {
+      return undefined;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DAILY_LOGIN_REWARDS, LOGIN_STREAK_GRACE_HOURS } = require('@/lib/config/gameConstants');
@@ -267,18 +284,28 @@ function HomeScreenContent() {
     const gemReward = DAILY_LOGIN_REWARDS[rewardIndex] || 25;
 
     const timer = setTimeout(() => {
-      setGameState(prev => awardLegacyPassXp({
-        ...prev,
-        showDailyRewardPopup: true,
-        dailyRewardAmount: gemReward,
-        loginStreak: newStreak,
-        lastLoginDate: today,
-        lastLoginRewardDate: today,
-        stats: {
-          ...prev.stats,
-          gems: (prev.stats?.gems || 0) + gemReward,
-        },
-      }, LEGACY_PASS_XP.dailyChallenge));
+      setGameState(prev => {
+        // Re-check against `prev`, not the effect's captured snapshot. The gate
+        // above ran at render time; without this, two effect runs in one React
+        // batch would both pass it and both credit gems — the gate-then-grant
+        // shape CLAUDE.md 4.4 exists to stop.
+        if (!canClaimDailyGemsFor(prev.lastLoginRewardDate, prev.lastLoginRewardAt, today, nowMs)) {
+          return prev;
+        }
+        return awardLegacyPassXp({
+          ...prev,
+          showDailyRewardPopup: true,
+          dailyRewardAmount: gemReward,
+          loginStreak: newStreak,
+          lastLoginDate: today,
+          lastLoginRewardDate: today,
+          lastLoginRewardAt: nowMs,
+          stats: {
+            ...prev.stats,
+            gems: (prev.stats?.gems || 0) + gemReward,
+          },
+        }, LEGACY_PASS_XP.dailyChallenge);
+      });
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
       // The persist happens in the committed-marker effect below — NOT here.
       // saveGame reads gameStateRef.current, which is synced to state in a
@@ -292,6 +319,7 @@ function HomeScreenContent() {
   }, [
     gameState.weeksLived,
     gameState.lastLoginRewardDate,
+    gameState.lastLoginRewardAt,
     gameState.loginStreak,
     gameState.lastLoginDate,
     gameState.showDailyRewardPopup,
@@ -635,6 +663,8 @@ function HomeScreenContent() {
             Renders only when an ambition was picked (freeform lives skip it). */}
         <FadeInUp delay={55}>
           <AmbitionCard />
+          <AmbitionPickerCard />
+          <WeeklyChallengeCard />
         </FadeInUp>
 
         {/* Retirement / Elder chapter — retire, pension, elder activities, legacy.

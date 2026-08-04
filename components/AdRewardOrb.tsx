@@ -20,7 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Play, Gift, DollarSign, Heart, Smile, Zap, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game';
 import { useTheme } from '@/hooks/useTheme';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
@@ -32,6 +33,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
+import { noFillOnCooldown, stampNoFillGrant } from '@/lib/ads/noFillCourtesy';
 
 const LinearGradient = LinearGradientFallback;
 const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
@@ -66,15 +68,6 @@ function pickKind(): RewardKind {
   return Math.random() < 0.5 ? 'cash' : 'vitality';
 }
 
-// Session-scoped courtesy limit for no-fill grants. When ads are ON for this
-// build but there is no inventory to serve (common on TestFlight and brand-new
-// ad units), the orb still honours ONE reward per app session via grantOnNoFill.
-// Without this cap a whale could farm the capped reward on every respawn with NO
-// ad ever shown (~$10M/hr). Module-level so it survives remounts and resets only
-// on app restart; a later real-ad grant clears it (inventory has returned).
-// Ads-removed players are unaffected — their direct grant is a paid perk.
-let noFillGrantedThisSession = false;
-
 // The three stats a vitality reward refills, with their icon + accent.
 const VITALITY_ROWS = [
   { key: 'health', label: 'Health', icon: Heart, color: '#FB7185' },
@@ -98,7 +91,20 @@ function computeReward(state: GameState): number {
 }
 
 export default function AdRewardOrb() {
-  const { gameState, setGameState, saveGame } = useGame();
+  /**
+   * PERF-7: this component is mounted in the tab-tree root for the entire
+   * session, and it used `useGame()` — a full-state subscription — so every
+   * mutation anywhere in the game re-rendered it AND rebuilt the merged
+   * 9-context object inside `useGame`'s memo.
+   *
+   * It renders off two booleans. The only reason it needed the whole object was
+   * the `gsRef` mirror, which has to stay fresh for timers that fire minutes
+   * later — and that is what `useGameStateGetter` is for: a read with no
+   * subscription. CLAUDE.md §4.1.
+   */
+  const setGameState = useSetGameState();
+  const getGameState = useGameStateGetter();
+  const { saveGame } = useGameActions();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -111,7 +117,9 @@ export default function AdRewardOrb() {
   const [granted, setGranted] = useState(false);
 
   // Hard off-switch: a player who paid to remove ads never sees the orb.
-  const adsRemoved = areAdsRemoved(gameState);
+  // Selected as a BOOLEAN, so buying Remove Ads still re-renders immediately
+  // while ordinary play does not.
+  const adsRemoved = useGameSelector((s) => areAdsRemoved(s));
 
   const slideX = useRef(new Animated.Value(-160)).current;
   const pulse = useRef(new Animated.Value(1)).current;
@@ -128,18 +136,20 @@ export default function AdRewardOrb() {
   const sheetDismissResolver = useRef<(() => void) | null>(null);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
-  const gsRef = useRef(gameState);
-  useEffect(() => { gsRef.current = gameState; });
+  // `getGameState()` reads the provider's live snapshot directly — the old
+  // `useRef` + effect mirror needed a re-render on every mutation to stay
+  // fresh, which is precisely the subscription this component should not have.
 
   // Don't intrude during blocking moments — death/wedding/jail popups, or an
   // auto-mounted LifeMomentModal (a real RN Modal raised whenever the weekly tick
   // sets lifeMoments.pendingMoment). The orb must not slide in over any of them.
-  const blocked = !!(
-    gameState?.showDeathPopup ||
-    gameState?.showWeddingPopup ||
-    (gameState?.jailWeeks ?? 0) > 0 ||
-    gameState?.lifeMoments?.pendingMoment
-  );
+  // Also a single boolean: the orb only cares THAT something is blocking.
+  const blocked = useGameSelector((s) => !!(
+    s?.showDeathPopup ||
+    s?.showWeddingPopup ||
+    (s?.jailWeeks ?? 0) > 0 ||
+    s?.lifeMoments?.pendingMoment
+  ));
 
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
@@ -157,7 +167,9 @@ export default function AdRewardOrb() {
     pulseLoop.current?.stop();
   }, [slideX]);
 
-  // Schedule the next appearance. Stable identity — reads fresh wealth via gsRef.
+  // Schedule the next appearance. Stable identity — `getGameState` is the
+  // provider's own `getSnapshot`, created once, so this stays referentially
+  // stable while still reading the player's CURRENT wealth when the timer fires.
   // Picks a fresh reward kind each time so cash and vitality alternate randomly.
   const scheduleNext = useCallback((delay: number) => {
     clearTimers();
@@ -167,16 +179,17 @@ export default function AdRewardOrb() {
       // again (which clears the flag) — otherwise the capped reward could be
       // farmed with no ad ever shown. Ads-removed players are exempt: their
       // direct grant is a paid perk, not a no-fill fallback.
-      if (noFillGrantedThisSession && adsAvailable(areAdsRemoved(gsRef.current))) {
+      const snapshot = getGameState();
+      if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
         return;
       }
       const nextKind = pickKind();
       setKind(nextKind);
-      setReward(nextKind === 'cash' ? computeReward(gsRef.current) : 0);
+      setReward(nextKind === 'cash' ? computeReward(getGameState()) : 0);
       setGranted(false);
       setPhase('orb');
     }, delay);
-  }, []);
+  }, [getGameState]);
 
   // First appearance after mount — but never once the player has removed ads.
   useEffect(() => {
@@ -319,7 +332,7 @@ export default function AdRewardOrb() {
       // Re-read the entitlement: Remove-Ads may have completed during the
       // dismissal wait. Using the fresh value guarantees a player who just paid
       // to remove ads gets a direct grant here, never a surprise ad.
-      const adsRemovedNow = areAdsRemoved(gsRef.current);
+      const adsRemovedNow = areAdsRemoved(getGameState());
       // grantOnNoFill: the orb is rate-limited (appears at most every few
       // minutes), so if there's no ad inventory to serve we still honour the
       // promised reward instead of leaving the player with nothing after tapping
@@ -329,9 +342,19 @@ export default function AdRewardOrb() {
       // scheduler stops offering more this session; a real-ad grant means
       // inventory returned, so lift the limit again.
       if (isNoFillGrant(outcome)) {
-        noFillGrantedThisSession = true;
+        // Stamp the game week INSIDE the updater so the mark and the grant land
+        // together — a trailing write could be lost to a concurrent update, and
+        // a lost mark is an uncapped faucet.
+        setGameState((prev) => ({
+          ...prev,
+          settings: { ...prev.settings, ...stampNoFillGrant(prev.weeksLived) },
+        }));
       } else if (outcome === 'granted-ad') {
-        noFillGrantedThisSession = false;
+        setGameState((prev) => {
+          if (prev.settings?.lastNoFillGrantWeek === undefined) return prev;
+          const { lastNoFillGrantWeek: _cleared, ...rest } = prev.settings;
+          return { ...prev, settings: rest };
+        });
       }
       if (isGranted(outcome)) {
         // Reopen the sheet in its "Reward added!" state — a fresh present is

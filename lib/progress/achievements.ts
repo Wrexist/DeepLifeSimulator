@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getTotalLuxuryMarketValue } from '@/lib/luxury';
+import { nonMirrorDeposits, totalCreditCardDebt } from '@/lib/banking/operations';
 
 export interface AchievementProgress {
   id: string;
@@ -30,6 +31,9 @@ interface NetWorthCacheKey {
   /** Holdings drift weekly through appreciation WITHOUT the id list changing,
    *  so keying on `luxuryItems` alone would serve a stale net worth forever. */
   luxuryHoldings: any;
+  /** R3-M4: crypto and the modern banking slice were absent entirely. */
+  cryptos: any;
+  banking: any;
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -52,7 +56,9 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.loans === state.loans &&
       lastCacheKey.vehicles === state.vehicles &&
       lastCacheKey.luxury === state.luxuryItems &&
-      lastCacheKey.luxuryHoldings === state.luxuryHoldings) {
+      lastCacheKey.luxuryHoldings === state.luxuryHoldings &&
+      lastCacheKey.cryptos === state.cryptos &&
+      lastCacheKey.banking === state.banking) {
     return lastNetWorthValue;
   }
 
@@ -192,13 +198,83 @@ export const netWorth = (state: GameState): number => {
   const safeMoney = isFinite(money) ? money : 0;
   const safeBank = isFinite(bank) ? bank : 0;
   const safeStockValue = isFinite(stockValue) ? stockValue : 0;
+  /**
+   * R3-M4: crypto and the modern banking slice were missing from this sum
+   * entirely — `grep crypto lib/progress/achievements.ts` returned nothing, and
+   * `bank` was only the legacy `bankSavings` pool, deprecated since
+   * STATE_VERSION 14 in favour of `banking.accounts`.
+   *
+   * So converting $1M of cash to Bitcoin DROPPED reported net worth by $1M, and
+   * every coin the mining warehouse ever produced was worth $0 on the
+   * scoreboard. Depositing into a high-yield savings account did the same. This
+   * is the canonical figure: it gates prestige, the ultra-rich passive-income
+   * soft cap, bail cost, ad-reward scaling, the identity card and the statistics
+   * history — so a crypto-heavy or deposit-heavy player could be locked out of
+   * prestige indefinitely, while also dodging the >$10M passive-income cap.
+   */
+  const cryptoValue = (state.cryptos ?? []).reduce((sum, coin) => {
+    const owned = Number(coin?.owned);
+    const price = Number(coin?.price);
+    if (!isFinite(owned) || !isFinite(price) || owned <= 0 || price <= 0) return sum;
+    return sum + owned * price;
+  }, 0);
+
+  /**
+   * R4 correction to R3-M4: EXCLUDE the mirror accounts.
+   *
+   * `banking.accounts` always contains `checking-default` and
+   * `savings-default`, which `mirrorAccountsFromLegacy` overwrites with
+   * `stats.money` and `bankSavings` on step 1 of every weekly tick. Summing all
+   * balances on top of `safeMoney + safeBank` therefore counted both legacy
+   * pools TWICE — roughly doubling reported net worth for any cash-holding
+   * player, which gates prestige availability, the prestige points award, the
+   * $10M achievement, ambition goals, life chapters, the leaderboard, the
+   * passive-income soft cap, bail and ad rewards.
+   *
+   * The repo already shipped the guard I should have used: `nonMirrorDeposits`,
+   * whose doc comment says verbatim that anything also counting the legacy
+   * fields must exclude the mirrors. The R3-M4 test missed it because its
+   * fixtures used ids like `chk`/`hysa` and left both mirrors at 0.
+   */
+  const bankAccountsValue = nonMirrorDeposits(state.banking?.accounts ?? []);
+
+  /**
+   * R4 correction: card debt. R3-M4's own finding text said netWorth "ignores
+   * credit-card debt" and I marked it fixed without adding the term. R3-M8 then
+   * made balances compound weekly with no minimum payment, so an unpaid card
+   * grows without bound while staying invisible on the balance sheet.
+   */
+  const creditCardDebt = totalCreditCardDebt({
+    // `totalCreditCardDebt` dereferences `.creditCards` directly, and a partial
+    // save can carry a `banking` object without it. `netWorth` is called from
+    // the leaderboard and the HUD, so a throw here is a blank screen.
+    ...(state.banking ?? {}),
+    creditCards: state.banking?.creditCards ?? [],
+  } as never);
+  const safeCreditCardDebt = isFinite(creditCardDebt) ? Math.max(0, creditCardDebt) : 0;
+
+  /**
+   * R3-M5: money parked in a savings goal is still the player's. It was
+   * invisible here AND had no withdraw path, so contributing destroyed it
+   * twice over — gone from the balance sheet and gone from the game. The
+   * withdraw path now exists (`withdrawFromGoal`); this makes it count.
+   */
+  const savingsGoalsValue = (state.banking?.savingsGoals ?? []).reduce((sum, goal) => {
+    const amount = Number(goal?.currentAmount);
+    return isFinite(amount) && amount > 0 ? sum + amount : sum;
+  }, 0);
+
+  const safeSavingsGoalsValue = isFinite(savingsGoalsValue) ? savingsGoalsValue : 0;
+
+  const safeCryptoValue = isFinite(cryptoValue) ? cryptoValue : 0;
+  const safeBankAccountsValue = isFinite(bankAccountsValue) ? bankAccountsValue : 0;
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
   const safeCompanyValue = isFinite(companyValue) ? companyValue : 0;
   const safeVehicleValue = isFinite(vehicleValue) ? vehicleValue : 0;
   const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
-  const total = safeMoney + safeBank + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
+  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values
@@ -216,7 +292,9 @@ export const netWorth = (state: GameState): number => {
     loans: state.loans,
     vehicles: state.vehicles,
     luxury: state.luxuryItems,
-    luxuryHoldings: state.luxuryHoldings
+    luxuryHoldings: state.luxuryHoldings,
+    cryptos: state.cryptos,
+    banking: state.banking
   };
   lastNetWorthValue = clampedTotal;
 

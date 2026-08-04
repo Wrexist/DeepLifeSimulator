@@ -21,6 +21,7 @@ import {
 } from '@/lib/pursuits/pursuitMastery';
 import { getThemeColors } from '@/lib/config/theme';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 
 interface HobbiesModalProps {
   visible: boolean;
@@ -60,7 +61,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
                 Practice to master — each level pays off more
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(22))} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(22)} color={theme.text} />
             </TouchableOpacity>
           </View>

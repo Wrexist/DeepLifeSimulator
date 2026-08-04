@@ -7,12 +7,34 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 const MAX_ANNUAL_INFLATION = 0.5;
 const MAX_PRICE_INDEX = 10;
 
+/**
+ * The player's enacted-policy delta to the annual inflation rate.
+ *
+ * R4-X7: three policies carry `economy.inflationRate` (+2%, +3%, +2%), the
+ * policy card renders it as "Inflation +2.0%" before the player pays six
+ * figures to enact it, and NOTHING read it — the aggregator did not even have
+ * an `economy` slice. Stimulus that cannot cause inflation is a free lunch, and
+ * the card said otherwise.
+ *
+ * Exported so a test can state the relationship rather than infer it.
+ */
+export function policyInflationDelta(state: GameState): number {
+  const raw = state.politics?.activePolicyEffects?.economy?.inflationRate;
+  if (typeof raw !== 'number' || !isFinite(raw)) return 0;
+  // Same ±5-point band the aggregator clamps to, re-applied here: a corrupt or
+  // hand-edited save must not be able to drive the price index.
+  return Math.max(-0.05, Math.min(0.05, raw));
+}
+
 export function applyWeeklyInflation(state: GameState): GameState {
   // CRITICAL: Validate all inputs before calculation to prevent NaN/Infinity
   const rawAnnual = typeof state.economy?.inflationRateAnnual === 'number' && isFinite(state.economy.inflationRateAnnual) && state.economy.inflationRateAnnual >= 0
     ? state.economy.inflationRateAnnual
     : 0.02; // Default 2% annual inflation
-  const inflationRateAnnual = Math.min(MAX_ANNUAL_INFLATION, rawAnnual);
+  // Policy delta folded in BEFORE the ceiling clamp, and floored at 0 — a
+  // deflationary stack must not run the price index backwards past parity.
+  const withPolicy = Math.max(0, rawAnnual + policyInflationDelta(state));
+  const inflationRateAnnual = Math.min(MAX_ANNUAL_INFLATION, withPolicy);
   const currentPriceIndex = typeof state.economy?.priceIndex === 'number' && isFinite(state.economy.priceIndex) && state.economy.priceIndex > 0
     ? state.economy.priceIndex
     : 1; // Default price index

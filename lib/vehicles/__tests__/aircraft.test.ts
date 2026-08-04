@@ -206,7 +206,7 @@ describe('transportationMods integration', () => {
       realEstate: [propertyWith([AIRSTRIP_ROOM_ID])],
       vehicles: [{ id: 'v', owned: true, speedBonus: 50, condition: 100, fuelLevel: 100 } as unknown as Vehicle],
       activeVehicleId: 'v',
-      politics: { activePolicyEffects: { transportation: { commuteTimeReduction: 1 } } },
+      politics: { activePolicyEffects: { transportation: { commuteTimeReduction: 50 } } },
     } as Partial<GameState>);
 
     expect(transportationMods(stacked).durationMultiplier).toBeGreaterThanOrEqual(0.25);

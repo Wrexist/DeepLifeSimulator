@@ -46,6 +46,7 @@ import { logger } from '@/utils/logger';
 import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import type { WeekContext } from './weekContext';
+import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
 
 const CHILD_PERSONALITIES = ['Playful', 'Curious', 'Energetic', 'Sweet', 'Adventurous'];
 
@@ -88,7 +89,13 @@ export function applyPregnancyProgression(
       id: childId,
       name: childName,
       type: 'child',
-      relationshipScore: 100,
+      // R3-F5: NOT 100. `clampNurture` caps Bond at 100, so a child created at
+      // the ceiling made every positive parenting action a no-op on arrival —
+      // the +1 bumps (Bedtime Story, Playtime, Park Playdate, Teach Values,
+      // Driving Lessons) and the +3s (Heart-to-Heart, the $1,500 Family Trip)
+      // all clamped away. Starting with headroom is what makes the parenting
+      // loop mean anything.
+      relationshipScore: NEWBORN_BOND,
       personality: CHILD_PERSONALITIES[preRolls.childPersonality],
       gender: childGender,
       age: 0,

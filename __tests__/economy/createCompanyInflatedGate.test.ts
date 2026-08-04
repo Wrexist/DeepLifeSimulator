@@ -14,7 +14,7 @@
  * stays honest.
  */
 import type { Dispatch, SetStateAction } from 'react';
-import { createTestGameState } from '../helpers/createTestGameState';
+import { createTestGameState, type TestGameStateOverrides } from '../helpers/createTestGameState';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -36,14 +36,14 @@ function captureUpdater() {
   };
 }
 
-function foundableState(overrides: Partial<GameState> = {}): GameState {
+function foundableState(overrides: TestGameStateOverrides = {}): GameState {
   return createTestGameState({
-    stats: { money: 500_000 } as GameState['stats'],
+    stats: { money: 500_000 },
     companies: [],
     educations: [
       { id: 'entrepreneurship', name: 'Entrepreneurship', description: '', cost: 0, duration: 0, completed: true },
     ],
-    economy: { priceIndex: 1 } as GameState['economy'],
+    economy: { priceIndex: 1 },
     ...overrides,
   });
 }
@@ -56,8 +56,8 @@ describe('createCompany — inflated-price gate math (UI parity)', () => {
 
     const startMoney = 500_000;
     const snapshot = foundableState({
-      stats: { money: startMoney } as GameState['stats'],
-      economy: { priceIndex } as GameState['economy'],
+      stats: { money: startMoney },
+      economy: { priceIndex },
     });
     const cap = captureUpdater();
     const res = createCompany(snapshot, cap.setGameState, 'factory', { updateMoney });
@@ -79,8 +79,8 @@ describe('createCompany — inflated-price gate math (UI parity)', () => {
     expect(money >= inflated).toBe(false); // the UI's new affordability predicate
 
     const snapshot = foundableState({
-      stats: { money } as GameState['stats'],
-      economy: { priceIndex } as GameState['economy'],
+      stats: { money },
+      economy: { priceIndex },
     });
     const cap = captureUpdater();
     const res = createCompany(snapshot, cap.setGameState, 'factory', { updateMoney });

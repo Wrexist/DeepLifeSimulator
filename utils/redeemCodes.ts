@@ -543,8 +543,12 @@ export async function persistRedeemedPerkEntitlements(reward: RedeemReward): Pro
   const config = getProductConfig(resolveRedeemProductId(reward.p));
   if (!config) return true; // nothing persistable — never block finalization
   try {
-    await iapService.persistPermanentPerks(config);
-    return true;
+    // Return what the write actually reported, not an unconditional `true`.
+    // `persistPermanentPerks` swallowed storage rejections and returned void,
+    // so the only way this could report failure was an exception it could
+    // never raise — and a one-time code was finalized and burned for an
+    // entitlement that never reached disk. 2026-07-30 audit SAVE-1.
+    return await iapService.persistPermanentPerks(config);
   } catch (err) {
     logger.warn('Redeem code: permanent-perk persistence failed; claim stays pending for retry', {
       error: err,

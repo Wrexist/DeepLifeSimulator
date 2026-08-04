@@ -49,7 +49,9 @@ import {
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { scale, fontScale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
@@ -146,24 +148,37 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  happiness += Math.floor(spouse.relationshipScore / 10);
  }
  children.forEach(child => {
- happiness += Math.floor((child.familyHappiness || 50) / 20);
+ // R3-F8: prefer `child.happiness`, the nurture stat the parenting loop
+ // actually writes. `familyHappiness` has NO writer anywhere in the repo —
+ // its would-be setter `updateChildWeekly` has zero callers — so every child
+ // contributed a constant `floor(50/20) = 2` and this headline number never
+ // responded to how the children were doing. The card at line ~779 already
+ // reads `child.happiness ?? child.familyHappiness ?? 50`; this did not.
+ happiness += Math.floor((child.happiness ?? child.familyHappiness ?? 50) / 20);
  });
  return happiness;
  }, [spouse, children]);
 
- // Calculate total family income
- const familyIncome = useMemo(() => {
- let income = 0;
- if (spouse?.income) {
- income += spouse.income * 7; // Weekly income
- }
- children.forEach(child => {
- if (child.savings && child.age >= 18) {
- income += Math.floor(child.savings * 0.01); // Small contribution
- }
- });
- return income;
- }, [spouse, children]);
+ /**
+  * What the household ACTUALLY contributes per week.
+  *
+  * Player report (1.4 bug-reports): a spouse rendered "$65000/week" on the card
+  * directly below this headline, while the headline read "$455000" — because it
+  * multiplied an already-weekly figure by 7. The player was receiving $16,250.
+  *
+  * Two separate errors, both closed by reading the tick's own function:
+  *   - the x7 (`applyIncome` treats `rel.income` as weekly, and the spouse card
+  *     one screen below labels it "/week"), and
+  *   - the missing 25% household share, so even the un-multiplied figure was 4x
+  *     what arrives.
+  *
+  * The invented "1% of each adult child's savings" term is dropped too — no
+  * child contributes income anywhere in the weekly tick.
+  */
+ const familyIncome = useMemo(
+ () => householdPartnerIncome(gameState.relationships),
+ [gameState.relationships],
+ );
 
  // Check pregnancy status from relationships array (has latest state).
  // Falls back to the partner relationship so engaged/cohabiting couples
@@ -751,7 +766,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={[styles.modalTitle, settings.darkMode && styles.textDark]}>
  {child.name}
  </Text>
- <TouchableOpacity onPress={() => setShowChildModal(false)}>
+ <TouchableOpacity
+ onPress={() => setShowChildModal(false)}
+ style={minTouchTargetStyle}
+ hitSlop={hitSlopToMinTarget(scale(24))}
+ {...CLOSE_BUTTON_A11Y}
+ >
  <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  </View>
@@ -866,7 +886,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </Text>
  </View>
  {onClose && (
- <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+ <TouchableOpacity
+ onPress={onClose}
+ style={[styles.closeButton, minTouchTargetStyle]}
+ hitSlop={hitSlopToMinTarget(scale(24))}
+ {...CLOSE_BUTTON_A11Y}
+ >
  <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
  </TouchableOpacity>
  )}

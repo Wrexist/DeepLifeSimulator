@@ -39,6 +39,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth, evaluateAchievements } from '@/lib/progress/achievements';
 import { achievements } from '@/src/features/onboarding/achievementsData';
 import { validateGameState } from '@/utils/saveValidation';
+import { makeRealEstate } from '../helpers/makeRealEstate';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -72,7 +73,7 @@ function mountGame() {
 }
 
 function freshState(): GameState {
-  return JSON.parse(JSON.stringify(initialGameState));
+  return structuredClone(initialGameState);
 }
 
 function deepCheck(state: unknown, path = 'root'): string[] {
@@ -108,7 +109,12 @@ function fatState(): GameState {
   s.streetJobsCompleted = 50;
   s.criminalLevel = 5;
   s.criminalXp = 200;
-  s.totalCrimesCommitted = 100;
+  // `totalCrimesCommitted` lives on `lifetimeStatistics`, not the GameState root.
+  // Writing it at the root did nothing at all — the "maximally populated" state
+  // this helper promises was silently missing the field, so anything reading it
+  // was exercised against 0. Found by type-checking the test tree for the first
+  // time (2026-07-30 audit ARCH-2).
+  s.lifetimeStatistics = { ...(s.lifetimeStatistics ?? {}), totalCrimesCommitted: 100 } as never;
   s.relationships = Array.from({ length: 15 }, (_, i) => ({
     id: `rel-${i}`, name: `Friend ${i}`, type: 'friend' as const,
     relationshipScore: 75 + (i % 25), personality: 'kind', gender: i % 2 ? 'male' : 'female' as const,
@@ -132,16 +138,36 @@ function fatState(): GameState {
     holdings: [{ symbol: 'TECH', shares: 1000, averagePrice: 100, currentPrice: 200 }],
     watchlist: [],
   } as never;
-  s.realEstate = [{
-    id: 'home', name: 'Home', type: 'house' as never,
-    price: 500_000, currentValue: 600_000, owned: true, status: 'owned' as never,
-    rent: 0, upkeep: 1000, purchasedWeek: 100, upgradeLevel: 2,
-    installedDecor: [], installedRooms: [],
-  } as never];
+  s.realEstate = [makeRealEstate({
+    id: 'home', name: 'Home',
+    price: 500_000, currentValue: 600_000,
+    upkeep: 1000, purchasedWeek: 100, upgradeLevel: 2,
+  })];
   return s;
 }
 
 // ──────────────────── Tests ────────────────────────────────────────────────
+
+
+/**
+ * Remove keys from a state the way a truncated or hand-edited save would, so
+ * the accessors below face genuinely absent collections.
+ *
+ * Ten `delete (state as Record<string, unknown>).field` lines used to do this
+ * inline. Two problems with that shape, beyond the ten casts: the assertion
+ * `as Record<string, unknown>` is one TypeScript rejects outright (GameState
+ * has no index signature), and — worse — a MISTYPED field name would delete
+ * nothing at all, silently leaving the state intact while the test went on to
+ * "prove" every accessor survives a stripping that never happened.
+ *
+ * `keyof GameState` makes a typo a compile error, and the single unavoidable
+ * cast lives here rather than at each call.
+ */
+function stripFields(state: GameState, ...keys: (keyof GameState)[]): GameState {
+  const bag = state as unknown as Record<string, unknown>;
+  for (const key of keys) delete bag[key as string];
+  return state;
+}
 
 describe('Achievement / Progress audit', () => {
   jest.setTimeout(120_000);
@@ -232,26 +258,28 @@ describe('Achievement / Progress audit', () => {
   // ── ACCESSOR SAFETY: null/undefined-laden state ────────────────────────
   it('All accessors survive a state where every optional collection is undefined', () => {
     // Defensively strip the fields most accessors guard against.
-    const state = freshState();
-    delete (state as Record<string, unknown>).relationships;
-    delete (state as Record<string, unknown>).items;
-    delete (state as Record<string, unknown>).companies;
-    delete (state as Record<string, unknown>).stocks;
-    delete (state as Record<string, unknown>).realEstate;
-    delete (state as Record<string, unknown>).family;
-    delete (state as Record<string, unknown>).achievements;
-    delete (state as Record<string, unknown>).hobbies;
-    delete (state as Record<string, unknown>).careers;
-    delete (state as Record<string, unknown>).educations;
+    const STRIPPED = [
+      'relationships', 'items', 'companies', 'stocks', 'realEstate',
+      'family', 'achievements', 'hobbies', 'careers', 'educations',
+    ] as const;
+    const state = stripFields(freshState(), ...STRIPPED);
+
+    // The strip is the whole premise, so check it happened. Without this the
+    // suite passes identically against a state that was never touched — which
+    // is exactly what a mistyped key used to produce, silently.
+    for (const key of STRIPPED) {
+      expect(`${key}: ${key in (state as unknown as Record<string, unknown>)}`)
+        .toBe(`${key}: false`);
+    }
 
     const failures: Array<{ id: string; error: string }> = [];
     for (const a of achievements) {
       try {
         if (a.progressSpec.kind === 'counter') {
-          const v = a.progressSpec.current(state as GameState);
+          const v = a.progressSpec.current(state);
           if (!Number.isFinite(v) || Number.isNaN(v)) failures.push({ id: a.id, error: `current()=${v}` });
         } else {
-          a.progressSpec.met(state as GameState);
+          a.progressSpec.met(state);
         }
       } catch (e) {
         failures.push({ id: a.id, error: e instanceof Error ? e.message : String(e) });

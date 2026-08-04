@@ -683,6 +683,18 @@ export interface WeddingPlan {
   partnerId: string;
   guestCount: number;
   scheduledWeek: number;
+  /**
+   * The week the wedding was FIRST scheduled for, in `weeksLived`.
+   *
+   * R3-F6: the 1-year expiry measured `nextWeeksLived - scheduledWeek` inside a
+   * branch gated on `scheduledWeek === nextWeeksLived`, so the age was always
+   * 0 and the branch was unreachable. The postpone path then overwrote
+   * `scheduledWeek` with `nextWeeksLived + 4`, discarding the original date, so
+   * the value could never drift either. Optional: a save written before this
+   * field existed falls back to the current `scheduledWeek`, which restarts the
+   * clock rather than expiring a plan retroactively.
+   */
+  originalScheduledWeek?: number;
   budget: number;
   catering: boolean;
   photography: boolean;
@@ -1602,6 +1614,35 @@ export interface GameSettings {
   // GAME time, never a wall-clock date: a real-time key is farmable by moving
   // the device clock (2026-07-24 daily-gem lesson).
   lastAdCashBonusWeek?: number;
+  /**
+   * `weeksLived` at which each HUD quick action was last used, keyed by action
+   * id. The long-press quick actions had no gate at all on `rest`, so
+   * rest -> social netted +6 energy and +5 happiness per cycle, repeatable
+   * forever from the always-visible top bar — and energy is what gates street
+   * jobs, crime, health activities and hobbies. The module comment even claimed
+   * they were "self-limiting". Absent means nothing used yet.
+   * 2026-07-30 audit UX-R1-02.
+   */
+  quickActionWeeks?: Record<string, number>;
+  /**
+   * `weeksLived` at which the ad orb last honoured a NO-FILL courtesy reward —
+   * a grant made with no ad shown, because ads are on for this build but there
+   * was no inventory.
+   *
+   * R4-MON-6: that courtesy was capped by a MODULE-LEVEL boolean
+   * (`noFillGrantedThisSession` in `AdRewardOrb.tsx`), whose own comment said it
+   * exists because otherwise "a whale could farm the capped reward on every
+   * respawn with NO ad ever shown (~$10M/hr)". A module variable resets on app
+   * restart, so the farm was simply "force-quit and relaunch" — and the reward
+   * scales with net worth, so it is worth most to exactly the players who can
+   * be bothered. CLAUDE.md §4.4: gate on game state, never on something the
+   * player can reset.
+   *
+   * Absent means "never granted", so this is a carve-out field: STATE_VERSION
+   * bumped, NO backfill and no `repairGameState` mirror. Game time, not wall
+   * clock — a real-time key is farmable by moving the device clock.
+   */
+  lastNoFillGrantWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle
@@ -2256,13 +2297,6 @@ export interface GameState {
   youthPills: number;
   showWelcomePopup: boolean;
   hasSeenJobTutorial: boolean;
-  hasSeenInvestmentTutorial: boolean;
-  hasSeenDatingTutorial: boolean;
-  hasSeenHealthWarning: boolean;
-  hasSeenEnergyWarning: boolean;
-  hasSeenMoneyManagementTutorial: boolean;
-  hasSeenSocialMediaTutorial: boolean;
-  hasSeenRealEstateTutorial: boolean;
   settings: GameSettings;
   cryptos: Crypto[];
   /** Extended crypto market state (STATE_VERSION 16) — regimes, order book, DCA, tax. */
@@ -2401,6 +2435,21 @@ export interface GameState {
     /** Dividends paid this game-year (resets at year boundary). */
     dividendsThisYear?: number;
   };
+  /**
+   * Perk flags, keyed by perk id.
+   *
+   * Two systems share this bag. The named keys are the IAP entitlements set by
+   * `applyProductBenefitsToState` — kept explicit so a typo in a paid-perk
+   * check is still a type error. The index signature covers the ~20 ONBOARDING
+   * perks, which `gameStateBuilder` writes as `{ [perkId]: true }` for whatever
+   * the player picked, and which `applyIncome` reads back by iterating
+   * `Object.entries`. Those ids were absent from this type even though they are
+   * written to every save, so any code naming one directly was a type error and
+   * four test assertions on them silently asserted nothing.
+   *
+   * No migration: nothing new is stored. The keys were always written; only
+   * the type was wrong.
+   */
   perks?: {
     workBoost?: boolean;
     mindset?: boolean;
@@ -2408,6 +2457,7 @@ export interface GameState {
     goodCredit?: boolean;
     unlockAllPerks?: boolean;
     astute_planner?: boolean;
+    [perkId: string]: boolean | undefined;
   };
   dailySummary?: {
     moneyChange: number;
@@ -2429,6 +2479,13 @@ export interface GameState {
   loginStreak?: number;
   lastLoginDate?: string;
   lastLoginRewardDate?: string;
+  /**
+   * Epoch ms of the last daily-login gem claim. Anti-clock-manipulation
+   * high-water mark: `canClaimDailyGemsFor` refuses a claim when the device
+   * clock has been rewound below it. Default `undefined` — an absent key means
+   * "never claimed". 2026-07-30 audit ECON-1.
+   */
+  lastLoginRewardAt?: number;
   /**
    * One-time Discord community reward: set true in the SAME state update that
    * adds the cash, so the money + this flag are always persisted together. It is
@@ -2507,14 +2564,12 @@ export interface GameState {
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
   healthWeeks: number;
-  perfectWeeks?: number; // consecutive weeks with all stats > 90 (Perfectionist achievement)
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
   deathReason?: 'happiness' | 'health' | 'age';
   showWeddingPopup: boolean;
   weddingPartnerName?: string;
-  debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system
   bankruptcyTriggered?: boolean; // STABILITY FIX: Track if bankruptcy has been triggered
   weeksInPoverty?: number; // STABILITY FIX: Track weeks in poverty for scholarship event
   showSicknessModal: boolean;
@@ -2539,7 +2594,6 @@ export interface GameState {
   diseaseImmunities?: string[]; // Diseases player has immunity to (from previous infections)
   vaccinations?: string[]; // Vaccinations player has received
   goals: Goal[];
-  goalProgress: Record<string, GoalProgress>;
   completedGoals: string[];
   // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
   // socialGroups, socialInteractions, lastEventTimes) and the old
@@ -2612,10 +2666,7 @@ export interface GameState {
    * top of the existing `companies[]` array. Per-company keyed by Company.id.
    */
   hustleApp?: HustleAppState;
-  _checksum?: string;
-  _saveVersion?: number;
   _appVersion?: string; // TESTFLIGHT FIX: App version when save was created (for compatibility tracking)
-  _buildNumber?: string | number; // TESTFLIGHT FIX: Build number when save was created (for compatibility tracking)
   travel?: TravelState;
   /**
    * v22 Wave A: capped real-estate portfolio activity timeline (~40 entries).
@@ -2696,18 +2747,19 @@ export interface GameState {
   };
   /** Mini-prestige currency earned every 10 weeks, spent on temporary buffs */
   legacyPoints?: number;
+  /**
+   * C-11: ids from `LEGACY_UPGRADES` bought with legacy points. Concrete
+   * stored default `[]`, so v29 backfills it and `repairGameState` mirrors it.
+   * Carried into the heir — what you bought is what your heir starts with.
+   */
+  legacyUpgrades?: string[];
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks
     mentor?: { expiresWeeksLived: number }; // +50% career progress for 3 weeks
   };
   /** Daily challenge completion streak */
-  challengeStreak?: {
-    count: number;
-    lastCompletionDayKey: string;
-  };
   /** Life chapters — themed goal groups that unlock based on weeksLived */
-  activeChapterId?: string;
   completedChapters?: string[];
   /**
    * Life Ambition (v22.x, additive/optional) — a lifelong aspiration chosen at
@@ -2752,7 +2804,6 @@ export interface GameState {
   pursuits?: Record<string, PlayerPursuit>;
   weeklyPursuitPractice?: Record<string, number>;
   /** Tutorial step completion tracking for rewards */
-  completedTutorialSteps?: string[];
 
   // ── Wave 2: Addiction Mechanics ────────────────────────────────
   /** Secrets/Easter eggs discovered this life */
@@ -2975,6 +3026,14 @@ export interface PoliticsState {
   lastElectionAttemptWeek?: number;
   nextElectionWeek?: number;
   activePolicyEffects?: {
+    /**
+     * R4-X7: the policy `economy.inflationRate` was declared, priced into three
+     * policies, and rendered on the policy card as "Inflation +2.0%" — and the
+     * aggregator had no `economy` slice at all, so nothing could read it even
+     * in principle. Optional so existing saves load unchanged; absent means the
+     * base annual rate.
+     */
+    economy?: { inflationRate: number; };
     stocks?: { volatilityModifier: number; dividendBonus: number; companyBoost?: string[]; };
     realEstate?: { priceModifier: number; rentModifier: number; propertyTaxRate?: number; };
     education?: { weeksReduction: number; costReduction: number; scholarshipAmount?: number; };

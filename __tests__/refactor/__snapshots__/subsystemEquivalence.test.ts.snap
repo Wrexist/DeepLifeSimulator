@@ -23,6 +23,7 @@ exports[`pre-tick equivalence — applyAutoReinvest appends new holding when tar
       "symbol": "AAPL",
     },
   ],
+  "spentUSD": 900,
 }
 `;
 
@@ -42,6 +43,7 @@ exports[`pre-tick equivalence — applyAutoReinvest handles unknown symbol on la
       "symbol": "GOOGL",
     },
   ],
+  "spentUSD": 200,
 }
 `;
 
@@ -55,24 +57,28 @@ exports[`pre-tick equivalence — applyAutoReinvest merges shares + recomputes a
       "symbol": "AAPL",
     },
   ],
+  "spentUSD": 450,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no purchase when sharesToBuy floors to 0 (reinvest < price) 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is 0 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
 exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is negative 1`] = `
 {
   "reinvestedStocks": [],
+  "spentUSD": 0,
 }
 `;
 
@@ -86,6 +92,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks random stock when hold
       "symbol": "MSFT",
     },
   ],
+  "spentUSD": 300,
 }
 `;
 
@@ -111,6 +118,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks the holding with the m
       "symbol": "MSFT",
     },
   ],
+  "spentUSD": 500,
 }
 `;
 
@@ -2951,6 +2959,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics all undefined accumula
     "peakNetWorthWeek": 10,
     "totalChildren": 1,
     "totalJailTime": 1,
+    "totalRelationships": 0,
     "totalWeeksWorked": 1,
     "weeklyEarningsHistory": [
       {
@@ -2989,6 +2998,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics full state: everything
     "totalAchievementsUnlocked": 3,
     "totalChildren": 2,
     "totalJailTime": 6,
+    "totalRelationships": 0,
     "totalWeeksWorked": 51,
     "weeklyEarningsHistory": [
       {
@@ -4118,7 +4128,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4145,7 +4155,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4172,7 +4182,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
     "id": "child_1234567890_abc_r1",
     "name": "Alex",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4209,7 +4219,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
       "id": "child_99_sfx_r1",
       "name": "Mia",
       "personality": "Energetic",
-      "relationshipScore": 100,
+      "relationshipScore": 75,
       "type": "child",
     },
     "rel": {
@@ -4237,7 +4247,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not j
     "id": "child_1234567890_abc_r1",
     "name": "Kai",
     "personality": "Playful",
-    "relationshipScore": 100,
+    "relationshipScore": 75,
     "type": "child",
   },
   "rel": {
@@ -4754,6 +4764,7 @@ exports[`pre-tick equivalence — applyScheduledWedding expire: cant afford AND 
     "type": "partner",
     "weddingPlanned": {
       "budget": 50000,
+      "originalScheduledWeek": 100,
       "scheduledWeek": 104,
     },
   },
@@ -4773,6 +4784,7 @@ exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, w
       "type": "partner",
       "weddingPlanned": {
         "budget": 20000,
+        "originalScheduledWeek": 100,
         "otherDetail": "venue:A",
         "scheduledWeek": 104,
       },

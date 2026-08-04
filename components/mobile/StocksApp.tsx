@@ -940,8 +940,19 @@ function OrderRow({ theme, order, isLast, onCancel }: { theme: Theme; order: Ord
   const sideColor = o.side === 'buy' ? accent.success : accent.danger;
   const statusColor = o.status === 'filled' ? accent.success : o.status === 'open' ? accent.purple : theme.textMuted;
   return (
-    <View style={[styles.orderRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
-      <View style={[styles.stripe, { backgroundColor: sideColor }]} />
+    // Hard Rule #7: this row carried the buy/sell side as a scale(3) bar down
+    // its left edge — a side accent bar, banned by name even though it is a
+    // View rather than a border. The colour moves onto a faint row tint.
+    //
+    // Kept weak on purpose: the title below already reads "BUY AAPL" /
+    // "SELL AAPL" in plain text, so the side is stated, not merely coloured.
+    // The borderBottom stays — a neutral hairline row divider is one of the
+    // rule's explicit structural exceptions.
+    <View style={[
+      styles.orderRow,
+      { backgroundColor: `${sideColor}0F` },
+      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+    ]}>
       <View style={styles.orderContent}>
         <View style={{ flex: 1 }}>
           <View style={styles.orderTitleRow}>
@@ -1136,8 +1147,8 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: responsiveFontSize.sm, flexShrink: 0 },
   infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
 
-  // Order rows
-  stripe: { width: scale(3) },
+  // Order rows. (The scale(3) `stripe` that lived here is gone — Hard Rule #7;
+  // the side now shows as a faint row tint plus the existing BUY/SELL title.)
   orderRow: { flexDirection: 'row', alignItems: 'stretch' },
   orderContent: {
     flex: 1,

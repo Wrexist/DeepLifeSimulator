@@ -130,7 +130,7 @@ function buildFor(scenarioId: string, opts: { perks?: string[]; permanentPerks?:
     selectedPerks: opts.perks ?? [],
     permanentPerks: opts.permanentPerks ?? [],
     selectedMindset: null,
-  }) as GameState;
+  });
 }
 
 // ──────────────────── Tests ────────────────────────────────────────────────
@@ -238,7 +238,7 @@ describe('Onboarding Flow — end-to-end', () => {
       selectedPerks: [],
       permanentPerks: [],
       selectedMindset: null,
-    }) as GameState;
+    });
     expect(built.family?.children.length).toBeGreaterThanOrEqual(1);
     expect(built.family!.children[0].type).toBe('child');
     expect(built.family!.children[0].age).toBe(3);

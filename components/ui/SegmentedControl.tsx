@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Lock } from 'lucide-react-native';
 import { accent } from '@/lib/config/theme';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
@@ -18,12 +19,28 @@ export interface Segment<T extends string> {
   icon?: React.ComponentType<{ size?: number; color?: string }>;
   /** Rendered beside the touchable (outside the tap target), e.g. an InfoButton. */
   accessory?: React.ReactNode;
+  /**
+   * Progressive disclosure: render dimmed with a padlock and route taps to
+   * `onLockedPress` instead of `onChange`. Optional and default-off, so every
+   * existing caller is unaffected.
+   *
+   * Locked, not hidden — the segment stays in place so the control does not
+   * reflow as things unlock and the player can see what is coming.
+   */
+  locked?: boolean;
+  /** Shown when a locked segment is tapped. A dead tap reads as a bug. */
+  lockReason?: string;
 }
 
 interface SegmentedControlProps<T extends string> {
   segments: Segment<T>[];
   value: T;
   onChange: (key: T) => void;
+  /**
+   * Tapping a `locked` segment. Without this a locked tap does nothing at all,
+   * which is exactly the dead tap the padlock exists to avoid.
+   */
+  onLockedPress?: (key: T, reason: string) => void;
   /** Active tint + icon color. Default: theme info blue. */
   activeColor?: string;
   style?: ViewStyle;
@@ -43,6 +60,7 @@ export default function SegmentedControl<T extends string>({
   segments,
   value,
   onChange,
+  onLockedPress,
   activeColor = accent.info,
   style,
   compact = false,
@@ -50,17 +68,29 @@ export default function SegmentedControl<T extends string>({
   return (
     <View style={[styles.container, compact && styles.containerCompact, style]}>
       {segments.map((seg) => {
-        const active = seg.key === value;
-        const Icon = seg.icon;
+        // A locked segment can never also be the active one in practice — the
+        // unlock tier only ever rises — but if it somehow were, "locked" wins
+        // so the player is never left tapping an inert highlighted tab.
+        const locked = seg.locked === true;
+        const active = !locked && seg.key === value;
+        const Icon = locked ? Lock : seg.icon;
         return (
           <View key={seg.key} style={styles.slot}>
             <TouchableOpacity
-              style={[styles.tab, compact && styles.tabCompact, active && { backgroundColor: activeColor + '2E' }]}
-              onPress={() => onChange(seg.key)}
+              style={[
+                styles.tab,
+                compact && styles.tabCompact,
+                active && { backgroundColor: activeColor + '2E' },
+                locked && styles.tabLocked,
+              ]}
+              onPress={() => (locked ? onLockedPress?.(seg.key, seg.lockReason || '') : onChange(seg.key))}
               activeOpacity={0.85}
               accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={seg.label}
+              // `disabled` is added only when locked rather than always passed
+              // as a boolean, so an unlocked segment's props stay byte-identical
+              // to what the three pre-existing callers already rendered.
+              accessibilityState={locked ? { selected: active, disabled: true } : { selected: active }}
+              accessibilityLabel={locked ? `${seg.label}, locked. ${seg.lockReason || ''}`.trim() : seg.label}
             >
               {Icon ? <Icon size={compact ? scale(14) : scale(16)} color={active ? activeColor : MUTED} /> : null}
               <Text style={[styles.text, compact && styles.textCompact, { color: active ? ACTIVE_TEXT : MUTED }]} numberOfLines={1}>
@@ -112,6 +142,10 @@ const styles = StyleSheet.create({
     gap: scale(5),
     paddingVertical: responsiveSpacing.xs,
     minHeight: scale(32),
+  },
+  // Matches the dimming the app grids use for locked entries.
+  tabLocked: {
+    opacity: 0.45,
   },
   text: {
     fontSize: fontScale(12.5),

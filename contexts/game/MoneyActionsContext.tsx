@@ -6,7 +6,8 @@ import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FO
 import { validateStats, clampStatByKey } from '@/utils/statUtils';
 import { logger } from '@/utils/logger';
 import { isIncomeReason } from './actions/MoneyActions';
-import { getBonusPurchaseCost, canPurchaseBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
+import { getBonusPurchaseCost, canPurchaseBonus, isInertBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
+import { purchaseLegacyUpgrade } from '@/lib/legacy/legacyShop';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
@@ -40,6 +41,8 @@ interface MoneyActionsContextType {
 
   // Prestige
   purchasePrestigeBonus: (bonusId: string) => { success: boolean; message?: string };
+  /** C-11: spend legacy points on the heir's starting position. */
+  purchaseLegacyUpgrade: (upgradeId: string) => { success: boolean; message: string };
 }
 
 const MoneyActionsContext = createContext<MoneyActionsContextType | undefined>(undefined);
@@ -331,7 +334,21 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     // Atomic update: money and crypto ownership in a single setGameState call
     const now = Date.now();
     setGameState(prev => {
-      const newMoney = Math.max(0, prev.stats.money - amount);
+      /**
+       * R3-M10: reject, do not floor.
+       *
+       * Affordability was checked against the stale `stateRef.current` and this
+       * updater floored with `Math.max(0, …)` while crediting the coins
+       * unconditionally — the "goods granted, money zeroed out" pattern
+       * CLAUDE.md §4.4 names as the repo's most repeated bug class. Not
+       * player-reachable today (the only non-test callers are `TestRunner`
+       * behind the `__DEV__` devtools gate; the shipping crypto UI uses the
+       * correctly-atomic `CryptoTradingActions`), but these sit on the public
+       * MoneyActions context surface with no warning, so any future UI wiring
+       * them would ship a money printer.
+       */
+      if ((prev.stats?.money ?? 0) < amount) return prev;
+      const newMoney = prev.stats.money - amount;
       const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
       const updatedStats = trackMoneySpent(currentStats, -amount);
 
@@ -385,6 +402,11 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     // Atomic update: money and crypto ownership in a single setGameState call
     const now = Date.now();
     setGameState(prev => {
+      // R3-M10: re-check the holding against `prev`. Two taps on a sell-all in
+      // one React batch both read the same stale `stateRef` amount and each
+      // credited `saleValue` for one lot of coins.
+      const prevOwned = prev.cryptos?.find(c => c.id === cryptoId)?.owned ?? 0;
+      if (prevOwned < amount) return prev;
       const newMoney = prev.stats.money + saleValue;
       const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
       const updatedStats = trackMoneyEarned(currentStats, saleValue);
@@ -473,6 +495,35 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   // Prestige Actions
+  /**
+   * C-11: the Legacy Points sink.
+   *
+   * Written as a PURE reducer called twice — once against the current state
+   * for the report, once against `prev` for the state — rather than capturing
+   * the outcome inside the updater and reading it after. That capture is only
+   * reliable for the first update in a React batch
+   * (`__tests__/refactor/updaterTimingContract.test.tsx`), and it is what
+   * forced the VehicleActions revert. `purchaseLegacyUpgrade` is idempotent on
+   * the id, so running it twice cannot double-charge: owning the id is what
+   * costs the points.
+   */
+  const purchaseLegacyUpgradeAction = useCallback((upgradeId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = purchaseLegacyUpgrade(state.legacyPoints, state.legacyUpgrades, upgradeId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      // Re-run against fresh state so a same-batch double tap cannot buy twice.
+      const applied = purchaseLegacyUpgrade(prev.legacyPoints, prev.legacyUpgrades, upgradeId);
+      if (!applied.success || !applied.owned) return prev;
+      return { ...prev, legacyUpgrades: applied.owned };
+    });
+
+    return preview;
+  }, [setGameState]);
+
   const purchasePrestigeBonus = useCallback((bonusId: string): { success: boolean; message?: string } => {
     const state = stateRef.current;
     if (!state?.prestige) {
@@ -482,6 +533,14 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     const bonus = PRESTIGE_BONUSES.find(b => b.id === bonusId);
     if (!bonus) {
       return { success: false, message: 'Bonus not found' };
+    }
+    // R4-X2. The shop no longer renders the inert automation bonuses, but this
+    // action resolves from the RAW catalogue — so without this the id could
+    // still be bought through a stale render, a deep link, or the next caller
+    // that forgets. Refusing here is what actually stops points being spent on
+    // a system with no state slice and no UI.
+    if (isInertBonus(bonusId)) {
+      return { success: false, message: 'That bonus is not available yet.' };
     }
 
     const unlockedBonuses = state.prestige.unlockedBonuses || [];
@@ -560,7 +619,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     sellCrypto,
     swapCrypto,
     purchasePrestigeBonus,
-  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus]);
+    purchaseLegacyUpgrade: purchaseLegacyUpgradeAction,
+  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction]);
 
   return (
     <MoneyActionsContext.Provider value={value}>

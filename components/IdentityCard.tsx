@@ -207,7 +207,17 @@ function IdentityCard() {
     ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
   // Reputation standing (Unknown → Icon) — makes the hidden reputation stat legible.
-  const reputationStanding = getReputationStanding(stats?.reputation ?? 0);
+  //
+  // PLAYER REPORT (1.4): "Reputation stat is not viewable anywhere". The tier
+  // word alone was not what they asked for and not what the game gates on:
+  // the political ladder needs 30 for council, 50 for mayor, 95 for president,
+  // and vehicles have their own thresholds. "Respected" cannot tell a player
+  // whether the next office is one week away or forty, so the raw 0-100 value
+  // is shown beside the word.
+  const reputationValue = Math.max(0, Math.round(
+    typeof stats?.reputation === 'number' && Number.isFinite(stats.reputation) ? stats.reputation : 0,
+  ));
+  const reputationStanding = getReputationStanding(reputationValue);
 
   // The CANONICAL net worth — the same figure prestige, the leaderboard,
   // ambitions, bail cost and the stats screen read.
@@ -333,22 +343,46 @@ function IdentityCard() {
   const weeklyModifiers = useMemo(() => {
     const modifiers: { label: string; changes: Record<string, number> }[] = [];
 
-    if (stats.health <= 30) {
-      modifiers.push({
-        label: 'Sickness',
-        changes: { health: -10, energy: -15, happiness: -10 },
-      });
-    }
-
+    /**
+     * C-4. There used to be a "Sickness" row here, claiming -10 health,
+     * -15 energy and -10 happiness per week whenever health fell to 30.
+     *
+     * No tick ever applied it. The weekly health change is a flat decay
+     * (`effectiveDecayRate * 0.6` in the week loop) that does not vary with
+     * how low health already is, and the only health-driven death is health
+     * at ZERO for four consecutive weeks. Nothing in `actions/weekly/`, in
+     * `applyDiseases`, or in the week loop keys off a 30 threshold at all.
+     *
+     * It is removed rather than implemented. A -10 health/week penalty that
+     * switches on at 30 is a compounding death spiral, and no save has ever
+     * behaved that way — inventing it to match a label would be a balance
+     * change disguised as a bug fix. The card also warns about this exact
+     * state honestly a few lines down: `healthIssues` raises "Low health"
+     * on the SAME `health <= 30` test, with the fix attached and no invented
+     * numbers. This row was false and redundant with it.
+     *
+     * Everything left in this list is a real, applied weekly effect.
+     */
     const activeDietPlan = (dietPlans || []).find(plan => plan.active);
     if (activeDietPlan) {
+      /**
+       * The COST is per day and the tick charges seven of them; the GAINS are
+       * already per week and the tick applies each exactly once
+       * (`applyDietPlan.ts`, one call site per tick). Multiplying both by 7 was
+       * right for one and wrong for the other three.
+       *
+       * The Athlete Diet ($10,000/day) advertised "+84 health, +56 energy, +35
+       * happiness per week" against an actual +12 / +8 / +5 — a stat pump one
+       * seventh the size of the number on the card, at a correctly-stated
+       * price. Same shape as the Family Income x7 a player reported.
+       */
       const changes: Record<string, number> = {
         money: -activeDietPlan.dailyCost * 7,
-        health: activeDietPlan.healthGain * 7,
-        energy: activeDietPlan.energyGain * 7,
+        health: activeDietPlan.healthGain,
+        energy: activeDietPlan.energyGain,
       };
       if (activeDietPlan.happinessGain) {
-        changes.happiness = activeDietPlan.happinessGain * 7;
+        changes.happiness = activeDietPlan.happinessGain;
       }
       modifiers.push({
         label: `${activeDietPlan.name} Diet`,
@@ -357,7 +391,10 @@ function IdentityCard() {
     }
 
     return modifiers;
-  }, [stats.health, dietPlans]);
+    // `stats.health` was a dependency only for the removed Sickness row. It
+    // decays every tick, so keeping it here rebuilt this list on every week
+    // advance for a body that no longer reads it.
+  }, [dietPlans]);
 
   // Health issues surfaced passively on the player card. This replaces the
   // interruptive week-advance popups (sickness modal + zero-stat warning):
@@ -550,13 +587,13 @@ function IdentityCard() {
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
-              Standing
+              Reputation
             </Text>
             <Text
               style={[styles.statValue, styles.statValueDark, { color: reputationStanding.color }]}
               numberOfLines={1}
             >
-              {reputationStanding.label}
+              {reputationValue} · {reputationStanding.label}
             </Text>
           </View>
         </View>

@@ -19,11 +19,10 @@ import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState, PulseActiveScandal } from '@/contexts/game/types';
 
 function freshState(overrides: Partial<GameState> = {}): GameState {
-  const s = createTestGameState(overrides);
-  if (s.socialMedia) s.socialMedia = JSON.parse(JSON.stringify(s.socialMedia));
-  if (s.userProfile) s.userProfile = { ...s.userProfile };
-  if (s.stats) s.stats = { ...s.stats };
-  return s;
+  // The re-clones that used to live here (socialMedia / userProfile / stats)
+  // are gone: `createTestGameState` now deep-clones its base, so nested state
+  // is already private to this call. See the note in that factory.
+  return createTestGameState(overrides);
 }
 
 function makeHarness(initial: GameState) {

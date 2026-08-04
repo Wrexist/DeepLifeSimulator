@@ -362,7 +362,13 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     mounted = mountGame();
     act(() => makeWealthy());
 
-    let lastResult: { success: boolean; message?: string } | void;
+    // `!` because the assignment happens inside an `act()` callback, which
+    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // callback synchronously, so the variable really is assigned before it is
+    // read, and the `expect(...).toBeDefined()` below is the runtime proof.
+    // (Initialising to `undefined` instead narrows the variable to `void` and
+    // breaks every downstream cast — measured, not guessed.)
+    let lastResult!: { success: boolean; message?: string } | void;
     // Do beg 4 times — 4th should be capped (max 3/week per job).
     for (let i = 0; i < 4; i++) {
       // performStreetJob is sync — wrap in act to flush state.
@@ -656,7 +662,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     // Refuel the active vehicle if one exists.
     const activeId = captured!.state.activeVehicleId;
     if (activeId) {
-      act(() => { refuelVehicle(captured!.state, captured!.setGameState, activeId, 100, deps); });
+      act(() => { refuelVehicle(captured!.state, captured!.setGameState, activeId); });
       assertCleanState('Vehicles refuelVehicle');
 
       act(() => { processAccident(captured!.state, captured!.setGameState, activeId, 'minor', deps); });

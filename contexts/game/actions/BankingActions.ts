@@ -11,6 +11,7 @@ import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoal
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { applyMoneyDelta } from './MoneyActions';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   depositToAccount,
   withdrawFromAccount,
@@ -25,6 +26,7 @@ import {
   removeBillPayRule,
   addSavingsGoal,
   contributeToGoal,
+  withdrawFromGoal,
   trackBudgetSpend,
   setBudgetTarget as setBudgetTargetOp,
   findCheckingAccount,
@@ -148,15 +150,46 @@ export const openNewAccount = (
     lockUntilWeek?: number;
     minBalance?: number;
   }
-) => {
+): { success: boolean; message: string } => {
+  // Captured from inside the updater so the UI can explain a rejection instead
+  // of closing the sheet as though it had worked. Same pattern as
+  // `purchaseVehicleWithAutoLoan` / `buyPropertyWithMortgage`.
+  let result: { success: boolean; message: string } = {
+    success: false,
+    message: 'Could not open the account.',
+  };
+
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
-    // One account per type (CDs excepted — laddering multiple CDs is a real
-    // strategy). Duplicate savings/checking accounts confused players and
-    // there was no way to remove them.
-    if (spec.type !== 'cd' && state.banking.accounts.some((a) => a.type === spec.type)) {
+    /**
+     * One account per type (CDs excepted — laddering multiple CDs is a real
+     * strategy). Duplicate savings/checking accounts confused players and there
+     * was no way to remove them.
+     *
+     * PLAYER REPORT (1.4 bug-reports): "Savings is still broke on the bank
+     * page. Can't deposit to it. Can't create a new savings."
+     *
+     * The check counted the MIRROR accounts. `initialGameState` ships
+     * `savings-default` (type `savings`) and `checking-default` (type
+     * `checking`) for every player from week 1 — they are 1:1 reflections of
+     * `stats.money` / `bankSavings` that `mirrorAccountsFromLegacy` rewrites
+     * every tick, not accounts the player opened. So "Savings", the FIRST and
+     * most obvious option in `OpenAccountModal`, was permanently unopenable for
+     * everyone, and it failed silently: a `log.warn`, then the sheet closed as
+     * if it had succeeded.
+     *
+     * The other half of the same report follows from it. `AccountRow` shows no
+     * deposit control for a mirrored account ("handled automatically"), so with
+     * the only savings account being the mirror, there was nothing to deposit
+     * into either.
+     *
+     * A mirror does not occupy the player's slot for that type.
+     */
+    const playerOpened = state.banking.accounts.filter((a) => !MIRRORED_ACCOUNT_IDS.has(a.id));
+    if (spec.type !== 'cd' && playerOpened.some((a) => a.type === spec.type)) {
       log.warn(`Open account rejected: already have a ${spec.type} account`);
+      result = { success: false, message: `You already have a ${spec.name} account.` };
       return prev;
     }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
@@ -165,15 +198,22 @@ export const openNewAccount = (
     // credited free money (currentMoney - (-X) = +X).
     if (!Number.isFinite(spec.initialDeposit) || spec.initialDeposit < 0 || spec.initialDeposit > currentMoney) {
       log.warn(`Open account rejected: invalid or unaffordable initial deposit`);
+      result = {
+        success: false,
+        message: `You need ${formatMoney(Math.max(0, spec.initialDeposit))} to open this account.`,
+      };
       return prev;
     }
-    const result = openAccount(state.banking, { ...spec, openedWeek: state.weeksLived });
+    const opened = openAccount(state.banking, { ...spec, openedWeek: state.weeksLived });
+    result = { success: true, message: `${spec.name} opened.` };
     return {
       ...state,
       stats: { ...state.stats, money: currentMoney - spec.initialDeposit },
-      banking: result.banking,
+      banking: opened.banking,
     };
   });
+
+  return result;
 };
 
 export const closeBankAccount = (
@@ -444,6 +484,41 @@ export const contributeToSavingsGoal = (
     if (result.happinessDelta > 0) {
       const h = typeof working.stats.happiness === 'number' && isFinite(working.stats.happiness) ? working.stats.happiness : 0;
       working = { ...working, stats: { ...working.stats, happiness: Math.max(0, Math.min(100, h + result.happinessDelta)) } };
+    }
+    return working;
+  });
+};
+
+/**
+ * Take money back out of a savings goal.
+ *
+ * The action half of R3-M5. Without this, "Contribute" was a one-way door: the
+ * cash left `stats.money`, landed in `goal.currentAmount`, and nothing could
+ * ever get it back.
+ */
+export const withdrawFromSavingsGoal = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  goalId: string,
+  amount: number
+) => {
+  setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
+    const state = ensureBanking(prev);
+    if (!state.banking) return prev;
+
+    const result = withdrawFromGoal(state.banking, goalId, amount);
+    if (!result.ok) {
+      log.warn(`Goal withdrawal failed: ${result.reason}`);
+      return prev;
+    }
+
+    let working: GameState = { ...state, banking: result.banking };
+    if (result.cashCredit > 0) {
+      const credit = applyMoneyDelta(working, result.cashCredit, 'Savings goal withdrawal');
+      // Roll back rather than move the money out of the goal and lose it — the
+      // exact failure this whole fix exists to prevent.
+      if (!credit) return prev;
+      working = { ...working, ...credit };
     }
     return working;
   });

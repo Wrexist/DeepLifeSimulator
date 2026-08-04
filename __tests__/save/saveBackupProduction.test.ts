@@ -46,9 +46,19 @@ const REAL_ALLOW_LEGACY = process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES;
  * signing config is read ONCE at module scope, so the env has to be set before
  * the require and the module registry reset around it.
  */
+/**
+ * `process.env` with a mutable type.
+ *
+ * @types/node declares `NODE_ENV` read-only, but it is an ordinary object
+ * property at runtime — and rewriting it is precisely the mechanism this suite
+ * needs, since the save-signing config is read once at module scope and has to
+ * see a production env before the require.
+ */
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 function loadAsProductionBuild() {
   jest.resetModules();
-  process.env.NODE_ENV = 'production';
+  mutableEnv.NODE_ENV = 'production';
   // Production hard-refuses unsigned legacy saves; preflightSaveSigning.js
   // errors the build out if this flag is ever true for a signed release.
   delete process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES;
@@ -78,8 +88,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (REAL_NODE_ENV === undefined) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = REAL_NODE_ENV;
+  if (REAL_NODE_ENV === undefined) delete mutableEnv.NODE_ENV;
+  else mutableEnv.NODE_ENV = REAL_NODE_ENV;
   if (REAL_ALLOW_LEGACY === undefined) delete process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES;
   else process.env.EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES = REAL_ALLOW_LEGACY;
   jest.resetModules();

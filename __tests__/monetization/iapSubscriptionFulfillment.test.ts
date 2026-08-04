@@ -18,7 +18,10 @@ const mockDisk: { state: any } = { state: null };
 
 jest.mock('@/utils/safeStorage', () => ({
   safeGetItem: jest.fn(async (key: string) => (key === 'currentSlot' ? '1' : null)),
-  safeSetItem: jest.fn(async () => undefined),
+  // `safeSetItem` really returns Promise<boolean>; a mock resolving undefined
+  // lies about the contract, and callers that branch on the result (the IAP
+  // dedupe-ledger reservation) then see every write as a failure.
+  safeSetItem: jest.fn(async () => true),
 }));
 
 jest.mock('@/utils/saveQueue', () => ({
@@ -44,7 +47,7 @@ const PREMIUM_MONTHLY = SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY;
 const PREMIUM_YEARLY = SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY;
 
 function freshDisk(): void {
-  mockDisk.state = JSON.parse(JSON.stringify(initialGameState));
+  mockDisk.state = structuredClone(initialGameState);
   if (mockDisk.state.socialMedia) mockDisk.state.socialMedia.verifiedPro = undefined;
 }
 

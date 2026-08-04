@@ -63,7 +63,7 @@ describe('quoteTrip', () => {
 
   it('applies politics travelCostReduction to cost', () => {
     const s = base();
-    (s as any).politics.activePolicyEffects.transportation = { travelCostReduction: 0.5 };
+    (s as any).politics.activePolicyEffects.transportation = { travelCostReduction: 50 };
     const r = quoteTrip('paris', s, 10);
     expect(r.ok).toBe(true);
     if (r.ok) {

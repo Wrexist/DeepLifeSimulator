@@ -128,7 +128,12 @@ describe('a restore keeps a way back', () => {
     const after = await listBackups(SLOT);
     const undo = after.find((b) => b.reason === 'before_restore');
     expect(undo).toBeDefined();
-    expect(undo!.gameInfo.characterName).toContain('Replaced');
+    // `gameInfo` is optional on a backup entry, so assert it survived the
+    // round-trip before reading through it — otherwise an undo point written
+    // WITHOUT its metadata would fail here as a TypeError rather than as the
+    // missing-metadata assertion it actually is.
+    expect(undo!.gameInfo).toBeDefined();
+    expect(undo!.gameInfo!.characterName).toContain('Replaced');
   });
 
   it('makes that undo point itself restorable', async () => {
@@ -143,7 +148,7 @@ describe('a restore keeps a way back', () => {
 
     const back = await restoreFromBackup(SLOT, undo!.id, 'recovery');
     expect(back.success).toBe(true);
-    expect(back.state.userProfile.firstName).toBe('Current');
+    expect(back.state?.userProfile?.firstName).toBe('Current');
   });
 });
 
@@ -154,18 +159,146 @@ describe('the pre-prestige snapshot exists at all', () => {
     // backup call whatsoever, so a mis-tapped prestige was unrecoverable.
     // `before_prestige` was declared, protected and shown in the restore UI,
     // and nothing ever wrote one. 2026-07-29 audit BRC-4.
-    const precious = await createBackup(
+    // FREEZE the clock so EVERY backup here shares a millisecond. The id was
+    // `save_backup_${slot}_${Date.now()}`, so same-millisecond writes collided
+    // and the second silently overwrote the first — including its
+    // rotation-exempt `reason`. In CI this surfaced as a flaky assertion; the
+    // flake was the bug. Freezing makes it deterministic instead of a race.
+    //
+    // Restored in a `finally`: a bare reassignment after the assertions leaves
+    // every later test in this file — and every file sharing the worker — with
+    // a stubbed clock if anything above it throws.
+    const realNow = Date.now;
+    Date.now = () => 1_800_000_000_000;
+    try {
+      const precious = await createBackup(
+        SLOT,
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2231 }))),
+        'before_prestige',
+      );
+      expect(precious).not.toBeNull();
+
+      const ids = new Set<string>([precious!]);
+      for (let i = 0; i < 12; i += 1) {
+        const id = await createBackup(
+          SLOT,
+          createSaveEnvelope(JSON.stringify(alive({ weeksLived: i }))),
+          'corruption_recovery',
+        );
+        ids.add(id!);
+      }
+
+      // Every backup must have its own key; a collision silently overwrites an
+      // earlier one AND its rotation-exempt reason.
+      expect(ids.size).toBe(13);
+      expect((await listBackups(SLOT)).some((b) => b.id === precious)).toBe(true);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it('gives the QUOTA-RETRY path its own id too', async () => {
+    // The retry after a QuotaExceededError built its id from slot+timestamp
+    // directly, bypassing the sequence entirely — and it is the likeliest
+    // collision of all, because it runs in the same millisecond as the write
+    // that just failed. The uniqueness test above passes without covering it,
+    // which is exactly how the first collision survived review.
+    const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
+    const realNow = Date.now;
+    const realSetItem = AsyncStorage.setItem;
+    Date.now = () => 1_900_000_000_000;
+
+    try {
+      // A survivor the retry must not overwrite, written before quota bites.
+      const survivor = await createBackup(
+        SLOT,
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 1111 }))),
+        'before_prestige',
+      );
+      expect(survivor).not.toBeNull();
+
+      // TWO failures per createBackup, not one. `safeSetItem` catches a quota
+      // error and retries once itself after clearing caches, so a single
+      // failure is absorbed there and `createBackup`'s own retry branch is
+      // never reached — which is how this path stayed untested. Failing both
+      // makes safeSetItem return false, which createBackup turns into the
+      // quota error its cleanup + retry block is written for. The third write
+      // (the retry's own) is allowed to land.
+      let failsLeft = 0;
+      AsyncStorage.setItem = jest.fn(async (k: string, v: string) => {
+        if (failsLeft > 0) {
+          failsLeft -= 1;
+          const err: Error & { name: string } = new Error('quota exceeded');
+          err.name = 'QuotaExceededError';
+          throw err;
+        }
+        return realSetItem(k, v);
+      });
+
+      const retryIds: string[] = [];
+      for (let i = 0; i < 3; i += 1) {
+        failsLeft = 2;
+        const id = await createBackup(
+          SLOT,
+          createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2000 + i }))),
+          'corruption_recovery',
+        );
+        expect(id).not.toBeNull();
+        retryIds.push(id!);
+      }
+      // Same millisecond, three retries: three distinct keys, and none of them
+      // is the survivor's key.
+      expect(new Set(retryIds).size).toBe(3);
+      expect(retryIds).not.toContain(survivor);
+    } finally {
+      // Both mocks in the finally: an assertion throwing above would otherwise
+      // leak a setItem that fails twice per call into every later test here.
+      AsyncStorage.setItem = realSetItem;
+      Date.now = realNow;
+    }
+  });
+
+  it('does not claim a backup that storage refused — or evict one to make room for it', async () => {
+    // `safeSetItem` does NOT throw when the device is full: it catches the
+    // quota error, tries its own cleanup, and returns `false`. `createBackup`
+    // ignored that boolean, so on a full device it logged "Created backup",
+    // ROTATED — evicting a real recovery point — and returned an id for a key
+    // that was never written. The recovery tier destroyed recovery points and
+    // reported success. Found while covering the quota-retry id path.
+    const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
+
+    const keeper = await createBackup(
       SLOT,
-      createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2231 }))),
+      createSaveEnvelope(JSON.stringify(alive({ weeksLived: 1500 }))),
       'before_prestige',
     );
-    expect(precious).not.toBeNull();
+    expect(keeper).not.toBeNull();
+    const before = await listBackups(SLOT);
 
-    for (let i = 0; i < 12; i += 1) {
-      await createBackup(SLOT, createSaveEnvelope(JSON.stringify(alive({ weeksLived: i }))), 'corruption_recovery');
+    // A device with no room at all: every write fails, including the retry.
+    const realSetItem = AsyncStorage.setItem;
+    AsyncStorage.setItem = jest.fn(async () => {
+      const err: Error & { name: string } = new Error('quota exceeded');
+      err.name = 'QuotaExceededError';
+      throw err;
+    });
+
+    try {
+      const doomed = await createBackup(
+        SLOT,
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 1600 }))),
+        'corruption_recovery',
+      );
+      // No id for a backup that does not exist.
+      expect(doomed).toBeNull();
+    } finally {
+      AsyncStorage.setItem = realSetItem;
     }
 
-    expect((await listBackups(SLOT)).some((b) => b.id === precious)).toBe(true);
+    // And the existing recovery point is still there.
+    const after = await listBackups(SLOT);
+    expect(after.some((b) => b.id === keeper)).toBe(true);
+    expect(after.length).toBe(before.length);
   });
 
   it('restores the pre-prestige life as a recovery', async () => {

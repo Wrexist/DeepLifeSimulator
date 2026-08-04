@@ -39,6 +39,7 @@ import {
   shouldAutoPostMilestone,
   type SparkMilestone,
 } from '@/lib/dating/sparkPulseBridge';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { composePost } from './PulseActions';
 
 const log = logger.scope('DatingActions');
@@ -215,7 +216,10 @@ export const goOnDate = (
     sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDatesGoneOn'),
     stats: {
       ...(moneyPatch?.stats ?? prev.stats),
-      energy: Math.max(0, Math.min(100, (prev.stats.energy || 0) - config.energy)),
+      // C-1: the Commitment focus moves a date's energy cost. Resolved from
+      // `prev` so it uses the commitments in force when the updater runs.
+      energy: Math.max(0, Math.min(100,
+        (prev.stats.energy || 0) - getCommitmentModifiers(prev, 'relationships').energyCost(config.energy))),
       happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
     },
     relationships: (prev.relationships || []).map(r => {
@@ -227,7 +231,16 @@ export const goOnDate = (
       // Life Skills: Charisma/Social Master (relationship gains) + Persuasion
       // (dating success) both amplify a date's relationship boost. Bounded mults.
       const dateMods = getLifeSkillModifiers(prev);
-      const datedBoost = Math.round(config.relationshipBoost * dateMods.relationshipGainMult * dateMods.datingSuccessMult);
+      // C-1: and the relationship gain itself. A player whose primary focus is
+      // relationships was promised up to +50% here and received none of it;
+      // one who had deprioritised relationships took no penalty either.
+      const relCommitment = getCommitmentModifiers(prev, 'relationships');
+      const datedBoost = Math.round(
+        config.relationshipBoost
+        * dateMods.relationshipGainMult
+        * dateMods.datingSuccessMult
+        * relCommitment.progressMultiplier,
+      );
       return {
             ...r,
             relationshipScore: clampRelationshipScore(r.relationshipScore + datedBoost + wp.bonus),
@@ -284,7 +297,16 @@ export const giveGift = (
   setGameState: Dispatch<SetStateAction<GameState>>,
   partnerId: string,
   giftType: 'flowers' | 'jewelry' | 'trip' | 'surprise' | 'luxury',
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+  /**
+   * Unused, and optional so callers need not fake it.
+   *
+   * The charge flows through `applyMoneyDelta` inside the updater — the atomic
+   * gate→debit→grant of §4.4 — so the injected `updateMoney`/`updateStats` have
+   * had no reader since that migration. Kept in position (not deleted) because
+   * production passes it and the sibling DatingActions that DO use their deps
+   * take it here; see Hard Rule #5 for why that call shape matters.
+   */
+  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {
@@ -631,9 +653,30 @@ export const planWedding = (
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
     );
     if (prevOtherCommitted) return prev;
+
+    /**
+     * R3-F2: re-check THIS partner too.
+     *
+     * The bigamy guard above deliberately excludes `partnerId`, and the outer
+     * `if (partner.weddingPlanned) return …` runs against the render-time
+     * `gameState`. So the one case neither covered was a double-tap on the SAME
+     * partner: both updaters passed, the deposit was charged twice, and the
+     * second write overwrote `weddingPlanned` with an identical plan — one
+     * wedding, two deposits, silently. On the Tropical Island Resort that is
+     * ~$25k charged twice. The modal's button is gated only on
+     * `!selectedVenueId || !canAfford`, with `canAfford` derived from the stale
+     * `gameState.stats.money` and no in-flight flag.
+     *
+     * The affordability re-check below cannot substitute for this: a player who
+     * can afford the deposit twice passes it twice. CLAUDE.md §4.4.
+     */
+    const thisPartnerAlreadyPlanned = (prev.relationships || []).some(
+      r => r.id === partnerId && r.weddingPlanned
+    );
+    if (thisPartnerAlreadyPlanned) return prev;
+
     // Re-check affordability inside the updater (matches proposeMarriage /
-    // executeWedding) so a same-batch double-tap can't double-charge the
-    // 25% deposit.
+    // executeWedding).
     if ((prev.stats?.money ?? 0) < deposit) return prev;
     return {
       ...prev,
@@ -1014,6 +1057,32 @@ export const fileDivorce = (
   const forcedPropertyLiquidationPaid = propertyLiquidationGained;
 
   setGameState(prev => {
+    /**
+     * R3-F1: re-check the gates against `prev`, INSIDE the updater.
+     *
+     * Everything above — the spouse lookup and the 26-week cooldown — runs
+     * against the render-time `gameState`. The updater derived money from
+     * `prev` but never re-checked either gate, so two taps in one React batch
+     * both applied the FULL settlement: `remaining = totalObligation` drained
+     * from money then savings then debt twice over, the lawyer fee landed
+     * twice, -40 happiness / -10 reputation landed twice, and the divorce loan
+     * id embeds `newLoans.length` so the second one got a different id and
+     * escaped dedupe — two "Divorce Settlement Debt" loans for one divorce.
+     * The confirm button has no in-flight guard, and the action reads
+     * `gameStateRef.current`, which is stale within a batch.
+     *
+     * This updater writes `lastDivorceWeek`, so the second tap's re-check sees
+     * the first tap's write and rejects. CLAUDE.md §4.4.
+     */
+    const stillMarried = prev.relationships?.some(r => r.id === spouseId && r.type === 'spouse');
+    if (!stillMarried) return prev;
+
+    const prevLastDivorce = prev.lastDivorceWeek || 0;
+    const prevWeeks = prev.weeksLived || 0;
+    if (prevLastDivorce > 0 && (prevWeeks - prevLastDivorce) < DIVORCE_COOLDOWN_WEEKS) {
+      return prev;
+    }
+
     // Phase 2: derive cash/loans/relationships/RNG from prev so a concurrent
     // weekly tick (or any other queued action) isn't clobbered.
     const prevMoney = Math.max(0, safeNumber(prev.stats?.money));

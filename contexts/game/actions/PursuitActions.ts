@@ -20,7 +20,7 @@ import {
   MAX_PURSUIT_LEVEL,
   type PursuitReward,
 } from '@/lib/pursuits/pursuitMastery';
-import { getCommitmentBonuses, updateCommitmentLevel } from '@/lib/commitments/commitmentSystem';
+import { getCommitmentModifiers, updateCommitmentLevel } from '@/lib/commitments/commitmentSystem';
 
 const log = logger.scope('PursuitActions');
 
@@ -57,23 +57,32 @@ export const practicePursuit = (
   const def = getPursuitDef(pursuitId);
   if (!def) return { success: false, message: 'Unknown hobby.' };
 
+  /**
+   * C-1: the Commitment focus also moves the ENERGY cost, not just the XP.
+   * `getEffectiveEnergyCost` was written for exactly this and had no caller —
+   * so a player whose primary focus was hobbies was told the practice would
+   * cost 20% less energy and was charged the full amount. Resolved once here
+   * and used for the gate, the message and the debit, so the three cannot
+   * disagree.
+   */
+  const commitment = getCommitmentModifiers(gameState, 'hobbies');
+  const energyCost = commitment.energyCost(def.energyCost);
+
   const energy = gameState.stats?.energy ?? 0;
-  if (energy < def.energyCost) {
-    return { success: false, message: `Too tired — need ${def.energyCost} energy.` };
+  if (energy < energyCost) {
+    return { success: false, message: `Too tired — need ${energyCost} energy.` };
   }
   const practicedThisWeek = gameState.weeklyPursuitPractice?.[pursuitId] ?? 0;
   if (practicedThisWeek >= def.weeklyCap) {
     return { success: false, message: `You've practiced ${def.name} ${def.weeklyCap}× this week. Come back next week.` };
   }
 
-  // Skills-axis commitment boosts XP (Batch-2 relabel routes practice here).
-  let xpGain = PRACTICE_XP;
-  try {
-    const bonus = getCommitmentBonuses(gameState, 'hobbies');
-    if (bonus?.progressBonus) xpGain = Math.round(xpGain * (1 + bonus.progressBonus / 100));
-  } catch {
-    /* commitment system optional */
-  }
+  // Skills-axis commitment moves XP (Batch-2 relabel routes practice here).
+  // C-1: now via the shared resolver, so the neglect PENALTY applies too — the
+  // old call read bonuses only, so a player who had committed elsewhere took
+  // no hit for practising a hobby they had explicitly deprioritised.
+  const xpGainBase = commitment.progress(PRACTICE_XP);
+  let xpGain = xpGainBase;
 
   // Skill Mastery gold upgrade — the skills-axis levels up 50% faster. This is
   // the honest wiring of the store's "All skills level up 50% faster" benefit,
@@ -91,7 +100,7 @@ export const practicePursuit = (
 
   setGameState((prev) => {
     // Atomic re-checks against prev.
-    if ((prev.stats?.energy ?? 0) < def.energyCost) return prev;
+    if ((prev.stats?.energy ?? 0) < energyCost) return prev;
     if ((prev.weeklyPursuitPractice?.[pursuitId] ?? 0) >= def.weeklyCap) return prev;
 
     const cur = prev.pursuits?.[pursuitId] ?? { xp: 0, level: 0 };
@@ -99,7 +108,7 @@ export const practicePursuit = (
     const newLevel = levelFromXp(newXp);
 
     // Spend energy, then apply the immediate practice reward + any level-up spike.
-    let stats = { ...prev.stats, energy: clamp100((prev.stats?.energy ?? 0) - def.energyCost) };
+    let stats = { ...prev.stats, energy: clamp100((prev.stats?.energy ?? 0) - energyCost) };
     stats = applyReward(stats, def.reward(newLevel));
     if (newLevel > (cur.level ?? 0)) {
       // A tier-crossing level-up pays the (bigger) named-tier milestone spike

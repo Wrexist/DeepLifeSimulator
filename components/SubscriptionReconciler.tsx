@@ -39,14 +39,50 @@ export function SubscriptionReconciler(): null {
       if (revenueCatService.isEnabled()) {
         await revenueCatService.getEntitlements();
       }
-      // Premium access via subscription OR the one-time lifetime unlock — both
-      // keep ad-free + the Legacy Pass premium track.
-      const plusActive = subscriptionService.hasPremiumAccess();
+      // Populate the purchase ledger BEFORE reading it. `initialize()` never
+      // does, so on a cold start `isAdsRemoved()` was structurally false for
+      // every player and this reconcile wrote that false over a paid Remove Ads
+      // purchase. 2026-07-30 audit MON-1.
+      // Only when the ledger is not already loaded — `reconcile` runs on mount,
+      // on every foreground, on every weeksLived change and on every RC
+      // entitlement callback, and each unconditional call was a fresh
+      // `getPurchaseHistoryAsync()` round trip.
+      const alreadyAuthoritative =
+        typeof iapService.hasAuthoritativeEntitlementSource === 'function' &&
+        iapService.hasAuthoritativeEntitlementSource();
+      if (!alreadyAuthoritative && typeof iapService.loadPurchases === 'function') {
+        try {
+          await iapService.loadPurchases();
+        } catch (loadErr) {
+          logger.warn('[SubscriptionReconciler] loadPurchases failed; treating entitlements as unknown', { error: loadErr });
+        }
+      }
+
       const ownsRemoveAds =
         typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
+      // Whether that answer means anything. FALSE = "could not ask", which must
+      // never be treated as "owns nothing".
+      const authoritative =
+        typeof iapService.hasAuthoritativeEntitlementSource === 'function'
+          ? iapService.hasAuthoritativeEntitlementSource()
+          : false;
+
+      // Premium access via subscription OR the one-time lifetime unlock — both
+      // keep ad-free + the Legacy Pass premium track.
+      //
+      // R4-MON-4: read AFTER `loadPurchases()`. This was computed above the
+      // load, and `hasPremiumAccess()` falls through to `hasLifetimePremium()`
+      // → `iapService.hasPurchased(...)`, which reads the ledger the load
+      // populates. So on a cold start it was structurally false for a
+      // lifetime-premium owner — the same ordering hazard MON-1 fixed for
+      // `isAdsRemoved()`, one line higher up.
+      const plusActive = subscriptionService.hasPremiumAccess();
+
       setGameState((prev) => {
-        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds);
-        return reconcileLegacyPassSeason(afterSub, plusActive);
+        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds, authoritative);
+        // Same `authoritative` flag: "could not ask" must not strip the paid
+        // premium track. See the note on `entitlementCheckAuthoritative`.
+        return reconcileLegacyPassSeason(afterSub, plusActive, Date.now(), authoritative);
       });
     } catch (err) {
       // Never let entitlement reconciliation break the app.

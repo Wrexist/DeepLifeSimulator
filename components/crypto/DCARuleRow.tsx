@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Repeat, Trash2 } from 'lucide-react-native';
 import { CryptoDCARule } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
 interface Props {
@@ -48,7 +49,13 @@ export default function DCARuleRow({ rule, currentWeek, darkMode, onDelete }: Pr
         )}
       </View>
       {onDelete && (
-        <TouchableOpacity onPress={onDelete} hitSlop={10} style={styles.delBtn}>
+        <TouchableOpacity
+          onPress={onDelete}
+          hitSlop={hitSlopToMinTarget(scale(14))}
+          style={[styles.delBtn, minTouchTargetStyle]}
+          accessibilityRole="button"
+          accessibilityLabel="Delete this recurring buy rule"
+        >
           <Trash2 size={scale(14)} color={accent.danger} />
         </TouchableOpacity>
       )}

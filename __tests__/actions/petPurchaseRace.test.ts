@@ -8,15 +8,23 @@
 import { buyPet, buyFood, PET_BREEDS, PET_FOODS } from '@/contexts/game/actions/PetActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import { createSetGameStateStub } from '../helpers/setGameStateStub';
 
 const deps = { updateMoney: jest.fn() as never }; // signature-only; no longer used internally
 
+/**
+ * Thin adapter over the shared stub in `helpers/setGameStateStub`.
+ *
+ * This was one of eight byte-identical hand-rolled copies. Each took
+ * `(update: unknown)` and cast twice — `update as GameState` on the value
+ * branch, then the whole function `as React.Dispatch<SetStateAction<GameState>>`
+ * — which is exactly the shape that makes a stub's behaviour unverifiable:
+ * `unknown` in means nothing about the dispatch is checked, and the outer cast
+ * asserts the result matches React's type without anything proving it does.
+ */
 function makeBatchedSetState(initial: GameState) {
-  let state = initial;
-  const setState = ((update: unknown) => {
-    state = typeof update === 'function' ? update(state) : (update as GameState);
-  }) as React.Dispatch<React.SetStateAction<GameState>>;
-  return { setState, get: () => state };
+  const stub = createSetGameStateStub(initial);
+  return { setState: stub.setGameState, get: stub.current };
 }
 
 const cheapestBreed = [...PET_BREEDS].sort((a, b) => a.price - b.price)[0];

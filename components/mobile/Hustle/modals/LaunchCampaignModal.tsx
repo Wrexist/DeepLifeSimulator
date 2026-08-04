@@ -95,7 +95,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(440) }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
             {/* Active campaigns */}
             {active.length > 0 ? (
               <>

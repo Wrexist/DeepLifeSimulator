@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 25;
+export const STATE_VERSION = 30;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -584,7 +584,14 @@ export const initialGameState: GameState = {
       energyCost: 20,
       cost: 500,
       successRate: 0.4,
-      requiresEducation: 'law_degree',
+      // R3-C4: was `law_degree`, an id that exists in no catalogue. Enrolled
+      // educations take `id: spec.templateId` and the law programme's template
+      // id is `law_school`, so this gate could never be satisfied — Legal
+      // Appeal (20 energy, $500, 40% early release) was unrunnable by anyone,
+      // and `JailScreen` does not pre-check `requiresEducation`, so tapping it
+      // always popped "This activity requires law_degree", leaking a raw
+      // internal id to the player.
+      requiresEducation: 'law_school',
     },
     {
       id: 'good_behavior',
@@ -1184,13 +1191,6 @@ export const initialGameState: GameState = {
   company: undefined,
   showWelcomePopup: true,
   hasSeenJobTutorial: false,
-  hasSeenInvestmentTutorial: false,
-  hasSeenDatingTutorial: false,
-  hasSeenHealthWarning: false,
-  hasSeenEnergyWarning: false,
-  hasSeenMoneyManagementTutorial: false,
-  hasSeenSocialMediaTutorial: false,
-  hasSeenRealEstateTutorial: false,
   achievements: [
     // Money
     { id: 'first_dollar', name: 'First Payday', description: 'Earn your first hard-earned dollar', category: 'money', completed: false },
@@ -1398,7 +1398,6 @@ export const initialGameState: GameState = {
   vaccinations: [],
   // Goal System
   goals: [],
-  goalProgress: {},
   completedGoals: [],
   hasPhone: false,
   computerPreviouslyOwned: false,
@@ -1713,15 +1712,13 @@ export const initialGameState: GameState = {
   playStreak: { count: 0, lastPlayTimestamp: 0, longestStreak: 0 },
   weekResult: undefined,
   legacyPoints: 0,
+  legacyUpgrades: [],
   legacyBuffs: undefined,
-  challengeStreak: undefined,
-  activeChapterId: 'ch1_fresh_start',
   completedChapters: [],
   // Life Ambition (additive/optional) — set from onboarding; absent = freeform life.
   ambitionId: undefined,
   ambitionCompletedMilestones: [],
   ambitionRewardClaimed: false,
-  completedTutorialSteps: [],
 
   // Wave 2: Addiction Mechanics
   discoveredSecrets: [],

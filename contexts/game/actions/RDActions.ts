@@ -38,6 +38,24 @@ export const buildRDLab = (
   }
 
   const currentLabType = company.rdLab?.type || null;
+
+  /**
+   * C-9, and my own C-3 fix's loose end. C-3 added an inner
+   * `if (prevLabType === labType) return prev` so a double tap could not be
+   * charged twice for one lab — but left the unconditional success return
+   * below, and added no OUTER equivalent. So a single tap on the tier the
+   * company already has reported "Built the Advanced Lab", charged nothing,
+   * and changed nothing.
+   *
+   * An outer guard rather than an outcome capture: a capture is only readable
+   * for the FIRST update in a React batch (measured in
+   * `__tests__/refactor/updaterTimingContract.test.tsx`). The inner check stays
+   * as the race guard C-3 introduced it as.
+   */
+  if (currentLabType === labType) {
+    return { success: false, message: `This company already has the ${labType} lab.` };
+  }
+
   const cost = getLabUpgradeCost(currentLabType, labType);
 
   if (gameState.stats.money < cost) {
@@ -49,13 +67,42 @@ export const buildRDLab = (
 
   // Update state: deduct money AND update company in a single state update to avoid race conditions
   setGameState(prev => {
-    const newMoney = Math.max(0, prev.stats.money - cost);
+    /**
+     * Re-check EVERYTHING against `prev`.
+     *
+     * This updater re-checked nothing: not funds, not which lab the company
+     * already had — and it debited with `Math.max(0, …)`, which floors instead
+     * of rejecting. Its three siblings in this file (`startResearch`,
+     * `filePatent`, `enterCompetition`) all carry the fix and cite it in
+     * comments; this one was left behind.
+     *
+     * `CompanyDetailScreen` renders all three lab tiers as separate live
+     * buttons when no lab exists, with no processing latch and a `disabled`
+     * computed from the same stale snapshot. So one React batch could tap
+     * Advanced ($200,000) then Cutting-edge ($1,000,000), be charged
+     * $1,200,000, and end with one lab. On a thin wallet the floor zeroed the
+     * player's cash rather than declining. CLAUDE.md §4.4.
+     *
+     * The cost is re-derived from `prev`'s lab too — an upgrade is priced
+     * against what the company currently HAS, so a stale `currentLabType` would
+     * charge the wrong amount even when only one tap lands.
+     */
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany) return prev;
+
+    const prevLabType = prevCompany.rdLab?.type || null;
+    if (prevLabType === labType) return prev; // already built this tier
+
+    const freshCost = getLabUpgradeCost(prevLabType, labType);
+    if ((prev.stats?.money ?? 0) < freshCost) return prev;
+
+    const newMoney = prev.stats.money - freshCost;
     // Create lab object inside updater to use fresh weeksLived
     const newLab: RDLab = {
       type: labType,
       builtWeek: prev.weeksLived || 0,
-      researchProjects: company.rdLab?.researchProjects || [],
-      completedResearch: company.rdLab?.completedResearch || [],
+      researchProjects: prevCompany.rdLab?.researchProjects || [],
+      completedResearch: prevCompany.rdLab?.completedResearch || [],
     };
     return {
       ...prev,
@@ -137,8 +184,44 @@ export const startResearch = (
   const projectId = `research_${technologyId}_${Date.now()}`;
   const researchTime = Math.ceil(technology.researchTime / (labInfo.researchSpeedMultiplier * rdBonusMultiplier));
 
-  // Update state: deduct money AND update company in a single state update to avoid race conditions
+  // Update state: deduct money AND update company in a single state update.
+  //
+  // ECON-2: every gate above reads the STALE outer `gameState` and the updater
+  // re-checked none of them, while `Math.max(0, money - cost)` floored the debit
+  // instead of rejecting it. Two taps in one React batch — two technology rows,
+  // or the same row twice — both passed, so a Basic lab with
+  // `maxConcurrentProjects: 1` ran N projects (defeating the whole lab-tier
+  // progression gate) and the second charge silently clamped to 0. With two
+  // projects for the SAME technology, `completeResearch` appends the id twice
+  // with no dedupe and rolls `triggerBreakthrough` once per completion — two
+  // chances at a PERMANENT 2x/3x company income multiplier for one purchase.
+  //
+  // Same fix `filePatent` and `enterCompetition` in this file already carry from
+  // the 2026-07-02 audit; `startResearch` was left behind. 2026-07-30 audit.
+  // Whether the updater actually applied the project. The trailing return used
+  // to be a hardcoded success, so on the very double-tap race these re-checks
+  // exist to stop, the REJECTED call still told the caller research had
+  // started. Review of ECON-2.
+  let applied = false;
   setGameState(prev => {
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany?.rdLab) return prev;
+
+    // Re-check the concurrency cap against `prev`.
+    const prevActive = (prevCompany.rdLab.researchProjects || []).filter(p => !p.completed);
+    const prevLabInfo = LAB_TYPES[prevCompany.rdLab.type];
+    if (prevActive.length >= prevLabInfo.maxConcurrentProjects) return prev;
+
+    // ...and that this technology is not already being researched or done.
+    if (prevActive.some(p => p.technologyId === technologyId)) return prev;
+    if ((prevCompany.unlockedTechnologies || []).includes(technologyId)) return prev;
+
+    // Charge inside the updater, rejecting rather than flooring.
+    const spend = applyMoneyDelta(prev, -technology.researchCost, `Research: ${technology.name}`);
+    if (!spend) return prev;
+
+    applied = true;
+
     // Create project inside updater to use fresh weeksLived
     const newProject = {
       id: projectId,
@@ -149,13 +232,9 @@ export const startResearch = (
       progress: 0,
       completed: false,
     };
-    const newMoney = Math.max(0, prev.stats.money - technology.researchCost);
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: newMoney,
-      },
+      ...spend,
       companies: (prev.companies || []).map(c => {
         if (c.id !== companyId) return c;
         return {
@@ -177,6 +256,13 @@ export const startResearch = (
         : prev.company,
     };
   });
+
+  if (!applied) {
+    return {
+      success: false,
+      message: 'Could not start that research — check your lab capacity and funds.',
+    };
+  }
 
   // Log the money update
   log.info(`Money deducted: $${technology.researchCost.toLocaleString()} for researching ${technology.name}`);

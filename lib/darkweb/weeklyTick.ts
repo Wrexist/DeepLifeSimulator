@@ -49,6 +49,19 @@ export interface DarkWebWeeklyTickResult {
   notifications: { id: string; title: string; message: string }[];
 }
 
+/**
+ * Sub-roll band that resolves a police event into a JAIL RAID.
+ *
+ * Exported because the Onion app printed `policeEventProbability(heat)` as
+ * `raid_risk` — the chance of ANY police event, of which a raid is only this
+ * slice. At heat 80+ that read 40%/wk against a real jail-raid chance of ~10%,
+ * a 4x overstatement of the number the player manages heat around. R3-C8.
+ */
+export const RAID_SUBROLL_MIN = 0.30;
+export const RAID_SUBROLL_MAX = 0.55;
+/** Share of police events that are a jail raid. */
+export const RAID_SHARE_OF_POLICE_EVENTS = RAID_SUBROLL_MAX - RAID_SUBROLL_MIN;
+
 export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeeklyTickResult {
   // Normalize optional slices up front: a partially-migrated / CloudSync-merged /
   // hand-edited save can carry `darkWeb` with a present-but-null slice, and an
@@ -125,7 +138,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
     const severity = policeEventSeverity(dw.heat);
     const subRoll = input.rollFor('darkweb.policeEvent.kind');
 
-    if (subRoll < 0.30 && dw.dirtyBtc > 0) {
+    if (subRoll < RAID_SUBROLL_MIN && dw.dirtyBtc > 0) {
       // Sting operation: dirty BTC seized in a controlled buy.
       dirtyBtcSeized = Math.min(dw.dirtyBtc, dw.dirtyBtc * 0.5 * severity);
       dw = { ...dw, dirtyBtc: Math.max(0, dw.dirtyBtc - dirtyBtcSeized), heat: Math.min(100, dw.heat + 5) };
@@ -134,7 +147,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
         title: '🚓 Sting Operation',
         message: `Lost ${dirtyBtcSeized.toFixed(4)} BTC in a controlled buy. Heat +5.`,
       });
-    } else if (subRoll < 0.55) {
+    } else if (subRoll < RAID_SUBROLL_MAX) {
       // Raid: heat partially decays either way. Jail time is only added when the
       // player isn't already serving a sentence — raids must never pile onto an
       // existing jail term (which would let police events extend jail forever).
@@ -163,13 +176,17 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
         message: `An informant surfaced. Paid ${payoff.toFixed(4)} BTC to keep them quiet. Heat +3.`,
       });
     } else {
-      // Surveillance: a tap goes up. Heat increases instead of decaying for a stretch.
+      // Surveillance: a one-off heat spike.
       const heatBump = Math.round(15 * severity);
       dw = { ...dw, heat: Math.min(100, dw.heat + heatBump) };
       notifications.push({
         id: 'darkweb-surveillance',
         title: '📡 Under Surveillance',
-        message: `You've been flagged. Heat +${heatBump}; expect decay to stall while the tap is active.`,
+        // R3-C9: the old copy promised "expect decay to stall while the tap is
+        // active". There is no surveillance flag on `DarkWebState` and
+        // `tickHeatDecay` applies the same unconditional decay every week, so
+        // the second clause described nothing. This is a heat spike; say that.
+        message: `You've been flagged. Heat +${heatBump}.`,
       });
     }
     dw = {

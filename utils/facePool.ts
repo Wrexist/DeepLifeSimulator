@@ -68,12 +68,19 @@ const POOL: Record<string, ImageSourcePropType[]> = {
   f_sr: [
     require('@/assets/images/Face/pool/f_sr_01.png'), require('@/assets/images/Face/pool/f_sr_02.png'),
     require('@/assets/images/Face/pool/f_sr_03.png'), require('@/assets/images/Face/pool/f_sr_04.png'),
-    require('@/assets/images/Face/pool/hero_grandparent.png'),
   ],
   m_sr: [
     require('@/assets/images/Face/pool/m_sr_01.png'), require('@/assets/images/Face/pool/m_sr_02.png'),
     require('@/assets/images/Face/pool/m_sr_03.png'), require('@/assets/images/Face/pool/m_sr_04.png'),
     require('@/assets/images/Face/pool/hero_mentor.png'),
+    // `hero_grandparent` is a neutral FILENAME for a portrait of an elderly
+    // MAN. It sat in `f_sr` until a player reported "parents age into different
+    // genders": Mom's seed hashes straight onto that slot, so every save
+    // watched her turn into a grandfather the week she turned 56. It also hit
+    // the player directly — `getAvatarPortrait` clamps to the last slot, so a
+    // woman who picked one of the later starter faces became him too.
+    // The name is the trap; see HERO_FACE_SEX below.
+    require('@/assets/images/Face/pool/hero_grandparent.png'),
   ],
   f_tn: [
     require('@/assets/images/Face/pool/f_tn_01.png'), require('@/assets/images/Face/pool/f_tn_02.png'),
@@ -95,6 +102,32 @@ const POOL: Record<string, ImageSourcePropType[]> = {
     require('@/assets/images/Face/pool/baby_01.png'), require('@/assets/images/Face/pool/baby_02.png'),
     require('@/assets/images/Face/pool/baby_03.png'),
   ],
+};
+
+/**
+ * The sex each hero portrait actually DEPICTS, as opposed to what its filename
+ * suggests.
+ *
+ * Most pool assets encode their bucket in the name (`f_sr_01`, `m_ya_03`), so
+ * a file in the wrong bucket is obvious on sight. The hero faces do not: they
+ * are named for a ROLE. `hero_rival`, `hero_boss`, `hero_mentor` and
+ * `hero_grandparent` say nothing about who is in the picture, and one of them
+ * spent its life in the wrong bucket because of it.
+ *
+ * This table is the answer, written down once after looking at every file, and
+ * `__tests__/utils/facePool.test.ts` asserts the POOL buckets agree with it.
+ * Moving a hero face now means contradicting a stated claim rather than
+ * quietly editing a list of paths.
+ */
+export const HERO_FACE_SEX: Record<string, 'm' | 'f'> = {
+  hero_bestfriend_f: 'f',
+  hero_sibling_f: 'f',
+  hero_bestfriend_m: 'm',
+  hero_sibling_m: 'm',
+  hero_rival: 'm',
+  hero_boss: 'm',
+  hero_mentor: 'm',
+  hero_grandparent: 'm', // elderly man — the name is not a gender
 };
 
 // Mom & Dad — used as their own face while middle-aged (see getParentPortrait).
@@ -242,6 +275,46 @@ export function avatarSexFromId(avatarId: string | undefined | null): 'male' | '
 /**
  * The player's face. If they picked an avatar, keep that pick's sex + slot and
  * follow their age band; otherwise fall back to the seeded portrait by name.
+ *
+ * ── How the slot maps across bands ────────────────────────────────────────
+ *
+ * The starter buckets are much bigger than the later ones — 12 young-adult
+ * female faces against 6 adult, 5 middle-aged, 4 senior, and only 3 as a teen.
+ *
+ * This has now been wrong twice, in opposite directions:
+ *
+ * 1. `Math.min(index, len - 1)` CLAMPED, so every pick from 5 upward landed on
+ *    the same last slot from age 30 on — seven of the twelve women who chose a
+ *    starter face aged into one identical stranger, and into each other.
+ *
+ * 2. `index % len` WRAPPED, which spread them out but scrambled the order:
+ *    `f7` resolved to slot 1 as a teen, 7 as a young adult, 1 again as an
+ *    adult, then 2, then 3. Nine of the twelve starter faces changed slot at
+ *    every band boundary with no relationship between one band and the next.
+ *    That is the player report — "my character turns into someone else" —
+ *    surviving the fix for (1).
+ *
+ * Now it maps PROPORTIONALLY: a pick sits at the same relative position in
+ * every bucket, so ordering is preserved end to end. Someone who picked the
+ * third face of twelve stays an early face at every age instead of jumping
+ * around, and two players who picked adjacent faces stay adjacent.
+ *
+ * ── What this deliberately does NOT try to fix ────────────────────────────
+ *
+ * Two different picks can land on the same face in a small band — 12 picks
+ * through a 3-face teen bucket must collide. That is arithmetic, not a defect,
+ * and it is worth being clear about why it does not matter:
+ *
+ *   - This is single-player. Two PLAYERS sharing a face is unobservable.
+ *   - NPCs already share the same finite buckets by `hashSeed(seed) % len`
+ *     (`_portraitSlot`), so any five seniors in one save collide regardless.
+ *     That predates all of this and is inherent to a fixed pool.
+ *
+ * The property that IS player-visible — one character staying coherent as they
+ * age — is what the proportional mapping delivers, and what
+ * `__tests__/utils/facePool.test.ts` pins. An earlier version of this comment
+ * called the collisions an asset gap needing a product decision; that
+ * over-graded them.
  */
 export function getAvatarPortrait(
   avatarId: string | undefined | null,
@@ -249,10 +322,57 @@ export function getAvatarPortrait(
   fallbackSeed: string | undefined | null,
   fallbackSex: string,
 ): ImageSourcePropType {
+  const slot = _avatarSlot(avatarId, age);
+  if (!slot) {
+    const p = avatarId ? parseAvatarId(avatarId) : null;
+    if (!p) return getPortrait(fallbackSeed, age, fallbackSex);
+    return legacyFace(age, p.letter === 'f' ? 'female' : 'male');
+  }
+  return POOL[slot.key][slot.index];
+}
+
+/**
+ * Which bucket + index a chosen avatar resolves to (null → no pick, or an empty
+ * bucket). The counterpart of `_portraitSlot`, and exposed for the same reason:
+ * under jest every `require`d PNG maps to one shared file mock, so the returned
+ * image is literally the same object for every character. Comparing portraits
+ * in a test proves nothing — the slot is the only observable part of this.
+ */
+export function _avatarSlot(
+  avatarId: string | undefined | null,
+  age: number,
+): { key: string; index: number } | null {
   const p = avatarId ? parseAvatarId(avatarId) : null;
-  if (!p) return getPortrait(fallbackSeed, age, fallbackSex);
+  if (!p) return null;
   const band = bandForAge(age);
-  const bucket = POOL[band === 'baby' ? 'baby' : `${p.letter}_${band}`];
-  if (!bucket || bucket.length === 0) return legacyFace(age, p.letter === 'f' ? 'female' : 'male');
-  return bucket[Math.min(p.index, bucket.length - 1)];
+  const key = band === 'baby' ? 'baby' : `${p.letter}_${band}`;
+  const bucket = POOL[key];
+  if (!bucket || bucket.length === 0) return null;
+
+  // Proportional, not modular. `parseAvatarId` only matches \d+, so the index
+  // is already non-negative.
+  //
+  // The pick space is the LARGEST bucket for this sex — the young-adult one,
+  // which is where the starter picker offers its faces. Scaling through that
+  // keeps a pick at the same relative position in every band, so ordering
+  // survives the band change instead of being scrambled by a modulus.
+  //
+  // A pick beyond the space (a legacy id, or a scenario that started the player
+  // in a smaller band) clamps to the end rather than wrapping around to the
+  // front, which is what made `%` jump `f7` from slot 7 back to slot 1.
+  const space = pickSpaceFor(p.letter);
+  const ratio = Math.min(p.index, space - 1) / space;
+  const index = Math.min(bucket.length - 1, Math.floor(ratio * bucket.length));
+  return { key, index };
+}
+
+/**
+ * The size of the bucket a starter pick is chosen FROM, per sex.
+ *
+ * Computed from the pool rather than hardcoded, so adding art to the
+ * young-adult bucket cannot silently desync this from `listStarterAvatars`.
+ */
+function pickSpaceFor(letter: 'm' | 'f'): number {
+  const SEXED_BANDS: Band[] = ['kid', 'tn', 'ya', 'ad', 'mid', 'sr'];
+  return Math.max(1, ...SEXED_BANDS.map((b) => POOL[`${letter}_${b}`]?.length ?? 0));
 }

@@ -1,15 +1,18 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
+import { carryAccountLevelEntitlements } from './accountEntitlements';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
-import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
+import { nonMirrorDeposits } from '@/lib/banking/operations';
+import { getEarnedAchievementCount, getEarnedAchievementNames, getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
+import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
 
 
 /**
@@ -130,12 +133,49 @@ export function executePrestige(
         stats: { money: gameState.stats.money, reputation: gameState.stats.reputation },
         age: gameState.date?.age || 18,
         education: (gameState.educations || []).map(e => ({ id: e.id, completed: e.completed })),
-        careers: (gameState.careers || []).map(c => ({ id: c.id, accepted: c.accepted })),
+        // GL-4: `level` must survive the projection. The Political Dynasty
+        // scenario's "Become President" condition is checked with
+        // `'level' in politicalCareer && politicalCareer.level >= 5`, and this
+        // map dropped the field — so `'level' in ...` was false, `isPresident`
+        // was always false, and the 200-gem expert scenario could never score
+        // at prestige no matter how the player played.
+        careers: (gameState.careers || []).map(c => ({
+          id: c.id,
+          accepted: c.accepted,
+          level: c.level,
+        })),
         relationships: (gameState.relationships || []).map(r => ({ type: r.type })),
-        achievements: (gameState.achievements || []).map(a => ({ id: a.id, completed: a.completed })),
+        // Project from the LIVE achievement system, not `gameState.achievements`.
+        //
+        // That array is the deprecated catalogue in `initialState.ts`; its
+        // `completed` flag has NO writer in shipping code — `evaluateAchievements`
+        // is an explicit no-op stub (`lib/progress/achievements.ts:232`). So every
+        // `type: 'achievement'` win condition evaluated against an all-false list
+        // and could never be met, whichever id it named. The real system is
+        // `src/features/onboarding/achievementsData`, where completion is derived
+        // from each achievement's `progressSpec` against current state.
+        //
+        // "Earned", not "claimed": `claimedProgressAchievements` records which
+        // rewards were collected, which is a different question from whether the
+        // life met the condition. 2026-07-31 audit round 3.
+        achievements: getSatisfiedAchievementIds(gameState).map(id => ({ id, completed: true })),
         companies: (gameState.companies || []).map(c => ({ weeklyIncome: c.weeklyIncome || 0 })),
         realEstate: (gameState.realEstate || []).map(r => ({ owned: r.owned, value: r.price || 0 })),
         weeksLived: gameState.weeksLived || 0,
+        // Bank balances count toward the five net-worth scenarios. The
+        // evaluator always read this; nothing ever passed it. Legacy pool plus
+        // the modern per-account balances, which is where savings actually
+        // lives since STATE_VERSION 14.
+        //
+        // R4 correction: `nonMirrorDeposits`, not a raw sum. `banking.accounts`
+        // always holds `checking-default` and `savings-default`, which
+        // `mirrorAccountsFromLegacy` overwrites with `stats.money` and
+        // `bankSavings` on every tick. The evaluator computes
+        // `stats.money + bankSavings + …`, so a raw sum counted BOTH legacy
+        // pools twice and handed out the five net-worth scenarios' gems to
+        // players at roughly half the stated threshold.
+        bankSavings:
+          (gameState.bankSavings || 0) + nonMirrorDeposits(gameState.banking?.accounts ?? []),
       };
       if (isScenarioCompleted(scenario.id, scenarioState)) {
         gemsToAward += scenario.rewards?.gems || 0;
@@ -223,6 +263,15 @@ function createResetGameState(
     settings: { ...initialGameState.settings },
   };
 
+  // A purchase belongs to the PLAYER, not the character. `settings` above comes
+  // from initialGameState, so without this every purchased entitlement flag —
+  // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
+  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // Carrying the DeepLife+ claim stamps also closes the printer that let a
+  // player re-mint the 500-gem welcome bonus once per prestige.
+  // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
+  carryAccountLevelEntitlements(oldState, newState);
+
   // Preserve prestige data
   newState.prestige = prestigeData;
   newState.prestigeAvailable = false; // Reset availability
@@ -242,6 +291,19 @@ function createResetGameState(
   newState.generationNumber = oldState.generationNumber || 1; // Keep same generation on prestige reset
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
+
+  /**
+   * C-11: legacy points and purchases are lineage data, so they survive a
+   * prestige RESET too — otherwise prestiging would silently destroy them, the
+   * same class of bug as the entitlement wipe above (MON-1/2/3).
+   *
+   * The heir STARTING BONUSES are deliberately NOT applied here. Every upgrade
+   * is worded "Your heir starts with…", and a reset is the same character
+   * starting over, not a new generation. The purchase is not wasted — it is
+   * permanent and applies to every future heir.
+   */
+  newState.legacyPoints = oldState.legacyPoints || 0;
+  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
 
   // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
   // prestige so a reset doesn't wipe the player's battle-pass progress.
@@ -439,6 +501,15 @@ function createChildGameState(
     settings: { ...initialGameState.settings },
   };
 
+  // A purchase belongs to the PLAYER, not the character. `settings` above comes
+  // from initialGameState, so without this every purchased entitlement flag —
+  // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
+  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // Carrying the DeepLife+ claim stamps also closes the printer that let a
+  // player re-mint the 500-gem welcome bonus once per prestige.
+  // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
+  carryAccountLevelEntitlements(oldState, newState);
+
   // Preserve prestige data
   newState.prestige = prestigeData;
   newState.prestigeAvailable = false;
@@ -456,6 +527,35 @@ function createChildGameState(
   newState.generationNumber = (oldState.generationNumber || 1) + 1; // Increment generation for child
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
+
+  /**
+   * C-11: Legacy Points and what they bought are LINEAGE data, not character
+   * data, so both carry. `legacyPoints` is the lifetime total earned and
+   * `legacyUpgrades` the ids bought; the spendable balance is the difference,
+   * so carrying both means the heir keeps accumulating rather than starting
+   * from zero with their parent's purchases already deducted.
+   *
+   * Bounded by construction: the upgrades are once-per-id unlocks, six of
+   * them, so no amount of accumulation makes generation N strictly stronger
+   * than generation N-1 forever. Compounding power is prestige's job.
+   */
+  newState.legacyPoints = oldState.legacyPoints || 0;
+  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
+
+  // ...and the heir actually starts with what was bought for them.
+  const heirBonuses = heirStartingBonuses(newState.legacyUpgrades);
+  if (heirBonuses.money > 0) {
+    newState.stats.money = (newState.stats.money || 0) + heirBonuses.money;
+  }
+  if (heirBonuses.reputation > 0) {
+    newState.stats.reputation = Math.min(100, (newState.stats.reputation || 0) + heirBonuses.reputation);
+  }
+  for (const [stat, amount] of Object.entries(heirBonuses.stats)) {
+    const current = (newState.stats as unknown as Record<string, number>)[stat];
+    if (typeof current === 'number' && typeof amount === 'number') {
+      (newState.stats as unknown as Record<string, number>)[stat] = Math.min(100, current + amount);
+    }
+  }
 
   // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
   if (oldState.legacyPass) {
@@ -526,7 +626,9 @@ function createChildGameState(
     })(),
     netWorth: currentNetWorth,
     causeOfDeath: 'Prestige',
-    achievements: (oldState.achievements || []).filter(a => a.completed).map(a => a.name),
+    // Live store — the dead flag made every obituary and legacy summary list
+    // no achievements at all. GP-3.
+    achievements: [...(oldState.claimedProgressAchievements || [])],
     gender: (oldState.userProfile?.gender || oldState.userProfile?.sex || 'male') as 'male' | 'female',
     avatarSeed: `${oldState.userProfile?.firstName}_${oldState.userProfile?.lastName}_${birthYear}`,
   };

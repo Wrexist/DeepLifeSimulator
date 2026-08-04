@@ -209,7 +209,9 @@ describe('Save migration → v13 (Pulse social platform)', () => {
       // v11+v12 fields exist
       expect(state.playStreak).toBeDefined();
       expect(state.legacyPoints).toBe(0);
-      expect(state.activeChapterId).toBe('ch1_fresh_start');
+      // `activeChapterId` removed 2026-08-02 — a dead field the migration
+      // maintained for no reader. `completedChapters` is the live one.
+      expect(Array.isArray(state.completedChapters)).toBe(true);
       expect(Array.isArray(state.discoveredSecrets)).toBe(true);
       expect(state.ribbonCollection).toBeDefined();
 

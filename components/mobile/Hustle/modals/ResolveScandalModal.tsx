@@ -92,7 +92,7 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
           </View>
 
           <Text style={[styles.subhead, { color: theme.text }]}>Choose a response</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: scale(380) }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
             {OPTIONS.map((opt) => {
               const Icon = opt.Icon;
               const unaffordable = opt.costValue > cash;
@@ -141,11 +141,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     zIndex: Z_INDEX.MODAL,
   },
+  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
+  // no height bound grows to fit its content, so on a short screen its footer
+  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
+  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {
     borderTopLeftRadius: scale(24),
     borderTopRightRadius: scale(24),
     padding: responsiveSpacing.lg,
     paddingBottom: responsiveSpacing.xl,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',

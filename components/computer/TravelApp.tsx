@@ -601,10 +601,15 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel={`${dest.name}, ${dest.country}. View details`}
-              style={[getGlassCard(darkMode, 6), styles.tile, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              // Hard Rule #7: the vibe hue used to be a 3px bar pinned across
+              // the tile's TOP edge — the same banned one-sided accent the rule
+              // names as borderTopWidth, just built from a positioned View. It
+              // moves onto the full border. The hue was already carried by the
+              // tile wash and the airport-code chip, so this is the third place
+              // it appears, not the only one.
+              style={[getGlassCard(darkMode, 6), styles.tile, { backgroundColor: theme.surface, borderColor: meta.hue }]}
             >
               <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: vibeTint(meta.hue, darkMode ? 0.1 : 0.07) }]} />
-              <View pointerEvents="none" style={[styles.tileStripe, { backgroundColor: meta.hue }]} />
 
               <View style={styles.tileTop}>
                 <Text style={styles.tileEmoji}>{meta.emoji}</Text>
@@ -1610,7 +1615,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   tile: { flexGrow: 1, flexBasis: '46%', minWidth: scale(150), padding: sp.md, borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
   tileWash: { ...StyleSheet.absoluteFillObject },
-  tileStripe: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: sp.xs },
   tileEmoji: { fontSize: scale(26) },
   tileCode: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.sm, borderWidth: 1 },

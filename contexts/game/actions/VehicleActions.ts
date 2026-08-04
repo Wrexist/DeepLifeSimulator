@@ -56,14 +56,22 @@ export const getDriversLicense = (
   }
 
   // Atomic: merge money deduction + license grant into single update
-  setGameState(prev => ({
-    ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - DRIVERS_LICENSE.cost),
-    },
-    hasDriversLicense: true,
-  }));
+  setGameState(prev => {
+    // R4-X5: re-check "not already licensed" and affordability against `prev`.
+    // Both gates above read the stale outer snapshot and the debit floored at
+    // 0, so a double tap bought the same licence twice. CLAUDE.md §4.4.
+    if (prev.hasDriversLicense) return prev;
+    if ((prev.stats?.money ?? 0) < DRIVERS_LICENSE.cost) return prev;
+
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - DRIVERS_LICENSE.cost,
+      },
+      hasDriversLicense: true,
+    };
+  });
 
   log.info('Player obtained driver\'s license');
   return { success: true, message: 'Congratulations! You now have a driver\'s license!' };
@@ -76,7 +84,8 @@ export const purchaseVehicle = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   vehicleId: string,
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   // Find vehicle template
   const template = VEHICLE_TEMPLATES.find(v => v.id === vehicleId);
@@ -274,7 +283,16 @@ export const refuelVehicle = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   vehicleId: string,
-  deps: { updateMoney: typeof updateMoney }
+  /**
+   * Unused, and optional so callers need not fake it.
+   *
+   * NOTE there is no amount/litres parameter — refuelling always fills to 100,
+   * priced by `calculateFuelCost`. Several stress tests called this as
+   * `refuelVehicle(state, set, id, 100, deps)`, so the phantom `100` landed in
+   * this slot and the real deps became an ignored fifth argument. Harmless only
+   * because nothing here reads it.
+   */
+  _deps?: { updateMoney: typeof updateMoney }
 ): { success: boolean; message: string } => {
   const vehicle = (gameState.vehicles || []).find(v => v.id === vehicleId);
   if (!vehicle) {
@@ -292,20 +310,36 @@ export const refuelVehicle = (
   }
 
   // Atomic: merge fuel cost + fuel level update into single update
-  setGameState(prev => ({
-    ...prev,
-    // Budget tab: fuel is transport spending.
-    banking: prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', fuelCost)
-      : prev.banking,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - fuelCost),
-    },
-    vehicles: (prev.vehicles || []).map(v =>
-      v.id === vehicleId ? { ...v, fuelLevel: 100 } : v
-    ),
-  }));
+  setGameState(prev => {
+    /**
+     * R4-X5: re-check the tank and the wallet against `prev`.
+     *
+     * Both gates above read the stale outer `gameState`, and the debit used
+     * `Math.max(0, …)`, which FLOORS instead of rejecting. `VehicleCard`'s
+     * Refuel button has no in-flight guard, so two taps in one React batch both
+     * passed: the second refilled an already-full tank and charged for it, and
+     * on a thin wallet the clamp zeroed the player's cash rather than declining.
+     * CLAUDE.md §4.4.
+     */
+    const prevVehicle = (prev.vehicles || []).find(v => v.id === vehicleId);
+    if (!prevVehicle || prevVehicle.fuelLevel >= 100) return prev;
+    if ((prev.stats?.money ?? 0) < fuelCost) return prev;
+
+    return {
+      ...prev,
+      // Budget tab: fuel is transport spending.
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', fuelCost)
+        : prev.banking,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - fuelCost,
+      },
+      vehicles: (prev.vehicles || []).map(v =>
+        v.id === vehicleId ? { ...v, fuelLevel: 100 } : v
+      ),
+    };
+  });
 
   log.info(`Player refueled vehicle: ${vehicle.name}`);
   return { success: true, message: `Filled up ${vehicle.name} for $${fuelCost.toLocaleString()}!` };
@@ -342,20 +376,29 @@ export const repairVehicle = (
   }
 
   // Atomic: merge repair cost + condition update into single update
-  setGameState(prev => ({
-    ...prev,
-    // Budget tab: repairs are transport spending.
-    banking: prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', repairCost)
-      : prev.banking,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - repairCost),
-    },
-    vehicles: (prev.vehicles || []).map(v =>
-      v.id === vehicleId ? { ...v, condition: 100, lastServiceWeek: prev.weeksLived || 0 } : v
-    ),
-  }));
+  setGameState(prev => {
+    // R4-X5, same shape as `refuelVehicle`: the condition and money gates read
+    // the stale outer snapshot and the debit floored at 0. A double tap paid
+    // twice to repair an already-perfect vehicle. CLAUDE.md §4.4.
+    const prevVehicle = (prev.vehicles || []).find(v => v.id === vehicleId);
+    if (!prevVehicle || prevVehicle.condition >= 100) return prev;
+    if ((prev.stats?.money ?? 0) < repairCost) return prev;
+
+    return {
+      ...prev,
+      // Budget tab: repairs are transport spending.
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', repairCost)
+        : prev.banking,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - repairCost,
+      },
+      vehicles: (prev.vehicles || []).map(v =>
+        v.id === vehicleId ? { ...v, condition: 100, lastServiceWeek: prev.weeksLived || 0 } : v
+      ),
+    };
+  });
 
   log.info(`Player repaired vehicle: ${vehicle.name}`);
   return { success: true, message: `Repaired ${vehicle.name} for $${repairCost.toLocaleString()}!` };
@@ -755,7 +798,7 @@ import {
 } from '@/lib/vehicles/auto';
 import { quoteLoan } from '@/lib/banking/operations';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
-import { politicsAprReduction } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 import type { Loan } from '../types';
 
 const newLoanId = (): string =>
@@ -825,9 +868,17 @@ export function quoteVehiclePurchase(
     type: 'auto',
     weeklyIncome,
     aprReduction: politicsAprReduction(state),
+    // R3-M2 completion: this quote site was missed. Without the floor a
+    // high-office player financed a car at the 2.5% hard minimum while a CD
+    // pays 5.5% — the exact borrow-low/save-high carry
+    // `lib/banking/rateEnvironment.ts` caps deposits to prevent.
+    aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
   });
   if (quote.rejected) return { rejected: true, reason: quote.reason };
-  const adjustedAPR = Math.max(0.025, quote.offeredAPR + orig.aprAdjustment);
+  // The floor has to survive `orig.aprAdjustment` too, or the vehicle-specific
+  // adjustment walks the rate straight back under it.
+  const autoAprFloor = politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+  const adjustedAPR = Math.max(autoAprFloor, quote.offeredAPR + orig.aprAdjustment);
   const weekly = calculatePeriodicPayment(orig.loanPrincipal, adjustedAPR, orig.termWeeks);
 
   return {
@@ -956,6 +1007,8 @@ export const purchaseVehicleWithAutoLoan = (
       vehicles,
       activeVehicleId,
       loans: updatedLoans,
+      // An auto loan is debt. See `debtProgress`.
+      ...debtProgress(prev, updatedLoans.length > (prev.loans ?? []).length),
     };
   });
   return result;

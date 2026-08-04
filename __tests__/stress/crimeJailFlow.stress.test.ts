@@ -149,7 +149,13 @@ describe('Crime + Jail flow', () => {
     mounted = mountGame();
     seedCriminal(1);
     const before = captured!.state.stats.energy;
-    let result: { success: boolean; message?: string } | void;
+    // `!` because the assignment happens inside an `act()` callback, which
+    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // callback synchronously, so the variable really is assigned before it is
+    // read, and the `expect(...).toBeDefined()` below is the runtime proof.
+    // (Initialising to `undefined` instead narrows the variable to `void` and
+    // breaks every downstream cast — measured, not guessed.)
+    let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('beg'); });
     expect(result).toBeDefined();
     // Legal job — should not increase wanted level.
@@ -205,7 +211,7 @@ describe('Crime + Jail flow', () => {
       weeklyStreetJobs: { beg: 3, dumpster: 3, wash_cars: 2 }, // 8 total
     })));
 
-    let result: { success: boolean; message?: string } | void;
+    let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('panhandle'); });
     const r = result as { success: boolean; message?: string };
     expect(r).toBeDefined();
@@ -219,7 +225,7 @@ describe('Crime + Jail flow', () => {
     mounted = mountGame();
     seedCriminal(1);
 
-    let result: { success: boolean; message?: string } | void;
+    let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('steal_cars_basic'); });
     const r = result as { success: boolean; message?: string };
     // Either accepted (level=1 meets level=1 req) or rejected with proper message.
@@ -270,7 +276,7 @@ describe('Crime + Jail flow', () => {
       stats: { ...prev.stats, energy: 5 },
     })));
 
-    let result: { success: boolean; message?: string } | void;
+    let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('drug_dealing'); });
     const r = result as { success: boolean; message?: string };
     expect(r).toBeDefined();
@@ -283,7 +289,7 @@ describe('Crime + Jail flow', () => {
   it('Bad input: unknown jobId returns structured error', () => {
     mounted = mountGame();
     seedCriminal(1);
-    let result: { success: boolean; message?: string } | void;
+    let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('nonexistent_job_xyz'); });
     const r = result as { success: boolean; message?: string };
     expect(r).toBeDefined();

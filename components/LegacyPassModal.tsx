@@ -172,7 +172,11 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     if (!visible) return;
     // Premium access via an active subscription OR the one-time lifetime unlock.
     const subscribed = subscriptionService.hasPremiumAccess();
-    setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed));
+    // R4-MON-4: this path does not load the purchase ledger, so a `false` here
+    // may mean "could not ask". Never let opening the modal be what strips a
+    // paid premium track — `SubscriptionReconciler` owns the downgrade, with an
+    // authoritative check behind it.
+    setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed, Date.now(), false));
   }, [visible, setGameState]);
 
   const dismissSeasonSummary = () => {

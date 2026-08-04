@@ -11,6 +11,7 @@ import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalSc
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
+import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
 
 function HealthScreen() {
@@ -88,10 +89,21 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // P1-6: every other tab guards stats with optional chaining; health was the
   // outlier and would throw if `stats` is briefly undefined on degraded state.
   const canAfford = (price: number) => (gameState.stats?.money ?? 0) >= price;
+
+  /**
+   * GL-3: what this activity actually costs, after enacted healthcare policy.
+   *
+   * The same function `performHealthActivity` charges with. Quoting the list
+   * price here while the action debits the discounted one would show a locked
+   * "Need $2,000" on a hospital stay the player can afford.
+   */
+  const priceOf = (activity: HealthActivity) =>
+    policyAdjustedActivityPrice(gameState, activity.id, activity.price);
+
   const canPerformActivity = (activity: HealthActivity) => {
     const energyCost = activity.energyCost || 0;
     const hasEnoughEnergy = energyCost <= 0 || (gameState.stats?.energy ?? 0) >= energyCost;
-    const hasEnoughMoney = (gameState.stats?.money ?? 0) >= activity.price;
+    const hasEnoughMoney = (gameState.stats?.money ?? 0) >= priceOf(activity);
     return hasEnoughMoney && hasEnoughEnergy;
   };
 
@@ -134,6 +146,18 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   ];
 
   const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
+
+  // Vaccinations the player bought + immunities they earned by recovering.
+  // Named from the same catalogues the prevention logic keys off, so a rename
+  // shows up as a missing label rather than a silently wrong claim.
+  const protection = useMemo(() => {
+    const vaccineNames = (gameState.vaccinations ?? []).map((id) => {
+      const activity = (gameState.healthActivities ?? []).find((a) => a.id === id);
+      return activity?.name ?? id;
+    });
+    const immunityNames = (gameState.diseaseImmunities ?? []).map((id) => `${id} (immune)`);
+    return [...vaccineNames, ...immunityNames];
+  }, [gameState.vaccinations, gameState.diseaseImmunities, gameState.healthActivities]);
   const sectionDescStyle = [styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark];
 
   return (
@@ -215,13 +239,28 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
           </View>
           <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
+          {/* Protection you have already bought or earned.
+              `vaccinations` and `diseaseImmunities` both prevent real illnesses
+              (`lib/diseases/diseaseGenerator.ts:184-197`) and neither appeared in
+              ANY component. A player pays $150 for a pneumonia vaccine and has no
+              way to confirm they have it, that it persisted, or that it is doing
+              anything — which is indistinguishable from the purchase not working.
+              Immunities come free from recovering, and were equally invisible. */}
+          {protection.length > 0 && (
+            <View style={styles.protectionCard}>
+              <Text style={styles.protectionTitle}>Protected against</Text>
+              <Text style={styles.protectionBody}>{protection.join(' · ')}</Text>
+            </View>
+          )}
+
           {mergedHealthActivities
             .filter(activity => activity.id !== 'vacation')
             .map(activity => {
               const deltas = buildActivityDeltas(activity);
+              const activityPrice = priceOf(activity);
               const locked = !canPerformActivity(activity);
-              const lockReason = !canAfford(activity.price)
-                ? `Need $${activity.price}`
+              const lockReason = !canAfford(activityPrice)
+                ? `Need $${activityPrice}`
                 : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
                   ? `Need ${activity.energyCost} energy`
                   : undefined;
@@ -243,7 +282,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                   accent="vitality"
                   title={activity.name}
                   description={description}
-                  priceLabel={activity.price > 0 ? `$${activity.price}` : 'Free'}
+                  priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
                   deltas={deltas}
                   buttonText={locked ? 'Locked' : t('health.do')}
                   onPress={() => handleHealthActivityPress(activity)}
@@ -394,6 +433,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  protectionCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.35)',
+    backgroundColor: 'rgba(34, 197, 94, 0.10)',
+    borderRadius: scale(10),
+    padding: scale(10),
+    marginBottom: scale(10),
+    gap: scale(2),
+  },
+  protectionTitle: {
+    fontSize: fontScale(12),
+    fontWeight: '800',
+    color: '#22C55E',
+  },
+  protectionBody: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: 'rgba(148, 163, 184, 0.95)',
   },
   sectionTitle: {
     fontSize: fontScale(18),

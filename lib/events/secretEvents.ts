@@ -10,31 +10,23 @@
  */
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { netWorth } from '@/lib/progress/achievements';
 
-// Helper: calculate rough net worth
-const getNetWorth = (s: GameState): number => {
- const cash = s.stats?.money ?? 0;
- const bankBalance = s.bankSavings ?? 0;
- const holdings = Array.isArray(s.stocks) ? s.stocks : (s.stocks?.holdings ?? []);
- const stocks = Array.isArray(holdings)
- ? holdings.reduce(
- (sum: number, st: any) => sum + (st.shares ?? 0) * (st.currentPrice ?? 0),
- 0
- )
- : 0;
- const realEstate =
- Array.isArray(s.realEstate)
- ? s.realEstate.reduce((sum: number, r: any) => sum + (r.value ?? 0), 0)
- : 0;
- return cash + bankBalance + stocks + realEstate;
-};
+/**
+ * Net worth, from the CANONICAL implementation. This was a byte-identical copy
+ * of the same partial sum weeklyChallenges carried — cash + bank + stocks +
+ * realEstate only — so the "broke despite a long life" secret event fired on a
+ * different number than the one the player sees everywhere else.
+ * 2026-07-30 audit GP-2.
+ */
+const getNetWorth = (s: GameState): number => netWorth(s);
 
 const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
 
-const getAchievementCount = (s: GameState) =>
- Array.isArray(s.achievements)
- ? s.achievements.filter((a: any) => a.completed).length
- : 0;
+// Live store, not the deprecated `achievements[].completed` flag — that never
+// gets set in play, so every achievement-gated secret event was unreachable.
+// 2026-07-30 audit GP-3.
+const getAchievementCount = (s: GameState) => (s.claimedProgressAchievements || []).length;
 
 // ─── Secret event templates ──────────────────────────────────────
 

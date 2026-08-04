@@ -237,22 +237,51 @@ export const buyCompanyUpgrade = (
     return { success: false, message: `Need ${formatMoney(costOuter)} for this upgrade — you have ${formatMoney(gameState.stats.money)} (${formatMoney(costOuter - gameState.stats.money)} short).` };
   }
 
-  // Track whether the updater actually applied the upgrade (not stale/rejected)
-  let appliedLevel = currentLevelOuter + 1;
+  /**
+   * C-8. This used to be `let appliedLevel = currentLevelOuter + 1`, assigned
+   * inside the updater and read after it, with an unconditional
+   * `return { success: true, … }` at the bottom.
+   *
+   * The updater has FOUR rejection paths — the company vanished, the upgrade is
+   * already at max level against fresh state, the recomputed cost is invalid,
+   * or `prev` cannot afford the recomputed cost. Every one of them returned
+   * `prev` correctly and then fell through to "Successfully purchased X
+   * (Level 3/3)!". The money was right; only the player was misled — and on
+   * the max-level path they were told they had bought a level that does not
+   * exist.
+   *
+   * Captured pessimistically instead: the default is failure, so an updater
+   * that React discards, or never runs, reports a rejection rather than a
+   * phantom purchase. Same shape as `openAccount` and
+   * `purchaseVehicleWithAutoLoan`. CLAUDE.md §4.1 — a value assigned inside an
+   * updater is not reliably visible outside it, so the SUCCESS case has to be
+   * written from inside too, not merely the level number.
+   */
+  let result: { success: boolean; message: string } = {
+    success: false,
+    message: 'Could not purchase the upgrade.',
+  };
 
   // Update company with upgrade — all level/cost/bonus reads from fresh prev state
   setGameState(prev => {
     const companies = [...(prev.companies || [])];
     const freshIndex = companies.findIndex(c => c.id === targetId);
-    if (freshIndex === -1) return prev; // Company disappeared — bail out safely
+    if (freshIndex === -1) {
+      result = { success: false, message: 'Company not found.' };
+      return prev; // Company disappeared — bail out safely
+    }
     const companyToUpdate = companies[freshIndex];
 
     // STALE CLOSURE FIX: Read currentLevel from fresh prev state, not outer closure
     const freshExistingUpgrade = companyToUpdate.upgrades.find(u => u.id === upgradeId);
     const currentLevel = freshExistingUpgrade?.level || 0;
 
-    // Re-validate max level against fresh state
-    if (currentLevel >= upgradeDefinition.maxLevel) return prev;
+    // Re-validate max level against fresh state. This is the path a double-tap
+    // takes: the first tap lands, the second finds the upgrade already maxed.
+    if (currentLevel >= upgradeDefinition.maxLevel) {
+      result = { success: false, message: 'Upgrade is already at maximum level.' };
+      return prev;
+    }
 
     // Recalculate cost from fresh level
     const nextLevelCost = currentLevel === 0
@@ -264,11 +293,20 @@ export const buyCompanyUpgrade = (
     const innerDiscount = prev.settings?.businessBanking ? 0.15 : 0;
     const cost = Math.round(getInflatedPrice(nextLevelCost, freshPriceIndex) * (1 - innerDiscount));
 
-    if (!isFinite(cost) || cost < 0) return prev;
+    if (!isFinite(cost) || cost < 0) {
+      result = { success: false, message: 'Invalid upgrade cost' };
+      return prev;
+    }
 
     // Atomic: check affordability against fresh state
     const prevMoney = prev.stats?.money ?? 0;
-    if (prevMoney < cost) return prev;
+    if (prevMoney < cost) {
+      result = {
+        success: false,
+        message: `Need ${formatMoney(cost)} for this upgrade — you have ${formatMoney(prevMoney)} (${formatMoney(cost - prevMoney)} short).`,
+      };
+      return prev;
+    }
 
     // ECONOMY FIX: Diminishing returns to upgrade ROI
     // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
@@ -313,8 +351,12 @@ export const buyCompanyUpgrade = (
     };
     companies[freshIndex] = updated;
 
-    // Record the actual applied level for the return message
-    appliedLevel = currentLevel + 1;
+    // Success is written from HERE, not after the updater, so a rejected or
+    // discarded run cannot leave the optimistic default behind.
+    result = {
+      success: true,
+      message: `Successfully purchased ${upgradeDefinition.name} (Level ${currentLevel + 1}/${upgradeDefinition.maxLevel})!`,
+    };
 
     return {
       ...prev,
@@ -327,11 +369,10 @@ export const buyCompanyUpgrade = (
     };
   });
 
-  log.info(`Purchased upgrade ${upgradeDefinition.name} for company ${company.name}`);
-  return {
-    success: true,
-    message: `Successfully purchased ${upgradeDefinition.name} (Level ${appliedLevel}/${upgradeDefinition.maxLevel})!`
-  };
+  if (result.success) {
+    log.info(`Purchased upgrade ${upgradeDefinition.name} for company ${company.name}`);
+  }
+  return result;
 };
 
 

@@ -244,11 +244,15 @@ export const styles = StyleSheet.create({
  moneyChip: {
  flexDirection: 'row',
  alignItems: 'center',
- paddingHorizontal: 12,
- height: 28,
+ // PLAYER REPORT (1.4 bug-reports): "the money, savings, and diamonds (or gems)
+ // the font(or size) of them is very tiny". The pill's box was raw literals
+ // under a `fontScale()`d label, so it could not grow with the text it holds —
+ // see the note on `chipText`. Scaled so the taller text has somewhere to sit.
+ paddingHorizontal: scale(12),
+ height: scale(32),
  borderRadius: 999, // true pill
  flexShrink: 1, // Changed from 0 to allow shrinking on very small screens
- minWidth: 60, // Reduced from 70
+ minWidth: scale(64),
  overflow: 'hidden', // Prevent text overflow
  maxWidth: '100%', // Ensure chip doesn't exceed container
  // Subtle glass rim to match the app design language
@@ -267,8 +271,23 @@ export const styles = StyleSheet.create({
  chipText: {
  color: '#FFFFFF',
  fontWeight: '700',
- fontSize: responsiveFontSize.sm,
- lineHeight: 18,
+ /**
+  * PLAYER REPORT (1.4 bug-reports): "the money, savings, and diamonds (or
+  * gems) the font(or size) of them is very tiny".
+  *
+  * Measured before this: `responsiveFontSize.sm` is `fontScale(12)`, and
+  * `fontScale` clamps to [0.75, 1.25] on phones — so 12pt on a 375pt baseline
+  * and about 10pt on a 320pt device. That is caption size for the three
+  * headline numbers in the app, sitting in a 28pt pill with room to spare.
+  * `base` puts them at 14pt / ~12pt / ~16pt on a Pro Max.
+  *
+  * `lineHeight` was a RAW 18 under a scaled `fontSize`, which is the bug shape
+  * the round-3 pass found in `FirstWeekGuide`: on a tablet `fontScale` clamps
+  * at 1.6, so 14pt becomes 22pt inside an 18pt line box and the descenders
+  * clip. Scaled so the box always leads the glyphs.
+  */
+ fontSize: responsiveFontSize.base,
+ lineHeight: scale(20),
  flexShrink: 1, // Allow text to shrink if needed
  },
  // Small "+" badge on the gem chip — a static hint that the chip buys gems.

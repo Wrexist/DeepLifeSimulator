@@ -14,6 +14,7 @@ import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/u
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { industryColor, HUSTLE_COLORS } from '../styles/hustleTheme';
 import type { Company, HustleCompanyOverlay } from '@/contexts/game/types';
+import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 
 const INDUSTRY_ICON: Record<string, any> = {
   factory: Factory,
@@ -39,14 +40,31 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly }: Co
   const scandal = overlay?.activeScandal;
   const isPublic = overlay?.ipo?.status === 'public';
 
-  const weekly = company.weeklyIncome ?? 0;
+  // EFFECTIVE weekly income — what the player is actually paid — not the raw
+  // stored `weeklyIncome`.
+  //
+  // Three separate player reports (brand/share do nothing, key hires do
+  // nothing, acquisitions change nothing) were all this one line. Those four
+  // features feed `companyIncomeFactors`, which `calcWeeklyPassiveIncome`
+  // applies at PAYOUT; none of them writes `company.weeklyIncome`. So the card
+  // showed a number that could not move no matter what the player did — two
+  // restaurants at 10.8% and 32.9% share rendered identically.
+  const stored = company.weeklyIncome ?? 0;
   const base = company.baseWeeklyIncome ?? 0;
+  const factors = companyIncomeFactors(overlay);
+  const weekly = Math.round(stored * factors.multiplier);
   const lift = Math.max(0, weekly - base);
   const peak = Math.max(maxWeekly ?? weekly, weekly, 1);
   const revPct = Math.max(4, Math.min(100, (weekly / peak) * 100));
   const share = overlay?.marketSharePercent ?? 5;
   const campaigns = overlay?.activeCampaigns?.filter((c) => c.active).length ?? 0;
-  const cash = company.money ?? 0;
+  // Weekly payroll for the named-hire roster. Replaces the old "Cash" metric,
+  // which read `company.money` — a field `createCompany` never sets and nothing
+  // ever writes, so every company displayed CASH $0 for its entire life.
+  const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
+    (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
+    0,
+  );
 
   return (
     <Pressable
@@ -115,8 +133,10 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly }: Co
           <Text style={[styles.metricValue, { color: theme.text }]}>{share.toFixed(1)}%</Text>
         </View>
         <View style={styles.metric}>
-          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Cash</Text>
-          <Text style={[styles.metricValue, { color: theme.text }]}>${cash >= 1000 ? `${Math.round(cash / 1000)}K` : Math.round(cash)}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Payroll</Text>
+          <Text style={[styles.metricValue, { color: theme.text }]}>
+            {payroll > 0 ? `-$${payroll >= 1000 ? `${Math.round(payroll / 1000)}K` : Math.round(payroll)}` : '—'}
+          </Text>
         </View>
       </View>
 

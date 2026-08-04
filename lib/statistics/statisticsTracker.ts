@@ -448,8 +448,11 @@ export function getAchievementProgress(state: GameState): {
   total: number;
   percentage: number;
 } {
+  // Unlocked comes from the LIVE claimed store; the catalogue length is still
+  // the denominator. Counting `achievements[].completed` made this a permanent
+  // 0%. 2026-07-30 audit GP-3.
   const achievements = state.achievements || [];
-  const unlocked = achievements.filter(a => a.completed).length;
+  const unlocked = (state.claimedProgressAchievements || []).length;
   const total = achievements.length;
   
   return {

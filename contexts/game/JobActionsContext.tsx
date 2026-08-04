@@ -52,25 +52,34 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   useEffect(() => { stateRef.current = gameState; }, [gameState]);
 
   // Jobs & Careers Actions
+/**
+ * Pure criminal-XP application, with level-up carry.
+ *
+ * Extracted so `performJailActivity` can fold XP into its OWN updater rather
+ * than calling `gainCriminalXp` after it. That call sat outside the updater and
+ * was gated on `criminalXpToGain`, an outer variable assigned INSIDE it — so
+ * whenever React deferred the updater (any time another state update is already
+ * queued on the fiber) the variable was still 0 and the XP from Escape Attempt,
+ * Contraband Trade and Join a Gang was silently dropped. R3-C11.
+ */
+function applyCriminalXp(
+  state: GameState,
+  amount: number,
+): Pick<GameState, 'criminalXp' | 'criminalLevel'> {
+  const gain = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  if (gain <= 0) {
+    return { criminalXp: state.criminalXp || 0, criminalLevel: state.criminalLevel || 1 };
+  }
+  const newXp = (state.criminalXp || 0) + gain;
+  const nextLevelXp = (state.criminalLevel || 1) * 100;
+  if (newXp >= nextLevelXp) {
+    return { criminalXp: newXp - nextLevelXp, criminalLevel: (state.criminalLevel || 1) + 1 };
+  }
+  return { criminalXp: newXp, criminalLevel: state.criminalLevel || 1 };
+}
+
   const gainCriminalXp = useCallback((amount: number) => {
-    setGameState(prevState => {
-      const newXp = (prevState.criminalXp || 0) + amount;
-      const nextLevelXp = (prevState.criminalLevel || 1) * 100;
-      
-      if (newXp >= nextLevelXp) {
-        // Level up
-        return {
-          ...prevState,
-          criminalXp: newXp - nextLevelXp,
-          criminalLevel: (prevState.criminalLevel || 1) + 1,
-        };
-      }
-      
-      return {
-        ...prevState,
-        criminalXp: newXp,
-      };
-    });
+    setGameState(prevState => ({ ...prevState, ...applyCriminalXp(prevState, amount) }));
   }, [setGameState]);
 
   const gainCrimeSkillXp = useCallback((skillId: CrimeSkillId, amount: number) => {
@@ -131,6 +140,23 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       }
 
       if ((prevState.stats.money || 0) < cost) {
+        return prevState;
+      }
+
+      /**
+       * R3-C6: re-check "already unlocked" against `prev`.
+       *
+       * The level and money gates were re-checked here, but the
+       * already-unlocked gate lived entirely in the render-snapshot UI
+       * (`SkillTalentTree`'s `canUnlockNode`). Two taps on the unlock chevron in
+       * one React batch both read `status === 'available'`, both updaters
+       * passed, and the same node id was appended twice — charging $200 for one
+       * node and, worse, permanently burning TWO skill points, because
+       * `spentPoints = skill.upgrades.length`. With only `skillLevel - 1` points
+       * ever available and nothing that removes an entry from `upgrades`, that
+       * loss is unrecoverable. CLAUDE.md §4.4.
+       */
+      if ((skill.upgrades || []).includes(upgradeId)) {
         return prevState;
       }
 
@@ -436,13 +462,14 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
           : {}),
         // Mark escaped from jail for achievement tracking
         ...(success && activityId === 'escape_attempt' && willBeReleased && { escapedFromJail: true }),
+        // R3-C11: fold the XP into THIS updater. It used to be granted after,
+        // gated on `criminalXpToGain` — an outer variable assigned inside this
+        // very updater — so whenever React deferred the updater (any time
+        // another update is already queued on the fiber) the check read 0 and
+        // the XP was silently dropped.
+        ...(success && criminalXpToGain > 0 ? applyCriminalXp(prevState, criminalXpToGain) : {}),
       };
     });
-
-    // Apply criminal XP gain after state update
-    if (success && criminalXpToGain > 0) {
-      gainCriminalXp(criminalXpToGain);
-    }
 
     const message = resultMessage;
 
@@ -473,6 +500,22 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     setGameState(prevState => {
       // Compute bail from prevState to avoid stale closure — same shared helper
       // JailScreen uses for display, so the charge matches what the player saw.
+      /**
+       * F3: the player must still BE in jail.
+       *
+       * The cost and the affordability check were both already re-derived from
+       * `prevState` — but nothing re-checked `jailWeeks`. `JailScreen`'s Pay
+       * Bail button has no in-flight guard, so two taps in one React batch both
+       * ran: the first set `jailWeeks: 0` and charged, and the second charged
+       * AGAIN for a player who was already out. `computeBailCost` has a $500
+       * FLOOR and scales at 0.5% of net worth up to $250,000, so at zero weeks
+       * it still returns a real bill — up to a quarter of a million dollars for
+       * nothing. CLAUDE.md §4.4.
+       */
+      if ((prevState.jailWeeks || 0) <= 0) {
+        return prevState;
+      }
+
       const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
       if (!Number.isFinite(bailCost) || (prevState.stats.money || 0) < bailCost) {
         return prevState; // Invalid cost or insufficient funds at actual state — no-op

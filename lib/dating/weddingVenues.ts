@@ -183,6 +183,9 @@ export function createWeddingPlan(
     budget: calculateWeddingCost({ venueId, guestCount: actualGuestCount, ...options }),
     guestCount: actualGuestCount,
     scheduledWeek,
+    // R3-F6: the expiry clock measures from here. Without it, `scheduledWeek`
+    // is rewritten on every postponement and the 1-year forfeit never fires.
+    originalScheduledWeek: scheduledWeek,
     partnerId,
     catering: options.catering || false,
     photography: options.photography || false,

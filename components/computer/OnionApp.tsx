@@ -72,6 +72,7 @@ import {
 } from '@/contexts/game/actions/CrimeActions';
 import { JOB_TEMPLATES, stageSuccessProbability } from '@/lib/darkweb/jobs';
 import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
+import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
 
 // ---------------------------------------------------------------------------
 // Terminal design language (local — a deliberate single-look dark console
@@ -433,7 +434,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   const confirmIdentity = () => {
     Alert.alert(
       'Burn this identity?',
-      `This is permanent. ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC will be spent. ` +
+      // R3-C5: quote what will actually be spent, including the debt
+      // settlement, rather than the base cost the player cannot act on.
+      `This is permanent. ${idInfo.total.toFixed(2)} BTC will be spent` +
+        (idInfo.settle > 0 ? ` (${NEW_IDENTITY_COST_BTC.toFixed(2)} base + ${idInfo.settle.toFixed(2)} to settle ${idInfo.dropped} loan${idInfo.dropped === 1 ? '' : 's'})` : '') +
+        `. ` +
         `Heat resets, buyer rep resets, all loans + credit cards close, ` +
         `credit score drops to 580, and ${(dw.activeJobs ?? []).length} active job${(dw.activeJobs ?? []).length === 1 ? '' : 's'} will be dropped.`,
       [
@@ -611,7 +616,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const rep = dw.playerReputation ?? 0;
     const access = rep >= 35 ? 'common+pro+elite' : rep >= 10 ? 'common+pro' : 'common';
     const band = heatBand(dw.heat ?? 0);
-    const raidRisk = policeEventProbability(dw.heat ?? 0) * 100;
+    // R3-C8: this printed P(any police event), but the raid — the only branch
+    // that jails you — is a sub-roll worth `RAID_SHARE_OF_POLICE_EVENTS` of
+    // them. At heat 80+ the label read 40%/wk against a real ~10%, so a player
+    // managing heat was working from a number 4x too high.
+    const raidRisk = policeEventProbability(dw.heat ?? 0) * RAID_SHARE_OF_POLICE_EVENTS * 100;
     const opsecLvl = dw.skills.opsec?.level ?? 1;
     const weeklyDecay = Math.max(0, Math.round((dw.heat ?? 0) - decayHeat(dw.heat ?? 0, opsecLvl)));
     const listings = dw.listings ?? [];
@@ -835,7 +844,15 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const pendingCount = laundering.filter((t) => t.status === 'pending').length;
     const launderLvl = dw.skills.laundering?.level ?? 1;
     const fronts = countLaunderingFronts(gameState);
-    const canId = btcOwned >= NEW_IDENTITY_COST_BTC;
+    // R3-C5: gate on the TOTAL, not the base cost. `acquireNewIdentity`
+    // charges `NEW_IDENTITY_COST_BTC + (dischargedUnsecuredPrincipal * 0.8) /
+    // btcPrice` and returns `prev` (log-only) when the player cannot cover it —
+    // and it returns void, so nothing surfaced the refusal. With the button
+    // gated on the base cost alone, a player carrying student debt (typed
+    // 'personal', so it counts as discharged principal) tapped "Burn it" and
+    // nothing at all happened: no alert, no state change. `idInfo.total` is
+    // computed a few hundred lines up and already rendered in the panel.
+    const canId = btcOwned >= idInfo.total;
 
     const hexRow = (offset: string, label: string, value: string, tag: string, valueColor: string) => (
       <Text key={offset} style={styles.hexLine} numberOfLines={1}>
@@ -961,7 +978,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             </Text>
           </View>
           <BracketButton
-            label={canId ? 'ACQUIRE NEW IDENTITY' : `NEED ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC`}
+            label={canId ? 'ACQUIRE NEW IDENTITY' : `NEED ${idInfo.total.toFixed(2)} BTC`}
             tone="solid"
             loud
             full

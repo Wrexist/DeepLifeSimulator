@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { askRentOverage } from '@/lib/realEstate/askRentGuidance';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert } from 'react-native';
 import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { maintenanceCost } from '@/lib/realEstate/operations';
 import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/housing';
@@ -91,7 +93,13 @@ export default function ManagePropertyModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -100,7 +108,7 @@ export default function ManagePropertyModal({
                 Value {formatMoney(value)} · Equity {formatMoney(equity)} · Cond. {Math.round(property.condition ?? 90)}%
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -145,6 +153,20 @@ export default function ManagePropertyModal({
                 <Text style={[styles.inputSuffix, { color: theme.textMuted }]}>/wk</Text>
               </View>
 
+              {/* An over-ask is accepted and then clamped by `effectiveAskRent`
+                  at payout. Stating the collectable amount only when the ask
+                  exceeds the cap keeps this out of the way on a normal ask —
+                  a warning shown every time is noise. */}
+              {(() => {
+                const over = askRentOverage(rent, value);
+                if (!over) return null;
+                return (
+                  <Text style={[styles.capNote, { color: accent.warning }]}>
+                    Tenants top out at ${Math.round(over.collected).toLocaleString()}/wk for this property — asking more collects the same.
+                  </Text>
+                );
+              })()}
+
               <View style={styles.btnRow}>
                 <TouchableOpacity
                   disabled={rent <= 0}
@@ -169,7 +191,13 @@ export default function ManagePropertyModal({
                     Current tenant: <Text style={{ color: theme.text, fontWeight: '700' }}>{property.tenant.name}</Text> (
                     sat {Math.round(property.tenant.satisfaction)}%)
                   </Text>
-                  <TouchableOpacity onPress={onEvict} hitSlop={10}>
+                  <TouchableOpacity
+                    onPress={onEvict}
+                    style={minTouchTargetStyle}
+                    hitSlop={hitSlopToMinTarget(scale(14))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Evict the tenant"
+                  >
                     <Trash2 size={scale(14)} color={accent.danger} />
                   </TouchableOpacity>
                 </View>
@@ -389,6 +417,7 @@ const styles = StyleSheet.create({
   },
   inputPrefix: { fontSize: responsiveFontSize.md, fontWeight: '700' },
   inputSuffix: { fontSize: responsiveFontSize.xs },
+  capNote: { fontSize: responsiveFontSize.xs, marginTop: responsiveSpacing.xs, lineHeight: responsiveFontSize.md },
   input: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600', paddingVertical: responsiveSpacing.sm },
   btnRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
   btn: { flex: 1, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.lg, alignItems: 'center' },

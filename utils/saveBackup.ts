@@ -9,7 +9,7 @@ import {
   verifySaveData,
   verifySaveEnvelopeData,
 } from './saveValidation';
-import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
+import { safeSetItem, safeSetItemResult, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
 
 const BACKUP_PREFIX = 'save_backup_';
 const PROTECTED_STATE_PREFIX = 'protected_state_';
@@ -226,7 +226,9 @@ export async function updateProtectedState(slot: number, gameState: any): Promis
       // Permanent achievements
       permanentAchievements: [
         ...(existing?.permanentAchievements || []),
-        ...(gameState.achievements?.filter((a: any) => a.completed && a.permanent).map((a: any) => a.id) || []),
+        // Live claimed store; the `completed` flag is never set in play, so this
+        // list was always empty. GP-3.
+        ...((gameState as { claimedProgressAchievements?: string[] }).claimedProgressAchievements || []),
       ].filter((v, i, a) => a.indexOf(v) === i), // Unique
       lastUpdated: now,
     };
@@ -428,6 +430,37 @@ export async function canRestoreBackup(
 }
 
 /**
+ * Is an automatic backup throttled right now? Cheap enough to call FIRST.
+ *
+ * The 60-second throttle used to be the first statement inside `createBackup` —
+ * i.e. after `createBackupFromState` had already run `JSON.stringify(state)`,
+ * a CRC32 over the whole string and a pure-JS HMAC-SHA256 over it again. With
+ * 155 `saveGame` call sites, every save within a minute of the last backup paid
+ * that entire cost and then threw the result away. On a late-game save that is
+ * hundreds of milliseconds of JS-thread work per discarded backup.
+ *
+ * It also read the newest timestamp via `listBackups`, which `safeGetItem`s and
+ * `JSON.parse`s EVERY backup blob for the slot (up to 5, each holding a full
+ * save envelope) just to look at `metadata.timestamp`. This reads one small
+ * key instead, and only falls back to `listBackups` when that key is absent —
+ * a save from before this key was maintained. 2026-07-30 audit PERF-1.
+ */
+async function isAutoBackupThrottled(slot: number): Promise<boolean> {
+  try {
+    const stamp = await safeGetItem(`${LAST_BACKUP_PREFIX}${slot}`);
+    if (stamp) {
+      const last = parseInt(stamp, 10);
+      if (Number.isFinite(last)) return Date.now() - last < MIN_BACKUP_INTERVAL_MS;
+    }
+    const [newest] = await listBackups(slot);
+    return !!newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS;
+  } catch {
+    // Never let the throttle check itself block a backup.
+    return false;
+  }
+}
+
+/**
  * Record backup creation time for rate limiting
  */
 async function recordBackupTime(slot: number): Promise<void> {
@@ -474,6 +507,24 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
  * `preparsed` lets a caller that already holds both the state object and the
  * canonical envelope skip the decode + re-encode round trip entirely.
  */
+/**
+ * Monotonic suffix so two backups written in the same millisecond cannot
+ * collide.
+ *
+ * The id was `save_backup_${slot}_${Date.now()}`, so a backup created in the
+ * same millisecond as another silently OVERWROTE it — including its `reason`.
+ * That is how a rotation-exempt snapshot (`before_overwrite`, `before_prestige`)
+ * could be replaced by a routine one and then evicted: exactly the copy the
+ * generational-retention work exists to protect. CI caught it as a flaky
+ * assertion; the flake was the bug.
+ */
+let backupIdSequence = 0;
+
+function nextBackupId(slot: number, timestamp: number): string {
+  backupIdSequence = (backupIdSequence + 1) % 1_000_000;
+  return `${BACKUP_PREFIX}${slot}_${timestamp}_${backupIdSequence.toString(36)}`;
+}
+
 export async function createBackup(
   slot: number,
   data: string,
@@ -486,16 +537,13 @@ export async function createBackup(
     // saveGame call sites — wrote a backup and rotated. Five entries deep, that
     // made the whole recovery history a few minutes long. Deliberate snapshots
     // (manual, before_overwrite, before_prestige…) are never throttled.
-    if (reason === 'auto_save') {
-      const [newest] = await listBackups(slot);
-      if (newest && Date.now() - newest.timestamp < MIN_BACKUP_INTERVAL_MS) return null;
-    }
+    if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
 
     const { state, canonicalSaveData } = preparsed ?? normalizeBackupPayload(data);
     const canonicalChecksum = calculateChecksum(canonicalSaveData);
     const canonicalHmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
-    const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
+    const backupId = nextBackupId(slot, timestamp);
     
     const gameInfo = extractGameInfo(state);
     
@@ -513,12 +561,39 @@ export async function createBackup(
       } as BackupMetadata
     };
 
-    await safeSetItem(backupId, JSON.stringify(backupData));
+    // CHECK THE RETURN. `safeSetItem` does NOT throw on a full device — it
+    // catches the quota error, tries its own cleanup, and returns `false`. So
+    // the quota branch in the catch below was unreachable dead code, and this
+    // path did all three of the wrong things on a device that could not store
+    // the backup: logged "Created backup", ROTATED (evicting a real, existing
+    // backup to make room for nothing), and returned an id for a key that does
+    // not exist. The recovery tier reported success while destroying recovery
+    // points. Found by the quota-retry regression test.
+    const write = await safeSetItemResult(backupId, JSON.stringify(backupData));
+    if (!write.ok) {
+      // Branch on the CAUSE. The catch below responds to a quota error by
+      // deleting backups across EVERY slot down to one apiece; running that
+      // after a transient I/O blip destroys recovery points for no reason. Only
+      // a confirmed quota failure earns the cleanup-and-retry path — anything
+      // else returns null, so the caller learns the backup did not land and
+      // rotation never runs.
+      if (write.quotaExceeded) {
+        const quotaError: Error & { name: string } = new Error(`Storage quota rejected backup ${backupId}`);
+        quotaError.name = 'QuotaExceededError';
+        throw quotaError;
+      }
+      logger.error(`Backup for slot ${slot} was rejected by storage; not rotating`);
+      return null;
+    }
+    // Maintain the cheap throttle stamp so `isAutoBackupThrottled` never has to
+    // fall back to parsing every backup blob.
+    await recordBackupTime(slot);
     logger.info(`Created backup for slot ${slot}: ${backupId} (${reason})`);
-    
-    // Rotate backups to keep only the latest ones
+
+    // Rotate backups to keep only the latest ones. Only ever after a CONFIRMED
+    // write — rotating for a backup that did not land is a pure net loss.
     await rotateBackups(slot);
-    
+
     return backupId;
   } catch (error: any) {
     // Handle quota exceeded error by cleaning up old backups and retrying
@@ -586,7 +661,11 @@ export async function createBackup(
         // Retry creating the backup after cleanup
         try {
           const retryTimestamp = Date.now();
-          const retryBackupId = `${BACKUP_PREFIX}${slot}_${retryTimestamp}`;
+          // Through `nextBackupId`, not the raw template: this retry runs in the
+          // same millisecond as the write that just failed, so a bare
+          // `${slot}_${timestamp}` id is the MOST likely of all of them to
+          // collide with a live backup and overwrite its `reason`.
+          const retryBackupId = nextBackupId(slot, retryTimestamp);
 
           // Re-derive from the original data parameter (same as outer scope)
           const retryPayload = normalizeBackupPayload(data);
@@ -609,7 +688,10 @@ export async function createBackup(
             } as BackupMetadata
           };
 
-          await safeSetItem(retryBackupId, JSON.stringify(retryBackupData));
+          if (!(await safeSetItem(retryBackupId, JSON.stringify(retryBackupData)))) {
+            logger.error(`Backup for slot ${slot} still rejected by storage after cleanup`);
+            return null;
+          }
           logger.info(`Created backup for slot ${slot} after cleanup: ${retryBackupId} (${reason})`);
           return retryBackupId;
         } catch (retryError) {
@@ -653,9 +735,14 @@ export async function createBackupFromState(
   reason: string
 ): Promise<string | null> {
   try {
-    // Yield first: the caller (auto-save, onboarding) is on the JS thread and
-    // does not await the result, so the stringify below should not run in the
-    // same frame. Same idiom as the save queue's pre-serialize yield.
+    // THROTTLE FIRST, serialize second. Everything below — stringify, CRC32,
+    // HMAC — is wasted work when `createBackup` is about to refuse this backup
+    // for being inside the 60-second window. See `isAutoBackupThrottled`.
+    if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
+
+    // Yield: the caller (auto-save, onboarding) is on the JS thread and does not
+    // await the result, so the stringify below should not run in the same frame.
+    // Same idiom as the save queue's pre-serialize yield.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     const stateJson = JSON.stringify(state);
     const canonicalSaveData = createSaveEnvelope(stateJson);
@@ -943,7 +1030,7 @@ export async function createManualBackup(
     const checksum = calculateChecksum(canonicalSaveData);
     const hmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
-    const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
+    const backupId = nextBackupId(slot, timestamp);
     
     const backupData = {
       data: canonicalSaveData,
@@ -960,15 +1047,21 @@ export async function createManualBackup(
       }
     };
     
-    await safeSetItem(backupId, JSON.stringify(backupData));
+    // Same unchecked-write bug as `createBackup`, and worse here: this is the
+    // player DELIBERATELY asking to protect a moment. It reported success and
+    // rotated — evicting a real backup — while storing nothing.
+    if (!(await safeSetItem(backupId, JSON.stringify(backupData)))) {
+      logger.error(`Manual backup for slot ${slot} was rejected by storage`);
+      return { success: false, error: 'Not enough storage space to save this backup. Free up space and try again.' };
+    }
 
     // Record backup time for rate limiting
     await recordBackupTime(slot);
     logger.info(`Created manual backup for slot ${slot}: ${backupId}${label ? ` (${label})` : ''}`);
-    
-    // Rotate backups to keep only the latest ones
+
+    // Only after a confirmed write — see createBackup.
     await rotateBackups(slot);
-    
+
     return { success: true, backupId };
   } catch (error: any) {
     logger.error(`Failed to create manual backup for slot ${slot}`, error);

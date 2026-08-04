@@ -18,6 +18,7 @@ import { styles } from '@/components/SicknessModalStyles';
 import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS, isManageableDisease } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
+import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
 
@@ -33,12 +34,34 @@ function SicknessModal() {
   
   // Safely get money with default value - access directly from gameState
   const playerMoney = gameState?.stats?.money ?? 0;
-  
+
+  /**
+   * GL-3: the treatment prices, from the catalogue and after enacted
+   * healthcare policy — the same figures `performHealthActivity` charges.
+   *
+   * These were hardcoded 500 and 2000 in five places: the two `disabled`
+   * gates, the two gradient colours, and the two price labels. That already
+   * risked drifting from `healthActivities`, and once policy discounts the
+   * real charge it also disables a button the player CAN afford — a player
+   * with $1,600 and a 50% healthcare policy was refused a hospital stay that
+   * now costs $1,000.
+   */
+  const treatmentPrice = (activityId: string, fallback: number): number => {
+    const listed = gameState?.healthActivities?.find(a => a.id === activityId)?.price;
+    return policyAdjustedActivityPrice(
+      gameState,
+      activityId,
+      typeof listed === 'number' && Number.isFinite(listed) ? listed : fallback,
+    );
+  };
+  const doctorPrice = treatmentPrice('doctor', 500);
+  const hospitalPrice = treatmentPrice('hospital', 2000);
+
   // Debug logging for button state - development only
   useEffect(() => {
     if (__DEV__ && isVisible && diseases && diseases.length > 0) {
-      const doctorDisabled = playerMoney < 500 || isClosing || !performHealthActivity;
-      const hospitalDisabled = playerMoney < 2000 || isClosing || !performHealthActivity;
+      const doctorDisabled = playerMoney < doctorPrice || isClosing || !performHealthActivity;
+      const hospitalDisabled = playerMoney < hospitalPrice || isClosing || !performHealthActivity;
 
       logger.info('[SicknessModal] Button state:', {
         playerMoney,
@@ -394,11 +417,11 @@ function SicknessModal() {
                         setIsClosing(false);
                       }
                     }}
-                    disabled={playerMoney < 500 || isClosing || !performHealthActivity}
+                    disabled={playerMoney < doctorPrice || isClosing || !performHealthActivity}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={playerMoney >= 500 
+                      colors={playerMoney >= doctorPrice 
                         ? ['rgba(59, 130, 246, 0.7)', 'rgba(37, 99, 235, 0.8)'] 
                         : ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']}
                       start={{ x: 0, y: 0 }}
@@ -407,7 +430,7 @@ function SicknessModal() {
                     >
                       <Stethoscope size={20} color="#FFFFFF" />
                       <Text style={styles.treatmentButtonText}>Visit Doctor</Text>
-                      <Text style={styles.treatmentButtonPrice}>$500</Text>
+                      <Text style={styles.treatmentButtonPrice}>${doctorPrice.toLocaleString()}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -430,11 +453,11 @@ function SicknessModal() {
                         setIsClosing(false);
                       }
                     }}
-                    disabled={playerMoney < 2000 || isClosing || !performHealthActivity}
+                    disabled={playerMoney < hospitalPrice || isClosing || !performHealthActivity}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={playerMoney >= 2000 && !isClosing
+                      colors={playerMoney >= hospitalPrice && !isClosing
                         ? ['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)']
                         : ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']}
                       start={{ x: 0, y: 0 }}
@@ -443,7 +466,7 @@ function SicknessModal() {
                     >
                       <Heart size={20} color="#FFFFFF" />
                       <Text style={styles.treatmentButtonText}>Hospital Stay</Text>
-                      <Text style={styles.treatmentButtonPrice}>$2,000</Text>
+                      <Text style={styles.treatmentButtonPrice}>${hospitalPrice.toLocaleString()}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>

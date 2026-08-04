@@ -305,8 +305,11 @@ export function runExam(
   // Base pass chance: 60%
   let passChance = 0.60;
 
-  // Study group bonus: +15%
-  if (hasStudyGroup) passChance += 0.15;
+  // Study group bonus. Read from the constant rather than repeating 0.15:
+  // three of STUDY_GROUP_BENEFITS' four values were shadowed by magic numbers
+  // like this one, so editing the constant changed nothing (C-12). Declared
+  // below in module order, which is fine — this runs at call time, not init.
+  if (hasStudyGroup) passChance += STUDY_GROUP_BENEFITS.examBonus;
 
   // Energy bonus: +10% if above 50, -10% if below 30
   if (currentEnergy >= 50) passChance += 0.10;

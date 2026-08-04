@@ -16,14 +16,18 @@ import {
   setStudyGroup as setStudyGroupPure,
   withdraw as withdrawPure,
 } from '@/lib/education/operations';
-import { mapClassIdsToEnrolled, STUDY_GROUP_JOIN_COST } from '@/lib/education/educationSystem';
+import {
+  mapClassIdsToEnrolled,
+  STUDY_GROUP_BENEFITS,
+  STUDY_GROUP_JOIN_COST,
+} from '@/lib/education/educationSystem';
 import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { highestGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { trackBudgetSpend } from '@/lib/banking/operations';
-import { politicsAprReduction } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 
 const log = logger.scope('EducationActions');
 
@@ -37,26 +41,62 @@ const STUDENT_LOAN_TERM_WEEKS = 10 * 52;
  */
 const MAX_STUDY_SESSIONS_PER_WEEK = 3;
 
-/** Read politics' education perk effects. */
+const NO_EDUCATION_PERKS = { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
+
+/** Upper bounds for persisted education-policy effects (corrupt-save guards). */
+const MAX_POLICY_WEEKS_REDUCTION = 26;
+const MAX_POLICY_SCHOLARSHIP_USD = 500_000;
+
+/**
+ * Read politics' education effects — from the object that actually carries them.
+ *
+ * This used to call `getCombinedPerkEffects(careerLevel)` and read
+ * `effects.education.*`. That object has exactly six keys — loanInterestReduction,
+ * businessIncomeBonus, realEstateTaxBreak, socialMediaFollowerBonus,
+ * unlockExclusiveOpportunities, governmentContracts — and `PoliticalPerk['effects']`
+ * has no education member at all, so no perk could ever contribute one. Every
+ * read was `undefined`, every value 0, for every player who has ever held office:
+ * the "Politics fast-track −Nw" row in `EnrollModal` could not render, and
+ * `quoteScholarship` was always called with a zero discount and zero scholarship.
+ *
+ * It type-checked only because the module came in through `require()`, which
+ * degrades to `any` — the exact hazard CLAUDE.md §5 warns about. Hence the
+ * static import now.
+ *
+ * The real numbers are aggregated into `politics.activePolicyEffects.education`
+ * by `enactPolicy`, and nothing read them — the five education policies
+ * (up to $200,000 each) bought an approval bump and nothing else.
+ * 2026-07-30 audit GL-2 / GL-3.
+ *
+ * UNIT CONVERSION: policies express `costReduction` as a PERCENT clamped to 50
+ * (`policies.ts:39`, "Percentage reduction (0-50%)"), while `quoteScholarship`
+ * multiplies tuition by it as a FRACTION (`scholarships.ts:73`). Passing the raw
+ * value would have discounted 20% tuition to zero.
+ */
 function politicsEducationPerks(state: GameState): {
   weeksReduction: number;
   costReduction: number;
   scholarshipAmount: number;
 } {
-  const careerLevel = state.politics?.careerLevel ?? 0;
-  if (!careerLevel) return { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getCombinedPerkEffects } = require('@/lib/politics/perks');
-    const effects = getCombinedPerkEffects(careerLevel);
-    return {
-      weeksReduction: Math.max(0, Math.floor(effects?.education?.weeksReduction ?? 0)),
-      costReduction: Math.max(0, Math.min(1, effects?.education?.costReduction ?? 0)),
-      scholarshipAmount: Math.max(0, effects?.education?.scholarshipAmount ?? 0),
-    };
-  } catch {
-    return { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
-  }
+  const education = state.politics?.activePolicyEffects?.education;
+  if (!education) return { ...NO_EDUCATION_PERKS };
+
+  // `Number(Infinity) || 0` is Infinity, so a malformed persisted value would
+  // produce an instant degree or free tuition. Every field goes through a
+  // finite check and a bound.
+  const finite = (v: unknown, max: number): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
+  };
+  const pct = Number(education.costReduction);
+  return {
+    // No policy grants more than a handful of weeks; bound it well clear of a
+    // full programme so a corrupt save cannot skip a degree.
+    weeksReduction: Math.floor(finite(education.weeksReduction, MAX_POLICY_WEEKS_REDUCTION)),
+    // percent -> fraction, then clamped to the same [0, 1] band as before.
+    costReduction: Math.max(0, Math.min(1, (Number.isFinite(pct) ? pct : 0) / 100)),
+    scholarshipAmount: finite(education.scholarshipAmount, MAX_POLICY_SCHOLARSHIP_USD),
+  };
 }
 
 /**
@@ -139,9 +179,15 @@ export const enrollInProgram = (
     // Build new loan if mode === 'loan' AND netCost > 0.
     let newLoans = prev.loans ?? [];
     if (spec.mode === 'loan' && netCost > 0) {
-      const aprAdjustment = -politicsAprReduction(prev);
+      const politicsReduction = politicsAprReduction(prev);
+      const aprAdjustment = -politicsReduction;
       const baseAPR = 0.06; // student loan baseline 6%
-      const offeredAPR = Math.max(0.025, baseAPR + aprAdjustment);
+      // R3-M2 completion: this site was missed. A student loan does not hand
+      // the player cash, but it frees the cash that would have paid tuition —
+      // so a 2.5% student loan funding a 5.5% CD is the same risk-free carry
+      // the floor exists to close.
+      const studentAprFloor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+      const offeredAPR = Math.max(studentAprFloor, baseAPR + aprAdjustment);
       const weeklyPayment = calculatePeriodicPayment(netCost, offeredAPR, STUDENT_LOAN_TERM_WEEKS);
       const loan: Loan = {
         id: `loan-student-${prev.weeksLived}-${loanIdSuffix}`,
@@ -210,6 +256,8 @@ export const enrollInProgram = (
       stats: { ...prev.stats, money: newMoney },
       educations: result.educations,
       loans: newLoans,
+      // A student loan is debt. See `debtProgress`.
+      ...debtProgress(prev, newLoans.length > (prev.loans ?? []).length),
     };
   });
 };
@@ -331,7 +379,23 @@ export const studyExtra = (
         ...(prev.weeklyStudySessions ?? {}),
         [educationId]: sessionsThisWeek + 1,
       },
-      educations: applyStudySession(prev.educations ?? [], educationId, 1),
+      /**
+       * C-12. `STUDY_GROUP_BENEFITS.extraProgress` has documented "+1 extra
+       * week progress per study action" since the constant was written, and
+       * `applyStudySession` has always taken a `progressBoost` parameter for
+       * exactly this — but every caller passed a literal 1, so the constant was
+       * never read by anything. Half a feature, fully plumbed, never connected.
+       *
+       * Bounded by the same `MAX_STUDY_SESSIONS_PER_WEEK` cap as before: a
+       * study-group member gets 6 weeks of progress per game week from studying
+       * rather than 3, for 45 energy, 15 happiness, the group's own -3
+       * energy/week and its one-off join fee. It cannot be farmed past the cap.
+       */
+      educations: applyStudySession(
+        prev.educations ?? [],
+        educationId,
+        1 + (ed.studyGroupActive ? STUDY_GROUP_BENEFITS.extraProgress : 0),
+      ),
     };
   });
 };

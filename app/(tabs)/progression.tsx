@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
+import { useAchievements } from '@/hooks/useAchievements';
 import {
   Trophy,
   Target,
@@ -52,7 +53,8 @@ function ProgressionScreen() {
 }
 
 export function ProgressionScreenContent({ embedded = false }: { embedded?: boolean }) {
-  const { gameState, checkAchievements } = useGame();
+  const { gameState } = useGame();
+  const { achievements: liveAchievements } = useAchievements();
   const { settings } = gameState;
   const insets = useSafeAreaInsets();
   const legacyClaimable = getClaimableCount(gameState.legacyPass);
@@ -77,28 +79,28 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
     if (params?.openPass === '1') setShowLegacyPass(true);
   }, [params?.openPass]);
 
-  // P2-7: depend on PRIMITIVES, not object/array references. Under the current
-  // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on
-  // every save (every stat-decay tick), so the object deps re-ran the full
-  // achievement sweep many times per second while this tab was open.
-  const achievementSignal = [
-    gameState.stats?.money,
-    gameState.stats?.happiness,
-    gameState.stats?.health,
-    gameState.relationships?.length,
-    gameState.items?.length,
-    gameState.educations?.length,
-    gameState.company?.id,
-    gameState.weeksLived,
-  ].join('|');
-  React.useEffect(() => {
-    checkAchievements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [achievementSignal]);
+  // (Removed: a `checkAchievements()` effect keyed to a per-render
+  // `achievementSignal` string. It called `evaluateAchievements`, which is an
+  // explicitly documented no-op returning [], and discarded the result — so it
+  // fired on every money/health/relationship/item/week change to do nothing.
+  //
+  // Its P2-7 comment was the real cost: it defended tuning "the full
+  // achievement sweep" that GP-3 had already replaced with the live store read
+  // below, which tells the next reader the effect is load-bearing and
+  // expensive. `checkAchievements` remains on the context — featureGauntlet
+  // asserts it survives a minimal state — only this dead call site is gone.)
 
-  const achievements = (gameState.achievements || []).filter(a => a.category !== 'secret');
-  const completedAchievements = achievements.filter(a => a.completed).length;
-  const totalAchievements = achievements.length;
+  // Read the LIVE achievement store, not `gameState.achievements[].completed`.
+  //
+  // That array ships 52 entries all `completed: false`, and the only writer of
+  // `completed: true` anywhere in the repo is one `luxury_life` special case —
+  // `evaluateAchievements` is an explicitly documented no-op. So this headline
+  // read "0/42 · 0% complete" for the entire game, forever. Same defect and
+  // same fix as lib/careers/advancedCareers.ts, whose comment records that
+  // every achievement-gated career was permanently locked for the same reason.
+  // 2026-07-30 audit GP-3.
+  const completedAchievements = liveAchievements.filter(a => a.claimed).length;
+  const totalAchievements = liveAchievements.length;
   const completionPct = totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0;
 
   // Prestige + Legacy Pass hero data.

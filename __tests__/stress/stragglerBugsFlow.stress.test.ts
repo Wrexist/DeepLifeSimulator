@@ -37,6 +37,7 @@ import {
   perksForTier,
 } from '@/lib/dating/sparkLogic';
 import { createTestGameState } from '../helpers/createTestGameState';
+import type { DatingProfile } from '@/lib/dating/datingProfiles';
 import type { RealEstate } from '@/contexts/game/types';
 
 // ---------------------------------------------------------------------------
@@ -303,11 +304,27 @@ describe('Housing weekly tick', () => {
 // Spark dating logic — pin invariants
 // ---------------------------------------------------------------------------
 describe('Spark dating logic', () => {
-  const baseProfile = {
+  // Annotated, not inferred. This literal used to carry `wealth: 'middle' as
+  // const` — a tier that does not exist. `DatingProfile['wealth']` is
+  // poor | average | wealthy | millionaire, and BOTH functions under test read
+  // it only by comparing against 'millionaire' / 'wealthy', so every
+  // wealth-dependent branch was unreachable from this fixture:
+  //
+  //   calculateMatchProbability  — the ×0.4 and ×0.7 pickiness multipliers
+  //   calculateCatfishProbability — incomeMismatch, wealthMismatch, and the
+  //                                 no-photos-millionaire bump
+  //
+  // The catfish test below therefore covered exactly one of that function's
+  // four suspicion signals while reading as though it covered the function.
+  // Annotating the type is what stops it drifting back: an invalid tier now
+  // fails HERE rather than at each call site, where it had been surviving as a
+  // structural mismatch nobody was compiling.
+  const baseProfile: DatingProfile = {
     id: 'pf1', name: 'Test', age: 25, photos: ['photo1'],
-    bio: 'normal bio', interests: ['movies'],
-    job: 'Engineer', income: 50_000, wealth: 'middle' as const,
-    personality: 'friendly' as const,
+    bio: 'normal bio', interests: ['movies'], distance: 5,
+    job: 'Engineer', income: 50_000, wealth: 'average',
+    personality: 'friendly', gender: 'female', seekingGender: 'male',
+    education: 'Bachelors',
   };
 
   it('calculateMatchProbability: clamps to [0.05, 0.95]', () => {
@@ -329,10 +346,57 @@ describe('Spark dating logic', () => {
     expect(Number.isFinite(p)).toBe(true);
   });
 
+  it('calculateMatchProbability: rich NPCs are pickier when the player is broke', () => {
+    // The ×0.4 / ×0.7 multipliers, unreachable while the fixture claimed a
+    // 'middle' tier. Reputation is pinned so the ONLY difference between the
+    // three readings is the tier — otherwise the base rate would move too and
+    // the ordering would prove nothing.
+    const broke = createTestGameState({ stats: { reputation: 50, money: 100 } });
+    const p = (wealth: DatingProfile['wealth']) =>
+      calculateMatchProbability(broke, { ...baseProfile, wealth });
+
+    expect(p('millionaire')).toBeLessThan(p('wealthy'));
+    expect(p('wealthy')).toBeLessThan(p('average'));
+  });
+
+  it('calculateMatchProbability: the pickiness lifts once the player is rich (the control)', () => {
+    // Proves the multipliers are gated on money rather than being a flat
+    // penalty on the tier — a rich player sees no millionaire discount at all.
+    const rich = createTestGameState({ stats: { reputation: 50, money: 1_000_000 } });
+    expect(calculateMatchProbability(rich, { ...baseProfile, wealth: 'millionaire' }))
+      .toBe(calculateMatchProbability(rich, { ...baseProfile, wealth: 'average' }));
+  });
+
   it('calculateCatfishProbability: scam-y bios get higher score', () => {
     const cleanBio = calculateCatfishProbability({ ...baseProfile, bio: 'love hiking' });
     const scamBio = calculateCatfishProbability({ ...baseProfile, bio: 'send me cashapp invest crypto sugar' });
     expect(scamBio).toBeGreaterThan(cleanBio);
+  });
+
+  it('calculateCatfishProbability: a millionaire on an average salary is suspicious', () => {
+    // incomeMismatch — one of the three signals the 'middle' tier had made
+    // dead. baseProfile earns 50k, well under the 100k threshold.
+    const honest = calculateCatfishProbability({ ...baseProfile, wealth: 'average' });
+    const mismatch = calculateCatfishProbability({ ...baseProfile, wealth: 'millionaire' });
+    expect(mismatch).toBeGreaterThan(honest);
+  });
+
+  it('calculateCatfishProbability: a millionaire Student is more suspicious still', () => {
+    // wealthMismatch stacks on top of incomeMismatch.
+    const millionaire = { ...baseProfile, wealth: 'millionaire' as const };
+    expect(calculateCatfishProbability({ ...millionaire, job: 'Student' }))
+      .toBeGreaterThan(calculateCatfishProbability(millionaire));
+  });
+
+  it('calculateCatfishProbability: stays capped at 0.65 with every flag lit', () => {
+    expect(calculateCatfishProbability({
+      ...baseProfile,
+      wealth: 'millionaire',
+      job: 'Student',
+      income: 1,
+      photos: [],
+      bio: 'send me cashapp invest crypto sugar',
+    })).toBe(0.65);
   });
 
   it('swipesRemaining: returns 0 when no sparkApp', () => {

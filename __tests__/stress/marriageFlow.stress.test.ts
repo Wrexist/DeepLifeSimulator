@@ -596,7 +596,13 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
       ],
     })));
 
-    let result: { success: boolean; message: string } | void;
+    // `!` because the assignment happens inside an `act()` callback, which
+    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // callback synchronously, so the variable really is assigned before it is
+    // read, and the `expect(...).toBeDefined()` below is the runtime proof.
+    // (Initialising to `undefined` instead narrows the variable to `void` and
+    // breaks every downstream cast — measured, not guessed.)
+    let result!: { success: boolean; message: string } | void;
     act(() => { result = captured!.game.moveInTogether('lover_bob'); });
     expect(result).toBeDefined();
     expect((result as { success: boolean; message: string }).success).toBe(false);
@@ -616,10 +622,17 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     const stateWithMatch = {
       ...captured!.state,
       sparkApp: {
-        ...(captured!.state.sparkApp ?? {}),
-        matches: [{ id: 'match_1', profileId: 'profile_x', promoted: false }],
+        ...captured!.state.sparkApp!,
+        // A COMPLETE SparkMatch. The literal used to carry 3 of its 5 required
+        // fields behind an `as GameState['sparkApp']`; the guard under test
+        // fires before the profile lookup, so the missing fields never
+        // mattered — but the cast is what made that invisible.
+        matches: [{
+          id: 'match_1', profileId: 'profile_x', promoted: false,
+          matchedWeek: 0, superLiked: false,
+        }],
       },
-    } as unknown as GameState;
+    };
 
     const relCountBefore = captured!.state.relationships?.length ?? 0;
     let promote: { success: boolean; message: string; relationshipId?: string } | undefined;

@@ -9,8 +9,22 @@
  *    sanitized at the entry, and the final value is guarded.
  *  - `runStocksWeeklyTick` orchestrates sector rotation, dividend payouts,
  *    and order matching — a regression here silently corrupts player wealth.
- *  - `updateTenantSatisfactionForWeek` is called every nextWeek for every
- *    owned property; one NaN bleed and the rental income breaks.
+ *  - tenant satisfaction is recomputed every nextWeek for every owned
+ *    property; one NaN bleed and the rental income breaks.
+ *
+ * The satisfaction block below used to drive `@/utils/realEstateWeekly`'s
+ * `updateTenantSatisfactionForWeek`, and the note here claimed that function
+ * "is called every nextWeek for every owned property". It was not called
+ * anywhere in production — the module had ZERO importers outside tests. The
+ * shipping path is `lib/realEstate/tenancy.ts`'s `satisfactionStep`, reached
+ * per-property from `lib/realEstate/weeklyTick.ts` → `tickProperty`. That
+ * orphan module is deleted; these cases now exercise the real one.
+ * 2026-07-30 audit PERF-5.
+ *
+ * `lib/realEstate/__tests__/tenancy.test.ts` already covers the directional
+ * unit behaviour (poor condition decays, overcharging decays, clamps hold), so
+ * what is added here is what this file is for: long-horizon and hostile-input
+ * stress, where a NaN bleed would surface.
  */
 
 import { loanEligibility } from '@/utils/loan';
@@ -19,7 +33,7 @@ import { initialSectorSnapshots, placeOrder, cancelOrder } from '@/lib/stocks/op
 import { marketFillPrice, bidPrice, askPrice } from '@/lib/stocks/orderBook';
 import { quarterlyDividend, isDividendWeek } from '@/lib/stocks/dividends';
 import { sectorForSymbol, nextState, sampleDuration } from '@/lib/stocks/sectors';
-import { updateTenantSatisfactionForWeek } from '@/utils/realEstateWeekly';
+import { satisfactionStep, RENT_MODE_PARAMS, type RentMode } from '@/lib/realEstate/tenancy';
 import {
   resolveAbsoluteWeek,
   normalizeStoredWeekToAbsolute,
@@ -355,73 +369,76 @@ describe('runStocksWeeklyTick', () => {
 // Real estate tenant satisfaction
 // ---------------------------------------------------------------------------
 describe('Real estate tenant satisfaction', () => {
-  it('starts at 75 when no prior satisfaction', () => {
-    const r = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: undefined,
-      lastMaintenance: 0,
-      currentAbsoluteWeek: 0,
-      currentWeekOfMonth: 1,
-    });
-    // 0 weeks since maintenance ≤ 2 → bump +2 from default 75
-    expect(r).toBe(77);
+  const MODES = Object.keys(RENT_MODE_PARAMS) as RentMode[];
+
+  it('covers every rent mode the params table declares', () => {
+    // Guards the loops below: a mode added to RENT_MODE_PARAMS without a
+    // satisfactionStep branch would otherwise never be stressed here.
+    expect(MODES.length).toBeGreaterThan(1);
   });
 
-  it('drops -5 when 5+ weeks since maintenance', () => {
-    // lastMaintenance > WEEKS_PER_MONTH (4) so it bypasses the 1-4 cycle
-    // normalization and is treated as an absolute week marker.
-    const r = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: 80,
-      lastMaintenance: 5,
-      currentAbsoluteWeek: 20,
-      currentWeekOfMonth: 1,
-    });
-    expect(r).toBe(75);
-  });
-
-  it('clamps at 100 (does not overflow)', () => {
-    // No maintenance gap (weeksSince ≤ 2) → +2 bump, clamped to 100
-    const r = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: 99,
-      lastMaintenance: 99,
-      currentAbsoluteWeek: 100,
-      currentWeekOfMonth: 1,
-    });
-    expect(r).toBe(100);
-  });
-
-  it('clamps at 0 (does not underflow)', () => {
-    // Big maintenance gap → -5, clamped to 0
-    const r = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: 2,
-      lastMaintenance: 5,
-      currentAbsoluteWeek: 100,
-      currentWeekOfMonth: 1,
-    });
-    expect(r).toBe(0);
-  });
-
-  it('NaN-safe: undefined satisfaction + missing maintenance yields finite result', () => {
-    const r = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: undefined,
-      lastMaintenance: undefined,
-      currentAbsoluteWeek: 50,
-      currentWeekOfMonth: 2,
-    });
-    expect(Number.isFinite(r)).toBe(true);
-  });
-
-  it('200 weeks of decay without maintenance: stays ≥ 0', () => {
-    let sat: number | undefined = 80;
-    for (let w = 1; w <= 200; w++) {
-      sat = updateTenantSatisfactionForWeek({
-        tenantSatisfaction: sat,
-        lastMaintenance: 0,
-        currentAbsoluteWeek: w,
-        currentWeekOfMonth: ((w - 1) % 4) + 1,
-      });
+  it('NaN-safe: hostile inputs still yield a finite 0..100 value', () => {
+    const hostile: any[] = [NaN, Infinity, -Infinity, undefined, null, -50, 1e12, 'x'];
+    for (const cur of hostile) {
+      for (const cond of hostile) {
+        for (const mode of MODES) {
+          const r = satisfactionStep(cur, cond, NaN, 0, mode);
+          expect(Number.isFinite(r)).toBe(true);
+          expect(r).toBeGreaterThanOrEqual(0);
+          expect(r).toBeLessThanOrEqual(100);
+        }
+      }
     }
-    expect(sat).toBeGreaterThanOrEqual(0);
-    expect(sat).toBeLessThanOrEqual(100);
+  });
+
+  it('a zero market rent does not divide satisfaction into NaN', () => {
+    // `marketWeeklyRent` is the denominator of the rent ratio. A brand-new or
+    // zero-valued property makes it 0.
+    for (const mode of MODES) {
+      expect(Number.isFinite(satisfactionStep(80, 70, 1000, 0, mode))).toBe(true);
+    }
+  });
+
+  it('200 weeks of neglect: converges to 0 and never underflows', () => {
+    for (const mode of MODES) {
+      let sat = 80;
+      for (let w = 1; w <= 200; w++) {
+        // Condition 10 (well under the 50 decay threshold) and a 3x-over-market
+        // ask — the worst sustained case a player can create.
+        sat = satisfactionStep(sat, 10, 3000, 1000, mode);
+        expect(Number.isFinite(sat)).toBe(true);
+        expect(sat).toBeGreaterThanOrEqual(0);
+      }
+      expect(sat).toBe(0);
+    }
+  });
+
+  it('200 weeks of a well-kept, under-market rental: rises and never overflows', () => {
+    // The opposite direction, so the decay test above cannot pass by the
+    // function simply returning 0 for everything.
+    for (const mode of MODES) {
+      let sat = 20;
+      for (let w = 1; w <= 200; w++) {
+        sat = satisfactionStep(sat, 100, 500, 1000, mode);
+        expect(sat).toBeLessThanOrEqual(100);
+      }
+      expect(sat).toBe(100);
+    }
+  });
+
+  it('fuzz: 2000 random inputs stay finite and in range', () => {
+    for (let i = 0; i < 2000; i++) {
+      const r = satisfactionStep(
+        Math.random() * 200 - 50,
+        Math.random() * 200 - 50,
+        Math.random() * 10_000,
+        Math.random() * 10_000,
+        MODES[Math.floor(Math.random() * MODES.length)],
+      );
+      expect(Number.isFinite(r)).toBe(true);
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThanOrEqual(100);
+    }
   });
 });
 

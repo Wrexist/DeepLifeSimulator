@@ -11,6 +11,7 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { executeMarket, placeOrder as placeOrderPure, cancelOrder as cancelOrderPure } from '@/lib/stocks/operations';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
+import { STOCK_CAPITAL_GAINS_TAX_RATE } from '@/lib/stocks/weeklyTick';
 
 const log = logger.scope('StockActions');
 
@@ -144,17 +145,44 @@ export const sellStockMarket = (
       log.warn(`Sell rejected: non-finite fill for ${symbol}`);
       return prev;
     }
-    const proceeds = result.notionalUSD * (1 - STOCK_FEE);
+    const grossProceeds = result.notionalUSD * (1 - STOCK_FEE);
+    const { holdings: newHoldings, basisPerShare } = applySellOnHoldings(stocks.holdings ?? [], symbol, shares);
+    const realizedGain = (result.order.filledPrice! - basisPerShare) * shares;
+
+    /**
+     * R3-M7: withhold capital-gains tax here too.
+     *
+     * The weekly tick withholds 25% at realization on every fill produced by
+     * `processOpenOrders`, documented as "parity with the crypto tick". But
+     * `realizedGains` there counts ONLY those fills — this market-sell path
+     * credited the full proceeds and merely accumulated `stocks.realizedGains`,
+     * a field whose every other reader is display code. So selling a position
+     * with the instant Sell button kept 100% of the gain while selling the
+     * identical position at the identical price via a limit order lost 25%: a
+     * $250,000 swing on a $1M gain, decided purely by which button was used,
+     * and trivially avoidable in full. Crypto has no such hole — both of its
+     * sell paths feed the taxed accumulator.
+     *
+     * Same rule as the tick: positive gains only, losses never generate a
+     * refund, and it is netted out of the proceeds rather than debited
+     * separately so the sale can never leave the player worse off in cash than
+     * before it.
+     */
+    const taxableGain = Math.max(0, realizedGain);
+    const capitalGainsTax = Math.min(
+      grossProceeds,
+      taxableGain * STOCK_CAPITAL_GAINS_TAX_RATE,
+    );
+    const proceeds = grossProceeds - capitalGainsTax;
+
     // Credit proceeds through the canonical money helper so the sale is subject
     // to the MONEY_CEILING clamp (a huge fill can no longer overflow money to
-    // Infinity) + the NaN guard. Proceeds/fees are unchanged.
+    // Infinity) + the NaN guard.
     const credit = applyMoneyDelta(prev, proceeds, `Sold ${symbol}`);
     if (!credit) {
       log.warn(`Sell rejected by money guard: ${symbol} (proceeds=${proceeds})`);
       return prev;
     }
-    const { holdings: newHoldings, basisPerShare } = applySellOnHoldings(stocks.holdings ?? [], symbol, shares);
-    const realizedGain = (result.order.filledPrice! - basisPerShare) * shares;
     const newHistory = [result.order, ...(stocks.orderHistory ?? [])].slice(0, 50);
     return {
       ...prev,

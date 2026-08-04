@@ -33,7 +33,19 @@ function engagedRel(scheduledWeek: number): Relationship {
     type: 'partner',
     relationshipScore: 70,
     engagementWeek: 40,
-    engagementRing: { id: 'ring_gold', name: 'Gold Band', cost: 1000 } as Relationship['engagementRing'],
+    // EngagementRing's money field is `price`; this literal said `cost`, a
+    // field the type does not have, and omitted three that it requires. The
+    // cast was hiding both. Nothing in the wedding subsystem reads the ring, so
+    // it was inert — but an inert literal that lies about its shape is exactly
+    // what stops mattering right up until something starts reading it.
+    engagementRing: {
+      id: 'ring_gold',
+      name: 'Gold Band',
+      price: 1000,
+      qualityTier: 'elegant',
+      acceptanceBonus: 10,
+      description: 'A simple gold band.',
+    },
     weddingPlanned: { venue: 'courthouse', budget: 8000, scheduledWeek, guestCount: 4 },
   } as unknown as Relationship;
 }

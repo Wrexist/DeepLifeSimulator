@@ -11,6 +11,9 @@ import { clampStatByKey } from '@/utils/statUtils';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
 import { haptic } from '@/utils/haptics';
+import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
+import { getInflatedPrice } from '@/lib/economy/inflation';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 
 interface ItemActionsContextType {
   // Items & Purchases
@@ -208,15 +211,36 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       return;
     }
 
-    if (state.stats.money < food.price) {
-      logger.error('Insufficient funds for food purchase:', { needed: food.price, have: state.stats.money });
+    /**
+     * F5. Food was the only purchasable in the app charged at its RAW price.
+     *
+     * `market.tsx` showed `${food.price}` raw and this charged raw — but the
+     * button's disabled state ran through `canAfford`, which applies
+     * `getInflatedPrice`. So all three disagreed, and the player-visible
+     * symptom was a greyed-out button on food they could plainly afford at the
+     * price printed beside it.
+     *
+     * Resolved by inflating, not by dropping the gate: every other item on that
+     * same screen is inflated at display, gate and charge, and `JailScreen`
+     * already inflates food explicitly. Leaving food alone was also an economy
+     * hole that widens for the whole game — inflation compounds at up to 50%
+     * annually, so food was drifting towards free in real terms.
+     *
+     * This does raise what food costs, in step with everything else.
+     */
+    const price = getInflatedPrice(food.price, state.economy?.priceIndex ?? 1);
+
+    if (state.stats.money < price) {
+      logger.error('Insufficient funds for food purchase:', { needed: price, have: state.stats.money });
       return;
     }
 
     // Calculate happiness restore (healthRestore / 2, minimum 1)
     const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
 
-    updateMoney(-food.price, `Food purchase: ${food.name}`);
+    // `updateMoney` re-checks affordability against `prev` and rejects an
+    // overdraw outright, so the stale read above is a fast path, not the gate.
+    updateMoney(-price, `Food purchase: ${food.name}`);
     StatsActions.updateStats(setGameState, {
       health: food.healthRestore,
       energy: food.energyRestore,
@@ -226,7 +250,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     logger.info('Food purchase completed:', {
       foodId,
       name: food.name,
-      price: food.price,
+      price,
       healthGain: food.healthRestore,
       energyGain: food.energyRestore,
       happinessGain: happinessRestore
@@ -298,14 +322,30 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         }
       }
 
+      // GL-3: medical activities are discounted by enacted healthcare policy.
+      // Computed from `prevState`, the same snapshot the affordability check
+      // and the debit below both read, so the two can never disagree — and
+      // `policyAdjustedActivityPrice` is the same function `health.tsx` uses
+      // for its lock label, so the screen quotes what is actually charged.
+      const chargedPrice = policyAdjustedActivityPrice(prevState, activityId, activity.price);
+
       // Check costs with latest state
-      if (prevState.stats.money < activity.price) {
+      if (prevState.stats.money < chargedPrice) {
         processingActivities.current.delete(activityId);
         result = { message: 'Insufficient funds for this activity' };
         return prevState;
       }
 
-      const energyCost = activity.energyCost || 0;
+      /**
+       * C-1: the Commitment focus moves a health activity's energy cost.
+       * `getEffectiveEnergyCost` was written for this and had no caller, so a
+       * player whose primary focus was health was shown a discount they never
+       * received — and one who had deprioritised health paid no surcharge.
+       * Resolved from `prevState` so the gate and the debit below use the
+       * same figure.
+       */
+      const energyCost = getCommitmentModifiers(prevState, 'health')
+        .energyCost(activity.energyCost || 0);
       if (prevState.stats.energy < energyCost) {
         processingActivities.current.delete(activityId);
         result = { message: 'Not enough energy for this activity' };
@@ -320,7 +360,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       const currentMoney = typeof prevState.stats.money === 'number' && !isNaN(prevState.stats.money)
         ? prevState.stats.money
         : 0;
-      const newMoney = Math.max(0, currentMoney - activity.price);
+      const newMoney = Math.max(0, currentMoney - chargedPrice);
       updatedStats.money = newMoney;
       const moneyChange = newMoney - prevState.stats.money;
 
@@ -357,7 +397,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       let updatedDiseases = [...(prevState.diseases || [])];
       const curedDiseases: string[] = [];
       let showCureSuccessModal = prevState.showCureSuccessModal;
-      let updatedCuredDiseases = [...(prevState.curedDiseases || [])];
       let updatedDiseaseHistory = prevState.diseaseHistory || {
         diseases: [],
         totalDiseases: 0,
@@ -391,7 +430,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
             if (cureRoll < 0.5) {
               // Disease cured
               curedDiseases.push(disease.name);
-              updatedCuredDiseases.push(disease.name);
               updatedDiseases = updatedDiseases.filter(d => d.id !== disease.id);
               
               // Add immunity if applicable
@@ -456,7 +494,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         diseasesToCure.forEach((disease) => {
           curedDiseaseIds.add(disease.id);
           curedDiseases.push(disease.name);
-          updatedCuredDiseases.push(disease.name);
           
           // Add immunity if applicable
           // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -518,7 +555,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         );
         criticalDiseases.forEach(disease => {
           curedDiseases.push(disease.name);
-          updatedCuredDiseases.push(disease.name);
           
           // Update disease history
           updatedDiseaseHistory = {
@@ -612,10 +648,23 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         dailySummary,
         lifetimeStatistics: updatedLifetimeStats,
         diseases: updatedDiseases,
-        // R2-B: dedupe + cap to 30. Without this the same disease cured
-        // multiple times duplicates entries forever, and the CureSuccessModal
-        // renders the full list.
-        curedDiseases: Array.from(new Set(updatedCuredDiseases)).slice(-30),
+        // THIS treatment's cures only — not the lifetime list.
+        //
+        // Player report: "When fixing a current ailment, all previous ailments
+        // are mentioned." Curing one condition showed "CURED · 9" listing every
+        // disease the character had ever recovered from, because this field
+        // accumulated (`[...prev, ...new]`, deduped, capped at 30) and
+        // `CureSuccessModal` renders all of it.
+        //
+        // Safe to narrow: that modal is the field's ONLY reader anywhere in the
+        // app, and the lifetime tally already lives in
+        // `diseaseHistory.totalCured`, which is updated just below. So no new
+        // GameState field and no STATE_VERSION bump — an existing save simply
+        // shows the correct short list on its next treatment.
+        //
+        // Still deduped: a single visit can cure the same-named condition from
+        // two sources, and listing it twice reads as a bug of its own.
+        curedDiseases: Array.from(new Set(curedDiseases)),
         showCureSuccessModal: showCureSuccessModal,
         diseaseHistory: updatedDiseaseHistory,
         diseaseImmunities: updatedImmunities,

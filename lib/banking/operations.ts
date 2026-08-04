@@ -77,8 +77,11 @@ export function totalCreditCardDebt(banking: BankingState): number {
  * fields must exclude the mirrors here to avoid double-counting cash/savings.
  */
 export function nonMirrorDeposits(accounts: readonly BankAccount[]): number {
-  return accounts.reduce(
-    (sum, a) => (MIRRORED_ACCOUNT_IDS.has(a.id) ? sum : sum + safe(a.balance)),
+  // `a?.id`, not `a.id`: a corrupt save can carry a null row, and this now runs
+  // inside `netWorth` — which the leaderboard, the HUD and the prestige gate
+  // all call. A throw there is a blank screen rather than a wrong number.
+  return (accounts ?? []).reduce(
+    (sum, a) => (MIRRORED_ACCOUNT_IDS.has(a?.id) ? sum : sum + safe(a?.balance)),
     0
   );
 }
@@ -241,6 +244,34 @@ export function accrueAccountInterest(
 ): { banking: BankingState; totalInterest: number } {
   let totalInterest = 0;
   const env = { depositMult, loanDelta: 0 };
+
+  /**
+   * R3-M6: the soft cap is a PORTFOLIO allowance, not a per-account one.
+   *
+   * `SAVINGS_BALANCE_SOFT_CAP` ($500k, 25% efficiency above it) is documented
+   * as an anti-exploit diminishing-returns curve, and `applySavingsInterest`
+   * applies it to the single legacy pool exactly that way. Here it was applied
+   * inside the per-account map, so every account got its own full $500k of
+   * uncapped balance — and `openNewAccount` deliberately exempts CDs from the
+   * one-per-type rule, because laddering CDs is a real strategy. So $10M split
+   * across 20 x $500k 52-week CDs earned the full 5.5% on every dollar
+   * (~$550k/yr) instead of the intended ~$194k, and the curve the constant
+   * exists to enforce was bypassed entirely by clicking "open account" more
+   * times.
+   *
+   * The allowance is allocated PROPORTIONALLY to balance rather than by
+   * iteration order, so the result does not depend on which account happens to
+   * come first and each account keeps its own APR.
+   */
+  const eligible = (banking.accounts || []).filter(
+    (a) => !MIRRORED_ACCOUNT_IDS.has(a.id) && safe(a.balance) > 0,
+  );
+  const totalEligibleBalance = eligible.reduce((sum, a) => sum + safe(a.balance), 0);
+  const belowCapShareRatio =
+    totalEligibleBalance > 0
+      ? Math.min(1, SAVINGS_BALANCE_SOFT_CAP / totalEligibleBalance)
+      : 0;
+
   const accounts = (banking.accounts || []).map((acct) => {
     if (MIRRORED_ACCOUNT_IDS.has(acct.id)) return acct;
     // Apply the live rate environment to the advertised base APY (clamped at the
@@ -248,8 +279,8 @@ export function accrueAccountInterest(
     const apr = effectiveDepositAPR(safe(acct.baseAPR), env);
     const balance = safe(acct.balance);
     if (apr <= 0 || balance <= 0) return acct;
-    const belowCap = Math.min(balance, SAVINGS_BALANCE_SOFT_CAP);
-    const aboveCap = Math.max(0, balance - SAVINGS_BALANCE_SOFT_CAP);
+    const belowCap = balance * belowCapShareRatio;
+    const aboveCap = Math.max(0, balance - belowCap);
     const interest =
       (belowCap * apr) / WEEKS_PER_YEAR +
       (aboveCap * apr * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
@@ -755,6 +786,16 @@ export function quoteLoan(
     weeklyIncome: number;
     /** Political-perk APR reduction (decimal, e.g. 0.05 = 5% off). Computed by the caller from gameState.politics. */
     aprReduction?: number;
+    /**
+     * Hard floor for the offered APR, overriding the default 0.025.
+     *
+     * Callers applying an `aprReduction` that could otherwise cross the deposit
+     * hard cap pass this. `SAVINGS_APR_HARD_CAP` is 5.5% and the anti-arbitrage
+     * contract (rateEnvironment.ts:12-21) requires the cheapest loan to stay
+     * strictly above it — the 0.025 default does not, so any large reduction
+     * opens a risk-free borrow-low/save-high carry. R3-M2.
+     */
+    aprFloor?: number;
     /** Hard APR cap (decimal) from the Private Banking IAP — caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
     aprCap?: number;
     /**
@@ -781,13 +822,16 @@ export function quoteLoan(
     mortgage: 0.065,
   };
   const aprReduction = Math.max(0, Math.min(0.2, safe(request.aprReduction, 0)));
+  const aprFloor = typeof request.aprFloor === 'number' && isFinite(request.aprFloor)
+    ? Math.max(0.025, request.aprFloor)
+    : 0.025;
   let offeredAPR = Math.max(
-    0.025,
+    aprFloor,
     baseByType[request.type] + creditScoreAPRAdjustment(banking.creditScore.score) - aprReduction
   );
   // Private Banking IAP caps the rate (never below the 0.025 floor).
   if (typeof request.aprCap === 'number' && isFinite(request.aprCap)) {
-    offeredAPR = Math.min(offeredAPR, Math.max(0.025, request.aprCap));
+    offeredAPR = Math.min(offeredAPR, Math.max(aprFloor, request.aprCap));
   }
   // Live rate environment: recession/crash raise the offered rate, boom cheapens
   // it. Floored at the same 0.025 floor. The rateEnvironment invariant test keeps
@@ -921,4 +965,143 @@ export function recomputeCreditScore(
       inquiries: recentInquiries,
     },
   };
+}
+
+/**
+ * Take money back out of a savings goal.
+ *
+ * The counterpart `contributeToGoal` never had. Contributing debits real money
+ * — from the goal's linked account, or from `stats.money` via `cashDebit` — into
+ * `goal.currentAmount`, and there was no withdraw path, no delete-goal path, and
+ * no refund on completion beyond the bounded reward. Every reader of
+ * `currentAmount` outside the writers was display code, and `netWorth` did not
+ * count it either, so the "Contribute" button (whose modal presets `maxAmount`
+ * to the player's entire cash balance) permanently destroyed whatever it moved.
+ * Funding a $25,000 goal to completion cost $25,000 and returned $250.
+ * The weekly `autoContribute` sweep did the same silently, every week.
+ * 2026-07-31 audit round 3, R3-M5.
+ *
+ * Returns money the same way it was taken: to the linked account when there is
+ * one (assets conserved here), otherwise as `cashCredit` for the action layer
+ * to credit through the money helper.
+ *
+ * A COMPLETED goal can still be withdrawn from — the money is the player's, and
+ * refusing would recreate the trap in a narrower form — and `completedWeek`
+ * SURVIVES the withdrawal, so the bounded completion reward cannot be farmed by
+ * withdrawing and re-contributing. See the comment at the assignment.
+ */
+export function withdrawFromGoal(
+  banking: BankingState,
+  goalId: string,
+  amount: number
+): {
+  banking: BankingState;
+  ok: boolean;
+  reason?: string;
+  /** Amount actually taken out of the goal. */
+  withdrawn: number;
+  /** Portion returned as cash, for the action to credit. */
+  cashCredit: number;
+} {
+  const reject = (reason: string) => ({
+    banking, ok: false, reason, withdrawn: 0, cashCredit: 0,
+  });
+
+  const idx = banking.savingsGoals.findIndex((g) => g.id === goalId);
+  if (idx === -1) return reject('Goal not found');
+
+  const requested = Math.max(0, safe(amount));
+  if (requested === 0) return reject('Amount must be positive');
+
+  const goal = banking.savingsGoals[idx];
+  const current = Math.max(0, safe(goal.currentAmount));
+  if (current <= 0) return reject('Goal has no funds to withdraw');
+
+  const withdrawn = Math.min(requested, current);
+  const accounts = [...banking.accounts];
+  let cashCredit = 0;
+
+  // Return it where it came from. Mirrored accounts are read-only cash mirrors;
+  // crediting one would print money, so those fall through to cash.
+  const linkedIdx = goal.linkedAccountId
+    ? accounts.findIndex((a) => a.id === goal.linkedAccountId && !MIRRORED_ACCOUNT_IDS.has(a.id))
+    : -1;
+  if (linkedIdx !== -1) {
+    const balance = Math.max(0, safe(accounts[linkedIdx].balance));
+    accounts[linkedIdx] = { ...accounts[linkedIdx], balance: balance + withdrawn };
+  } else {
+    cashCredit = withdrawn;
+  }
+
+  const nextGoals = [...banking.savingsGoals];
+  nextGoals[idx] = {
+    ...goal,
+    currentAmount: current - withdrawn,
+    // R4 correction. The first version of this cleared `completedWeek` when the
+    // balance dropped below the target, with a comment claiming that stopped
+    // the reward being farmed. It did the exact opposite.
+    //
+    // `contributeToGoal` rejects with "Goal already completed" while
+    // `completedWeek` is a number (line 726), and `applySavingsGoals`'s weekly
+    // auto-contribute gates on the same flag. Clearing it RE-ARMS both. So:
+    // fund a $25,000 goal (+$250 reward), withdraw the whole $25,000 back,
+    // contribute it again (+$250) — an unbounded printer at
+    // GOAL_COMPLETION_REWARD_CAP per cycle, on money that never leaves the
+    // player's hands, plus GOAL_COMPLETION_HAPPINESS each time.
+    //
+    // `completedWeek` records that the reward was PAID, which withdrawing does
+    // not undo. It is now permanent. Withdrawal itself stays allowed — the
+    // money is the player's — and refusing a re-contribution to a completed
+    // goal is the behaviour that already shipped, so this adds no new trap.
+    completedWeek: goal.completedWeek,
+  };
+
+  return {
+    banking: { ...banking, accounts, savingsGoals: nextGoals },
+    ok: true,
+    withdrawn,
+    cashCredit,
+  };
+}
+
+/**
+ * Accrue one week of interest on revolving credit-card balances.
+ *
+ * R3-M8: `CreditCard.baseAPR` was an inert definition. `chargeCreditCard` only
+ * ever incremented `balance`; the advertised 17%-25% rates were rendered by
+ * `ApplyCardModal` and `CreditCardRow`, and `AdvancedBankApp` even told the
+ * player a charge "grows the (interest-bearing) balance now" — but no weekly
+ * tick, action module or helper ever applied a card's APR to its balance. A
+ * maxed-out $25,000 platinum card at a stated 17% APR (~$4,250/yr) cost exactly
+ * $0 forever, so the only consequence of carrying a permanent balance was the
+ * utilization component of the credit score. Combined with `netWorth` ignoring
+ * `creditCards[].balance` (R3-M4), card debt was invisible on both the
+ * cash-flow and the balance-sheet side.
+ *
+ * Interest capitalises onto the balance, which is how revolving credit works
+ * and is what the UI copy already claims. Every value is finite-guarded: a
+ * corrupt APR or balance must not turn a debt into NaN, because the credit
+ * score's utilization ratio divides by it.
+ */
+export function accrueCreditCardInterest(
+  banking: BankingState
+): { banking: BankingState; totalInterest: number } {
+  const cards = banking.creditCards || [];
+  if (cards.length === 0) return { banking, totalInterest: 0 };
+
+  let totalInterest = 0;
+  const nextCards = cards.map((card) => {
+    const balance = Math.max(0, safe(card?.balance));
+    const apr = Math.max(0, safe(card?.baseAPR));
+    if (balance <= 0 || apr <= 0) return card;
+
+    const interest = (balance * apr) / WEEKS_PER_YEAR;
+    if (!isFinite(interest) || interest <= 0) return card;
+
+    totalInterest += interest;
+    return { ...card, balance: balance + interest };
+  });
+
+  if (totalInterest <= 0) return { banking, totalInterest: 0 };
+  return { banking: { ...banking, creditCards: nextCards }, totalInterest };
 }

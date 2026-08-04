@@ -88,7 +88,11 @@ const h = React.createElement;
 type Probe = {
   currentSlot: number;
   loadGame: (slot: number) => Promise<GameState | null>;
-  saveGame: (force?: boolean) => Promise<void>;
+  // `Promise<boolean>`, not `void` — saveGame resolves true only once the write
+  // is verified on disk, which is the whole point of `force`. This alias said
+  // `void` while the cast below said `boolean`; the cast was corrected and the
+  // alias was not, so the two disagreed and the alias won at every call site.
+  saveGame: (force?: boolean) => Promise<boolean>;
 };
 
 let captured: Probe | null = null;
@@ -99,7 +103,8 @@ function ProbeComponent() {
   captured = {
     currentSlot,
     loadGame: actions.loadGame as (slot: number) => Promise<GameState | null>,
-    saveGame: actions.saveGame as (force?: boolean) => Promise<void>,
+    // No cast needed — the context already declares this signature.
+    saveGame: actions.saveGame,
   };
   return null;
 }
@@ -117,7 +122,7 @@ function mountGame(): { root: any } {
 
 /** Persist a valid, signed save into the given slot via the real envelope path. */
 async function seedSlot(slot: number): Promise<void> {
-  const state: GameState = JSON.parse(JSON.stringify(initialGameState));
+  const state: GameState = structuredClone(initialGameState);
   const serialized = JSON.stringify({ ...state, version: STATE_VERSION });
   const envelope = createSaveEnvelope(serialized);
   const result = await doubleBufferSave(`save_slot_${slot}`, envelope);

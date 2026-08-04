@@ -2,6 +2,7 @@
  * Job & Career Actions
  */
 import React from 'react';
+import { wantedArrestBonus, hiringPenalty, criminalXpForNextLevel, CRIMINAL_XP_PER_ILLEGAL_JOB } from '@/lib/crime/criminalRecord';
 import { GameState, CrimeSkillId, PromotionDetails } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
@@ -10,8 +11,17 @@ import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import {
+  applyRaisePremium,
+  raisePremiumPct,
+  isRaisePremiumMaxed,
+  nextRaisePremium,
+  resolveRaisePremium,
+} from '@/lib/careers/raisePremium';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
+import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
+import { politicalPromotionBlocker } from '@/lib/careers/political';
 
 /** Street-job requirement ids that any transport tier can satisfy. */
 const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
@@ -71,6 +81,15 @@ function getTransportTermsForJob(
 const log = logger.scope('JobActions');
 
 /**
+ * Crime talent-tree payoffs (R3-C2), from `TALENT_TREES[*].description`:
+ * "Each unlocked talent adds +5% success rate and +10% payment".
+ */
+const TALENT_SUCCESS_BONUS_PCT = 5;
+const TALENT_PAY_BONUS_PCT = 0.10;
+/** A fully-invested tree pays 1.5x, not unbounded. */
+const TALENT_PAY_MULTIPLIER_MAX = 1.5;
+
+/**
  * C5: criminal + crime-skill XP for a completed street job, computed as a PURE delta so it
  * can be folded into doStreetJob's atomic `setGameState` updater. These used to be separate
  * post-updater `gainCriminalXp`/`gainCrimeSkillXp` setState calls, so a same-batch double-tap
@@ -84,8 +103,10 @@ function applyStreetJobXp(
 ): Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> {
   const out: Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> = {};
   if (job.illegal) {
-    const newXp = (prev.criminalXp || 0) + 10;
-    const nextLevelXp = (prev.criminalLevel || 1) * 100;
+    // Shared with the UI (lib/crime/criminalRecord) so the progress meter on the
+    // Street Jobs tab cannot drift from the curve that actually levels you up.
+    const newXp = (prev.criminalXp || 0) + CRIMINAL_XP_PER_ILLEGAL_JOB;
+    const nextLevelXp = criminalXpForNextLevel(prev.criminalLevel);
     if (newXp >= nextLevelXp) {
       out.criminalXp = newXp - nextLevelXp;
       out.criminalLevel = (prev.criminalLevel || 1) + 1;
@@ -229,13 +250,36 @@ export const performStreetJob = (
   // Calculate success chance (karma affects crime success for experienced criminals)
   const baseSuccess = job.baseSuccessRate;
   const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
+
+  /**
+   * R3-C2: the 15 crime talent-tree nodes finally do something.
+   *
+   * `unlockCrimeSkillUpgrade` charges `pointsCost * 100` dollars AND a
+   * permanently-limited skill point (`availablePoints = skillLevel - 1`, max 8
+   * across 5 nodes), then appends the node id to `crimeSkills[skill].upgrades`.
+   * Every read of that array in shipping code was display or point-budget:
+   * `SkillTalentTree`'s `spentPoints` and `isNodeUnlocked`, and the Work tab's
+   * counter. The job math used `level` alone, so a player could spend money and
+   * an unrecoverable point on a node promising "+50% stealth success rate" and
+   * receive nothing.
+   *
+   * The per-node `effect` strings ("+10%" … "+50%") are DISPLAY text and
+   * disagree with the tree's own rule — `TALENT_TREES[*].description` says
+   * "Each unlocked talent adds +5% success rate and +10% payment". The rule is
+   * what is implemented here: parsing the display strings would be fragile and
+   * would also stack to +150% on a single tree.
+   */
+  const unlockedTalents = job.skill
+    ? (gameState.crimeSkills?.[job.skill]?.upgrades || []).length
+    : 0;
+  const talentSuccessBonus = unlockedTalents * TALENT_SUCCESS_BONUS_PCT;
   let karmaBonus = 0;
   if (gameState.karma) {
     const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
     const modifiers = getKarmaModifiers(gameState.karma);
     karmaBonus = Math.round(modifiers.crimeSuccessBonus * 100);
   }
-  const successChance = Math.min(95, baseSuccess + skillBonus + karmaBonus);
+  const successChance = Math.min(95, baseSuccess + skillBonus + talentSuccessBonus + karmaBonus);
   const attemptNumber = timesDoneThisWeek + 1;
   const rngCommitKeys: string[] = [];
   // RANDOMNESS FIX: Pity system for street jobs - guaranteed success after 5 failures
@@ -293,12 +337,22 @@ export const performStreetJob = (
   const transportTerms = getTransportTermsForJob(gameState, job, basePay);
   const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
 
-  const moneyGained = success ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus) : 0;
+  // R3-C2: +10% payment per unlocked talent, the other half of the tree's
+  // documented rule. Bounded so a fully-invested tree pays 1.5x, not unbounded.
+  const talentPayMultiplier = Math.min(
+    TALENT_PAY_MULTIPLIER_MAX,
+    1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
+  );
+  const moneyGained = success
+    ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier)
+    : 0;
   
   // Risk calculation — wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;
   const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
-  const wantedBonus = job.illegal ? Math.min(25, wantedLevel * 3) : 0; // +3% per wanted level, cap 25%
+  // Shared with the UI (lib/crime/criminalRecord) so the Street Jobs screen can
+  // state this number instead of the player inferring it from arrest streaks.
+  const wantedBonus = wantedArrestBonus(wantedLevel, !!job.illegal);
   const caughtChance = Math.min(80, baseCaughtChance + wantedBonus); // Cap at 80%
   const caughtRollKey = `street_job_caught:${gameState.weeksLived || 0}:${jobId}:attempt:${attemptNumber}`;
   const caughtRoll = caughtChance > 0 ? getDeterministicRoll(gameState, caughtRollKey) : null;
@@ -745,7 +799,10 @@ export const applyForJob = (
   // Represents employers doing background checks
   const criminalLevel = gameState.criminalLevel || 0;
   const wantedLevel = gameState.wantedLevel || 0;
-  const criminalPenalty = Math.min(30, criminalLevel * 5 + wantedLevel * 2);
+  // Same shared helper. This one is the least guessable of the record's
+  // effects — it makes LEGITIMATE career applications fail more often, with the
+  // cause sitting in a street-crime stat on a different screen.
+  const criminalPenalty = hiringPenalty(criminalLevel, wantedLevel);
 
   // Base acceptance chance (50% for first attempt, increases with attempts)
   const baseAcceptanceChance = 50;
@@ -759,11 +816,43 @@ export const applyForJob = (
   // Life Skills: Networking (+5% job application success). Additive percentage
   // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
   const networkingBonus = getLifeSkillModifiers(gameState).jobApplicationBonus;
+  /**
+   * R3-P7: GPA finally counts toward getting hired.
+   *
+   * `jobOfferMultiplier` returns 0.85x-1.30x and documents itself as the
+   * "hiring boost (better grades -> higher chance to land first job)". Its only
+   * non-test caller was `EducationApp`, which renders "Hiring boost x1.30 on job
+   * offers" on the hero card — while this roll, the one that decides, had no GPA
+   * term at all and no file under `lib/careers/**` even mentioned `gpa`. So exam
+   * grinding (energy, study actions, exam-failure risk) was advertised on the
+   * Education screen as worth up to +30% and delivered 0%. GPA did still work
+   * for scholarships, so this was specifically the hiring half.
+   *
+   * Applied to the BASE chance rather than the final total, so it scales the
+   * part grades plausibly influence and leaves the criminal penalty and the
+   * networking bonus intact. Still inside the existing 10-90 clamp, so a 4.0
+   * cannot buy a guarantee and a poor GPA cannot lock the player out.
+   */
+  /**
+   * R3-M9: the economy's `jobAvailability` finally reaches hiring.
+   *
+   * `economyEvents.modifiers.jobAvailability` (0.7 on a crash, 1.3 in a boom)
+   * was rendered in the weekly event modal as "Jobs: -20%" and read by nothing.
+   * A player told during a crash that jobs were scarce faced exactly the same
+   * acceptance odds as in a boom.
+   */
+  const jobAvailability = Number(gameState.economy?.economyEvents?.modifiers?.jobAvailability);
+  const safeJobAvailability =
+    Number.isFinite(jobAvailability) && jobAvailability > 0 ? jobAvailability : 1;
+
+  const gpaMultiplier = jobOfferMultiplier(highestGpa(gameState.educations || []));
+  const safeGpaMultiplier = Number.isFinite(gpaMultiplier) && gpaMultiplier > 0 ? gpaMultiplier : 1;
+  const gpaAdjustedBase = baseAcceptanceChance * safeGpaMultiplier * safeJobAvailability;
   const acceptanceChance = cleanGuarantee
     ? 100
     : guaranteedAcceptance
       ? Math.min(90, Math.max(10, 100 - criminalPenalty + networkingBonus))
-      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
+      : Math.min(90, Math.max(10, gpaAdjustedBase + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
   const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
   const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];
@@ -881,6 +970,37 @@ export const promoteCareer = (
     return { success: false, message: 'Invalid career level' };
   }
 
+  /**
+   * PLAYER REPORT (1.4 bug-reports): the political ladder had two doors and
+   * only one of them was locked.
+   *
+   * `getPromotionEligibility` covers acceptance, progress, performance and
+   * tenure — and knows nothing about `POLITICAL_CAREER_REQUIREMENTS`. So the
+   * Politics app correctly refused a 27-year-old running for Mayor ("You must
+   * be at least 30 years old") while this path promoted them into the very same
+   * office from the Work tab. The two screens then disagreed about the player's
+   * rank, because only `runForOffice` maintains `politics.careerLevel`.
+   *
+   * The office requirements now apply wherever the promotion comes from.
+   */
+  const politicalBlocker = careerId === 'political'
+    ? politicalPromotionBlocker({
+        targetLevel: newLevel,
+        age: gameState.date?.age ?? 0,
+        reputation: gameState.stats?.reputation ?? 0,
+        currentLevel: career.level,
+        weeksInCurrentLevel: Math.max(
+          0,
+          (gameState.weeksLived ?? 0) - (career.startedWeeksLived ?? 0),
+        ),
+        hasEducation: (id: string) =>
+          (gameState.educations || []).some((e) => e.id === id && e.completed),
+      })
+    : null;
+  if (politicalBlocker) {
+    return { success: false, message: politicalBlocker };
+  }
+
   // R4-K-style guard: re-validate against fresh `prev` INSIDE the updater. The
   // checks above read the stale `gameState` snapshot, so two promote taps in one
   // React batch would both pass and skip a level / over-grant salary. Re-running
@@ -893,6 +1013,24 @@ export const promoteCareer = (
     if (!getPromotionEligibility(cur, prev.weeksLived).eligible) return prev;
     const promotedLevel = cur.level + 1;
     if (!cur.levels[promotedLevel]) return prev;
+    // Re-run the office gate against `prev` too — the check above read the
+    // stale snapshot, and age/reputation can both move between them.
+    if (careerId === 'political') {
+      const blocked = politicalPromotionBlocker({
+        targetLevel: promotedLevel,
+        age: prev.date?.age ?? 0,
+        reputation: prev.stats?.reputation ?? 0,
+        currentLevel: cur.level,
+        weeksInCurrentLevel: Math.max(
+          0,
+          (prev.weeksLived ?? 0) - (cur.startedWeeksLived ?? 0),
+        ),
+        hasEducation: (id: string) =>
+          (prev.educations || []).some((e) => e.id === id && e.completed),
+      });
+      if (blocked) return prev;
+    }
+
     const updatedCareers = prev.careers.map(c => {
       if (c.id !== careerId) return c;
 
@@ -906,6 +1044,21 @@ export const promoteCareer = (
     return {
       ...prev,
       careers: updatedCareers,
+      // Keep the Politics app's rank in step. `politics.careerLevel` is the
+      // 1-based office RANK (0 = Citizen), maintained by `runForOffice` — so
+      // promoting from the Work tab used to leave it stale and the two screens
+      // reported different offices for the same player.
+      // Only patch an EXISTING politics slice — `PoliticsState` has required
+      // fields, and fabricating a partial one here would be worse than a stale
+      // rank. A player holding political office always has it.
+      ...(careerId === 'political' && prev.politics
+        ? {
+            politics: {
+              ...prev.politics,
+              careerLevel: Math.max(prev.politics.careerLevel ?? 0, promotedLevel + 1),
+            },
+          }
+        : {}),
     };
   });
 
@@ -915,8 +1068,7 @@ export const promoteCareer = (
   // moment both rungs are known — `career` is the pre-promotion snapshot, so
   // once state commits the old title and salary are unrecoverable.
   const previousLevelData = career.levels[career.level];
-  const raiseMultiplier = career.raiseMultiplier ?? 1;
-  const paid = (base: number) => Math.round((base || 0) * raiseMultiplier);
+  const paid = (base: number) => applyRaisePremium(base, career.raiseMultiplier);
   const topLevel = Math.max(0, career.levels.length - 1);
 
   return {
@@ -941,8 +1093,6 @@ export const promoteCareer = (
 // well-kept your stats are) + a cooldown. Real risk: a denial bruises your
 // standing (happiness) and can draw a formal warning (3 = fired).
 export const RAISE_COOLDOWN_WEEKS = 8;
-const RAISE_STEP = 0.08; // +8% of base salary per successful raise
-const RAISE_CAP = 2.0; // negotiated premium tops out at +100%
 const RAISE_MIN_PERFORMANCE = 45;
 
 export const requestRaise = (
@@ -963,8 +1113,7 @@ export const requestRaise = (
     return { success: false, message: `Too soon — wait ${wait} more week${wait === 1 ? '' : 's'} before asking again.` };
   }
 
-  const premium = career.raiseMultiplier ?? 1;
-  if (premium >= RAISE_CAP) {
+  if (isRaisePremiumMaxed(career.raiseMultiplier)) {
     return { success: false, message: "You're already at the top of this role's pay band." };
   }
 
@@ -989,14 +1138,14 @@ export const requestRaise = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = cur.lastRaiseWeeksLived ?? cur.startedWeeksLived ?? -Infinity;
     if (prevWs - prevLast < RAISE_COOLDOWN_WEEKS) return prev;
-    if ((cur.raiseMultiplier ?? 1) >= RAISE_CAP) return prev;
+    if (isRaisePremiumMaxed(cur.raiseMultiplier)) return prev;
 
     const updatedCareers = (prev.careers || []).map(c => {
       if (c.id !== careerId) return c;
       if (approved) {
         return {
           ...c,
-          raiseMultiplier: Math.min(RAISE_CAP, (c.raiseMultiplier ?? 1) + RAISE_STEP),
+          raiseMultiplier: nextRaisePremium(c.raiseMultiplier),
           lastRaiseWeeksLived: prevWs,
         };
       }
@@ -1018,8 +1167,7 @@ export const requestRaise = (
   });
 
   if (approved) {
-    const newPremium = Math.min(RAISE_CAP, premium + RAISE_STEP);
-    const pct = Math.round((newPremium - 1) * 100);
+    const pct = raisePremiumPct(nextRaisePremium(career.raiseMultiplier));
     log.info(`Raise approved for ${careerId}: premium now +${pct}%`);
     return { success: true, approved: true, message: `Raise approved! Your salary premium is now +${pct}%.` };
   }

@@ -32,23 +32,93 @@ function build({ runTests = false } = {}) {
   const tickEntry = 'contexts/game/GameActionsContext.tsx';
   const weeklyDir = 'contexts/game/actions/weekly';
   const weeklyFiles = L.walk(weeklyDir, L.isProductionSource);
+
   const tickFiles = [tickEntry, ...weeklyFiles];
+
+  // `lib/` modules the tick calls FROM INSIDE the setGameState updater.
+  //
+  // P1 previously scanned only the tick entry and `contexts/game/actions/weekly`,
+  // so a full `JSON.parse(JSON.stringify(state))` one call deeper — in
+  // `checkpointSystem.createCheckpoint`, invoked from `applyAutoCheckpoint`
+  // inside the updater — reported "[PASS] No JSON deep-clone in the weekly tick
+  // path" while the clone shipped. A guardrail that is green because it is not
+  // looking is worse than no guardrail.
+  //
+  // Deliberately an explicit list rather than following every `@/lib` import of
+  // the tick entry: that catches modules like `prestigeExecution`, whose clones
+  // are on a once-per-life path where a deep clone is entirely appropriate, and
+  // the resulting false positives would train the reader to ignore this check.
+  // Add a module here when the weekly tick starts calling into it.
+  // 2026-07-30 audit PERF-4.
+  const TICK_PATH_LIB_MODULES = [
+    'lib/timeMachine/checkpointSystem.ts',
+  ].filter((f) => L.exists(f));
+
+  const cloneScanFiles = [...tickFiles, ...TICK_PATH_LIB_MODULES];
+
 
   // --- P1: deep clones in the hot path ------------------------------------
   const cloneRe = /JSON\.parse\(\s*JSON\.stringify/;
-  const cloneHits = L.grep(tickFiles, cloneRe, { skipComments: true });
+  const rawCloneHits = L.grep(cloneScanFiles, cloneRe, { skipComments: true });
+
+  // A clone may opt out with an `audit-allow-clone:` comment on the line above,
+  // which must carry a reason. This exists so the scan can WIDEN (see
+  // TICK_PATH_LIB_MODULES) without going noisy: a per-tick clone is the defect,
+  // a once-per-year or user-initiated one is not, and the difference is not
+  // decidable from a grep. An exemption is greppable and has to be argued for
+  // in the diff — unlike the previous state of affairs, where the check simply
+  // could not see the file at all.
+  const cloneHits = rawCloneHits.filter((h) => {
+    const src = L.read(h.file);
+    if (src == null) return true;
+    const lines = src.split('\n');
+    // 6 lines: a multi-line reason comment can sit several lines above the
+    // statement it annotates (a ternary spanning lines pushes the match down).
+    const above = lines.slice(Math.max(0, h.line - 7), h.line - 1).join(' ');
+    return !/audit-allow-clone:\s*\S/.test(above);
+  });
+  const exemptCount = rawCloneHits.length - cloneHits.length;
+  if (exemptCount > 0) {
+    a.info(`${exemptCount} deep-clone(s) exempted with a documented reason`,
+      'Each carries an `audit-allow-clone:` comment. Re-read them if the tick gets slower.',
+      'audit-allow-clone');
+  }
   a.assert(cloneHits.length === 0, 'medium',
     'No JSON deep-clone in the weekly tick path',
     `${cloneHits.length} JSON.parse(JSON.stringify(...)) clone(s) in the hot path`,
     cloneHits.slice(0, 6).map((h) => `${h.file}:${h.line}`).join(', ') +
       '. Deep-cloning whole state every tick is O(state size) on each Next Week tap.',
-    weeklyDir);
+    `${weeklyDir} + ${TICK_PATH_LIB_MODULES.length} tick-path lib module(s)`);
 
   // --- P2: subsystem resilience wrapping ----------------------------------
   // Verify each apply*/run*/process* weekly subsystem invocation in the orchestrator
   // is *actually positioned inside* a try/catch block (brace-matched), not merely that
   // some try exists in the file. A single throwing subsystem must not abort the week.
-  const ctx = L.read(tickEntry) || '';
+  const fullCtx = L.read(tickEntry) || '';
+
+  // Scope to the WEEK LOOP, not the whole orchestrator file.
+  //
+  // This used to scan every `apply*`/`run*`/`process*` call in
+  // GameActionsContext.tsx, which is ~4,400 lines and holds dozens of USER
+  // actions alongside the tick. So it permanently reported
+  // `applyRelationshipGain` and `applyMoneyDelta` as "unwrapped weekly-tick
+  // subsystems" — both are user actions (a karma-adjusted relationship change
+  // and an engagement-ring purchase), neither is in the tick, and no amount of
+  // fixing the tick could ever clear them.
+  //
+  // A permanent phantom finding is worse than no finding: it trains the reader
+  // to skim the line, which is precisely how a REAL unguarded subsystem would
+  // get missed. Bound the scan to `nextWeek`'s body and the count means what it
+  // says. Falls back to the whole file if the boundary cannot be located, so a
+  // refactor degrades to the old (noisy) behaviour rather than to silence.
+  const tickStart = fullCtx.search(/const nextWeek\s*=\s*useCallback\(/);
+  let ctx = fullCtx;
+  if (tickStart >= 0) {
+    const rest = fullCtx.slice(tickStart);
+    const endRel = rest.search(/\n\s*\}, \[/);
+    if (endRel > 0) ctx = rest.slice(0, endRel);
+  }
+
   const ranges = L.tryRanges(ctx);
   const cleanCtx = L.stripNoise(ctx);
   const callRe = /\b(?:apply|run|process|tick|compute)[A-Z]\w*\s*\(/g;
@@ -147,12 +217,23 @@ function build({ runTests = false } = {}) {
   // was an unreachable module (PERF-4: a second `applyLegacyBonuses` nobody
   // called; PERF-5: the only caller of the relationship-gain multiplier). Both
   // survived several audits because nothing looks for orphans. This names them.
-  const orphans = findZeroImporterModules();
+  const { orphans, testOnly } = findZeroImporterModules();
   a.assert(orphans.length === 0, 'low',
     `No zero-importer modules outside the allowlist (${REACHABILITY_ALLOWLIST.length} allowlisted)`,
     `${orphans.length} module(s) have no importer anywhere`,
     orphans.slice(0, 8).join(', ') + (orphans.length > 8 ? ' …' : '')
       + ' — delete them, or add to REACHABILITY_ALLOWLIST with a reason if they are deliberate tooling.',
+    'scripts/audit/audit-perf.cjs');
+
+  // Graded HIGHER than a plain orphan: an unreferenced module is dead weight,
+  // but a test-only module is dead weight that ALSO buys false confidence —
+  // the suite is green and the shipping path is untested. See PERF-5.
+  a.assert(testOnly.length === 0, 'medium',
+    'No module is kept alive only by its own tests',
+    `${testOnly.length} module(s) are imported from the test tree and nowhere else`,
+    testOnly.slice(0, 8).join(', ') + (testOnly.length > 8 ? ' …' : '')
+      + ' — the tests covering these assert on code that does not ship. Delete the'
+      + ' module and repoint the suite at the real path, or wire the module in.',
     'scripts/audit/audit-perf.cjs');
 
   return a;
@@ -240,7 +321,23 @@ const REACHABILITY_ALLOWLIST = [
  *     `.android` file is matched on its BASE name.
  * Entry points (app/ routes, config, scripts) are excluded — Expo Router loads
  * those by convention, not by import.
+ *
+ * Returns TWO lists, because a test is not a consumer:
+ *   - `orphans`  — referenced by nothing at all.
+ *   - `testOnly` — referenced ONLY from the test tree. This is the worse
+ *     failure of the two and it used to be invisible here, because `__tests__`
+ *     sits in the corpus so a test-only importer read as "referenced".
+ *     `utils/realEstateWeekly.ts` and `utils/bankMarketAPR.ts` hid there: both
+ *     were hand-maintained shadow copies of shipping logic that had since
+ *     diverged, kept alive by confidently-named suites ("BankApp week counter
+ *     regression") that exercised no shipping code. A real regression in the
+ *     screens they were named for passed CI green. 2026-07-30 audit PERF-5.
  */
+/** Test-tree file — both `__tests__/**` and co-located `*.test.ts`. */
+function isTestFile(file) {
+  return /__tests__|__mocks__|\.(test|spec|stress)\.(ts|tsx|js)$/.test(file);
+}
+
 function findZeroImporterModules() {
   const roots = ['lib', 'utils', 'contexts', 'hooks', 'services'];
   const candidates = L.walk(roots, L.isProductionSource)
@@ -252,6 +349,7 @@ function findZeroImporterModules() {
   const corpus = corpusFiles.map((f) => ({ file: f, src: L.read(f) || '' }));
 
   const orphans = [];
+  const testOnly = [];
   for (const file of candidates) {
     if (REACHABILITY_ALLOWLIST.includes(file)) continue;
     // Platform extensions resolve through their base name.
@@ -264,10 +362,11 @@ function findZeroImporterModules() {
     if (!needle) continue;
 
     const re = new RegExp(`['"\`][^'"\`]*\\b${needle}['"\`]|\\b${needle}\\s*}?\\s*from|['"\`][^'"\`]*/${needle}['"\`]`);
-    const referenced = corpus.some(({ file: other, src }) => other !== file && re.test(src));
-    if (!referenced) orphans.push(file);
+    const hits = corpus.filter(({ file: other, src }) => other !== file && re.test(src));
+    if (hits.length === 0) orphans.push(file);
+    else if (!hits.some((h) => !isTestFile(h.file))) testOnly.push(file);
   }
-  return orphans;
+  return { orphans, testOnly };
 }
 
 module.exports = { build };

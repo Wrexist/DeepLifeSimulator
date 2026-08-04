@@ -227,7 +227,12 @@ export function processHustleWeeklyTick(
     // active. Activates the fully-built resolution UI/ledger that previously
     // had no trigger (triggerScandal had zero callers).
     if (!o.activeScandal) {
-      const rolled = rollScandalForWeek(company, o, nextWeeksLived);
+      // C-2: a family business's Reputation moves its scandal odds. Passed
+      // through rather than looked up inside the roll so `hustleLogic` stays a
+      // pure function of its arguments. `undefined` for a company that is not
+      // a family business, which the multiplier reads as neutral.
+      const familyRep = state.familyBusinesses?.find(fb => fb?.companyId === company.id)?.reputation;
+      const rolled = rollScandalForWeek(company, o, nextWeeksLived, familyRep);
       if (rolled) {
         o = pushNotif(
           {

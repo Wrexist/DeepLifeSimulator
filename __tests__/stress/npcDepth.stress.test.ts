@@ -16,7 +16,11 @@
  *   - 500-week run: memories cap holds, opinion stays bounded, no NaN escapes
  */
 
-import type { Relationship, NPCOpinion, NPCLifeEvent } from '@/contexts/game/types';
+import type { Relationship, NPCOpinion } from '@/contexts/game/types';
+// NPCLifeEvent is exported by the npcDepth module, not by contexts/game/types.
+// Importing it from the wrong place made the name resolve to `any`, so all 27
+// uses below were unchecked while looking fully typed.
+import type { NPCLifeEvent } from '@/lib/social/npcDepth';
 import {
   getGiftPreferences,
   getGiftMultiplier,

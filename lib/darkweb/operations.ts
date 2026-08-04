@@ -103,8 +103,41 @@ export function tickHeatDecay(dw: DarkWebState, currentWeek: number): DarkWebSta
 // ---------------------------------------------------------------------------
 
 /**
+ * Reputation a flagged vendor claws back each week while sitting out.
+ *
+ * `updateVendorAfterPurchase` takes 8 off a vendor's reputation and sets
+ * `flaggedScam` on a scam outcome; at 1/week a burned vendor is out for at
+ * least 8 weeks, which reads as a real consequence rather than a slap.
+ */
+export const FLAGGED_VENDOR_WEEKLY_REPUTATION_RECOVERY = 1;
+
+/**
+ * Reputation a flagged vendor must reach before they can post again.
+ *
+ * `vendorScamProbability` is ~0.5 at reputation 50 and falls steeply above it,
+ * so a returning vendor is no longer near-certain to burn the player again —
+ * which is what made the low-reputation seeds a one-way trip.
+ */
+export const FLAGGED_VENDOR_RETURN_REPUTATION = 50;
+
+/**
  * Refresh the public marketplace: prune expired listings, then top up so each
  * vendor has 1–3 fresh listings posted this week.
+ *
+ * R3-C3: `flaggedScam` was set once and never cleared, and nothing in the repo
+ * ever adds a vendor — the pool is the four seeded in `initialState`. Two of
+ * those seeds scam at 0.82 and 0.95 (`b4n3_drop` at reputation 15,
+ * `shadow.eth` at 35), so they were near-certain to burn on the first purchase
+ * and then sit out forever. There was no recovery path anywhere:
+ * `acquireNewIdentity` resets only heat, player reputation and active jobs, and
+ * prestige never touches `darkWeb` at all. After a few dozen purchases across a
+ * long life all four were flagged, listings pruned after 4 weeks, and the
+ * Market tab — the Onion app's headline screen — showed "no listings" forever.
+ *
+ * A flagged vendor now sits out while slowly rebuilding reputation, and returns
+ * once they clear `FLAGGED_VENDOR_RETURN_REPUTATION`. That uses only fields
+ * that already exist, so it needs no schema change and heals existing saves on
+ * the next weekly tick.
  */
 export function refreshMarketplace(
   dw: DarkWebState,
@@ -112,14 +145,26 @@ export function refreshMarketplace(
   rolls: (key: string) => number
 ): DarkWebState {
   let listings = pruneExpiredListings(dw.listings, currentWeek);
-  for (const vendor of dw.vendors) {
+
+  const vendors = dw.vendors.map((vendor) => {
+    if (!vendor.flaggedScam) return vendor;
+    const recovered = Math.max(
+      0,
+      Math.min(100, safe(vendor.reputation) + FLAGGED_VENDOR_WEEKLY_REPUTATION_RECOVERY),
+    );
+    return recovered >= FLAGGED_VENDOR_RETURN_REPUTATION
+      ? { ...vendor, reputation: recovered, flaggedScam: false }
+      : { ...vendor, reputation: recovered };
+  });
+
+  for (const vendor of vendors) {
     if (vendor.flaggedScam) continue;
     const owned = listings.filter((l) => l.vendorId === vendor.id);
     if (owned.length >= 3) continue;
     const fresh = generateListingsForVendor(vendor, currentWeek, rolls, 3 - owned.length);
     listings = [...listings, ...fresh];
   }
-  return { ...dw, listings };
+  return { ...dw, listings, vendors };
 }
 
 export interface PurchaseResult {

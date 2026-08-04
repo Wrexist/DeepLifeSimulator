@@ -697,8 +697,25 @@ export function upgradeEnergySystem(
     return { success: false, message: 'No warehouse found' };
   }
 
+  /**
+   * C-9. The updater refuses to re-buy an energy type the warehouse already
+   * has — a one-time switch, not a stackable purchase — but there was no OUTER
+   * check for it, so the function fell through to an unconditional success.
+   * A player tapping "Solar" while already on Solar was told "Upgraded to Solar
+   * Panels", charged nothing, and nothing changed.
+   *
+   * Fixed with an outer guard rather than by capturing the updater's outcome:
+   * a capture is only readable for the FIRST update in a React batch (measured
+   * in `__tests__/refactor/updaterTimingContract.test.tsx`), whereas this costs
+   * nothing and is correct on the single tap that actually produces the bug.
+   * The inner check stays as the same-batch race guard it was written to be.
+   */
+  if (gameState.warehouse.energyType === energyType) {
+    return { success: false, message: `Already running ${ENERGY_TYPES[energyType].name}.` };
+  }
+
   const energy = ENERGY_TYPES[energyType];
-  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && 
+  const priceIndex = typeof gameState.economy?.priceIndex === 'number' &&
     isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 
     ? gameState.economy.priceIndex 
     : 1;

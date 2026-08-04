@@ -535,6 +535,23 @@ export const recoverFromScandal = (
     if (method === 'gems' && (prev.stats?.gems ?? 0) < SCANDAL_GEM_COST) {
       return prev;
     }
+    /**
+     * R4-MON-3: the scandal must still be ACTIVE.
+     *
+     * The gem re-check above was added for exactly this class, but the whole
+     * body works off the `scandal` captured from the stale outer `gameState`,
+     * and nothing re-checked `prev.socialMedia?.activeScandal`.
+     * `ScandalRecoveryModal.handleChoice` has no in-flight guard and its four
+     * options are plain `Pressable`s in a ScrollView, so two taps in one React
+     * batch both cleared the same scandal: 500 gems debited twice, a duplicate
+     * `scandalHistory` entry, and `totalScandalsSurvived` double-incremented.
+     * The `lawsuit` branch was worse — it charges $5,000 through `updateMoney`
+     * OUTSIDE this updater, so a double tap was $10,000 for one clear.
+     * CLAUDE.md §4.4.
+     */
+    if (!prev.socialMedia?.activeScandal) {
+      return prev;
+    }
     const sm = { ...ensureSocial(prev) };
     const ws = prev.weeksLived ?? 0;
     if (method === 'gems') {
@@ -707,6 +724,30 @@ export const deliverBrandDealPost = (
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     let completionPayout = 0;
+
+    // ONE POST COUNTS ONCE. The counter was incremented unconditionally, with
+    // the "already used" check living only in the caller's render closure —
+    // `BrandDealsScreen.handleDeliver` picks `recent.find(p =>
+    // !p.sponsoredByDealId)` from a stale snapshot, so two taps in one batch
+    // both chose the SAME post and the reducer counted two deliveries. Once
+    // `postsDelivered >= postsRequired` the deal completes early and pays every
+    // remaining installment at once, so a multi-post multi-week contract
+    // collapsed into one post and one week — not over-payment, but a large rate
+    // exploit that also churned the offer inbox far faster than designed.
+    //
+    // Every other Pulse action carries an explicit same-batch guard; this was
+    // the one that did not. 2026-07-30 audit ECON-4.
+    const alreadySponsored = (sm.recentPosts ?? []).find((p) => p.id === postId)?.sponsoredByDealId;
+    if (alreadySponsored) {
+      result = {
+        success: false,
+        message: alreadySponsored === dealId
+          ? 'That post has already been delivered for this deal.'
+          : 'That post is already sponsored by another deal.',
+      };
+      return prev;
+    }
+
     const deals = (sm.activeBrandDeals ?? []).map((d) => {
       if (d.id !== dealId) return d;
       const delivered = (d.postsDelivered ?? 0) + 1;
@@ -778,6 +819,59 @@ export const deliverBrandDealPost = (
   return result;
 };
 
+/**
+ * What breaching `dealId` costs, computed from a state snapshot.
+ *
+ * Extracted so the CONFIRM SCREEN can quote the real number and refuse up front.
+ * `breachBrandDeal` returns its outcome from inside a `setGameState` updater,
+ * and React is free to defer an updater past the point the caller reads that
+ * return — so the refusal added below could not be reported to the player
+ * through the return value alone. `BrandDealsScreen` ignored it outright, which
+ * meant a player who could not afford the penalty tapped "Breach" on a
+ * confirmation dialog and got silence. The alert also quoted `payment * 0.5`,
+ * a different number from the one actually charged.
+ *
+ * Returns `null` when the deal is not active. The updater still re-checks
+ * everything against `prev` — this is for the copy and the pre-flight, never
+ * the authority. 2026-07-30 review of ECON-R1-03.
+ */
+export const brandDealBreachPenalty = (state: GameState, dealId: string): number | null => {
+  const deal = (state.socialMedia?.activeBrandDeals ?? []).find((d) => d.id === dealId);
+  if (!deal) return null;
+  const ws = state.weeksLived ?? 0;
+  const remainingPayment = deal.weeklyPayment
+    ? Math.max(0, deal.weeklyPayment * (deal.expiresAt - ws))
+    : Math.floor(deal.payment * 0.5);
+  return Math.floor(remainingPayment * 1.5);
+};
+
+/**
+ * Breach `dealId`, charging the penalty atomically.
+ *
+ * ⚠️ DO NOT TRUST THE RETURN VALUE. It is assembled inside the `setGameState`
+ * updater, and React may run that updater after this function has already
+ * returned — in which case the caller sees the initial
+ * `{ success: false, message: 'Deal not found.' }` for a breach that then
+ * succeeds. Measured, not assumed: `__tests__/refactor/updaterTimingContract`
+ * shows the first updater of a batch runs eagerly and a second one in the same
+ * batch is deferred, so this is unreliable rather than simply broken.
+ *
+ * The STATE TRANSITION is correct regardless — the penalty is charged inside
+ * the updater and an unaffordable one refuses by returning `prev`, per §4.4.
+ * It is only the report to the caller that is unreliable.
+ *
+ * That is why nothing in production reads it: `BrandDealsScreen` calls this for
+ * its effect only, and does its affordability check up front with
+ * `brandDealBreachPenalty` so the player is refused BEFORE the confirm dialog.
+ * Anything that needs the outcome must pre-flight the same way. Tests may read
+ * the return, but only because their dispatcher is a synchronous stub — that
+ * is a property of the stub, not a guarantee of React.
+ *
+ * The shape is counted branch-wide by `__tests__/refactor/updaterResultRatchet`;
+ * the fix when this is refactored is a pure reducer with an explicit result,
+ * not a pessimistic capture (that was tried on VehicleActions and reverted —
+ * it made a successful refuel report failure).
+ */
 export const breachBrandDeal = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
@@ -789,10 +883,7 @@ export const breachBrandDeal = (
     const deal = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
     if (!deal) return prev;
     const ws = prev.weeksLived ?? 0;
-    const remainingPayment = deal.weeklyPayment
-      ? Math.max(0, deal.weeklyPayment * (deal.expiresAt - ws))
-      : Math.floor(deal.payment * 0.5);
-    const penalty = Math.floor(remainingPayment * 1.5);
+    const penalty = brandDealBreachPenalty(prev, dealId) ?? 0;
     sm.activeBrandDeals = (sm.activeBrandDeals ?? []).filter((d) => d.id !== dealId);
     sm.brandInbox = {
       ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
@@ -807,16 +898,38 @@ export const breachBrandDeal = (
         },
       ],
     };
+    // CHARGE INSIDE THE UPDATER, and let an unaffordable penalty REFUSE the
+    // breach rather than waive it.
+    //
+    // The penalty used to be applied afterwards via `updateMoney`, which is
+    // all-or-nothing: it returns `prev` unchanged when the debit would go
+    // negative. So the breach had already landed — deal removed, history row
+    // written — and the charge silently did nothing. A player who moved their
+    // cash into a bank account first breached every contract for FREE, kept the
+    // 25% signing bonus `acceptBrandDeal` paid up front, and was told
+    // "Contract breached. -$X" while paying nothing. 2026-07-30 audit
+    // ECON-R1-03; the gate-then-grant class this repo has shipped repeatedly.
+    const debit = applyMoneyDelta(prev, -penalty, 'Brand deal breach penalty');
+    if (!debit) {
+      outcome = {
+        success: false,
+        message: `You cannot afford the $${penalty.toLocaleString()} breach penalty. Free up cash first.`,
+        penalty,
+      };
+      return prev;
+    }
+
     pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached — $${penalty} penalty`, ws, {
       refDealId: dealId,
     });
     outcome = { success: true, message: `Contract breached. -$${penalty}, reputation -10.`, penalty };
-    return { ...prev, socialMedia: sm };
+    return {
+      ...prev,
+      ...debit,
+      socialMedia: sm,
+      stats: { ...(debit.stats ?? prev.stats), reputation: Math.max(0, (prev.stats?.reputation ?? 0) - 10) },
+    };
   });
-  if (outcome.success) {
-    updateMoney(setGameState, -outcome.penalty, `Brand deal breach penalty`);
-    updateStats(setGameState, { reputation: -10 });
-  }
   return outcome;
 };
 
@@ -1158,18 +1271,37 @@ export interface AdBoostResult {
   followersGained: number;
 }
 
+/**
+ * Is the weekly ad-boost available? Checked BEFORE an ad is presented.
+ *
+ * `RewardedAdModal` used to present a full rewarded video and only then call
+ * `watchAdForFollowerBoost`, which refuses when the boost was already used this
+ * game week. So a player watched a real 30-second ad, received nothing, and was
+ * told nothing — the sheet had already been dismissed to present the ad, and
+ * the failure branch fired a haptic and dropped `result.message` on the floor.
+ * 2026-07-30 audit UX-1.
+ */
+export const canBoostFollowersWithAd = (gameState: GameState): boolean => {
+  const ws = gameState.weeksLived ?? 0;
+  const lastBoost = gameState.socialMedia?.lastAdBoostWeek ?? -Infinity;
+  return ws - lastBoost >= 1;
+};
+
 export const watchAdForFollowerBoost = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
 ): AdBoostResult => {
-  const ws = gameState.weeksLived ?? 0;
-  const lastBoost = gameState.socialMedia?.lastAdBoostWeek ?? -Infinity;
-  if (ws - lastBoost < 1) {
+  if (!canBoostFollowersWithAd(gameState)) {
     return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
   }
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const gained = proActive ? 150 : 50;
 
+  // The trailing return used to be an unconditional success, so on the very
+  // same-batch race the re-check below exists to stop, the REJECTED call still
+  // told `RewardedAdModal` that followers were gained — and the modal now shows
+  // an alert driven by that flag. Review of the Pulse atomicity fix.
+  let granted = false;
   setGameState((prev) => {
     // Atomic gate: re-check the weekly cooldown against prev. Two same-batch
     // taps both pass the stale outer check; without this, both add followers
@@ -1177,6 +1309,7 @@ export const watchAdForFollowerBoost = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = prev.socialMedia?.lastAdBoostWeek ?? -Infinity;
     if (prevWs - prevLast < 1) return prev;
+    granted = true;
     const sm = { ...ensureSocial(prev) };
     sm.followers = (sm.followers ?? 0) + gained;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
@@ -1185,6 +1318,9 @@ export const watchAdForFollowerBoost = (
     return { ...prev, socialMedia: sm };
   });
 
+  if (!granted) {
+    return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
+  }
   return { success: true, message: `+${gained} followers from ad reward.`, followersGained: gained };
 };
 

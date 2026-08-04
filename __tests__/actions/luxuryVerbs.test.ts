@@ -71,7 +71,7 @@ describe('performLuxuryVerb', () => {
     const replayed = {
       ...state,
       luxuryHoldings: { ...state.luxuryHoldings, racehorse: { acquiredWeek: 0 } },
-    } as GameState;
+    };
     const { result: second } = run(replayed, 'race_horse');
 
     expect(second.outcome!.message).toBe(first.outcome!.message);
@@ -101,7 +101,7 @@ describe('performLuxuryVerb', () => {
   it('builds a career record across races', () => {
     let state = ownerState();
     for (let i = 0; i < 4; i += 1) {
-      state = { ...state, weeksLived: 500 + i * RACE.cooldownWeeks } as GameState;
+      state = { ...state, weeksLived: 500 + i * RACE.cooldownWeeks };
       state = run(state, 'race_horse').state;
     }
     expect(state.luxuryHoldings!.racehorse.runs).toBe(4);
@@ -127,7 +127,7 @@ describe('museum loan blocks the sale', () => {
 
   it('releases it once the loan expires', () => {
     const { state: loaned } = run(ownerState(), 'museum_loan');
-    const later = { ...loaned, weeksLived: 500 + MUSEUM_LOAN_WEEKS } as GameState;
+    const later = { ...loaned, weeksLived: 500 + MUSEUM_LOAN_WEEKS };
 
     let current = later;
     const set = (u: (prev: GameState) => GameState) => {

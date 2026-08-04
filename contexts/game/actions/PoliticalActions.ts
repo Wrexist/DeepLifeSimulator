@@ -6,7 +6,7 @@
 import { GameState, PoliticsState } from '../types';
 import { initialGameState } from '../initialState';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS, canRunForOffice } from '@/lib/careers/political';
 import { getPolicyById } from '@/lib/politics/policies';
@@ -23,6 +23,7 @@ const log = logger.scope('PoliticalActions');
  */
 function calculateActivePolicyEffects(policiesEnacted: string[]): PoliticsState['activePolicyEffects'] {
   const effects: PoliticsState['activePolicyEffects'] = {
+    economy: { inflationRate: 0 },
     stocks: { volatilityModifier: 1, dividendBonus: 0 },
     realEstate: { priceModifier: 1, rentModifier: 1 },
     education: { weeksReduction: 0, costReduction: 0 },
@@ -35,6 +36,27 @@ function calculateActivePolicyEffects(policiesEnacted: string[]): PoliticsState[
   policiesEnacted.forEach(policyId => {
     const policy = getPolicyById(policyId);
     if (!policy) return;
+
+    // Aggregate economy effects.
+    //
+    // R4-X7: this block did not exist. `economy.inflationRate` was declared on
+    // the policy schema, carried by three policies (+2%, +3%, +2%) and rendered
+    // on the policy card as "Inflation +2.0%" before the player paid six
+    // figures to enact it — and the aggregator had no `economy` slice, so
+    // nothing downstream could read it even in principle.
+    //
+    // Summed and clamped to ±5 POINTS of annual rate. These are deltas on the
+    // base rate, not multipliers, and `applyWeeklyInflation` re-clamps the
+    // total to MAX_ANNUAL_INFLATION so a stack cannot run the price index away.
+    if (policy.effects.economy?.inflationRate !== undefined && effects.economy) {
+      const delta = Number(policy.effects.economy.inflationRate);
+      if (Number.isFinite(delta)) {
+        effects.economy.inflationRate = Math.max(
+          -0.05,
+          Math.min(0.05, effects.economy.inflationRate + delta),
+        );
+      }
+    }
 
     // Aggregate stock effects
     if (policy.effects.stocks && effects.stocks) {
@@ -617,13 +639,24 @@ export const lobby = (
   // floor(amount/10000) granted 0 for a $1,000–$9,999 spend — money gone, no effect.
   const influenceGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 10000))) : 0;
 
-  // Atomic: merge money deduction + influence update into single update
-  setGameState(prev => ({
+  // ECON-3: REJECT an unaffordable spend, don't floor it. `Math.max(0, money -
+  // amount)` let two same-batch taps both pass the stale outer affordability
+  // gate and both apply their effect while the second debit silently clamped to
+  // 0 — 2x policy influence for 1x cash. `MoneyActions` records this exact
+  // class: "the goods were granted and the money just zeroed out". The sibling
+  // actions `runForElection` and `enactPolicy` were fixed in the 2026-07-02
+  // audit; these three were left behind. 2026-07-30 audit.
+  // Reflect the updater's decision in the return value. It used to be a
+   // hardcoded success, so on the very same-batch race `applyMoneyDelta`
+   // exists to reject, the caller was still told the influence was bought.
+  let applied = false;
+  setGameState(prev => {
+    const spend = applyMoneyDelta(prev, -amount, 'Lobbying');
+    if (!spend) return prev;
+    applied = true;
+    return {
     ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - amount),
-    },
+    ...spend,
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -637,8 +670,12 @@ export const lobby = (
       },
       policyInfluence: Math.min(100, (prev.politics?.policyInfluence || 0) + influenceGain),
     },
-  }));
+    };
+  });
 
+  if (!applied) {
+    return { success: false, message: `You cannot afford $${amount.toLocaleString()} of lobbying right now.` };
+  }
   log.info(`Lobbied for ${policy.name} with $${amount}`);
   return { success: true, message: `Lobbied for ${policy.name}. Policy influence increased!` };
 };
@@ -746,13 +783,15 @@ export const campaign = (
   // floor(amount/5000) granted 0 for a $500–$4,999 spend — money gone, no effect.
   const approvalGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 5000))) : 0;
 
-  // Atomic: merge money deduction + politics update into single update
-  setGameState(prev => ({
+  // ECON-3: reject rather than floor — see `lobby` above.
+  let applied = false;
+  setGameState(prev => {
+    const spend = applyMoneyDelta(prev, -amount, 'Campaign spending');
+    if (!spend) return prev;
+    applied = true;
+    return {
     ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - amount),
-    },
+    ...spend,
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -767,9 +806,13 @@ export const campaign = (
       approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + approvalGain),
       campaignFunds: (prev.politics?.campaignFunds || 0) + amount,
     },
-  }));
+    };
+  });
 
   log.info(`Campaign spending: $${amount}, approval gain: ${approvalGain}`);
+  if (!applied) {
+    return { success: false, message: `You cannot afford $${amount.toLocaleString()} of campaign spending right now.` };
+  }
   return { success: true, message: `Campaign spending increased your approval rating by ${approvalGain}!` };
 };
 
@@ -817,13 +860,21 @@ export const hireLobbyist = (
     active: true,
   };
 
-  // Atomic: merge money deduction + lobbyist addition into single update
-  setGameState(prev => ({
+  // ECON-3: reject rather than floor, AND re-check the already-hired gate.
+  // The picker renders every catalogue lobbyist as its own row with
+  // `affordable` computed from the render snapshot, so with cash for exactly
+  // one retainer two taps hired two lobbyists — the second free, its influence
+  // permanent. Tapping the SAME row twice appended a duplicate entry while
+  // `fireLobbyist` only ever subtracts one lobbyist's influence.
+  let applied = false;
+  setGameState(prev => {
+    if ((prev.politics?.lobbyists || []).some((l) => l?.id === newLobbyist.id)) return prev;
+    const spend = applyMoneyDelta(prev, -lobbyist.cost, `Hire lobbyist: ${lobbyist.name}`);
+    if (!spend) return prev;
+    applied = true;
+    return {
     ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - lobbyist.cost),
-    },
+    ...spend,
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -838,9 +889,16 @@ export const hireLobbyist = (
       lobbyists: [...(prev.politics?.lobbyists || []), newLobbyist],
       policyInfluence: Math.min(100, (prev.politics?.policyInfluence || 0) + lobbyist.influence),
     },
-  }));
+    };
+  });
 
   log.info(`Hired lobbyist: ${lobbyist.name}`);
+  if (!applied) {
+    return {
+      success: false,
+      message: `Could not hire ${lobbyist.name} — you may already have them, or cannot afford the retainer.`,
+    };
+  }
   return { success: true, message: `Successfully hired ${lobbyist.name}! Policy influence increased by ${lobbyist.influence}.` };
 };
 

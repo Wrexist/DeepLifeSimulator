@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { View, Text, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import { Shield, Bug, RotateCcw, X } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -11,7 +12,10 @@ import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
+import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
 import { logger } from '@/utils/logger';
+import { safeRemoveItem } from '@/utils/safeStorage';
+import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = LinearGradientFallback;
@@ -24,14 +28,72 @@ interface Props {
 export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { setGameState } = useGame();
+  const { setGameState, currentSlot } = useGame();
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
   const confirmRestart = async () => {
     try {
-      setGameState(initialGameState);
+      // Restart is the THIRD builder that starts from `initialGameState`, and
+      // it was the one that never carried purchases. `accountEntitlements.ts`
+      // says to call this from every such builder; prestige and the heir flow
+      // do, this did not. So "Restart Game" silently destroyed Remove Ads,
+      // Lifetime Premium, all nine gem-bought permanent gold upgrades, every
+      // purchased perk, unspent Youth Pills, the Revival Pack and the four
+      // banking unlocks — and the 2-minute autosave then wrote the wipe to
+      // disk. The confirm dialog only ever warned about "progress".
+      // 2026-07-30 audit MON-2.
+      // Deep-clone FIRST. `carryAccountLevelEntitlements` mutates its second
+      // argument (its own docstring says so), so handing it the exported
+      // `initialGameState` singleton would write this life's purchases onto the
+      // shared template — permanently, for the rest of the process, so every
+      // later new game would start with them. The two prestige callers pass a
+      // freshly built object; this one had the singleton itself to hand.
+      setGameState((prev) =>
+        carryAccountLevelEntitlements(prev, JSON.parse(JSON.stringify(initialGameState)) as typeof initialGameState),
+      );
       setShowRestartConfirm(false);
       onModalClose();
+
+      /**
+       * R3-S3 (round 3): the reset can never be SAVED, so it must be DELETED.
+       *
+       * The previous version awaited `saveGame(true)` here, with a comment
+       * explaining that an app exit right after Restart would otherwise leave
+       * the old life on disk. That is exactly what happened anyway: the state
+       * this handler builds comes from `initialGameState`, so it has no
+       * `scenarioId` and an empty `userProfile.firstName`/`lastName`, and
+       * `carryAccountLevelEntitlements` copies only settings, gold upgrades,
+       * perks and youth pills — never a name or a scenario. So
+       * `isPristineUnstartedState` returns true and `saveGame` bails before
+       * writing. The 2-minute autosave bails on the same guard.
+       *
+       * The wipe was therefore memory-only: `lastSlot` and the slot blob still
+       * held the old character, MainMenu's Continue card still showed their
+       * name and age, and tapping it reloaded the life the player had just
+       * confirmed destroying. With all three slots full, "New Game" also still
+       * reported "All Save Slots Full".
+       *
+       * Deleting is the correct operation and needs no pristine exemption: a
+       * pristine state must never be written (that is the phantom-save rule
+       * `isPristineUnstartedState` exists to enforce), and "restart" means the
+       * old life is gone. Same sequence as DeathPopup's new-game path.
+       */
+      const slot = typeof currentSlot === 'number' && currentSlot > 0 ? currentSlot : null;
+      if (slot != null) {
+        const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
+        await snapshotOutgoingSave(slot, 'before_overwrite').catch(() => {});
+        const { deleteSaveSlot } = await import('@/utils/saveValidation');
+        await deleteSaveSlot(slot);
+        await import('@/utils/saveSlotMeta')
+          .then((m) => m.deleteSaveSlotMeta(slot))
+          .catch(() => {});
+      }
+      await safeRemoveItem('lastSlot');
+
+      // The player is heading to the menus with a pristine state in memory;
+      // stop the ambient autosave from writing anything back (R3-S1).
+      suspendLifeAutosave('settings -> restart game');
+
       const mainMenuPath: Href = '/(onboarding)/MainMenu';
       router.push(mainMenuPath);
     } catch (error) {
@@ -110,14 +172,19 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
           <View style={styles.confirmModal}>
             <View style={styles.confirmHeader}>
               <Text style={styles.confirmTitle}>Restart Game</Text>
-              <TouchableOpacity onPress={() => setShowRestartConfirm(false)} style={styles.closeButton}>
+              <TouchableOpacity
+                onPress={() => setShowRestartConfirm(false)}
+                style={[styles.closeButton, minTouchTargetStyle]}
+                hitSlop={hitSlopToMinTarget(scale(24))}
+                {...CLOSE_BUTTON_A11Y}
+              >
                 <X size={24} color="#CBD5E1" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.confirmContent}>
               <Text style={styles.confirmDescription}>
-                Are you sure you want to restart? All progress will be lost.
+                Are you sure you want to restart? All progress will be lost. Purchases you have paid for are kept.
               </Text>
               <View style={styles.confirmActions}>
                 <TouchableOpacity

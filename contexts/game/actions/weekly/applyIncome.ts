@@ -38,6 +38,44 @@ import { makeWeeklyRoll } from '@/utils/seededRoll';
  */
 const MAX_PERK_INCOME_BONUS = 2.0;
 
+/**
+ * Share of the household partner's income that reaches the player each week.
+ *
+ * A spouse does not hand over their whole salary; a quarter of it is the
+ * household contribution the economy is balanced around.
+ */
+export const PARTNER_INCOME_SHARE = 0.25;
+
+/**
+ * What the household partner actually contributes per week.
+ *
+ * THE SINGLE SOURCE for that number. `FamilyTab`'s "Family Income/wk" headline
+ * used to compute its own — `spouse.income * 7`, applied to a value the spouse
+ * card one line below renders as "$65000/week". A player with a $65,000/wk
+ * spouse was shown $455,000/wk, and actually received $16,250. The headline
+ * also added 1% of each adult child's savings, which nothing in the tick pays.
+ *
+ * Only ONE partner contributes (the top earner) — summing every partner over
+ * the score threshold was an unbounded-income exploit.
+ */
+export function householdPartnerIncome(
+  relationships: GameState['relationships'] | undefined | null,
+): number {
+  let top = 0;
+  for (const rel of relationships || []) {
+    if (!rel || !rel.income) continue;
+    if (rel.type !== 'partner' && rel.type !== 'spouse') continue;
+    if ((rel.relationshipScore ?? 0) < PARTNER_INCOME_THRESHOLD) continue;
+    const safeIncome =
+      typeof rel.income === 'number' && isFinite(rel.income) && rel.income >= 0 ? rel.income : 0;
+    if (safeIncome > top) top = safeIncome;
+  }
+  return Math.round(top * PARTNER_INCOME_SHARE);
+}
+
+/** Minimum relationship score before a partner contributes at all. */
+export const PARTNER_INCOME_THRESHOLD = 50;
+
 export interface IncomeTickInput {
   /** Full prev state — needed for relationships, perks, goldUpgrades. */
   prevState: GameState;
@@ -82,14 +120,13 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   // EXPLOIT FIX: previously this summed 25% of EVERY partner/spouse with score
   // >= 50, so juggling several concurrent partners stacked unbounded passive
   // income. Only one household partner contributes — take the top earner.
-  let topPartnerIncome = 0;
-  (input.prevState.relationships || []).forEach((rel) => {
-    if (rel && rel.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
-      const safeIncome = typeof rel.income === 'number' && isFinite(rel.income) && rel.income >= 0 ? rel.income : 0;
-      if (safeIncome > topPartnerIncome) topPartnerIncome = safeIncome;
-    }
-  });
-  const partnerIncome = Math.round(topPartnerIncome * 0.25);
+  //
+  // The share and the selection rule now live in `householdPartnerIncome`
+  // below, so `FamilyTab`'s "Family Income/wk" headline reads the same number
+  // this credits. It used to compute its own: `spouse.income * 7`, on a value
+  // the card beside it renders as "/week" — a 7x overstatement — plus an
+  // invented 1%-of-child-savings term that nothing here pays.
+  const partnerIncome = householdPartnerIncome(input.prevState.relationships);
 
   // 2. Prestige income multiplier.
   const incomeMultiplier = getIncomeMultiplier(input.unlockedBonuses);

@@ -83,22 +83,12 @@ const migrations: Record<number, (state: any) => any> = {
       state.legacyBuffs = undefined; // Explicitly set (no-op but makes intent clear)
     }
 
-    // Challenge streak — initialize with defaults for saves that had daily challenges
-    if (state.challengeStreak === undefined && state.dailyChallenges?.lastCompletionDay) {
-      state.challengeStreak = { count: 0, lastCompletionDayKey: '' };
-    }
-
-    // Life chapters
-    if (state.activeChapterId === undefined) {
-      state.activeChapterId = 'ch1_fresh_start';
-    }
+    // Life chapters. `activeChapterId` used to be backfilled here too; it was
+    // removed because `getCurrentChapter()` DERIVES the active chapter from
+    // `completedChapters`, so the stored field had no reader and every load was
+    // maintaining it for nobody.
     if (state.completedChapters === undefined) {
       state.completedChapters = [];
-    }
-
-    // Tutorial step completion
-    if (state.completedTutorialSteps === undefined) {
-      state.completedTutorialSteps = [];
     }
 
     // Career startedWeeksLived — backfill for existing careers
@@ -733,6 +723,86 @@ const migrations: Record<number, (state: any) => any> = {
     }
 
     state.version = 25;
+    return state;
+  },
+
+  // Version 26: `settings.quickActionWeeks` — the per-game-week marker that gates
+  // the HUD long-press quick actions. Its default is `undefined` (an absent key
+  // already means "no action used this week"), so per the save-format rule it
+  // gets a version bump and NO backfill, and no repairGameState mirror.
+  26: (state) => {
+    state.version = 26;
+    return state;
+  },
+
+  // Version 27: `lastLoginRewardAt` — epoch high-water mark for the daily-login
+  // gem claim, so a rewound device clock cannot re-arm it. Default is
+  // `undefined` (absent = never claimed), so this is another carve-out field:
+  // version bump, NO backfill, no repairGameState mirror. Writing a value here
+  // would be actively wrong — it would lock an existing player out of their
+  // next claim. 2026-07-30 audit ECON-1.
+  27: (state) => {
+    state.version = 27;
+    return state;
+  },
+
+  // Version 28: `settings.lastNoFillGrantWeek` — the game-week marker that caps
+  // the ad orb's no-fill courtesy reward. It replaces a module-level boolean
+  // that reset on every app restart, making the net-worth-scaled grant farmable
+  // by force-quitting. Default is `undefined` (absent = never granted), so this
+  // is another carve-out field: version bump, NO backfill and no
+  // repairGameState mirror. Writing a value would deny an existing player their
+  // first legitimate courtesy grant. 2026-07-31 audit round 4, R4-MON-6.
+  28: (state) => {
+    state.version = 28;
+    return state;
+  },
+
+  // Version 29: `legacyUpgrades` — the ids bought with legacy points (C-11).
+  //
+  // `legacyPoints` had accrued since v11 with nothing to spend them on. This
+  // adds the purchase record, so an existing save arrives at the new shop with
+  // a full balance and nothing bought — which is exactly right, since it never
+  // had the chance to buy anything.
+  //
+  // Concrete stored default (`[]`), so unlike the v26/v27/v28 carve-outs this
+  // one takes a REAL backfill and a matching `repairGameState` mirror. An
+  // absent key would work by accident today because every reader guards with
+  // `Array.isArray`, but the moment one does a bare `.includes` it breaks.
+  29: (state) => {
+    if (!Array.isArray(state.legacyUpgrades)) {
+      state.legacyUpgrades = [];
+    }
+    state.version = 29;
+    return state;
+  },
+
+  // Version 30: `revivalPack` — the unspent charge from the $2.99 Revival Pack
+  // (MON-5).
+  //
+  // The field is NOT new. It has been on GameState and in `initialState` since
+  // the beginning, defaulting to `false`, read by nothing and written by
+  // nothing — a dead field, and a standing instance of exactly the drift Hard
+  // Rule #3 exists to catch: a concrete stored default that never shipped a
+  // migration. It is registered here now because it has become load-bearing:
+  // the IAP grant banks a charge into it and `reviveWithPack` spends one.
+  //
+  // Functionally a no-op backfill — an absent key is falsy, which already means
+  // "no banked revive", and that is the correct answer for every save written
+  // before the pack could be banked. It is a REAL migration rather than a
+  // member of the intentional-no-op set because the default is concrete
+  // (`false`, not `undefined`), so §7 wants the key written and mirrored in
+  // `repairGameState`.
+  //
+  // Deliberately does NOT consult `settings.hasRevivalPack`. That records the
+  // PURCHASE and survives prestige; this records the unspent CHARGE. Granting a
+  // charge to everyone who ever bought the pack would hand a free life to every
+  // player who already had their instant-revive at purchase time.
+  30: (state) => {
+    if (typeof state.revivalPack !== 'boolean') {
+      state.revivalPack = false;
+    }
+    state.version = 30;
     return state;
   },
 };

@@ -14,6 +14,7 @@ import { applyVehiclesForWeek } from '@/contexts/game/actions/weekly/applyVehicl
 import { applyDiseasesForWeek } from '@/contexts/game/actions/weekly/applyDiseases';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 import type { GameStats, Vehicle, Disease } from '@/contexts/game/types';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
 function stubStats(overrides: Partial<GameStats> = {}): GameStats {
   return {
@@ -35,25 +36,11 @@ function stubCtx(
   return {
     newStats: stats,
     notifications: [] as WeekNotification[],
-    preRolls: {
-      careerAcceptDelay: 1,
-      stockPickRoll: 0,
-      childGender: 'male',
-      childIdSuffix: 'x',
-      childPersonality: 0,
-      relBreakup: [],
-      relDisappointed: [],
-      policeEncounter: 0,
-      minerDegradation: 0,
-      diseaseComplication: [],
-      diseaseProgression: [],
-      petSickness: [],
-      petSicknessType: [],
-      vehicleAccident: [],
-      vehicleAccidentSeverity: [],
-      timestamp: 0,
-      ...preRollOverrides,
-    },
+    // The thirteenth copy of this literal, and the last one still inline. It
+    // had already gone stale on `luxuryIncident` — see the note in
+    // `helpers/zeroPreRolls.ts` for why a shared factory is the fix rather than
+    // adding the missing key here.
+    preRolls: zeroPreRolls(preRollOverrides),
     nextWeeksLived: 100,
   };
 }
@@ -129,7 +116,7 @@ describe('weekly tick — pre-roll bounds (Batch 1: C3 vehicles, C4 diseases)', 
         prevDiseaseHistory: undefined,
         prevShowSicknessModal: false,
         prevLastDiseaseWeek: 0,
-        newDisease: undefined,
+        newDisease: null, // the declared type, and what applyDiseases' own docs say tests pass
       },
       ctx,
     );

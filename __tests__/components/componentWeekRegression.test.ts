@@ -1,52 +1,92 @@
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import { getMarketAPRByAbsoluteWeek, getMarketAPRForGameWeek } from '@/utils/bankMarketAPR';
-import { updateTenantSatisfactionForWeek } from '@/utils/realEstateWeekly';
+/**
+ * Week-counter regressions, tested against the code that actually ships.
+ *
+ * This file used to import `@/utils/bankMarketAPR` and
+ * `@/utils/realEstateWeekly` — two modules with ZERO production importers. Its
+ * describe blocks were named "BankApp week counter regression" and
+ * "RealEstateApp weekly maintenance regression", but neither screen used those
+ * modules: `components/mobile/BankApp.tsx` reads `account.baseAPR` directly and
+ * has no APR-by-week path at all, and real-estate tenancy lives in
+ * `lib/realEstate/tenancy.ts` / `housing.ts`. `utils/realEstateWeekly.ts` even
+ * documented itself as "Matches RealEstateApp weekly tenant satisfaction rules"
+ * — a hand-maintained shadow copy that had since diverged.
+ *
+ * So a real week-counter regression in either screen would have passed CI green
+ * while two confidently-named suites went on passing. The repo's own orphan
+ * detector missed it because `scripts/audit/audit-perf.cjs` counts `__tests__`
+ * in the reference corpus, so a test-only importer reads as "referenced".
+ * 2026-07-30 audit PERF-5.
+ *
+ * Both orphan modules are deleted. What remains here is the one week-counter
+ * concern that genuinely exists in shipped code: `processWeeklyHousing`
+ * normalizes a property's `lastMaintenance` onto the ABSOLUTE `weeksLived`
+ * counter, not the cyclic 1-4 `week` (CLAUDE.md §4.2, and `types.ts` documents
+ * the field as "weeksLived of last maintenance").
+ */
+import fs from 'fs';
+import path from 'path';
+import { processWeeklyHousing } from '@/lib/realEstate/housing';
+import type { RealEstate } from '@/contexts/game/types';
 
-describe('BankApp week counter regression', () => {
-  it('uses weeksLived for APR when UI week cycles back to 1', () => {
-    const state = createTestGameState({
-      week: 1,
-      weeksLived: 53,
-    });
+function ownedProperty(over: Partial<RealEstate> = {}): RealEstate {
+  return {
+    id: 'house-1',
+    name: 'Starter House',
+    price: 200_000,
+    owned: true,
+    ...over,
+  } as RealEstate;
+}
 
-    const aprFromComponentPath = getMarketAPRForGameWeek(state.weeksLived, state.week);
-    const aprFromAbsoluteWeek = getMarketAPRByAbsoluteWeek(53);
-    const aprFromLegacyWeekOnly = getMarketAPRForGameWeek(undefined, 1);
+describe('maintenance is stamped on the absolute week counter', () => {
+  it('initialises lastMaintenance to weeksLived, not the 1-4 display week', () => {
+    const [updated] = processWeeklyHousing([ownedProperty()], 53).properties;
 
-    expect(aprFromComponentPath).toBeCloseTo(aprFromAbsoluteWeek, 10);
-    expect(aprFromComponentPath).not.toBeCloseTo(aprFromLegacyWeekOnly, 10);
+    // 53 is deliberately past a year boundary: the cyclic `week` would be 1
+    // here, and storing that would make every later age comparison wrong.
+    expect(updated.lastMaintenance).toBe(53);
   });
 
-  it('keeps APR stable across week-of-month changes when weeksLived is unchanged', () => {
-    const aprWeekOne = getMarketAPRForGameWeek(60, 1);
-    const aprWeekFour = getMarketAPRForGameWeek(60, 4);
+  it('does not overwrite a lastMaintenance the property already has', () => {
+    const [updated] = processWeeklyHousing(
+      [ownedProperty({ lastMaintenance: 40 })],
+      53,
+    ).properties;
 
-    expect(aprWeekOne).toBeCloseTo(aprWeekFour, 10);
-  });
-});
-
-describe('RealEstateApp weekly maintenance regression', () => {
-  it('normalizes legacy cyclical maintenance week before decay checks', () => {
-    // Legacy lastMaintenance=4 should map to absolute week 8 in this context.
-    // That means only 1 week has passed, so satisfaction increases by +2.
-    const nextSatisfaction = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: 80,
-      lastMaintenance: 4,
-      currentAbsoluteWeek: 9,
-      currentWeekOfMonth: 1,
-    });
-
-    expect(nextSatisfaction).toBe(82);
+    expect(updated.lastMaintenance).toBe(40);
   });
 
-  it('applies decay when maintenance is overdue by absolute week count', () => {
-    const nextSatisfaction = updateTenantSatisfactionForWeek({
-      tenantSatisfaction: 80,
-      lastMaintenance: 5,
-      currentAbsoluteWeek: 11,
-      currentWeekOfMonth: 3,
-    });
+  it('leaves unowned properties alone', () => {
+    const [updated] = processWeeklyHousing(
+      [ownedProperty({ owned: false })],
+      53,
+    ).properties;
 
-    expect(nextSatisfaction).toBe(75);
+    expect(updated.lastMaintenance).toBeUndefined();
+  });
+
+  it('is fed the absolute counter by its only caller', () => {
+    // The assertions above pin the function's own contract; this pins the one
+    // thing that could actually regress — the week loop handing it the cyclic
+    // `week` instead. `applyRentAndHousing` is the sole production caller.
+    const caller = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'contexts/game/actions/weekly/applyRentAndHousing.ts'),
+      'utf8',
+    );
+
+    expect(caller).toMatch(/processWeeklyHousing\([^)]*,\s*nextWeeksLived\s*\)/);
+  });
+
+  it('keeps the stamp monotonic across successive weeks', () => {
+    // A stamp taken from the cyclic counter would go BACKWARDS every month.
+    let properties = processWeeklyHousing([ownedProperty()], 53).properties;
+    const first = properties[0].lastMaintenance;
+
+    for (let week = 54; week <= 60; week += 1) {
+      properties = processWeeklyHousing(properties, week).properties;
+    }
+
+    expect(properties[0].lastMaintenance).toBe(first);
+    expect(properties[0].lastMaintenance).toBeGreaterThan(4);
   });
 });

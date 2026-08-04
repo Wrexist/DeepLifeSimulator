@@ -17,6 +17,7 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
@@ -74,6 +75,9 @@ function TopStatsBarComponent() {
  // Sprint 2: select only the slices this bar reads — it no longer re-renders
  // on changes to unrelated state (loans, companies, social feeds, ...).
  const setGameState = useSetGameState();
+ // saveGame only — this hook's other members are not read here, and the actions
+ // context does not carry a state subscription.
+ const { saveGame } = useGameActions();
  const stats = useGameSelector((s) => s?.stats, shallowEqual);
  const settings = useGameSelector((s) => s?.settings, shallowEqual);
  const bankSavings = useGameSelector((s) => s?.bankSavings ?? 0);
@@ -83,6 +87,8 @@ function TopStatsBarComponent() {
  const prestigeLevel = prestige?.prestigeLevel ?? 0;
  const date = useGameSelector((s) => s?.date, shallowEqual);
  const careers = useGameSelector((s) => s?.careers);
+ // Needed by the quick-action week gate below.
+ const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  const currentJob = useGameSelector((s) => s?.currentJob);
  const educations = useGameSelector((s) => s?.educations);
  const dietPlans = useGameSelector((s) => s?.dietPlans);
@@ -144,16 +150,68 @@ function TopStatsBarComponent() {
  setShowQuickActions(null);
 
  const clamp = (v: number) => Math.max(0, Math.min(100, v));
- // Each action is a self-limiting trade (spends a resource) so none is a
- // free, spammable win — and, crucially, they actually change stats now.
+
+ // ONE USE PER ACTION PER GAME WEEK.
+ //
+ // The comment that used to sit here claimed each action was "a self-limiting
+ // trade (spends a resource) so none is a free, spammable win". That was false:
+ // `rest` had no gate of any kind, so rest -> social netted +6 energy and
+ // +5 happiness per cycle, repeatable forever from the always-visible HUD, and
+ // `exercise` then turned the free energy into free fitness and health. Energy
+ // is the currency that gates street jobs, crime, health activities and
+ // hobbies, so this was a general-purpose bypass of the whole weekly budget.
+ // 2026-07-30 audit UX-R1-02.
+ // `Number.isFinite`, not `typeof === 'number'`, and both sides normalized.
+ // `NaN === NaN` is false, so a save carrying a NaN `weeksLived` — or a NaN
+ // mark — made this return false unconditionally and reopened the very bypass
+ // the gate exists to close. A non-finite value means "unknown week", which
+ // must fall back to the gate being CLOSED for a mark that exists at all.
+ const usedThisWeek = (prev: GameState, id: string): boolean => {
+ const mark = prev?.settings?.quickActionWeeks?.[id];
+ if (typeof mark !== 'number') return false;
+ const week = prev?.weeksLived;
+ if (!Number.isFinite(mark) || !Number.isFinite(week)) return true;
+ return mark === week;
+ };
+
+ /** Can `prev` pay this action's cost? Checked against `prev`, never a snapshot. */
+ const canPay = (
+ prev: GameState,
+ deltas: { money?: number; energy?: number },
+ ): boolean => {
+ const st = prev.stats ?? ({} as GameState['stats']);
+ if (deltas.money != null && deltas.money < 0 && (st.money ?? 0) < -deltas.money) return false;
+ if (deltas.energy != null && deltas.energy < 0 && (st.energy ?? 0) < -deltas.energy) return false;
+ return true;
+ };
+
+ // One refusal path, so the two callers below cannot drift in wording or
+ // haptic. (Review of this change flagged the duplication.)
+ const refuseWeeklyGate = () => {
+ haptic('warning');
+ info('Already done that this week — come back next week.');
+ };
+
  const apply = (
  deltas: Partial<{ health: number; happiness: number; energy: number; fitness: number; money: number }>,
  msg: string,
  ) => {
  setGameState(prev => {
+ // Re-check against `prev`, not the captured selector value, so two taps
+ // in the same React batch cannot both pass — the weekly gate AND the
+ // cost. The cost matters on its own: `social` (−8 energy) and `exercise`
+ // (−12 energy) are different actions, so the weekly gate lets both
+ // through in one batch, and both would read the same stale 15 energy
+ // from the selector snapshot and pass. Charging against `prev` refuses
+ // the second instead of clamping the balance at 0 and granting anyway.
+ if (usedThisWeek(prev, action) || !canPay(prev, deltas)) return prev;
  const st = prev.stats;
  return {
  ...prev,
+ settings: {
+ ...prev.settings,
+ quickActionWeeks: { ...(prev.settings?.quickActionWeeks ?? {}), [action]: prev.weeksLived ?? 0 },
+ },
  stats: {
  ...st,
  health: deltas.health != null ? clamp((st.health ?? 0) + deltas.health) : st.health,
@@ -166,9 +224,28 @@ function TopStatsBarComponent() {
  });
  haptic('success');
  success(msg);
+ // Persist the grant AND the weekly marker. Without this the whole tick lives
+ // only in memory until the 2-minute autosave, so a force-kill loses the
+ // marker and re-arms the action for the same game week — the exact bypass
+ // this gate exists to close. Deferred a macrotask because saveGame reads
+ // gameStateRef.current, which is synced post-commit.
+ setTimeout(() => { void saveGame?.(false); }, 0);
  };
 
  const s = stats ?? { money: 0, energy: 0 };
+ // The gate the PLAYER is told about, checked against committed state.
+ //
+ // It used to also read a `refused` flag that the updater sets, which cannot
+ // work: React is free to defer an updater past the point this callback
+ // returns, so the flag was still `false` when it was read. Messaging is
+ // driven from the committed snapshot instead, and the updater is purely
+ // authoritative for state. The two can only disagree for two taps inside a
+ // single React batch, where the worst case is an optimistic toast for a
+ // second tap that correctly changed nothing — no grant, no exploit.
+ if (usedThisWeek({ settings, weeksLived } as GameState, action)) {
+ refuseWeeklyGate();
+ return;
+ }
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
@@ -186,7 +263,7 @@ function TopStatsBarComponent() {
  apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout — +6 fitness, +5 health.');
  break;
  }
- }, [buttonPress, haptic, success, info, setGameState, stats]);
+ }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
 
  // Optimized stat colors with better memoization
  const statColors = useMemo(

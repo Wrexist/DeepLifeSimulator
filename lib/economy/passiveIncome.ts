@@ -1,6 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { getStockInfo } from './stockMarket';
-import { namedHirePerformanceFactor } from '@/lib/business/hustleLogic';
+import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
@@ -9,6 +9,7 @@ import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { familyBrandIncomeMultiplier, findFamilyBusiness } from '@/lib/business/familyBusinessEffects';
 import { 
   PROPERTY_THRESHOLD_1, 
   PROPERTY_THRESHOLD_2, 
@@ -84,114 +85,29 @@ export function calcWeeklyPassiveIncome(
 ): { total: number; breakdown: PassiveIncomeBreakdown; reinvested?: number } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
-    let stocksIncome = 0;
-    let reinvestedAmount = 0;
-    // BUG FIX: Support both old format (stocksOwned) and new format (stocks.holdings)
-    // Old format: { [stockId]: shares }
-    // New format: { holdings: [{ symbol, shares, averagePrice, currentPrice }] }
-    const oldHoldings = state.stocksOwned || {};
-    const newHoldings = state.stocks?.holdings || [];
-    const unlockedBonuses = state.prestige?.unlockedBonuses || [];
-    const shouldReinvest = shouldAutoReinvestDividends(unlockedBonuses);
-    
-    // Process new format holdings (preferred) - stocks.holdings array
-    for (const holding of newHoldings) {
-      if (!holding || !holding.symbol) continue;
-      const stockId = holding.symbol.toUpperCase();
-      const shares = typeof holding.shares === 'number' && isFinite(holding.shares) && holding.shares >= 0 ? holding.shares : 0;
-      if (shares === 0) continue;
-      
-      const info = getStockInfo(stockId);
-      if (!info) continue;
-      
-      // CRITICAL: Validate all inputs before calculation to prevent NaN/Infinity
-      const safePrice = typeof info.price === 'number' && isFinite(info.price) && info.price > 0 ? info.price : 0;
-      const safeDividendYield = typeof info.dividendYield === 'number' && isFinite(info.dividendYield) && info.dividendYield >= 0 ? info.dividendYield : 0;
-      const safeShares = typeof shares === 'number' && isFinite(shares) && shares >= 0 ? shares : 0;
-      
-      if (safePrice === 0 || safeShares === 0) continue; // Skip invalid holdings
-      
-      const annualDividend = safePrice * safeDividendYield * safeShares;
-      // Validate result before division
-      if (!isFinite(annualDividend) || annualDividend < 0) continue;
-      
-      const weeklyDividend = Math.round(annualDividend / WEEKS_PER_YEAR);
-      if (!isFinite(weeklyDividend) || weeklyDividend < 0) continue;
-
-      if (shouldReinvest) {
-        // ECONOMY FIX: Apply 2% transaction cost to auto-reinvest to prevent exponential growth
-        const reinvestAmount = weeklyDividend * 0.98; // 2% transaction cost (matches sell fee)
-        // CRITICAL: Validate price before division to prevent division by zero
-        if (safePrice > 0 && isFinite(reinvestAmount) && reinvestAmount > 0) {
-          const sharesToBuy = Math.floor(reinvestAmount / safePrice);
-          if (sharesToBuy > 0 && isFinite(sharesToBuy)) {
-            const reinvestValue = sharesToBuy * safePrice;
-            if (isFinite(reinvestValue) && reinvestValue > 0) {
-              reinvestedAmount += reinvestValue;
-            } else {
-              stocksIncome += weeklyDividend;
-            }
-            // Note: Actual stock purchase will be handled in GameActionsContext
-          } else {
-            stocksIncome += weeklyDividend;
-          }
-        } else {
-          stocksIncome += weeklyDividend;
-        }
-      } else {
-        stocksIncome += weeklyDividend;
-      }
-    }
-
-    // Process old format holdings (legacy support) - stocksOwned object
-    for (const [stockId, shares] of Object.entries(oldHoldings)) {
-      // Skip if already processed in new format
-      const normalizedId = stockId.toUpperCase();
-      const alreadyProcessed = newHoldings.some(h => h?.symbol?.toUpperCase() === normalizedId);
-      if (alreadyProcessed) continue;
-
-      // BUG FIX (B-6): Use normalizedId (uppercase) — stock keys are uppercase
-      const info = getStockInfo(normalizedId);
-      if (!info) continue;
-      
-      // CRITICAL: Validate all inputs before calculation to prevent NaN/Infinity
-      const safePrice = typeof info.price === 'number' && isFinite(info.price) && info.price > 0 ? info.price : 0;
-      const safeDividendYield = typeof info.dividendYield === 'number' && isFinite(info.dividendYield) && info.dividendYield >= 0 ? info.dividendYield : 0;
-      const safeShares = typeof shares === 'number' && isFinite(shares) && shares >= 0 ? shares : 0;
-      
-      if (safePrice === 0 || safeShares === 0) continue; // Skip invalid holdings
-      
-      const annualDividend = safePrice * safeDividendYield * safeShares;
-      // Validate result before division
-      if (!isFinite(annualDividend) || annualDividend < 0) continue;
-      
-      const weeklyDividend = Math.round(annualDividend / WEEKS_PER_YEAR);
-      if (!isFinite(weeklyDividend) || weeklyDividend < 0) continue;
-
-      if (shouldReinvest) {
-        // ECONOMY FIX: Apply 2% transaction cost to auto-reinvest to prevent exponential growth
-        const reinvestAmount = weeklyDividend * 0.98; // 2% transaction cost (matches sell fee)
-        // CRITICAL: Validate price before division to prevent division by zero
-        if (safePrice > 0 && isFinite(reinvestAmount) && reinvestAmount > 0) {
-          const sharesToBuy = Math.floor(reinvestAmount / safePrice);
-          if (sharesToBuy > 0 && isFinite(sharesToBuy)) {
-            const reinvestValue = sharesToBuy * safePrice;
-            if (isFinite(reinvestValue) && reinvestValue > 0) {
-              reinvestedAmount += reinvestValue;
-            } else {
-              stocksIncome += weeklyDividend;
-            }
-            // Note: Actual stock purchase will be handled in GameActionsContext
-          } else {
-            stocksIncome += weeklyDividend;
-          }
-        } else {
-          stocksIncome += weeklyDividend;
-        }
-      } else {
-        stocksIncome += weeklyDividend;
-      }
-    }
+    // STOCK DIVIDENDS ARE NOT PAID HERE. `lib/stocks/dividends.ts` pays them,
+    // quarterly, and it is the only payer.
+    //
+    // This function used to pay `price × yield × shares / 52` EVERY week, off
+    // the same `getStockInfo(symbol).dividendYield` and the same
+    // `state.stocks.holdings` that the quarterly system reads. Both credited
+    // `stats.money`. Over a year a holder collected:
+    //
+    //   52 × (annual / 52) = one full annual yield  ← here, untaxed and silent
+    //    4 × (annual / 4)  = one full annual yield  ← lib/stocks, taxed, notified
+    //
+    // Two hundred percent of the advertised yield, while the market board, the
+    // detail sheet and every strategy quote the single figure. The duplicate
+    // survived because `lib/stocks/dividends.ts` opens by asserting that the
+    // legacy yield "never pays anything out" — it did, right here.
+    //
+    // The quarterly system is kept: it is the newer deliberate design, it
+    // withholds capital-gains tax at parity with crypto, and it emits the
+    // payout notification. Auto-reinvest (the prestige QOL bonus) now consumes
+    // the quarterly payout in the stocks tick instead of the weekly one that
+    // used to be computed here. 2026-07-30 audit R1-01.
+    const stocksIncome = 0;
+    const reinvestedAmount = 0;
 
   let realEstateIncome = 0;
   
@@ -303,6 +219,21 @@ export function calcWeeklyPassiveIncome(
     
     // CRITICAL: Validate weeklyIncome before calculation
     let weeklyIncome = typeof company.weeklyIncome === 'number' && isFinite(company.weeklyIncome) && company.weeklyIncome >= 0 ? company.weeklyIncome : 0;
+
+    /**
+     * C-2: a family business's Brand lifts its weekly income. Applied FIRST,
+     * before the political and contract bonuses below, so those keep
+     * compounding on top exactly as they did — brand scales the business, it
+     * does not reorder the existing stack.
+     *
+     * Neutral at brand 0, which is what `createFamilyBusiness` seeds, so no
+     * existing save's income moves until the player spends on marketing.
+     * Companies that are not family businesses are untouched.
+     */
+    const familyMeters = findFamilyBusiness(state.familyBusinesses, company.id);
+    if (familyMeters && weeklyIncome > 0) {
+      weeklyIncome = Math.round(weeklyIncome * familyBrandIncomeMultiplier(familyMeters.brandValue));
+    }
     
     // Apply political perks (business income bonus)
     if (state.politics && state.politics.careerLevel > 0) {
@@ -342,19 +273,15 @@ export function calcWeeklyPassiveIncome(
     // [0.75, 1.6] — the COMBINED multiplier stays within the existing cap.
     // Older saves without a hustleApp overlay get a neutral 1.0.
     try {
+      // The arithmetic moved to `companyIncomeFactors` so the Hustle UI can
+      // show the SAME number the player is paid. It used to live here only,
+      // which is why brand / share / hires / acquisitions were all invisible on
+      // the company card and got reported as doing nothing.
       const overlay = state.hustleApp?.companies?.[company.id];
       if (overlay) {
-        const brandScore = typeof overlay.brand?.score === 'number' && isFinite(overlay.brand.score)
-          ? overlay.brand.score
-          : 50;
-        const marketShare = typeof overlay.marketSharePercent === 'number' && isFinite(overlay.marketSharePercent)
-          ? overlay.marketSharePercent
-          : 0;
-        const hireFactor = namedHirePerformanceFactor(overlay.hiringPipeline?.namedHires);
-        const rawFactor = 1 + (brandScore - 50) / 200 + marketShare / 200 + hireFactor;
-        const brandFactor = Math.min(1.6, Math.max(0.75, rawFactor));
-        if (isFinite(brandFactor) && brandFactor > 0) {
-          weeklyIncome = Math.round(weeklyIncome * brandFactor);
+        const { multiplier } = companyIncomeFactors(overlay);
+        if (isFinite(multiplier) && multiplier > 0) {
+          weeklyIncome = Math.round(weeklyIncome * multiplier);
         }
       }
     } catch {
@@ -602,12 +529,11 @@ export function calcWeeklyPassiveIncome(
     companies: 200000,    // $200K/week max from company income
     gamingStreaming: 75000, // $75K/week max from gaming/streaming
   };
-  // Life Skills: Investing (+5% stock returns) scales dividend income before its cap.
+  // Life Skills: Investing (+5% stock returns) used to scale the weekly
+  // dividend here. That dividend is gone (see the note at the top of this
+  // function), so the multiplier has nothing to scale and `stocksIncome` is
+  // always 0. `getLifeSkillModifiers` is still needed for `taxMult` below.
   const lifeSkillMods = getLifeSkillModifiers(state);
-  const stockReturnMult = lifeSkillMods.stockReturnMult;
-  if (typeof stockReturnMult === 'number' && isFinite(stockReturnMult) && stockReturnMult > 1 && stocksIncome > 0) {
-    stocksIncome = Math.round(stocksIncome * stockReturnMult);
-  }
   const safeStocksIncome = Math.min(PER_SOURCE_CAPS.stocks, isFinite(stocksIncome) && stocksIncome >= 0 ? stocksIncome : 0);
   const safeRealEstateIncome = Math.min(PER_SOURCE_CAPS.realEstate, isFinite(realEstateIncome) && realEstateIncome >= 0 ? realEstateIncome : 0);
   const safeSocialMediaIncome = Math.min(PER_SOURCE_CAPS.socialMedia, isFinite(socialMediaIncome) && socialMediaIncome >= 0 ? socialMediaIncome : 0);
@@ -685,8 +611,10 @@ export function calcWeeklyPassiveIncome(
     gamingStreaming: isFinite(safeGamingStreamingIncome) && safeGamingStreamingIncome >= 0 ? safeGamingStreamingIncome : 0,
   };
   
-  // CRITICAL: Validate reinvestedAmount
-  const safeReinvestedAmount = shouldReinvest && isFinite(reinvestedAmount) && reinvestedAmount >= 0 ? reinvestedAmount : undefined;
+  // Always `undefined` now — the weekly dividend that fed it is gone, and
+  // auto-reinvest is driven from the quarterly payout in the stocks tick.
+  // Kept on the return type so the field does not vanish from callers.
+  const safeReinvestedAmount = reinvestedAmount > 0 ? reinvestedAmount : undefined;
   
   return {
     total,

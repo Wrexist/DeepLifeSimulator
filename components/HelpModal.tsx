@@ -188,7 +188,7 @@ const helpContent = [
       },
       {
         question: 'What is the Onion Browser?',
-        answer: 'The Onion Browser (dark web) lets you access illegal hacks, dark web items, and underground activities. Purchase VPNs, exploits, and other tools. Running hacks can earn untraceable money but carries risk of being caught. Use protection (VPNs, exploits) to reduce risk. Illegal activities increase wanted level. High risk, high reward gameplay.',
+        answer: 'The Onion Browser (dark web) has three tabs: Market, Jobs and Wallet. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market sells gear and data that make later jobs easier. High risk, high reward.',
       },
       {
         question: 'What is YouVideo?',
@@ -263,7 +263,7 @@ const helpContent = [
     items: [
       {
         question: 'What are underground jobs?',
-        answer: 'Underground jobs are illegal or risky activities that pay well but increase wanted level. Examples: Hacking, Theft, Smuggling, Network Testing. These jobs require special items (purchased with BTC) and skills. Higher risk = higher reward. Use VPNs and exploits to reduce detection chance. Illegal jobs are accessed through the Onion Browser.',
+        answer: 'Underground jobs are the dark web\'s multi-stage contracts, run from the Jobs tab of the Onion Browser. Each job is a chain of stages — recon, social engineering, exploit, exfiltration, fencing — and every stage rolls against the relevant dark-web skill. Harder jobs gate on minimum skill levels, pay more, and add more heat. Failing a stage costs you progress and raises heat; you keep any gear you bought. Skills level up from the XP each completed job awards.',
       },
       {
         question: 'What is wanted level?',
@@ -271,11 +271,11 @@ const helpContent = [
       },
       {
         question: 'What happens if I get caught?',
-        answer: 'If caught doing illegal activities, you may face: Jail time (several weeks), Fines (money), Increased wanted level, Reputation loss, Criminal record. Jail time pauses most other activities. You can perform activities in jail to reduce sentence time or gain skills. Use VPNs and exploits to reduce detection chance. Higher wanted level = higher risk of being caught.',
+        answer: 'If caught doing illegal activities, you may face: Jail time (several weeks), Fines (money), Increased wanted level, Reputation loss, Criminal record. Jail time pauses most other activities. You can perform activities in jail to reduce sentence time or gain skills. On the dark web, raise OPSEC and keep your heat low to reduce the chance of being caught. Higher wanted level = higher risk of being caught.',
       },
       {
-        question: 'How do I reduce hack risk?',
-        answer: 'Purchase dark web items: VPNs reduce trace chance, USB exploits lower detection, Other tools improve success rates. Higher hacking skill also reduces risk. Never hack without protection - the consequences are severe. Better protection = lower risk but still risky. Consider if the reward is worth the risk.',
+        question: 'How do I reduce dark-web risk?',
+        answer: 'Raise the dark-web skill the job\'s stages roll against — OPSEC in particular lowers how much heat you take. Buy gear from the Market tab before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
       },
       {
         question: 'What are talent trees?',
@@ -486,7 +486,7 @@ const helpContent = [
       },
       {
         question: 'What is the Onion Browser?',
-        answer: 'The Onion Browser (dark web) lets you access illegal hacks, dark web items, and underground activities. Purchase VPNs, exploits, and other tools. Running hacks can earn untraceable money but carries risk of being caught. Use protection to reduce risk. Illegal activities increase wanted level. High risk, high reward gameplay. Be careful - consequences are severe if caught.',
+        answer: 'The Onion Browser (dark web) has three tabs: Market, Jobs and Wallet. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market sells gear and data that make later jobs easier. High risk, high reward.',
       },
       {
         question: 'What is YouVideo?',

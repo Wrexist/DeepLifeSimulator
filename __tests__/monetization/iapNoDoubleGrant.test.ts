@@ -24,7 +24,10 @@ const mockDisk: { state: any } = { state: null };
 
 jest.mock('@/utils/safeStorage', () => ({
   safeGetItem: jest.fn(async (key: string) => (key === 'currentSlot' ? '1' : null)),
-  safeSetItem: jest.fn(async () => undefined),
+  // `safeSetItem` really returns Promise<boolean>; a mock resolving undefined
+  // lies about the contract, and callers that branch on the result (the IAP
+  // dedupe-ledger reservation) then see every write as a failure.
+  safeSetItem: jest.fn(async () => true),
 }));
 
 jest.mock('@/utils/saveQueue', () => ({
@@ -49,7 +52,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 const GEMS_500 = IAP_PRODUCTS.GEMS_500;
 
 function freshDisk(): void {
-  mockDisk.state = JSON.parse(JSON.stringify(initialGameState));
+  mockDisk.state = structuredClone(initialGameState);
   mockDisk.state.stats.gems = 0;
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Target, Plus } from 'lucide-react-native';
+import { Target, Plus, Minus } from 'lucide-react-native';
 import { SavingsGoal } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -10,6 +10,12 @@ interface Props {
   goal: SavingsGoal;
   darkMode: boolean;
   onContribute?: () => void;
+  /**
+   * R3-M5: contributing used to be a one-way door — the cash left `stats.money`
+   * and nothing could get it back. The withdraw affordance has to be visible on
+   * a COMPLETED goal too, which is where the money is most likely to be sitting.
+   */
+  onWithdraw?: () => void;
 }
 
 function formatMoney(n: number): string {
@@ -35,7 +41,7 @@ const CATEGORY_RGB: Record<string, string> = {
   other: '100, 116, 139',
 };
 
-export default function SavingsGoalCard({ goal, darkMode, onContribute }: Props) {
+export default function SavingsGoalCard({ goal, darkMode, onContribute, onWithdraw }: Props) {
   const theme = getThemeColors(darkMode);
   const progress = goal.targetAmount > 0 ? goal.currentAmount / goal.targetAmount : 0;
   const pct = Math.max(0, Math.min(1, progress));
@@ -57,6 +63,14 @@ export default function SavingsGoalCard({ goal, darkMode, onContribute }: Props)
             {formatMoney(goal.currentAmount)} of {formatMoney(goal.targetAmount)}
           </Text>
         </View>
+        {onWithdraw && goal.currentAmount > 0 && (
+          <TouchableOpacity
+            onPress={onWithdraw}
+            style={[styles.addBtn, { backgroundColor: `rgba(${rgb}, 0.15)`, borderColor: `rgba(${rgb}, 0.30)` }]}
+          >
+            <Minus size={scale(14)} color={color} />
+          </TouchableOpacity>
+        )}
         {onContribute && !complete && (
           <TouchableOpacity
             onPress={onContribute}

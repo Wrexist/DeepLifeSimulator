@@ -1,6 +1,15 @@
 import type { GameState } from '@/contexts/game/types';
 import type { AchievementProgress } from '@/lib/progress/achievements';
-import { PRESTIGE_BONUSES } from './prestigeBonuses';
+import { PURCHASABLE_PRESTIGE_BONUSES } from './prestigeBonuses';
+
+/**
+ * Completed programmes required for "Educated Legacy" (R3-P11).
+ *
+ * The catalogue in `EducationApp` has 11 entries; 4 is a real ladder (e.g.
+ * high school -> college -> a specialisation -> a masters) without demanding a
+ * combination no single lifespan affords.
+ */
+export const MIN_EDUCATIONS_FOR_EDUCATED_LEGACY = 4;
 
 /**
  * Prestige-specific achievements
@@ -287,10 +296,15 @@ export function evaluatePrestigeAchievement(
       return new Set(unlockedBonuses).size >= 20;
     case 'prestige_bonuses_all': {
       // "Unlock all prestige bonuses." Compare distinct unlocked bonus IDs
-      // against the canonical purchasable list (PRESTIGE_BONUSES). Stackable
-      // bonuses appear multiple times in unlockedBonuses, so we de-dupe with a
-      // Set: owning at least one level of every bonus satisfies this.
-      return new Set(unlockedBonuses).size >= PRESTIGE_BONUSES.length;
+      // against the canonical purchasable list. Stackable bonuses appear
+      // multiple times in unlockedBonuses, so we de-dupe with a Set: owning at
+      // least one level of every bonus satisfies this.
+      //
+      // R4-X2: measured against PURCHASABLE_PRESTIGE_BONUSES, not the raw
+      // catalogue. Five automation entries are hidden from the shop because
+      // they unlock a system with no state slice and no UI; counting them here
+      // would make this 25,000-point achievement impossible to complete.
+      return new Set(unlockedBonuses).size >= PURCHASABLE_PRESTIGE_BONUSES.length;
     }
 
     case 'prestige_perfect_stats': {
@@ -306,15 +320,43 @@ export function evaluatePrestigeAchievement(
         (state.stats.reputation || 0) >= 100;
     }
     case 'prestige_no_debt': {
+      /**
+       * R3-P11: "Clean Slate" (2,000 pts) used to fire for a player who had
+       * simply NEVER taken a loan — `loans === []` satisfied `length === 0`, so
+       * it minted on the very first prestige for default behaviour. For scale,
+       * the deliberate first-prestige award `prestige_first` is 1,000.
+       *
+       * "Clean slate" means debt PAID OFF, so it now requires having borrowed
+       * at least once and cleared it. `progress.hasBeenInDebt` is the flag
+       * `acceptLoan` sets and the "Debt Free" achievement already relies on
+       * (GL-5), so this needs no new bookkeeping.
+       */
       const loans = state.loans || [];
-      return loans.length === 0 || loans.every(loan => (loan.remaining || 0) <= 0);
+      const hasBorrowed = state.progress?.hasBeenInDebt === true || loans.length > 0;
+      if (!hasBorrowed) return false;
+      return loans.every(loan => (loan.remaining || 0) <= 0);
     }
     case 'prestige_max_relationships':
       return (state.relationships || []).length >= 20;
     case 'prestige_all_educations': {
-      // Check if all educations are completed
+      /**
+       * R3-P11: "Educated Legacy" (5,000 pts) used to fire for finishing the
+       * free high-school diploma and nothing else. `gameState.educations` holds
+       * only ENROLLED programmes (`initialState` seeds it `[]` and
+       * `operations.ts` appends on enrolment), so "all completed" was satisfied
+       * by a list of one against an 11-entry catalogue.
+       *
+       * "Prestige with all educations completed" now means a substantial
+       * ladder, not a single free tier. Threshold is deliberately below the
+       * full catalogue — several programmes are mutually exclusive by cost and
+       * lifespan — but high enough that it is a genuine achievement.
+       */
       const educations = state.educations || [];
-      return educations.length > 0 && educations.every(edu => edu.completed);
+      const completed = educations.filter(edu => edu.completed);
+      return (
+        completed.length >= MIN_EDUCATIONS_FOR_EDUCATED_LEGACY &&
+        educations.every(edu => edu.completed)
+      );
     }
 
     default:

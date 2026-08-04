@@ -14,23 +14,18 @@
 import { applyRelationshipHealth } from '@/contexts/game/actions/weekly/applyRelationshipHealth';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 import type { GameStats } from '@/contexts/game/types';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
 function stubCtx(relBreakup: number[], relDisappointed: number[]): WeekContext {
+  // No `as WeekContext` — the cast was hiding a PreRolls literal that had gone
+  // stale (missing `luxuryIncident`), so this subsystem ran against an
+  // undefined roll. The shared factory keeps it complete by construction.
   return {
     newStats: {} as GameStats,
     notifications: [] as WeekNotification[],
-    preRolls: {
-      careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male',
-      childIdSuffix: 'x', childPersonality: 0,
-      relBreakup, relDisappointed,
-      policeEncounter: 0, minerDegradation: 0,
-      diseaseComplication: [], diseaseProgression: [],
-      petSickness: [], petSicknessType: [],
-      vehicleAccident: [], vehicleAccidentSeverity: [],
-      timestamp: 0,
-    },
+    preRolls: zeroPreRolls({ relBreakup, relDisappointed }),
     nextWeeksLived: 100,
-  } as WeekContext;
+  };
 }
 
 const lowSpouse = {

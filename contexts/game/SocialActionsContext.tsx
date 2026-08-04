@@ -238,7 +238,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const children = state.family?.children || [];
     if (children.length > 0) {
       const lastChildBirthWeek = Math.max(
-        ...children.map((c: any) => c.birthWeek || c.birthWeeksLived || 0)
+        ...children.map((c: any) => c.birthWeeksLived || 0)
       );
       if (lastChildBirthWeek > 0 && currentWeeksLived - lastChildBirthWeek < PREGNANCY_COOLDOWN_WEEKS) {
         const weeksRemaining = PREGNANCY_COOLDOWN_WEEKS - (currentWeeksLived - lastChildBirthWeek);
@@ -279,7 +279,22 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const childName = namePool[Math.floor(Math.random() * namePool.length)];
 
     // Start pregnancy instead of instant child creation
-    setGameState(prev => ({
+    setGameState(prev => {
+      /**
+       * R3-F9: re-check inside the updater.
+       *
+       * `isPregnant`, the 40-week cooldown, the $5,000 cost and the
+       * relationship-score floor were all checked against the stale
+       * `stateRef.current`, and this updater re-checked none of them while
+       * unconditionally applying +20 happiness. The only caller sits behind an
+       * `Alert.alert` confirm that dismisses on first press, so landing two
+       * calls in one React batch is impractical — this is the pattern being
+       * closed, not a live exploit. CLAUDE.md §4.4.
+       */
+      const partner = (prev.relationships || []).find(r => r.id === partnerId);
+      if (!partner || partner.isPregnant) return prev;
+
+      return {
       ...prev,
       stats: {
         ...prev.stats,
@@ -306,7 +321,8 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
           details: { childName, childGender },
         },
       ].slice(-200),
-    }));
+      };
+    });
 
     haptic.medium();
     logger.info(`Pregnancy started: ${childName} (${childGender}) with ${partner.name}`);

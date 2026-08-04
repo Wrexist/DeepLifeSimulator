@@ -582,3 +582,162 @@
 - **The suspicious change was the innocent one, and CI had already proved it.** The only code/test edit since the last green run was swapping a runtime `require('@/lib/config/featureFlags')` for a hoist-safe `mockIsFeatureEnabled` (a review suggestion). That looked like the obvious culprit for a Jest hang — `jest.mock` is hoisted above the `const`, so it *smells* like a TDZ trap. But it shipped in `57dff30`, whose Test step ran 106s and passed. Rule: when a hang appears N commits after a suspicious change, check whether the suspicious commit's own run went green before theorising about it. The build history already ran the experiment.
 - **"A worker process has failed to exit gracefully" is noise here, not the hang.** It prints on the green runs and on the clean 135s local run alike. A pre-existing teardown leak that never prevents exit is not evidence for a hang that started three commits later. Rule: a warning present in the passing baseline cannot explain a new failure.
 - **I twice told the owner the PR's `eas update` step would skip, and it does not.** The reasoning was that the step is gated on `HAS_EXPO_TOKEN` and the secret probably wasn't set. The job history says otherwise: `Expo/EAS login` is gated on the same flag and **succeeded**, `EAS Update skipped (no EXPO_TOKEN)` was **skipped**, and `EAS Update (preview for PRs)` **succeeded** in ~2 minutes on all three runs. So every PR commit publishes an EAS update to the `preview` channel. Not production — that stays gated on push-to-`main` — but it is a real publish, not a no-op. Rule: a step's `if:` condition tells you when it *would* run; only the run history tells you whether it *did*. Read the conclusion, not the conditional — and never reassure someone about a side effect on the strength of a guard you have not seen evaluate.
+
+### 2026-07-31 (round 4) - Auditing my own fixes: what an adversarial pass found that four green suites did not
+
+- Context: after Round 3 shipped 34 of 37 findings, I ran a fifth pass whose only brief was to BREAK the Round 3 fixes. It found six real defects in my own work — four of them regressions I had introduced, each with a probe. Every one had a Round 3 test that was green. `tasks/whole-app-audit-2026-07-31-round4-findings.md` holds the details; what follows is only what the exercise taught.
+- **A passing regression test is evidence the fixture lacks the bug, not that the code lacks it.** R3-M4 taught `netWorth()` to count `banking.accounts`, and my test's fixtures used account ids like `chk`/`hysa` while leaving both MIRROR accounts (`checking-default`, `savings-default`) at 0. Those two are overwritten with `stats.money` and `bankSavings` on step 1 of every weekly tick, so in any real save my sum double-counted both legacy pools — roughly DOUBLING the figure that gates prestige, the $10M achievement, ambitions, the leaderboard, the passive-income cap, bail and ad rewards. The repo already shipped the guard (`nonMirrorDeposits`) with a doc comment saying verbatim that anything counting the legacy fields must exclude the mirrors. Rule: build the fixture from the shape the TICK produces, not from the minimal shape the assertion needs; and grep for an existing helper before summing a collection the game also mirrors somewhere else.
+- **A comment claiming a property is a claim to verify — including when I wrote it an hour ago.** `withdrawFromGoal` cleared `completedWeek` on withdrawal, with my comment saying that stopped the completion reward being farmed. It did the exact opposite: `contributeToGoal` REJECTS while that flag is set, so clearing it RE-ARMED the payout. Fund a $25,000 goal, withdraw it all back, fund it again — unbounded, at the cap per cycle, on money that never leaves the player's hands. My test asserted the FIELD (`completedWeek` is undefined after withdrawal), which is the bug written as an expectation. The replacement runs ten fund/withdraw cycles and counts the money. Rule: assert the OUTCOME the player experiences, never the intermediate flag — a test that asserts your mental model confirms your mental model.
+- **A completeness test that lists its own subjects proves nothing about completeness.** R3-M2 added a politics APR floor and I wrote "every `aprReduction` caller also passes `aprFloor`" — iterating over the two files the fix had touched. `VehicleActions` and `EducationActions` also call `politicsAprReduction` and neither floored it, so a high-office player financed a car and a degree at the 2.5% minimum against a 5.5% CD. The test now DISCOVERS call sites by scanning the actions directory, and asserts the offered RATE behaviourally rather than the source text. Rule: a completeness check must find its own subjects. If the list is hardcoded, it is a check that the two things you already fixed are still fixed.
+- **The same fix has to be applied everywhere the pattern lives, and "the ONLY writer" is a smell.** GL-5's comment described `acceptLoan` as "the ONLY writer of `progress.hasBeenInDebt`" — which was the finding, not the fix. Student loans, auto loans and mortgages each originate a `Loan` in their own module and none stamped the flag, so a player who financed a car, paid it off and never opened the Loans screen was locked out of both the "Debt Free" achievement and the "Clean Slate" prestige bonus. Replaced with one exported `debtProgress()` helper plus a test that scans for hand-rolled writes. Rule: when a comment says "the only X", check whether that is a description or an aspiration.
+- **A unit-name suffix can hide a scale error at every call site simultaneously.** `RESTORE_COST_PER_POINT_PCT` was documented as "a fraction of item value" and set to `0.006`; all three call sites then divided by 100 as well. The `_PCT` made `/100` look right everywhere it appeared. Effect: luxury insurance was strictly dominated by ~100× — the module's own header says the design is "a genuine call rather than a dominant strategy in either direction", and it was a dominant strategy in the direction of never insuring. The identical shape appeared in `transportationMods` (politics percents read as fractions, so one $100,000 policy made every travel destination FREE forever). Rule: when a constant's name and its doc comment disagree about units, the name wins at every call site and the doc wins in review — rename to `_FRACTION` / `_PCT` to match the value, and pin the MAGNITUDE in a test. Directional assertions ("heavy costs more than light") pass a 100× error comfortably.
+- **The gate-then-grant class is not finished; it just moves to whatever was written most recently.** This round found five more: revive (15,000 gems, a $49.99 pack), scandal recovery, profile boost, three vehicle actions, and `acceptAcquisition` (seven-figure asking prices). The R8 pass had already closed the "second grant is free" half by making the gem debit reject instead of floor. That is only half the class: with enough currency for two, the second tap is CHARGED and buys nothing, because the thing being bought is already in the state the first tap produced. Rule: the re-check inside the updater must cover the PRECONDITION, not just affordability — "is the character still dead", "is the scandal still active", "is the offer still pending". Every fix needs a control asserting the guard reads "this one is already done", not "one was ever done".
+- **A cap that lives in a module variable is a cap on patience.** The ad orb's no-fill courtesy reward was capped "per app session" by a module-level boolean, and the comment beside it stated the reason: otherwise "a whale could farm the capped reward on every respawn with NO ad ever shown (~$10M/hr)". A module variable resets on app restart, so the farm the comment described was force-quit-and-relaunch — and the reward scales with net worth, so it pays best to exactly the players who will bother. CLAUDE.md §4.4 already says gate on game state, never a device-clock day-string; this is the same rule one step further out. Rule: process lifetime is weaker than a wall clock, which is weaker than game state. If a comment explains why a cap exists, check that the cap's storage outlives the thing it is capping.
+- **Ordering inside an async reconcile is a correctness property.** MON-1 taught `SubscriptionReconciler` to `await iapService.loadPurchases()` before reading `isAdsRemoved()`. The `plusActive` read one line ABOVE that await was left alone — and `hasPremiumAccess()` falls through to `hasLifetimePremium()` → `hasPurchased()`, reading the very ledger the load populates. So a lifetime-premium owner was "not premium" on every cold start, and `reconcileLegacyPassSeason` (which never got MON-1's `entitlementCheckAuthoritative` guard) stripped their paid Legacy Pass premium track. Because `premiumOwned` gates `getClaimableTiers(pass, 'premium')`, a season boundary crossed in that window makes the rollover auto-collect skip every premium reward and reset the pass — permanently. Rule: when a fix adds an await to populate a source, re-read EVERY consumer of that source in the same function, and give every downstream reconciler the same unknown-vs-false distinction rather than only the one the finding named.
+- **"Displayed but unread" recurs, and the honest fix is sometimes to stop displaying.** R3-M9 wired two policy modifiers that were rendered and read by nothing. Round 4 found eight more on the same card — the one a player reads before spending $100,000-$300,000. One (`economy.inflationRate`) was wired, because inflation is a real weekly system and the aggregator simply had no `economy` slice. The other seven describe systems that DO NOT EXIST: `lib/rd/patents.ts` has zero production callers, there is no property-tax system, nothing reads crypto regulation. Those rows were removed and the keys kept on the schema in an exported `INERT_POLICY_KEYS` with the reasoning, so the record of intent survives. Rule: before wiring an inert effect, check whether the system it names exists. If it does not, wiring it is building a feature under an audit's cover — hide the claim, write down why, and let the product owner decide.
+- **The Mindset case is the sharpest version of inert: the game asserted the effect had happened.** `applyMindsetEffects` correctly returns adjusted deltas AND a message; `getMindsetFeedback` returned the message and discarded the deltas, and its single caller is the only place in the app that touches Mindsets at all. So the toast said "Frugal: You saved a bit extra (+120)" and credited nothing. Rule: a helper that returns one half of a computed pair should be named for what it drops, or it will be used as if it returned both — and a test should assert the number in the message equals the number applied.
+
+---
+
+## 2026-08-01 — Audit round 4 remediation: three ways a finding can be wrong
+
+Working the round-4 backlog, three findings were materially mis-stated. All
+three would have caused harm if implemented as written.
+
+**Over-graded (C-13).** Reported as a 4.3x payout error: `BASE_MEMBERSHIP_RATE`
+is documented "Monthly" and paid out weekly. Every actual consumer treats it as
+weekly — the tick's clamp band is documented in `$/member/week`, `initialState`
+seeds 4.99 specifically so the displayed "Members/wk" matches the payout, and
+the UI figure and the payout are literally the same function call. One JSDoc
+line was wrong. "Fixing the economy" would have been a 4.33x income nerf to
+every content creator, justified by a stale comment. **Read what CONSUMES a
+constant before repricing it.**
+
+**Under-counted (C-9/ARCH-1).** Reported as ~15 modules reading their outcome
+out of an updater. The real sweep finds 86 functions. Blind-fixing 86 is worse
+than fixing none: each needs its own reading of which rejection paths are
+reachable only from inside the updater, and several are fine because an outer
+guard already returned. Ratcheted instead, like the test-tree type errors.
+**When a finding's true scope is 5x its estimate, the fix strategy changes, not
+just the effort.**
+
+**Right, but the obvious fix was wrong (C-4).** The Weekly Modifiers card
+promised a Sickness penalty no tick applies. Implementing it to match the label
+would have introduced a compounding death spiral at 30 health that no save has
+ever had — a balance change wearing a bug fix's clothes. Removed instead; the
+same condition already had an honest warning a few lines down. Compare GL-3,
+where the promised effect WAS implemented — the difference is that GL-3 was a
+benefit the player had paid for, and this was a penalty they had never been
+charged. **For UI-lies, ask which direction the correction moves the player.**
+
+### The tests were wrong three times too
+
+- An `indexOf` that returned -1 made `slice(i, -1)` run to end-of-file, so a
+  field-presence assertion matched unrelated code and passed on the PRE-fix
+  tree. **Assert that a slice's terminator exists.**
+- Two suites asserted a removed string was absent, and matched the fix's own
+  explanatory comment — which necessarily quotes the string to explain the
+  removal. **Strip comments before asserting on live copy.**
+- A structural guard I wrote caught a gap in my own fix: the `evalState`
+  children projection reproduced the very unguarded `.filter` the guard existed
+  to ban. **A guard that only covers the reported instances is worth less than
+  one that sweeps the shape.**
+
+### What worked
+
+Every fix was proved RED against the pre-fix tree before being taken green, and
+every suite carries at least one control asserting the behaviour that must NOT
+change. The controls caught real over-reach twice: they were green on both
+trees while the fix assertions flipped, which is exactly the signal wanted.
+
+---
+
+## 2026-08-01 — I shipped a fix pattern, then measured it and found it unsound
+
+Working the C-9 ratchet down, I converted `PetActions` (8 functions) and then
+`VehicleActions` (9) from the C-8 shape — reject inside the updater, then
+`return { success: true }` unconditionally — to a "pessimistic capture":
+
+    let applied = false;
+    setGameState(prev => { …; applied = true; return next; });
+    if (!applied) return { success: false, … };
+
+The `VehicleActions` batch broke `vehicleSystemFlow.stress.test.ts`, which
+drives real React through `act()`. A *successful* refuel reported failure. The
+state was correct; only the report was wrong — the inverse of the bug I was
+fixing.
+
+**The measurement** (`__tests__/refactor/updaterTimingContract.test.tsx`):
+React runs the FIRST functional update of a batch **eagerly**, at call time —
+the bailout optimisation that lets it skip a render when state is unchanged.
+The SECOND update in the same batch is **deferred**. So a captured flag is
+readable sometimes and stale sometimes, split along exactly the axis these
+guards care about.
+
+**CLAUDE.md §4.1 already said this.** "Values computed inside a `setGameState`
+updater are not visible outside it — don't assign to an outer variable from
+within the updater and read it after." I read that rule, wrote a fix that
+violates it, and only caught it because an existing test drove real React
+instead of a stub. The repo's own `openAccount` /
+`purchaseVehicleWithAutoLoan` / `doTravelActivity` do the same thing, which is
+what made it look like the house pattern.
+
+**Why every test I wrote passed anyway.** Every action test in this repo drives
+`setGameState` with a synchronous stub that invokes the updater immediately.
+Under that stub the capture is ALWAYS readable. A whole suite can be green
+while the production path reports the opposite. That is the durable lesson:
+**a stub that is more obliging than the real thing turns a test suite into a
+mirror.** When a fix depends on *when* something runs, at least one test has to
+drive the real runtime.
+
+**What I kept and why.** `PetActions` and C-8 stay: for a single tap — the
+overwhelmingly common case — the eager path makes them correct, and they were
+previously wrong for *every* rejection. Strictly better, never worse.
+`VehicleActions` was reverted because a legitimate second action in a batch is
+reachable there and demonstrably regressed. The ratchet's header now points at
+the sound fix (a pure reducer over `prev`, called for both the state and the
+report — the C-10 `SkillTreeModal` shape) rather than at more capture.
+
+**The estimate was wrong twice, in both directions.** The audit said ~15
+functions; my first detector said 86; the corrected detector says 62 — the
+first version only recognised a capture literally named `result`, so ~16
+already-fixed functions were counted as broken. A ratchet that cannot see its
+own progress is worse than none. The "not stale by more than five" assertion is
+what caught it.
+
+---
+
+## 2026-08-01 — 62 instances of a bad shape turned out to be 2 bugs
+
+Follow-up to the C-9 ratchet. Having established that pessimistic capture is
+unsound, I went looking for the subset worth fixing a different way: functions
+whose inner `return prev` has NO outer counterpart, so a plain single tap
+reaches it and gets told the action succeeded.
+
+A regex sweep flagged 39 candidates. **Reading them dropped it to 2.**
+`publishVideo`, `buyAccessory`, `buyMinerUpgrade`, `claimStakingRewards`,
+`purchasePassport`, `launchIPO` and most of the rest all test the condition
+OUTSIDE first and return a real failure; the inner copy is the same-batch race
+guard, reachable only by a second tap in one batch — where reporting failure is
+correct anyway. The unconditional success return is therefore RIGHT on the
+single tap that is nearly all real play.
+
+The two genuine ones were `upgradeEnergySystem` (tap "Solar" while already on
+Solar → "Upgraded to Solar Panels", no charge, no change) and `buildRDLab` —
+and the second was **mine**: my own C-3 fix earlier the same day added the
+inner already-this-tier check to stop a double charge and left the success
+return alone without adding an outer guard. A fix that closes one hole and
+opens a smaller one is still a regression; check the RETURN when you add a
+rejection.
+
+Both fixed with an outer guard, which has no timing dependency, rather than a
+capture, which does.
+
+**The generalisable lesson: a count of a code SHAPE is not a count of BUGS.**
+I twice quoted 86, then 62, as though it were a defect backlog, and wrote
+commit messages around that framing. The honest number of player-visible
+defects in that population was 2. The sweep was worth running — it found the
+two — but presenting its raw output as severity would have justified a 62-site
+refactor of critical action code for almost no player benefit, which is exactly
+the kind of churn the priority order (Correctness → Simplicity → Root causes)
+is meant to prevent. Read the candidates before quoting the number.

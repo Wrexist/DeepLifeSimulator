@@ -402,7 +402,7 @@ describe('Item + Gold Upgrade interactions', () => {
     const { IAP_PRODUCTS } = await import('@/utils/iapConfig');
 
     // GEMS_MEGA carries everythingUnlocked: true (verified in iapConfig.ts).
-    const state = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+    const state = structuredClone(initialGameState);
     iapService.applyProductToState(state, IAP_PRODUCTS.GEMS_MEGA);
 
     // All individual upgrades should be flipped via the everythingUnlocked branch.

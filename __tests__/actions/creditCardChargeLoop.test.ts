@@ -14,13 +14,21 @@
 import { spendOnCard, payDownCard, redeemRewards } from '@/contexts/game/actions/BankingActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import { createSetGameStateStub } from '../helpers/setGameStateStub';
 
+/**
+ * Thin adapter over the shared stub in `helpers/setGameStateStub`.
+ *
+ * This was one of eight byte-identical hand-rolled copies. Each took
+ * `(update: unknown)` and cast twice — `update as GameState` on the value
+ * branch, then the whole function `as React.Dispatch<SetStateAction<GameState>>`
+ * — which is exactly the shape that makes a stub's behaviour unverifiable:
+ * `unknown` in means nothing about the dispatch is checked, and the outer cast
+ * asserts the result matches React's type without anything proving it does.
+ */
 function makeBatchedSetState(initial: GameState) {
-  let state = initial;
-  const setState = ((update: unknown) => {
-    state = typeof update === 'function' ? update(state) : (update as GameState);
-  }) as React.Dispatch<React.SetStateAction<GameState>>;
-  return { setState, get: () => state };
+  const stub = createSetGameStateStub(initial);
+  return { setState: stub.setGameState, get: stub.current };
 }
 
 function stateWithCard(opts: {

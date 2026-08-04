@@ -43,6 +43,7 @@ import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/ga
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { generateBoardSeats, generateSuppliers } from '@/lib/business/hustleLogic';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
+import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { getPortrait } from '@/utils/facePool';
 
 const LinearGradient = LinearGradientFallback;
@@ -244,7 +245,15 @@ export default function CompanyDetailScreen({
     : generateSuppliers(companyId, company.type as HustleIndustry, company.weeklyIncome ?? 0);
 
   // Revenue composition (surfaces baseWeeklyIncome — previously hidden).
-  const weekly = company.weeklyIncome ?? 0;
+  // EFFECTIVE income, from the same helper the payout uses. See CompanyTile —
+  // showing the raw stored field is what made brand / share / hires /
+  // acquisitions look inert to players.
+  const factors = companyIncomeFactors(overlay);
+  const weekly = Math.round((company.weeklyIncome ?? 0) * factors.multiplier);
+  const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
+    (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
+    0,
+  );
   const base = company.baseWeeklyIncome ?? 0;
   const lift = Math.max(0, weekly - base);
   const revTotal = Math.max(weekly, base, 1);
@@ -305,7 +314,7 @@ export default function CompanyDetailScreen({
           }}
           accessibilityRole="alert"
           accessibilityLabel={`Active scandal: ${scandal.headline}, severity ${scandal.severity}, tap to respond`}
-          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderLeftColor: HUSTLE_COLORS.danger }]}
+          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderColor: HUSTLE_COLORS.danger }]}
         >
           <AlertTriangle size={fontScale(16)} color={HUSTLE_COLORS.danger} />
           <View style={styles.scandalText}>
@@ -362,6 +371,16 @@ export default function CompanyDetailScreen({
               Base ${base.toLocaleString()}{lift > 0 ? ` + $${lift.toLocaleString()} lift` : ''}
               {isPublic && overlay?.ipo ? ` · you own ${overlay.ipo.ownershipPercent.toFixed(0)}%` : ''}
             </Text>
+            {/* WHY the multiplier is what it is. Without this the number moves
+                and the player still cannot tell which lever moved it — which is
+                how "acquisitions change nothing" gets reported for a feature
+                that does work. */}
+            <Text style={[styles.compCaption, { color: theme.textMuted }]}>
+              {`×${factors.multiplier.toFixed(2)} — brand ${factors.brand >= 0 ? '+' : ''}${Math.round(factors.brand * 100)}%`}
+              {` · share +${Math.round(factors.share * 100)}%`}
+              {` · hires ${factors.hires >= 0 ? '+' : ''}${Math.round(factors.hires * 100)}%`}
+              {factors.clamped ? ' (capped)' : ''}
+            </Text>
           </View>
         </View>
 
@@ -369,7 +388,15 @@ export default function CompanyDetailScreen({
         <View style={styles.kpiGrid}>
           <KPICard icon={Briefcase} label="Brand" value={String(brand)} trend={overlay?.brand?.trend === 'rising' ? 'up' : overlay?.brand?.trend === 'declining' ? 'down' : 'flat'} trendValue={overlay?.brand?.trend ?? 'flat'} />
           <KPICard icon={TrendingUp} label="Share" value={`${share}%`} accentColor={HUSTLE_COLORS.accentSecondary} />
-          <KPICard icon={DollarSign} label="Cash" value={`$${Math.round((company.money ?? 0) / 1000)}K`} accentColor={HUSTLE_COLORS.success} />
+          {/* Was "Cash", reading `company.money` — a field nothing ever writes,
+              so it displayed $0 for every company forever. Payroll is real and
+              it is the cost side of the hires that lift the multiplier. */}
+          <KPICard
+            icon={DollarSign}
+            label="Payroll"
+            value={payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '—'}
+            accentColor={HUSTLE_COLORS.success}
+          />
           {isPublic && overlay?.ipo ? (
             <KPICard icon={Rocket} label="Share $" value={`$${overlay.ipo.sharePrice.toFixed(2)}`} accentColor={HUSTLE_COLORS.success} chart={earningsSeries} chartKind="line" />
           ) : (
@@ -1210,7 +1237,13 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderLeftWidth: 3,
+    // Full border, not a `borderLeftWidth: 3` accent stripe. Hard Rule #7 bans
+    // a one-sided coloured border used decoratively — the product owner
+    // rejected the look, and RN curls it into a crescent artifact against
+    // `borderRadius`. The danger colour is kept, on all four sides, so the
+    // meaning survives. 2026-07-30 audit UX-3.
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.md,
   },
   scandalText: { flex: 1 },
   scandalTitle: {

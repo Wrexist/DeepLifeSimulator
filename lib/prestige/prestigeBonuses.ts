@@ -487,15 +487,80 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
 /**
  * Get bonus by ID
  */
+/**
+ * R4-X2. Bonuses that unlock a system the player cannot reach.
+ *
+ * The five automation entries below sell the automation system for 16,500
+ * points, plus up to 10,000 more for the five stackable slot levels. The
+ * capability checks are real — `automationGuards.ts` reads every one of these
+ * ids — but nothing downstream of them exists:
+ *
+ *   - `automation` is not a field in `initialState.ts`, so `state.automation`
+ *     is `undefined` for every player, and the tick's execution block opens
+ *     with `if (!prevState.automation) return prevState;`
+ *   - nothing anywhere writes an automation RULE. There is no rule-builder UI,
+ *     no action, no default rule set. `components/` and `app/` contain no
+ *     automation screen at all (BitcoinMiningApp's "automation" is an
+ *     unrelated mining upgrade).
+ *
+ * So the engine runs every week over an empty list, on a slice that does not
+ * exist, gated by unlocks the player paid for.
+ *
+ * Hidden rather than deleted, and hidden rather than implemented — the same
+ * call R4-X7 made for `INERT_POLICY_KEYS`. Building a rule builder is a
+ * feature, not an audit fix; deleting the rows would erase the record of what
+ * they were meant to do, and would strand the ids in the saves of anyone who
+ * already bought one.
+ *
+ * They stay in `PRESTIGE_BONUSES` and stay resolvable through `getBonusById`
+ * precisely so an already-purchased bonus still renders in the info modal.
+ * They are removed from the SHOP and from the "unlock everything" achievement
+ * target — see `PURCHASABLE_PRESTIGE_BONUSES`.
+ *
+ * When the automation UI lands, delete this list. 2026-08-01 audit round 4.
+ */
+export const INERT_BONUS_IDS = [
+  'automation_auto_invest',
+  'automation_auto_save',
+  'automation_auto_pay',
+  'automation_auto_renew',
+  'automation_slot_1',
+] as const;
+
+const INERT_BONUS_ID_SET: ReadonlySet<string> = new Set(INERT_BONUS_IDS);
+
+/**
+ * The bonuses a player can actually buy and actually benefit from.
+ *
+ * This is the list the shop renders and the list `prestige_bonuses_all`
+ * measures completion against. Those two MUST agree: hiding a bonus from the
+ * shop while the achievement still counted the full catalogue would have
+ * traded a purchase that does nothing for a 25,000-point achievement that can
+ * never complete.
+ */
+export const PURCHASABLE_PRESTIGE_BONUSES: PrestigeBonus[] =
+  PRESTIGE_BONUSES.filter(b => !INERT_BONUS_ID_SET.has(b.id));
+
+/** True if a bonus id names a system the player cannot reach yet. */
+export function isInertBonus(id: string): boolean {
+  return INERT_BONUS_ID_SET.has(id);
+}
+
+/**
+ * Resolve a bonus by id. Deliberately searches the FULL catalogue, including
+ * inert entries, so a bonus already sitting in a player's save still renders
+ * with its real name and description instead of disappearing.
+ */
 export function getBonusById(id: string): PrestigeBonus | undefined {
   return PRESTIGE_BONUSES.find(b => b.id === id);
 }
 
 /**
- * Get bonuses by category
+ * Get bonuses by category — the shop's only source, so inert entries are
+ * excluded here rather than at each render site.
  */
 export function getBonusesByCategory(category: PrestigeBonusCategory): PrestigeBonus[] {
-  return PRESTIGE_BONUSES.filter(b => b.category === category);
+  return PURCHASABLE_PRESTIGE_BONUSES.filter(b => b.category === category);
 }
 
 /**

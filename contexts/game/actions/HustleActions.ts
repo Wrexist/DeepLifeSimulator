@@ -726,6 +726,23 @@ export const acceptAcquisition = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
+    /**
+     * R4-X8: the offer must still be PENDING in `prev`.
+     *
+     * `offer` above comes from the stale outer `gameState`, and P0-2/P1-14
+     * re-checked affordability and folded the reputation in — but nothing
+     * re-checked that the deal was still open. `AcquireModal` has no in-flight
+     * guard, so two taps in one React batch both ran: the second's
+     * `pendingAcquisitions.filter` was a no-op (the offer was already gone) yet
+     * it still charged `askingPrice` a second time, added another +3 reputation
+     * and another synergy bump, and double-counted
+     * `totalAcquisitionsCompleted`. Acquisition prices run to seven figures.
+     * CLAUDE.md §4.4.
+     */
+    const stillPending = prev.hustleApp?.companies?.[companyId]
+      ?.pendingAcquisitions?.some((a) => a.id === offerId);
+    if (!stillPending) return prev;
+
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalAcquisitionsCompleted += 1;
       return pushNotif(

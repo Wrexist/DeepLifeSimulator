@@ -80,7 +80,7 @@ describe('hostLuxuryEvent', () => {
 
   it('frees the venue once the cooldown elapses', () => {
     const { state } = run(hostState(), 'private_island', 'party');
-    const later = { ...state, weeksLived: 600 + HOSTING_COOLDOWN_WEEKS } as GameState;
+    const later = { ...state, weeksLived: 600 + HOSTING_COOLDOWN_WEEKS };
     expect(run(later, 'private_island', 'party').result.success).toBe(true);
   });
 

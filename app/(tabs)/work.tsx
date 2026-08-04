@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { raisePremiumPct } from '@/lib/careers/raisePremium';
+import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
+import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
     Text,
     ScrollView,
@@ -30,7 +33,7 @@ import {
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { getStreetJobEnergyCost, MAX_TOTAL_STREET_JOBS_PER_WEEK } from '@/contexts/game/actions/JobActions';
 import { useToast } from '@/contexts/ToastContext';
-import { getMindsetFeedback } from '@/utils/mindsetFeedback';
+import { getMindsetAdjustment } from '@/utils/mindsetFeedback';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
 import {
     Briefcase,
@@ -139,6 +142,29 @@ function WorkScreenContent() {
         };
     }, [gameState.streetJobs]);
 
+    // Derived from the SAME helper JobActions uses, so the numbers shown here
+    // cannot drift from the numbers applied.
+    const record = useMemo(
+        () => summarizeCriminalRecord(gameState.wantedLevel, gameState.criminalLevel),
+        [gameState.wantedLevel, gameState.criminalLevel],
+    );
+
+    // Criminal progression. The level GATES street jobs (`criminalLevelReq`),
+    // two ambitions and a life ribbon — but nothing displayed it, so hitting a
+    // requirement read as an arbitrary refusal.
+    const crimeProgress = useMemo(
+        () => criminalProgress(gameState.criminalLevel, gameState.criminalXp),
+        [gameState.criminalLevel, gameState.criminalXp],
+    );
+
+    // Timed legacy buffs. `mentor` is +50% CAREER PROGRESS, which is exactly
+    // what this screen is about — and it was invisible, so a player could not
+    // tell it was running or when it lapsed.
+    const buffs = useMemo(
+        () => activeLegacyBuffs(gameState),
+        [gameState.legacyBuffs, gameState.weeksLived],
+    );
+
     // State for negative stats popup
 
     // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
@@ -225,17 +251,44 @@ function WorkScreenContent() {
                 let message = result.message ?? '';
                 let mindsetPenalty = false;
                 if (job && gameState.mindset?.activeTraitId) {
-                    const mindsetFeedback = getMindsetFeedback(
+                    const mindset = getMindsetAdjustment(
                         gameState,
                         job.basePayment,
                         0,
                         0
                     );
-                    if (mindsetFeedback?.message) {
+                    // R4-X1: APPLY the adjustment, don't just narrate it. This
+                    // used to call `getMindsetFeedback`, which returns the
+                    // message and discards the deltas — so the toast said
+                    // "Frugal: You saved a bit extra (+120)" and credited
+                    // nothing. This handler is the entire Mindset system's only
+                    // consumer, so the choice made on the onboarding Perks
+                    // screen (and again at heir selection) did nothing at all
+                    // except generate claims about things that had not happened.
+                    //
+                    // One updater, so the money and the happiness land together
+                    // and neither can be lost to a concurrent write. The job's
+                    // own payment has already been credited by
+                    // `performStreetJob`; these are the deltas ON TOP, exactly
+                    // the numbers the message quotes.
+                    if (mindset.moneyAdjustment !== 0 || mindset.happinessAdjustment !== 0) {
+                        setGameState(prev => ({
+                            ...prev,
+                            stats: {
+                                ...prev.stats,
+                                money: Math.max(0, (prev.stats.money ?? 0) + mindset.moneyAdjustment),
+                                happiness: Math.max(
+                                    0,
+                                    Math.min(100, (prev.stats.happiness ?? 0) + mindset.happinessAdjustment),
+                                ),
+                            },
+                        }));
+                    }
+                    if (mindset.feedback?.message) {
                         message = message
-                            ? `${message} · ${mindsetFeedback.message}`
-                            : mindsetFeedback.message;
-                        mindsetPenalty = mindsetFeedback.type === 'penalty';
+                            ? `${message} · ${mindset.feedback.message}`
+                            : mindset.feedback.message;
+                        mindsetPenalty = mindset.feedback.type === 'penalty';
                     }
                 }
                 if (mindsetPenalty) {
@@ -674,7 +727,7 @@ function WorkScreenContent() {
                 else showSuccess(result.message);
             };
         } else if (isEmployedHere) {
-            const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
+            const premiumPct = raisePremiumPct(career.raiseMultiplier);
             buttonText = premiumPct > 0 ? `Manage Job (+${premiumPct}%)` : 'Manage Job';
             onPress = () => setManageJobId(career.id);
             buttonAccent = 'career';
@@ -887,7 +940,7 @@ function WorkScreenContent() {
         : undefined;
     const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
     const currentJobSalary = currentJobLevel?.salary ?? 0;
-    const currentJobRaisePct = currentJob ? Math.round(((currentJob.raiseMultiplier ?? 1) - 1) * 100) : 0;
+    const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
     const workScreenGradient = settings.darkMode
@@ -961,6 +1014,17 @@ function WorkScreenContent() {
                         />
 
                         <View style={local.tabContent}>
+                            {buffs.length > 0 && (
+                                <View style={local.buffRow}>
+                                    {buffs.map((b) => (
+                                        <View key={b.id} style={local.buffChip}>
+                                            <Text style={local.buffChipText}>
+                                                {b.label} · {b.effect} · {b.weeksLeft}w left
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                             {activeTab === 'street' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
@@ -979,6 +1043,52 @@ function WorkScreenContent() {
                                     <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
                                         Street work this week: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK}
                                     </Text>
+                                    {/* The criminal record, stated for the same reason as
+                                        the weekly cap above (UX-4): it is enforced either
+                                        way, and showing it is what stops the player
+                                        discovering it by being refused.
+
+                                        `wantedLevel` was read in three places in
+                                        JobActions and displayed in NONE. Its worst effect
+                                        is the one furthest from this screen — a
+                                        background check that quietly costs up to 30% on
+                                        LEGITIMATE career applications. The dark web
+                                        already shows its equivalent (`heat`), so this was
+                                        the only crime meter a player could not see. */}
+                                    {/* Criminal level + progress to the next one. Shown
+                                        whenever the player has done any illegal work,
+                                        which is exactly when the gates start mattering. */}
+                                    {(gameState.criminalXp ?? 0) > 0 || record.criminalLevel > 1 ? (
+                                        <View style={local.progressCard}>
+                                            <Text style={local.progressTitle}>
+                                                Criminal level {crimeProgress.level}
+                                            </Text>
+                                            <View style={local.progressTrack}>
+                                                <View style={[local.progressFill, { width: `${Math.round(crimeProgress.fraction * 100)}%` }]} />
+                                            </View>
+                                            <Text style={local.recordLine}>
+                                                {crimeProgress.xp}/{crimeProgress.xpForNext} XP · {crimeProgress.jobsToNextLevel} more illegal job{crimeProgress.jobsToNextLevel === 1 ? '' : 's'} to level {crimeProgress.level + 1}
+                                            </Text>
+                                        </View>
+                                    ) : null}
+                                    {record.wantedLevel > 0 || record.criminalLevel > 0 ? (
+                                        <View style={local.recordCard}>
+                                            <Text style={local.recordTitle}>
+                                                {record.bandLabel}
+                                                {record.wantedLevel > 0 ? ` · wanted ${record.wantedLevel}` : ''}
+                                                {record.criminalLevel > 0 ? ` · criminal lv ${record.criminalLevel}` : ''}
+                                            </Text>
+                                            {record.arrestBonusPct > 0 && (
+                                                <Text style={local.recordLine}>+{record.arrestBonusPct}% chance of being caught on illegal work</Text>
+                                            )}
+                                            {record.hiringPenaltyPct > 0 && (
+                                                <Text style={local.recordLine}>−{record.hiringPenaltyPct}% on legitimate job applications (background check)</Text>
+                                            )}
+                                            {record.raisesCrisisRate && (
+                                                <Text style={local.recordLine}>Bad luck events are far more likely while you are wanted</Text>
+                                            )}
+                                        </View>
+                                    ) : null}
                                     {/* Transport gates delivery work, so it belongs
                                         above the gig list rather than buried in a
                                         vehicles screen the player has no money for. */}
@@ -1047,20 +1157,22 @@ function WorkScreenContent() {
                                             weeksLived: gameState.weeksLived,
                                             netWorth: calculateNetWorth(gameState),
                                         };
-                                        const unlockedCareers = getUnlockedAdvancedCareers(advCareerGate);
+                                        // Render EVERY advanced career, locked ones included.
+                                        //
+                                        // This used to pre-filter with `getUnlockedAdvancedCareers`, which
+                                        // returns only unlocked entries — so the `isLocked` line below was
+                                        // always false and the whole requirement formatter was unreachable
+                                        // dead code. A player who had unlocked none saw one generic
+                                        // sentence, and the five best careers in the game (CEO topping out
+                                        // at $24,000/wk, Investment Banker, Surgeon, Research Scientist,
+                                        // Creative Director) were invisible with no hint of what to do.
+                                        // A locked goal you can see is a goal; one you cannot is nothing.
+                                        // 2026-07-30 audit GP-10.
+                                        // eslint-disable-next-line @typescript-eslint/no-require-imports
+                                        const { ADVANCED_CAREERS } = require('@/lib/careers/advancedCareers');
+                                        void getUnlockedAdvancedCareers; // still exported for other callers
 
-                                        if (unlockedCareers.length === 0) {
-                                            return (
-                                                <View style={styles.lockedCareerContainer}>
-                                                    <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
-                                                    <Text style={[styles.lockedCareerText, styles.lockedCareerTextDark]}>
-                                                        Complete education, gain experience, and build reputation to unlock advanced careers.
-                                                    </Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        return unlockedCareers.map((career: AdvancedCareer) => {
+                                        return (ADVANCED_CAREERS as AdvancedCareer[]).map((career: AdvancedCareer) => {
                                             const isLocked = !isCareerUnlocked(career, advCareerGate);
                                             const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
                                             const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
@@ -1072,6 +1184,12 @@ function WorkScreenContent() {
                                                 if ('experience' in req && req.experience) lockReqs.push(`Experience: ${req.experience} weeks`);
                                                 if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
                                                 if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
+                                                // Never printed before, because this whole block was
+                                                // unreachable — two of the five careers are gated on a
+                                                // claimed achievement and the player was never told.
+                                                if ('achievements' in req && req.achievements && req.achievements.length > 0) {
+                                                    lockReqs.push(`Achievement: ${req.achievements.join(', ')}`);
+                                                }
                                             }
 
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
@@ -1227,6 +1345,69 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
+    buffRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: scale(6),
+        marginBottom: scale(10),
+    },
+    buffChip: {
+        borderWidth: 1,
+        borderColor: 'rgba(168, 85, 247, 0.40)',
+        backgroundColor: 'rgba(168, 85, 247, 0.12)',
+        borderRadius: 999,
+        paddingHorizontal: scale(10),
+        paddingVertical: scale(4),
+    },
+    buffChipText: {
+        fontSize: fontScale(11),
+        fontWeight: '700',
+        color: '#C084FC',
+    },
+    progressCard: {
+        borderWidth: 1,
+        borderColor: 'rgba(148, 163, 184, 0.35)',
+        backgroundColor: 'rgba(148, 163, 184, 0.10)',
+        borderRadius: scale(10),
+        padding: scale(10),
+        marginBottom: scale(8),
+        gap: scale(4),
+    },
+    progressTitle: {
+        fontSize: fontScale(12),
+        fontWeight: '800',
+        color: 'rgba(203, 213, 225, 0.95)',
+    },
+    progressTrack: {
+        height: scale(5),
+        borderRadius: 999,
+        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 999,
+        backgroundColor: '#94A3B8',
+    },
+    recordCard: {
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.35)',
+        backgroundColor: 'rgba(239, 68, 68, 0.10)',
+        borderRadius: scale(10),
+        padding: scale(10),
+        marginBottom: scale(10),
+        gap: scale(2),
+    },
+    recordTitle: {
+        fontSize: fontScale(12),
+        fontWeight: '800',
+        color: '#EF4444',
+    },
+    recordLine: {
+        fontSize: fontScale(11),
+        fontWeight: '600',
+        color: 'rgba(148, 163, 184, 0.95)',
+    },
     boardNote: {
         fontSize: fontScale(12),
         fontWeight: '600',

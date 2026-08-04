@@ -4,6 +4,7 @@ import {
   type InitializeGameDeps,
   type OnboardingInputs,
 } from '@/src/features/onboarding/gameInitializer';
+import type { NewLifeSlotResolution } from '@/src/features/onboarding/slotSafety';
 
 // ---------------------------------------------------------------------------
 // validateOnboardingInputs
@@ -94,7 +95,13 @@ describe('initializeAndSaveGame', () => {
     isSaveSigningConfigError: jest.fn(() => false),
     // The slot is approved by default here; the refusal path has its own suite
     // (__tests__/onboarding/newLifeSlotSafety.test.ts).
-    resolveNewLifeSlot: jest.fn(async (slot: unknown) => ({ ok: true, slot: slot as number })),
+    // Annotated with the real return type. Without it TS infers the literal as
+    // `{ ok: boolean; slot: number }` — `boolean`, not `true` — which does not
+    // match either arm of the `NewLifeSlotResolution` discriminated union, so
+    // the mock did not actually satisfy the dependency it stands in for.
+    resolveNewLifeSlot: jest.fn(
+      async (slot: unknown): Promise<NewLifeSlotResolution> => ({ ok: true, slot: slot as number }),
+    ),
   });
 
   it('succeeds on valid flow', async () => {

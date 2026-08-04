@@ -58,14 +58,36 @@ export function buyPet(
     health: 100,
     energy: 100,
   };
+  // C-9: pessimistic capture. Every rejection below is reachable ONLY from
+  // inside the updater, and the function used to return an unconditional
+  // success after it — the C-8 shape.
+  let bought = false;
   // M-batch-A (R8): debit + grant atomically so a same-batch double-tap can't
   // add two pets for one payment (the prior grant-then-charge added the pet
   // unconditionally, then charged in a separate updater that could reject).
   setGameState((prev) => {
+    /**
+     * The id is built OUTSIDE this updater, so a same-batch double tap appends
+     * the SAME object twice — two roster rows sharing one id. Every later
+     * `pets.map(p => p.id === petId ? … : p)` then matches both: one feed feeds
+     * both, one vet visit heals both, and the weekly food cost is charged for
+     * two pets the player paid for once.
+     *
+     * `applyMoneyDelta` alone does not catch it — a player with cash for two
+     * pets passes it twice, which is the same half of the gate-then-grant class
+     * the R8 pass left open elsewhere. Rejecting on a duplicate id closes it
+     * without needing the id to be regenerated per invocation.
+     */
+    if ((prev.pets ?? []).some((p) => p?.id === id)) return prev;
+
     const spend = applyMoneyDelta(prev, -breed.price, `Bought ${breed.name}`);
     if (!spend) return prev; // race guard: an earlier same-batch buy drained the cash
+    bought = true;
     return { ...prev, ...spend, pets: [...(prev.pets ?? []), pet] };
   });
+  if (!bought) {
+    return { success: false, message: `Could not buy ${breed.name} right now.` };
+  }
   log.info(`Bought pet ${id} (${breed.id})`);
   return { success: true, message: `Welcome ${pet.name}!`, petId: id };
 }
@@ -89,12 +111,14 @@ export function feedPet(
   // atomic setGameState. Previously the two separate updates raced — two
   // rapid feeds could both pass the outer `inventory[foodId] > 0` check
   // and the second update's decrement would land at -1.
+  let fed = false; // C-9: pessimistic capture (see buyPet)
   setGameState((prev) => {
     const prevRemaining = prev.petFood?.[foodId] ?? 0;
     if (prevRemaining <= 0) return prev; // re-check inside updater
     const prevPets = prev.pets ?? [];
     const targetPet = prevPets.find((p) => p.id === petId);
     if (!targetPet || targetPet.isDead) return prev;
+    fed = true;
     return {
       ...prev,
       petFood: { ...(prev.petFood ?? {}), [foodId]: prevRemaining - 1 },
@@ -110,6 +134,9 @@ export function feedPet(
       ),
     };
   });
+  if (!fed) {
+    return { success: false, message: `Could not feed ${pet.name} right now.` };
+  }
   return { success: true, message: `Fed ${pet.name} ${food.name.toLowerCase()}.` };
 }
 
@@ -126,16 +153,21 @@ export function buyFood(
   if (safe(gameState.stats?.money, 0) < total) {
     return { success: false, message: `Need $${total.toLocaleString()}.` };
   }
+  let bought = false; // C-9: pessimistic capture (see buyPet)
   // M-batch-A (R8): atomic debit + grant (see buyPet).
   setGameState((prev) => {
     const spend = applyMoneyDelta(prev, -total, `Bought ${qty}× ${food.name}`);
     if (!spend) return prev; // race guard
+    bought = true;
     return {
       ...prev,
       ...spend,
       petFood: { ...(prev.petFood ?? {}), [foodId]: (prev.petFood?.[foodId] ?? 0) + qty },
     };
   });
+  if (!bought) {
+    return { success: false, message: `Need $${total.toLocaleString()}.` };
+  }
   return { success: true, message: `Bought ${qty}× ${food.name}.` };
 }
 
@@ -156,11 +188,13 @@ export function buyToy(
   }
   // M-batch-A (R8): atomic debit + grant; also re-check ownership inside the
   // updater so a double-tap can't buy the same toy twice.
+  let bought = false; // C-9: pessimistic capture (see buyPet)
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);
     if (!target || (target.toys ?? []).includes(toyId)) return prev; // race: already owned
     const spend = applyMoneyDelta(prev, -toy.price, `Bought ${toy.name} for ${pet.name}`);
     if (!spend) return prev; // race: cash drained
+    bought = true;
     return {
       ...prev,
       ...spend,
@@ -169,8 +203,17 @@ export function buyToy(
       ),
     };
   });
+  if (!bought) {
+    return { success: false, message: `Could not buy the ${toy.name}.` };
+  }
   return { success: true, message: `${pet.name} loves the new ${toy.name}.` };
 }
+
+/**
+ * What playing with a pet costs the PLAYER. The gate in `playWithPet` has
+ * always tested this figure; until C-14 nothing ever deducted it.
+ */
+const PLAY_PLAYER_ENERGY_COST = 10;
 
 export function playWithPet(
   gameState: GameState,
@@ -183,7 +226,7 @@ export function playWithPet(
   if (safe(pet.energy, 0) < 20) {
     return { success: false, message: `${pet.name} is too tired — let them sleep.` };
   }
-  if (safe(gameState.stats?.energy, 0) < 10) {
+  if (safe(gameState.stats?.energy, 0) < PLAY_PLAYER_ENERGY_COST) {
     return { success: false, message: 'You are too tired to play.' };
   }
   const ownedToys = pet.toys ?? [];
@@ -191,16 +234,46 @@ export function playWithPet(
     .map(findToy)
     .filter((t): t is NonNullable<ReturnType<typeof findToy>> => !!t)
     .reduce<number>((max, t) => Math.max(max, t.fun), 25);
-  updatePet(setGameState, petId, (p) => {
-    // Re-check the energy gate on fresh `p`: the precondition above reads the
-    // stale snapshot, so a rapid double-tap would otherwise apply the buff twice.
-    if (safe(p.energy, 0) < 20) return p;
+
+  /**
+   * C-14. This used to call `updatePet`, which only touches the pets array —
+   * so the "You are too tired to play" gate above tested an energy cost that
+   * was never charged. The pet paid 20 energy; the player paid nothing. A
+   * player sitting on exactly 10 energy could play forever without ever
+   * falling below the threshold that was supposed to stop them, so the pet's
+   * happiness was free and the gate was decoration.
+   *
+   * Written as one updater rather than `updatePet` so the pet's energy and the
+   * player's are spent in the SAME transition, and both gates are re-checked
+   * against `prev` (CLAUDE.md §4.4). The pet gate was already re-checked; the
+   * player gate had nothing to re-check.
+   */
+  let played = false; // C-9: pessimistic capture (see buyPet)
+  setGameState((prev) => {
+    const target = (prev.pets ?? []).find((p) => p.id === petId);
+    if (!target || target.isDead) return prev;
+    if (safe(target.energy, 0) < 20) return prev;
+    const playerEnergy = safe(prev.stats?.energy, 0);
+    if (playerEnergy < PLAY_PLAYER_ENERGY_COST) return prev;
+
+    played = true;
     return {
-      ...p,
-      happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
-      energy: clamp01(safe(p.energy, 0) - 20),
+      ...prev,
+      stats: { ...prev.stats, energy: clamp01(playerEnergy - PLAY_PLAYER_ENERGY_COST) },
+      pets: (prev.pets ?? []).map((p) =>
+        p.id === petId
+          ? {
+              ...p,
+              happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
+              energy: clamp01(safe(p.energy, 0) - 20),
+            }
+          : p,
+      ),
     };
   });
+  if (!played) {
+    return { success: false, message: `${pet.name} is not up for playing right now.` };
+  }
   return { success: true, message: `Had a great time with ${pet.name}.` };
 }
 
@@ -222,11 +295,13 @@ export function petSleep(
       message: `${pet.name} has already slept this week — let them play with their toys instead.`,
     };
   }
+  let slept = false; // C-9: pessimistic capture (see buyPet)
   updatePet(setGameState, petId, (p) => {
     // Re-check the once-per-week gate on fresh `p`: the precondition above reads
     // the stale snapshot, so a rapid double-tap would otherwise apply the +50
     // energy / +5 health buff twice before `lastSleepWeek` was committed.
     if (p.lastSleepWeek === currentWeek) return p;
+    slept = true;
     return {
       ...p,
       energy: clamp01(safe(p.energy, 0) + 50),
@@ -234,6 +309,12 @@ export function petSleep(
       lastSleepWeek: currentWeek,
     };
   });
+  if (!slept) {
+    return {
+      success: false,
+      message: `${pet.name} has already slept this week — let them play with their toys instead.`,
+    };
+  }
   return { success: true, message: `${pet.name} is resting peacefully.` };
 }
 
@@ -258,10 +339,38 @@ export function payForVet(
   if (safe(gameState.stats?.money, 0) < price) {
     return { success: false, message: `Need $${price.toLocaleString()}.` };
   }
+  // C-9: pessimistic capture. The "nothing left to do" rejection below is
+  // reachable only from inside the updater, and this used to report success
+  // for it — telling the player their pet "is doing better" after a visit
+  // that was correctly refused.
+  let treated = false;
   // M-batch-A (R8): atomic debit + grant.
   setGameState((prev) => {
+    /**
+     * Re-check the PRECONDITION, not just affordability.
+     *
+     * R8 made the debit atomic; it did not stop a second tap being charged for
+     * a visit that does nothing. `health` is already clamped at 100 and
+     * `isSick` is already false after the first, so the second tap buys
+     * nothing — up to $1,500 for Surgery, or an infection's full treatment
+     * cost. Anti-player, same shape as the vehicle actions in R4-X5.
+     *
+     * "Nothing left to do" means: the pet is at full health AND this service
+     * has no sickness to treat and no vaccination to give. A visit that would
+     * still change something is allowed through.
+     */
+    const prevPet = (prev.pets ?? []).find((p) => p?.id === petId);
+    if (!prevPet || prevPet.isDead) return prev;
+
+    const wouldHeal = safe(prevPet.health, 0) < 100 && service.healthBonus > 0;
+    const wouldTreat = !!service.treatsSickness && !!prevPet.isSick;
+    const wouldVaccinate = !!service.vaccinates && !prevPet.vaccinated;
+    const wouldCheer = (service.happinessBonus ?? 0) > 0 && safe(prevPet.happiness, 0) < 100;
+    if (!wouldHeal && !wouldTreat && !wouldVaccinate && !wouldCheer) return prev;
+
     const spend = applyMoneyDelta(prev, -price, `${service.name} for ${pet.name}`);
     if (!spend) return prev; // race guard
+    treated = true;
     return {
       ...prev,
       ...spend,
@@ -280,6 +389,9 @@ export function payForVet(
       ),
     };
   });
+  if (!treated) {
+    return { success: false, message: `${pet.name} does not need ${service.name} right now.` };
+  }
   return { success: true, message: `${service.name}: ${pet.name} is doing better.` };
 }
 
@@ -288,7 +400,16 @@ export function enterCompetition(
   setGameState: SetGS,
   petId: string,
   competitionId: string,
-  _deps: { updateMoney: typeof updateMoney },
+  /**
+   * The competition roll, injected so the outcome is testable.
+   *
+   * A dead `_deps: { updateMoney }` used to sit BETWEEN this and the ids — the
+   * fee charges through applyMoneyDelta inside the updater (§4.4), so it was
+   * never read. It was not harmless: `exploitFixes.test.ts` passed `0` in that
+   * slot, commented "Force a win on the first entry (roll 0 < winProbability)",
+   * and the 0 landed on `_deps` while `roll` arrived undefined — so the test
+   * that claimed to force a win was rolling `undefined` and forcing nothing.
+   */
   roll: number
 ): { success: boolean; message: string; won?: boolean; payout?: number } {
   const pet = gameState.pets?.find((p) => p.id === petId);
@@ -314,6 +435,9 @@ export function enterCompetition(
   // M-batch-A (R8): apply the net delta (entry fee always; prize only if won)
   // AND the pet update in one atomic updater, so the entry fee can't be charged
   // without the pet result landing, and a double-tap can't re-enter for free.
+  // C-9: pessimistic capture. This one also returned `won` and `payout` for a
+  // run that was rejected, so a refused second tap reported a prize.
+  let entered = false;
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);
     // Authoritative once-per-week re-check on fresh state: the precondition above
@@ -323,6 +447,7 @@ export function enterCompetition(
     const net = result.won ? comp.prize - comp.entryFee : -comp.entryFee;
     const spend = applyMoneyDelta(prev, net, result.won ? `Won ${comp.name}!` : `${comp.name} entry`);
     if (!spend) return prev; // race guard
+    entered = true;
     return {
       ...prev,
       ...spend,
@@ -331,6 +456,12 @@ export function enterCompetition(
       ),
     };
   });
+  if (!entered) {
+    return {
+      success: false,
+      message: `${pet.name} has already competed this week — come back next week.`,
+    };
+  }
   return {
     success: true,
     message: result.won

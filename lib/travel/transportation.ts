@@ -33,8 +33,8 @@ export interface TransportationMods {
  * into trip cost + duration multipliers.
  *
  *   - Vehicle speedBonus 0..50 (pct) → up to 50% faster
- *   - Politics travelCostReduction 0..1 → up to 100% cheaper
- *   - Politics commuteTimeReduction 0..1 → up to 100% faster (stacks with vehicle)
+ *   - Politics travelCostReduction 0..50 (pct) → up to 50% cheaper
+ *   - Politics commuteTimeReduction 0..50 (pct) → up to 50% faster (stacks with vehicle)
  */
 export function transportationMods(state: GameState): TransportationMods {
   // Vehicle: active vehicle's speedBonus, only if vehicle is in usable shape.
@@ -46,8 +46,26 @@ export function transportationMods(state: GameState): TransportationMods {
 
   // Politics: read activePolicyEffects.transportation.
   const transport = state.politics?.activePolicyEffects?.transportation;
-  const politicsCostReductionPct = Math.max(0, Math.min(1, safe(transport?.travelCostReduction, 0))) * 100;
-  const politicsCommuteReductionPct = Math.max(0, Math.min(1, safe(transport?.commuteTimeReduction, 0))) * 100;
+  /**
+   * R4-X3: these are PERCENTS, not fractions.
+   *
+   * `lib/politics/policies.ts:1263` stores `travelCostReduction: 25, // 25%
+   * reduction`, and `calculateActivePolicyEffects` sums them with a
+   * `Math.min(50, …)` clamp — a percent clamp. `PoliticalApp` renders "Travel
+   * costs −25%". This read clamped to 1 and then multiplied by 100, so ANY
+   * enacted transport policy produced 100%: `costMultiplier` went to 0 and
+   * `quoteTrip`'s `Math.floor(baseCost * 0)` made every destination free,
+   * forever, after a single $100,000 bill at Mayor level. Travel grants up to
+   * +25 happiness, +10 intelligence and reputation plus milestone tiers, so
+   * that turned a paid system into a free repeatable stat farm.
+   *
+   * `commuteTimeReduction` had the identical bug: 20 or 25 clamped to 1 pinned
+   * `durationMultiplier` at its 0.25 floor.
+   *
+   * Clamped to the same 50 the aggregator uses, so the two agree.
+   */
+  const politicsCostReductionPct = Math.max(0, Math.min(50, safe(transport?.travelCostReduction, 0)));
+  const politicsCommuteReductionPct = Math.max(0, Math.min(50, safe(transport?.commuteTimeReduction, 0)));
 
   const costMultiplier = Math.max(0, 1 - politicsCostReductionPct / 100);
 

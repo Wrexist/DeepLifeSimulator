@@ -35,6 +35,7 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, ChildInfo } from '@/contexts/game/types';
+import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 import { validateGameState } from '@/utils/saveValidation';
 
 const { act } = TestRenderer;
@@ -213,7 +214,7 @@ describe('Death → Revive → Prestige cycle', () => {
     mounted = mountGame();
     seedZeroHealth();
 
-    const ribbonsBefore = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsBefore = (captured!.state.ribbonCollection?.earned || []).length;
 
     for (let i = 0; i < 4; i++) {
       await tick();
@@ -221,8 +222,13 @@ describe('Death → Revive → Prestige cycle', () => {
 
     expect(captured!.state.showDeathPopup).toBe(true);
     // A new ribbon should have been added (life classification on death).
-    const ribbonsAfter = (captured!.state.ribbonCollection?.ribbons || []).length;
-    expect(ribbonsAfter).toBeGreaterThanOrEqual(ribbonsBefore);
+    //
+    // Strictly greater, not `>=`. Both counts used to read `.ribbons`, a field
+    // ribbonCollection does not have, so both were `(undefined || []).length`
+    // and this asserted `0 >= 0` — it passed whether or not death ever
+    // classified a life.
+    const ribbonsAfter = (captured!.state.ribbonCollection?.earned || []).length;
+    expect(ribbonsAfter).toBeGreaterThan(ribbonsBefore);
     assertClean('ribbon on death');
   });
 
@@ -268,6 +274,48 @@ describe('Death → Revive → Prestige cycle', () => {
     expect(captured!.state.showDeathPopup).toBe(false);
     expect(captured!.state.stats.gems).toBe(0);
     assertClean('revive exact gems');
+  });
+
+  it('Revive: two taps in ONE React batch charge for exactly one revive', () => {
+    /**
+     * R4-MON-2. `handleRevive` has no in-flight guard and the DeathPopup button
+     * carries only `disabled={!canAffordRevive}`, computed from a stale render
+     * snapshot. Both taps therefore reached the updater; the affordability
+     * re-check passed the second time (30,000 -> 15,000 -> 0) because nothing
+     * re-checked that the character was still dead.
+     *
+     * REVIVE_GEM_COST is 15,000 and the 15,000-gem pack retails at $49.99, so
+     * this cost a player real money for one revive.
+     */
+    mounted = mountGame();
+    seedDead('health', 2 * REVIVE_GEM_COST);
+    expect(captured!.state.showDeathPopup).toBe(true);
+
+    act(() => {
+      captured!.reviveCharacter();
+      captured!.reviveCharacter();
+    });
+
+    expect(captured!.state.showDeathPopup).toBe(false);
+    expect(captured!.state.stats.gems).toBe(REVIVE_GEM_COST);
+    assertClean('double-tap revive');
+  });
+
+  it('Revive: a SECOND revive after dying again still charges (not over-blocked)', () => {
+    // The control. Guarding on `showDeathPopup` must not make revive one-shot
+    // per save — a player who dies twice pays twice.
+    mounted = mountGame();
+    seedDead('health', 3 * REVIVE_GEM_COST);
+
+    act(() => { captured!.reviveCharacter(); });
+    expect(captured!.state.stats.gems).toBe(2 * REVIVE_GEM_COST);
+
+    act(() => captured!.setGameState(prev => ({ ...prev, showDeathPopup: true, deathReason: 'health' })));
+    act(() => { captured!.reviveCharacter(); });
+
+    expect(captured!.state.showDeathPopup).toBe(false);
+    expect(captured!.state.stats.gems).toBe(REVIVE_GEM_COST);
+    assertClean('second revive after second death');
   });
 
   it('Revive: after revive the player can continue with nextWeek', async () => {
@@ -435,13 +483,13 @@ describe('Death → Revive → Prestige cycle', () => {
   it('Idempotent death: nextWeek on already-dead character does not double-classify ribbon', async () => {
     mounted = mountGame();
     seedDead('health', 0);
-    const ribbonsBefore = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsBefore = (captured!.state.ribbonCollection?.earned || []).length;
 
     // Tick while dead — should not add new ribbons each tick.
     for (let i = 0; i < 3; i++) {
       await tick();
     }
-    const ribbonsAfter = (captured!.state.ribbonCollection?.ribbons || []).length;
+    const ribbonsAfter = (captured!.state.ribbonCollection?.earned || []).length;
     expect(ribbonsAfter).toBe(ribbonsBefore);
     assertClean('idempotent death ribbon');
   });

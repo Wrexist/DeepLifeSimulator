@@ -47,12 +47,44 @@ const AsyncStorage = {
  * @returns Promise<boolean> - true if successful, false otherwise
  */
 export const safeSetItem = async (key: string, value: string): Promise<boolean> => {
+  return (await safeSetItemResult(key, value)).ok;
+};
+
+/** Why a write failed, for callers whose recovery differs by cause. */
+export interface SafeSetResult {
+  ok: boolean;
+  /**
+   * True only for a CONFIRMED quota failure.
+   *
+   * `safeSetItem` collapses every failure to `false`, so a caller that responds
+   * to failure with quota recovery — e.g. `createBackup`, which deletes backups
+   * across every slot down to one apiece — would take that scorched-earth path
+   * after a transient I/O blip. Callers that do something destructive on
+   * failure must branch on this rather than on `!ok`.
+   * 2026-07-30 review of SAVE-1.
+   */
+  quotaExceeded: boolean;
+}
+
+const isQuotaError = (error: unknown): boolean => {
+  const e = error as { name?: string; message?: string } | null;
+  // Case-insensitive, and covers the wordings native wrappers actually use.
+  // `includes('quota')` missed "QuotaExceededError"/"Quota exceeded" when it
+  // appeared only in the message, so a genuine quota failure was reported as
+  // `quotaExceeded: false` and `createBackup` skipped its cleanup-and-retry.
+  return (
+    e?.name === 'QuotaExceededError' ||
+    (typeof e?.message === 'string' && /quota|disk is full|SQLITE_FULL|no space left/i.test(e.message))
+  );
+};
+
+export const safeSetItemResult = async (key: string, value: string): Promise<SafeSetResult> => {
   try {
     await AsyncStorage.setItem(key, value);
-    return true;
+    return { ok: true, quotaExceeded: false };
   } catch (error: any) {
     // Handle quota exceeded error
-    if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+    if (isQuotaError(error)) {
       log.warn('Storage quota exceeded, attempting cleanup...');
       try {
         // Clear non-essential data to free up space
@@ -62,14 +94,14 @@ export const safeSetItem = async (key: string, value: string): Promise<boolean> 
         // Retry the operation
         await AsyncStorage.setItem(key, value);
         log.info(`Successfully saved ${key} after cleanup`);
-        return true;
+        return { ok: true, quotaExceeded: false };
       } catch (retryError) {
         log.error('Storage failed even after cleanup:', retryError);
-        return false;
+        return { ok: false, quotaExceeded: isQuotaError(retryError) };
       }
     }
     log.error(`Failed to save ${key}:`, error);
-    return false;
+    return { ok: false, quotaExceeded: false };
   }
 };
 

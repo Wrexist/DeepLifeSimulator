@@ -19,6 +19,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { displayedDepositAPR, depositAPRNote } from '@/lib/banking/displayRates';
 import {
   View,
   Text,
@@ -91,10 +92,12 @@ import {
   removeBill,
   createSavingsGoal,
   contributeToSavingsGoal,
+  withdrawFromSavingsGoal,
   setBudgetTarget,
   transferBetweenOwnAccounts,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -169,6 +172,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
+  const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
   const [chargeCardId, setChargeCardId] = useState<string | null>(null);
@@ -219,11 +224,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // Weekly income approximation for the loan quote DTI gate + statement activity.
   const weeklyIncome = useMemo(() => {
     let income = 0;
-    const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
-    if (job?.levels && job.level != null) {
-      const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
-      income += job.levels[safeLevel]?.salary ?? 0;
-    }
+    // R3-M3: political salaries are ANNUAL; every other ladder is weekly. This
+    // read them all as weekly, so an elected player's borrowing capacity was
+    // inflated 52x at the DTI gate. One shared helper now encodes the rule.
+    income += weeklyCareerSalary(gameState);
     for (const co of (gameState.companies ?? [])) income += co.weeklyIncome ?? 0;
     for (const rel of (gameState.relationships ?? [])) {
       if (rel?.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
@@ -235,7 +239,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   // Blended deposit APY (weighted by balance) — a fact the flat account list hid.
   const blendedAPY = totalBank > 0
-    ? banking.accounts.reduce((s, a) => s + a.baseAPR * a.balance, 0) / totalBank
+    ? banking.accounts.reduce((s, a) => s + displayedDepositAPR(a.baseAPR, banking.rateEnvironment) * a.balance, 0) / totalBank
     : 0;
 
   const queueSave = useCallback(() => {
@@ -511,7 +515,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           {banking.accounts.map((acct, i) => {
             const pal = accountPalette(acct.type);
             const locked = acct.lockUntilWeek != null && gameState.weeksLived < acct.lockUntilWeek;
-            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acct.baseAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
+            const acctAPR = displayedDepositAPR(acct.baseAPR, banking.rateEnvironment);
+            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acctAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
             return (
               <LedgerRow
                 key={acct.id}
@@ -641,6 +646,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               goal={g}
               darkMode={darkMode}
               onContribute={() => setContributeGoalId(g.id)}
+              onWithdraw={() => setWithdrawGoalId(g.id)}
             />
           ))
         )}
@@ -888,7 +894,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 {account.baseAPR > 0 && (
                   <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
                     <TrendingUp size={scale(11)} color={pal.hex} />
-                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(account.baseAPR * 100).toFixed(2)}% APR</Text>
+                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR</Text>
                   </View>
                 )}
                 <View style={[styles.statusChip, { backgroundColor: isLocked ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', borderColor: isLocked ? 'rgba(245, 158, 11, 0.30)' : 'rgba(16, 185, 129, 0.30)' }]}>
@@ -953,7 +959,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.factsGrid}>
               <FactCell theme={theme} icon={Glyph} tint={pal.hex} label="Type" value={accountTypeLabel(account.type)} />
-              <FactCell theme={theme} icon={Percent} label="Interest APR" value={`${(account.baseAPR * 100).toFixed(2)}%`} />
+              {/* Label carries the attribution: a rate moved by the economy must
+                  say so, or a reduced number reads as the bank re-pricing and
+                  the "yields drift down" event banner looks cosmetic. */}
+              <FactCell
+                theme={theme}
+                icon={Percent}
+                label={depositAPRNote(banking.rateEnvironment) ? `Interest APR · ${depositAPRNote(banking.rateEnvironment)}` : 'Interest APR'}
+                value={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`}
+              />
               <FactCell theme={theme} icon={Coins} label="Balance" value={formatMoneyExact(account.balance)} />
               <FactCell theme={theme} icon={Calendar} label="Opened" value={`Week ${account.openedWeek}`} />
               <FactCell theme={theme} icon={Clock} label="Age" value={ageLabel} />
@@ -1203,7 +1217,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         currentWeek={gameState.weeksLived}
         onClose={() => setShowOpenAccount(false)}
         onOpen={(spec) => {
-          openNewAccount(setGameState, spec);
+          // Player report (1.4 bug-reports): "Can't create a new savings."
+          // `openNewAccount` used to return void and this closed the sheet
+          // regardless, so a rejection was indistinguishable from success —
+          // the player tapped Open, the sheet closed, and no account appeared.
+          const result = openNewAccount(setGameState, spec);
+          if (!result.success) {
+            Alert.alert('Could not open account', result.message);
+            return;
+          }
           queueSave();
           setShowOpenAccount(false);
         }}
@@ -1293,6 +1315,24 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             queueSave();
           }
           setContributeGoalId(null);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!withdrawGoalId}
+        title="Withdraw from goal"
+        subtitle={`Saved: ${formatMoney(banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0)}`}
+        confirmLabel="Withdraw"
+        maxAmount={banking.savingsGoals.find((g) => g.id === withdrawGoalId)?.currentAmount ?? 0}
+        presets={[50, 200, 500]}
+        darkMode={darkMode}
+        onClose={() => setWithdrawGoalId(null)}
+        onConfirm={(amt) => {
+          if (withdrawGoalId) {
+            withdrawFromSavingsGoal(setGameState, withdrawGoalId, amt);
+            queueSave();
+          }
+          setWithdrawGoalId(null);
         }}
       />
 

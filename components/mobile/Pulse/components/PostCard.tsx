@@ -15,7 +15,8 @@ import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native
 import { Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
-import { useGame } from '@/contexts/GameContext';
+import { useGameActions } from '@/contexts/GameContext';
+import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
@@ -52,11 +53,26 @@ interface PostCardProps {
   onRepost?: (postId: string) => void;
 }
 
-export default function PostCard({
+/**
+ * A feed row. Rendered ~60 times in the Pulse FlatList (`recentPosts` is capped
+ * at 50, plus ~11 ambient posts), so what it subscribes to matters a lot.
+ *
+ * It used `useGame()`, which composes `useGameState()` — a plain `useContext`
+ * on the provider carrying `gameState`. Every mutation anywhere in the game (a
+ * like, a week advance, an unrelated background tick) therefore re-rendered
+ * EVERY mounted row, each also rebuilding the merged 9-context object in
+ * `useGame`'s memo. The component only needs the SETTER and `saveGame`, and
+ * `useSetGameState` exists precisely to provide write access with no state
+ * subscription. It was also unmemoized, so a parent render re-rendered all of
+ * them regardless. CLAUDE.md 4.1 documents this exact regression.
+ * 2026-07-30 audit PERF-2.
+ */
+function PostCard({
   post, authorHandle, authorPhoto, currentWeeksLived, onOpenDetail, onBoost, isPlayerPost,
   onLike: onLikeOverride, onRepost: onRepostOverride,
 }: PostCardProps) {
-  const { setGameState, saveGame } = useGame();
+  const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
   const { theme } = useTheme();
 
   const handleLike = useCallback(() => {
@@ -66,7 +82,10 @@ export default function PostCard({
       return;
     }
     likePost(setGameState, post.id);
-    saveGame?.();
+    // Deferred: `saveGame` reads `gameStateRef.current`, synced in a
+    // POST-COMMIT effect, so a synchronous call persists the PRE-like snapshot.
+    // Same convention as BrandDealsScreen/DeathPopup.
+    setTimeout(() => { void saveGame?.(); }, 0);
   }, [onLikeOverride, setGameState, saveGame, post.id]);
 
   const handleRepost = useCallback(() => {
@@ -76,7 +95,7 @@ export default function PostCard({
       return;
     }
     repostPost(setGameState, post.id);
-    saveGame?.();
+    setTimeout(() => { void saveGame?.(); }, 0);
   }, [onRepostOverride, setGameState, saveGame, post.id]);
 
   const card = (
@@ -184,6 +203,8 @@ export default function PostCard({
 
   return card;
 }
+
+export default React.memo(PostCard);
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 

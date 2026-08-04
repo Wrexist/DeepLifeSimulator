@@ -13,10 +13,11 @@ import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
   it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(25);
-    expect(CURRENT_STATE_VERSION).toBe(25);
-    expect(isMigrationVersionCovered(24)).toBe(true);
-    expect(isMigrationVersionCovered(25)).toBe(true);
+    expect(STATE_VERSION).toBe(30);
+    expect(CURRENT_STATE_VERSION).toBe(30);
+    for (const v of [24, 25, 26, 27, 28, 29, 30]) {
+      expect(`v${v} covered: ${isMigrationVersionCovered(v)}`).toBe(`v${v} covered: true`);
+    }
   });
 
   it('ships the field in initialState so the test factory inherits it', () => {
@@ -40,7 +41,7 @@ describe('migration 24 — backfill', () => {
 
     const { state } = runMigrations(save);
 
-    expect(state.version).toBe(25);
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(Object.keys(state.luxuryHoldings).sort()).toEqual(['private_island', 'supercar']);
     // Stamped from the save's own week, not 0 — an island bought in a 412-week
     // life must not claim to have been owned since birth.
@@ -106,7 +107,7 @@ describe('migration 24 — backfill', () => {
 
   it('migrates a much older save all the way forward', () => {
     const { state } = runMigrations({ version: 20, weeksLived: 88, luxuryItems: ['museum_diamond'] });
-    expect(state.version).toBe(25);
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(state.luxuryHoldings.museum_diamond.acquiredWeek).toBe(88);
   });
 });

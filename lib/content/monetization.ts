@@ -16,7 +16,24 @@ export const BASE_RPM = 4;
 export const BASE_VIEWER_PAY = 0.005;
 /** $ per minute of streaming (subscription airtime). */
 export const BASE_DURATION_PAY = 0.02;
-/** Monthly membership rate per paid member. */
+/**
+ * WEEKLY membership rate per paid member.
+ *
+ * C-13. This line used to read "Monthly membership rate", which made the
+ * system look like it paid a monthly price out every week — a 4.33x
+ * over-payment. It does not, and never did: the rate is weekly everywhere it
+ * is actually used.
+ *
+ *   - `applyContentMemberships` clamps it to MEMBERSHIP_RATE_MIN..MAX,
+ *     documented in that file as "$/member/week", and pays it once per week.
+ *   - `membershipWeeklyRevenue` below multiplies members by rate for one week.
+ *   - `initialState.ts` seeds `membershipRate: 4.99` specifically so the
+ *     displayed "Members/wk" matches the payout.
+ *
+ * The comment was the only thing out of step, so the comment is what changed.
+ * Repricing the payout off a stale doc line would have been a 4.33x income
+ * nerf justified by nothing.
+ */
 export const BASE_MEMBERSHIP_RATE = 4.99;
 
 /**

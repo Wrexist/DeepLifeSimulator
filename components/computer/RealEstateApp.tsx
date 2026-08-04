@@ -73,6 +73,7 @@ import {
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -304,11 +305,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   // Weekly income for loan DTI gating — approximation that mirrors AdvancedBankApp.
   const weeklyIncome = useMemo(() => {
     let income = 0;
-    const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
-    if (job?.levels && job.level != null) {
-      const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
-      income += job.levels[safeLevel]?.salary ?? 0;
-    }
+    // R3-M3: political salaries are ANNUAL; every other ladder is weekly. This
+    // read them all as weekly, so an elected player's borrowing capacity was
+    // inflated 52x at the DTI gate. One shared helper now encodes the rule.
+    income += weeklyCareerSalary(gameState);
     for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
     income += weeklyRentEstimate;
     return income;
@@ -1038,10 +1038,31 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           setManageTarget(null);
         }}
         onEvict={() => {
-          if (manageTarget) {
-            evictTenant(setGameState, manageTarget.id);
-            queueSave();
-          }
+          if (!manageTarget) return;
+          /**
+           * F8. This fired on a single tap of an icon-only button, with no
+           * confirmation. Eviction is not reversible: `kickTenant` clears the
+           * tenant and resets `weeksVacant`, so the rent stops and the property
+           * has to find a new tenant from scratch. Every other destructive
+           * action in this file at least reports its outcome; this one just
+           * silently emptied the unit.
+           */
+          const tenantName = manageTarget.tenant?.name ?? 'your tenant';
+          Alert.alert(
+            'Evict tenant?',
+            `${tenantName} will be removed from ${manageTarget.name ?? 'this property'} and the rent stops immediately. You will have to wait for a new tenant.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Evict',
+                style: 'destructive',
+                onPress: () => {
+                  evictTenant(setGameState, manageTarget.id);
+                  queueSave();
+                },
+              },
+            ],
+          );
         }}
         onMaintain={() => {
           if (manageTarget) {

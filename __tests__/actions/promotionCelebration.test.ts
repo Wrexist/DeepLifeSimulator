@@ -33,12 +33,12 @@ function makeCareer(overrides: Partial<Career> = {}): Career {
 }
 
 function makeState(career: Career): GameState {
-  return {
+  return createTestGameState({
     weeksLived: 300,
     careers: [career],
     currentJob: career.id,
     stats: { money: 5000 },
-  } as unknown as GameState;
+  });
 }
 
 /** promoteCareer writes through setGameState; tests only read the return value. */

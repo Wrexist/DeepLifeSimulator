@@ -254,7 +254,7 @@ describe('Vehicle system deep audit', () => {
     const v = captured!.state.vehicles![0];
 
     let result: { success: boolean; message: string } = { success: false, message: '' };
-    act(() => { result = refuelVehicle(captured!.state, captured!.setGameState, v.id, 100, deps); });
+    act(() => { result = refuelVehicle(captured!.state, captured!.setGameState, v.id); });
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/full/i);
   });
@@ -273,7 +273,7 @@ describe('Vehicle system deep audit', () => {
 
     const moneyBefore = captured!.state.stats.money;
     let result: { success: boolean; message: string } = { success: false, message: '' };
-    act(() => { result = refuelVehicle(captured!.state, captured!.setGameState, vid, 100, deps); });
+    act(() => { result = refuelVehicle(captured!.state, captured!.setGameState, vid); });
     expect(result.success).toBe(true);
     expect(captured!.state.vehicles?.find(v => v.id === vid)?.fuelLevel).toBe(100);
     expect(captured!.state.stats.money).toBeLessThan(moneyBefore);

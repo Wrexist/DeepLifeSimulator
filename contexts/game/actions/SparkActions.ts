@@ -790,6 +790,17 @@ export const boostProfile = (
       return prev;
     }
     const s = ensureSpark(prev);
+    /**
+     * R4-MON-3: reject if a boost is already running.
+     *
+     * The gems re-check above closed the flooring half, but not the double-buy:
+     * a second tap in the same batch debited another BOOST_GEM_COST and then
+     * rewrote `expiresWeek` to the SAME value, so 100 gems bought one week of
+     * boost. CLAUDE.md §4.4.
+     */
+    if (s.boost?.active && (s.boost.expiresWeek ?? 0) > (prev.weeksLived ?? 0)) {
+      return prev;
+    }
     // Immediate visibility payoff: seed a few fresh "liked you" entries so the
     // 50-gem Boost has a tangible effect the moment it's bought (the match-rate
     // lift in calculateMatchProbability is otherwise invisible until swiping).

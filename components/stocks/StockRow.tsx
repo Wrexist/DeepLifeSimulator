@@ -226,9 +226,23 @@ export default function StockRow({
         activeOpacity={onPress ? 0.7 : 1}
         accessibilityRole={onPress ? 'button' : undefined}
         accessibilityLabel={a11yLabel}
-        style={[styles.groupRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}
+        // Hard Rule #7: this row carried the sector as a scale(3) bar down its
+        // left edge — a side accent bar, which the rule bans by name even
+        // though it is a View rather than a border.
+        //
+        // The colour moves onto a faint row tint. Deliberately much weaker than
+        // the sector chip's `26` (~15%): the chip inside this row ALREADY names
+        // the sector in that colour, so the tint is a scan aid, not the signal.
+        // At chip strength a list of these reads as stripes of solid colour.
+        //
+        // The borderBottom below stays — a neutral `theme.border` hairline row
+        // divider is one of the rule's explicit structural exceptions.
+        style={[
+          styles.groupRow,
+          { backgroundColor: `${sectorColor}0F` },
+          !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+        ]}
       >
-        <View style={[styles.stripe, { backgroundColor: sectorColor }]} />
         {content}
       </TouchableOpacity>
     );
@@ -240,10 +254,13 @@ export default function StockRow({
       activeOpacity={onPress ? 0.85 : 1}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={a11yLabel}
-      style={[getGlassCard(darkMode, 6), styles.cardOuter, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      // Hard Rule #7: the standalone card carried the sector as a scale(3) bar
+      // down its left edge, clipped by borderRadius.xl + overflow:hidden. The
+      // colour moves onto the full border. The sector chip inside the row is
+      // already tinted with the same colour, so nothing is lost.
+      style={[getGlassCard(darkMode, 6), styles.cardOuter, { backgroundColor: theme.surface, borderColor: sectorColor }]}
     >
       <View style={styles.cardInner}>
-        <View style={[styles.stripe, { backgroundColor: sectorColor }]} />
         {content}
       </View>
     </TouchableOpacity>
@@ -256,7 +273,9 @@ const styles = StyleSheet.create({
   // Standalone card anatomy: outer carries shadow + radius + border; inner clips the stripe.
   cardOuter: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1 },
   cardInner: { flexDirection: 'row', alignItems: 'stretch', borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-  stripe: { width: scale(3) },
+  // (The scale(3) `stripe` that lived here is gone — Hard Rule #7. The
+  // standalone card carries the sector on its full border, the grouped row on a
+  // faint background tint.)
   rowContent: {
     flex: 1,
     flexDirection: 'row',

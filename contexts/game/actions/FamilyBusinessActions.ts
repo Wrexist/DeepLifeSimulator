@@ -10,7 +10,8 @@ export const createFamilyBusiness = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
-  deps: { updateMoney: typeof updateMoney }
+  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney }
 ) => {
   const company = gameState.companies.find(c => c.id === companyId);
   if (!company) {
@@ -61,7 +62,8 @@ export const manageFamilyBusiness = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
   action: 'marketing' | 'branding' | 'reputation',
-  deps: { updateMoney: typeof updateMoney }
+  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney }
 ) => {
   const business = gameState.familyBusinesses?.find(fb => fb.companyId === companyId);
   if (!business) {
@@ -107,7 +109,7 @@ export const manageFamilyBusiness = (
   // null when the spend is unaffordable against fresh state → we `return prev`, so
   // the gain never lands without a matching debit. The `didManage` flag mirrors the
   // repairRig pattern for the caller-facing result.
-  void deps; // charge now flows through applyMoneyDelta, not deps.updateMoney
+  void _deps; // charge now flows through applyMoneyDelta, not deps.updateMoney
   let didManage = false;
   setGameState(prev => {
     const fresh = prev.familyBusinesses?.find(fb => fb.companyId === companyId);

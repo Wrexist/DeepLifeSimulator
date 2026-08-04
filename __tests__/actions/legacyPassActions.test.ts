@@ -256,6 +256,74 @@ describe('LegacyPassActions', () => {
       expect(lapsed.legacyPass?.xp).toBe(XP_PER_TIER * 2); // free progress intact
     });
 
+    /**
+     * R4-MON-4. `hasPremiumAccess()` falls through to `hasLifetimePremium()` →
+     * `iapService.hasPurchased(...)`, which reads the purchase ledger — empty on
+     * a cold start until `loadPurchases()` runs, and `SubscriptionReconciler`
+     * read it BEFORE that load. So `premiumActiveNow` was structurally false on
+     * first launch for a lifetime-premium owner, and this function stripped the
+     * paid premium track with no guard. MON-1 fixed exactly this hazard for
+     * `adsRemoved`; this call site never got it.
+     *
+     * The loss is not cosmetic: `premiumOwned` gates `getClaimableTiers(pass,
+     * 'premium')`, which `getUnclaimedEarnedRewards` uses — so crossing a season
+     * boundary in that window drops every unclaimed premium reward and resets
+     * the pass. Permanent, for a paying player.
+     */
+    it('does NOT downgrade premium when the entitlement check could not run', () => {
+      let s = awardLegacyPassXp(createTestGameState(), XP_PER_TIER * 2, NOW);
+      s = reconcileLegacyPassSeason(s, true, NOW);
+      expect(s.legacyPass?.premiumOwned).toBe(true);
+
+      const unknown = reconcileLegacyPassSeason(s, false, NOW, /*authoritative*/ false);
+
+      expect(unknown.legacyPass?.premiumOwned).toBe(true);
+      expect(unknown.legacyPass?.xp).toBe(XP_PER_TIER * 2);
+    });
+
+    it('still upgrades on an unknown check that says the player IS premium', () => {
+      // "Unknown" only ever holds the current value — it must not block a
+      // positive answer, which can only come from a source that saw something.
+      const s = awardLegacyPassXp(createTestGameState(), XP_PER_TIER, NOW);
+      expect(s.legacyPass?.premiumOwned).toBe(false);
+
+      expect(reconcileLegacyPassSeason(s, true, NOW, false).legacyPass?.premiumOwned).toBe(true);
+    });
+
+    it('an unknown check does not start a NEW season downgraded either', () => {
+      // The rollover path had the same hole: a season boundary crossed during
+      // the cold-start window would have minted the new pass with premium off.
+      const rolled = reconcileLegacyPassSeason(
+        oldSeasonPass({ premiumOwned: true }), false, NOW, /*authoritative*/ false,
+      );
+
+      expect(rolled.legacyPass?.seasonId).toBe(SEASON);
+      expect(rolled.legacyPass?.premiumOwned).toBe(true);
+    });
+
+    it('an AUTHORITATIVE lapse still downgrades a rollover (not over-held)', () => {
+      // The control. Holding the flag on "unknown" must not make the downgrade
+      // unreachable — a genuinely lapsed subscriber loses the track.
+      const rolled = reconcileLegacyPassSeason(
+        oldSeasonPass({ premiumOwned: true }), false, NOW, /*authoritative*/ true,
+      );
+
+      expect(rolled.legacyPass?.premiumOwned).toBe(false);
+    });
+
+    it('the reconciler reads the entitlement AFTER loading the purchase ledger', () => {
+      // The ordering half of MON-4, which no pure test of this function can
+      // reach: `plusActive` was computed above the `loadPurchases()` await.
+      const fs = require('fs') as typeof import('fs');
+      const path = require('path') as typeof import('path');
+      const src = fs.readFileSync(
+        path.join(__dirname, '..', '..', 'components', 'SubscriptionReconciler.tsx'), 'utf8',
+      );
+
+      expect(src.indexOf('loadPurchases()')).toBeLessThan(src.indexOf('const plusActive'));
+      expect(src).toMatch(/reconcileLegacyPassSeason\(afterSub, plusActive, Date\.now\(\), authoritative\)/);
+    });
+
     it('is idempotent within a season (no spurious rollover/summary)', () => {
       const s = awardLegacyPassXp(createTestGameState(), 120, NOW);
       const once = reconcileLegacyPassSeason(s, false, NOW);

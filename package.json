@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.5.12",
+  "version": "2.5.13",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -20,6 +20,8 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "lint:errors": "eslint . --ext .ts,.tsx --quiet",
     "type-check": "tsc --noEmit --pretty -p tsconfig.typecheck.json",
+    "type-check:tests": "tsc --noEmit -p tsconfig.tests.json",
+    "type-check:tests:ratchet": "node scripts/check-test-types.js",
     "check:routes": "node scripts/check-route-conflicts.cjs",
     "preflight:ios": "npm run check:routes && node scripts/preflight-check.js --platform ios",
     "preflight": "npm run check:routes && node scripts/preflight-check.js --platform ios && npm run lint:errors",
@@ -84,6 +86,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
+    "@types/react-test-renderer": "19.1.0",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.33.0",
     "eslint-config-expo": "~10.0.0",

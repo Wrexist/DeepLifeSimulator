@@ -45,6 +45,7 @@ import {
   updateGPA,
   shouldTriggerCampusEvent,
   computeSemesterNumber,
+  STUDY_GROUP_BENEFITS,
 } from '@/lib/education/educationSystem';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { WeekContext } from './weekContext';
@@ -56,6 +57,20 @@ export interface EducationProgressionInput {
   goldFastLearner: boolean;
   /** `prevState.perks?.fastLearner` truthy. */
   perkFastLearner: boolean;
+  /**
+   * `getExperienceMultiplier(prevState.prestige?.unlockedBonuses)` — 1.0 when
+   * nothing is unlocked.
+   *
+   * Five prestige-shop entries feed this: Quick Learner (1,500 pts x3), Fast
+   * Learner (5,000 x3), Genius Learner (20,000 x3), the legendary `genius`
+   * (35,000, "+100% learning speed") and the `synergy_learning_master` synergy.
+   * `getExperienceMultiplier` had NO call sites anywhere in the repo — it was
+   * imported once, in MoneyActionsContext, and the identifier never appears
+   * again in that file. So every one of those was bought with prestige points
+   * and did nothing, while `PrestigeInfoModal` printed the advertised
+   * percentage. 2026-07-30 audit GL-1.
+   */
+  experienceMultiplier?: number;
 }
 
 export interface EducationProgressionResult {
@@ -112,10 +127,21 @@ export function applyEducationProgression(
   input: EducationProgressionInput,
   ctx: WeekContext,
 ): EducationProgressionResult {
-  // Fast Learner perk + gold upgrade speed up the decrement.
+  // Fast Learner perk + gold upgrade speed up the decrement, and so do the
+  // prestige learning bonuses (see `experienceMultiplier`).
   let educationSpeedMultiplier = 1;
   if (input.goldFastLearner) educationSpeedMultiplier *= 1.5;
   if (input.perkFastLearner) educationSpeedMultiplier *= 1.5;
+  // Clamped: `Number.isFinite` still admits absurd values, and a corrupted
+  // multiplier would make `educationDecrement` enormous and complete every
+  // program in one tick. The ceiling is the most the prestige shop can actually
+  // grant (3x Genius Learner at +0.5, 3x Fast Learner at +0.25, 3x Quick
+  // Learner at +0.1, `genius` at +1.0, plus the +0.2 synergy).
+  const MAX_EXPERIENCE_MULTIPLIER = 5;
+  const experienceMult = Number(input.experienceMultiplier);
+  if (Number.isFinite(experienceMult) && experienceMult > 1) {
+    educationSpeedMultiplier *= Math.min(experienceMult, MAX_EXPERIENCE_MULTIPLIER);
+  }
   const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
 
   let pendingCampusEvent: string | undefined;
@@ -153,10 +179,17 @@ export function applyEducationProgression(
         semesterNumber: computeSemesterNumber(edu.duration, newWeeksRemaining),
       };
 
-      // Study group weekly bonuses.
+      // Study group weekly bonuses. Read from the constant rather than
+      // repeating 2 and 3 — see C-12 in `educationSystem.ts`.
       if (edu.studyGroupActive) {
-        ctx.newStats.happiness = Math.min(100, ctx.newStats.happiness + 2);
-        ctx.newStats.energy = Math.max(0, ctx.newStats.energy - 3);
+        ctx.newStats.happiness = Math.min(
+          100,
+          ctx.newStats.happiness + STUDY_GROUP_BENEFITS.weeklyHappiness,
+        );
+        ctx.newStats.energy = Math.max(
+          0,
+          ctx.newStats.energy - STUDY_GROUP_BENEFITS.weeklyEnergyCost,
+        );
       }
 
       // Student loan weekly payment.

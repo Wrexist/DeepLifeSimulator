@@ -53,7 +53,7 @@ describe('active actions refuse from a jail cell', () => {
       companies: [],
       educations: [
         { id: 'entrepreneurship', name: 'Entrepreneurship', description: '', cost: 0, duration: 0, completed: true },
-      ] as GameState['educations'],
+      ],
     });
     state.stats = { ...state.stats, money: 5_000_000 };
     const res = createCompany(state, noopSet, 'factory', { updateMoney });

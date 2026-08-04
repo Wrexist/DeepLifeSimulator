@@ -151,8 +151,11 @@ export const inPrison: GameState = createTestGameState({
     reputation: 20,
     gems: 10,
   },
-  isInJail: true,
-  jailWeeksRemaining: 8,
+  // `jailWeeks` is the real field. This said `isInJail: true` and
+  // `jailWeeksRemaining: 8` — neither exists on GameState, so the fixture named
+  // `inPrison` was never in prison: every subsystem reading `jailWeeks` saw the
+  // default 0 and took the free-character path. `wantedLevel` was always real.
+  jailWeeks: 8,
   wantedLevel: 4,
 });
 

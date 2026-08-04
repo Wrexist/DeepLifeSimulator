@@ -2575,12 +2575,104 @@ const auditScandal: EventTemplate = {
   }),
 };
 
+/**
+ * R4-X6 — payoffs for `friend_invitation_exam` (lib/events/enhancedEvents.ts).
+ *
+ * That event is registered in this pool and fires. Each of its three choices
+ * attaches hidden consequences naming a follow-up event, and NONE of those
+ * follow-ups existed: `friend_helps_study`, `exam_success`,
+ * `friend_respects_balance` and `friend_distant` had zero definitions anywhere.
+ * The unlock flags were written into `consequenceState.unlockedEvents` and
+ * never consumed — the same bug the four templates above were written to fix
+ * for `lifeMomentGenerator.ts`. That pass simply did not reach this file.
+ *
+ * The fifth reference, `exam_results`, is handled at its own site rather than
+ * here: it is a NEGATIVE weight modifier (-0.3), and `weightPayoffReady`
+ * requires a positive one, so it could never have fired as a payoff even if a
+ * template existed. See the note in `enhancedEvents.ts`.
+ *
+ * 2026-08-01 audit round 4.
+ */
+
+// Payoff to: going out the night before the exam (unlock_event, +2 weeks).
+// The friend noticed the sacrifice and returns it.
+const friendHelpsStudy: EventTemplate = {
+  id: 'friend_helps_study',
+  category: 'relationship',
+  weight: 1.2, // gated by condition; high so the unlocked payoff surfaces promptly
+  condition: state => payoffReady(state, 'friend_helps_study'),
+  generate: () => ({
+    id: 'friend_helps_study',
+    description: 'Your friend turns up at your door with two coffees and a stack of practice papers. "You gave up a night for me," they say. "Let me give you one back."',
+    choices: [
+      { id: 'accept', text: 'Study together all evening', effects: { stats: { happiness: 8, energy: -10 }, relationship: 8 } },
+      { id: 'coffee_only', text: 'Take the coffee, study alone', effects: { stats: { happiness: 4, energy: -5 }, relationship: 2 } },
+    ],
+  }),
+};
+
+// Payoff to: staying home to study (unlock_event, +1 week). The dedication
+// lands — this is the branch the player gave up a night out for.
+const examSuccess: EventTemplate = {
+  id: 'exam_success',
+  category: 'general',
+  weight: 1.2,
+  condition: state => payoffReady(state, 'exam_success'),
+  generate: () => ({
+    id: 'exam_success',
+    description: 'The results are posted. You are near the top of the list — the night you stayed in is sitting right there in the number.',
+    choices: [
+      { id: 'celebrate', text: 'Let yourself enjoy it', effects: { stats: { happiness: 14, reputation: 3 } } },
+      { id: 'push_on', text: 'Bank the confidence and keep going', effects: { stats: { happiness: 6, energy: -4, intelligence: 2 } } },
+    ],
+  }),
+};
+
+// Payoff to: telling your friend honestly that you needed to study
+// (unlock_event, +3 weeks). The mature branch — respected rather than resented.
+const friendRespectsBalance: EventTemplate = {
+  id: 'friend_respects_balance',
+  category: 'relationship',
+  weight: 1.2,
+  condition: state => payoffReady(state, 'friend_respects_balance'),
+  generate: () => ({
+    id: 'friend_respects_balance',
+    description: '"I was annoyed at the time," your friend admits, "but you were right to say no. I have started doing the same." They mean it.',
+    choices: [
+      { id: 'thank', text: 'Tell them it meant a lot to hear that', effects: { stats: { happiness: 10 }, relationship: 10 } },
+      { id: 'plan', text: 'Make a plan for a night out you can both afford', effects: { stats: { happiness: 8, energy: -3 }, relationship: 6 } },
+    ],
+  }),
+};
+
+// Payoff to: choosing the exam over the friend (modify_weight, +0.2). The
+// consequence the player was warned about, arriving.
+const friendDistant: EventTemplate = {
+  id: 'friend_distant',
+  category: 'relationship',
+  weight: 1.2, // condition is the real gate (only fires once the choice is flagged)
+  condition: state => weightPayoffReady(state, 'friend_distant'),
+  generate: () => ({
+    id: 'friend_distant',
+    description: 'Your friend has stopped inviting you to things. Not coldly — they just assume the answer is no now, and they have stopped asking.',
+    choices: [
+      { id: 'reach_out', text: 'Reach out first and make the effort', effects: { stats: { happiness: 5, energy: -6 }, relationship: 8 } },
+      { id: 'let_it_go', text: 'Let the friendship cool', effects: { stats: { happiness: -8 }, relationship: -6 } },
+    ],
+  }),
+};
+
 export const eventTemplates: EventTemplate[] = [
   // Life-Moment Payoff Events (self-gated; fire once when their setup unlocks them)
   streetMusicianFriend,
   startupPayout,
   hotTipOutcome,
   auditScandal,
+  // R4-X6 payoffs for the enhanced friend/exam event
+  friendHelpsStudy,
+  examSuccess,
+  friendRespectsBalance,
+  friendDistant,
   // Personal Crisis Events (added first for priority)
   ...personalCrisisEventTemplates,
   // Economic Event Templates (for individual economic events, not global state)

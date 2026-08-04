@@ -49,7 +49,19 @@ export function updateDynastyOnDeath(
   // with any test or pre-v13 callsite that doesn't supply it).
   peakFollowersThisLife: number = 0,
 ): DynastyStats {
-  const updated = { ...currentStats };
+  // Clone the ARRAYS, not just the top level. `{ ...currentStats }` is shallow,
+  // so `familyAchievements` stayed the same array object the caller passed in —
+  // and the `push` below therefore mutated the LIVE save's
+  // `state.dynastyStats.familyAchievements` in place. `computeInheritance` reads
+  // as a pure calculation and is called before the player has confirmed
+  // anything, so a previewed-then-cancelled prestige permanently wrote this
+  // life's achievements into the dynasty. Caught by the GP-3 regression test,
+  // which saw one case's achievements appear in the next case's empty state.
+  const updated: DynastyStats = {
+    ...currentStats,
+    familyAchievements: [...(currentStats.familyAchievements ?? [])],
+    heirlooms: [...(currentStats.heirlooms ?? [])],
+  };
 
   // Update totals
   updated.totalGenerations += 1;

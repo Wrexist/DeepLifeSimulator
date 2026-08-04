@@ -15,8 +15,8 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 25`
-- **Binary version:** `package.json` `version` (currently `2.5.12`) — see §9
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 30`
+- **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 
@@ -31,8 +31,10 @@ Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 | `npm run test:unit` | `lib/` only |
 | `npm run test:integration` | Save/load integration test |
 | `npm run test:e2e` / `test:performance` | `__tests__/e2e` / `__tests__/performance` |
-| `npm run test:coverage` / `test:ci` | Coverage (global threshold **70%** branches/functions/lines/statements) |
+| `npm run test:coverage` / `test:ci` | Coverage. **Both currently FAIL** — see §8; the 70% threshold in `jest.config.js` has never been met since it was added 2026-07-11. CI does not run either (it runs `npm test -- --ci`), so nothing is blocked by this |
 | `npm run type-check` | `tsc --noEmit` over `tsconfig.typecheck.json` (app source only, excludes tests/scripts) |
+| `npm run type-check:tests` | `tsc --noEmit` over `tsconfig.tests.json` — **the test tree**, which `type-check` excludes. **Clean as of 2026-08-02** (was 182). A type error in a test is usually a test asserting on a field that does not exist, i.e. asserting nothing |
+| `npm run type-check:tests:ratchet` | The above as a **CI gate**, baseline in `scripts/check-test-types.js`, run on every PR via `eas-update.yml`. The baseline is now **0**, so this is simply "the test tree must type-check" — do not raise it to get unblocked. It kept a DOWN branch too while the backlog was burning down, because a stale baseline silently lets errors creep back up to it |
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |
 | `npm run preflight:quick` | routes + type-check — **run this during development** |
@@ -237,7 +239,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 25`** — single source of truth in
+- **Canonical `STATE_VERSION = 30`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -255,6 +257,40 @@ including the crash screen.
 - **Migration ↔ repair parity is not checked by the static audit.** A field with a
   migration but no `repairGameState` mirror (v22 `realEstateActivity`) survives
   until a partial save hits it. Add both, always.
+- **v26 adds `settings.quickActionWeeks`** — the per-game-week marker gating the
+  HUD long-press quick actions. Default is `undefined`, so it is one of the
+  carve-out fields: version bumped, NO backfill and no `repairGameState` mirror,
+  because an absent key already equals "no action used this week".
+- **v27 adds `lastLoginRewardAt`** — the epoch high-water mark that stops a
+  rewound device clock re-arming the daily-login gem claim. Default `undefined`,
+  so it is another carve-out: version bumped, NO backfill and no
+  `repairGameState` mirror. Writing a value would be actively wrong — it would
+  lock an existing player out of their next legitimate claim.
+- **v28 adds `settings.lastNoFillGrantWeek`** — the game-week marker capping the
+  ad orb's no-fill courtesy reward. It replaces a module-level boolean that reset
+  on app restart, which made the net-worth-scaled grant farmable by force-quitting.
+  Default `undefined`, so another carve-out: version bumped, NO backfill and no
+  `repairGameState` mirror — writing a value would deny an existing player their
+  first legitimate courtesy grant.
+- **v29 adds `legacyUpgrades`** — the ids bought with legacy points (C-11).
+  `legacyPoints` had accrued since v11 with nothing to spend them on; this adds
+  the purchase record and a shop that spends them on the heir's starting
+  position. Concrete stored default (`[]`), so unlike the v26/v27/v28 carve-outs
+  this one takes a REAL backfill **and** a `repairGameState` mirror. The
+  spendable balance is derived (lifetime earned − spent) rather than
+  decremented, because the week loop only ever ADDS to `legacyPoints`.
+- **v30 registers `revivalPack`** — the unspent charge from the $2.99 Revival
+  Pack (MON-5). The field is NOT new: it has sat on `GameState` and in
+  `initialState` since the beginning with a `false` default, read by nothing and
+  written by nothing. It was a standing instance of the very drift Hard Rule #3
+  exists to catch — a concrete stored default that never shipped a migration —
+  and it is registered now because it became load-bearing (the IAP grant banks a
+  charge, `reviveWithPack` spends one). Concrete default, so a REAL backfill
+  **and** a `repairGameState` mirror, both writing `false`. Functionally a no-op
+  (an absent key is already falsy = "no banked revive"), which is also the only
+  safe answer: inventing a charge would hand out a paid one-shot for free. The
+  migration deliberately does NOT read `settings.hasRevivalPack` — that records
+  the PURCHASE and survives prestige, while this records the unspent CHARGE.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
@@ -275,7 +311,32 @@ including the crash screen.
   `render`, `performance`, `e2e`, `integration`, `onboarding`, `prestige`, `dating`,
   `banking`, `ads`, `services`, `social`, `statistics`, `scenarios`, `refactor`.
 - `maxWorkers` is capped at 2 in CI to avoid OOM/SIGTERM on the big suites.
-- Coverage threshold 70% across `lib/`, `components/`, `contexts/`, `hooks/`, `utils/`.
+- **Coverage: the 70% threshold is aspirational, not met, and not enforced.**
+  `jest.config.js` sets 70% for branches/functions/lines/statements across
+  `lib/`, `components/`, `contexts/`, `hooks/`, `utils/`. Actual, measured
+  2026-08-02 over 443 suites / 5,461 tests:
+
+  | metric | actual | threshold |
+  |---|---|---|
+  | statements | 48.93% | 70% |
+  | branches | 30.45% | 70% |
+  | lines | 50.24% | 70% |
+  | functions | 38.83% | 70% |
+
+  So `npm run test:coverage` and `npm run test:ci` both exit non-zero, and have
+  since the threshold was introduced on 2026-07-11. CI runs `npm test -- --ci`
+  (no coverage), so no build is blocked — but a documented gate that cannot
+  pass is the same trap as a phantom audit finding: it trains you to skim the
+  failure, which is how a real one gets missed. **Do not "fix" this by lowering
+  the numbers to match reality** — that converts an honest gap into a green
+  light. The open options are to leave it as a stated goal, or to convert it
+  into a ratchet like `type-check:tests:ratchet` (baseline at today's figures,
+  failing on any DROP) so it becomes enforceable without pretending. That
+  choice is the owner's; see `tasks/todo.md`.
+- Heap-growth assertions in `__tests__/stress` raise their budget under
+  `--coverage`: istanbul's counters accumulate in the very heap being sampled,
+  so the number stops measuring the code under test. The non-coverage budget —
+  the one CI exercises — is unchanged.
 - **Never mark work done without proof.** Run the relevant suite, show the output,
   and say plainly if something failed or was skipped. Verify a suspicious
   "failure" isn't a cold container (missing `node_modules`) before reporting it.

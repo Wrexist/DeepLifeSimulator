@@ -9,6 +9,7 @@ import React, { createContext, useContext, useCallback, ReactNode, useRef, useEf
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
+import { isLifeAutosaveSuspended, lifeAutosaveSuspendReason, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -51,16 +52,34 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // wrapping try/catch blocks disabled JIT optimization for the entire ~1500-line
 // updater function. With these as ES imports, the JIT can finally inline the
 // updater and tests can mock via jest.mock(...) at the test setup layer.
-import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice } from '@/lib/economy/stockMarket';
+import { getStockInfo, restoreStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
-import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
+import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
+import { hasImmortality } from '@/lib/prestige/applyBonuses';
+import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
+
+/**
+ * Energy the Auto-Rest prestige bonus tops a depleted week up to.
+ *
+ * Must sit ABOVE `baseEnergyRegen` (40) or the top-up is unreachable: an
+ * exhausted player at energy 5 already regens to 45, so a target of 40 made
+ * `Math.max(45, 40)` a no-op and the 3,000-point bonus stayed inert for anyone
+ * without a regen penalty — the second inert version of this fix. 70 is a
+ * bounded benefit: +25 at the floor, +11 at the `< 20` threshold, and still
+ * below what a well-rested player reaches on their own, so it tops up a bad
+ * week rather than replacing normal play. The manual quick-action Rest gives
+ * +14 and costs 5 happiness plus the week's one action slot.
+ */
+const AUTO_REST_TARGET_ENERGY = 70;
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
+import { reconcileDiscoveredSystems } from '@/lib/depth/discoverySystem';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
 import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
@@ -105,14 +124,17 @@ import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
 import { getRetirementIncomeWeekly } from '@/lib/retirement';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
+import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
+import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { applyDietPlanForWeek } from './actions/weekly/applyDietPlan';
 import { applyCareerSalaryAndPenalty } from './actions/weekly/applyCareerSalaryAndPenalty';
 import { applyCareerApplications } from './actions/weekly/applyCareerApplications';
@@ -224,6 +246,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // phantom "Unnamed Character" save in slot 1. Applies to forced saves too.
  if (isPristineUnstartedState(currentState)) {
  logger.debug('Skipping save: no life started yet (pristine initial state)');
+ return false;
+ }
+ // R3-S1: the player is out in the pre-game stack. This provider is mounted
+ // app-wide, so without this the 2-minute timer and the background force-save
+ // write the still-loaded life back into `currentSlot` — over a slot the menus
+ // have just deleted (death -> New Game) or just restored from a backup.
+ if (isLifeAutosaveSuspended()) {
+ logger.debug(`Skipping save: autosave suspended (${lifeAutosaveSuspendReason()})`);
  return false;
  }
  const saveMutexToken = await saveLoadMutex.acquire('save');
@@ -384,9 +414,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // This prevents save/reload manipulation of stock prices
  try {
  // Get policy effects if available
+ // R3-M9: fold the ECONOMY event's volatility into the same modifier the
+ // political policy uses. `economyEvents.modifiers.stockVolatility` (1.5 on a
+ // crash, 0.8 in a boom) was rendered in the weekly event modal as "Stock
+ // Volatility: +150%" and read by nothing — `simulateWeek` only ever received
+ // the political modifier. The crash had teeth via `macroDriftFor`'s
+ // directional drift, but not the volatility the modal named.
  const policyEffects = gameState.politics?.activePolicyEffects?.stocks;
+ const eventVolatility = Number(gameState.economy?.economyEvents?.modifiers?.stockVolatility);
+ const safeEventVolatility =
+ Number.isFinite(eventVolatility) && eventVolatility > 0 ? eventVolatility : 1;
+ const combinedEffects = {
+ ...(policyEffects ?? {}),
+ volatilityModifier: (policyEffects?.volatilityModifier ?? 1) * safeEventVolatility,
+ };
  const currentWeeksLived = typeof gameState.weeksLived === 'number' ? gameState.weeksLived: 0;
- simulateWeek(policyEffects, currentWeeksLived);
+ simulateWeek(combinedEffects, currentWeeksLived);
  } catch (simError) {
  logger.error('[WEEK PROGRESSION] Stock market simulation failed:', simError);
  // Continue progression even if stock sim fails
@@ -528,8 +571,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // since the energy ceiling is a hard 100). Bounded mult from the accessor.
  const staminaRegenMult = lifeSkillMods.energyRegenMult;
  const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
+ // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
+ // points). `shouldAutoRest` had exactly one occurrence in the whole repo —
+ // its own definition — so the bonus was bought and never fired.
+ //
+ // Decide from the energy the player ENDED the week on, before regen. Checking
+ // after regen could never fire: `baseEnergyRegen` is 40, so post-regen energy
+ // is always >= 40 and `shouldAutoRest`'s `< 20` test is unreachable — the
+ // first version of this fix was itself inert. Review of GL-7.
+ //
+ // The TARGET has to clear 40 for the same reason; see AUTO_REST_TARGET_ENERGY.
+ const wasExhausted = shouldAutoRest(prevState.stats?.energy || 0, unlockedBonuses);
+
  // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
  newStats.energy = (newStats.energy || 0) + energyRegen;
+
+ // Top up to the rest target. Never reduces energy — a well-rested player who
+ // happens to own the bonus is untouched.
+ if (wasExhausted) {
+ newStats.energy = Math.max(newStats.energy || 0, AUTO_REST_TARGET_ENERGY);
+ }
 
  // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
  // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
@@ -550,6 +611,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // since max is already 100): reframe as halving the natural happiness decay.
  const happinessDecayMul = prevState.goldUpgrades?.happiness_boost ? 0.5: 1.0;
  newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6);
+
+ // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
+ // rendered "Health / week +N" for it; nothing ever added the health. Applied
+ // after decay so it reads as the offset the shop copy describes, and left
+ // uncapped here because `newStats.health` is clamped to 0-100 at line ~1483
+ // with every other stat.
+ const healthcarePolicy = healthcarePolicyPerks(prevState);
+ if (healthcarePolicy.weeklyHealthBonus > 0) {
+ newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
+ }
  newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
 
  // Fitness decay: increases the longer you don't visit the gym
@@ -640,6 +711,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkMindset: Boolean(prevState.perks?.mindset),
    // Life Skills: Leadership (+10%) / Executive (+15%) promotion-progress speed.
    lifeSkillCareerProgressMult: lifeSkillMods.careerProgressMult,
+   // C-1: the Commitment focus. Resolved from prevState so it reflects the
+   // commitments in force at the start of the week the player is advancing.
+   commitmentProgressMult: getCommitmentModifiers(prevState, 'career').progressMultiplier,
  }).updatedCareers;
 
  // Progress enrolled educations automatically
@@ -686,6 +760,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    nextWeeksLived,
    goldFastLearner: Boolean(prevState.goldUpgrades?.fast_learner),
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
+   // GL-1: the prestige learning bonuses finally reach the thing they claim to
+   // speed up. `getExperienceMultiplier` had zero call sites.
+   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
  }, weeklyCtx);
  updatedEducations = progressionResult.updatedEducations;
  educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
@@ -792,12 +869,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // logic, same NaN/Infinity guards, same logger.info on success. Empty
  // array convention preserved (downstream `reinvestedStocks.length > 0`
  // checks still work).
- const reinvestResult = applyAutoReinvest({
-   prevHoldings: prevState.stocks?.holdings || [],
-   reinvestedAmount: passiveIncomeResult.reinvested ?? 0,
-   stockPickRoll: preRolls.stockPickRoll,
- });
- const reinvestedStocks = reinvestResult.reinvestedStocks;
+ // R1-01: auto-reinvest now runs AFTER the stocks tick, on the QUARTERLY
+ // dividend, because the weekly dividend that used to feed it here was a
+ // duplicate payment and has been removed from `calcWeeklyPassiveIncome`.
+ // `passiveIncomeResult.reinvested` is therefore always undefined; the real
+ // reinvest happens in the stocks block below. Declared here because the
+ // fallback branch further down still reads it.
+ const reinvestedStocks: NonNullable<typeof prevState.stocks>['holdings'] = [];
 
  // R7 Phase 2 step 2.4c: rent + housing module + realEstate weekly tick
  // extracted into ./actions/weekly/applyRentAndHousing.ts. Same try/catch
@@ -969,7 +1047,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // skips the roll entirely (the IAP advertises "Never die of old
  // age" and now actually delivers on it).
  if (!deathTriggered && nextAge >= 80) {
- const isImmortal =!!prevState.goldUpgrades?.immortality;
+ // R3-P1: the comment above says "gold-upgrade OR perk", and the 50,000-point
+ // prestige bonus ("Never die from old age", the most expensive item in the
+ // shop) was the perk half — but this read only the gold upgrade.
+ // `hasImmortality` existed and was imported in two files without ever being
+ // invoked; the info modal used it solely to render its own description.
+ // HelpModal tells the player twice that the PRESTIGE bonus grants this.
+ const isImmortal =!!prevState.goldUpgrades?.immortality || hasImmortality(unlockedBonuses);
  if (!isImmortal) {
  const yearsPast80 = nextAge - 80;
  // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
@@ -1497,12 +1581,46 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
 
  // ── ENGAGEMENT: Legacy Points (mini-prestige every 10 weeks) ──
+ //
+ // C-11. NOTHING READS THIS. Legacy Points are earned here every 10 weeks and
+ // again from four elder activities (`lib/retirement/elderActivities.ts`),
+ // persisted, migrated (v11) and repaired — and then never spent, displayed,
+ // or checked by any mechanic. It is a currency with no sink and no readout.
+ //
+ // Deliberately left accruing rather than removed or surfaced. Removing a
+ // persisted field costs a migration for no player-visible gain, and showing a
+ // number that buys nothing is worse than showing none. What it SHOULD buy is
+ // a product decision, not one to invent here — flagged for the owner
+ // alongside the Commitment and family-business-brand systems, which have the
+ // same shape.
+ //
+ // The saved balances are correct and keep accruing, so whatever sink is
+ // chosen later will find a meaningful number waiting rather than a zero.
  let newLegacyPoints = prevState.legacyPoints || 0;
  if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
  const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
  (prevState.prestige?.prestigeLevel || 0) * 2;
  newLegacyPoints += pointsEarned;
  logger.info(`[ENGAGEMENT] Legacy Points earned: +${pointsEarned} (total: ${newLegacyPoints})`);
+ }
+
+ // ── DISCOVERY: reconcile which systems this life has actually touched ──
+ // `markSystemDiscovered` had no callers and `updateSystemUsage` had exactly one
+ // (hard-coded to 'streetJobs'), so `discoveredSystems` held at most ONE entry
+ // for the life of a save while the home feed rendered "1 / 20" and 40 of the
+ // 100 depth-score points came from that ratio. Derived here rather than at ~9
+ // action call sites, so existing saves get credit for what they have already
+ // done instead of waiting to re-do each thing. Pure and additive.
+ // 2026-07-30 audit GP-7.
+ let updatedDiscoveredSystems = prevState.discoveredSystems;
+ try {
+ updatedDiscoveredSystems = reconcileDiscoveredSystems({
+ ...prevState,
+ stats: newStats,
+ weeksLived: nextWeeksLived,
+ }).discoveredSystems;
+ } catch (discoveryError) {
+ logger.error('[DISCOVERY] Reconcile failed (non-critical):', discoveryError);
  }
 
  // ── WEEKLY CHALLENGE: Update progress ──
@@ -1512,8 +1630,64 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let weeklyChallengeXpToAward = 0;
  try {
  // R3-A: `getOrRotateWeeklyChallenge`/`evaluateChallengeProgress` are ES imports.
- // Build a temporary state snapshot for evaluation
- const evalState = {...prevState, stats: newStats, weeksLived: nextWeeksLived };
+ /**
+  * Build a temporary state snapshot for evaluation.
+  *
+  * TICK-A2. This used to refresh only `stats` and `weeksLived`, leaving every
+  * other field at last week's value — while the objectives in
+  * `lib/challenges/weeklyChallenges.ts` read `family.spouse` (three separate
+  * challenges), `family.children`, `currentJob`, `realEstate`, `date.age` and
+  * `getNetWorth`. So a player who married, got hired, closed on a property or
+  * turned 60 ON THIS TICK was not credited for it.
+  *
+  * Usually that only delays a challenge by a week. On a ROTATION tick it is
+  * permanent: the salvage block just below is the last chance to pay out the
+  * outgoing challenge, and it evaluates against this same snapshot, so a stale
+  * read there loses a 150-300 gem reward for good.
+  *
+  * Refreshed with the fresh locals that exist at this point, using the SAME
+  * derivations the final returned state uses so the two cannot drift —
+  * `resolveFamilySpouse` in particular, because the health pass above can end a
+  * marriage mid-tick and the denormalized copy on `prevState.family` survives
+  * it (GL-5).
+  *
+  * STILL STALE, deliberately: the stocks, crypto and banking slices are
+  * computed several hundred lines below this point, so `getNetWorth` here sees
+  * this week's property values against last week's portfolio. Fixing that means
+  * moving this whole block after the subsystem ticks, which is a reordering of
+  * the week loop rather than a snapshot fix. The net-worth objectives are
+  * threshold checks ("reach $500k") that re-evaluate every tick, so the
+  * worst case there remains a one-week delay — not a lost reward, because the
+  * rotation salvage path only drops a challenge the player had ALREADY
+  * satisfied, and a threshold crossed by portfolio movement alone will still
+  * read as satisfied on the following tick.
+  */
+ const evalState = {
+   ...prevState,
+   stats: newStats,
+   weeksLived: nextWeeksLived,
+   date: { ...prevState.date, age: nextAge },
+   currentJob: newCurrentJob,
+   careers: updatedCareers,
+   realEstate: updatedRealEstate,
+   relationships: processedRelationships,
+   family: {
+     ...prevState.family,
+     spouse: resolveFamilySpouse({
+       prevSpouse: prevState.family?.spouse,
+       relationships: processedRelationships,
+       newWeddingSpouse: newWeddingSpouse ?? undefined,
+     }),
+     // An evaluation-only projection: the only thing any objective reads off
+     // this array is its LENGTH, and the child relationships are exactly the
+     // children. The full merge the returned state performs (preserving each
+     // child's parenting Bond) is not needed to count them.
+     // Null-guarded for the same reason as the returned state's copy (TICK-A3):
+     // `r.type` on a null row throws, and a throw anywhere in this updater
+     // cancels the week rather than degrading it.
+     children: processedRelationships.filter((r) => !!r && r.type === 'child'),
+   },
+ } as typeof prevState;
 
  // ── WEEKLY CHALLENGE: Rotation-week completion salvage ──
  // getOrRotateWeeklyChallenge replaces the challenge once ROTATION_GAME_WEEKS
@@ -1542,6 +1716,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  logger.info(`[WEEKLY_CHALLENGE] Outgoing reward granted on rotation week: +${outGemReward} gems, +${LEGACY_PASS_XP.weeklyChallenge} Legacy Pass XP (${outgoingChallenge.challengeId})`);
+ // TELL THE PLAYER. This paid 125-300 gems with nothing but a logger.info, so
+ // the gem counter simply jumped and nobody knew why. 2026-07-30 audit GP-1.
+ pendingNotifications.push({
+ id: `weekly-challenge-${outgoingChallenge.challengeId}`,
+ title: '🎯 Weekly Challenge Complete',
+ message: `${outDef?.name ?? 'Challenge'} — +${outGemReward} gems`,
+ });
  }
  }
 
@@ -1576,6 +1757,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weeklyChallengeXpToAward += LEGACY_PASS_XP.weeklyChallenge;
  updatedWeeklyChallenge = {...updatedWeeklyChallenge, rewardClaimed: true };
  logger.info(`[WEEKLY_CHALLENGE] Reward granted: +${gemReward} gems, +${weeklyChallengeXpToAward} Legacy Pass XP (${updatedWeeklyChallenge.challengeId})`);
+ // Same silent-grant fix as the rotation path above. GP-1.
+ pendingNotifications.push({
+ id: `weekly-challenge-${updatedWeeklyChallenge.challengeId}`,
+ title: '🎯 Weekly Challenge Complete',
+ message: `${def?.name ?? 'Challenge'} — +${gemReward} gems`,
+ });
  }
  } catch (wcErr) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);
@@ -1610,6 +1797,46 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  })(),
  // Side-channel teaser set just below after the cliffhanger roll resolves.
  cliffhangerTeaser: undefined as string | undefined,
+ };
+
+ /**
+  * TICK-A4. The recap is built HERE, but eight cash movements happen after it:
+  * subscriptions, the hustle tick, the crypto tick, banking late fees, banking
+  * bills, channel memberships, savings goals, and auto-reinvest. Only the
+  * subscription fee folded itself back in (see just below), so a week whose
+  * whole story was "the mining rig paid out and the bills came due" reported
+  * neither, and `netChange` did not match the money the player watched change.
+  *
+  * This is the third instance of the same class in this one object —
+  * `luxuryRiskCost` and `luxuryYield` were both fixed the same way for the same
+  * reason (recap-1). The remaining six sites now report through this helper.
+  *
+  * Takes the ACTUAL applied delta, not the nominal one. Every site floors with
+  * `Math.max(0, …)`, so on a broke week the nominal overstates what really
+  * left the wallet — the same correction `petFoodCharged` and `luxuryCharged`
+  * already make above.
+  *
+  * DISPLAY fields only. `totalIncome` is computed far earlier and feeds
+  * `calculateIncomeTax`, so folding these in there would retroactively tax
+  * them — a balance change, not a reporting fix.
+  */
+ /** Chapter ids completed by this tick (progressive disclosure spine). */
+ let newlyCompletedChapters: string[] = [];
+
+ const recordRecapCash = (applied: number): void => {
+   if (!isFinite(applied)) return;
+   const rounded = Math.round(applied);
+   if (rounded === 0) return;
+   if (rounded > 0) weekResult.incomeEarned += rounded;
+   else weekResult.expensesPaid += -rounded;
+   weekResult.netChange += rounded;
+ };
+
+ /** Apply a cash delta to the wallet and report what actually moved. */
+ const applyCashAndRecord = (delta: number): void => {
+   const before = newStats.money;
+   newStats.money = Math.max(0, before + delta);
+   recordRecapCash(newStats.money - before);
  };
 
  // R7 Phase 2 step 2.10: end-of-week cliffhanger roll extracted into
@@ -1722,7 +1949,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // apply campaign spend / revenue lift / scandal drag to money.
  const hustleAppNext = hustleTickResult?.hustleApp ?? prevState.hustleApp;
  if (hustleTickResult && hustleTickResult.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + hustleTickResult.cashDelta);
+ applyCashAndRecord(hustleTickResult.cashDelta); // TICK-A4
  }
 
  // Crypto market tick (STATE_VERSION 16, BitcoinMiningApp remake).
@@ -1763,7 +1990,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  finalCryptoMarket = cryptoTick.market;
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + cryptoTick.cashDelta);
+ applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
  }
  for (const note of cryptoTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1834,13 +2061,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  }
  if (bankingTick.lateFeesDeducted > 0) {
- newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
+ applyCashAndRecord(-bankingTick.lateFeesDeducted); // TICK-A4
  }
  // Bills paid from a mirrored (checking-default) account must hit real cash —
  // the mirror's balance is overwritten from stats.money every tick, so without
  // this a "paid" bill cost the player nothing (inverted bill-pay).
  if (bankingTick.billsPaidFromCash > 0) {
- newStats.money = Math.max(0, newStats.money - bankingTick.billsPaidFromCash);
+ applyCashAndRecord(-bankingTick.billsPaidFromCash); // TICK-A4
  }
  for (const note of bankingTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1866,7 +2093,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  nextGamingStreaming = membershipsResult.gamingStreaming;
  if (membershipsResult.cashDelta > 0) {
- newStats.money = Math.max(0, newStats.money + membershipsResult.cashDelta);
+ applyCashAndRecord(membershipsResult.cashDelta); // TICK-A4
  logger.info(`[MEMBERSHIPS] +$${membershipsResult.cashDelta} (${membershipsResult.reason}, ${membershipsResult.paidMembers} members)`);
  }
  // Persist level from experience (shared creatorLevel) so the badge advances.
@@ -1896,6 +2123,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  nextBankingSlice = goalsResult.banking ?? nextBankingSlice;
  newStats.money = Math.max(0, goalsResult.cash + goalsResult.rewardCash);
+ // TICK-A4, with a deliberate carve-out. Only `rewardCash` is reported: it is
+ // genuinely new money. The transfer half (`goalsResult.cash` moving between
+ // the wallet and a linked account) conserves assets — the player still has
+ // it — so booking it as an "expense" would report a $5,000 loss on a week
+ // they lost nothing. It is a cash-position change, not income or expense.
+ //
+ // This IS asymmetric with loan autopay above, which books principal as an
+ // expense even though it also conserves net worth. That asymmetry is
+ // intended: players read paying a loan as spending and read saving as
+ // saving. Noted here so it does not get "fixed" in either direction.
+ recordRecapCash(goalsResult.rewardCash);
  if (goalsResult.happinessDelta > 0) {
  newStats.happiness = Math.max(0, Math.min(100, (newStats.happiness ?? 0) + goalsResult.happinessDelta));
  }
@@ -1965,10 +2203,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const symbols: string[] = getAllStockSymbols();
  const prices: Record<string, number> = {};
  const yields: Record<string, number> = {};
+ // GL-6: the Life Skills "Investing" node advertises "+5% stock returns" and
+ // costs $2,000, is age-gated at 25, and is REQUIRED by the `wealth_master`
+ // capstone — so every player chasing that capstone is forced to buy it. Its
+ // modifier `stockReturnMult` had zero readers anywhere in the repo: the node
+ // did nothing. Scaling the yield here applies it to the quarterly dividend,
+ // which (since R1-01) is the only place stock dividends are paid.
+ const stockReturnMult = Number(lifeSkillMods.stockReturnMult);
+ const safeStockReturnMult =
+ Number.isFinite(stockReturnMult) && stockReturnMult > 1 ? stockReturnMult : 1;
+ // R3-M1: the standing policy dividend bonus is applied HERE, at read time.
+ // `simulateWeek` used to add it to each stock's persistent yield once a week,
+ // which compounded to a permanent 10% on every payer and survived both
+ // save/reload and repealing the policy. As a read-time modifier it tracks the
+ // policies actually in force.
+ const policyDividendBonus = Number(prevState.politics?.activePolicyEffects?.stocks?.dividendBonus);
+ const safeDividendBonus =
+ Number.isFinite(policyDividendBonus) && policyDividendBonus > 0 ? policyDividendBonus : 0;
  for (const sym of symbols) {
  const info = getStockInfo(sym);
  prices[sym] = info.price;
- yields[sym] = info.dividendYield;
+ yields[sym] = policyAdjustedYield(info.dividendYield, safeDividendBonus) * safeStockReturnMult;
  }
  const baseHoldings = (reinvestedStocks.length > 0 ? reinvestedStocks: (prevState.stocks?.holdings ?? []))
 .filter((h: any) => h && typeof h === 'object' && h.symbol)
@@ -1993,8 +2248,87 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  economyState: prevState.economy?.economyEvents?.currentState,
  rollFor: weeklyRoll,
  });
- if (stocksTickResult.cashDelta!== 0) {
- newStats.money = Math.max(0, newStats.money + stocksTickResult.cashDelta);
+ // AUTO-REINVEST (prestige QOL bonus) — now driven by the quarterly dividend.
+ //
+ // It used to consume a SECOND, weekly dividend computed in
+ // `calcWeeklyPassiveIncome`. That dividend was a duplicate of this one and has
+ // been removed (R1-01), so without this the bonus would have gone silently
+ // dead — the exact "built but never fires" class this audit keeps finding.
+ // Buy shares with the payout instead of banking it, and net it out of the
+ // cash credit so the dividend is spent exactly once.
+ let cashDeltaAfterReinvest = stocksTickResult.cashDelta;
+ if (
+ stocksTickResult.dividendsUSD > 0 &&
+ shouldAutoReinvestDividends(prevState.prestige?.unlockedBonuses || [])
+ ) {
+ try {
+ const reinvest = applyAutoReinvest({
+ prevHoldings: stocksTickResult.holdings,
+ // 2% transaction cost, matching the sell fee — same rate the old
+ // weekly path applied.
+ reinvestedAmount: stocksTickResult.dividendsUSD * 0.98,
+ stockPickRoll: preRolls.stockPickRoll,
+ });
+ // Debit what was SPENT, not what was offered. Only whole shares are
+ // bought, so the remainder (up to nearly one share price, plus the
+ // notional 2% fee) must stay as cash rather than vanish. And never let
+ // the reinvest push the player negative — if the tick's other fills have
+ // already taken the balance below what the shares cost, keep the
+ // dividend as cash instead.
+ const affordable = newStats.money + cashDeltaAfterReinvest >= reinvest.spentUSD;
+ if (reinvest.reinvestedStocks.length > 0 && reinvest.spentUSD > 0 && affordable) {
+ stocksTickResult.holdings = reinvest.reinvestedStocks;
+ cashDeltaAfterReinvest -= reinvest.spentUSD;
+ }
+ } catch (reinvestErr) {
+ // A failed reinvest must leave the dividend as cash, not lose it.
+ logger.error('[STOCKS TICK] auto-reinvest failed:', reinvestErr);
+ }
+ }
+
+ if (cashDeltaAfterReinvest!== 0) {
+ applyCashAndRecord(cashDeltaAfterReinvest); // TICK-A4
+
+ /**
+  * Life-chapter completion — the spine of progressive disclosure.
+  *
+  * Ran only inside `LifeChapterCard`, and only when the player found that card
+  * and tapped Claim, so the unlock spine depended on a screen they might never
+  * open. Now the tick detects it, grants the reward and records it.
+  *
+  * Placed HERE, after every cash movement and subsystem tick, because the
+  * chapter goals read money, savings, career level, relationships and
+  * education — evaluating earlier would judge the player on a half-finished
+  * week. Guarded like every other subsystem (§4.3): a throw here must not cost
+  * the whole week.
+  */
+ try {
+   const chapterResult = applyChapterProgress({
+     state: {
+...prevState,
+       stats: newStats,
+       weeksLived: nextWeeksLived,
+       bankSavings: newBankSavings,
+       currentJob: newCurrentJob,
+       careers: updatedCareers,
+       relationships: processedRelationships,
+       educations: updatedEducations,
+       completedChapters: prevState.completedChapters ?? [],
+     } as typeof prevState,
+   });
+   if (chapterResult.newlyCompleted.length > 0) {
+     newlyCompletedChapters = chapterResult.newlyCompleted;
+     if (chapterResult.moneyReward > 0) applyCashAndRecord(chapterResult.moneyReward);
+     if (chapterResult.gemReward > 0) {
+       newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0)
+         + chapterResult.gemReward;
+     }
+     for (const note of chapterResult.notifications) pendingNotifications.push(note);
+     logger.info(`[CHAPTER] Completed ${chapterResult.newlyCompleted.join(', ')}`);
+   }
+ } catch (chapterErr) {
+   logger.error('[CHAPTER TICK] failed:', chapterErr);
+ }
  }
  // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
  // price so the move reaches the market board, Movers sort, market-order fills,
@@ -2075,8 +2409,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
       // Apply any relationship-discovery deltas to processedRelationships in-place
  // so the canonical return picks them up.
- if (darkWebTick.relationshipDeltas.length > 0) {
- const deltasById = new Map(darkWebTick.relationshipDeltas.map((d) => [d.id, d.delta]));
+ // TICK-A3. `.length` and `.map` were read off a subsystem result assumed to
+ // be an array. A dark-web tick that bailed to a partial shape threw here and
+ // cost the whole week (§4.3).
+ const relDeltas = Array.isArray(darkWebTick.relationshipDeltas)
+   ? darkWebTick.relationshipDeltas.filter((d) => !!d && d.id != null)
+   : [];
+ if (relDeltas.length > 0) {
+ const deltasById = new Map(relDeltas.map((d) => [d.id, d.delta]));
  for (let i = 0; i < processedRelationships.length; i++) {
  const rel = processedRelationships[i];
  const delta = rel ? deltasById.get(rel.id): undefined;
@@ -2188,6 +2528,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  lifetimeStatistics: applyLifetimeStatistics({
    prevState,
    newBornChildrenCount: newBornChildren.length,
+   // R3-F4: the post-tick relationship array, so the lifetime counter can see
+   // this week's growth. Without it `totalRelationships` stayed at 0 forever
+   // and the "Social Network" achievement was unobtainable.
+   nextRelationshipCount: processedRelationships.length,
    careerSalary,
    // Political office pay is owned by passiveIncome, so `careerSalary` is 0
    // while in office — without this the work accumulators (and therefore the
@@ -2225,12 +2569,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 : (() => {
  const holdingsToUpdate = reinvestedStocks.length > 0 ? reinvestedStocks: prevState.stocks?.holdings || [];
- const validHoldings = holdingsToUpdate.filter(h => h && typeof h === 'object' && h.symbol);
+ /**
+  * TICK-A3. `h.symbol` was only checked for TRUTHINESS, then `.toUpperCase()`
+  * was called on it and `stockInfo.price` read off the result. A save whose
+  * symbol deserialised as a number (or whose symbol is not in the catalogue,
+  * making `getStockInfo` return nothing) threw here — inside the week
+  * updater's outermost try, whose catch returns `prevState` and shows
+  * "Progression Error". The week then never advances, and because the bad
+  * holding is persisted, it never advances again: a permanently stuck save
+  * from one malformed row.
+  *
+  * CLAUDE.md §4.3 — a single bad entry must not abort the tick. The row is
+  * carried through at its stored price instead.
+  */
+ const validHoldings = holdingsToUpdate.filter(
+   h => h && typeof h === 'object' && typeof h.symbol === 'string' && h.symbol.length > 0,
+ );
  const updatedHoldings = validHoldings.map(holding => {
  const stockInfo = getStockInfo(holding.symbol.toUpperCase());
+ const livePrice = typeof stockInfo?.price === 'number' && isFinite(stockInfo.price)
+   ? stockInfo.price
+   : 0;
  return {
 ...holding,
- currentPrice: stockInfo.price > 0 ? stockInfo.price: holding.currentPrice,
+ currentPrice: livePrice > 0 ? livePrice: holding.currentPrice,
  };
  });
  return {
@@ -2251,11 +2613,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // holds every child (freshly aged via applyChildAging) plus any newborns pushed
  // this tick; merge by id to preserve extra family-only fields.
  family: (() => {
- const childRels = processedRelationships.filter((r) => r.type === 'child');
- const prevChildById = new Map((prevState.family?.children || []).map((c) => [c.id, c]));
+ // TICK-A3. `r.type` and `c.id` were read off entries assumed non-null. One
+ // null row in either array threw inside the week updater, whose catch returns
+ // prevState — so the week silently refused to advance, permanently, because
+ // the bad row is persisted. A bad entry is skipped instead (§4.3).
+ const childRels = processedRelationships.filter((r) => !!r && r.type === 'child');
+ const prevChildById = new Map(
+   (prevState.family?.children || [])
+     .filter((c): c is NonNullable<typeof c> => !!c && c.id != null)
+     .map((c) => [c.id, c]),
+ );
  const children = childRels.map((rel) => {
  const existing = prevChildById.get(rel.id);
- return existing ? {...existing, ...rel }: {...rel, birthWeeksLived: nextWeeksLived };
+ // R3-F5: do NOT let the Relationship's score clobber the child's Bond.
+ // `rel` is a Relationship and carries its own `relationshipScore`, so this
+ // spread overwrote the value `applyParentingAction` writes onto
+ // `family.children[].relationshipScore` — the number the Family card shows
+ // as "Bond". Every parenting action's relationship effect was silently
+ // reverted on the next tick, including the one negative
+ // (`set_boundaries`), so the chip read a constant and the "+3 Bond" on the
+ // $1,500 Family Trip was never delivered. The child's own Bond is the
+ // parenting stat and stays authoritative.
+ if (!existing) return {...rel, birthWeeksLived: nextWeeksLived };
+ const { relationshipScore: _relScore, ...relWithoutBond } = rel;
+ return {...existing, ...relWithoutBond };
  });
  return {
 ...prevState.family,
@@ -2274,9 +2655,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // correctly. `nextWeek` is the cyclic 1-4 UI value and made children
  // appear to all be born in the same handful of weeks.
  lifeMilestones: (() => {
- const base = newBornChildren.length > 0 ? [
+ // TICK-A3. Same shape as the two above: a null newborn made `child.id`
+ // throw and cost the whole week. Filtered rather than guarded per-field so
+ // a half-built row cannot produce a milestone with an undefined id.
+ const bornThisTick = newBornChildren.filter((c) => !!c && c.id != null);
+ const base = bornThisTick.length > 0 ? [
 ...(prevState.lifeMilestones || []),
-...newBornChildren.map(child => ({
+...bornThisTick.map(child => ({
  id: `child_birth_${nextWeeksLived}_${child.id}`,
  type: 'child_birth' as const,
  week: nextWeeksLived,
@@ -2331,10 +2716,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  playStreak: updatedPlayStreak,
  weekResult,
  legacyPoints: newLegacyPoints,
+ // Progressive disclosure: chapter completions drive what the player can see.
+ completedChapters: newlyCompletedChapters.length > 0
+   ? [...(prevState.completedChapters ?? []), ...newlyCompletedChapters]
+   : prevState.completedChapters,
  // Cliffhanger: clear if resolved, set if new one rolled
  pendingCliffhanger: newPendingCliffhanger,
  // Weekly themed challenge progress
  weeklyChallenge: updatedWeeklyChallenge,
+ discoveredSystems: updatedDiscoveredSystems,
  // Legacy Pass XP from a weekly-challenge completion this tick (0 = no-op).
  // awardLegacyPassXp touches ONLY legacyPass UNLESS it triggers a season
  // rollover that auto-collects unclaimed rewards (those land on stats/youthPills/
@@ -3848,6 +4238,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  await AsyncStorage.setItem('currentSlot', String(slot));
  await AsyncStorage.setItem('lastSlot', String(slot));
 
+ // R3-S1: a life is in play again, so the ambient autosave may resume.
+ resumeLifeAutosave();
  logger.info('Game loaded successfully from slot:', { slot });
 
  // CRITICAL: Log child information if present (for debugging single parent scenario)
@@ -3872,6 +4264,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  return safeState;
  } catch (error) {
+ // R3-S3: a save written by a NEWER build must not be reported as an absent
+ // one. `SaveFromFutureError` is thrown deliberately so the app refuses
+ // rather than silently downgrading and corrupting the save — but this catch
+ // had no branch for it, so it collapsed to the same `null` an EMPTY slot
+ // returns. That is precisely what the throw site's comment says must not
+ // happen. Both consumers have handlers for it (`MainMenu`, `SaveSlots`) and
+ // neither could ever be reached: the player got "Load Error" followed by
+ // "No save data found. Please try loading from Save Slots or start a new
+ // game" — an invitation to overwrite a perfectly intact save, on the one
+ // path (a TestFlight downgrade, or a device/iCloud restore onto an older
+ // build) where that is the worst possible advice. Re-thrown so the callers'
+ // existing branches run.
+ if (isSaveFromFutureError(error)) {
+ logger.warn('Refusing to load a save from a newer build', { slot });
+ throw error;
+ }
  logger.error('Failed to load game:', error);
  showError('Load Error', 'Failed to load game progress');
  return null;

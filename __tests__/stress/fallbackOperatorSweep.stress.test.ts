@@ -32,6 +32,7 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, Pet, Vehicle, Relationship } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 import { calculatePerformance } from '@/lib/events/careerEvents';
 
 const { act } = TestRenderer;
@@ -96,18 +97,34 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
       mounted = mountGame();
       const totaled: Vehicle = {
         id: 'wreck',
-        type: 'sedan_basic' as never,
+        // Vehicle['type'] is 'car' | 'motorcycle' | 'bicycle' | 'boat' | 'plane'.
+        // This said `'sedan_basic' as never`, which is not a member of that union
+        // — the `as never` was the only thing letting it compile.
+        type: 'car',
         name: 'Wreck',
         condition: 0,
         mileage: 200_000,
         fuelLevel: 100,
-        maxFuel: 100,
         owned: true,
-        speedBonus: 0,
-        purchasedWeek: 50,
         weeklyMaintenanceCost: 0,
         weeklyFuelCost: 0,
-      } as Vehicle;
+        // `maxFuel` and `purchasedWeek` used to sit here; neither is a field of
+        // `Vehicle` (the real name is `fuelCapacity`, and there is no
+        // purchase-week field at all). The trailing `as Vehicle` was what let
+        // the literal miss seven REQUIRED fields while carrying two invented
+        // ones. applyVehicles reads only `condition`, `mileage` and `type`, so
+        // nothing about this test's result changes; the literal simply now
+        // describes a real vehicle.
+        speedBonus: 0,
+        brand: 'Generic',
+        model: 'Wreck',
+        year: 2010,
+        price: 5_000,
+        fuelCapacity: 100,
+        fuelEfficiency: 25,
+        maxSpeed: 120,
+        reputationBonus: 0,
+      };
       act(() => captured!.setGameState(prev => ({
         ...prev,
         weeksLived: 100,
@@ -214,10 +231,10 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     expect(burnout).toBeDefined();
 
     // Build a state with literal 0 energy and a current job.
-    const state = {
+    const state = createTestGameState({
       stats: { energy: 0, happiness: 0, health: 100, fitness: 50, money: 1000, reputation: 50, gems: 0 },
       currentJob: 'doctor',
-    } as unknown as GameState;
+    });
 
     // Before fix: (0 || 100) < 30 → 100 < 30 → false (event NEVER fires).
     // After fix: (0 ?? 100) < 30 → 0 < 30 → true.
@@ -230,12 +247,12 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     // Build a young, 0-health state. Before the fix, this would hit the
     // "healthy + young" low-risk path because 0 || 100 = 100 > 80.
     // After the fix, 0 ?? 100 = 0, so the path is correctly skipped.
-    const state = {
+    const state = createTestGameState({
       stats: { health: 0, energy: 100, happiness: 100, fitness: 50, money: 100, reputation: 50, gems: 0 },
       date: { age: 22, year: 2030, week: 1, month: 'January' },
       weeksLived: 200,
       lastDiseaseWeek: undefined,
-    } as unknown as GameState;
+    });
 
     // Run many rolls; before the fix, the 0-health young player would be
     // incorrectly disease-resistant via the early return. After the fix, they
@@ -289,6 +306,9 @@ describe('`||` to `??` sweep — pin every bug fix', () => {
     expect(disabled).toBe(true);
     // Sanity: a healthy pet is not disabled.
     const okPet = { energy: 80 };
-    expect((okPet.energy ?? 100) < 20 || (50 ?? 100) < 15).toBe(false);
+    // `50 ?? 100` — a literal is never nullish, so the fallback was dead code
+    // (TS2869). In a suite whose whole subject is fallback operators, a `??`
+    // that can never fire is worth not writing.
+    expect((okPet.energy ?? 100) < 20 || 50 < 15).toBe(false);
   });
 });
