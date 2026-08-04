@@ -80,3 +80,49 @@ export function findFamilyBusiness(
   if (!companyId || !Array.isArray(familyBusinesses)) return undefined;
   return familyBusinesses.find((fb) => fb && fb.companyId === companyId);
 }
+
+// ── Legacy: what surviving generations is worth (the `legacy_business` bonus) ──
+
+/**
+ * Extra income per generation a family business has been held, once the
+ * `legacy_business` prestige bonus is owned.
+ *
+ * The bonus (legendary, 30,000 points, "Future generations inherit family
+ * businesses") was read by NO code at all — family businesses already pass to
+ * the heir unconditionally in `prestigeExecution`, so the purchase was consumed
+ * and changed nothing. It was the only one of 50 catalogue ids with no reader.
+ *
+ * Gating inheritance on it would have made the old description true, but that
+ * REMOVES behaviour every existing player has and undoes a deliberate
+ * "BUG FIX: Preserve family businesses on prestige". Deleting the bonus strands
+ * spent points. Both punish a player for a bug that was never theirs. So it
+ * gets an additive effect instead.
+ *
+ * It hangs on `generationsHeld`, which increments on every prestige and was
+ * read only to print "held N generations" on the company screen — nothing
+ * consumed it. One dead bonus and one dead counter fix each other: a business
+ * that survives generations now compounds instead of merely being labelled.
+ *
+ * Neutral (1.0) without the bonus at every generation count, and neutral at
+ * generation 0 even with it — `createFamilyBusiness` seeds `generationsHeld: 0`,
+ * and paying out there would hand owners an instant raise for nothing, the same
+ * stealth buff the brand curve above was built to avoid.
+ */
+export const LEGACY_GENERATION_INCOME_STEP = 0.1;
+/** Ceiling on the generational bonus. Brand tops out at +25%; this is the
+ *  prestige-tier counterpart, deliberately comparable rather than eclipsing. */
+export const MAX_LEGACY_GENERATION_BONUS = 0.5;
+
+export function legacyGenerationIncomeMultiplier(
+  generationsHeld: number | undefined,
+  unlockedBonuses: readonly string[] | undefined | null,
+): number {
+  if (!Array.isArray(unlockedBonuses) || !unlockedBonuses.includes('legacy_business')) {
+    return 1;
+  }
+  const held =
+    typeof generationsHeld === 'number' && Number.isFinite(generationsHeld) && generationsHeld > 0
+      ? generationsHeld
+      : 0;
+  return 1 + Math.min(MAX_LEGACY_GENERATION_BONUS, held * LEGACY_GENERATION_INCOME_STEP);
+}

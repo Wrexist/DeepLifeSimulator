@@ -231,6 +231,13 @@ try {
 
 // 4. Metro Bundling Syntax Check (Critical)
 logSection('4. Metro Bundling Syntax Check');
+// NOTE: `indexOf` takes the FIRST `--platform`, and the npm scripts already
+// pass one. So `npm run preflight -- --platform android` yields
+// `--platform ios --platform android` and silently resolves to IOS — the
+// Android ad-unit requirement below then never runs, and the build reports a
+// clean bill of health for a platform it did not check.
+// Use the dedicated scripts instead: `npm run preflight:android`, or
+// `npm run preflight:all` for both.
 const platform = process.argv.includes('--platform') 
   ? process.argv[process.argv.indexOf('--platform') + 1] 
   : 'all';

@@ -9,7 +9,7 @@ import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { familyBrandIncomeMultiplier, findFamilyBusiness } from '@/lib/business/familyBusinessEffects';
+import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
 import { 
   PROPERTY_THRESHOLD_1, 
   PROPERTY_THRESHOLD_2, 
@@ -233,6 +233,22 @@ export function calcWeeklyPassiveIncome(
     const familyMeters = findFamilyBusiness(state.familyBusinesses, company.id);
     if (familyMeters && weeklyIncome > 0) {
       weeklyIncome = Math.round(weeklyIncome * familyBrandIncomeMultiplier(familyMeters.brandValue));
+
+      /*
+       * The `legacy_business` prestige bonus, applied on top of brand rather
+       * than instead of it. Scales with `generationsHeld`, which the heir flow
+       * already increments and which nothing else consumed.
+       *
+       * Neutral (1.0) for every player who does not own the bonus, and neutral
+       * at generation 0 even for those who do, so no existing save's income
+       * moves on upgrade. See lib/business/familyBusinessEffects.ts.
+       */
+      const held = (state.familyBusinesses || [])
+        .find((fb) => fb && fb.companyId === company.id)?.generationsHeld;
+      const legacyMult = legacyGenerationIncomeMultiplier(held, state.prestige?.unlockedBonuses);
+      if (legacyMult !== 1) {
+        weeklyIncome = Math.round(weeklyIncome * legacyMult);
+      }
     }
     
     // Apply political perks (business income bonus)

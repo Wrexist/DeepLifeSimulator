@@ -31,7 +31,8 @@ Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 | `npm run test:unit` | `lib/` only |
 | `npm run test:integration` | Save/load integration test |
 | `npm run test:e2e` / `test:performance` | `__tests__/e2e` / `__tests__/performance` |
-| `npm run test:coverage` / `test:ci` | Coverage. **Both currently FAIL** — see §8; the 70% threshold in `jest.config.js` has never been met since it was added 2026-07-11. CI does not run either (it runs `npm test -- --ci`), so nothing is blocked by this |
+| `npm run test:coverage` / `test:ci` | Coverage. `test:ci` now also runs the ratchet and **passes** — see §8 |
+| `npm run coverage:ratchet` | Fails if any coverage metric DROPPED below its floor. Run after `test:coverage` |
 | `npm run type-check` | `tsc --noEmit` over `tsconfig.typecheck.json` (app source only, excludes tests/scripts) |
 | `npm run type-check:tests` | `tsc --noEmit` over `tsconfig.tests.json` — **the test tree**, which `type-check` excludes. **Clean as of 2026-08-02** (was 182). A type error in a test is usually a test asserting on a field that does not exist, i.e. asserting nothing |
 | `npm run type-check:tests:ratchet` | The above as a **CI gate**, baseline in `scripts/check-test-types.js`, run on every PR via `eas-update.yml`. The baseline is now **0**, so this is simply "the test tree must type-check" — do not raise it to get unblocked. It kept a DOWN branch too while the backlog was burning down, because a stale baseline silently lets errors creep back up to it |
@@ -311,28 +312,25 @@ including the crash screen.
   `render`, `performance`, `e2e`, `integration`, `onboarding`, `prestige`, `dating`,
   `banking`, `ads`, `services`, `social`, `statistics`, `scenarios`, `refactor`.
 - `maxWorkers` is capped at 2 in CI to avoid OOM/SIGTERM on the big suites.
-- **Coverage: the 70% threshold is aspirational, not met, and not enforced.**
-  `jest.config.js` sets 70% for branches/functions/lines/statements across
-  `lib/`, `components/`, `contexts/`, `hooks/`, `utils/`. Actual, measured
-  2026-08-02 over 443 suites / 5,461 tests:
+- **Coverage is a RATCHET, not a threshold.** The old 70% `coverageThreshold`
+  in `jest.config.js` was never met — actual is statements 48.9 / branches 30.5
+  / functions 38.8 / lines 50.2 — so `test:coverage` and `test:ci` exited
+  non-zero from the day it landed (2026-07-11). Nothing was blocked, since CI
+  runs `npm test -- --ci` without coverage, and that is what made it corrosive:
+  a gate that cannot pass trains you to skim the failure, which is how a real
+  one gets missed.
 
-  | metric | actual | threshold |
-  |---|---|---|
-  | statements | 48.93% | 70% |
-  | branches | 30.45% | 70% |
-  | lines | 50.24% | 70% |
-  | functions | 38.83% | 70% |
+  It was **not** lowered to match reality — green today, silent on tomorrow's
+  regression, which is worse than a red gate because it lies. Enforcement is
+  now `scripts/check-coverage.js`, which fails only on a **drop** below the
+  floors in `scripts/lib/coverageRatchet.js`. 70 remains a documented goal
+  (`COVERAGE_GOAL`), and the runner tells you when a metric reaches it so the
+  floor can be raised to lock the win in.
 
-  So `npm run test:coverage` and `npm run test:ci` both exit non-zero, and have
-  since the threshold was introduced on 2026-07-11. CI runs `npm test -- --ci`
-  (no coverage), so no build is blocked — but a documented gate that cannot
-  pass is the same trap as a phantom audit finding: it trains you to skim the
-  failure, which is how a real one gets missed. **Do not "fix" this by lowering
-  the numbers to match reality** — that converts an honest gap into a green
-  light. The open options are to leave it as a stated goal, or to convert it
-  into a ratchet like `type-check:tests:ratchet` (baseline at today's figures,
-  failing on any DROP) so it becomes enforceable without pretending. That
-  choice is the owner's; see `tasks/todo.md`.
+  Same shape as `type-check:tests:ratchet`. **Raise the floors in the commit
+  that earns the coverage; never lower them to get a build unstuck** — the
+  accompanying suite asserts each floor sits within one point of the measured
+  value, so a quiet slide is caught.
 - Heap-growth assertions in `__tests__/stress` raise their budget under
   `--coverage`: istanbul's counters accumulate in the very heap being sampled,
   so the number stops measuring the code under test. The non-coverage budget —
