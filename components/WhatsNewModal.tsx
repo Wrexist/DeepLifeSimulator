@@ -10,9 +10,9 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { Megaphone, X, Sparkles, TrendingUp, Wrench } from 'lucide-react-native';
+import { Megaphone, X, Sparkles, TrendingUp, Wrench, Hammer } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CHANGELOG, LATEST_VERSION, type ChangeCategory } from '@/lib/config/changelog';
+import { CHANGELOG, LATEST_VERSION, UPCOMING, type ChangeCategory } from '@/lib/config/changelog';
 import { markWhatsNewSeen } from '@/utils/whatsNewSeen';
 import { haptic } from '@/utils/haptics';
 import { scale, fontScale } from '@/utils/scaling';
@@ -31,6 +31,10 @@ const CATEGORY: Record<
   improved: { label: 'IMPROVED', color: '#60A5FA', tint: 'rgba(96, 165, 250, 0.14)', icon: TrendingUp },
   fixed: { label: 'FIXED', color: '#FBBF24', tint: 'rgba(251, 191, 36, 0.14)', icon: Wrench },
 };
+
+/** The "Coming next" tag. Deliberately muted — it is not a shipped change. */
+const UPCOMING_COLOR = '#A78BFA';
+const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
 
 /**
  * "What's New" NEWS & UPDATES feed. A clean, player-friendly changelog popup
@@ -155,11 +159,27 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                         <View key={changeIndex} style={styles.changeRow}>
                           <View style={[styles.tag, { backgroundColor: meta.tint }]}>
                             <TagIcon size={scale(11)} color={meta.color} />
-                            <Text style={[styles.tagText, { color: meta.color }]}>{meta.label}</Text>
+                            {/* One line, shrink-to-fit. The tag column is a FIXED
+                                width so every title starts on the same x — with
+                                `minWidth` the wider "IMPROVED" pushed its row's
+                                text right and the column visibly zig-zagged. */}
+                            <Text
+                              style={[styles.tagText, { color: meta.color }]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.8}
+                            >
+                              {meta.label}
+                            </Text>
                           </View>
                           <View style={styles.changeTextWrap}>
                             <Text style={styles.changeTitle}>{change.title}</Text>
-                            <Text style={styles.changeDescription}>{change.description}</Text>
+                            {change.bullets.map((bullet, bulletIndex) => (
+                              <View key={bulletIndex} style={styles.bulletRow}>
+                                <Text style={styles.bulletDot}>•</Text>
+                                <Text style={styles.bulletText}>{bullet}</Text>
+                              </View>
+                            ))}
                           </View>
                         </View>
                       );
@@ -167,6 +187,40 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                   </View>
                 );
               })}
+
+              {UPCOMING.length > 0 ? (
+                <View style={styles.upcomingBlock}>
+                  <View style={styles.verbar}>
+                    <Text style={styles.versionText}>Coming next</Text>
+                  </View>
+                  <Text style={styles.summary}>Being worked on right now.</Text>
+
+                  {UPCOMING.map((item, itemIndex) => (
+                    <View key={itemIndex} style={styles.changeRow}>
+                      <View style={[styles.tag, { backgroundColor: UPCOMING_TINT }]}>
+                        <Hammer size={scale(11)} color={UPCOMING_COLOR} />
+                        <Text
+                          style={[styles.tagText, { color: UPCOMING_COLOR }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
+                        >
+                          SOON
+                        </Text>
+                      </View>
+                      <View style={styles.changeTextWrap}>
+                        <Text style={styles.changeTitle}>{item.title}</Text>
+                        {item.bullets.map((bullet, bulletIndex) => (
+                          <View key={bulletIndex} style={styles.bulletRow}>
+                            <Text style={styles.bulletDot}>•</Text>
+                            <Text style={styles.bulletText}>{bullet}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
 
               <Text style={styles.footer}>Thanks for playing DeepLife 💙</Text>
             </ScrollView>
@@ -329,8 +383,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: scale(10),
-    marginBottom: scale(12),
+    marginBottom: scale(14),
   },
+  // FIXED width, not minWidth.
+  //
+  // With `minWidth: 78` the tag grew to fit its label, so a "NEW" row and an
+  // "IMPROVED" row started their text at different x positions and the whole
+  // column zig-zagged down the sheet. A fixed column is what makes the list read
+  // as one aligned block. The label inside shrinks to fit rather than widening
+  // the box, so this holds at every accessibility text size too.
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -338,9 +399,13 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     paddingHorizontal: scale(8),
     paddingVertical: scale(4),
-    marginTop: scale(1),
-    minWidth: scale(78),
-    justifyContent: 'center',
+    marginTop: scale(2),
+    width: scale(96),
+    // Content starts at the left edge, not centred. Centring kept the pills the
+    // same width but let the icon inside slide left and right from row to row,
+    // so the icons zig-zagged even though the boxes did not. Left-aligned gives
+    // three straight columns down the sheet: icon, label, then the title.
+    justifyContent: 'flex-start',
   },
   tagText: {
     fontSize: fontScale(10),
@@ -354,12 +419,32 @@ const styles = StyleSheet.create({
     fontSize: fontScale(14.5),
     fontWeight: '700',
     color: '#F1F5F9',
-    marginBottom: scale(2),
+    marginBottom: scale(1),
   },
-  changeDescription: {
+  // Bullets, not paragraphs. The dot sits in its own fixed-width column so wrapped
+  // lines hang under the text rather than under the marker.
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: scale(3),
+  },
+  bulletDot: {
+    width: scale(12),
+    fontSize: fontScale(13),
+    lineHeight: fontScale(18),
+    color: '#64748B',
+  },
+  bulletText: {
+    flex: 1,
     fontSize: fontScale(13),
     lineHeight: fontScale(18),
     color: '#94A3B8',
+  },
+  upcomingBlock: {
+    marginTop: scale(18),
+    paddingTop: scale(18),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   footer: {
     textAlign: 'center',

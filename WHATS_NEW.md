@@ -32,7 +32,73 @@ The economy update.
 • Fixes: the calendar no longer drifts out of step with the month, getting
   arrested can't shorten a sentence, police fines scale with your wealth, and
   a failure in any weekly system can no longer silently eat your whole week.
+
+Also since the last public release:
+
+• DeepLife+ membership, with everything included laid out before you subscribe.
+• Purchases now survive prestige — Remove Ads, lifetime premium, gold upgrades
+  and unspent youth pills all carry across lives.
+• Closed several ways to mint unlimited money and gems, and fixed rewards that
+  promised a bonus but delivered nothing.
+• The daily gem claim can no longer be farmed by changing your device clock.
+• Purchases and restores work correctly on Android.
+• Fixed a save-recovery path that could lose the save it was meant to rescue.
+• Event chains can no longer get stuck part-way and block later stories.
 ```
+
+---
+
+## Everything since the last public release
+
+This build covers **v2.5.8 → v2.6.0**. The headline is the economy; the rest is
+the fair-play and reliability work that landed alongside it.
+
+| Version | Theme |
+|---|---|
+| **2.6.0** | The Economy Update — investing, wages, and consequences for money |
+| **2.5.13** | Fair play and save safety — purchases survive prestige, exploits closed |
+| **2.5.10** | DeepLife+, a fairer daily claim, and a store that behaves |
+| **2.5.8** | New main menu and the in-app What's New feed |
+
+### 2.5.13 — Fair play, and saves you can trust
+
+- **Purchases survive prestige.** Remove Ads, lifetime premium, gold upgrades and
+  unspent youth pills now carry across lives. Starting a new generation no longer
+  resets anything that was paid for.
+- **A straight economy.** Several ways to mint unlimited money and gems are
+  closed. Luxury items, hobby tournaments and staking now charge what they show,
+  and rewards that advertised a bonus but delivered nothing are wired up.
+- **Safer saves.** Fixed a recovery path that could lose the save it was meant to
+  rescue. Older saves keep loading cleanly, and automatic backups are more
+  reliable.
+- **Honest numbers.** Family income, property returns and business figures now
+  match what actually arrives. Prestige bonuses that were listed but inactive now
+  do what the card says.
+- **Events that finish.** Event chains can no longer stall part-way and block
+  later stories, and anniversaries fire for couples who married as the week
+  advanced.
+
+### 2.5.10 — DeepLife+, daily rewards and a cleaner store
+
+- **DeepLife+ membership.** A redesigned in-app membership screen that lays out
+  everything included, reachable from the player card, the gem shop and the
+  reward sheet, with terms and privacy linked before you subscribe.
+- **A fair daily claim.** Changing the device clock can no longer farm the daily
+  gem reward, and the claim card fits every screen size.
+- **The store, tidied up.** The shop loads reliably instead of hanging on an
+  empty screen, and purchases and restores work correctly on Android.
+- **Layout polish.** Player card, upsell seals and call-to-action buttons scale
+  correctly on small phones, and the What's New feed scrolls to the end.
+
+---
+
+## Coming next
+
+Not in this build — in progress now.
+
+- **Character customization, rebuilt.** Face, hair and style choices that carry
+  into the game, a redesigned look-builder with a proper preview, and an
+  appearance that stays consistent as your character ages.
 
 ---
 

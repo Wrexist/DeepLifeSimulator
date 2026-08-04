@@ -5,7 +5,13 @@
 //   • Describe what changed for the PLAYER — features, balance, fixes they feel.
 //   • No engineering/internal jargon (no "backend", "refactor", "migration",
 //     "audit", tooling, servers, or how the work was produced). Just the game.
+//   • Never name tools, vendors or the development process. A player wants to
+//     know what changed in their game, not how the sausage was made.
 //   • Newest release goes FIRST (index 0 is treated as the latest).
+//
+// Each change is a short title plus BULLETS — never a paragraph. Bullets scan in
+// a glance on a phone; prose does not, and the popup is something people skim on
+// their way back into a save.
 //
 // When you cut a new release, add an entry at the top with the new version and
 // bump nothing else — `LATEST_VERSION` is derived from the first entry.
@@ -17,14 +23,17 @@ export interface ChangelogChange {
   category: ChangeCategory;
   /** Short bold headline, e.g. "Redeem codes". */
   title: string;
-  /** One or two friendly sentences of detail. */
-  description: string;
+  /**
+   * The detail, as scannable bullets. Keep each to one line on a phone —
+   * roughly 90 characters — so the list stays a list and not a wall.
+   */
+  bullets: string[];
 }
 
 export interface ChangelogEntry {
-  /** Marketing version, matches package.json (e.g. "2.5.8"). */
+  /** Marketing version, matches package.json (e.g. "2.6.0"). */
   version: string;
-  /** Friendly date label, e.g. "July 2026". */
+  /** Friendly date label, e.g. "August 2026". */
   date: string;
   /** Punchy news headline for this release (shown as the post title). */
   headline: string;
@@ -36,6 +45,159 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.6.0',
+    date: 'August 2026',
+    headline: 'The Economy Update',
+    summary: 'Investing works, wages make sense, and money finally has consequences.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'The stock market works',
+        bullets: [
+          'Share prices drifted toward zero over a long life, however well you played.',
+          'Prices now grow over time, and riskier stocks pay more on average.',
+          'Portfolios the old behaviour wiped out are restored when you load your save.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Wages that make sense',
+        bullets: [
+          'Entry-level jobs paid as little as $40 a week next to a $95,000 apartment.',
+          'Every career now starts at a livable wage and keeps its own ceiling.',
+          'No job pays less than it did before.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Bills you can actually miss',
+        bullets: [
+          'Rent, tax and tuition you cannot cover are no longer quietly forgiven.',
+          'They become an overdue balance, paid first out of next week’s income.',
+          'Falling behind costs a late fee and drags your credit score.',
+          'It never grows on a week you paid what you could, so you can always climb out.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Inflation is real',
+        bullets: [
+          'Prices drift up across a lifetime, and your salary keeps pace.',
+          'Economic policies you vote in now move the cost of living.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'A much smaller download',
+        bullets: [
+          'The app installs around 200 MB lighter.',
+          'Every piece of artwork looks exactly as it did before.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Time, crime and consequences',
+        bullets: [
+          'The week counter no longer drifts out of step with the month.',
+          'Getting arrested can no longer shorten a sentence you were already serving.',
+          'Police fines scale with your wealth, so crime still costs something when rich.',
+          'A hiccup in any weekly system can no longer swallow your whole week.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '2.5.13',
+    date: 'August 2026',
+    headline: 'Fair play, and saves you can trust',
+    summary: 'Your purchases stay yours, the economy plays straight, and your progress is safe.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Purchases survive prestige',
+        bullets: [
+          'Remove Ads, lifetime premium, gold upgrades and unspent youth pills now carry across lives.',
+          'Starting a new generation no longer resets anything you paid for.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'A straight economy',
+        bullets: [
+          'Closed several ways to mint unlimited money and gems.',
+          'Luxury items, hobby tournaments and staking now charge what they show.',
+          'Rewards that promised a bonus but delivered nothing are wired up properly.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Your saves are safer',
+        bullets: [
+          'Fixed a recovery path that could lose a save it was meant to rescue.',
+          'Older saves keep loading cleanly as the game grows.',
+          'Automatic backups are more reliable.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Honest numbers everywhere',
+        bullets: [
+          'Family income, property returns and business figures now match what you actually receive.',
+          'Prestige bonuses that were advertised but inactive now do what the card says.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Events that finish',
+        bullets: [
+          'Event chains can no longer get stuck part-way and block later stories.',
+          'Anniversaries now fire for couples who married while the week advanced.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '2.5.10',
+    date: 'July 2026',
+    headline: 'DeepLife+, daily rewards and a cleaner store',
+    summary: 'A proper membership, a fairer daily claim, and a store that behaves.',
+    changes: [
+      {
+        category: 'new',
+        title: 'DeepLife+ membership',
+        bullets: [
+          'A redesigned in-app membership screen with everything included laid out clearly.',
+          'Reachable from your player card, the gem shop and the reward sheet.',
+          'Terms and privacy links are right there before you subscribe.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'A fair daily claim',
+        bullets: [
+          'Changing your device clock can no longer farm the daily gem reward.',
+          'The claim card fits properly on every screen size.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'The store, tidied up',
+        bullets: [
+          'The shop loads reliably instead of hanging on an empty screen.',
+          'Purchases and restores work correctly on Android.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Layout polish',
+        bullets: [
+          'Player card, upsell seals and call-to-action buttons scale correctly on small phones.',
+          'The What’s New feed scrolls all the way to the end.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.5.8',
     date: 'July 2026',
     headline: 'A fresh main menu and a brand-new What’s New feed',
@@ -44,32 +206,38 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         category: 'new',
         title: 'What’s New feed',
-        description:
-          'Tap the button on the main menu any time to catch up on the latest features, improvements and fixes — you’re reading it now.',
+        bullets: [
+          'Tap the button on the main menu any time to catch up on every update.',
+          'You are reading it right now.',
+        ],
       },
       {
         category: 'improved',
         title: 'Brand-new main menu',
-        description:
-          'A cleaner, perfectly symmetric menu that loads instantly and rotates through fresh artwork every time you open the game.',
+        bullets: [
+          'A cleaner, perfectly symmetric menu that loads instantly.',
+          'Fresh artwork every time you open the game.',
+        ],
       },
       {
         category: 'fixed',
         title: 'App-wide polish pass',
-        description:
-          'A sweep across 20 in-game apps resolved 30 issues, from small visual glitches to real gameplay bugs.',
+        bullets: [
+          'A sweep across 20 in-game apps resolved 30 issues.',
+          'Everything from small visual glitches to real gameplay bugs.',
+        ],
       },
       {
         category: 'fixed',
         title: 'Cleaner fresh installs',
-        description:
+        bullets: [
           'New installs no longer show a stray “Unnamed Character” in your save slots.',
+        ],
       },
       {
         category: 'improved',
         title: 'Rock-solid saves',
-        description:
-          'Your older saves keep loading safely as the game keeps growing.',
+        bullets: ['Your older saves keep loading safely as the game keeps growing.'],
       },
     ],
   },
@@ -83,74 +251,102 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         category: 'new',
         title: 'More life to live',
-        description:
-          'Ten new life-stage systems add fresh events and choices from your first job all the way to your final years.',
+        bullets: [
+          'Ten new life-stage systems add fresh events and choices.',
+          'From your first job all the way to your final years.',
+        ],
       },
       {
         category: 'new',
         title: 'New ways to earn & spend',
-        description:
-          'Go live with streaming, pick up subscriptions and memberships, and set savings goals to hit your targets.',
+        bullets: [
+          'Go live with streaming and build an audience.',
+          'Pick up subscriptions and memberships.',
+          'Set savings goals and track them to the finish.',
+        ],
       },
       {
         category: 'new',
         title: 'Your character has a face',
-        description:
-          'A new portrait system gives every character a real, age-aware face that grows up as you do.',
+        bullets: [
+          'Every character gets a real portrait that ages as you do.',
+        ],
       },
       {
         category: 'new',
         title: 'Redeem codes',
-        description:
-          'Enter promo codes under Settings → Redeem Code to claim gems, cash, perks and more.',
+        bullets: [
+          'Enter promo codes under Settings → Redeem Code.',
+          'Claim gems, cash, perks and more.',
+        ],
       },
       {
         category: 'new',
         title: 'Reward orbs, upgraded',
-        description:
-          'The reward orb can now fully refill your Health, Happiness and Energy — not just hand you cash.',
+        bullets: [
+          'The reward orb can now fully refill Health, Happiness and Energy.',
+          'Not just hand you cash.',
+        ],
       },
       {
         category: 'improved',
         title: 'A unified premium look',
-        description:
-          'A top-to-bottom “Slate Glass” redesign brings one clean dark style across the menu, tabs and onboarding, with redesigned event pop-ups.',
+        bullets: [
+          'One clean dark style across the menu, tabs and onboarding.',
+          'Redesigned event pop-ups throughout.',
+        ],
       },
       {
         category: 'improved',
         title: 'Simpler navigation',
-        description:
-          'The bottom bar is now four focused tabs — Home, Work, Apps and Life — with tidy sub-menus.',
+        bullets: [
+          'Four focused tabs: Home, Work, Apps and Life.',
+          'Tidy sub-menus instead of a crowded bar.',
+        ],
       },
       {
         category: 'improved',
         title: 'Life Ambitions & Scenarios',
-        description:
-          'Redesigned ambition cards with a milestone timeline, plus crisper, clearer starting-scenario screens.',
+        bullets: [
+          'Redesigned ambition cards with a milestone timeline.',
+          'Crisper, clearer starting-scenario screens.',
+        ],
       },
       {
         category: 'fixed',
         title: 'The bugs you reported',
-        description:
-          'Fixed a big batch you flagged: being unable to have kids, blank event banners, events not firing, early terminal diseases, unreachable bank actions, flat company income, duplicate partners, missing proposal rings, the tab bar covering buttons, stuck dark-web jobs, and more.',
+        bullets: [
+          'Being unable to have kids, and duplicate partners appearing.',
+          'Blank event banners and events that never fired.',
+          'Terminal diseases arriving far too early.',
+          'Unreachable bank actions and flat company income.',
+          'Missing proposal rings, stuck dark-web jobs, and the tab bar covering buttons.',
+        ],
       },
       {
         category: 'fixed',
         title: 'A fairer economy',
-        description:
-          'Closed money exploits — including selling underwater property or vehicles to wipe debt for free and a few “money printers” — and fixed a serious bug where a new game could overwrite the wrong save slot.',
+        bullets: [
+          'Selling underwater property or vehicles no longer wipes debt for free.',
+          'Closed several money exploits.',
+          'Fixed a serious bug where a new game could overwrite the wrong save slot.',
+        ],
       },
       {
         category: 'fixed',
         title: 'No more freezes',
-        description:
-          'Fixed a “Next Week” soft-lock, crashes on older saves, and a freeze that could happen after watching a reward ad — and hardened weekly progression so a hiccup in one system can’t stall your whole game.',
+        bullets: [
+          'Fixed a “Next Week” soft-lock and crashes on older saves.',
+          'Fixed a freeze that could happen after watching a reward ad.',
+        ],
       },
       {
         category: 'fixed',
         title: 'Everyday fixes',
-        description:
-          'Corrected money formatting, education completion and upgrade caps, and aligned the Health tab so vitals never overlap.',
+        bullets: [
+          'Corrected money formatting, education completion and upgrade caps.',
+          'Aligned the Health tab so vitals never overlap.',
+        ],
       },
     ],
   },
@@ -163,25 +359,31 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         category: 'fixed',
         title: 'Purchases fixed',
-        description:
-          'The in-app store now loads reliably, with smoother, more dependable checkout and restores.',
+        bullets: [
+          'The in-app store now loads reliably.',
+          'Smoother, more dependable checkout and restores.',
+        ],
       },
       {
         category: 'improved',
         title: 'Economy rebalanced',
-        description:
-          'Closed a batch of money exploits so your wealth reflects real progress and the late game stays challenging.',
+        bullets: [
+          'Closed a batch of money exploits.',
+          'Your wealth reflects real progress and the late game stays challenging.',
+        ],
       },
       {
         category: 'fixed',
         title: 'Season rewards',
-        description:
-          'Unclaimed rewards are now collected automatically when a season rolls over, so you never lose what you earned.',
+        bullets: [
+          'Unclaimed rewards are collected automatically when a season rolls over.',
+          'You never lose what you earned.',
+        ],
       },
       {
         category: 'improved',
         title: 'Stability & polish',
-        description: 'A range of fixes for a smoother, more reliable experience.',
+        bullets: ['A range of fixes for a smoother, more reliable experience.'],
       },
     ],
   },
@@ -194,23 +396,31 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         category: 'improved',
         title: 'Financial overhaul',
-        description:
-          'Reworked bankruptcy, debt collection, loans and lifestyle costs for a more believable money game.',
+        bullets: [
+          'Reworked bankruptcy, debt collection and loans.',
+          'Rebalanced lifestyle costs for a more believable money game.',
+        ],
       },
       {
         category: 'improved',
         title: 'Health & happiness',
-        description: 'Overhauled the disease system and tuned how your stats rise and fall.',
+        bullets: [
+          'Overhauled the disease system.',
+          'Tuned how your stats rise and fall.',
+        ],
       },
       {
         category: 'improved',
         title: 'Family & poverty',
-        description: 'Balanced child expenses and added a clearer path out of poverty.',
+        bullets: [
+          'Balanced child expenses.',
+          'Added a clearer path out of poverty.',
+        ],
       },
       {
         category: 'fixed',
         title: 'Crime & justice',
-        description: 'Improved wanted levels and the jail system.',
+        bullets: ['Improved wanted levels and the jail system.'],
       },
     ],
   },
@@ -218,3 +428,26 @@ export const CHANGELOG: ChangelogEntry[] = [
 
 /** The current release version — the newest entry in the log. */
 export const LATEST_VERSION: string = CHANGELOG[0]?.version ?? '';
+
+/**
+ * Work in progress, shown under the released entries.
+ *
+ * Only list things a player would recognise and genuinely wants, and only when
+ * they are actually being built — a roadmap that never ships is worse than no
+ * roadmap. Keep it short. Clear this out as each item lands in a release above.
+ */
+export interface UpcomingItem {
+  title: string;
+  bullets: string[];
+}
+
+export const UPCOMING: UpcomingItem[] = [
+  {
+    title: 'Character customization, rebuilt',
+    bullets: [
+      'Face, hair and style choices that actually carry into the game.',
+      'A redesigned look-builder with a proper preview.',
+      'Your appearance stays consistent as your character ages.',
+    ],
+  },
+];
