@@ -191,6 +191,10 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
 export function assertValidGameState(state: GameState): asserts state is GameState {
   const requiredFields: (keyof GameState)[] = [
     'revivalPack',
+    // v31 arrears bucket. Listed because it is ARITHMETIC in the weekly cash
+    // line — a test state missing it computes NaN money and the failure surfaces
+    // three subsystems away from the cause.
+    'overdueBalance',
     'stats',
     'day',
     'week',

@@ -1,185 +1,209 @@
-# Active plan — four owner decisions (2026-08-02)
+# Active plan — act on the 2026-08-04 critical review
 
-Previous plan (C-1 … C-4, 2026-08-01) shipped in full; superseded here.
-
----
-
-## 1. Hard Rule #7 — the two remaining side accent bars
-
-**Decision: tinted background, no border.**
-
-Correction to my own earlier report: I described these as "one-sided colored
-borders". They are not. They are 3px-wide `<View>` stripes
-(`stripe: { width: scale(3) }`) with a semantic `backgroundColor`. The rule bans
-"side accent bars" by name, so the flag stands — but a `borderLeftWidth` grep
-never would have found them, and the `borderBottomWidth` lines in the same rows
-are neutral `theme.border` hairline dividers, which the rule explicitly allows
-and which stay.
-
-- [x] `components/stocks/StockRow.tsx:231` — sector-colored stripe → tinted row background
-- [x] `components/mobile/StocksApp.tsx:944` — buy/sell-colored stripe → tinted row background
-- [x] Regression test: no stripe view remains in either row, and the semantic
-      color still varies with sector / side, so the fix does not silently drop
-      the meaning it was carrying
-
-## 2. Credit-card screen — "list won't scroll at all"
-
-Read all four credit-card surfaces. `AdvancedBankApp` (main + credit detail) and
-mobile `BankApp` are structurally correct: a `flex: 1` ScrollView under a
-`flex: 1` root, with proper bottom padding.
-
-`components/banking/ApplyCardModal.tsx:112` is not:
-
-    <ScrollView style={{ maxHeight: scale(360) }}>   // fixed cap, no flexShrink
-
-inside a sheet with `maxHeight: '90%'` holding a column of header + subtitle +
-list + conditional reject notice + Apply button. A fixed `maxHeight` cannot give
-space back, so on a short screen the column overflows the sheet and the Apply
-button is pushed outside it — with nothing scrollable to reach it, because only
-the inner list scrolls and the sheet itself does not.
-
-- [x] Replace the fixed `maxHeight` with `flexShrink: 1` so the list takes
-      whatever is left after the header and button, at any screen size
-- [x] Regression test: the modal declares no fixed-height list, and the Apply
-      button is a sibling of the list rather than inside it
-
-**Not confirmed as the reported screen.** This is a real defect on its own merits
-and it matches the symptom, but there are four card surfaces and I do not know
-which one the screenshot showed. Report it that way — do not claim the player's
-report is closed.
-
-## 3. Player portrait — "age, keep identity"
-
-**Decision: portrait moves through age brackets, same person and gender.**
-
-The parents-aging-into-the-wrong-gender bug is already fixed (`utils/facePool.ts`
-— `hero_grandparent.png` moved to the male bucket, `HERO_FACE_SEX` added,
-`getAvatarPortrait` switched from `Math.min` to `index % bucket.length`).
-
-- [x] Verify the player's own avatar resolves through the same age-bracket path
-- [x] Verify identity is stable: same avatarId keeps one sex across all brackets
-- [x] Regression test: sweep one avatarId across the full age range; assert the
-      sex never changes and the bracket does
-- [x] FOUND AND FIXED: `index % bucket.length` scrambled slot ordering across
-      bands (`f7` → 1,7,1,2,3). Now proportional, so ordering survives.
-- [x] CLOSED, not escalated: I over-graded this. Single-player, and NPCs
-      already share the same finite buckets via `hashSeed % len`. The
-      player-visible property is fixed and pinned.
-
-## 4. MON-5 Revival Pack — "one banked revive, consumed on death"
-
-The $2.99 pack currently revives only at the instant of purchase, so buying it
-while alive is a permanent no-op. Biggest item here: it needs new state.
-
-- [x] `contexts/game/types.ts` — field ALREADY existed (`revivalPack: boolean`), dead since day one
-- [x] `contexts/game/initialState.ts` — default already `false`; `STATE_VERSION` 29 → 30
-- [x] `utils/saveMigrations.ts` — v30 migration
-- [x] `utils/saveValidation.ts` — `repairGameState` mirror **if** the default is
-      concrete; skip both if it is `undefined` (the v26/v27/v28 carve-out).
-      Decide from the chosen shape; whatever is written must set `repaired = true`
-- [x] `__tests__/helpers/createTestGameState.ts` — already listed in requiredFields
-- [x] IAP grant path — banks instead of reviving inline
-- [x] Death flow — `reviveWithPack`, both gates + spend in one updater (§4.4: gate and decrement in
-      the SAME updater, or a double-tap prints lives)
-- [x] Restore carve-out KEPT — now correct for the right reason: re-granting a bankable one-shot on every restore would mint a life each time
-- [x] Docs: `CLAUDE.md` §7 v30 entry, `DEV.md` / `WORKFLOW.md` synced
-
-**Not device-verifiable here.** The StoreKit sandbox needs a TestFlight build;
-everything below the IAP boundary is testable in Jest.
+Source: `tasks/critical-review-2026-08-04.md`. Every item below names the chosen
+solution and why it beats the alternatives. Items judged NOT worth fixing are
+listed at the bottom with the reasoning, so the decision is on the record.
 
 ---
 
-## Standing constraints
+## 1. A-1 — the stock walk has no drift, so every market collapses
 
-- Every behavioural fix proved RED against the pre-fix tree before green.
-- Every suite carries a control asserting what must NOT change.
-- Gate before each commit: `tsc` on both configs (test ratchet now **0**),
-  `eslint --quiet`, full Jest, `npm run audit:weekly`.
-- PR #100 check-ins until merged or closed.
-- [x] `as GameState` sweep (Hard Rule #3): 64 → 2. Both survivors are
-  DELIBERATE corruption fixtures — a test that proves the code survives
-  garbage must be able to construct garbage. That is the floor, not a backlog.
+**Chosen: log-normal step with an explicit drift target.**
 
-## Open for the owner
+`price *= (1 + z·σ)` is zero-mean *arithmetically*, which is −σ²/2 *geometrically*.
+Adding a compensating `+σ²/2` would only make it flat. A market that is flat in
+expectation is still not worth investing in — the whole point of the asset class
+is a risk premium. So: switch to `price *= exp(μ + σ·z)` where `μ` is the
+intended weekly LOG drift, set from one readable annual figure.
 
-**Both former owner decisions are now RESOLVED in code (PR #102):**
+Rejected: bumping σ down (hides the bug, doesn't fix the sign); clamping the
+price floor higher (treats the symptom).
 
-- `legacy_business` — given a real additive effect rather than gated or
-  deleted. It now pays +10% family-business income per generation held, capped
-  at +50%, hung on `generationsHeld` (a field that already incremented on every
-  prestige and was read only for display). Gating inheritance would have
-  removed behaviour every existing player has and undone a deliberate bug fix;
-  deleting it would have stranded spent points. Additive punishes nobody, and
-  one dead bonus plus one dead counter fixed each other.
-- Coverage — converted to a ratchet (`npm run coverage:ratchet`), floors just
-  under the measured values, 70 kept as a documented goal. NOT lowered to match
-  reality. `npm run test:ci` passes for the first time since 2026-07-11.
+- [x] `MARKET_ANNUAL_DRIFT` constant, converted to a weekly log drift
+- [x] `simulateWeek` uses `exp()`, so the price can never go negative and the
+      drift means what it says
+- [x] Regression test that runs 520 and 3 120 weeks and asserts the MEDIAN
+      buy-and-hold multiple lands in a sane band — the assertion the old suite
+      never had
 
-Two things are informational:
+## 2. A-2 — `resetStockPrices` has no production caller
 
-- **Revival Pack is a non-consumable**, so it is one revive ever — which is what
-  was chosen. Making it repeatable needs the product changed to a consumable in
-  App Store Connect first; not a code change.
-- **MON-5 is not device-verified.** StoreKit sandbox needs a TestFlight build.
-  Buy while alive, then die and spend, is the flow.
+**Chosen: call it where its own docstring says it should be called.**
+
+- [x] Reset on new game and on prestige
+- [x] Test that a fresh life does not inherit the previous life's prices
+
+## 3. A-3 — the inflation system never runs
+
+**Chosen: wire it in AND index career pay by the same index.**
+
+Deleting it would silently drop effects three policy cards advertise. But wiring
+it in alone makes A-5 worse: prices climb while nominal wages are frozen, so a
+60-year life ends with a 6× cost of living on a 1985 paycheck. Indexing pay by
+the same `priceIndex` makes baseline inflation neutral in real terms (correct)
+and leaves the *policy-driven* deviation as the thing the player actually feels.
+
+- [x] `applyWeeklyInflation` runs in the weekly tick
+- [x] `applyCareerSalaryAndPenalty` scales pay by `priceIndex`
+- [x] Test: the index moves over a played year, and real wages hold
+
+## 4. A-7 — the daily-login gate is still farmable forward
+
+**Chosen: require game-week progress between claims.**
+
+A device clock cannot be trusted and there is no monotonic wall-clock on RN
+without a native module, so no amount of day-key cleverness closes this. Gate on
+something the player can only advance by playing: `weeksLived`. A legitimate
+player who opens the app and plays one week is unaffected; a clock-scrubber gets
+exactly one claim per week actually played.
+
+- [x] `lastLoginRewardWeek` (undefined default → carve-out, no backfill)
+- [x] Gate checks it, both at the render-time guard and inside the updater
+- [x] Test: same game week → no second claim, however the clock moves
+
+## 5. A-4 — unpaid bills are silently forgiven; no fail state on money
+
+**Chosen: an arrears bucket, not negative cash.**
+
+Letting `stats.money` go negative would break the `Math.max(0, …)` and
+overdraft-reject invariants at ~40 call sites. Instead the shortfall becomes a
+debt that is paid off the top of next week's income and that damages credit
+while it stands.
+
+- [x] `overdueBalance` (concrete default `0` → real migration + repair mirror)
+- [x] Tick books the shortfall instead of clamping it away
+- [x] Arrears are settled first next week, and hit the credit score
+- [x] Surfaced in the weekly finance summary so it is visible, not silent
+
+## 6. A-5 — the bottom half of the career ladder is off by ~10×
+
+**Chosen: one rule, applied to the data — no ladder starts below a living wage.**
+
+Advanced careers are annual÷52; base careers are not, so a line cook reads
+$2 080/yr next to a $95 000 studio and street jobs that pay ~$700/wk. Scale each
+under-scaled ladder by a single factor so its FIRST rung meets a floor, which
+preserves each ladder's internal shape (and the monotonicity the existing test
+pins).
+
+- [x] `MIN_ENTRY_WEEKLY_SALARY`, ladders rescaled proportionally
+- [x] Test: no career starts below the floor; ladders stay monotonic; the
+      already-correct professional tier is untouched
+
+## 7. A-6 — 4-week months vs a 52-week year
+
+**Chosen: derive both from one function so they cannot disagree.**
+
+- [x] `resolveCalendar` in `utils/weekCounters.ts` owns month + week-of-month
+- [x] The tick uses it; the HUD's 1..4 dot strip keeps working
+- [x] Test: the week label resets exactly on the month boundary, for 200 weeks
+
+## 8. A-8 / A-9 — jail and fines
+
+- [x] `jailWeeks` adds instead of overwriting (getting caught can't shorten a sentence)
+- [x] The "caught" message reports the amount actually deducted
+- [x] Police fines scale with net worth, so crime keeps a cost when rich
+
+## 9. C-1 — twelve `apply*` calls run outside their own try/catch
+
+**Chosen: guard each one with a documented fallback, not one big try.**
+
+A throw in any of them currently loses the whole week (the outer catch returns
+`prevState`, so "Next Week" silently no-ops).
+
+- [x] Each guarded, each with an explicit neutral fallback
+- [x] Test that drives a throwing subsystem and asserts the week still advances
+
+## 10. B-3 — coverage is measured on the safest half of the codebase
+
+**Chosen: widen the scope, re-baseline the floors in the same commit.**
+
+- [x] `app/`, `services/`, `src/` added to `collectCoverageFrom`
+- [x] Floors re-measured against the wider scope
+
+## 11. B-4 — 1 234 lint warnings, none enforced
+
+**Chosen: a warning ratchet, same shape as the coverage one.**
+
+Promoting the rules to `error` needs 1 234 fixes first, which is a different
+project. A ratchet locks in today's number and fails on any increase, so the
+backlog can only shrink.
+
+- [x] `scripts/check-lint.js` + `scripts/lib/lintRatchet.js`
+- [x] Wired into `preflight`
+
+## 12. D-1 — asset payload
+
+**Correction to my own review first.** I reported the 67 MB of unreferenced
+assets as a shipping problem. It is not. Metro bundles only what a static
+`require()` reaches — verified by diffing a real `expo export` against the tree:
+none of the unreferenced files appear in the bundle. That 67 MB is repo weight
+and clone time, not download size.
+
+The real number is the **234.0 MB that DOES ship**, against Google Play's 200 MB
+base-AAB limit. The app cannot currently be released as a single Android
+artifact, and nothing in the ten-section preflight looked at it.
+
+**Chosen: measure what ships, gate it, delete the dead weight separately.**
+
+- [x] Delete the 40 unreferenced images (repo hygiene — stated as such, not as a
+      download win)
+- [x] `scripts/lib/assetBudget.js` — sums assets reachable from a static
+      `require()`. Validated against a real export: 234.0 MB predicted vs 234 MB
+      bundled
+- [x] Preflight §11 — FAILS an Android build over the Play limit, warns + ratchets
+      elsewhere. A gate set to the number we wish were true would fail on day one
+      and block every build, which is the corrosive shape `coverageRatchet.js`
+      already documents
+- [x] **DONE, not deferred.** `sharp` installs fine here, so the conversion was
+      measured and run rather than handed off:
+      `scripts/convert-assets-to-webp.js`, **233.9 MB -> 25.5 MB (9.2x)**.
+      Verified end to end by a real production export: **246 MB -> 39 MB**.
+      - q92 chosen after measuring against PNG quantisation, scoring error on
+        VISIBLE pixels only — a naive whole-buffer diff reads ~12/255 on these
+        files purely from the undefined RGB under transparent areas, and the
+        first measurement said exactly that before I caught the artefact.
+        Result: visible RGB error ~1% of range, alpha reproduced EXACTLY.
+      - Format safety checked, not assumed: this app already ships and renders
+        `deeplife-plus-banner.webp`, `webp` is in Metro's default assetExts, and
+        the iOS target is 15.1 (ImageIO has decoded WebP since 14).
+      - Launcher icon, adaptive icon and favicon stay PNG — native tooling
+        consumes those, not `Image`.
+      - Ratchet lowered 240 -> 45 MB in the same change, which is the point of a
+        ratchet
+
+## 13. Pre-launch follow-through
+
+Raised after the first pass, because "fixed on main" and "safe to ship" are not
+the same list.
+
+- [x] **Existing players' markets are healed.** Fixing `simulateWeek` does not
+      reach someone mid-life: their collapsed prices are persisted and restored
+      on load, so from ~0.0001x the new drift would take geological time to
+      recover. v31 now drops a persisted board sitting under 50% of catalogue and
+      lets the life reopen on catalogue prices. Holdings revalue automatically
+      and `avgCost` is untouched, so a position the bug destroyed comes back to
+      roughly break-even. Conditional on purpose — rewriting a HEALTHY market
+      would be a worse bug than the one being repaired.
+- [x] Version bumped 2.5.13 -> 2.6.0 (CLAUDE.md §9). Minor, not patch: this
+      changes numbers players feel.
+- [x] `WHATS_NEW.md` rewritten for v2.6.0, including store-ready copy that says
+      plainly that the market bug was not the player's fault and that wiped
+      portfolios are restored.
+- [x] `facePool.test.ts` un-broken. Its bucket parser was anchored to `\.png`
+      and the WebP conversion made it match nothing — the exact fragility of
+      source-text tests flagged in the review. Made extension-agnostic. Worth
+      noting its "the parser actually found the buckets" control is what caught
+      it; without that control it would have passed vacuously forever.
 
 ---
 
-# Player bug reports, 2026-08-02 (Discord #bug-reports, 4 screenshots)
+## Deliberately NOT fixed
 
-Seven reports. Investigated each against source BEFORE deciding a fix; three
-turned out to be one shared root cause, and one is not reproducible.
-
-## ROOT CAUSE A — the Hustle UI shows the raw stored income, not the real one
-
-`CompanyTile` renders `company.weeklyIncome` / `baseWeeklyIncome`. But
-`calcWeeklyPassiveIncome` (passiveIncome.ts:275-292) multiplies that by a
-factor built from **brand score, market share and named-hire performance**
-before paying the player. Those three inputs never touch `weeklyIncome`, so the
-card cannot show them.
-
-That single gap produces three of the reports:
-
-- [x] "Shares and brand do not effect anything" — they do: `1 + (brand-50)/200 +
-      share/200`, clamped [0.75, 1.6]. The player's own evidence is two
-      restaurants at 10.8% vs 32.9% share showing identical revenue, which is
-      exactly what a base-only display looks like.
-- [x] "Key hires do not effect anything" — `namedHirePerformanceFactor` is in
-      the same multiplier, ±8%.
-- [x] "Acquisitions change nothing" — `acceptAcquisition` raises
-      `marketSharePercent` by `synergyBonusPercent / 4`, which feeds the above.
-
-Fix: one exported multiplier used by BOTH the income path and the UI, so the
-card shows what the player is actually paid, with the contributions broken out.
-
-## ROOT CAUSE B — `company.money` is a dead field rendered as "Cash"
-
-- [x] `createCompany` never sets `money`, and nothing writes it afterwards. The
-      tile and the detail KPI both render `company.money ?? 0`, so every company
-      shows **CASH $0** forever. Confirmed by grep: the only two readers are
-      those two UI lines.
-
-This also explains the campaign report:
-
-- [x] "Marketing campaigns do not count against you — I did a 300k and there was
-      no expense." **NOT REPRODUCIBLE as written.** Measured: $1,000,000 →
-      $700,000 on a $300k campaign, and the weekly spend is charged again in
-      `hustleTick`. What the player was almost certainly looking at is the
-      company's CASH $0, which never moves whatever they spend.
-
-## The rest
-
-- [x] "Ask for a raise doesn't apply to income. It stays flat rate." The raise IS
-      applied at payout (`applyCareerSalaryAndPenalty.ts:79`,
-      `salary * raisePremium`). NO component reads `raiseMultiplier` — every
-      salary shown in `CareerPathCard` is the base. Same class as root cause A.
-- [x] "When fixing a current ailment, all previous ailments are mentioned."
-      `curedDiseases` is a cumulative lifetime list (deduped, last 30);
-      `CureSuccessModal` renders all of it, hence "CURED · 9" for one treatment.
-      The modal is its ONLY reader and the lifetime tally already lives in
-      `diseaseHistory.totalCured`, so it can hold just this treatment's cures —
-      no new field, no STATE_VERSION bump.
-- [x] "Auto repair in the crypto page does not work."
-      `applyMiningWarehouse.ts:133` skips any rig at `durability >= 50`. At
-      2-5%/week decay that is 10-25 weeks of visibly nothing happening, with the
-      threshold stated nowhere.
+- **B-1/B-2 (source-text tests, no render tests).** Replacing 72 test files and
+  adding a render harness is a project, not a fix, and doing it halfway leaves
+  two conventions in the tree. Recorded in the review.
+- **D-2 (no i18n).** ~245 components of hardcoded copy. A product decision.
+- **C-2 (394 uncalled exports).** Deleting them is safe but noisy, and some are
+  half-built features the owner may still want. Needs a keep/kill pass per module.
+- **A-1's cousin in crypto.** Already has explicit drift terms and measures
+  near-neutral; nothing to fix.

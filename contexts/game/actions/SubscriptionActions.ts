@@ -99,6 +99,26 @@ export function canClaimDailyGemsFor(
   lastClaimAt: number | undefined,
   todayKey: string,
   nowMs?: number,
+  /**
+   * Game-week gate. Pass `{ current, lastClaim }` and the claim additionally
+   * requires that `weeksLived` has ADVANCED since the last claim.
+   *
+   * Both guards below only refuse a claim when the device clock moves BACKWARD.
+   * Moving it forward one day at a time passes both, and the 48-hour streak
+   * grace keeps the streak climbing — so the 25→500 gem cycle was farmable
+   * indefinitely on the premium currency that is otherwise an IAP.
+   *
+   * No day-key scheme can close that. React Native has no monotonic wall clock
+   * without a native module, so every device-time signal moves with the scrub.
+   * `weeksLived` is the one clock a scrubber cannot touch: it advances only by
+   * playing. A real player who opens the app and plays a week is unaffected; a
+   * scrubber gets exactly one claim per week actually played.
+   *
+   * Optional so the DeepLife+ daily gem drop — a SUBSCRIBER benefit, where
+   * gating on play would punish a paying member for a quiet day — keeps its
+   * existing behaviour.
+   */
+  gameWeek?: { current: number | undefined; lastClaim: number | undefined },
 ): boolean {
   // (1) Strictly-increasing day keys only — never re-claim the current or an
   // earlier day (lexicographic <= on YYYY-MM-DD is chronological).
@@ -112,6 +132,13 @@ export function canClaimDailyGemsFor(
     nowMs < lastClaimAt - CLAIM_CLOCK_SKEW_TOLERANCE_MS
   ) {
     return false;
+  }
+  // (3) Game-week progress, when the caller asks for it. `undefined` on
+  // `lastClaim` means "never claimed", which must not block a first claim.
+  if (gameWeek) {
+    const current = typeof gameWeek.current === 'number' && isFinite(gameWeek.current) ? gameWeek.current : 0;
+    const last = gameWeek.lastClaim;
+    if (typeof last === 'number' && isFinite(last) && current <= last) return false;
   }
   return true;
 }

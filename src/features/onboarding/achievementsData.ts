@@ -3,8 +3,8 @@ import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
-const socialIcon = require('@/assets/images/Achivements/Career Titan.png');
-const familyIcon = require('@/assets/images/Achivements/Generational Wealth.png');
+const socialIcon = require('@/assets/images/Achivements/Career Titan.webp');
+const familyIcon = require('@/assets/images/Achivements/Generational Wealth.webp');
 
 export interface Achievement {
   id: string;

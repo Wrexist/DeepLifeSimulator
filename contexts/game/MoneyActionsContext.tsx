@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
-import { applyWeeklyInflation, getInflatedPrice } from '@/lib/economy/inflation';
 import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
 import { validateStats, clampStatByKey } from '@/utils/statUtils';

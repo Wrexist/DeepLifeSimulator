@@ -3,7 +3,7 @@ export interface StockData {
   dividendYield: number;
 }
 
-const DEFAULT_PRICES: Record<string, StockData> = {
+export const DEFAULT_PRICES: Record<string, StockData> = {
   AAPL: { price: 150.25, dividendYield: 0.006 },
   GOOGL: { price: 2750.80, dividendYield: 0.0 },
   MSFT: { price: 310.45, dividendYield: 0.008 },
@@ -35,9 +35,107 @@ const DEFAULT_PRICES: Record<string, StockData> = {
   UNH: { price: 512.30, dividendYield: 0.015 },
 };
 
-// $1M per-share ceiling — a conceptual "split". Shared by the weekly walk and
-// by adjustStockPrice so sector/macro tilt persistence honors the same clamp.
-const MAX_STOCK_PRICE = 1_000_000;
+// Per-share ceiling. It exists to stop a corrupt multiplier compounding to
+// Infinity (which `validateGameState` treats as critical and resets), NOT to
+// express a view about how expensive a share may get.
+//
+// Raised from $1M once the walk got a real drift term. At ~10%/yr a sixty-year
+// life compounds ~300×, so the old ceiling started BINDING on the high-priced
+// symbols — GOOGL opens at $2 750 — and a clamped price is a broken market: it
+// can still fall but never rise, so the board quietly turns into a one-way bet.
+// $10M is far below overflow and far above any price a played life reaches.
+export const MAX_STOCK_PRICE = 10_000_000;
+
+/**
+ * Intended long-run broad-market return, expressed the way a human states it.
+ *
+ * ── Why this constant has to exist ────────────────────────────────────────
+ *
+ * The weekly walk used to be `price *= (1 + z·σ)` with z ~ N(0,1) and no drift
+ * term at all. That is zero-mean in the ARITHMETIC return and therefore
+ * NEGATIVE in the geometric one: E[log(1 + zσ)] ≈ −σ²/2 per week. At the 8%
+ * weekly vol carried by TSLA/NVDA/META/NFLX that is −0.32%/week, so a 60-year
+ * life compounds to e^-10 — those four symbols reached the $0.01 floor. Driving
+ * the real pipeline (walk + sector tilt + adjustStockPrice) for ten game years
+ * left 22 of 25 symbols down with the median at 0.32×.
+ *
+ * And because the walk is seeded on `weeksLived`, that was not variance — it
+ * was the SAME guaranteed collapse in every save on every device.
+ *
+ * ── Why a drift term and not a −σ²/2 correction ───────────────────────────
+ *
+ * Cancelling the drag exactly would make the market flat in expectation, which
+ * still gives the player no reason to hold equities over cash. Stocks are meant
+ * to be the patient, lower-effort wealth engine that offsets crypto's swings, so
+ * they need a real risk premium. This is that premium, stated once, in the unit
+ * a designer thinks in.
+ *
+ * 7% nominal per year is deliberately below the ~10% a long-run index posts:
+ * the player also collects dividends on top (up to 6.1% on PFE), sector tilt,
+ * and boom drift, and the point is a slow compounding floor rather than a
+ * strategy that dominates every other system in the game.
+ */
+export const MARKET_ANNUAL_DRIFT = 0.07;
+
+/**
+ * The weekly LOG drift that produces `MARKET_ANNUAL_DRIFT` when compounded over
+ * a year. Kept as a log-space figure because the step below is log-normal:
+ * `price *= exp(μ + σz)` makes μ mean exactly "expected log return per week",
+ * with no σ²/2 bookkeeping hiding in the call site, and makes a negative price
+ * arithmetically impossible rather than merely clamped away.
+ */
+const WEEKLY_LOG_DRIFT = Math.log(1 + MARKET_ANNUAL_DRIFT) / 52;
+
+/**
+ * Extra annual drift a company gets while a policy is boosting it, in log space.
+ * Small on purpose — a policy should tilt the odds, not hand out a guaranteed
+ * outperformer the player can park everything in.
+ */
+const BOOST_ANNUAL_DRIFT_BONUS_LOG = Math.log(1 + 0.05) / 52;
+
+/**
+ * Extra weekly log drift per unit of weekly volatility — the risk premium.
+ *
+ * With a flat drift for every symbol, TSLA (8% weekly vol) and KO (4%) have the
+ * same expected return and TSLA is simply worse: same reward, four times the
+ * variance. Nobody should ever buy it, and a player who does is being punished
+ * for engaging with the most interesting part of the board.
+ *
+ * Tying a slice of the drift to volatility restores the trade the UI implies:
+ * the volatile names pay more in expectation, and can still ruin you.
+ *
+ * λ = 0.01 puts a 4%-vol blue chip at ~9%/yr all-in and an 8%-vol growth name at
+ * ~11.5%/yr, which lands the board on a real index's long-run return rather than
+ * above it. The first pass used 0.02 and compounded to ~8 000× over a sixty-year
+ * life — a number that says more about unchecked exponentials than about a stock
+ * market. Its dispersion still swamps the extra drift over any horizon a player
+ * actually holds, so the high-vol tier is a genuine gamble, not a free lunch.
+ */
+const VOLATILITY_RISK_PREMIUM = 0.01;
+
+/**
+ * The full weekly log drift for one symbol. Exported so the intended
+ * relationship — more volatility earns more expected return — can be asserted
+ * directly instead of inferred from a noisy 25-symbol sample, where dispersion
+ * drowns the signal at every horizon short of the price ceiling.
+ */
+export function weeklyLogDriftFor(volatility: number, isBoosted = false): number {
+  const vol = Number.isFinite(volatility) && volatility > 0 ? volatility : 0;
+  return (
+    WEEKLY_LOG_DRIFT +
+    VOLATILITY_RISK_PREMIUM * vol +
+    (isBoosted ? BOOST_ANNUAL_DRIFT_BONUS_LOG : 0)
+  );
+}
+
+/**
+ * Ceiling on a single week's realized return, as a multiplier.
+ *
+ * The old additive form self-limited (a −5σ draw floored at a −40% week); the
+ * exponential form does not, so a fat tail could otherwise 2.5× a stock in one
+ * tick. ±35% covers a genuine crash week and keeps the tails from minting money.
+ */
+const MAX_WEEKLY_MOVE = 0.35;
 
 // Mutable stock state — initialized from defaults, restored from save via restoreStockPrices()
 const stocks: Record<string, StockData> = {};
@@ -94,11 +192,25 @@ Object.keys(stocks).forEach(symbol => {
 });
 
 /**
- * Restore stock prices from saved game state.
- * Call this when loading a save to sync module-level prices with persisted data.
+ * Sync the module's live board to a save's persisted market.
+ *
+ * The board is module-level mutable state that OUTLIVES a save — it is created
+ * once per app launch and every slot, life and generation shares it. So this is
+ * not "restore if present", it is "make the board equal this save's market".
+ *
+ * A save with no persisted prices is a life that has not traded yet, and it must
+ * open on the catalogue, not on whatever the previous session left behind. The
+ * early-return that used to sit here meant starting a new game right after
+ * playing an old one inherited that old market — and since `nextWeek` snapshots
+ * the board into the new save on its first tick, the inheritance became
+ * permanent. With the drift fix that is worse, not better: an heir would open on
+ * a market that had compounded for sixty years while holding a starter wallet.
  */
-export function restoreStockPrices(savedPrices: Record<string, { price: number; dividendYield?: number }>) {
-  if (!savedPrices || typeof savedPrices !== 'object') return;
+export function restoreStockPrices(savedPrices?: Record<string, { price: number; dividendYield?: number }> | null) {
+  if (!savedPrices || typeof savedPrices !== 'object') {
+    resetStockPrices();
+    return;
+  }
   Object.entries(savedPrices).forEach(([symbol, data]) => {
     // ANTI-EXPLOIT (B-6): Normalize to uppercase to match stock key format
     const normalizedSymbol = symbol?.toUpperCase() ?? '';
@@ -192,9 +304,13 @@ export function simulateWeek(policyEffects?: {
     // Apply volatility modifier from policies
     volatility *= volatilityModifier;
 
-    // Apply company boost (slight positive bias for boosted companies)
+    // Company boost from an enacted policy: a genuine edge on the DRIFT.
+    //
+    // This used to be `changePercent *= 1.02` — scaling a zero-mean shock by
+    // 1.02, which leaves it zero-mean. The "2% positive bias" the comment
+    // promised was 2% of nothing. Adding it to the drift instead is what the
+    // wording always meant, and it does not also amplify the downside.
     const isBoosted = companyBoost.includes(symbol);
-    const boostFactor = isBoosted ? 1.02 : 1.0; // 2% positive bias
 
     // Generate random price change with normal distribution approximation
     // Box-Muller transform (clamp u1 away from 0 to prevent Math.log(0) = -Infinity)
@@ -213,14 +329,27 @@ export function simulateWeek(policyEffects?: {
     // Guard against NaN/Infinity from edge-case random values
     if (!isFinite(z)) continue;
 
-    // Convert to percentage change with the stock's volatility
-    let changePercent = z * volatility;
-
-    // Apply company boost
-    changePercent = changePercent * boostFactor;
+    // Log-normal step: `exp(μ + σz)`, NOT the old `1 + σz`.
+    //
+    // μ is the intended weekly log drift (see MARKET_ANNUAL_DRIFT). Without it
+    // the walk was zero-mean arithmetically and −σ²/2 geometrically, which is
+    // why every market in the game trended to the $0.01 floor.
+    //
+    // The company boost stays a multiplicative nudge on the drift rather than on
+    // the whole return, so a boosted stock gets a persistent edge instead of an
+    // amplified shock — a policy that "supports" a company should not also make
+    // it swing harder on the way down.
+    const logReturn = weeklyLogDriftFor(volatility, isBoosted) + z * volatility;
 
     // Guard against extreme changes that could corrupt prices
-    if (!isFinite(changePercent)) continue;
+    if (!isFinite(logReturn)) continue;
+
+    // Bound the realized weekly move. The additive form self-limited; the
+    // exponential one does not, so clamp the multiplier explicitly.
+    const changePercent = Math.max(
+      -MAX_WEEKLY_MOVE,
+      Math.min(MAX_WEEKLY_MOVE, Math.expm1(logReturn)),
+    );
 
     // CRASH FIX (B-2): Apply the change with floor AND ceiling to prevent overflow
     // ($1M per-share max — module-level MAX_STOCK_PRICE, shared with adjustStockPrice).

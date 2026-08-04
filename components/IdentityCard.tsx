@@ -553,7 +553,7 @@ function IdentityCard() {
                 accessibilityLabel="Use Youth Pill"
               >
                 <Image
-                  source={require('@/assets/images/iap/items/youth_pill_single.png')}
+                  source={require('@/assets/images/iap/items/youth_pill_single.webp')}
                   style={styles.youthPillIcon}
                   resizeMode="contain"
                 />

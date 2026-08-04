@@ -237,7 +237,13 @@ describe('a portrait never changes the character sex', () => {
     const bucketRe = /^ {2}([a-z_]+): \[([\s\S]*?)^ {2}\],$/gm;
     let m: RegExpExecArray | null;
     while ((m = bucketRe.exec(pool)) !== null) {
-      out[m[1]] = [...m[2].matchAll(/pool\/([a-z0-9_]+)\.png/g)].map((a) => a[1]);
+      // Extension-agnostic. This was `\.png` and broke the moment the art was
+      // re-encoded to WebP for the bundle-size fix — a format change that cannot
+      // affect what this suite is actually about (which asset sits in which sex
+      // bucket). The control below is what caught it; without that control the
+      // regex would have matched nothing and every assertion here would have
+      // passed vacuously forever.
+      out[m[1]] = [...m[2].matchAll(/pool\/([a-z0-9_]+)\.(?:png|jpe?g|webp)/g)].map((a) => a[1]);
     }
     return out;
   }

@@ -51,9 +51,9 @@ interface SexualityOptionConfig {
 }
 
 const SEX_OPTIONS: SexOptionConfig[] = [
-  { value: 'male', label: 'Male', icon: require('@/assets/images/Sex/Male.png') },
-  { value: 'female', label: 'Female', icon: require('@/assets/images/Sex/Female.png') },
-  { value: 'random', label: 'Random', icon: require('@/assets/images/Sex/Dice.png') },
+  { value: 'male', label: 'Male', icon: require('@/assets/images/Sex/Male.webp') },
+  { value: 'female', label: 'Female', icon: require('@/assets/images/Sex/Female.webp') },
+  { value: 'random', label: 'Random', icon: require('@/assets/images/Sex/Dice.webp') },
 ];
 
 const SEXUALITY_OPTIONS: SexualityOptionConfig[] = [

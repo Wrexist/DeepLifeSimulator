@@ -147,11 +147,11 @@ const GAME_OPTIONS = [
 // Real box art for each category. require() needs static literals (Metro), so
 // every asset is spelled out. Each of the five categories maps to one game.
 const GAME_ART: Record<string, ImageSourcePropType> = {
-  fps: require('@/assets/images/Games/Among us.png'),
-  rpg: require('@/assets/images/Games/League of Legends.png'),
-  esports: require('@/assets/images/Games/Valorant.png'),
-  creative: require('@/assets/images/Games/Minecraft.png'),
-  speedrun: require('@/assets/images/Games/Fortnite.png'),
+  fps: require('@/assets/images/Games/Among us.webp'),
+  rpg: require('@/assets/images/Games/League of Legends.webp'),
+  esports: require('@/assets/images/Games/Valorant.webp'),
+  creative: require('@/assets/images/Games/Minecraft.webp'),
+  speedrun: require('@/assets/images/Games/Fortnite.webp'),
 };
 
 // Resolve box art from a stored stream's game string (matches the category

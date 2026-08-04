@@ -18,10 +18,10 @@ const log = logger.scope('MenuBackground');
 // Owner-generated, text-free artwork (see docs/menu-background-prompts.md).
 // Metro needs literal require paths, so the set is static.
 export const MENU_BACKGROUNDS = [
-  require('@/assets/images/Main_Menu/Mainmenu_1.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_2.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_4.png'),
-  require('@/assets/images/Main_Menu/Mainmenu_5.png'),
+  require('@/assets/images/Main_Menu/Mainmenu_1.webp'),
+  require('@/assets/images/Main_Menu/Mainmenu_2.webp'),
+  require('@/assets/images/Main_Menu/Mainmenu_4.webp'),
+  require('@/assets/images/Main_Menu/Mainmenu_5.webp'),
 ] as const;
 
 export const MENU_BG_CYCLE_KEY = 'menu_bg_cycle_v1';

@@ -88,6 +88,21 @@ export function applyCareerSalaryAndPenalty(
         // Life Skills: Negotiation (+15%) / Executive (+10%) salary premium.
         // Clamped multiplier from the centralized accessor (never negative/NaN).
         payMultiplier *= getLifeSkillModifiers(prevState).salaryMult;
+
+        // Wages track the price index — nominal pay rises with prices.
+        //
+        // The inflation system now actually runs (it had zero callers, so
+        // `priceIndex` was frozen at 1 forever). Turning it on WITHOUT this line
+        // would be a pure downgrade: catalogue costs would climb through
+        // `getInflatedPrice` while the career ladder stayed on a fixed nominal
+        // number, so a sixty-year life would end paying a ~6x cost of living out
+        // of a starting paycheck. Indexing pay by the same figure makes baseline
+        // inflation NEUTRAL in real terms, which is the honest default, and
+        // leaves the policy-driven deviation as the thing the player feels.
+        const priceIndex = prevState.economy?.priceIndex;
+        if (typeof priceIndex === 'number' && isFinite(priceIndex) && priceIndex > 1) {
+          payMultiplier *= priceIndex;
+        }
         // DeepLife+ members earn a career-income boost (+25% salary). Read the
         // in-state entitlement flag so weekly progression stays a pure function.
         if (hasDeepLifePlusEntitlement(prevState.settings)) {

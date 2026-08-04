@@ -10,6 +10,7 @@
  */
 import { logger } from '@/utils/logger';
 import { STATE_VERSION } from '@/contexts/game/initialState';
+import { DEFAULT_PRICES } from '@/lib/economy/stockMarket';
 
 // Import from initialState.ts to prevent manual sync drift
 /**
@@ -805,6 +806,31 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 30;
     return state;
   },
+  /**
+   * v31 — `overdueBalance` (+ `lastLoginRewardWeek`, which is a carve-out).
+   *
+   * `overdueBalance` is the arrears bucket that replaced the silent forgiveness
+   * of unpayable weekly bills (`Math.max(0, …)` on the cash line). Concrete
+   * stored default of `0`, so it takes a REAL backfill here and a matching
+   * `repairGameState` mirror — a partial save that reaches a consumer with
+   * `undefined` would arithmetic its way to NaN and poison `stats.money`.
+   *
+   * Only-if-missing, so re-running the ladder can never wipe a real debt.
+   *
+   * `lastLoginRewardWeek` is deliberately NOT written. Its default is
+   * `undefined`, an absent key already equals "never claimed", and writing a
+   * value would be actively wrong: stamping the current week would deny an
+   * existing player their next legitimate daily claim until they played another
+   * week. Same reasoning as the v26/v27/v28 carve-outs.
+   */
+  31: (state) => {
+    if (typeof state.overdueBalance !== 'number' || !isFinite(state.overdueBalance)) {
+      state.overdueBalance = 0;
+    }
+    healCollapsedMarket(state);
+    state.version = 31;
+    return state;
+  },
 };
 
 /**
@@ -818,6 +844,70 @@ const migrations: Record<number, (state: any) => any> = {
  * that returns false is a forgotten migration registration — `runMigrations`
  * will halt the chain there rather than silently stamping the version forward.
  */
+/**
+ * Threshold below which a persisted market is treated as bug damage rather than
+ * a bad run. Every market on the old build fell; none should be near this on the
+ * new one, where the walk carries a ~9-11%/yr drift.
+ */
+const COLLAPSED_MARKET_MEDIAN_RATIO = 0.5;
+
+/**
+ * v31 remediation — give back the market the drift bug destroyed.
+ *
+ * `simulateWeek` stepped prices with `price *= (1 + z·sigma)` and no drift term,
+ * which is −sigma²/2 geometrically. Every save on every device was on the same
+ * seeded path down: ten game years took the median symbol to 0.32x and forty
+ * pinned four of them on the $0.01 floor.
+ *
+ * Fixing the walk does NOT fix an existing player, because their collapsed
+ * prices are persisted in `stocks.savedMarketPrices` and restored on load. Their
+ * portfolio stays worthless and, from ~0.0001x, the new drift would take
+ * geological time to recover it. Leaving them there would mean the people most
+ * affected by the bug are the only ones the fix does not reach.
+ *
+ * So: if the persisted board is far below the catalogue, drop it and let the
+ * life reopen on catalogue prices. Holdings revalue automatically — the weekly
+ * tick refreshes `currentPrice` from the board — and `avgCost` is untouched, so
+ * a player who bought at $485 and watched it fall to $0.07 comes back to even.
+ *
+ * KNOWN AND ACCEPTED: someone who bought INTO the collapsed market at $0.07 gets
+ * a windfall. This is a single-player game with no leaderboard, and that trade
+ * was only available because of the bug in the first place. Restoring everyone's
+ * market beats leaving every market dead to deny a few players an upside.
+ *
+ * Deliberately conditional. A healthy save is left completely alone — a
+ * migration that rewrites a working market would be a bigger bug than the one it
+ * is repairing.
+ */
+function healCollapsedMarket(state: any): void {
+  const saved = state?.stocks?.savedMarketPrices;
+  if (!saved || typeof saved !== 'object') return;
+
+  const ratios: number[] = [];
+  for (const [symbol, data] of Object.entries(saved)) {
+    const base = DEFAULT_PRICES[String(symbol).toUpperCase()]?.price;
+    const persisted = (data as { price?: unknown })?.price;
+    if (typeof base !== 'number' || base <= 0) continue;
+    if (typeof persisted !== 'number' || !isFinite(persisted) || persisted <= 0) continue;
+    ratios.push(persisted / base);
+  }
+  if (ratios.length === 0) return;
+
+  ratios.sort((a, b) => a - b);
+  const median = ratios[Math.floor(ratios.length / 2)];
+  if (median >= COLLAPSED_MARKET_MEDIAN_RATIO) return;
+
+  // Drop the persisted board. `restoreStockPrices(undefined)` and the weekly
+  // tick's guard both read "no persisted market" as "open on the catalogue", so
+  // deleting is the whole repair — no price table has to be duplicated here.
+  delete state.stocks.savedMarketPrices;
+  delete state.stocks.lastWeekPrices;
+  logger.info(
+    `[MIGRATION v31] Persisted market was at ${(median * 100).toFixed(1)}% of catalogue — ` +
+      'reopening on catalogue prices (drift-bug remediation)',
+  );
+}
+
 export function isMigrationVersionCovered(v: number): boolean {
   return migrations[v] !== undefined || NO_OP_MIGRATION_VERSIONS.has(v);
 }

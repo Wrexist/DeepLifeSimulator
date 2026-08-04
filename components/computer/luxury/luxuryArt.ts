@@ -31,18 +31,18 @@ import type { LuxuryItem } from '@/lib/luxury';
  * PNG is only the right choice here for something with transparency.
  */
 export const LUXURY_ART: Record<string, ImageSourcePropType> = {
-  'rare_watch_collection': require('@/assets/images/luxury/rare_watch_collection.jpg'),
-  'museum_diamond':        require('@/assets/images/luxury/museum_diamond.jpg'),
-  'fine_art_collection':   require('@/assets/images/luxury/fine_art_collection.jpg'),
+  'rare_watch_collection': require('@/assets/images/luxury/rare_watch_collection.webp'),
+  'museum_diamond':        require('@/assets/images/luxury/museum_diamond.webp'),
+  'fine_art_collection':   require('@/assets/images/luxury/fine_art_collection.webp'),
   'supercar':              require('@/assets/images/luxury/supercar.jpg'),
-  'racehorse':             require('@/assets/images/luxury/racehorse.jpg'),
+  'racehorse':             require('@/assets/images/luxury/racehorse.webp'),
   'vineyard_estate':       require('@/assets/images/luxury/vineyard_estate.jpg'),
-  'luxury_yacht':          require('@/assets/images/luxury/luxury_yacht.jpg'),
-  'private_jet':           require('@/assets/images/luxury/private_jet.jpg'),
+  'luxury_yacht':          require('@/assets/images/luxury/luxury_yacht.webp'),
+  'private_jet':           require('@/assets/images/luxury/private_jet.webp'),
   'private_island':        require('@/assets/images/luxury/private_island.jpg'),
-  'trophy_penthouse':      require('@/assets/images/luxury/trophy_penthouse.jpg'),
+  'trophy_penthouse':      require('@/assets/images/luxury/trophy_penthouse.webp'),
   'mega_yacht':            require('@/assets/images/luxury/mega_yacht.jpg'),
-  'sports_team_stake':     require('@/assets/images/luxury/sports_team_stake.jpg'),
+  'sports_team_stake':     require('@/assets/images/luxury/sports_team_stake.webp'),
 };
 
 /** Resolve bundled artwork for an item id, or null to use the gradient fallback. */

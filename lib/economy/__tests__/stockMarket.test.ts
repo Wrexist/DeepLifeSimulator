@@ -1,4 +1,5 @@
 import {
+  MAX_STOCK_PRICE,
   adjustStockPrice,
   getAllStockSymbols,
   getStockInfo,
@@ -44,9 +45,14 @@ describe('adjustStockPrice — clamps that keep tilt/drift persistence honest', 
     expect(getStockInfo('AAPL').price).toBeCloseTo(before * 0.5, 4);
   });
 
-  it('never breaches the $1M ceiling even under a huge factor', () => {
+  it('never breaches the price ceiling even under a huge factor', () => {
+    // Asserted against the exported constant, not a literal. The ceiling moved
+    // from $1M to $10M when the walk gained a real drift term (a ~300x life
+    // made $1M start to BIND on the high-priced symbols, and a clamped price
+    // can fall but never rise). A literal here would have to be chased every
+    // time, which teaches you to edit the number instead of reading it.
     adjustStockPrice('AAPL', 1e9);
-    expect(getStockInfo('AAPL').price).toBeLessThanOrEqual(1_000_000);
+    expect(getStockInfo('AAPL').price).toBeLessThanOrEqual(MAX_STOCK_PRICE);
   });
 
   it('never drops below the $0.01 floor', () => {

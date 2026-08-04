@@ -20,7 +20,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.05, statBoosts: { energy: 10 } },
     unlock: { type: 'achievement', achievementId: 'career_goals' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Astute Planner.png'),
+    icon: require('@/assets/images/Perks/Astute Planner.webp'),
   },
   {
     id: 'legacy_builder',
@@ -30,7 +30,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { money: 5000, reputation: 5 }, incomeMultiplier: 1.0 },
     unlock: { type: 'achievement', achievementId: 'generational_wealth' },
     rarity: 'Legendary',
-    icon: require('@/assets/images/Perks/Legacy Builder.png'),
+    icon: require('@/assets/images/Perks/Legacy Builder.webp'),
   },
   {
     id: 'iron_will',
@@ -41,7 +41,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { health: 20, energy: 5 } },
     unlock: { type: 'achievement', achievementId: 'athlete' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Iron Will.png'),
+    icon: require('@/assets/images/Perks/Iron Will.webp'),
   },
   {
     id: 'social_butterfly',
@@ -52,7 +52,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { reputation: 10 }, incomeMultiplier: 1.05 },
     unlock: { type: 'achievement', achievementId: 'popular' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Social Butterfly.png'),
+    icon: require('@/assets/images/Perks/Social Butterfly.webp'),
   },
   {
     id: 'fast_learner',
@@ -63,7 +63,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { energy: 10, fitness: 10 } },
     unlock: { type: 'achievement', achievementId: 'college_grad' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Fast Learner.png'),
+    icon: require('@/assets/images/Perks/Fast Learner.webp'),
   },
   {
     id: 'financial_guru',
@@ -73,7 +73,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'millionaire' },
     rarity: 'Legendary',
-    icon: require('@/assets/images/Perks/Financial Guru.png'),
+    icon: require('@/assets/images/Perks/Financial Guru.webp'),
   },
   {
     id: 'lucky_charm',
@@ -84,7 +84,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.05, statBoosts: { happiness: 5 } },
     unlock: { type: 'achievement', achievementId: 'ten_thousand' },
     rarity: 'Uncommon',
-    icon: require('@/assets/images/Perks/Lucky Charm.png'),
+    icon: require('@/assets/images/Perks/Lucky Charm.webp'),
   },
   {
     id: 'longevity',
@@ -95,7 +95,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { health: 20 } },
     unlock: { type: 'achievement', achievementId: 'centenarian' },
     rarity: 'Legendary',
-    icon: require('@/assets/images/Perks/Longevity.png'),
+    icon: require('@/assets/images/Perks/Longevity.webp'),
   },
   {
     id: 'optimist',
@@ -105,7 +105,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { happiness: 15 } },
     unlock: { type: 'achievement', achievementId: 'happy_life' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Optimist.png'),
+    icon: require('@/assets/images/Perks/Optimist.webp'),
   },
   {
     id: 'trust_fund',
@@ -115,7 +115,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { money: 15000, reputation: 3 } },
     unlock: { type: 'achievement', achievementId: 'wealth_collector' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Trust Fund.png'),
+    icon: require('@/assets/images/Perks/Trust Fund.webp'),
   },
   {
     id: 'family_first',
@@ -125,7 +125,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { reputation: 10 } },
     unlock: { type: 'achievement', achievementId: 'filial_piety' },
     rarity: 'Uncommon',
-    icon: require('@/assets/images/Perks/Family First.png'),
+    icon: require('@/assets/images/Perks/Family First.webp'),
   },
   {
     id: 'crime_boss',
@@ -135,7 +135,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.1, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'life_of_crime' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Crime Boss.png'),
+    icon: require('@/assets/images/Perks/Crime Boss.webp'),
   },
   {
     id: 'escape_master',
@@ -145,7 +145,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { reputation: 5 } },
     unlock: { type: 'achievement', achievementId: 'escape_artist' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Crime Boss.png'),
+    icon: require('@/assets/images/Perks/Crime Boss.webp'),
   },
   {
     id: 'legacy_guardian',
@@ -155,7 +155,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { reputation: 10, happiness: 10 } },
     unlock: { type: 'achievement', achievementId: 'epic_lineage' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Legacy Guardian.png'),
+    icon: require('@/assets/images/Perks/Legacy Guardian.webp'),
   },
   {
     id: 'innovator',
@@ -165,7 +165,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.05, statBoosts: { money: 2000 } },
     unlock: { type: 'achievement', achievementId: 'tech_innovator' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Innovator.png'),
+    icon: require('@/assets/images/Perks/Innovator.webp'),
   },
   {
     id: 'landlord',
@@ -175,7 +175,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'real_estate_tycoon' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Landlord.png'),
+    icon: require('@/assets/images/Perks/Landlord.webp'),
   },
   {
     id: 'blockchain_believer',
@@ -185,7 +185,7 @@ const perkList: Perk[] = [
     effects: { incomeMultiplier: 1.02, statBoosts: { money: 3000 } },
     unlock: { type: 'achievement', achievementId: 'crypto_magnate' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Blockchain Believer.png'),
+    icon: require('@/assets/images/Perks/Blockchain Believer.webp'),
   },
   {
     id: 'collector_spirit',
@@ -195,7 +195,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { happiness: 5, reputation: 5 } },
     unlock: { type: 'achievement', achievementId: 'collector_supreme' },
     rarity: 'Uncommon',
-    icon: require('@/assets/images/Perks/Collector Spirit.png'),
+    icon: require('@/assets/images/Perks/Collector Spirit.webp'),
   },
   {
     id: 'star_quality',
@@ -205,7 +205,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { reputation: 12 } },
     unlock: { type: 'achievement', achievementId: 'media_mogul' },
     rarity: 'Epic',
-    icon: require('@/assets/images/Perks/Star Quality.png'),
+    icon: require('@/assets/images/Perks/Star Quality.webp'),
   },
   {
     id: 'inner_peace',
@@ -215,7 +215,7 @@ const perkList: Perk[] = [
     effects: { statBoosts: { happiness: 20, health: 5 } },
     unlock: { type: 'achievement', achievementId: 'spiritual_guru' },
     rarity: 'Rare',
-    icon: require('@/assets/images/Perks/Inner Peace.png'),
+    icon: require('@/assets/images/Perks/Inner Peace.webp'),
   },
 ];
 

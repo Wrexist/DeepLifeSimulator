@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 30;
+export const STATE_VERSION = 31;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -75,6 +75,9 @@ export const initialGameState: GameState = {
   realEstateActivity: [],
   totalHappiness: 0,
   weeksLived: 0,
+  // v31: unpaid mandatory outgoings carried into next week. Concrete default,
+  // so it ships with a real migration backfill AND a repairGameState mirror.
+  overdueBalance: 0,
   wantedLevel: 0,
   jailWeeks: 0,
   escapedFromJail: false,

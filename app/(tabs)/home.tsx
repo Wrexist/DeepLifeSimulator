@@ -263,7 +263,16 @@ function HomeScreenContent() {
     // 2026-07-30 audit ECON-1.
     const today = new Date().toISOString().split('T')[0];
     const nowMs = Date.now();
-    if (!canClaimDailyGemsFor(gameState.lastLoginRewardDate, gameState.lastLoginRewardAt, today, nowMs)) {
+    // The game-week gate is what actually closes this. The two clock guards
+    // only refuse a REWOUND clock; advancing the device date a day at a time
+    // passed both, and the 48h streak grace kept the streak climbing, so the
+    // 25→500 cycle was farmable forever on premium currency. `weeksLived` is
+    // the one clock a scrubber cannot move — it advances only by playing.
+    const weekGate = {
+      current: gameState.weeksLived,
+      lastClaim: gameState.lastLoginRewardWeek,
+    };
+    if (!canClaimDailyGemsFor(gameState.lastLoginRewardDate, gameState.lastLoginRewardAt, today, nowMs, weekGate)) {
       return undefined;
     }
 
@@ -289,7 +298,10 @@ function HomeScreenContent() {
         // above ran at render time; without this, two effect runs in one React
         // batch would both pass it and both credit gems — the gate-then-grant
         // shape CLAUDE.md 4.4 exists to stop.
-        if (!canClaimDailyGemsFor(prev.lastLoginRewardDate, prev.lastLoginRewardAt, today, nowMs)) {
+        if (!canClaimDailyGemsFor(prev.lastLoginRewardDate, prev.lastLoginRewardAt, today, nowMs, {
+          current: prev.weeksLived,
+          lastClaim: prev.lastLoginRewardWeek,
+        })) {
           return prev;
         }
         return awardLegacyPassXp({
@@ -300,6 +312,9 @@ function HomeScreenContent() {
           lastLoginDate: today,
           lastLoginRewardDate: today,
           lastLoginRewardAt: nowMs,
+          // Stamped in the SAME updater as the gem credit, so the marker and the
+          // grant are always persisted together.
+          lastLoginRewardWeek: prev.weeksLived,
           stats: {
             ...prev.stats,
             gems: (prev.stats?.gems || 0) + gemReward,
@@ -320,6 +335,7 @@ function HomeScreenContent() {
     gameState.weeksLived,
     gameState.lastLoginRewardDate,
     gameState.lastLoginRewardAt,
+    gameState.lastLoginRewardWeek,
     gameState.loginStreak,
     gameState.lastLoginDate,
     gameState.showDailyRewardPopup,
