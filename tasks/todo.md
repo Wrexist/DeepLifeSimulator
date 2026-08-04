@@ -102,28 +102,18 @@ everything below the IAP boundary is testable in Jest.
 
 ## Open for the owner
 
-**One decision now blocks nothing but should be made: `legacy_business`.**
-"Family Business Legacy" (legendary, 30,000 prestige points, "Future
-generations inherit family businesses") is wired to NOTHING. Family businesses
-pass to the heir unconditionally in `prestigeExecution`, so the purchase is
-consumed and changes nothing. The shop now says so, which stops further
-players paying for it, but the underlying choice is a product one:
+**Both former owner decisions are now RESOLVED in code (PR #102):**
 
-- gate inheritance on the bonus → removes behaviour every existing player has
-  today, and undoes a deliberate "BUG FIX: Preserve family businesses" change
-- delete the bonus → strands the points of anyone who already bought it
-- give it a new additive effect (e.g. inherited businesses keep their upgrades,
-  or a generational income bonus) → neither takes anything away nor strands
-  points, but it is designing a feature rather than auditing one
-
-**Second decision: what to do about the coverage threshold.** `jest.config.js`
-requires 70% but actual is statements 48.93 / branches 30.45 / lines 50.24 /
-functions 38.83, and has been under since the threshold landed 2026-07-11. CI
-does not run coverage, so nothing is blocked. Options: leave 70 as a stated
-goal, or convert it to a ratchet (baseline at today's numbers, failing on any
-DROP) like the test-type gate, so it enforces "no regression" without
-pretending the bar is met. Lowering the numbers to make it green is the one
-option to avoid — that turns an honest gap into a false all-clear.
+- `legacy_business` — given a real additive effect rather than gated or
+  deleted. It now pays +10% family-business income per generation held, capped
+  at +50%, hung on `generationsHeld` (a field that already incremented on every
+  prestige and was read only for display). Gating inheritance would have
+  removed behaviour every existing player has and undone a deliberate bug fix;
+  deleting it would have stranded spent points. Additive punishes nobody, and
+  one dead bonus plus one dead counter fixed each other.
+- Coverage — converted to a ratchet (`npm run coverage:ratchet`), floors just
+  under the measured values, 70 kept as a documented goal. NOT lowered to match
+  reality. `npm run test:ci` passes for the first time since 2026-07-11.
 
 Two things are informational:
 

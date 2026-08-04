@@ -38,22 +38,34 @@ const withEnv = async <T>(
   fn: (m: typeof import('@/utils/saveValidation')) => T,
 ): Promise<T> => {
   const saved = { ...process.env };
-  Object.assign(process.env, { NODE_ENV: 'production' }, env);
-  let out: T;
-  await jest.isolateModulesAsync(async () => {
-    const mod = await import('@/utils/saveValidation');
-    out = fn(mod);
-  });
-  for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
-  Object.assign(process.env, saved);
-  return out!;
+  try {
+    Object.assign(process.env, { NODE_ENV: 'production' }, env);
+    let out: T;
+    await jest.isolateModulesAsync(async () => {
+      const mod = await import('@/utils/saveValidation');
+      out = fn(mod);
+    });
+    return out!;
+  } finally {
+    // MUST be `finally`. A throw inside `fn` or the isolated import would
+    // otherwise leak a mutated HMAC config into every later test in the file,
+    // and the failure would surface somewhere unrelated.
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+  }
 };
 
 const OLD_KEY = 'old-key-that-signed-every-shipped-save-0000';
 const NEW_KEY = 'a-different-key-configured-later-11111111';
 
-/** A save as written by a build running OLD_KEY. */
-const makeSaveUnder = (key: string) =>
+interface SerializedSave {
+  data: string;
+  checksum: string;
+  hmac: string;
+}
+
+/** A save as written by a build running the given key. */
+const makeSaveUnder = (key: string): Promise<SerializedSave> =>
   withEnv({ EXPO_PUBLIC_SAVE_HMAC_KEY: key }, (m) => {
     const data = JSON.stringify({ weeksLived: 42, money: 1234 });
     return { data, checksum: m.calculateChecksum(data), hmac: m.calculateHmacSignature(data) };
@@ -112,14 +124,32 @@ describe('listing the old key second recovers it', () => {
     expect(underRotation).toBe(underNewOnly);
   });
 
-  it('still rejects a tampered payload while rotating (the control)', async () => {
-    // Rotation widens WHICH keys are accepted. It must not weaken the check
-    // itself, or it would be a hole rather than a migration path.
+  it('rejects a tampered payload at the CHECKSUM layer (the control)', async () => {
+    // Crude tampering: edit the payload, leave the checksum. Caught by CRC32
+    // before signatures are considered at all.
     const save = await makeSaveUnder(OLD_KEY);
     const tampered = JSON.stringify({ weeksLived: 42, money: 999999999 });
 
     const ok = await withEnv({ EXPO_PUBLIC_SAVE_HMAC_KEY: `${NEW_KEY},${OLD_KEY}` }, (m) =>
       m.verifySaveData(tampered, save.checksum, undefined, save.hmac));
+
+    expect(ok).toBe(false);
+  });
+
+  it('rejects a tampered payload at the HMAC layer, checksum recomputed', async () => {
+    // The case that actually tests rotation's tamper-evidence, and the one the
+    // check above CANNOT reach: recompute the CRC32 like a real editor would,
+    // so verification gets past the checksum and has to rely on the signature.
+    // Neither rotated key can produce this HMAC for this payload.
+    //
+    // The earlier version of this suite only had the checksum case, so it
+    // passed for the wrong reason — it never exercised the multi-key path it
+    // claimed to guard. Caught in review on PR #102.
+    const save = await makeSaveUnder(OLD_KEY);
+    const tampered = JSON.stringify({ weeksLived: 42, money: 999999999 });
+
+    const ok = await withEnv({ EXPO_PUBLIC_SAVE_HMAC_KEY: `${NEW_KEY},${OLD_KEY}` }, (m) =>
+      m.verifySaveData(tampered, m.calculateChecksum(tampered), undefined, save.hmac));
 
     expect(ok).toBe(false);
   });

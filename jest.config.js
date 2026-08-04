@@ -26,14 +26,21 @@ module.exports = {
     '!**/__tests__/**',
     '!**/__mocks__/**',
   ],
-  coverageThreshold: {
-    global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
-    },
-  },
+  // The 70% threshold that used to live here was NEVER met — actual is
+  // statements 48.92 / branches 30.45 / functions 38.83 / lines 50.23 — so
+  // `test:coverage` and `test:ci` exited non-zero from the day it landed
+  // (2026-07-11). Nothing was blocked, since CI runs `npm test -- --ci` without
+  // coverage, and that is what made it corrosive: a gate that cannot pass
+  // trains you to skim the failure.
+  //
+  // It is NOT lowered to match reality — that would be green today and silent
+  // on tomorrow's regression. Enforcement moved to a ratchet that fails only on
+  // a DROP, with 70 kept as a stated goal:
+  //
+  //   npm run coverage:ratchet     (after npm run test:coverage)
+  //
+  // See scripts/lib/coverageRatchet.js.
+  coverageReporters: ['text', 'lcov', 'json-summary'],
   testMatch: [
     '<rootDir>/lib/**/__tests__/**/*.{ts,tsx}',
     '<rootDir>/__tests__/**/*.{ts,tsx}',

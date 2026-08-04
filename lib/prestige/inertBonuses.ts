@@ -29,11 +29,15 @@
  */
 
 /** Bonus ids verified to have no effect in game logic. */
-export const INERT_BONUS_IDS: readonly string[] = ['legacy_business'];
+export const INERT_BONUS_IDS: readonly string[] = [];
 
 const REASONS: Record<string, string> = {
-  legacy_business:
-    'Family businesses already pass to your heir without this',
+  // `legacy_business` lived here until it was given a real effect: it now pays
+  // +10% family-business income per generation held, capped at +50%
+  // (lib/business/familyBusinessEffects.ts). The registry is deliberately left
+  // EMPTY rather than deleted — `prestigeBonusReaders` still asserts every
+  // catalogue id has a reader, so a future dead bonus has a documented home
+  // instead of needing this mechanism invented again under pressure.
 };
 
 /**

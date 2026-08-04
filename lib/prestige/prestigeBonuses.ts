@@ -447,7 +447,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'legacy_business',
     name: 'Family Business Legacy',
-    description: 'Future generations inherit family businesses',
+    description: '+10% family business income per generation held (max +50%)',
     category: 'special',
     cost: 30000,
     rarity: 'legendary',
