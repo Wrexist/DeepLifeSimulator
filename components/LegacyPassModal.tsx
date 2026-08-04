@@ -39,7 +39,7 @@ import { subscriptionService } from '@/services/SubscriptionService';
 // Hero lifestyle image for the premium card — the game's own neon-lit luxury
 // villa render (dark, immersive, on-theme). Swap this require to drop in a
 // bespoke hero later without touching the layout.
-const HERO_IMAGE = require('@/assets/images/Real Estate/Beach Villa.png');
+const HERO_IMAGE = require('@/assets/images/Real Estate/Beach Villa.webp');
 
 interface Props {
   visible: boolean;

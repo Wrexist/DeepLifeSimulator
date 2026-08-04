@@ -3,7 +3,7 @@ export interface StockData {
   dividendYield: number;
 }
 
-const DEFAULT_PRICES: Record<string, StockData> = {
+export const DEFAULT_PRICES: Record<string, StockData> = {
   AAPL: { price: 150.25, dividendYield: 0.006 },
   GOOGL: { price: 2750.80, dividendYield: 0.0 },
   MSFT: { price: 310.45, dividendYield: 0.008 },

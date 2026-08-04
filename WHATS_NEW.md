@@ -1,5 +1,82 @@
 # What's New — DeepLife Simulator
 
+## v2.6.0 — The Economy Update
+
+**Covers:** everything since **v2.5.13**.
+**Compatibility:** all existing saves load. Save format moves to v31; the
+migration runs automatically on first load and is one-way, so take a backup
+before installing if you want to be able to roll back.
+
+> Minor bump rather than a patch: this changes numbers players will feel.
+
+---
+
+## 📱 Store "What's New" (copy-paste ready)
+
+```
+The economy update.
+
+• The stock market works. It had a maths bug that pushed every share price
+  toward zero over a long life — no matter how well you played. Prices now
+  grow over time, riskier stocks pay more on average, and existing portfolios
+  that the bug wiped out are restored on first load.
+• Wages make sense. Entry-level jobs paid as little as $40/week next to a
+  $95,000 apartment. Every career ladder now starts at a livable wage, and no
+  job's pay was reduced.
+• Bills you cannot afford are no longer forgiven. They become an overdue
+  balance that comes out of next week's income and drags your credit score —
+  so money finally has stakes.
+• Inflation is real. Prices drift up over a lifetime and your salary keeps
+  pace, so the economic policies you vote in actually mean something.
+• The app is 200MB smaller.
+• Fixes: the calendar no longer drifts out of step with the month, getting
+  arrested can't shorten a sentence, police fines scale with your wealth, and
+  a failure in any weekly system can no longer silently eat your whole week.
+```
+
+---
+
+## The long version
+
+### The stock market was broken, and it was not your fault
+
+Share prices stepped by a random amount each week with no upward pull, which is
+mathematically guaranteed to drift toward zero given enough time. Because the
+market is seeded from your week count, **every player on every device was on the
+same path down**: after ten in-game years the typical share was worth a third of
+what you paid, and after forty, several traded at one cent.
+
+Prices now follow a proper growth model with a long-run return in the region of a
+real index, and volatile stocks carry a higher expected return than blue chips —
+so taking risk is a trade rather than a punishment. If your saved market was
+flattened by the old behaviour, loading v2.6.0 reopens it at normal prices. Your
+shares and your purchase prices are untouched, so a position the bug destroyed
+comes back to roughly where you bought it.
+
+### Careers pay what they should
+
+The senior career ladders were written as real annual salaries divided by 52. The
+entry-level ones were not, and had ended up roughly ten times too low — a line
+cook earned $2,080 a year while a medical intern earned $88,400. Every
+under-scaled ladder was lifted so it starts at a livable wage, keeping its own
+shape and its top end. **No job pays less than it did before.**
+
+### Money has stakes now
+
+Rent, tax, tuition and upkeep you could not cover used to quietly vanish. They
+now become an **overdue balance**: it is paid off the top of next week's income
+before anything else, it costs a one-off late fee on what you missed, and it
+drags your credit score while it stands. It never compounds on a week where you
+paid what you could, and it can always be cleared by earning — falling behind is
+pressure, not a dead save.
+
+### Smaller download
+
+The artwork is re-encoded, taking about 200MB off the install with no visible
+change.
+
+---
+
 ## v2.5.0 — Stability, Speed & Fair-Play Update
 
 **Covers:** everything new since **v2.3.1 (build 93)** — the last public release.

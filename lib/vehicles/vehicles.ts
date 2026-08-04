@@ -76,7 +76,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 32,
     fuelCapacity: 13,
     description: 'A reliable, fuel-efficient sedan perfect for daily commuting.',
-    image: require('@/assets/images/Vehicles/economy_sedan_final.png'),
+    image: require('@/assets/images/Vehicles/economy_sedan_final.webp'),
   },
   {
     id: 'compact_hatchback',
@@ -91,7 +91,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 36,
     fuelCapacity: 12,
     description: 'Nimble city car with great gas mileage and easy parking.',
-    image: require('@/assets/images/Vehicles/compact_hatchback_final.png'),
+    image: require('@/assets/images/Vehicles/compact_hatchback_final.webp'),
   },
   {
     id: 'used_suv',
@@ -106,7 +106,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 21,
     fuelCapacity: 18,
     description: 'A pre-owned SUV with plenty of room for family and cargo.',
-    image: require('@/assets/images/Vehicles/used_suv_final.png'),
+    image: require('@/assets/images/Vehicles/used_suv_final.webp'),
   },
 
   // Mid-Range Vehicles
@@ -123,7 +123,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 24,
     fuelCapacity: 19,
     description: 'Spacious SUV with modern safety features and comfort.',
-    image: require('@/assets/images/Vehicles/family_suv_final.png'),
+    image: require('@/assets/images/Vehicles/family_suv_final.webp'),
   },
   {
     id: 'sedan_premium',
@@ -138,7 +138,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 28,
     fuelCapacity: 16,
     description: 'Luxurious interior with advanced technology package.',
-    image: require('@/assets/images/Vehicles/premium_sedan_final.png'),
+    image: require('@/assets/images/Vehicles/premium_sedan_final.webp'),
   },
 
   // Luxury Vehicles
@@ -156,7 +156,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelCapacity: 18,
     requiredReputation: 25,
     description: 'Executive-class sedan with premium materials and performance.',
-    image: require('@/assets/images/Vehicles/luxury_sedan_final.png'),
+    image: require('@/assets/images/Vehicles/luxury_sedan_final.webp'),
   },
   {
     id: 'luxury_suv',
@@ -172,7 +172,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelCapacity: 24,
     requiredReputation: 30,
     description: 'Commanding presence with best-in-class comfort and capability.',
-    image: require('@/assets/images/Vehicles/luxury_suv_final.png'),
+    image: require('@/assets/images/Vehicles/luxury_suv_final.webp'),
   },
   {
     id: 'supercar_entry',
@@ -188,7 +188,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelCapacity: 18,
     requiredReputation: 40,
     description: 'Your first step into exotic car ownership. Heads will turn.',
-    image: require('@/assets/images/Vehicles/supercar_entry_final.png'),
+    image: require('@/assets/images/Vehicles/supercar_entry_final.webp'),
   },
   {
     id: 'exotic_supercar',
@@ -204,7 +204,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelCapacity: 21,
     requiredReputation: 50,
     description: 'Italian craftsmanship meets raw power. A true status symbol.',
-    image: require('@/assets/images/Vehicles/exotic_supercar_final.png'),
+    image: require('@/assets/images/Vehicles/exotic_supercar_final.webp'),
   },
 
   // Sports Cars
@@ -221,7 +221,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 26,
     fuelCapacity: 15,
     description: 'Sleek two-door with thrilling performance and sharp handling.',
-    image: require('@/assets/images/Vehicles/sports_coupe_final.png'),
+    image: require('@/assets/images/Vehicles/sports_coupe_final.webp'),
   },
   {
     id: 'muscle_car',
@@ -236,7 +236,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 19,
     fuelCapacity: 18,
     description: 'American muscle with a roaring V8 engine. Pure adrenaline.',
-    image: require('@/assets/images/Vehicles/muscle_car_final.png'),
+    image: require('@/assets/images/Vehicles/muscle_car_final.webp'),
   },
 
   // Motorcycles
@@ -253,7 +253,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 55,
     fuelCapacity: 4,
     description: 'Affordable and practical two-wheeled transportation.',
-    image: require('@/assets/images/Vehicles/standard_motorcycle_final.png'),
+    image: require('@/assets/images/Vehicles/standard_motorcycle_final.webp'),
   },
   {
     id: 'sport_motorcycle',
@@ -268,7 +268,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 44,
     fuelCapacity: 5,
     description: 'High-performance sport bike for thrill seekers.',
-    image: require('@/assets/images/Vehicles/sport_motorcycle_final.png'),
+    image: require('@/assets/images/Vehicles/sport_motorcycle_final.webp'),
   },
   {
     id: 'cruiser_motorcycle',
@@ -283,7 +283,7 @@ export const VEHICLE_TEMPLATES: VehicleTemplate[] = [
     fuelEfficiency: 47,
     fuelCapacity: 5,
     description: 'Classic cruiser style with comfortable long-distance riding.',
-    image: require('@/assets/images/Vehicles/cruiser_motorcycle_final.png'),
+    image: require('@/assets/images/Vehicles/cruiser_motorcycle_final.webp'),
   },
 ];
 

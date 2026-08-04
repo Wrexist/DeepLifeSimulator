@@ -160,29 +160,29 @@ const PC_ICON: Record<keyof GamingStreamingState['pcUpgradeLevels'], IconType> =
 // Real gear art (require needs static literals). Keys without a clean photo
 // fall through to a tinted icon panel — no misleading stand-ins.
 const ACCESSORY_ART: Partial<Record<keyof GamingStreamingState['equipment'], ImageSourcePropType>> = {
-  microphone: require('@/assets/images/YouVideo/Upgrades/microphone.png'),
-  webcam: require('@/assets/images/YouVideo/Upgrades/webcam.png'),
-  gamingChair: require('@/assets/images/YouVideo/Upgrades/video_editing.png'),
-  greenScreen: require('@/assets/images/YouVideo/Upgrades/thumbnails.png'),
-  lighting: require('@/assets/images/YouVideo/Upgrades/lightning.png'),
+  microphone: require('@/assets/images/YouVideo/Upgrades/microphone.webp'),
+  webcam: require('@/assets/images/YouVideo/Upgrades/webcam.webp'),
+  gamingChair: require('@/assets/images/YouVideo/Upgrades/video_editing.webp'),
+  greenScreen: require('@/assets/images/YouVideo/Upgrades/thumbnails.webp'),
+  lighting: require('@/assets/images/YouVideo/Upgrades/lightning.webp'),
 };
 const PC_ART: Partial<Record<keyof GamingStreamingState['pcUpgradeLevels'], ImageSourcePropType>> = {
-  cpu: require('@/assets/images/YouVideo/Upgrades/cpu.png'),
-  gpu: require('@/assets/images/YouVideo/Upgrades/gpu.png'),
-  ram: require('@/assets/images/YouVideo/Upgrades/ram.png'),
-  ssd: require('@/assets/images/YouVideo/Upgrades/storage.png'),
-  motherboard: require('@/assets/images/YouVideo/Upgrades/capture_card.png'),
-  network: require('@/assets/images/YouVideo/Upgrades/seo.png'),
+  cpu: require('@/assets/images/YouVideo/Upgrades/cpu.webp'),
+  gpu: require('@/assets/images/YouVideo/Upgrades/gpu.webp'),
+  ram: require('@/assets/images/YouVideo/Upgrades/ram.webp'),
+  ssd: require('@/assets/images/YouVideo/Upgrades/storage.webp'),
+  motherboard: require('@/assets/images/YouVideo/Upgrades/capture_card.webp'),
+  network: require('@/assets/images/YouVideo/Upgrades/seo.webp'),
 };
 
 // Thumbnail art pool — matched by keyword, else a stable per-video hash so each
 // video keeps ONE consistent cover (presentational, like an avatar color).
 const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[] = [
-  { keys: ['fortnite'], src: require('@/assets/images/Games/Fortnite.png'), label: 'Fortnite' },
-  { keys: ['minecraft'], src: require('@/assets/images/Games/Minecraft.png'), label: 'Minecraft' },
-  { keys: ['valorant'], src: require('@/assets/images/Games/Valorant.png'), label: 'Valorant' },
-  { keys: ['league', 'legends', 'lol'], src: require('@/assets/images/Games/League of Legends.png'), label: 'League of Legends' },
-  { keys: ['among'], src: require('@/assets/images/Games/Among us.png'), label: 'Among Us' },
+  { keys: ['fortnite'], src: require('@/assets/images/Games/Fortnite.webp'), label: 'Fortnite' },
+  { keys: ['minecraft'], src: require('@/assets/images/Games/Minecraft.webp'), label: 'Minecraft' },
+  { keys: ['valorant'], src: require('@/assets/images/Games/Valorant.webp'), label: 'Valorant' },
+  { keys: ['league', 'legends', 'lol'], src: require('@/assets/images/Games/League of Legends.webp'), label: 'League of Legends' },
+  { keys: ['among'], src: require('@/assets/images/Games/Among us.webp'), label: 'Among Us' },
 ];
 
 const GAME_OPTIONS = [

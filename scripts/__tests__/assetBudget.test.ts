@@ -40,12 +40,22 @@ describe('evaluateAssetBudget', () => {
     expect(v.fix).toMatch(/WebP/i);
   });
 
-  it('warns but does not block iOS at the same size', () => {
-    // iOS has no equivalent wall, so blocking there would stop TestFlight builds
+  it('treats the Play limit as Android-only, not as a universal wall', () => {
+    // iOS has no equivalent limit, so blocking there would stop TestFlight builds
     // over a problem that does not apply to them.
-    const v = evaluateAssetBudget(measurement(PLAY_BASE_AAB_LIMIT_MB + 1), 'ios');
-    expect(v.ok).toBe(true);
-    expect(v.overPlayLimit).toBe(true);
+    //
+    // Asserted on `blocksThisPlatform` rather than on `ok`. Since the WebP
+    // conversion the ratchet sits at 45 MB, far under the 200 MB Play limit, so
+    // any payload big enough to breach the limit ALSO breaches the ratchet and
+    // `ok` is false on both platforms. The platform distinction is still real and
+    // still worth keeping — it is the backstop if someone ever raises the ratchet
+    // — but a test that asserted `ok` here would be asserting the ordering of two
+    // independent rules, and would have quietly started passing for the wrong
+    // reason.
+    const over = measurement(PLAY_BASE_AAB_LIMIT_MB + 1);
+    expect(evaluateAssetBudget(over, 'ios').blocksThisPlatform).toBe(false);
+    expect(evaluateAssetBudget(over, 'android').blocksThisPlatform).toBe(true);
+    expect(evaluateAssetBudget(over, 'ios').overPlayLimit).toBe(true);
   });
 
   it('fails on any platform once the payload GROWS past the ratchet', () => {
@@ -60,14 +70,30 @@ describe('evaluateAssetBudget', () => {
     expect(v.overPlayLimit).toBe(false);
   });
 
-  it('keeps the ratchet above the current reality, not below it', () => {
-    // A ceiling set under the measured value fails on day one and blocks every
-    // build — the corrosive shape coverageRatchet.js documents. A ceiling set far
-    // above it stops catching anything.
+  it('keeps the ratchet above the current reality, but not far above', () => {
+    // A ceiling under the measured value fails on day one and blocks every build
+    // — the corrosive shape coverageRatchet.js documents. A ceiling far above it
+    // stops catching anything. Both halves are asserted.
     const real = measureAssets(process.cwd());
     const shipped = toMB(real.shippedBytes);
     expect(shipped).toBeLessThanOrEqual(ASSET_BUDGET_MB);
-    expect(shipped).toBeGreaterThan(ASSET_BUDGET_MB - 60);
+    expect(ASSET_BUDGET_MB - shipped).toBeLessThan(30);
+  });
+
+  it('leaves real headroom under the Play limit after the conversion', () => {
+    // The payload was 234.0 MB against a 200 MB wall. Re-encoding to WebP q92
+    // took it to ~25 MB; this pins that the app is not sitting near the wall
+    // again without anyone noticing.
+    const real = measureAssets(process.cwd());
+    expect(toMB(real.shippedBytes)).toBeLessThan(PLAY_BASE_AAB_LIMIT_MB / 2);
+  });
+
+  it('has not let PNG creep back in as the dominant format', () => {
+    // 230 of the original 234 MB was PNG. A single 2 MB PNG landing back in the
+    // bundle is the shape of the regression this file exists for.
+    const real = measureAssets(process.cwd());
+    const png = real.byFormat.png || 0;
+    expect(toMB(png)).toBeLessThan(5);
   });
 });
 
@@ -83,8 +109,12 @@ describe('measureAssets', () => {
   });
 
   it('finds the real asset tree, so a broken walk cannot read as a pass', () => {
+    // A measurement of zero must never be mistaken for a small bundle.
     expect(real.shippedCount).toBeGreaterThan(50);
-    expect(real.byFormat.png).toBeGreaterThan(0);
+    expect(real.shippedBytes).toBeGreaterThan(1024 * 1024);
+    // WebP is the format the art lives in now; PNG survives only for the three
+    // native-tooling icons, which are not bundled through require().
+    expect(real.byFormat.webp).toBeGreaterThan(0);
   });
 
   it('reports the biggest offenders so the fix has somewhere to start', () => {

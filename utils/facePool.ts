@@ -18,61 +18,61 @@ import type { ImageSourcePropType } from 'react-native';
 
 // The original 5 — guaranteed fallbacks.
 const BASE = {
-  baby: require('@/assets/images/Face/Baby.png') as ImageSourcePropType,
-  male: require('@/assets/images/Face/Male.png') as ImageSourcePropType,
-  female: require('@/assets/images/Face/Female.png') as ImageSourcePropType,
-  oldMale: require('@/assets/images/Face/Old_Male.png') as ImageSourcePropType,
-  oldFemale: require('@/assets/images/Face/Old_Female.png') as ImageSourcePropType,
+  baby: require('@/assets/images/Face/Baby.webp') as ImageSourcePropType,
+  male: require('@/assets/images/Face/Male.webp') as ImageSourcePropType,
+  female: require('@/assets/images/Face/Female.webp') as ImageSourcePropType,
+  oldMale: require('@/assets/images/Face/Old_Male.webp') as ImageSourcePropType,
+  oldFemale: require('@/assets/images/Face/Old_Female.webp') as ImageSourcePropType,
 };
 
 // Expanded pool, keyed by `${sex}_${band}` (babies are sex-neutral). The hero
 // faces that aren't Mom/Dad are folded in here so every asset is in rotation.
 const POOL: Record<string, ImageSourcePropType[]> = {
   f_ya: [
-    require('@/assets/images/Face/pool/f_ya_01.png'), require('@/assets/images/Face/pool/f_ya_02.png'),
-    require('@/assets/images/Face/pool/f_ya_03.png'), require('@/assets/images/Face/pool/f_ya_04.png'),
-    require('@/assets/images/Face/pool/f_ya_05.png'), require('@/assets/images/Face/pool/f_ya_06.png'),
-    require('@/assets/images/Face/pool/f_ya_07.png'), require('@/assets/images/Face/pool/f_ya_08.png'),
-    require('@/assets/images/Face/pool/f_ya_09.png'), require('@/assets/images/Face/pool/f_ya_10.png'),
-    require('@/assets/images/Face/pool/hero_bestfriend_f.png'), require('@/assets/images/Face/pool/hero_sibling_f.png'),
+    require('@/assets/images/Face/pool/f_ya_01.webp'), require('@/assets/images/Face/pool/f_ya_02.webp'),
+    require('@/assets/images/Face/pool/f_ya_03.webp'), require('@/assets/images/Face/pool/f_ya_04.webp'),
+    require('@/assets/images/Face/pool/f_ya_05.webp'), require('@/assets/images/Face/pool/f_ya_06.webp'),
+    require('@/assets/images/Face/pool/f_ya_07.webp'), require('@/assets/images/Face/pool/f_ya_08.webp'),
+    require('@/assets/images/Face/pool/f_ya_09.webp'), require('@/assets/images/Face/pool/f_ya_10.webp'),
+    require('@/assets/images/Face/pool/hero_bestfriend_f.webp'), require('@/assets/images/Face/pool/hero_sibling_f.webp'),
   ],
   m_ya: [
-    require('@/assets/images/Face/pool/m_ya_01.png'), require('@/assets/images/Face/pool/m_ya_02.png'),
-    require('@/assets/images/Face/pool/m_ya_03.png'), require('@/assets/images/Face/pool/m_ya_04.png'),
-    require('@/assets/images/Face/pool/m_ya_05.png'), require('@/assets/images/Face/pool/m_ya_06.png'),
-    require('@/assets/images/Face/pool/m_ya_07.png'), require('@/assets/images/Face/pool/m_ya_08.png'),
-    require('@/assets/images/Face/pool/m_ya_09.png'), require('@/assets/images/Face/pool/m_ya_10.png'),
-    require('@/assets/images/Face/pool/hero_bestfriend_m.png'), require('@/assets/images/Face/pool/hero_sibling_m.png'),
-    require('@/assets/images/Face/pool/hero_rival.png'),
+    require('@/assets/images/Face/pool/m_ya_01.webp'), require('@/assets/images/Face/pool/m_ya_02.webp'),
+    require('@/assets/images/Face/pool/m_ya_03.webp'), require('@/assets/images/Face/pool/m_ya_04.webp'),
+    require('@/assets/images/Face/pool/m_ya_05.webp'), require('@/assets/images/Face/pool/m_ya_06.webp'),
+    require('@/assets/images/Face/pool/m_ya_07.webp'), require('@/assets/images/Face/pool/m_ya_08.webp'),
+    require('@/assets/images/Face/pool/m_ya_09.webp'), require('@/assets/images/Face/pool/m_ya_10.webp'),
+    require('@/assets/images/Face/pool/hero_bestfriend_m.webp'), require('@/assets/images/Face/pool/hero_sibling_m.webp'),
+    require('@/assets/images/Face/pool/hero_rival.webp'),
   ],
   f_ad: [
-    require('@/assets/images/Face/pool/f_ad_01.png'), require('@/assets/images/Face/pool/f_ad_02.png'),
-    require('@/assets/images/Face/pool/f_ad_03.png'), require('@/assets/images/Face/pool/f_ad_04.png'),
-    require('@/assets/images/Face/pool/f_ad_05.png'), require('@/assets/images/Face/pool/f_ad_06.png'),
+    require('@/assets/images/Face/pool/f_ad_01.webp'), require('@/assets/images/Face/pool/f_ad_02.webp'),
+    require('@/assets/images/Face/pool/f_ad_03.webp'), require('@/assets/images/Face/pool/f_ad_04.webp'),
+    require('@/assets/images/Face/pool/f_ad_05.webp'), require('@/assets/images/Face/pool/f_ad_06.webp'),
   ],
   m_ad: [
-    require('@/assets/images/Face/pool/m_ad_01.png'), require('@/assets/images/Face/pool/m_ad_02.png'),
-    require('@/assets/images/Face/pool/m_ad_03.png'), require('@/assets/images/Face/pool/m_ad_04.png'),
-    require('@/assets/images/Face/pool/m_ad_05.png'), require('@/assets/images/Face/pool/m_ad_06.png'),
+    require('@/assets/images/Face/pool/m_ad_01.webp'), require('@/assets/images/Face/pool/m_ad_02.webp'),
+    require('@/assets/images/Face/pool/m_ad_03.webp'), require('@/assets/images/Face/pool/m_ad_04.webp'),
+    require('@/assets/images/Face/pool/m_ad_05.webp'), require('@/assets/images/Face/pool/m_ad_06.webp'),
   ],
   f_mid: [
-    require('@/assets/images/Face/pool/f_mid_01.png'), require('@/assets/images/Face/pool/f_mid_02.png'),
-    require('@/assets/images/Face/pool/f_mid_03.png'), require('@/assets/images/Face/pool/f_mid_04.png'),
-    require('@/assets/images/Face/pool/f_mid_05.png'),
+    require('@/assets/images/Face/pool/f_mid_01.webp'), require('@/assets/images/Face/pool/f_mid_02.webp'),
+    require('@/assets/images/Face/pool/f_mid_03.webp'), require('@/assets/images/Face/pool/f_mid_04.webp'),
+    require('@/assets/images/Face/pool/f_mid_05.webp'),
   ],
   m_mid: [
-    require('@/assets/images/Face/pool/m_mid_01.png'), require('@/assets/images/Face/pool/m_mid_02.png'),
-    require('@/assets/images/Face/pool/m_mid_03.png'), require('@/assets/images/Face/pool/m_mid_04.png'),
-    require('@/assets/images/Face/pool/m_mid_05.png'), require('@/assets/images/Face/pool/hero_boss.png'),
+    require('@/assets/images/Face/pool/m_mid_01.webp'), require('@/assets/images/Face/pool/m_mid_02.webp'),
+    require('@/assets/images/Face/pool/m_mid_03.webp'), require('@/assets/images/Face/pool/m_mid_04.webp'),
+    require('@/assets/images/Face/pool/m_mid_05.webp'), require('@/assets/images/Face/pool/hero_boss.webp'),
   ],
   f_sr: [
-    require('@/assets/images/Face/pool/f_sr_01.png'), require('@/assets/images/Face/pool/f_sr_02.png'),
-    require('@/assets/images/Face/pool/f_sr_03.png'), require('@/assets/images/Face/pool/f_sr_04.png'),
+    require('@/assets/images/Face/pool/f_sr_01.webp'), require('@/assets/images/Face/pool/f_sr_02.webp'),
+    require('@/assets/images/Face/pool/f_sr_03.webp'), require('@/assets/images/Face/pool/f_sr_04.webp'),
   ],
   m_sr: [
-    require('@/assets/images/Face/pool/m_sr_01.png'), require('@/assets/images/Face/pool/m_sr_02.png'),
-    require('@/assets/images/Face/pool/m_sr_03.png'), require('@/assets/images/Face/pool/m_sr_04.png'),
-    require('@/assets/images/Face/pool/hero_mentor.png'),
+    require('@/assets/images/Face/pool/m_sr_01.webp'), require('@/assets/images/Face/pool/m_sr_02.webp'),
+    require('@/assets/images/Face/pool/m_sr_03.webp'), require('@/assets/images/Face/pool/m_sr_04.webp'),
+    require('@/assets/images/Face/pool/hero_mentor.webp'),
     // `hero_grandparent` is a neutral FILENAME for a portrait of an elderly
     // MAN. It sat in `f_sr` until a player reported "parents age into different
     // genders": Mom's seed hashes straight onto that slot, so every save
@@ -80,27 +80,27 @@ const POOL: Record<string, ImageSourcePropType[]> = {
     // the player directly — `getAvatarPortrait` clamps to the last slot, so a
     // woman who picked one of the later starter faces became him too.
     // The name is the trap; see HERO_FACE_SEX below.
-    require('@/assets/images/Face/pool/hero_grandparent.png'),
+    require('@/assets/images/Face/pool/hero_grandparent.webp'),
   ],
   f_tn: [
-    require('@/assets/images/Face/pool/f_tn_01.png'), require('@/assets/images/Face/pool/f_tn_02.png'),
-    require('@/assets/images/Face/pool/f_tn_03.png'),
+    require('@/assets/images/Face/pool/f_tn_01.webp'), require('@/assets/images/Face/pool/f_tn_02.webp'),
+    require('@/assets/images/Face/pool/f_tn_03.webp'),
   ],
   m_tn: [
-    require('@/assets/images/Face/pool/m_tn_01.png'), require('@/assets/images/Face/pool/m_tn_02.png'),
-    require('@/assets/images/Face/pool/m_tn_03.png'),
+    require('@/assets/images/Face/pool/m_tn_01.webp'), require('@/assets/images/Face/pool/m_tn_02.webp'),
+    require('@/assets/images/Face/pool/m_tn_03.webp'),
   ],
   f_kid: [
-    require('@/assets/images/Face/pool/f_kid_01.png'), require('@/assets/images/Face/pool/f_kid_02.png'),
-    require('@/assets/images/Face/pool/f_kid_03.png'),
+    require('@/assets/images/Face/pool/f_kid_01.webp'), require('@/assets/images/Face/pool/f_kid_02.webp'),
+    require('@/assets/images/Face/pool/f_kid_03.webp'),
   ],
   m_kid: [
-    require('@/assets/images/Face/pool/m_kid_01.png'), require('@/assets/images/Face/pool/m_kid_02.png'),
-    require('@/assets/images/Face/pool/m_kid_03.png'),
+    require('@/assets/images/Face/pool/m_kid_01.webp'), require('@/assets/images/Face/pool/m_kid_02.webp'),
+    require('@/assets/images/Face/pool/m_kid_03.webp'),
   ],
   baby: [
-    require('@/assets/images/Face/pool/baby_01.png'), require('@/assets/images/Face/pool/baby_02.png'),
-    require('@/assets/images/Face/pool/baby_03.png'),
+    require('@/assets/images/Face/pool/baby_01.webp'), require('@/assets/images/Face/pool/baby_02.webp'),
+    require('@/assets/images/Face/pool/baby_03.webp'),
   ],
 };
 
@@ -132,8 +132,8 @@ export const HERO_FACE_SEX: Record<string, 'm' | 'f'> = {
 
 // Mom & Dad — used as their own face while middle-aged (see getParentPortrait).
 const PARENTS = {
-  mom: require('@/assets/images/Face/pool/hero_mom.png') as ImageSourcePropType,
-  dad: require('@/assets/images/Face/pool/hero_dad.png') as ImageSourcePropType,
+  mom: require('@/assets/images/Face/pool/hero_mom.webp') as ImageSourcePropType,
+  dad: require('@/assets/images/Face/pool/hero_dad.webp') as ImageSourcePropType,
 };
 
 type Band = 'baby' | 'kid' | 'tn' | 'ya' | 'ad' | 'mid' | 'sr';

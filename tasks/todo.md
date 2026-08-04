@@ -154,10 +154,46 @@ artifact, and nothing in the ten-section preflight looked at it.
       elsewhere. A gate set to the number we wish were true would fail on day one
       and block every build, which is the corrosive shape `coverageRatchet.js`
       already documents
-- [x] WebP conversion documented with the measured saving (230 of the 234 MB is
-      PNG; q85 on photographic art is 5-15x). Left to the owner: it needs an
-      encoder that is not a dependency here, and re-encoding 238 pieces of
-      commissioned art is a visual-quality call
+- [x] **DONE, not deferred.** `sharp` installs fine here, so the conversion was
+      measured and run rather than handed off:
+      `scripts/convert-assets-to-webp.js`, **233.9 MB -> 25.5 MB (9.2x)**.
+      Verified end to end by a real production export: **246 MB -> 39 MB**.
+      - q92 chosen after measuring against PNG quantisation, scoring error on
+        VISIBLE pixels only — a naive whole-buffer diff reads ~12/255 on these
+        files purely from the undefined RGB under transparent areas, and the
+        first measurement said exactly that before I caught the artefact.
+        Result: visible RGB error ~1% of range, alpha reproduced EXACTLY.
+      - Format safety checked, not assumed: this app already ships and renders
+        `deeplife-plus-banner.webp`, `webp` is in Metro's default assetExts, and
+        the iOS target is 15.1 (ImageIO has decoded WebP since 14).
+      - Launcher icon, adaptive icon and favicon stay PNG — native tooling
+        consumes those, not `Image`.
+      - Ratchet lowered 240 -> 45 MB in the same change, which is the point of a
+        ratchet
+
+## 13. Pre-launch follow-through
+
+Raised after the first pass, because "fixed on main" and "safe to ship" are not
+the same list.
+
+- [x] **Existing players' markets are healed.** Fixing `simulateWeek` does not
+      reach someone mid-life: their collapsed prices are persisted and restored
+      on load, so from ~0.0001x the new drift would take geological time to
+      recover. v31 now drops a persisted board sitting under 50% of catalogue and
+      lets the life reopen on catalogue prices. Holdings revalue automatically
+      and `avgCost` is untouched, so a position the bug destroyed comes back to
+      roughly break-even. Conditional on purpose — rewriting a HEALTHY market
+      would be a worse bug than the one being repaired.
+- [x] Version bumped 2.5.13 -> 2.6.0 (CLAUDE.md §9). Minor, not patch: this
+      changes numbers players feel.
+- [x] `WHATS_NEW.md` rewritten for v2.6.0, including store-ready copy that says
+      plainly that the market bug was not the player's fault and that wiped
+      portfolios are restored.
+- [x] `facePool.test.ts` un-broken. Its bucket parser was anchored to `\.png`
+      and the WebP conversion made it match nothing — the exact fragility of
+      source-text tests flagged in the review. Made extension-agnostic. Worth
+      noting its "the parser actually found the buckets" control is what caught
+      it; without that control it would have passed vacuously forever.
 
 ---
 

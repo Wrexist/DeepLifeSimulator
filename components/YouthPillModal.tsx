@@ -52,7 +52,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
               <View style={styles.headerLeft}>
                 <View style={styles.iconContainer}>
                   <Image 
-                    source={require('@/assets/images/iap/items/youth_pill_single.png')} 
+                    source={require('@/assets/images/iap/items/youth_pill_single.webp')} 
                     style={styles.headerIcon}
                     resizeMode="contain"
                   />
@@ -82,7 +82,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                     </Text>
                     <View style={styles.pillCountContainer}>
                       <Image 
-                        source={require('@/assets/images/iap/items/youth_pill_single.png')} 
+                        source={require('@/assets/images/iap/items/youth_pill_single.webp')} 
                         style={styles.countIcon}
                         resizeMode="contain"
                       />
@@ -142,7 +142,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                   style={styles.useButtonGradient}
                 >
                   <Image 
-                    source={require('@/assets/images/iap/items/youth_pill_single.png')} 
+                    source={require('@/assets/images/iap/items/youth_pill_single.webp')} 
                     style={styles.buttonIcon}
                     resizeMode="contain"
                   />

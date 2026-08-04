@@ -5,14 +5,18 @@
  * ── Why this check exists ─────────────────────────────────────────────────
  *
  * `assets/` held 307 MB across 291 images — 278 PNG, exactly one WebP. A
- * production `expo export` was measured on 2026-08-04 and carried 234 MB of that
- * into the bundle across 258 assets, averaging ~0.9 MB each.
+ * production `expo export` measured on 2026-08-04 carried 234 MB of that into
+ * the bundle across 258 assets, averaging ~0.9 MB each.
  *
- * Google Play's base AAB limit is 200 MB. So a release build was already over a
- * hard distribution limit, and NOTHING in the ten-section preflight looked at it:
+ * Google Play's base AAB limit is 200 MB. So a release build was over a hard
+ * distribution limit, and NOTHING in the ten-section preflight looked at it:
  * types, lint, bundling, ad SDK config, privacy manifest, purpose strings, IAP,
  * save signing and ad unit ids were all checked, but not the one number that
  * decides whether the app can be shipped at all.
+ *
+ * Resolved the same day by re-encoding the art as WebP q92
+ * (`scripts/convert-assets-to-webp.js`): 233.9 MB -> 25.5 MB, 9.2x. This check
+ * is what keeps it there.
  *
  * ── What it measures, and why not just `du assets/` ───────────────────────
  *
@@ -34,30 +38,27 @@ const path = require('path');
 const PLAY_BASE_AAB_LIMIT_MB = 200;
 
 /**
- * Ratchet ceiling, set just above the 234.0 MB measured on 2026-08-04.
+ * Ratchet ceiling. Measured 25.6 MB after the WebP conversion.
  *
- * NOT a target — a brake. The app is ALREADY over the Play limit, and a gate set
- * to the number we wish were true would fail on day one and block every build,
- * which is precisely the corrosive shape `coverageRatchet.js` documents: a gate
- * that cannot pass trains you to skim the failure. So the enforceable rule is
- * "this must not grow", and the breach is reported separately and loudly.
+ * NOT a target — a brake. Set with room for a feature's worth of new art but far
+ * enough below the Play limit that the gate trips long before a release does.
  *
- * Lower it in the commit that earns it. Never raise it to get a build unstuck.
+ * It sat at 240 for exactly as long as the payload did: a ceiling has to be
+ * above current reality or it fails on day one and blocks every build, which is
+ * the corrosive shape `coverageRatchet.js` documents. The conversion earned the
+ * drop, so the drop lands in the same change.
+ *
+ * Lower it in the commit that earns it. Never raise it to get a build unstuck —
+ * a PNG slipping back in is precisely what this is watching for.
  */
-const ASSET_BUDGET_MB = 240;
+const ASSET_BUDGET_MB = 45;
 
 /**
- * Estimated saving from re-encoding the PNGs as WebP at q85, which is the actual
- * fix here — 230 of the 234 shipped MB are PNG, most of it photographic art that
- * has no business being lossless. Typical ratio on that material is 5-15x, so
- * ~234 MB becomes roughly 20-45 MB and the Play limit stops being close.
- *
- * Not done in code: it needs an encoder (`cwebp`/`sharp`) that is not a
- * dependency of this repo, and re-encoding 238 pieces of commissioned art is a
- * visual-quality decision for the owner, not a refactor.
+ * What to do if this check ever fires again. The conversion is repeatable and
+ * idempotent, so the answer is almost always "run it".
  */
 const WEBP_CONVERSION_NOTE =
-  'Re-encode assets/images/**.png to WebP q85 (~5-15x smaller on photographic art).';
+  'Run `node scripts/convert-assets-to-webp.js` (WebP q92, ~9x on this art).';
 
 /** Extensions Metro treats as image assets. */
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif|svg)$/i;
