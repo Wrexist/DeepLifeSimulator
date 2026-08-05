@@ -1,209 +1,99 @@
-# Active plan — act on the 2026-08-04 critical review
+# Active plan — the Family tab is unusable and looks unfinished
 
-Source: `tasks/critical-review-2026-08-04.md`. Every item below names the chosen
-solution and why it beats the alternatives. Items judged NOT worth fixing are
-listed at the bottom with the reasoning, so the decision is on the record.
+Player report + screenshot (2026-08-05): the Family screen opens with its title
+under the status bar, the close X sitting behind the battery/Dynamic Island, and
+most of the screen empty below an invisible card.
 
----
-
-## 1. A-1 — the stock walk has no drift, so every market collapses
-
-**Chosen: log-normal step with an explicit drift target.**
-
-`price *= (1 + z·σ)` is zero-mean *arithmetically*, which is −σ²/2 *geometrically*.
-Adding a compensating `+σ²/2` would only make it flat. A market that is flat in
-expectation is still not worth investing in — the whole point of the asset class
-is a risk premium. So: switch to `price *= exp(μ + σ·z)` where `μ` is the
-intended weekly LOG drift, set from one readable annual figure.
-
-Rejected: bumping σ down (hides the bug, doesn't fix the sign); clamping the
-price floor higher (treats the symptom).
-
-- [x] `MARKET_ANNUAL_DRIFT` constant, converted to a weekly log drift
-- [x] `simulateWeek` uses `exp()`, so the price can never go negative and the
-      drift means what it says
-- [x] Regression test that runs 520 and 3 120 weeks and asserts the MEDIAN
-      buy-and-hold multiple lands in a sane band — the assertion the old suite
-      never had
-
-## 2. A-2 — `resetStockPrices` has no production caller
-
-**Chosen: call it where its own docstring says it should be called.**
-
-- [x] Reset on new game and on prestige
-- [x] Test that a fresh life does not inherit the previous life's prices
-
-## 3. A-3 — the inflation system never runs
-
-**Chosen: wire it in AND index career pay by the same index.**
-
-Deleting it would silently drop effects three policy cards advertise. But wiring
-it in alone makes A-5 worse: prices climb while nominal wages are frozen, so a
-60-year life ends with a 6× cost of living on a 1985 paycheck. Indexing pay by
-the same `priceIndex` makes baseline inflation neutral in real terms (correct)
-and leaves the *policy-driven* deviation as the thing the player actually feels.
-
-- [x] `applyWeeklyInflation` runs in the weekly tick
-- [x] `applyCareerSalaryAndPenalty` scales pay by `priceIndex`
-- [x] Test: the index moves over a played year, and real wages hold
-
-## 4. A-7 — the daily-login gate is still farmable forward
-
-**Chosen: require game-week progress between claims.**
-
-A device clock cannot be trusted and there is no monotonic wall-clock on RN
-without a native module, so no amount of day-key cleverness closes this. Gate on
-something the player can only advance by playing: `weeksLived`. A legitimate
-player who opens the app and plays one week is unaffected; a clock-scrubber gets
-exactly one claim per week actually played.
-
-- [x] `lastLoginRewardWeek` (undefined default → carve-out, no backfill)
-- [x] Gate checks it, both at the render-time guard and inside the updater
-- [x] Test: same game week → no second claim, however the clock moves
-
-## 5. A-4 — unpaid bills are silently forgiven; no fail state on money
-
-**Chosen: an arrears bucket, not negative cash.**
-
-Letting `stats.money` go negative would break the `Math.max(0, …)` and
-overdraft-reject invariants at ~40 call sites. Instead the shortfall becomes a
-debt that is paid off the top of next week's income and that damages credit
-while it stands.
-
-- [x] `overdueBalance` (concrete default `0` → real migration + repair mirror)
-- [x] Tick books the shortfall instead of clamping it away
-- [x] Arrears are settled first next week, and hit the credit score
-- [x] Surfaced in the weekly finance summary so it is visible, not silent
-
-## 6. A-5 — the bottom half of the career ladder is off by ~10×
-
-**Chosen: one rule, applied to the data — no ladder starts below a living wage.**
-
-Advanced careers are annual÷52; base careers are not, so a line cook reads
-$2 080/yr next to a $95 000 studio and street jobs that pay ~$700/wk. Scale each
-under-scaled ladder by a single factor so its FIRST rung meets a floor, which
-preserves each ladder's internal shape (and the monotonicity the existing test
-pins).
-
-- [x] `MIN_ENTRY_WEEKLY_SALARY`, ladders rescaled proportionally
-- [x] Test: no career starts below the floor; ladders stay monotonic; the
-      already-correct professional tier is untouched
-
-## 7. A-6 — 4-week months vs a 52-week year
-
-**Chosen: derive both from one function so they cannot disagree.**
-
-- [x] `resolveCalendar` in `utils/weekCounters.ts` owns month + week-of-month
-- [x] The tick uses it; the HUD's 1..4 dot strip keeps working
-- [x] Test: the week label resets exactly on the month boundary, for 200 weeks
-
-## 8. A-8 / A-9 — jail and fines
-
-- [x] `jailWeeks` adds instead of overwriting (getting caught can't shorten a sentence)
-- [x] The "caught" message reports the amount actually deducted
-- [x] Police fines scale with net worth, so crime keeps a cost when rich
-
-## 9. C-1 — twelve `apply*` calls run outside their own try/catch
-
-**Chosen: guard each one with a documented fallback, not one big try.**
-
-A throw in any of them currently loses the whole week (the outer catch returns
-`prevState`, so "Next Week" silently no-ops).
-
-- [x] Each guarded, each with an explicit neutral fallback
-- [x] Test that drives a throwing subsystem and asserts the week still advances
-
-## 10. B-3 — coverage is measured on the safest half of the codebase
-
-**Chosen: widen the scope, re-baseline the floors in the same commit.**
-
-- [x] `app/`, `services/`, `src/` added to `collectCoverageFrom`
-- [x] Floors re-measured against the wider scope
-
-## 11. B-4 — 1 234 lint warnings, none enforced
-
-**Chosen: a warning ratchet, same shape as the coverage one.**
-
-Promoting the rules to `error` needs 1 234 fixes first, which is a different
-project. A ratchet locks in today's number and fails on any increase, so the
-backlog can only shrink.
-
-- [x] `scripts/check-lint.js` + `scripts/lib/lintRatchet.js`
-- [x] Wired into `preflight`
-
-## 12. D-1 — asset payload
-
-**Correction to my own review first.** I reported the 67 MB of unreferenced
-assets as a shipping problem. It is not. Metro bundles only what a static
-`require()` reaches — verified by diffing a real `expo export` against the tree:
-none of the unreferenced files appear in the bundle. That 67 MB is repo weight
-and clone time, not download size.
-
-The real number is the **234.0 MB that DOES ship**, against Google Play's 200 MB
-base-AAB limit. The app cannot currently be released as a single Android
-artifact, and nothing in the ten-section preflight looked at it.
-
-**Chosen: measure what ships, gate it, delete the dead weight separately.**
-
-- [x] Delete the 40 unreferenced images (repo hygiene — stated as such, not as a
-      download win)
-- [x] `scripts/lib/assetBudget.js` — sums assets reachable from a static
-      `require()`. Validated against a real export: 234.0 MB predicted vs 234 MB
-      bundled
-- [x] Preflight §11 — FAILS an Android build over the Play limit, warns + ratchets
-      elsewhere. A gate set to the number we wish were true would fail on day one
-      and block every build, which is the corrosive shape `coverageRatchet.js`
-      already documents
-- [x] **DONE, not deferred.** `sharp` installs fine here, so the conversion was
-      measured and run rather than handed off:
-      `scripts/convert-assets-to-webp.js`, **233.9 MB -> 25.5 MB (9.2x)**.
-      Verified end to end by a real production export: **246 MB -> 39 MB**.
-      - q92 chosen after measuring against PNG quantisation, scoring error on
-        VISIBLE pixels only — a naive whole-buffer diff reads ~12/255 on these
-        files purely from the undefined RGB under transparent areas, and the
-        first measurement said exactly that before I caught the artefact.
-        Result: visible RGB error ~1% of range, alpha reproduced EXACTLY.
-      - Format safety checked, not assumed: this app already ships and renders
-        `deeplife-plus-banner.webp`, `webp` is in Metro's default assetExts, and
-        the iOS target is 15.1 (ImageIO has decoded WebP since 14).
-      - Launcher icon, adaptive icon and favicon stay PNG — native tooling
-        consumes those, not `Image`.
-      - Ratchet lowered 240 -> 45 MB in the same change, which is the point of a
-        ratchet
-
-## 13. Pre-launch follow-through
-
-Raised after the first pass, because "fixed on main" and "safe to ship" are not
-the same list.
-
-- [x] **Existing players' markets are healed.** Fixing `simulateWeek` does not
-      reach someone mid-life: their collapsed prices are persisted and restored
-      on load, so from ~0.0001x the new drift would take geological time to
-      recover. v31 now drops a persisted board sitting under 50% of catalogue and
-      lets the life reopen on catalogue prices. Holdings revalue automatically
-      and `avgCost` is untouched, so a position the bug destroyed comes back to
-      roughly break-even. Conditional on purpose — rewriting a HEALTHY market
-      would be a worse bug than the one being repaired.
-- [x] Version bumped 2.5.13 -> 2.6.0 (CLAUDE.md §9). Minor, not patch: this
-      changes numbers players feel.
-- [x] `WHATS_NEW.md` rewritten for v2.6.0, including store-ready copy that says
-      plainly that the market bug was not the player's fault and that wiped
-      portfolios are restored.
-- [x] `facePool.test.ts` un-broken. Its bucket parser was anchored to `\.png`
-      and the WebP conversion made it match nothing — the exact fragility of
-      source-text tests flagged in the review. Made extension-agnostic. Worth
-      noting its "the parser actually found the buckets" control is what caught
-      it; without that control it would have passed vacuously forever.
+Source of the screenshot: `app/(tabs)/life.tsx` opens `components/FamilyTab.tsx`
+in a `presentationStyle="fullScreen"` Modal.
 
 ---
 
-## Deliberately NOT fixed
+## 1. Root cause of "it's too far up, can't press close"
 
-- **B-1/B-2 (source-text tests, no render tests).** Replacing 72 test files and
-  adding a render harness is a project, not a fix, and doing it halfway leaves
-  two conventions in the tree. Recorded in the review.
-- **D-2 (no i18n).** ~245 components of hardcoded copy. A product decision.
-- **C-2 (394 uncalled exports).** Deleting them is safe but noisy, and some are
-  half-built features the owner may still want. Needs a keep/kill pass per module.
-- **A-1's cousin in crypto.** Already has explicit drift terms and measures
-  near-neutral; nothing to fix.
+`FamilyTab` started its header at `paddingTop: scale(16)` from y=0. A full-screen
+RN Modal is NOT inset by the tab navigator's safe area, so on every notch /
+Dynamic Island phone the header was drawn *underneath* the status bar. The title
+collided with the clock and the close button landed under the battery indicator.
+
+This is the same control the 2026-08-01 accessibility pass "fixed": it already
+carried `minTouchTargetStyle` + `hitSlopToMinTarget` + `CLOSE_BUTTON_A11Y`. The
+target was the right size the whole time — it was in the wrong PLACE. A 44pt
+target under the system status bar is still a 44pt target you cannot hit.
+
+- [x] `useSafeAreaInsets()` — header padded by `insets.top`, scroll content by
+      `insets.bottom`, matching every other full-screen surface in the repo
+      (`SettingsModal`, `HobbiesModal`, `WhatsNewModal`, `mobile.tsx`)
+- [x] `statusBarTranslucent` on the host Modal so Android claims the same full
+      window iOS's `fullScreen` presentation does — otherwise Android insets the
+      modal AND the header insets again, double-padding it
+- [x] Close button is a visible 44pt circular surface, not a bare glyph
+
+## 2. The design
+
+- [x] **Dark-first.** Light mode was removed from the game (SettingsModal note,
+      `saveValidation` coerces `settings.darkMode` back to `true`). Every
+      `settings.darkMode && styles.xDark` pair in this file was a dead branch.
+      Dropped; colours now come from `colors.dark` / `accent` in
+      `lib/config/theme.ts`
+- [x] **The invisible card.** The page gradient was `#1E293B → #0F172A` and the
+      empty-state / stats cards were `#1E293B` — the card at the top of the page
+      was exactly the background colour. Flat `background` page + `surface` cards
+      with a full 1px border (Hard Rule #7), so every card has an edge
+- [x] **Reclaimed the top third.** The full-width purple life-stage slab carried
+      one age string; it is now the header subtitle. The summary card moves up
+      and the fold shows content instead of chrome
+- [x] **Honest headline.** "+0 Family Happiness" implied a weekly bonus. Nothing
+      in the week loop reads it — `child.familyHappiness` has no writer at all.
+      Now "Household Mood", an average of the bonds/moods it actually averages;
+      income formatted with `toLocaleString`
+
+## 3. Usability — the gating was invisible
+
+An action the player had not unlocked simply *was not rendered*
+(`canTryForBaby`, `canMoveIn`), or rendered at `opacity: 0.5` with no reason
+(`Propose`). There was no way to learn the path from the screen.
+
+- [x] Every relationship action is always visible, disabled with the reason
+      inline — the pattern the parenting list in this same file already used
+- [x] Requirements quoted from the action modules, not invented: move in ≥60,
+      propose ≥60 + a ring you can afford, baby ≥70 + living together or engaged
+      + age 18
+- [x] Empty state gets a real CTA instead of a sentence telling the player to go
+      find one, gated on actually owning a device
+- [x] Child rows show mood + bond without opening the child sheet
+
+## 4. Found while fixing — three bugs the screen was hiding
+
+- [x] **"Teen · Age 21".** `GameState.lifeStage` is written exactly once, by
+      `initialState.ts` (`getLifeStage(18)`), and nothing ever updates it: no
+      birthday handler, no weekly subsystem, no scenario override. This header
+      was its only product reader, so every player was "Teen" at every age.
+      Derived from age at the point of use; the three duplicate copies of
+      `getLifeStage` collapsed into one in `lib/config/gameConstants.ts`
+- [x] **"Open the dating app" landed on the wrong grid.** `/(tabs)/apps` shows
+      the desktop launcher once a computer is owned, and Dating lives under its
+      *Mobile Apps* toggle — so the CTA dropped the player on a grid that did
+      not even show the app it named. Added `?app=<id>`: the Apps tab passes it
+      to whichever launcher is mounted, which opens the app, leaves the matching
+      category behind it, and clears the param so returning does not re-open it
+- [x] **Render smoke tests were passing on a crash screen.** Every provider sits
+      in a `ProviderBoundary`, so a throw renders a valid fallback tree and
+      `expect(json.length).toBeGreaterThan(0)` passes. Three suites were green
+      on components that never rendered (`lucide` icon allowlist, missing
+      `useWindowDimensions` / `useNavigation` mocks, no `requestAnimationFrame`).
+      `renderWithProviders` now fails on the boundary's crash screen and names
+      the failing provider; the mocks are fixed so all 29 render suites are real
+
+## 5. Proof
+
+- [x] `npm run type-check` clean · `type-check:tests:ratchet` holding at 0
+- [x] `npm run check:routes` — 17 routes, no conflicts
+- [x] Full Jest suite: 458 suites / 5620 tests pass
+- [x] New `__tests__/render/familyTab.render.test.tsx` pins the safe-area fix,
+      the requirement ladder, the derived life stage and the honest headline
+- [x] Driven in the real app (web export + Playwright, iPhone 13 Pro viewport):
+      header, summary card, empty state, CTA → Spark, back → Mobile Apps grid,
+      re-entry does not re-open. Partner/spouse/child states verified by
+      type-check + the suite, not screenshotted — reaching them needs a
+      multi-week play-through

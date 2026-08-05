@@ -15,6 +15,29 @@ export const MS_PER_HOUR = 60 * 60 * 1000; // 3_600_000
 export const MS_PER_DAY = 24 * MS_PER_HOUR; // 86_400_000
 export const MS_PER_WEEK = 7 * MS_PER_DAY; // 604_800_000
 
+// ── Life stage ───────────────────────────────────────────
+/**
+ * The player's life stage, derived from age.
+ *
+ * This lived as THREE identical private copies — `initialState.ts`,
+ * `GameDataContext.tsx` and the thresholds inlined in UI copy — and the stored
+ * `GameState.lifeStage` that `initialState` seeds from it is written once and
+ * never updated again (no birthday handler exists), so it reads 'teen' for the
+ * whole life. Derive from age at the point of use; do not trust the stored one.
+ */
+export type PlayerLifeStage = 'child' | 'teen' | 'adult' | 'senior';
+
+export const LIFE_STAGE_TEEN_AGE = 13;
+export const LIFE_STAGE_ADULT_AGE = 20;
+export const LIFE_STAGE_SENIOR_AGE = 65;
+
+export function getLifeStage(age: number): PlayerLifeStage {
+  if (age < LIFE_STAGE_TEEN_AGE) return 'child';
+  if (age < LIFE_STAGE_ADULT_AGE) return 'teen';
+  if (age < LIFE_STAGE_SENIOR_AGE) return 'adult';
+  return 'senior';
+}
+
 // ── Pregnancy ────────────────────────────────────────────
 export const PREGNANCY_DURATION_WEEKS = 10; // ~2.5 months game time
 
