@@ -244,6 +244,8 @@ describe('having nowhere to live costs something', () => {
     // DELIBERATE-CORRUPTION — the values a truncated or partially-migrated save
     // actually presents. Typing them honestly is impossible; that is the test.
     for (const bad of [undefined, null, {} as GameState]) {
+      // DELIBERATE-CORRUPTION — same fixture, its own marker: the `for` line
+      // between this and the block above breaks the association on purpose.
       const wellbeing = computeHousingWellbeing(bad as GameState);
       expect(Number.isFinite(wellbeing.health)).toBe(true);
       expect(Number.isFinite(wellbeing.happiness)).toBe(true);

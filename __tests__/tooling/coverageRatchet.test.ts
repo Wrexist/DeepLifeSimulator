@@ -89,7 +89,9 @@ describe('evaluateCoverage', () => {
   // and failed four cases for no reason except that they had to be chased — the
   // exact duplication the assertions above were already fixed to avoid, left
   // behind in the one place nobody looked.
-  const at = (over: Partial<Record<string, number>> = {}) =>
+  const at = (
+    over: Partial<Record<string, number>> = {},
+  ): { ok: boolean; failures: { metric: string; actual: number; floor: number }[]; atGoal: string[] } =>
     evaluateCoverage({ ...(MEASURED_COVERAGE as Record<string, number>), ...over });
 
   it('passes at today s numbers', () => {

@@ -28,29 +28,26 @@ const L = require('./_lib.cjs');
 // Tests legitimately allowed to touch raw GameState shape (the factory + its own tests).
 const FACTORY_ALLOWLIST = [
   '__tests__/helpers/createTestGameState.ts',
+  // Contains the literal `as GameState` inside FIXTURE STRINGS — it is the test
+  // for the marker mechanism itself, so it must be able to write examples of
+  // both a marked and an unmarked cast. Nothing here constructs a real
+  // GameState; the token is data, not a type assertion.
+  '__tests__/tooling/deliberateCastMarker.test.ts',
 ];
 
 /**
- * Per-LINE opt-out for a deliberate corruption fixture.
+ * Per-cast opt-out for a deliberate corruption fixture.
  *
- * Hard Rule #3 bans hand-built GameState because a cast hides drift. But a test
- * that proves the code SURVIVES garbage has to be able to construct garbage —
- * `null` is not assignable to `string[]`, and that is precisely what a truncated
- * save carries. Those casts are the point of the test, not a shortcut.
+ * Hard Rule #3 bans hand-built GameState because a cast hides drift, but a test
+ * proving the code SURVIVES garbage must be able to construct garbage. Those
+ * casts carry a `DELIBERATE-CORRUPTION` marker, and the decision of whether a
+ * given cast is covered lives in `scripts/lib/deliberateCast.js` so it can be
+ * tested directly — see `__tests__/tooling/deliberateCastMarker.test.ts`.
  *
- * Before this marker the count simply climbed (2 → 4 as new corruption tests
- * landed), so the warning read like a regression every time someone added a
- * legitimate fixture. A warning that fires on correct work is one people learn
- * to skim, which is how a real drift cast gets waved through.
- *
- * Deliberately per-line rather than per-file: allowlisting a whole file would
- * also hide an ACCIDENTAL cast added to it later. Tagging the line forces the
- * author to state intent at the exact spot.
+ * Deliberately NOT the per-file FACTORY_ALLOWLIST above: exempting a whole file
+ * would also hide an ACCIDENTAL cast added to it later.
  */
-const DELIBERATE_MARKER = 'DELIBERATE-CORRUPTION';
-/** How far above a cast the marker may sit. Bounded so it cannot silence an
- *  unrelated cast further down the file. */
-const DELIBERATE_LOOKBACK = 12;
+const { isDeliberateCast } = require('../lib/deliberateCast');
 
 function build() {
   const a = new L.Audit(3, 'Save & State Integrity');
@@ -160,21 +157,12 @@ function build() {
   const testFiles = L.walk('__tests__', L.isTest)
     .filter((f) => !FACTORY_ALLOWLIST.includes(f));
   const drift = L.grep(testFiles, /\bas GameState\b/, { skipComments: true })
-    // Drop lines the author tagged as an intentional corruption fixture, and
-    // lines whose immediately preceding line carries the tag (so the marker can
-    // sit in a comment above a long cast instead of trailing it).
+    // Keep only casts NOT authorised as deliberate corruption fixtures.
     .filter((d) => {
-      if (d.text.includes(DELIBERATE_MARKER)) return false;
       const src = L.read(d.file);
-      if (!src) return true;
-      // Look back a short window rather than one line: the marker usually sits
-      // in the doc block explaining WHY the fixture is corrupt, which is where
-      // the reasoning belongs. Bounded at 12 so a marker cannot silence an
-      // unrelated cast further down the file.
-      const lines = src.split('\n');
-      const from = Math.max(0, d.line - 1 - DELIBERATE_LOOKBACK);
-      return !lines.slice(from, d.line - 1).some((l) => l.includes(DELIBERATE_MARKER));
+      return src ? !isDeliberateCast(src, d.line) : true;
     });
+
   a.assert(drift.length === 0, 'medium',
     'No manual `as GameState` construction in tests',
     `${drift.length} \`as GameState\` assertion(s) in tests bypass the factory`,
