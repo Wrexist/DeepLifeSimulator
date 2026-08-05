@@ -2502,6 +2502,15 @@ export interface GameState {
     tierId: string;
     /** `weeksLived` when the tenancy started, for the UI and for tenure. */
     startedWeek: number;
+    /**
+     * Consecutive weeks ended in arrears. Four means eviction.
+     *
+     * Absent means zero, and it resets to zero the week the balance clears — so
+     * no backfill is needed and the parent object is itself optional. Lives on
+     * the tenancy rather than at the top level because it is meaningless without
+     * one: moving out or being evicted should take the counter with it.
+     */
+    missedWeeks?: number;
   };
   /**
    * `weeksLived` at the last daily-login gem claim. The gate that actually

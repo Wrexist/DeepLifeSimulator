@@ -73,7 +73,7 @@ import {
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
-import { getRentalTier } from '@/lib/realEstate/rentals';
+import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
 import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
@@ -85,6 +85,8 @@ const LinearGradient = LinearGradientFallback;
 // accent.success / accent.danger AS DATA, keeping portfolio P/L semantics
 // distinct from this identity usage.
 const IDENTITY = '#10B981';
+/** Eviction-warning amber. Matches the FIXED tag in the What's New feed. */
+const WARN = '#FBBF24';
 const IDENTITY_RGB = '16, 185, 129';
 
 // ─── Real property photos ───────────────────────────────────────────────────
@@ -709,6 +711,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   const renderRent = () => {
     const options = listRentalOptions(gameState);
     const currentTier = getRentalTier(gameState.rental?.tierId);
+    const missedWeeks = gameState.rental?.missedWeeks ?? 0;
     const ownsHome = (gameState.realEstate ?? []).some((p) => p.owned && p.currentResidence);
 
     return (
@@ -726,6 +729,16 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               ? `$${currentTier.weeklyRent}/wk · +${currentTier.health} health · +${currentTier.happiness} happiness · +${currentTier.energy} energy each week.`
               : 'Sleeping rough costs you health, happiness and energy every week. Even a shared room helps.'}
           </Text>
+          {/* The eviction clock, on the screen rather than only in a toast a
+              player may have dismissed. Someone about to lose their home should
+              be able to SEE how close they are, and how to stop it. */}
+          {missedWeeks > 0 && currentTier && !ownsHome ? (
+            <Text style={[styles.rentReason, { color: WARN }]}>
+              {missedWeeks >= EVICTION_AFTER_WEEKS - 1
+                ? `Final notice — ${missedWeeks} weeks behind. Clear what you owe or you lose this place next week.`
+                : `${missedWeeks} week${missedWeeks === 1 ? '' : 's'} behind on rent. ${EVICTION_AFTER_WEEKS - missedWeeks} more and you are evicted.`}
+            </Text>
+          ) : null}
           {currentTier && !ownsHome ? (
             <TouchableOpacity
               activeOpacity={0.8}

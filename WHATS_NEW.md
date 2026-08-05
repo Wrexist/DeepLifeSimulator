@@ -33,6 +33,10 @@ The economy update.
   lease, and your home now gives you weekly health, happiness and energy.
   Sleeping rough wears you down, so a roof is worth working for — and buying
   still beats renting, because it stops the rent and keeps the benefits.
+• Fall behind and you lose the place. Four straight weeks behind on rent and
+  your landlord evicts you — with warnings from the second week and a countdown.
+  Clearing what you owe resets the clock completely, and eviction stops the rent
+  but not the debt.
 • Your home finally does what it says. Owned homes listed an energy bonus that
   was never actually paid. It is paid now, and owning helps your health too.
 • Work beats hustling. Street jobs paid more per week than a real career, so

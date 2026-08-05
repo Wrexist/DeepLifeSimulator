@@ -61,6 +61,16 @@ export const CHANGELOG: ChangelogEntry[] = [
         ],
       },
       {
+        category: 'new',
+        title: 'Fall behind and you lose the place',
+        bullets: [
+          'Four straight weeks behind on rent and your landlord evicts you.',
+          'You get warned from the second week, with a countdown.',
+          'Clearing what you owe resets the clock completely, every time.',
+          'Eviction stops the rent but not the debt — and a shared room is always affordable.',
+        ],
+      },
+      {
         category: 'fixed',
         title: 'Your home finally does what it says',
         bullets: [

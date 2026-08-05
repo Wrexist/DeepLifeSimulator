@@ -133,6 +133,7 @@ import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
+import { applyTenancyArrears } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -1016,6 +1017,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
      message: `You came up $${arrears.newShortfall.toLocaleString()} short this week. $${arrears.overdueBalance.toLocaleString()} is now overdue and comes out of next week's income first.`,
    });
  }
+ // Eviction clock. Runs AFTER settlement, so it reads the arrears that actually
+ // stand at the end of the week rather than a mid-calculation figure.
+ //
+ // The counter resets to zero the moment the balance clears, which is what keeps
+ // this pressure rather than a countdown — paying what you owe always buys back
+ // the full four weeks. Eviction does not clear the debt; it stops the rent and
+ // starts the homeless penalty.
+ const tenancy = guardTick(
+   'tenancyArrears',
+   () => applyTenancyArrears({ rental: prevState.rental, overdueBalance: arrears.overdueBalance }),
+   { rental: prevState.rental, evicted: false, notice: '' },
+ );
+ if (tenancy.notice) {
+   pendingNotifications.push({
+     id: `tenancy-${nextWeeksLived}`,
+     title: tenancy.evicted ? 'Evicted' : 'Rent Overdue',
+     message: tenancy.notice,
+   });
+ }
+ if (tenancy.evicted) {
+   logger.info(`[TENANCY] Evicted at week ${nextWeeksLived} with $${arrears.overdueBalance} outstanding`);
+ }
+
  const loanResult = guardTick('loanAutopay', () => applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,
@@ -2666,6 +2690,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // cleared debt actually clears — a `&&` guard here would leave the last
  // non-zero value stuck on the save forever.
  overdueBalance: arrears.overdueBalance,
+ // v32: the tenancy, with its eviction clock advanced. `undefined` here means
+ // evicted (or never renting), and writing it unconditionally is what makes an
+ // eviction actually take the home away.
+ rental: tenancy.rental,
  // Stocks: prefer the Remake 6 tick result (includes sector tilt,
  // dividends, fills); fall back to legacy refresh if tick failed.
  stocks: stocksTickResult

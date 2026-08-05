@@ -62,8 +62,7 @@ Found while looking, worth doing, but separate decisions:
   pressure; adding two at once makes neither measurable.
 - **Roommates** to split rent in exchange for a happiness hit. Good depth, needs
   its own relationship hooks.
-- **Eviction** after N weeks of unpaid rent. The arrears system can express it,
-  but a fail-state that removes a player's home needs owner sign-off.
+- ~~**Eviction**~~ — approved and shipped, see below.
 
 ---
 
@@ -97,3 +96,28 @@ Two calibrations the tests forced, not chose:
 - The first draft of `RentalActions` returned `success: true` outside the
   updater and tripped the C-9 ratchet. Rewritten to the pure-resolver shape the
   ratchet's own header prescribes, so no variable crosses the updater boundary.
+
+
+---
+
+## Eviction (approved 2026-08-04)
+
+Four consecutive weeks ending in arrears while renting ends the tenancy. Four
+matches `ZERO_STAT_DEATH_WEEKS` deliberately — the game already teaches "four bad
+weeks and something breaks", and a second number for the same shape of
+consequence is just something else to learn.
+
+This is the first thing in the economy that TAKES something away rather than
+dragging on a stat, so three properties matter more than the mechanic, and the
+tests assert them directly:
+
+- **Announced.** Silent on week one (crying wolf early is how a warning stops
+  being read by week three), then a named, counted-down notice from week two,
+  shown on the Rent screen as well as in a toast a player may have dismissed.
+- **Escapable at every point.** The counter RESETS to zero the week the balance
+  clears, so paying what you owe always buys back the full four weeks. There is
+  never a week where the player is doomed but still playing — that shape is what
+  makes people abandon a save instead of fighting.
+- **Recoverable.** Eviction stops the rent but NOT the debt (wiping it would make
+  eviction the cheapest way out of a bad month), and the $45 shared room stays
+  under the ~$95 a week street work alone brings in.

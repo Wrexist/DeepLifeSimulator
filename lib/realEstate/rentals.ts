@@ -143,6 +143,97 @@ export const RENTAL_TIERS: RentalTier[] = [
   },
 ];
 
+/**
+ * Weeks behind on rent before the landlord ends the tenancy.
+ *
+ * Four, matching `ZERO_STAT_DEATH_WEEKS` — the game already teaches "four bad
+ * weeks and something breaks", and a second, different number for the same shape
+ * of consequence is just something else to learn.
+ *
+ * It is a month of game time, and the counter resets the moment the arrears
+ * clear, so a single bad week never puts anyone on the street.
+ */
+export const EVICTION_AFTER_WEEKS = 4;
+
+/** The week the player first gets told this is heading somewhere. */
+const EVICTION_FIRST_WARNING_WEEK = 2;
+
+export interface TenancyArrearsInput {
+  /** The tenancy at the start of the week, if any. */
+  rental: { tierId: string; startedWeek: number; missedWeeks?: number } | undefined;
+  /** Arrears standing at the END of this week, after settlement. */
+  overdueBalance: number;
+}
+
+export interface TenancyArrearsResult {
+  /** The tenancy going forward. `undefined` means evicted (or none to begin with). */
+  rental: { tierId: string; startedWeek: number; missedWeeks?: number } | undefined;
+  /** True on the week the tenancy ends. */
+  evicted: boolean;
+  /** Player-facing warning or eviction notice. Empty when there is nothing to say. */
+  notice: string;
+}
+
+/**
+ * Advance the eviction clock for a tenancy.
+ *
+ * Pure. Being in arrears at the END of a week counts as a missed rent week:
+ * arrears are settled off the top of income before anything else, so a standing
+ * balance means the week's bills were not covered — and for a renter, rent is
+ * almost always the largest of them.
+ *
+ * The counter RESETS to zero the moment the balance clears. That is what keeps
+ * this a pressure mechanic rather than a countdown: paying what you owe always
+ * buys back the full four weeks, so there is never a point at which the player
+ * is doomed but still playing.
+ *
+ * Eviction does NOT clear the debt. The rent stops, the arrears remain, and the
+ * homeless penalty starts — which is the honest outcome and still recoverable:
+ * the bottom tier costs $45 against ~$95 a week from street work alone.
+ */
+export function applyTenancyArrears(input: TenancyArrearsInput): TenancyArrearsResult {
+  const rental = input.rental;
+  if (!rental || !getRentalTier(rental.tierId)) {
+    return { rental: undefined, evicted: false, notice: '' };
+  }
+
+  const overdue = typeof input.overdueBalance === 'number' && isFinite(input.overdueBalance)
+    ? input.overdueBalance
+    : 0;
+
+  if (overdue <= 0) {
+    // Caught up. Drop the counter rather than merely pausing it.
+    return {
+      rental: rental.missedWeeks ? { ...rental, missedWeeks: 0 } : rental,
+      evicted: false,
+      notice: '',
+    };
+  }
+
+  const missed = (typeof rental.missedWeeks === 'number' && isFinite(rental.missedWeeks)
+    ? Math.max(0, rental.missedWeeks)
+    : 0) + 1;
+
+  const tier = getRentalTier(rental.tierId)!;
+
+  if (missed >= EVICTION_AFTER_WEEKS) {
+    return {
+      rental: undefined,
+      evicted: true,
+      notice: `You have been evicted from the ${tier.name}. What you owe still stands, and you have nowhere to sleep.`,
+    };
+  }
+
+  const weeksLeft = EVICTION_AFTER_WEEKS - missed;
+  const notice = missed >= EVICTION_FIRST_WARNING_WEEK
+    // Named, specific, and counted down — an eviction that arrives unannounced
+    // is a punishment, one the player watched approaching is a decision.
+    ? `Your landlord has sent a notice: ${missed} weeks behind on the ${tier.name}. ${weeksLeft} more and you are out.`
+    : '';
+
+  return { rental: { ...rental, missedWeeks: missed }, evicted: false, notice };
+}
+
 export function getRentalTier(id: string | undefined | null): RentalTier | undefined {
   if (!id) return undefined;
   return RENTAL_TIERS.find((t) => t.id === id);
