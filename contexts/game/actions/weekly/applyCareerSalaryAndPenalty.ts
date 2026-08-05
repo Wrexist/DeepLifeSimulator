@@ -89,20 +89,27 @@ export function applyCareerSalaryAndPenalty(
         // Clamped multiplier from the centralized accessor (never negative/NaN).
         payMultiplier *= getLifeSkillModifiers(prevState).salaryMult;
 
-        // Wages track the price index — nominal pay rises with prices.
+        // Wages are NOT indexed to the price index. This is deliberate, and it
+        // is a correction of something I got wrong.
         //
-        // The inflation system now actually runs (it had zero callers, so
-        // `priceIndex` was frozen at 1 forever). Turning it on WITHOUT this line
-        // would be a pure downgrade: catalogue costs would climb through
-        // `getInflatedPrice` while the career ladder stayed on a fixed nominal
-        // number, so a sixty-year life would end paying a ~6x cost of living out
-        // of a starting paycheck. Indexing pay by the same figure makes baseline
-        // inflation NEUTRAL in real terms, which is the honest default, and
-        // leaves the policy-driven deviation as the thing the player feels.
-        const priceIndex = prevState.economy?.priceIndex;
-        if (typeof priceIndex === 'number' && isFinite(priceIndex) && priceIndex > 1) {
-          payMultiplier *= priceIndex;
-        }
+        // When the inflation system was first wired up (it had zero callers, so
+        // `priceIndex` had been frozen at 1 forever), pay was multiplied by that
+        // index here, on the reasoning that rising prices with fixed wages would
+        // be a pure downgrade and that indexing both made inflation "neutral in
+        // real terms".
+        //
+        // It is not neutral, because the price half is not real. In shipping
+        // code `getInflatedPrice` reaches exactly two surfaces — company founding
+        // and mining upgrades. Property, vehicles, luxury, food, items and
+        // education all read fixed catalogue prices. So indexing wages was a
+        // compounding REAL pay rise against prices that never move: x1.35 after
+        // ten years, x6.05 after sixty. Measured against the pre-change baseline
+        // it turned a 7x income increase into 13x over a life.
+        //
+        // The honest fix is to stop paying the raise, not to fake the prices.
+        // Inflation still runs and still feeds the two costs it genuinely
+        // reaches; if it should move the whole catalogue one day, that is a
+        // deliberate pass over every price surface, not a multiplier here.
         // DeepLife+ members earn a career-income boost (+25% salary). Read the
         // in-state entitlement flag so weekly progression stays a pure function.
         if (hasDeepLifePlusEntitlement(prevState.settings)) {

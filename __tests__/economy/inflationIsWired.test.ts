@@ -48,7 +48,7 @@ describe('inflation is reachable from the weekly tick', () => {
   });
 });
 
-describe('inflation does not quietly cut the player s wages', () => {
+describe('inflation does not touch wages', () => {
   /** Weekly pay the tick would credit for a given price index. */
   function weeklyPay(priceIndex: number): number {
     const state = createTestGameState({
@@ -76,21 +76,32 @@ describe('inflation does not quietly cut the player s wages', () => {
     return applyCareerSalaryAndPenalty(state, ctx).careerSalary;
   }
 
-  it('scales nominal pay with the price index', () => {
-    // Turning inflation on without this would be a pure downgrade: catalogue
-    // costs climb through getInflatedPrice while the career ladder stays on a
-    // fixed nominal number, so a long life ends paying a ~6x cost of living out
-    // of a starting paycheck.
-    expect(weeklyPay(2)).toBeGreaterThan(weeklyPay(1) * 1.9);
+  it('does NOT scale pay with the price index', () => {
+    // This assertion is the reverse of what it was, and the reversal is the
+    // point.
+    //
+    // Pay WAS indexed to `priceIndex`, on the reasoning that rising prices with
+    // frozen wages would be a pure downgrade and that indexing both made
+    // inflation neutral in real terms. It is not neutral, because the price half
+    // is not real: in shipping code `getInflatedPrice` reaches exactly two
+    // surfaces — company founding and mining upgrades — while property,
+    // vehicles, luxury, food, items and education all read fixed catalogue
+    // prices.
+    //
+    // So indexing wages was a compounding REAL pay rise against prices that
+    // never move (x1.35 after ten years, x6.05 after sixty), and it is a large
+    // part of why the owner reported the game had become too easy. The original
+    // version of this test PASSED throughout — it asserted the mechanism worked,
+    // never that the mechanism was correct to have.
+    expect(weeklyPay(2)).toBe(weeklyPay(1));
+    expect(weeklyPay(6)).toBe(weeklyPay(1));
   });
 
-  it('is a no-op at the neutral index, so nothing changes for a fresh save', () => {
-    expect(weeklyPay(1)).toBe(1000);
+  it('pays the ladder value at any index, corrupt or not', () => {
+    for (const index of [1, 2, 10, Number.NaN, 0, -5]) {
+      expect(weeklyPay(index)).toBe(1000);
+    }
   });
 
-  it('ignores a corrupt index rather than zeroing the paycheck', () => {
-    expect(weeklyPay(Number.NaN)).toBe(1000);
-    expect(weeklyPay(0)).toBe(1000);
-    expect(weeklyPay(-5)).toBe(1000);
-  });
+
 });

@@ -69,6 +69,24 @@ export const CHANGELOG: ChangelogEntry[] = [
         ],
       },
       {
+        category: 'improved',
+        title: 'Work beats hustling',
+        bullets: [
+          'Street jobs paid more per week than holding down an actual career.',
+          'They are now a real bridge out of unemployment, not the better plan.',
+          'Your first property is a long-term goal again, not an early purchase.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Property is an investment, not a printer',
+        bullets: [
+          'Rent used to repay a property in under four years.',
+          'Yields are now realistic, so landlording competes with careers instead of replacing them.',
+          'Renting a home costs less too — the same rate drives both.',
+        ],
+      },
+      {
         category: 'new',
         title: 'Bills you can actually miss',
         bullets: [
@@ -80,10 +98,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'new',
-        title: 'Inflation is real',
+        title: 'Economic policy has teeth',
         bullets: [
-          'Prices drift up across a lifetime, and your salary keeps pace.',
-          'Economic policies you vote in now move the cost of living.',
+          'Inflation runs for the first time, instead of being a number that never moved.',
+          'Policies you enact now push the cost of starting and upgrading a business.',
         ],
       },
       {

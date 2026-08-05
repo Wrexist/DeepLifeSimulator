@@ -26,8 +26,14 @@ The economy update.
 • Bills you cannot afford are no longer forgiven. They become an overdue
   balance that comes out of next week's income and drags your credit score —
   so money finally has stakes.
-• Inflation is real. Prices drift up over a lifetime and your salary keeps
-  pace, so the economic policies you vote in actually mean something.
+• Economic policy has teeth. Inflation runs for the first time instead of being
+  a number that never moved, so policies you enact now push the cost of starting
+  and upgrading a business.
+• Work beats hustling. Street jobs paid more per week than a real career, so
+  the sensible play was to ignore the job board. Both were rescaled, and your
+  first property is a long-term goal again rather than an early purchase.
+• Property is an investment, not a printer. Rent used to repay a property in
+  under four years; yields are now realistic. Renting a home costs less too.
 • The app is 200MB smaller.
 • Fixes: the calendar no longer drifts out of step with the month, getting
   arrested can't shorten a sentence, police fines scale with your wealth, and
