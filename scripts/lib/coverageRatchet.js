@@ -58,10 +58,10 @@ const COVERAGE_GOAL = 70;
  * to get a build unstuck.
  */
 const COVERAGE_FLOORS = {
-  statements: 47.2,
-  branches: 30.0,
-  functions: 38.0,
-  lines: 48.4,
+  statements: 49.8,
+  branches: 32.8,
+  functions: 41.0,
+  lines: 51.0,
 };
 
 /**
@@ -77,11 +77,21 @@ const COVERAGE_FLOORS = {
  *
  * Re-measure and update BOTH this and the floors in the same commit.
  */
+/**
+ * Re-baselined 2026-08-04 after PR #105. Coverage ROSE ~3 points across every
+ * metric (its rental work shipped with tests), and the floors were not moved
+ * with it — leaving them ~3 points below actual, so a 3-point regression would
+ * have passed silently. That is the quiet slide this ratchet exists to catch,
+ * appearing in the ratchet itself.
+ *
+ * Raise these in the commit that EARNS the coverage. Never lower them to get a
+ * build unstuck.
+ */
 const MEASURED_COVERAGE = {
-  statements: 47.55,
-  branches: 30.41,
-  functions: 38.36,
-  lines: 48.77,
+  statements: 50.20,
+  branches: 33.21,
+  functions: 41.42,
+  lines: 51.43,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

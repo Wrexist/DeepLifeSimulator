@@ -49,6 +49,9 @@ function stateWith(over: Partial<GameState>): GameState {
  * Splitting them makes the corruption a deliberate, visible act: everything
  * else must now be a real `Partial<GameState>`, and the cast that permits
  * garbage lives here with a reason attached rather than on every fixture.
+ *
+ * DELIBERATE-CORRUPTION — read by `scripts/audit/audit-save.cjs`, so Hard Rule
+ * #3 counts real drift rather than the one cast this file exists to contain.
  */
 function corruptStateWith(over: Record<string, unknown>): GameState {
   uniqueMoney += 1;
@@ -57,6 +60,7 @@ function corruptStateWith(over: Record<string, unknown>): GameState {
     ...base,
     stats: { ...base.stats, money: uniqueMoney },
     ...over,
+    // DELIBERATE-CORRUPTION — see the docblock above.
   } as unknown as GameState;
 }
 

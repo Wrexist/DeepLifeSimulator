@@ -241,6 +241,8 @@ describe('having nowhere to live costs something', () => {
   });
 
   it('survives a corrupt state without emitting NaN into the stats', () => {
+    // DELIBERATE-CORRUPTION — the values a truncated or partially-migrated save
+    // actually presents. Typing them honestly is impossible; that is the test.
     for (const bad of [undefined, null, {} as GameState]) {
       const wellbeing = computeHousingWellbeing(bad as GameState);
       expect(Number.isFinite(wellbeing.health)).toBe(true);

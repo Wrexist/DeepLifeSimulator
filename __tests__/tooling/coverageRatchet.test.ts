@@ -84,8 +84,13 @@ describe('the floors match what the codebase actually achieves', () => {
 });
 
 describe('evaluateCoverage', () => {
+  // Reads MEASURED_COVERAGE rather than carrying its own copy of the numbers.
+  // The literals that used to sit here went stale on the 2026-08-04 re-baseline
+  // and failed four cases for no reason except that they had to be chased — the
+  // exact duplication the assertions above were already fixed to avoid, left
+  // behind in the one place nobody looked.
   const at = (over: Partial<Record<string, number>> = {}) =>
-    evaluateCoverage({ statements: 48.92, branches: 30.45, functions: 38.83, lines: 50.23, ...over });
+    evaluateCoverage({ ...(MEASURED_COVERAGE as Record<string, number>), ...over });
 
   it('passes at today s numbers', () => {
     expect(at().ok).toBe(true);
@@ -120,14 +125,14 @@ describe('evaluateCoverage', () => {
     // report success on data it did not read — the "a run that never happened
     // must not read as a clean result" rule.
     expect(evaluateCoverage({}).ok).toBe(false);
-    expect(evaluateCoverage({ statements: NaN, branches: 30.45, functions: 38.83, lines: 50.23 }).ok).toBe(false);
+    expect(at({ statements: NaN }).ok).toBe(false);
     expect(evaluateCoverage(null).ok).toBe(false);
   });
 
   it('notes when a metric reaches the 70 goal', () => {
     // So the day a metric genuinely arrives, the ratchet says so instead of
     // silently passing and leaving the floor behind forever.
-    const r = evaluateCoverage({ statements: 72, branches: 30.45, functions: 38.83, lines: 50.23 });
+    const r = at({ statements: 72 });
 
     expect(r.ok).toBe(true);
     expect(r.atGoal).toContain('statements');
