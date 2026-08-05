@@ -14,7 +14,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 
 | # | Feature | Impact | Cost | Migration? |
 |---|---|---|---|---|
-| 1 | Conglomerate / Holding Company | ★★★★★ | M | No |
+| 1 | Conglomerate / Holding Company | ★★★★★ | M | No | **✅ SHIPPED** |
 | 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No | **✅ SHIPPED** |
 | 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
@@ -27,7 +27,41 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 
 ---
 
-## 1. Conglomerate — multiple companies per type
+## 1. Conglomerate — multiple companies per type — ✅ SHIPPED
+
+> **Shipped 2026-08-05** as `lib/business/subsidiaries.ts`: up to 3 companies
+> per type, each costing 2.5× the last, so three of everything runs to >$20M of
+> foundings against the old $2.47M ceiling.
+>
+> **The balance risk turned out not to exist**, which is the finding worth
+> recording. `PER_SOURCE_CAPS.companies` is a hard **$200k/wk ceiling on total
+> company income**, and the five maxed originals already produce ~$238k/wk
+> before it. So every subsidiary adds **cost and no income**, and trips the
+> existing multi-company efficiency penalty sooner (4+ → 90%, 7+ → 80%,
+> 11+ → 70%). The feature is a pure late-game **sink** — exactly what the
+> economy audit found missing, since not one existing cost scales with wealth.
+> `incomeScale` and `audit:economy` both stayed green.
+>
+> No migration: the FIRST company of a type keeps the bare `companyType` id, so
+> every existing save's companies, upgrades and Hustle overlays keep resolving.
+> Only the second onward are suffixed `-2`, `-3`. `buyCompanyUpgrade` already
+> looked the catalogue up by `company.type` rather than by id, so subsidiaries
+> got the right upgrade tree for free.
+>
+> Two things needed care. The id, the owned-count and the escalated price are
+> all computed OUTSIDE the `setGameState` updater, so the per-type cap is
+> re-checked against `prev` inside it (§4.4) — otherwise a concurrent founding
+> could buy a third at the second's price. And the create screen quoted the flat
+> catalogue cost, which would have advertised a price the action no longer
+> charges; it now derives from the same `subsidiaryCost` helper, with a test
+> asserting both call sites agree.
+>
+> Still open from the original proposal: the **Holding Company meta-layer**
+> (Shared Services / Group Treasury / M&A Desk upgrades that scale all
+> subsidiaries). Deliberately left out — it would add income, which is the one
+> thing the cap makes pointless and the one thing that would need a real
+> rebalance.
+
 
 **Hooks:** `contexts/game/company.ts`, `companyUpgradeCatalog.ts`, Hustle app.
 

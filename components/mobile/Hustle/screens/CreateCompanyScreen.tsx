@@ -20,6 +20,12 @@ import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
+import {
+  countCompaniesOfType,
+  subsidiaryCost,
+  canFoundAnother,
+  MAX_PER_COMPANY_TYPE,
+} from '@/lib/business/subsidiaries';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -83,7 +89,21 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
   const hasEarlyAccess = hasEarlyCompanyAccess(gameState.prestige?.unlockedBonuses || []);
   const meetsCompanyGate = hasEntrepreneurship || hasEarlyAccess;
   const lockReason = 'Requires Entrepreneurship course';
-  const affordableCount = INDUSTRIES.filter((i) => playerMoney >= getInflatedPrice(i.cost, priceIndex)).length;
+  // Conglomerate: the price of the NEXT company of a type escalates with how
+  // many you already run, so the card must quote the escalated figure. Quoting
+  // the flat catalogue price would advertise a number createCompany does not
+  // charge — the advertised-vs-actual class the audits keep finding.
+  const nextCostFor = useCallback(
+    (industryId: string, baseCost: number) =>
+      getInflatedPrice(
+        subsidiaryCost(baseCost, countCompaniesOfType(gameState.companies, industryId)),
+        priceIndex,
+      ),
+    [gameState.companies, priceIndex],
+  );
+  const affordableCount = INDUSTRIES.filter(
+    (i) => canFoundAnother(gameState.companies, i.id) && playerMoney >= nextCostFor(i.id, i.cost),
+  ).length;
 
   const handleConfirm = useCallback(() => {
     if (!selected) return;
@@ -132,10 +152,12 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           const color = industryColor(ind.id);
           const isSelected = selected === ind.id;
           // Gate + display on the INFLATED price (what createCompany actually charges).
-          const inflatedCost = getInflatedPrice(ind.cost, priceIndex);
+          const inflatedCost = nextCostFor(ind.id, ind.cost);
+          const ownedOfType = countCompaniesOfType(gameState.companies, ind.id);
+          const atCap = !canFoundAnother(gameState.companies, ind.id);
           const canAfford = playerMoney >= inflatedCost;
           const locked = !meetsCompanyGate;
-          const selectable = canAfford && !locked;
+          const selectable = canAfford && !locked && !atCap;
           const shortfall = Math.max(0, inflatedCost - playerMoney);
           const profile = PROFILE[ind.id];
           return (
@@ -144,7 +166,13 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               onPress={() => {
                 if (!selectable) {
                   hustleHaptics.error();
-                  setError(locked ? lockReason : `You need $${shortfall.toLocaleString()} more to found ${ind.name}.`);
+                  setError(
+                    atCap
+                      ? `You already run ${MAX_PER_COMPANY_TYPE} ${ind.name} companies. That is the limit.`
+                      : locked
+                        ? lockReason
+                        : `You need $${shortfall.toLocaleString()} more to found ${ind.name}.`,
+                  );
                   return;
                 }
                 hustleHaptics.tap();
@@ -153,7 +181,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               }}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected, disabled: !selectable }}
-              accessibilityLabel={`${ind.name}: ${formatMoney(inflatedCost)}${locked ? `, locked — ${lockReason}` : ''}`}
+              accessibilityLabel={`${ind.name}: ${formatMoney(inflatedCost)}${ownedOfType > 0 ? `, you already run ${ownedOfType}` : ''}${atCap ? ', at the limit' : ''}${locked ? `, locked — ${lockReason}` : ''}`}
               style={[
                 getGlassCard(isDark, 6),
                 styles.industryCard,
