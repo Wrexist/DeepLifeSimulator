@@ -36,32 +36,34 @@
 const COVERAGE_GOAL = 70;
 
 /**
- * Floors, a hair under the measured values. The margin absorbs istanbul's
- * per-file rounding (hundredths of a point as unrelated files are added); a
- * gate that trips on noise is one people learn to re-run until it passes.
+ * Floors, a hair under the measured values in `MEASURED_COVERAGE` below. The
+ * margin absorbs istanbul's per-file rounding (hundredths of a point as
+ * unrelated files are added); a gate that trips on noise is one people learn to
+ * re-run until it passes.
  *
- * ── Re-baselined 2026-08-04 when the SCOPE widened ────────────────────────
+ * ── How these numbers got here ────────────────────────────────────────────
  *
- * `collectCoverageFrom` did not include `app/`, `services/` or `src/`, so the
- * old numbers (48.92 / 30.45 / 38.83 / 50.23) excluded the highest-risk code in
- * the repo: the whole expo-router tree, all of IAPService/RevenueCat/AdMob/cloud
- * sync, and onboarding. The figure was not the app's coverage, it was the
- * coverage of the easiest part of it, and payments could never trip this gate no
- * matter how far they regressed.
+ * 1. Landed at 48.92 / 30.45 / 38.83 / 50.23 — the measurement over the old
+ *    `collectCoverageFrom`, which did NOT include `app/`, `services/` or `src/`.
+ *    That figure was not the app's coverage, it was the coverage of the easiest
+ *    part of it: the whole expo-router tree, all of IAPService / RevenueCat /
+ *    AdMob / cloud sync, and onboarding were invisible to it, so payments could
+ *    never trip this gate no matter how far they regressed.
  *
- * Widening the scope added ~6 500 statements at low coverage and moved the
- * measurement to 47.55 / 30.41 / 38.36 / 48.77. These floors follow it.
+ * 2. Re-baselined DOWN to 47.55 / 30.41 / 38.36 / 48.77 on 2026-08-04 when that
+ *    scope widened. ~6 500 statements at low coverage entered the denominator:
+ *    a drop in the printed number and an increase in what it actually covers.
+ *    That is the only legitimate reason to lower a floor — the measured surface
+ *    changed. Never to get a build unstuck.
  *
- * That is a DROP in the printed number and an increase in what it actually
- * covers, which is the point: the floors follow the scope, never the reverse.
- * Lowering a floor is legitimate only when the measured surface changed — never
- * to get a build unstuck.
+ * 3. Raised to the current values after PR #105, whose rental work shipped with
+ *    tests and moved every metric up ~3 points. See `MEASURED_COVERAGE`.
  */
 const COVERAGE_FLOORS = {
-  statements: 47.2,
-  branches: 30.0,
-  functions: 38.0,
-  lines: 48.4,
+  statements: 49.8,
+  branches: 32.8,
+  functions: 41.0,
+  lines: 51.0,
 };
 
 /**
@@ -75,13 +77,21 @@ const COVERAGE_FLOORS = {
  * changed: the third time this session that a hardcoded literal in a test turned
  * a deliberate change into a chase.
  *
- * Re-measure and update BOTH this and the floors in the same commit.
+ * Last measured 2026-08-04 after PR #105. Coverage ROSE ~3 points across every
+ * metric (its rental work shipped with tests) and the floors were not moved with
+ * it, leaving them ~3 points below actual — so a 3-point regression would have
+ * passed silently. That is the quiet slide this ratchet exists to catch,
+ * appearing in the ratchet itself; step 3 in the history above is the fix.
+ *
+ * Re-measure and update BOTH this and the floors in the same commit. Raise them
+ * in the commit that EARNS the coverage; never lower them to get a build
+ * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 47.55,
-  branches: 30.41,
-  functions: 38.36,
-  lines: 48.77,
+  statements: 50.20,
+  branches: 33.21,
+  functions: 41.42,
+  lines: 51.43,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

@@ -157,11 +157,16 @@ describe('R3-P3 — the relationship multiplier reaches relationship gains', () 
   });
 
   it('survives a corrupt bonus list without producing NaN', () => {
-    // DELIBERATE CORRUPTION — one of the two `as GameState` casts left in the
-    // test tree, and the reason the audit's Hard Rule #3 count floors at 2
-    // rather than 0. A test that proves the code survives garbage has to be
-    // able to construct garbage; `null` is not assignable to `string[]`, which
-    // is precisely the state a truncated save can carry.
+    // DELIBERATE-CORRUPTION. A test that proves the code survives garbage has
+    // to be able to construct garbage: `null` is not assignable to `string[]`,
+    // which is precisely what a truncated save carries.
+    //
+    // The marker is read by `scripts/audit/audit-save.cjs` so Hard Rule #3 stops
+    // counting intentional fixtures as drift. This comment previously claimed
+    // there were "two such casts, and the count floors at 2" — it went stale the
+    // moment the rental corruption tests landed and made it four. A count that
+    // climbs whenever someone writes a legitimate fixture is a warning people
+    // learn to skim.
     const corrupt = { ...withBonuses([]), prestige: { unlockedBonuses: null } } as unknown as GameState;
 
     const out = applyRelationshipGain(corrupt, 10);

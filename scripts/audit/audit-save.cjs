@@ -28,7 +28,26 @@ const L = require('./_lib.cjs');
 // Tests legitimately allowed to touch raw GameState shape (the factory + its own tests).
 const FACTORY_ALLOWLIST = [
   '__tests__/helpers/createTestGameState.ts',
+  // Contains the literal `as GameState` inside FIXTURE STRINGS — it is the test
+  // for the marker mechanism itself, so it must be able to write examples of
+  // both a marked and an unmarked cast. Nothing here constructs a real
+  // GameState; the token is data, not a type assertion.
+  '__tests__/tooling/deliberateCastMarker.test.ts',
 ];
+
+/**
+ * Per-cast opt-out for a deliberate corruption fixture.
+ *
+ * Hard Rule #3 bans hand-built GameState because a cast hides drift, but a test
+ * proving the code SURVIVES garbage must be able to construct garbage. Those
+ * casts carry a `DELIBERATE-CORRUPTION` marker, and the decision of whether a
+ * given cast is covered lives in `scripts/lib/deliberateCast.js` so it can be
+ * tested directly — see `__tests__/tooling/deliberateCastMarker.test.ts`.
+ *
+ * Deliberately NOT the per-file FACTORY_ALLOWLIST above: exempting a whole file
+ * would also hide an ACCIDENTAL cast added to it later.
+ */
+const { isDeliberateCast } = require('../lib/deliberateCast');
 
 function build() {
   const a = new L.Audit(3, 'Save & State Integrity');
@@ -137,7 +156,13 @@ function build() {
 
   const testFiles = L.walk('__tests__', L.isTest)
     .filter((f) => !FACTORY_ALLOWLIST.includes(f));
-  const drift = L.grep(testFiles, /\bas GameState\b/, { skipComments: true });
+  const drift = L.grep(testFiles, /\bas GameState\b/, { skipComments: true })
+    // Keep only casts NOT authorised as deliberate corruption fixtures.
+    .filter((d) => {
+      const src = L.read(d.file);
+      return src ? !isDeliberateCast(src, d.line) : true;
+    });
+
   a.assert(drift.length === 0, 'medium',
     'No manual `as GameState` construction in tests',
     `${drift.length} \`as GameState\` assertion(s) in tests bypass the factory`,
