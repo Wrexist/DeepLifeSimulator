@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   },
   liveTagText: {
     color: '#FFFFFF',
-    fontSize: fontScale(8),
+    fontSize: fontScale(10),
     fontWeight: '700',
     letterSpacing: 0.5,
   },

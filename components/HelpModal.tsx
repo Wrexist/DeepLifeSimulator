@@ -147,7 +147,7 @@ const helpContent = [
       },
       {
         question: 'What is education and how do I get it?',
-        answer: 'Education unlocks better careers and increases promotion chances. Visit the Education tab (or Education app) to enroll. Education costs money and takes weeks to complete. Types: High School (basic requirement), University (unlocks professional careers), Specialized Training (unlocks expert careers). You can enroll in multiple courses simultaneously, but each adds health penalty. Prestige bonuses can unlock early education access or reduce costs.',
+        answer: 'Education unlocks better careers and increases promotion chances. Open Apps → Education to enroll. Education costs money and takes weeks to complete. Types: High School (basic requirement), University (unlocks professional careers), Specialized Training (unlocks expert careers). You can enroll in multiple courses simultaneously, but each adds health penalty. Prestige bonuses can unlock early education access or reduce costs.',
       },
       {
         question: 'How do I start a company?',
@@ -168,7 +168,7 @@ const helpContent = [
     items: [
       {
         question: 'What mobile apps are available?',
-        answer: 'Phone apps: Bank (savings, loans, credit), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading). Buy a phone from the Shop to unlock mobile apps. Some apps require additional items or achievements.',
+        answer: 'Phone apps: Bank (savings, loans, credit), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading). Buy a phone under Life → Market to unlock mobile apps. Some apps require additional items or achievements.',
       },
       {
         question: 'What computer apps are available?',
@@ -246,7 +246,7 @@ const helpContent = [
       },
       {
         question: 'What is cryptocurrency mining?',
-        answer: 'Buy miners in the Bitcoin Mining app (requires computer and warehouse). Miners generate cryptocurrency weekly based on their power. More expensive miners earn faster but use more power. Power costs money - calculate net profit = crypto earnings - power costs. Miners degrade over time (2-5% per week) and need repair. You can trade crypto directly in the Crypto Market tab. Crypto prices fluctuate weekly.',
+        answer: 'Buy miners in the Bitcoin Mining app (requires computer and warehouse). Miners generate cryptocurrency weekly based on their power. More expensive miners earn faster but use more power. Power costs money - calculate net profit = crypto earnings - power costs. Miners degrade over time (2-5% per week) and need repair. You can trade crypto directly in the Crypto Market section of that app. Crypto prices fluctuate weekly.',
       },
       {
         question: 'How do I maximize crypto earnings?',
@@ -275,7 +275,7 @@ const helpContent = [
       },
       {
         question: 'How do I reduce dark-web risk?',
-        answer: 'Raise the dark-web skill the job\'s stages roll against — OPSEC in particular lowers how much heat you take. Buy gear from the Market tab before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
+        answer: 'Raise the dark-web skill the job\'s stages roll against — OPSEC in particular lowers how much heat you take. Buy gear under Life → Market before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
       },
       {
         question: 'What are talent trees?',
@@ -408,7 +408,7 @@ const helpContent = [
       },
       {
         question: 'Can I trade cryptocurrency?',
-        answer: 'Yes! Use the Crypto Market tab in the mining app to buy, sell, or swap coins. Crypto prices fluctuate weekly. Popular coins include Bitcoin (BTC), Ethereum (ETH), Solana (SOL), and others. Trade strategically to profit from price movements. You can hold multiple cryptocurrencies. Prices are affected by economic events and market conditions.',
+        answer: 'Yes! Use the Crypto Market section inside the mining app to buy, sell, or swap coins. Crypto prices fluctuate weekly. Popular coins include Bitcoin (BTC), Ethereum (ETH), Solana (SOL), and others. Trade strategically to profit from price movements. You can hold multiple cryptocurrencies. Prices are affected by economic events and market conditions.',
       },
       {
         question: 'What is a warehouse?',
@@ -433,11 +433,11 @@ const helpContent = [
     items: [
       {
         question: 'What mobile apps are available?',
-        answer: 'Phone apps include: Bank (savings, loans, credit management), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading), and more. Buy a phone from the Shop to unlock mobile apps. Each app has specific features and requirements.',
+        answer: 'Phone apps include: Bank (savings, loans, credit management), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading), and more. Buy a phone under Life → Market to unlock mobile apps. Each app has specific features and requirements.',
       },
       {
         question: 'How do I unlock mobile apps?',
-        answer: 'Buy a phone from the Shop to unlock mobile apps. Some apps require additional items or achievements. Check each app for specific requirements. Apps appear in the Mobile tab once unlocked. The phone is the key item - without it, you cannot access any mobile apps. Some premium apps may require additional purchases or achievements.',
+        answer: 'Buy a phone under Life → Market to unlock mobile apps. Some apps require additional items or achievements. Check each app for specific requirements. Unlocked apps appear on the Apps tab. The phone is the key item - without it, you cannot access any mobile apps. Some premium apps may require additional purchases or achievements.',
       },
       {
         question: 'What is the Bank app?',
@@ -470,7 +470,7 @@ const helpContent = [
       },
       {
         question: 'How do I unlock computer apps?',
-        answer: 'Buy a computer from the Shop to unlock computer apps. Some apps require additional items, achievements, or specific conditions. Check each app for requirements. Apps appear in the Computer tab once unlocked. The computer is essential for advanced gameplay - many investment and business features require it. Some apps unlock at certain ages or with specific achievements.',
+        answer: 'Buy a computer under Life → Market to unlock computer apps. Some apps require additional items, achievements, or specific conditions. Check each app for requirements. Unlocked apps appear on the Apps tab. The computer is essential for advanced gameplay - many investment and business features require it. Some apps unlock at certain ages or with specific achievements.',
       },
       {
         question: 'What is the Stocks app?',
@@ -511,7 +511,7 @@ const helpContent = [
       },
       {
         question: 'How do I start a hobby?',
-        answer: 'Hobbies can be started from the Hobbies tab or through special events. Some hobbies require items or specific conditions. Once started, you can practice hobbies weekly to improve skills and gain bonuses. Check the Hobbies tab to see available hobbies and their requirements. Some hobbies unlock at certain ages or with specific achievements.',
+        answer: 'Hobbies can be started from Home → Your Progress, or through special events. Some hobbies require items or specific conditions. Once started, you can practice hobbies weekly to improve skills and gain bonuses. Check Home → Your Progress to see available hobbies and their requirements. Some hobbies unlock at certain ages or with specific achievements.',
       },
       {
         question: 'What do hobbies do?',
@@ -643,7 +643,7 @@ const helpContent = [
       },
       {
         question: 'How do achievements work?',
-        answer: 'Achievements track your progress and accomplishments. Complete achievements to earn gems and unlock bonuses. Some achievements are progress-based (earn X money), others are milestone-based (reach age X). Check the Achievements tab to see your progress and rewards. Achievements provide gems which are valuable premium currency. Focus on achievable goals first.',
+        answer: 'Achievements track your progress and accomplishments. Complete achievements to earn gems and unlock bonuses. Some achievements are progress-based (earn X money), others are milestone-based (reach age X). Check Home → Your Progress to see your progress and rewards. Achievements provide gems which are valuable premium currency. Focus on achievable goals first.',
       },
       {
         question: 'What is the Journal?',

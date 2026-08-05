@@ -331,7 +331,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
                 return {
                     icon: Heart,
                     color: '#EF4444',
-                    message: 'Health is low! Visit the Health tab or buy food to recover.',
+                    message: 'Health is low! Go to Life → Health, or buy food in Life → Market.',
                 };
             case 'low_happiness':
                 return {
@@ -388,8 +388,21 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
 /**
  * Hook to determine which contextual tip to show based on game state
  */
+/**
+ * How long a dismissed tip stays dismissed, in game weeks.
+ *
+ * Dismissal used to be wiped on every week change, so a player sitting under $50
+ * dismissed "Running low on cash?" and it returned on the very next Next Week —
+ * forever. Tapping the X accomplished nothing, which is worse than having no X:
+ * it teaches the player that the app ignores them. A tip whose condition is
+ * still true is still worth re-raising eventually, so this is a cooldown rather
+ * than a permanent mute.
+ */
+const TIP_REDISPLAY_WEEKS = 12;
+
 export function useContextualTip(gameState: any) {
-    const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
+    // tip id -> the absolute week it was dismissed on.
+    const [dismissedTips, setDismissedTips] = useState<Record<string, number>>({});
 
     // Extract specific values to avoid re-evaluating on every gameState object change
     const health = gameState?.stats?.health ?? 100;
@@ -409,25 +422,32 @@ export function useContextualTip(gameState: any) {
     const activeTip = useMemo(() => {
         if (!gameState?.stats) return null;
 
+        // A tip is suppressed while it is inside its dismissal cooldown.
+        const suppressed = (id: string) => {
+            const dismissedAt = dismissedTips[id];
+            if (dismissedAt === undefined) return false;
+            return weeksLived - dismissedAt < TIP_REDISPLAY_WEEKS;
+        };
+
         // Check conditions in priority order
-        if (health < 25 && !dismissedTips.has('low_health')) {
+        if (health < 25 && !suppressed('low_health')) {
             return 'low_health';
         }
-        if (happiness < 25 && !dismissedTips.has('low_happiness')) {
+        if (happiness < 25 && !suppressed('low_happiness')) {
             return 'low_happiness';
         }
-        if (energy < 15 && !dismissedTips.has('low_energy')) {
+        if (energy < 15 && !suppressed('low_energy')) {
             return 'low_energy';
         }
-        if (!currentJob && weeksLived > 2 && !dismissedTips.has('no_job')) {
+        if (!currentJob && weeksLived > 2 && !suppressed('no_job')) {
             return 'no_job';
         }
-        if (money < 50 && !dismissedTips.has('low_money')) {
+        if (money < 50 && !suppressed('low_money')) {
             return 'low_money';
         }
 
         // Check for promotion ready
-        if (promotionReady && !dismissedTips.has('promotion_ready')) {
+        if (promotionReady && !suppressed('promotion_ready')) {
             return 'promotion_ready';
         }
 
@@ -436,13 +456,8 @@ export function useContextualTip(gameState: any) {
     }, [health, happiness, energy, money, currentJob, weeksLived, promotionReady, dismissedTips]);
 
     const dismissTip = (tipType: string) => {
-        setDismissedTips(prev => new Set([...prev, tipType]));
+        setDismissedTips(prev => ({ ...prev, [tipType]: weeksLived }));
     };
-
-    // Reset dismissed tips when week changes (allows tips to re-show each week)
-    useEffect(() => {
-        setDismissedTips(new Set());
-    }, [weeksLived]);
 
     return { activeTip, dismissTip };
 }

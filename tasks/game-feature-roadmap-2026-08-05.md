@@ -1,0 +1,381 @@
+# 10 features to deepen DeepLife — ranked
+
+Companion to `game-audit-2026-08-05-findings.md`. Every item below hooks a system
+that **already exists and already ships**; none is a new pillar bolted on the
+side. Where a feature needs a `STATE_VERSION` bump it says so explicitly, per
+CLAUDE.md §7.
+
+**Ranking criterion:** `(player impact × fit with existing systems) ÷ build cost`,
+with a thumb on the scale for anything that answers *"what am I working toward?"*
+— the owner's stated gap.
+
+**The problem being solved, in one line:** the game flattens around week 900–1,100
+of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
+
+| # | Feature | Impact | Cost | Migration? |
+|---|---|---|---|---|
+| 1 | Conglomerate / Holding Company | ★★★★★ | M | No |
+| 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No |
+| 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
+| 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
+| 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No |
+| 6 | Luxury Collections & Curator | ★★★☆☆ | S | No |
+| 7 | Operating Overhead | ★★★★☆ | M | Maybe |
+| 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No |
+| 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No |
+| 10 | Grandchildren | ★★★★☆ | M–L | **Yes** |
+
+---
+
+## 1. Conglomerate — multiple companies per type
+
+**Hooks:** `contexts/game/company.ts`, `companyUpgradeCatalog.ts`, Hustle app.
+
+Today `id: companyType` means you own at most one factory, one AI lab, one
+restaurant, one property firm, one bank. Total cost to 100% completion:
+**$12.0M**, with a ~50-week payback. The deepest money engine in the game is
+finite and finishes early.
+
+Change the id to `${companyType}-${n}` and add a **Holding Company** meta-layer:
+each subsidiary beyond the first costs 2.5× the last, and a Holding Co. upgrade
+line (Shared Services, Group Treasury, M&A Desk) scales *all* subsidiaries at
+once. The multi-company efficiency penalty in `passiveIncome.ts` already exists
+and finally becomes a real trade-off instead of a silent tax.
+
+**Pros**
+- Converts the single best system from finite to open-ended — the highest
+  structural leverage on this list.
+- Exponential cost curve gives an *indefinite* money sink, which §4 of the audit
+  identifies as the thing the economy most lacks (not one current sink scales
+  with wealth).
+- No migration: the ids are new, so old saves keep their single companies and
+  simply gain the option to found a second.
+- Reuses the entire existing upgrade catalog — new content is mostly numbers.
+
+**Cons**
+- Risks making money *easier* if the efficiency penalty isn't tuned hard; must
+  ship with `incomeScale` re-run and probably new coverage floors.
+- The Hustle app UI assumes one company per type; the list and detail screens
+  need real layout work.
+- More weekly-tick iteration — watch the nested-loop density ceiling the perf
+  audit tracks.
+
+---
+
+## 2. Dynasty Tree — turn Legacy Points into an actual tree
+
+**Hooks:** `lib/legacy/legacyShop.ts`, `legacyUpgrades: string[]` (already
+migrated and repaired at STATE_VERSION 29).
+
+Legacy points accrue **quadratically** — 1,275 by week 500, 5,050 by week 1,000 —
+against a shop that costs **340 points in total** and is bought out by week ~260.
+The currency is dead for three-quarters of a long life, and from generation 2
+onward every heir starts with the whole shop already purchased.
+
+Replace the flat 6-item shop with a **40–60 node tree** across four branches
+(Wealth / Blood / Name / Craft), escalating 25 → 25,000, with prerequisite edges.
+
+**Pros**
+- Highest content-per-line-of-code on this list. The storage shape (`string[]` of
+  owned ids) and the derived-balance pattern (lifetime earned − spent) need
+  **zero change** — it is pure data expansion.
+- Fixes a currency that is currently inert for 75% of a long life.
+- Gives prestige a visible, permanent artifact that survives every reset — the
+  clearest possible answer to "what am I grinding toward?"
+- Ships incrementally: 15 nodes is already a real feature.
+
+**Cons**
+- Needs a tree UI with prerequisite edges; the existing shop list won't do. (The
+  skill-tree modal is a usable visual precedent.)
+- Balancing 40+ node effects against an economy that already has a 1.5× prestige
+  income cap takes real care — easy to accidentally break the cap's intent.
+- Big data authoring job, even if the code is small.
+
+---
+
+## 3. Prestige-gated content tiers 6–10
+
+**Hooks:** `lib/progress/featureUnlocks.ts` (already derives tiers),
+`prestige.totalPrestiges`.
+
+The unlock spine hard-stops at `weeksLived >= 120`. **Nothing in the entire
+codebase is gated on `prestigeLevel >= 2`** — a repo-wide grep finds only
+cosmetic UI checks. Prestige #5 is mechanically identical to prestige #2.
+
+Add tiers 6–10 to the existing `FEATURE_UNLOCKS` table, gated on
+`totalPrestiges` rather than chapters: tier 6 = Conglomerate (#1), 7 = frontier
+ventures, 8 = the Dynasty board, 9 = Ascension.
+
+**Pros**
+- The unlock machinery, padlock copy, requirement strings and "you just unlocked
+  X" beat **all already exist** — this is plumbing, not new architecture.
+- Directly answers "why prestige a 5th time", which today has no answer.
+- Makes every other item on this list land harder, because each becomes a
+  *reveal* rather than something present from week 1.
+- No migration; `totalPrestiges` is already persisted.
+
+**Cons**
+- Worthless on its own — it is a gating layer, so its value is entirely the
+  content behind it. Sequence it *with* #1/#2, not before.
+- Gating existing content behind prestige would enrage current players; these
+  tiers must gate **new** content only.
+- Needs care so a returning player with 8 prestiges doesn't get five tiers
+  dumped on them at once.
+
+---
+
+## 4. Legacy Contracts — the missing 10-hour goal
+
+**Hooks:** `lib/challenges/weeklyChallenges.ts` (objective/`checkCurrent` shape
+is already right), `lib/ambitions/progress.ts` (sticky-milestone reconciliation).
+
+Nothing in the game takes more than a few hours. Ambitions are consumed
+permanently (inert after life 8), scenarios pay out on first prestige only,
+weekly challenges rotate on a real-time clock and repeat verbatim after ~3
+months. **There is no repeatable, scaling, multi-life goal anywhere.**
+
+Multi-objective contracts that persist across prestige and escalate in tiers:
+*"Own 3 maxed banks across 3 generations"*, *"Bank $1B in a single life"*,
+*"Reach 50 prestiges"*. Paid in Legacy Points, feeding #2.
+
+**Pros**
+- The only item here that directly answers "is there anything that takes 10+
+  hours?" — the owner's explicit ask.
+- Reuses the weekly-challenge objective shape almost verbatim.
+- Creates demand for the Legacy Points that #2 creates supply for — the two
+  compose into an actual economy.
+- Naturally endless: tiers can keep escalating.
+
+**Cons**
+- **Needs a migration.** `legacyContracts: {id, tier, progress}[]` has a concrete
+  stored default (`[]`), so it takes a real backfill *and* a `repairGameState`
+  mirror, plus inclusion in `createTestGameState` — all in the same change.
+- Cross-life progress tracking is the fiddliest state in the game; reconciliation
+  bugs here would be save-corrupting.
+- Risks becoming a chore list if the objectives aren't genuinely interesting.
+
+---
+
+## 5. Career capstones — Board Seat and Emeritus
+
+**Hooks:** `lib/careers/promotionGating.ts`, `Career.levels[]`.
+
+36 ladders × 6 rungs, but only 18 of 216 rungs carry an `experienceRequired`
+gate, and a base ladder is finished in ~100 weeks. Careers — the thing a life sim
+is *about* — have no tail.
+
+Add a 7th and 8th rung to every ladder, unlocked only at 1,500+ weeks of
+cumulative career tenure read from `prestige.lifetimeStats.totalWeeksLived`:
+**Board Seat** (income continues after retirement) and **Emeritus** (a permanent
+account-level bonus).
+
+**Pros**
+- Almost entirely data. `experienceRequired` already exists and is already
+  enforced by the gating code.
+- Cross-life tenure makes prestige *feel* cumulative in the most thematic place
+  possible — your career follows you.
+- Fixes retirement, which today is strictly *less* content than working (10 elder
+  activities, pension capped at $5,000/wk against a $238k/wk empire).
+- No migration.
+
+**Cons**
+- 36 ladders × 2 rungs = 72 new entries of copy, salary and requirements — real
+  authoring effort even though it's "just data".
+- Income ceilings move; needs `incomeScale` re-run.
+- "Board Seat pays after retirement" interacts with the pension cap and needs a
+  deliberate answer.
+
+---
+
+## 6. Luxury Collections & Curator tiers
+
+**Hooks:** `lib/luxury/catalog.ts`, the `luxuryHoldings` sidecar
+(STATE_VERSION 24), `lib/luxury/hosting.ts`.
+
+The luxury catalog is already the best-designed late-game sink in the repo:
+$1.22B of purchases, $255,620/wk *net* drain, yields deliberately held below each
+item's own upkeep. It just has no completion meta.
+
+Add **set bonuses** — own all 3 entry-tier items → a Collector title and a
+hosting multiplier; own all 12 → **Curator**, with a permanent prestige floor.
+
+**Pros**
+- Cheapest real win here. `luxuryHoldings` is an additive sidecar keyed by item
+  id, so the bonus layer needs **no migration at all**.
+- Collection-completion is a proven grind motivator and fits the fantasy exactly.
+- The hosting system already reads the whole collection, so the plumbing exists.
+- Makes the game's best existing sink more attractive, which helps §4.4.
+
+**Cons**
+- Small on its own — it's a multiplier on existing content, not new content.
+- Only meaningful to players already past $100M, i.e. a narrow audience until
+  #1/#3 widen the late game.
+- Set bonuses that grant income risk undermining the "yields stay below upkeep"
+  discipline that makes the catalog work.
+
+---
+
+## 7. Operating Overhead — replace the passive-income soft cap
+
+**Hooks:** `lib/economy/passiveIncome.ts`.
+
+Passive income is silently multiplied by `0.9^floor((netWorth − 10M) / 10M)`,
+floored at 0.25. **$10M is also the prestige threshold** — so the economy starts
+throttling at exactly the number where the game congratulates you. At $150M net
+worth a $238k/wk empire pays $59.5k/wk, for reasons the player is never told.
+
+Swap it for a visible **Operating Overhead**: a weekly cost scaling with
+holdings, reducible by *buying management* — a Group COO, property managers, a
+family office.
+
+**Pros**
+- Same net effect on the curve, but it becomes a **decision with a purchase
+  ladder** instead of an invisible tax. The player can fight back.
+- Creates exactly the wealth-proportional sink the economy audit identifies as
+  entirely absent.
+- Removes the game's most demoralising hidden mechanic.
+- Composes perfectly with #1 (a conglomerate is what generates overhead).
+
+**Cons**
+- **Touches the money axis directly** — the highest-risk item here. Needs
+  `incomeScale` re-run, new ratchet floors, and probably a save-compat pass.
+- Existing players suddenly see a large weekly cost line that did not exist; this
+  needs careful framing or it reads as a nerf even though it is net-neutral.
+- May need a state field for purchased management (migration).
+
+---
+
+## 8. Wealth-scaled events + a Tycoon event pack
+
+**Hooks:** `lib/events/engine.ts`, the `LifeStagePack` type.
+
+~400 event templates, all with **flat** money effects capped at ±$150,000. A
+"$200 unexpected bill" fires at $200M net worth. The best content volume in the
+repo becomes rounding noise exactly when the player has the most time to read it.
+
+Add `moneyScale: 'flat' | 'networth'` to event effects, plus a `tycoon` pack
+gated on net worth ≥ $50M: hostile takeovers, regulator investigations, activist
+investors, a $40M lawsuit, a foundation ask.
+
+**Pros**
+- Reuses the weighted picker and life-stage weight boost wholesale; the
+  mechanism is genuinely small.
+- Restores narrative tension to the flattest stretch of the game.
+- Scales forever by construction — no re-tuning as the ceiling moves.
+- No migration.
+
+**Cons**
+- Writing ~40 good events is the real cost, and event copy is the hardest content
+  to write well.
+- Percentage-based negative events at high net worth can feel punitive; needs
+  caps and probably an insurance/mitigation counterplay.
+- Only 3 event chains exist today, so the pack risks feeling like disconnected
+  one-shots without chain authoring too.
+
+---
+
+## 9. Surface the Dynasty rank
+
+**Hooks:** `lib/legacy/dynasty.ts`, `dynastyStats` (already persisted, already
+updated on inheritance).
+
+`getDynastyTier` computes 6 tiers with titles and descriptions from generations,
+wealth, reputation and achievements. It has **zero consumers**. This is a
+working, persisted, cross-life progression bar that no player has ever seen.
+
+Show it, then add tiers 7–10 above `legendary` at 2,500 / 5,000 / 10,000 / 25,000
+dynasty score, each with a permanent account-level perk.
+
+**Pros**
+- Nearly free — the calculation ships today and is already fed correct data.
+- Gives multi-generational play a legible score, which it completely lacks.
+- Natural home on the Progress screen next to prestige.
+- No migration.
+
+**Cons**
+- Small in isolation; it's a *readout*, and readouts don't hold players by
+  themselves. Its value depends on tiers 7–10 having real perks.
+- Adding another progression bar next to prestige, Legacy Pass, chapters,
+  ambitions and challenges risks worsening the "four parallel objective systems"
+  problem the noise audit flags. **Only ship this alongside consolidating those.**
+
+---
+
+## 10. Grandchildren
+
+**Hooks:** `lib/legacy/familyTree.ts`, `lib/parenting/catalog.ts`,
+`family.children[]`.
+
+Children age out and simply stop being content. There is nothing for
+grandchildren, and the 13 genetic traits already defined and displayed have
+nowhere left to go.
+
+Let adult children marry and produce grandchildren with inherited traits, give
+the player a Patriarch/Matriarch role with its own activity set, and make living
+descendants a dynasty-score input (feeding #9).
+
+**Pros**
+- The strongest *emotional* payoff on this list, and the one most on-genre for a
+  life sim — the reason players stay past the money game.
+- Reuses the genetic-trait system, which is built and currently terminal.
+- Makes old age content-rich rather than content-poor, fixing the "retire into
+  less to do" problem from a second angle.
+- Compounds with #9 and #4 to make multi-generational play the real endgame.
+
+**Cons**
+- **Needs new state on `Relationship`** → a real `STATE_VERSION` bump with
+  migration, `repairGameState` mirror and `createTestGameState` inclusion.
+- Recursive family structures are the easiest place in this codebase to write an
+  unbounded loop in the weekly tick — the perf audit's nested-loop ceiling is a
+  live constraint.
+- The largest design surface here: marriage, careers and lifespans for NPCs the
+  player doesn't control.
+- Family-tree UI at 3+ generations is a genuinely hard layout problem.
+
+---
+
+## Honourable mention — Ascension (beyond prestige 10)
+
+The prestige point multiplier already stops at level 10. Open an **Ascension**
+track above it: each ascension resets prestige bonuses but grants one permanent
+perk from a ~25-item pool (*"companies may be founded twice"*, *"the passive soft
+cap floor is 0.4"*). This is the structural answer to an endgame that has none,
+and the natural home for the tier 6+ unlocks in #3.
+
+Left off the main list only because it is the **largest** item and should follow
+#1–#3 rather than lead them — it is most valuable once there is content worth
+ascending *for*.
+
+---
+
+## Recommended sequencing
+
+**Wave 1 — cheap, no migrations, immediate.**
+#2 Dynasty Tree · #5 Career Capstones · #6 Luxury Collections · #9 Dynasty rank.
+All data-only or near-data-only, all reuse shipped state fields.
+
+**Wave 2 — the structural fix. This is where "why prestige again?" gets an answer.**
+#1 Conglomerate · #3 Prestige tiers · #4 Legacy Contracts.
+
+**Wave 3 — pacing and tension. Touches the money axis; re-run `incomeScale` and
+the coverage ratchet after each.**
+#7 Operating Overhead · #8 Wealth-scaled events.
+
+**Wave 4 — big bets.**
+#10 Grandchildren · Ascension.
+
+---
+
+## Two things to do *before* Wave 1
+
+Neither is a feature, and both will otherwise undercut everything above.
+
+1. **The interruption queue** (findings §4.1). Seven surfaces can stack on one
+   "Next Week" press. Every feature added here adds another popup to an
+   unmanaged pile.
+2. **Consolidate the objective systems** (findings §5). There are already four
+   parallel goal systems on the Home screen alone — Life Chapters, Ambitions,
+   Weekly Challenges, and an invisible `goalSystem` that only ever appears as a
+   completion popup. Adding Legacy Contracts and Dynasty rank to *that* makes the
+   confusion worse, not better. Pick Life Chapters as the spine (it already
+   drives `featureUnlocks`) and make the others feed it.

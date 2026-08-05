@@ -101,7 +101,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}

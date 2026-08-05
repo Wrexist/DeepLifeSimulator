@@ -36,7 +36,13 @@ export default function SimpleTutorialModal({
   logger.debug('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onShow={() => logger.debug('[SimpleTutorialModal] Modal shown!')}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      onShow={() => logger.debug('[SimpleTutorialModal] Modal shown!')}
+    >
       <View style={styles.overlay}>
         <View style={[styles.modal, darkMode && styles.modalDark]}>
           {/* Header */}

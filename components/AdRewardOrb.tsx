@@ -56,8 +56,12 @@ const REWARD_PCT = 0.015;
 const REWARD_MIN = 1_000;
 const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
-const FIRST_DELAY: [number, number] = [22000, 48000];
-const REPEAT_DELAY: [number, number] = [110000, 210000];
+// The repeat window was [110s, 210s], which put a pulsing orb over the middle
+// of whatever the player was reading 6-8 times in a 15-minute session — the
+// single most frequent interruption in the app. Widened to 6-10 minutes: the
+// offer is still there for anyone who wants it, at roughly a third the rate.
+const FIRST_DELAY: [number, number] = [45000, 75000];
+const REPEAT_DELAY: [number, number] = [360000, 600000];
 const VISIBLE_MS = 22000; // orb auto-hides if ignored
 
 function rand([lo, hi]: [number, number]) {
@@ -226,7 +230,9 @@ export default function AdRewardOrb() {
       scheduleNext(30000);
       return;
     }
-    haptic.light();
+    // No haptic on APPEARANCE. An unprompted offer buzzing the phone teaches
+    // the player that a vibration means nothing actionable. The tap itself
+    // still gives feedback (see openAd) — that one is player-initiated.
     slideX.setValue(-160);
     Animated.spring(slideX, { toValue: 0, useNativeDriver: true, damping: 14, stiffness: 140 }).start();
     pulseLoop.current = Animated.loop(
@@ -514,7 +520,11 @@ const styles = StyleSheet.create({
   orbWrap: {
     position: 'absolute',
     left: scale(10),
-    zIndex: Z_INDEX.TOAST,
+    // DROPDOWN, not TOAST. At TOAST (400) the orb sat ABOVE the MODAL layer
+    // (300), so it floated over the weekly result sheet, the death screen and
+    // every other dialog. An optional ad offer must never cover a dialog the
+    // player has to act on.
+    zIndex: Z_INDEX.DROPDOWN,
   },
   orb: {
     flexDirection: 'row',

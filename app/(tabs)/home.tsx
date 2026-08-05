@@ -794,6 +794,12 @@ function HomeScreenContent() {
             setGameState(prev => {
               const last = prev.lastLogin || Date.now();
               const daysAway = Math.floor((Date.now() - last) / MS_PER_DAY);
+              // Reject re-entry against `prev`, not against an outer flag. The
+              // updater stamps lastLogin=now, so a second onClose in the same
+              // React batch sees daysAway=0 — and computeWelcomeBackBonus
+              // floors it back to 1 (`Math.max(daysAway, 1)`), paying a second
+              // half-week of salary. Returning prev unchanged is the rejection.
+              if (daysAway < 1) return prev;
               const bonus = computeWelcomeBackBonus(prev, daysAway);
               return {
                 ...prev,

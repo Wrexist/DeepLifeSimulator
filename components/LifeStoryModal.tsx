@@ -85,10 +85,10 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
               </View>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
+              <TouchableOpacity onPress={handleShare} style={styles.shareButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Share life story">
                 <Share2 size={20} color="#FFFFFF" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
                 <X size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>

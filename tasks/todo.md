@@ -1,313 +1,94 @@
-# Active plan — rentable housing, and the wellbeing it was supposed to provide
+# Active plan — whole-game audit: noise, UX polish, and the late-game roadmap
 
-Owner ask: rent property for health / happiness / energy bonuses, plus "look for
-more necessary features".
+Owner ask: run several audits; make the game less noisy and confusing; add more
+gameplay and late-game content to grind toward; audit UI/navigation/UX/design for
+imperfections and asymmetry; make the app premium and easy to navigate; and
+produce a ranked list of 10 features with pros and cons.
 
----
-
-## What I found while scoping it
-
-The feature is not a nice-to-have. Four things are broken or missing, and they
-are the same thing seen from four sides.
-
-1. **There is no way to rent a home.** The tenant path EXISTS —
-   `applyRentAndHousing` charges rent for any property with
-   `status === 'rented' && !owned` — but nothing in the game ever creates one.
-   `operations.ts` only ever sets `status: 'rented'` on the LANDLORD side. So the
-   only route to a home is buying one.
-
-2. **Which, after the rebalance, is unreachable for most of a life.** The
-   cheapest property is $95 000, i.e. 16.6 years on a bottom-rung wage. So a
-   character has no access to housing benefits for the first two decades. The
-   rebalance made this worse and renting is the bridge that should always have
-   been there.
-
-3. **The HUD promises an energy bonus the tick never pays.**
-   `TopStatsBar.tsx:501` adds `currentResidence.weeklyEnergy` to the predicted
-   weekly energy change. `processWeeklyHousing` applies `weeklyHappiness` only —
-   `weeklyEnergy` has no reader anywhere else in shipping code. Every property in
-   the catalogue carries the field (2 to 10 per week) and it has never done
-   anything. Advertised-vs-actual, exactly the class the audits keep finding.
-
-4. **Housing has no health effect at all**, and being homeless is free. Living
-   nowhere costs nothing, so "get a roof over your head" has never been a goal.
-
-Together these are also the missing recurring cost the last rebalance left open:
-rent is the bill the arrears system was built for and never received.
+Findings: `tasks/game-audit-2026-08-05-findings.md`
+Roadmap: `tasks/game-feature-roadmap-2026-08-05.md`
 
 ---
 
-## Plan
+## Done in this pass
 
-- [x] `lib/realEstate/rentals.ts` — rental ladder priced against the CURRENT
-      income scale (bottom-rung career is $110/wk), so the tier choice is a real
-      trade rather than an obvious pick.
-- [x] `applyHousingWellbeing` weekly reducer: health / happiness / energy from a
-      rental OR an owned residence, and a penalty for having neither.
-- [x] Rent flows through the arrears bill line, so an unaffordable week becomes
-      a debt instead of being silently forgiven.
-- [x] `rentHome` / `endRental` actions, atomic per §4.4.
-- [x] State + v32 migration + test-helper entry. NO backfill and no
-      `repairGameState` mirror: `rental` defaults to `undefined`, so it is a
-      carve-out like v26/v27/v28 — an absent key already means "not renting",
-      and writing a tenancy would start charging rent to someone who never
-      signed for anything.
-- [x] Pay the energy bonus the HUD has been promising, and give owned residences
-      the same health/energy treatment as rentals.
-- [x] A "Rent" tab in RealEstateApp.
-- [x] Tests: the ladder is affordable-but-not-free at each income tier, homeless
-      hurts, bonuses land, and the HUD prediction matches what the tick pays.
+### Feedback channels — un-muted
+- [x] `utils/toastBridge.ts` — module-level handle on the real toast channel
+- [x] `feedbackSystem` routes to toasts, not the achievement popup (every
+      message was being discarded by a `reward > 0` gate it could never pass)
+- [x] `warning` toasts restored, defaulting to the bottom slot so the original
+      status-bar overlap can't return
+- [x] Toast stack offsets counted per position group
+- [x] `SmartNotificationTicker` copy now travels with its buzz (was blocked *by*
+      the feedbackSystem bug)
+- [x] Deleted the dead duplicate `useToast` in `feedbackSystem.ts`
 
-## Deliberately NOT in this pass
+### Interruption noise — reduced
+- [x] Ad orb: 3× slower cadence, no appearance haptic, moved below the MODAL
+      layer (it was covering the weekly sheet and the death screen)
+- [x] Premium promo: blocking guard added + re-checked at fire time
+- [x] Contextual tips: real 12-week dismissal cooldown (was wiped every week)
 
-Found while looking, worth doing, but separate decisions:
+### Correctness
+- [x] Welcome-back bonus double-grant (gate→grant, §4.4)
+- [x] "Ready to prestige" card now starts a prestige instead of opening a shop
 
-- **Utilities/groceries as a second recurring bill.** Rent alone may be enough
-  pressure; adding two at once makes neither measurable.
-- **Roommates** to split rent in exchange for a happiness hit. Good depth, needs
-  its own relationship hooks.
-- ~~**Eviction**~~ — approved and shipped, see below.
+### UI / polish
+- [x] `BaseModal` theme-aware — it rendered dark chrome in light mode across all
+      six HUD breakdown modals
+- [x] 10pt legibility floor (7 sites, incl. 7.5pt on the paywall and three
+      unscaled 8pt job badges)
+- [x] `hitSlop` + a11y labels on 7 sub-44pt close buttons
+- [x] Android back restored on 4 modals that swallowed it
+- [x] Safe-area insets on the two Pulse bottom sheets under the home indicator
 
----
+### Copy
+- [x] 16 strings pointing at tabs that no longer exist → real paths
 
-## Shipped
+### Tests
+- [x] `__tests__/utils/feedbackToastChannel.test.ts` (11) — channel reachability
+- [x] `__tests__/onboarding/navigationCopy.test.ts` (4) — copy ↔ real tab set
 
-`lib/realEstate/rentals.ts` (ladder + pure helpers), `applyHousingWellbeing`
-(weekly reducer), `RentalActions` (pure-resolver shape), v32 `rental` field, and
-a Rent tab in RealEstateApp placed BEFORE Browse — for most of a life renting is
-the only housing a player can reach, so leading with the unreachable option would
-make the screen read as "nothing here for you".
-
-The ladder, priced against the measured income scale ($110/wk bottom rung):
-
-| Tier | Rent | Needs | Health | Happiness | Energy |
-|---|---|---|---|---|---|
-| Shared Room | $45 | — | 0 | +1 | +1 |
-| Bedsit | $80 | $100/wk | +1 | +2 | +2 |
-| Rented Studio | $140 | $220/wk | +2 | +4 | +3 |
-| City Apartment | $260 | $400/wk | +3 | +6 | +4 |
-| Suburban House | $480 | $750/wk | +4 | +9 | +5 |
-| Penthouse Lease | $950 | $1500/wk | +5 | +13 | +6 |
-
-Homeless: −2 health, −4 happiness, −5 energy per week. Survivable by design —
-over twenty weeks from full health to zero, so "cannot afford rent" is pressure,
-never a dead save.
-
-Two calibrations the tests forced, not chose:
-
-- The bedsit asked $120/wk income against a $110 bottom rung, which left a
-  minimum-wage worker exactly ONE option. Lowered to $100.
-- The first draft of `RentalActions` returned `success: true` outside the
-  updater and tripped the C-9 ratchet. Rewritten to the pure-resolver shape the
-  ratchet's own header prescribes, so no variable crosses the updater boundary.
-
+**Gates:** type-check clean · test-tree ratchet 0 · lint 0 errors (1239 warnings
+vs ceiling 1240) · routes OK · `audit:weekly` all green ·
+**467 suites / 5,721 tests passing** (baseline was 465 / 5,706).
 
 ---
 
-## Eviction (approved 2026-08-04)
+## Next — in order
 
-Four consecutive weeks ending in arrears while renting ends the tenancy. Four
-matches `ZERO_STAT_DEATH_WEEKS` deliberately — the game already teaches "four bad
-weeks and something breaks", and a second number for the same shape of
-consequence is just something else to learn.
+### Before any new feature
+- [ ] **One `InterruptionQueue`** with an explicit priority enum. Seven surfaces
+      can currently stack on a single "Next Week" press, from four independent
+      priority chains that cannot see each other. Highest-leverage change
+      available; two symptoms are patched, the architecture is not.
+- [ ] **Write the journal.** `journal: []` has no writer anywhere in the repo, so
+      the one surface that could answer "what just happened?" is permanently
+      empty — on the screen Help points at. Same fix as the muted week digest.
+- [ ] **Settle the design-token collision.** `spacing.md` is 12 in
+      `lib/config/theme.ts` and 16 in `utils/scaling.ts`, with a third orphaned
+      copy in `utils/designSystem.ts`. Every mechanical sweep is blocked behind
+      this decision.
+- [ ] **Consolidate the four parallel objective systems** before adding a fifth.
 
-This is the first thing in the economy that TAKES something away rather than
-dragging on a stat, so three properties matter more than the mechanic, and the
-tests assert them directly:
+### Economy (each needs `incomeScale` re-run + ratchet floors)
+- [ ] Arrears covers only 6 of ~11 mandatory cost lines; luxury upkeep, vehicles,
+      fines, student loans, mining power and subs are still silently forgiven
+- [ ] Ad-orb cash grants need a **game-week** gate (today's limit is wall-clock)
+- [ ] Fold rental + luxury income into the tax base — ~$450k/wk of late-game
+      income is currently untaxed and bypasses the net-worth soft cap
+- [ ] Replace the invisible passive-income soft cap with visible Operating
+      Overhead (roadmap #7)
 
-- **Announced.** Silent on week one (crying wolf early is how a warning stops
-  being read by week three), then a named, counted-down notice from week two,
-  shown on the Rent screen as well as in a toast a player may have dismissed.
-- **Escapable at every point.** The counter RESETS to zero the week the balance
-  clears, so paying what you owe always buys back the full four weeks. There is
-  never a week where the player is doomed but still playing — that shape is what
-  makes people abandon a save instead of fighting.
-- **Recoverable.** Eviction stops the rent but NOT the debt (wiping it would make
-  eviction the cheapest way out of a bad month), and the $45 shared room stays
-  under the ~$95 a week street work alone brings in.
+### Navigation
+- [ ] Move renting out of the desktop-only, tier-3 Real Estate app — it is a
+      week-1 survival need
+- [ ] Retire the Desktop/Mobile segment split (buying a computer currently *adds*
+      a tap to five apps and relocates two)
+- [ ] Promote the Discovery Center to a real, always-visible "All Systems"
+      directory with working navigation
 
----
-
-## Review pass on the PR (2026-08-05)
-
-Three defects in the above, all found by re-reading the feature against its own
-claims rather than by a failing test.
-
-1. **The HUD disagreed with the tick — in the direction this feature existed to
-   fix.** `TopStatsBar` kept its own copy of the housing maths that only knew
-   about an OWNED residence, so after this change it under-predicted energy and
-   happiness for a renter, showed nothing for someone sleeping rough, and missed
-   the health effect owned homes now pay. It now calls `computeHousingWellbeing`,
-   the same function the tick uses. One source of truth, both callers read it.
-   Justifying `weeklyEnergy` by "the HUD promises what the tick never pays" and
-   then leaving the HUD wrong three new ways was the worst of the three.
-
-2. **The signing week was charged twice.** `resolveRentHome` takes the first
-   week on the spot ("a tenancy never starts in arrears") and the tick then
-   billed the same week again. `startedWeek` was stamped at signing and read by
-   nothing; it now skips exactly one charge.
-
-3. **Owning a home could evict you from a flat you were not paying for.**
-   Ownership wins in `computeHousingWellbeing`, so an owner is charged no rent —
-   but the eviction clock still ran against arrears from any other bill, and the
-   Rent screen hides "Move out" once you own, so the dangling tenancy could not
-   be cleared by hand either. Buying a home now ENDS the lease (`resolveTenancyStep`).
-
-Skipping the signing-week charge is why `HousingWellbeingResult` gained an
-explicit `owns` flag: `rent === 0` is now true for an owner, a new tenant and a
-homeless character alike, and (3) would otherwise have cancelled every lease on
-its first week.
-
-### Second pass — automated review (2026-08-05)
-
-Two more Majors, both mine, both created by the first pass:
-
-4. **The homeless happiness penalty was predicted and never charged.** Making
-   `housingHappinessBonus` signed left an unchanged `if (housingHappinessBonus
-   > 0)` fold several hundred lines downstream, which dropped exactly the −4.
-   Health and energy landed (the reducer writes those straight into `newStats`),
-   so homelessness cost two stats of the three it advertised — and the HUD, which
-   I had just wired to the same signed value, displayed the cost the week never
-   took. I reopened advertised-vs-actual on the stat I was fixing.
-
-5. **A $45 tier swap reset the eviction clock.** `resolveRentHome` rebuilt the
-   tenancy record from scratch, dropping `missedWeeks`, so a tenant three weeks
-   from eviction could move to the cheapest room and buy back the full four
-   weeks, repeatedly, with the debt untouched. The counter now survives a move;
-   it still resets the week the balance clears, which is the documented escape
-   and now the only one.
-
-**Why the existing tests missed (4):** `applyHousingWellbeing` was unit-tested
-and correct — it returned −4 and the test asserted −4. No unit test can see a
-consumer three hundred lines downstream. `__tests__/stress/housingTick.stress.test.ts`
-now drives the provider's real `nextWeek`, and it caught the bug when re-checked
-against a deliberate revert.
-
-Two traps that cost time in writing it, both recorded because they make a broken
-test look like a passing one:
-
-- `nextWeek` is async behind an anti-mash ref it clears after an await. Inside a
-  synchronous `act()` that continuation never runs, so a SECOND `nextWeek()` on
-  the same mount silently does nothing — the second measurement reads as "this
-  effect is zero" rather than as a broken test. One tick per mount, and assert
-  the week advanced before reading anything.
-- Seeding energy at 60 put the rented case at 101 → clamped to 100, which ate a
-  point of the gap and made the ladder's own numbers look wrong. Stats have to
-  finish the week clear of both 0 and 100 for a delta to mean anything.
-
-Also from that review: `weeklyIncomeForLetting` now clamps `career.level` before
-indexing (an out-of-range level read as "earns nothing" and locked every tier
-with an income requirement); the first week's rent goes through
-`applyMoneyDelta`; `WHATS_NEW.md` said the save format moves to v31 when it
-ships v32; the `rungs = linear interpolation` line in `careerData.ts` described
-evenly-spaced rungs when the rule maps each ORIGINAL rung to its same relative
-position. Declined, with reasons, in the PR thread: typing only the v32
-migration callback when all 31 neighbours are untyped, `?? []` → `|| []`, and a
-claim that the nurse ladder changed — it is byte-identical to the original.
-
----
-
-## Previously shipped — the Family tab redesign (merged in #104)
-
-Kept here rather than dropped: both branches wrote their plan to this file, and
-this one landed on `main` while the housing work was in review. It is history
-now, not an active plan.
-
-
-Player report + screenshot (2026-08-05): the Family screen opens with its title
-under the status bar, the close X sitting behind the battery/Dynamic Island, and
-most of the screen empty below an invisible card.
-
-Source of the screenshot: `app/(tabs)/life.tsx` opens `components/FamilyTab.tsx`
-in a `presentationStyle="fullScreen"` Modal.
-
----
-
-## 1. Root cause of "it's too far up, can't press close"
-
-`FamilyTab` started its header at `paddingTop: scale(16)` from y=0. A full-screen
-RN Modal is NOT inset by the tab navigator's safe area, so on every notch /
-Dynamic Island phone the header was drawn *underneath* the status bar. The title
-collided with the clock and the close button landed under the battery indicator.
-
-This is the same control the 2026-08-01 accessibility pass "fixed": it already
-carried `minTouchTargetStyle` + `hitSlopToMinTarget` + `CLOSE_BUTTON_A11Y`. The
-target was the right size the whole time — it was in the wrong PLACE. A 44pt
-target under the system status bar is still a 44pt target you cannot hit.
-
-- [x] `useSafeAreaInsets()` — header padded by `insets.top`, scroll content by
-      `insets.bottom`, matching every other full-screen surface in the repo
-      (`SettingsModal`, `HobbiesModal`, `WhatsNewModal`, `mobile.tsx`)
-- [x] `statusBarTranslucent` on the host Modal so Android claims the same full
-      window iOS's `fullScreen` presentation does — otherwise Android insets the
-      modal AND the header insets again, double-padding it
-- [x] Close button is a visible 44pt circular surface, not a bare glyph
-
-## 2. The design
-
-- [x] **Dark-first.** Light mode was removed from the game (SettingsModal note,
-      `saveValidation` coerces `settings.darkMode` back to `true`). Every
-      `settings.darkMode && styles.xDark` pair in this file was a dead branch.
-      Dropped; colours now come from `colors.dark` / `accent` in
-      `lib/config/theme.ts`
-- [x] **The invisible card.** The page gradient was `#1E293B → #0F172A` and the
-      empty-state / stats cards were `#1E293B` — the card at the top of the page
-      was exactly the background colour. Flat `background` page + `surface` cards
-      with a full 1px border (Hard Rule #7), so every card has an edge
-- [x] **Reclaimed the top third.** The full-width purple life-stage slab carried
-      one age string; it is now the header subtitle. The summary card moves up
-      and the fold shows content instead of chrome
-- [x] **Honest headline.** "+0 Family Happiness" implied a weekly bonus. Nothing
-      in the week loop reads it — `child.familyHappiness` has no writer at all.
-      Now "Household Mood", an average of the bonds/moods it actually averages;
-      income formatted with `toLocaleString`
-
-## 3. Usability — the gating was invisible
-
-An action the player had not unlocked simply *was not rendered*
-(`canTryForBaby`, `canMoveIn`), or rendered at `opacity: 0.5` with no reason
-(`Propose`). There was no way to learn the path from the screen.
-
-- [x] Every relationship action is always visible, disabled with the reason
-      inline — the pattern the parenting list in this same file already used
-- [x] Requirements quoted from the action modules, not invented: move in ≥60,
-      propose ≥60 + a ring you can afford, baby ≥70 + living together or engaged
-      + age 18
-- [x] Empty state gets a real CTA instead of a sentence telling the player to go
-      find one, gated on actually owning a device
-- [x] Child rows show mood + bond without opening the child sheet
-
-## 4. Found while fixing — three bugs the screen was hiding
-
-- [x] **"Teen · Age 21".** `GameState.lifeStage` is written exactly once, by
-      `initialState.ts` (`getLifeStage(18)`), and nothing ever updates it: no
-      birthday handler, no weekly subsystem, no scenario override. This header
-      was its only product reader, so every player was "Teen" at every age.
-      Derived from age at the point of use; the three duplicate copies of
-      `getLifeStage` collapsed into one in `lib/config/gameConstants.ts`
-- [x] **"Open the dating app" landed on the wrong grid.** `/(tabs)/apps` shows
-      the desktop launcher once a computer is owned, and Dating lives under its
-      *Mobile Apps* toggle — so the CTA dropped the player on a grid that did
-      not even show the app it named. Added `?app=<id>`: the Apps tab passes it
-      to whichever launcher is mounted, which opens the app, leaves the matching
-      category behind it, and clears the param so returning does not re-open it
-- [x] **Render smoke tests were passing on a crash screen.** Every provider sits
-      in a `ProviderBoundary`, so a throw renders a valid fallback tree and
-      `expect(json.length).toBeGreaterThan(0)` passes. Three suites were green
-      on components that never rendered (`lucide` icon allowlist, missing
-      `useWindowDimensions` / `useNavigation` mocks, no `requestAnimationFrame`).
-      `renderWithProviders` now fails on the boundary's crash screen and names
-      the failing provider; the mocks are fixed so all 29 render suites are real
-
-## 5. Proof
-
-- [x] `npm run type-check` clean · `type-check:tests:ratchet` holding at 0
-- [x] `npm run check:routes` — 17 routes, no conflicts
-- [x] Full Jest suite: 458 suites / 5620 tests pass
-- [x] New `__tests__/render/familyTab.render.test.tsx` pins the safe-area fix,
-      the requirement ladder, the derived life stage and the honest headline
-- [x] Driven in the real app (web export + Playwright, iPhone 13 Pro viewport):
-      header, summary card, empty state, CTA → Spark, back → Mobile Apps grid,
-      re-entry does not re-open. Partner/spouse/child states verified by
-      type-check + the suite, not screenshotted — reaching them needs a
-      multi-week play-through
+### Features
+- [ ] Wave 1 (no migrations): Dynasty Tree · Career Capstones · Luxury
+      Collections · surface Dynasty rank
+- [ ] Wave 2: Conglomerate · Prestige tiers 6–10 · Legacy Contracts

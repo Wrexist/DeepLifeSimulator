@@ -265,7 +265,12 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
     const MemoryIcon = memoryStyle.icon;
 
     return (
-      <Modal visible={!!selectedMemory} transparent animationType="fade">
+      <Modal
+        visible={!!selectedMemory}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMemory(null)}
+      >
         <View style={styles.detailOverlay}>
           <View style={[styles.detailContainer, settings.darkMode && styles.detailContainerDark]}>
             <LinearGradient
@@ -342,7 +347,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <LinearGradient
           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}

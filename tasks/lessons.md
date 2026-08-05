@@ -4,6 +4,58 @@
 
 ## Patterns to Watch For
 
+### 2026-08-05 - Whole-game audit: three feedback channels that rendered nothing, and a suppression that outlived its reason
+
+- **A message bus with a gate on it is not a message bus.**
+  `feedbackSystem.{success,error,warning,info}(message)` routed every message to
+  `showAchievementToast(message, category, **0**)`. That helper gates on
+  `reward > 0` — correctly, so tips and warnings can't hijack the branded
+  "ACHIEVEMENT UNLOCKED!" popup — and the reward was hard-coded 0 at all four
+  call sites. So for as long as the code has shipped, **every message handed to
+  `useFeedback()` was silently discarded**: the phone buzzed and nothing
+  rendered. A refused action ("Already done that this week", "Need $12 to grab a
+  healthy meal") was indistinguishable from a successful one, which is the most
+  likely single source of "I tapped something and don't know what happened."
+  Both halves were individually correct — the gate, and the helpers. Only the
+  wiring between them was wrong, and nothing asserted the wiring. This is the
+  `applyWeeklyInflation` post-mortem (2026-08-04) and the `applyBenefit` one
+  (2026-06-30) for the third time: **"is it called?" is a different question
+  from "does it work?", and only one of them had a test.** Rule: when a helper's
+  entire value is that it *reaches a renderer*, one test must assert the route,
+  not the leaf.
+- **Deleting a severity tier to fix a position bug throws away the one message
+  type that must never be optional.** `warning` toasts were dropped at the
+  provider with the comment "they were noise that overlapped the status bar."
+  The overlap was real; the remedy silenced every rejection on the Work screen —
+  job application, promotion, raise, retirement, failed street job. Worse, a
+  later fix was written *against* that dead channel: `work.tsx` carries a comment
+  saying "a rejection used to be silent… UX-2", so the bug it claims to fix was
+  still shipping. The toast component already supported `position: 'bottom'`
+  with safe-area offsets. Rule: fix a layout problem in the layout. If a whole
+  category of feedback is being suppressed, the suppression is the bug.
+- **A dismissal that resets is worse than no dismiss button.** Contextual tips
+  cleared their dismissed set on every `weeksLived` change, so a player under $50
+  dismissed "Running low on cash?" and it returned on the very next Next Week,
+  forever. An X that does nothing teaches the player that the app ignores them.
+- **`Math.max(x, 1)` inside a grant undoes the guard outside it.** The
+  welcome-back bonus stamped `lastLogin = now` inside its updater (correct), but
+  `computeWelcomeBackBonus` floors `daysAway` at 1 — so a second `onClose` in the
+  same React batch saw `daysAway = 0`, clamped it back to 1, and paid another
+  half-week of salary. The gate→grant rule (§4.4) is not satisfied by stamping
+  state; the updater must also **return `prev` unchanged** on the rejected path.
+- **An optional offer must never outrank a required dialog.** The ad orb sat at
+  `Z_INDEX.TOAST` (400), above the `MODAL` layer (300), so it floated over the
+  weekly result sheet and the death screen. The premium promo respected no
+  blocking guard at all and could land on top of a death. Rule: anything the
+  player can ignore belongs *below* anything they must act on, and a deferred
+  popup must re-check its guard **at fire time**, not when its effect ran.
+- **My own mistake this session:** the first version of the stale-tab-copy guard
+  used an allowlist of valid tab names and flagged "the Jobs tab of the Onion
+  Browser" and "the Miners tab" — legitimate sub-tabs *inside* an app. A
+  denylist of the specific removed tabs was the correct shape. Rule: when the
+  rule is "these specific things are wrong", encode that, not "everything except
+  these is wrong."
+
 ### 2026-08-04 - Critical review: a zero-drift random walk, a system with no callers, and three of my own mistakes
 
 - **A zero-mean ARITHMETIC return is a negative GEOMETRIC one.** `simulateWeek`

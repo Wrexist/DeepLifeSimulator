@@ -28,7 +28,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
   const bonuses = legacyBonuses || { incomeMultiplier: 1, learningMultiplier: 1, reputationBonus: 0 };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
@@ -38,7 +38,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
             <Text style={[styles.title, settings.darkMode && styles.textDark]}>
               Legacy & Lineage
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
             </TouchableOpacity>
           </View>

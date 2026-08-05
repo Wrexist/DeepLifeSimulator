@@ -129,6 +129,9 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowInfo(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
               >
                 <X size={24} color="#FFFFFF" />
               </TouchableOpacity>

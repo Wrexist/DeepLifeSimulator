@@ -42,6 +42,22 @@ export default function PremiumPassPromo() {
   const weeksLived = useGameSelector((s) => s.weeksLived) ?? 0;
   const hapticEnabled = useGameSelector((s) => s.settings?.hapticFeedback) ?? false;
 
+  // Don't intrude during blocking moments. This popup previously respected NO
+  // guard at all, so a gold subscription modal could land on top of the death
+  // screen, a wedding, or a life moment — a paywall covering the one dialog the
+  // player actually has to act on. Same predicate the ad orb uses.
+  const blocked = useGameSelector((s) => !!(
+    s?.showDeathPopup ||
+    s?.showWeddingPopup ||
+    (s?.jailWeeks ?? 0) > 0 ||
+    s?.lifeMoments?.pendingMoment
+  ));
+
+  // Mirrored into a ref so the deferred fire (1.8s later) reads the CURRENT
+  // blocking state rather than the value captured when the effect ran.
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
+
   const [visible, setVisible] = useState(false);
   const shownThisSession = useRef(false);
   const prevWeek = useRef<number | null>(null);
@@ -82,6 +98,7 @@ export default function PremiumPassPromo() {
     if (weeksLived <= prevWeek.current) { prevWeek.current = weeksLived; return; }
     prevWeek.current = weeksLived;
     if (shownThisSession.current || pass.premiumOwned || stats.locked < MIN_LOCKED) return;
+    if (blocked) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -89,6 +106,9 @@ export default function PremiumPassPromo() {
         const last = parseInt((await safeGetItem(LAST_WEEK_KEY)) || '0', 10) || 0;
         if (weeksLived - last < COOLDOWN_WEEKS) return;
         if (cancelled) return;
+        // Re-check at fire time: the 1.8s delay is long enough for the weekly
+        // tick to raise a death/wedding/life-moment after the effect ran.
+        if (blockedRef.current) return;
         shownThisSession.current = true;
         setVisible(true);
         if (hapticEnabled) haptic('success');
@@ -96,7 +116,7 @@ export default function PremiumPassPromo() {
       } catch { /* never break the loop */ }
     }, 1800);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [weeksLived, pass.premiumOwned, stats.locked, hapticEnabled, haptic]);
+  }, [weeksLived, pass.premiumOwned, stats.locked, hapticEnabled, haptic, blocked]);
 
   if (!visible) return null;
 

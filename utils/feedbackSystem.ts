@@ -1,7 +1,7 @@
 import { Vibration, Platform , Animated, Easing } from 'react-native';
 
 import { useState, useCallback, useMemo } from 'react';
-import { showAchievementToast } from './achievementToast';
+import { showGlobalToast } from './toastBridge';
 import { playSound } from './soundManager';
 
 // Enhanced Feedback System
@@ -266,12 +266,21 @@ export class FeedbackSystem {
     }
   }
 
-  // Combined feedback methods
+  // Combined feedback methods.
+  //
+  // These route through `showGlobalToast`, NOT `showAchievementToast`. The
+  // latter is the branded "ACHIEVEMENT UNLOCKED!" popup and gates on
+  // `reward > 0` so that tips and warnings cannot hijack it — and every call
+  // here passed a hard-coded 0, so for as long as this code has shipped every
+  // message given to `useFeedback()` was silently dropped. The player felt a
+  // haptic and saw nothing, which made a REFUSED action ("Already done that
+  // this week", "Need $12 to grab a healthy meal") indistinguishable from a
+  // successful one. The gate is correct; the channel was wrong.
   success(message?: string) {
     this.triggerHaptic('success');
     this.triggerSound('success');
     if (message) {
-      showAchievementToast(message, 'success', 0);
+      showGlobalToast(message, 'success');
     }
   }
 
@@ -279,7 +288,7 @@ export class FeedbackSystem {
     this.triggerHaptic('error');
     this.triggerSound('error');
     if (message) {
-      showAchievementToast(message, 'error', 0);
+      showGlobalToast(message, 'error');
     }
   }
 
@@ -287,7 +296,7 @@ export class FeedbackSystem {
     this.triggerHaptic('warning');
     this.triggerSound('warning');
     if (message) {
-      showAchievementToast(message, 'warning', 0);
+      showGlobalToast(message, 'warning');
     }
   }
 
@@ -295,7 +304,7 @@ export class FeedbackSystem {
     this.triggerHaptic('light');
     this.triggerSound('info');
     if (message) {
-      showAchievementToast(message, 'info', 0);
+      showGlobalToast(message, 'info');
     }
   }
 
@@ -413,44 +422,11 @@ export const useProgressIndicator = (total: number) => {
   };
 };
 
-// Toast notifications
-export const useToast = () => {
-  const [toasts, setToasts] = useState<{
-    id: string;
-    message: string;
-    type: 'success' | 'error' | 'warning' | 'info';
-    duration?: number;
-  }[]>([]);
-
-  const addToast = useCallback((
-    message: string,
-    type: 'success' | 'error' | 'warning' | 'info' = 'info',
-    duration: number = 3000
-  ) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const toast = { id, message, type, duration };
-    
-    setToasts(prev => [...prev, toast]);
-    
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, duration);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-  const clearAllToasts = useCallback(() => {
-    setToasts([]);
-  }, []);
-
-  return {
-    toasts,
-    addToast,
-    removeToast,
-    clearAllToasts,
-  };
-};
+// NOTE: a second `useToast` used to live here — a local-state duplicate with the
+// same name as the real one in `@/contexts/ToastContext`, holding toasts in
+// component state that no renderer ever consumed. It had zero importers (every
+// call site imports the context version), so it could only ever have served to
+// send a future reader to the wrong channel — the same mistake that made
+// `feedbackSystem`'s own messages mute. Deleted rather than kept "just in case".
 
 export default FeedbackSystem;

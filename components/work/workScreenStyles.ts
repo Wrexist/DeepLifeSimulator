@@ -302,7 +302,7 @@ export const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     streetJobBadgeText: {
-        fontSize: 8,
+        fontSize: fontScale(10),
         fontWeight: '700',
         color: '#FFFFFF',
         letterSpacing: 0.5,
@@ -457,7 +457,7 @@ export const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     careerJobBadgeText: {
-        fontSize: 8,
+        fontSize: fontScale(10),
         fontWeight: '700',
         color: '#FFFFFF',
         letterSpacing: 0.5,
@@ -673,7 +673,7 @@ export const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     crimeJobBadgeText: {
-        fontSize: 8,
+        fontSize: fontScale(10),
         fontWeight: '700',
         color: '#FFFFFF',
         letterSpacing: 0.5,

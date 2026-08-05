@@ -865,7 +865,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               <Text style={styles.balanceValue}>{gems.toLocaleString()}</Text>
               <Text style={styles.balanceLabel}>Gems</Text>
             </LinearGradient>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close store">
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close store">
               <X size={scale(18)} color="rgba(226, 232, 240, 0.7)" />
             </TouchableOpacity>
           </View>

@@ -290,7 +290,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
             <Text style={styles.headerTitle}>PRISON</Text>
           </View>
           {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
               <X size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}

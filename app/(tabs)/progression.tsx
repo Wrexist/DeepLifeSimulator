@@ -26,6 +26,7 @@ import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
+import PrestigeModal from '@/components/PrestigeModal';
 import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
@@ -65,6 +66,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
+  const [showPrestige, setShowPrestige] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
@@ -152,7 +154,16 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           {/* Prestige */}
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => (prestigeLevel > 0 ? setShowPrestigeHistory(true) : setShowPrestigeShop(true))}
+            // The card whose own meta line reads "Ready to prestige" must be the
+            // card that STARTS a prestige. It used to open the points shop, so
+            // the one surface advertising the action was the one surface that
+            // could not perform it — the real entry point is a button on Home
+            // that only renders when prestige is already available.
+            onPress={() => {
+              if (prestigeAvailable && prestigeLevel === 0) setShowPrestige(true);
+              else if (prestigeLevel > 0) setShowPrestigeHistory(true);
+              else setShowPrestigeShop(true);
+            }}
             style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <View style={styles.heroCardHead}>
@@ -262,6 +273,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
       <SubscriptionModal visible={showSubscription} onClose={() => setShowSubscription(false)} />
       <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
       <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
+      <PrestigeModal visible={showPrestige} onClose={() => setShowPrestige(false)} />
     </View>
   );
 }

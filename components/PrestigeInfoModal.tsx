@@ -290,7 +290,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
                   Prestige Bonuses
                 </Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
                 <X size={24} color={darkMode ? '#FFFFFF' : '#1E293B'} />
               </TouchableOpacity>
             </View>

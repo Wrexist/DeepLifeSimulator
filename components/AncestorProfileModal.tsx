@@ -35,7 +35,7 @@ export default function AncestorProfileModal({ member, visible, onClose }: Props
                  {member.firstName} {member.lastName}
                </Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
             </TouchableOpacity>
           </View>
