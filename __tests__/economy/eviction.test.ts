@@ -17,6 +17,7 @@ import {
   EVICTION_AFTER_WEEKS,
   RENTAL_TIERS,
   applyTenancyArrears,
+  resolveTenancyStep,
 } from '@/lib/realEstate/rentals';
 
 const TIER = RENTAL_TIERS[1];
@@ -167,8 +168,33 @@ describe('the weekly tick actually runs it', () => {
       'utf8',
     ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
-    expect(tick).toMatch(/applyTenancyArrears\s*\(/);
+    expect(tick).toMatch(/resolveTenancyStep\s*\(/);
     // And the result has to be WRITTEN back, or the clock resets every week.
     expect(tick).toMatch(/rental:\s*tenancy\.rental/);
+  });
+});
+
+describe('owning a home ends the lease instead of evicting you from it', () => {
+  // Ownership wins in `computeHousingWellbeing`, so an owner pays no rent. If
+  // the clock kept running on a dangling tenancy, arrears from ANY other bill
+  // — tax, tuition, upkeep — would eventually "evict" someone sitting in a
+  // house they own. The Rent screen hides "Move out" once you own, so they
+  // could not have cleared the tenancy by hand either.
+  it('drops the tenancy rather than counting down', () => {
+    const step = resolveTenancyStep({ rental: tenancy(3), overdueBalance: 5_000, owns: true });
+    expect(step.evicted).toBe(false);
+    expect(step.rental).toBeUndefined();
+    expect(step.notice).toMatch(/lease has ended/i);
+  });
+
+  it('says nothing when there was no tenancy to end', () => {
+    const step = resolveTenancyStep({ rental: undefined, overdueBalance: 5_000, owns: true });
+    expect(step.notice).toBe('');
+    expect(step.evicted).toBe(false);
+  });
+
+  it('still evicts a renter who does not own', () => {
+    const step = resolveTenancyStep({ rental: tenancy(3), overdueBalance: 500, owns: false });
+    expect(step.evicted).toBe(true);
   });
 });

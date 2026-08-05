@@ -133,7 +133,7 @@ import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
-import { applyTenancyArrears } from '@/lib/realEstate/rentals';
+import { resolveTenancyStep } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -963,7 +963,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
      ownedHappinessBonus: rentAndHousingResult.housingHappinessBonus,
      nextWeeksLived,
    }, weeklyCtx),
-   { rent: 0, happiness: rentAndHousingResult.housingHappinessBonus, homeless: false },
+   { rent: 0, happiness: rentAndHousingResult.housingHappinessBonus, homeless: false, owns: false },
  );
  const housingHappinessBonus = housingWellbeing.happiness;
  let updatedRealEstate = rentAndHousingResult.updatedRealEstate;
@@ -1024,15 +1024,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // this pressure rather than a countdown — paying what you owe always buys back
  // the full four weeks. Eviction does not clear the debt; it stops the rent and
  // starts the homeless penalty.
+ //
+ // `resolveTenancyStep` also handles the owner case: buying a home ends the
+ // lease rather than counting down to an eviction from a flat nobody is paying
+ // for.
  const tenancy = guardTick(
    'tenancyArrears',
-   () => applyTenancyArrears({ rental: prevState.rental, overdueBalance: arrears.overdueBalance }),
+   () => resolveTenancyStep({
+     rental: prevState.rental,
+     overdueBalance: arrears.overdueBalance,
+     owns: housingWellbeing.owns,
+   }),
    { rental: prevState.rental, evicted: false, notice: '' },
  );
  if (tenancy.notice) {
    pendingNotifications.push({
      id: `tenancy-${nextWeeksLived}`,
-     title: tenancy.evicted ? 'Evicted' : 'Rent Overdue',
+     title: tenancy.evicted ? 'Evicted' : housingWellbeing.owns ? 'Lease Ended' : 'Rent Overdue',
      message: tenancy.notice,
    });
  }

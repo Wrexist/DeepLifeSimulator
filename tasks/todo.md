@@ -121,3 +121,35 @@ tests assert them directly:
 - **Recoverable.** Eviction stops the rent but NOT the debt (wiping it would make
   eviction the cheapest way out of a bad month), and the $45 shared room stays
   under the ~$95 a week street work alone brings in.
+
+---
+
+## Review pass on the PR (2026-08-05)
+
+Three defects in the above, all found by re-reading the feature against its own
+claims rather than by a failing test.
+
+1. **The HUD disagreed with the tick — in the direction this feature existed to
+   fix.** `TopStatsBar` kept its own copy of the housing maths that only knew
+   about an OWNED residence, so after this change it under-predicted energy and
+   happiness for a renter, showed nothing for someone sleeping rough, and missed
+   the health effect owned homes now pay. It now calls `computeHousingWellbeing`,
+   the same function the tick uses. One source of truth, both callers read it.
+   Justifying `weeklyEnergy` by "the HUD promises what the tick never pays" and
+   then leaving the HUD wrong three new ways was the worst of the three.
+
+2. **The signing week was charged twice.** `resolveRentHome` takes the first
+   week on the spot ("a tenancy never starts in arrears") and the tick then
+   billed the same week again. `startedWeek` was stamped at signing and read by
+   nothing; it now skips exactly one charge.
+
+3. **Owning a home could evict you from a flat you were not paying for.**
+   Ownership wins in `computeHousingWellbeing`, so an owner is charged no rent —
+   but the eviction clock still ran against arrears from any other bill, and the
+   Rent screen hides "Move out" once you own, so the dangling tenancy could not
+   be cleared by hand either. Buying a home now ENDS the lease (`resolveTenancyStep`).
+
+Skipping the signing-week charge is why `HousingWellbeingResult` gained an
+explicit `owns` flag: `rent === 0` is now true for an owner, a new tenant and a
+homeless character alike, and (3) would otherwise have cancelled every lease on
+its first week.

@@ -178,6 +178,36 @@ describe('what your home does for you each week', () => {
   });
 });
 
+describe('the HUD predicts what the tick actually pays', () => {
+  // The original bug ran one way — the bar promised energy the tick never paid.
+  // Adding rentals, a homeless penalty and a health effect opened it the other
+  // way: the bar's own copy of the housing maths only knew about an OWNED
+  // residence, so it under-predicted for a renter and showed nothing at all for
+  // someone sleeping rough, while the tick applied all three. One function now
+  // answers "what does my home do this week" and both callers read it.
+  const source = () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs') as typeof import('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path') as typeof import('path');
+    return fs.readFileSync(
+      path.join(__dirname, '..', '..', 'components/TopStatsBar.tsx'),
+      'utf8',
+    );
+  };
+
+  it('TopStatsBar derives its prediction from computeHousingWellbeing', () => {
+    const bar = source();
+    expect(bar).toMatch(/computeHousingWellbeing\s*\(/);
+    expect(bar).toMatch(/from\s+'@\/lib\/realEstate\/rentals'/);
+  });
+
+  it('no longer keeps a second, owned-only copy of the housing maths', () => {
+    // The specific shape that made the bar disagree with the tick.
+    expect(source()).not.toMatch(/currentResidence\.weekly(Energy|Happiness)/);
+  });
+});
+
 describe('having nowhere to live costs something', () => {
   it('applies the homeless penalty', () => {
     const wellbeing = computeHousingWellbeing(createTestGameState());

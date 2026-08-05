@@ -35,6 +35,15 @@ export interface HousingWellbeingResult {
   happiness: number;
   /** True when the player has no home — drives the notification. */
   homeless: boolean;
+  /**
+   * True when the player lives in a home they OWN.
+   *
+   * Distinct from `rent === 0`, which is also true on the week a tenancy is
+   * signed (see below) and while homeless. The caller uses this to decide
+   * whether a tenancy is still live, so conflating the two would end a lease on
+   * its first week.
+   */
+  owns: boolean;
 }
 
 export interface HousingWellbeingInput {
@@ -80,12 +89,23 @@ export function applyHousingWellbeing(
     }
   }
 
+  // The first week is charged at SIGNING (`resolveRentHome` takes it on the
+  // spot, so a tenancy never starts already in arrears). Without this the tick
+  // then bills the same week again and the player pays twice for one week of
+  // housing — the message says "first week's rent paid" while the bill line
+  // disagrees. `startedWeek` is stamped from `weeksLived` at signing, so the
+  // tick that carries the player out of that week skips exactly one charge.
+  const startedWeek = input.prevState.rental?.startedWeek;
+  const signingWeek =
+    typeof startedWeek === 'number' && startedWeek === (input.prevState.weeksLived ?? 0);
+
   return {
-    rent: wellbeing.rent,
+    rent: signingWeek ? 0 : wellbeing.rent,
     // Owned homes keep the housing module's richer figure (decor, rooms,
     // condition); a rental uses its tier's flat value.
     happiness: owns ? input.ownedHappinessBonus : wellbeing.happiness,
     homeless: wellbeing.homeless,
+    owns,
   };
 }
 

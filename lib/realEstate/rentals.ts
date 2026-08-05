@@ -234,6 +234,29 @@ export function applyTenancyArrears(input: TenancyArrearsInput): TenancyArrearsR
   return { rental: { ...rental, missedWeeks: missed }, evicted: false, notice };
 }
 
+/**
+ * One week of the tenancy, including the case where there should not be one.
+ *
+ * Buying a home ENDS the lease instead of advancing its eviction clock.
+ * Ownership wins in `computeHousingWellbeing`, so an owner is charged no rent —
+ * and running the countdown against arrears from other bills would evict
+ * someone out of a tenancy they are not paying for, while they sit in a house
+ * they own. The Rent screen also hides "Move out" once you own, so a dangling
+ * tenancy could never be cleared by hand either.
+ */
+export function resolveTenancyStep(
+  input: TenancyArrearsInput & { owns: boolean },
+): TenancyArrearsResult {
+  if (input.owns) {
+    return {
+      rental: undefined,
+      evicted: false,
+      notice: input.rental ? 'You moved into a home of your own, so your lease has ended.' : '',
+    };
+  }
+  return applyTenancyArrears(input);
+}
+
 export function getRentalTier(id: string | undefined | null): RentalTier | undefined {
   if (!id) return undefined;
   return RENTAL_TIERS.find((t) => t.id === id);
@@ -313,7 +336,16 @@ export interface HousingWellbeing {
  * `TopStatsBar` has been adding `weeklyEnergy` to its predicted weekly change
  * the whole time. The HUD was promising something the tick did not pay.
  */
-export function computeHousingWellbeing(state: GameState | undefined | null): HousingWellbeing {
+/**
+ * The slice this needs. Narrow on purpose: the HUD subscribes through
+ * `useGameSelector` and must not pull the whole state in to ask what its home
+ * is worth (a documented perf regression class — `tasks/lessons.md`, 2026-06-09).
+ */
+export type HousingStateSlice = Pick<GameState, 'realEstate' | 'rental'>;
+
+export function computeHousingWellbeing(
+  state: HousingStateSlice | undefined | null,
+): HousingWellbeing {
   const owned = (state?.realEstate ?? []).find(
     (p) => p?.owned && 'currentResidence' in p && p.currentResidence === true,
   );

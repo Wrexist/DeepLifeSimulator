@@ -21,6 +21,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -93,6 +94,7 @@ function TopStatsBarComponent() {
  const educations = useGameSelector((s) => s?.educations);
  const dietPlans = useGameSelector((s) => s?.dietPlans);
  const realEstate = useGameSelector((s) => s?.realEstate);
+ const rental = useGameSelector((s) => s?.rental, shallowEqual);
  const userProfile = useGameSelector((s) => s?.userProfile);
  const diseases = useGameSelector((s) => s?.diseases) || [];
  const hasDiseases = diseases.length > 0;
@@ -404,14 +406,19 @@ function TopStatsBarComponent() {
  const p = (dietPlans || []).find(plan => plan && plan.active);
  return p ? `${p.healthGain ?? 0}|${p.happinessGain ?? 0}|${p.energyGain ?? 0}`: '';
  })();
- const residenceSig = (() => {
- const r = (realEstate || []).find(p => {
- const hasStatus = 'status'in p && p.status ==='owner';
- const hasCurrentResidence = 'currentResidence'in p && p.currentResidence === true;
- return p.owned && hasStatus && hasCurrentResidence;
- });
- return r ? `${r.weeklyHappiness ?? 0}|${r.weeklyEnergy ?? 0}`: '';
- })();
+ // Housing's weekly effect, from the SAME function the tick uses
+ // (`applyHousingWellbeing` → `computeHousingWellbeing`). This bar used to
+ // re-derive it from an owned `currentResidence` alone, which meant the
+ // prediction was silently wrong for a renter, wrong for someone sleeping
+ // rough, and missing the health effect owned homes now pay. A HUD that
+ // predicts a different number from the one the tick applies is the exact
+ // advertised-vs-actual class this feature set out to close, so there is one
+ // source of truth and both read it.
+ const housing = React.useMemo(
+   () => computeHousingWellbeing({ realEstate, rental }),
+   [realEstate, rental],
+ );
+ const residenceSig = `${housing.health}|${housing.happiness}|${housing.energy}`;
 
  const statNetChanges = React.useMemo(() => {
  if (!stats) return { health: 0, happiness: 0, energy: 0 };
@@ -444,6 +451,8 @@ function TopStatsBarComponent() {
  if (activeDietPlan && activeDietPlan.healthGain > 0) {
  healthChange += activeDietPlan.healthGain;
  }
+ // Housing health — new, and negative while homeless.
+ healthChange += housing.health;
 
  // Happiness net change
  let happinessChange = -Math.round(effectiveDecayRate * 0.8); // Natural decay
@@ -461,15 +470,9 @@ function TopStatsBarComponent() {
  if (activeDietPlan && activeDietPlan.happinessGain && activeDietPlan.happinessGain > 0) {
  happinessChange += activeDietPlan.happinessGain;
  }
- // Add real estate happiness boost from current residence
- const currentResidence = (realEstate || []).find(p => {
- const hasStatus = 'status'in p && p.status ==='owner';
- const hasCurrentResidence = 'currentResidence'in p && p.currentResidence === true;
- return p.owned && hasStatus && hasCurrentResidence;
- });
- if (currentResidence && currentResidence.weeklyHappiness > 0) {
- happinessChange += currentResidence.weeklyHappiness;
- }
+ // Housing: owned home, rental, or the penalty for neither. Signed — a
+ // homeless week SUBTRACTS, which the old `> 0` guards could not express.
+ happinessChange += housing.happiness;
 
  // Energy net change
  let energyChange = 30; // Base regen
@@ -497,10 +500,7 @@ function TopStatsBarComponent() {
  if (activeDietPlan && activeDietPlan.energyGain > 0) {
  energyChange += activeDietPlan.energyGain;
  }
- // Add real estate energy boost from current residence
- if (currentResidence && currentResidence.weeklyEnergy > 0) {
- energyChange += currentResidence.weeklyEnergy;
- }
+ energyChange += housing.energy;
 
  return { health: healthChange, happiness: happinessChange, energy: energyChange };
  // P1-5: depend on specific primitives instead of the whole `stats`/`gameState`
