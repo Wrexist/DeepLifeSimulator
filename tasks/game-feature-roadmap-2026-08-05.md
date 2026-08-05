@@ -22,7 +22,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No |
-| 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No |
+| 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 10 | Grandchildren | ★★★★☆ | M–L | **Yes** |
 
 ---
@@ -318,7 +318,22 @@ investors, a $40M lawsuit, a foundation ask.
 
 ---
 
-## 9. Surface the Dynasty rank
+## 9. Surface the Dynasty rank — ✅ SHIPPED
+
+> **Shipped 2026-08-05.** `getDynastyTier` had six ranks and zero consumers —
+> a working, persisted, cross-life score no player had ever seen. Now rendered
+> in `LegacyOverviewTab` with the score, the band progress, and the distance to
+> the next rank, plus three ranks added above Legendary (Storied House,
+> Immortal Line, Mythic Dynasty). `calculateDynastyScore` was exported and
+> hardened against partial `dynastyStats` (it called `.forEach` on arrays an
+> older save may not have).
+>
+> Thresholds were **derived from the growth curve, not chosen**: my first pass
+> used 1,800 / 3,000 / 5,000 and the accompanying test caught that 5,000 is
+> unreachable — a deep-but-plausible family (60 generations, $2B combined
+> wealth, 15 legendary heirlooms held 30 generations) scores ~2,700. The ladder
+> now runs 1,500 / 2,000 / 2,600.
+
 
 **Hooks:** `lib/legacy/dynasty.ts`, `dynastyStats` (already persisted, already
 updated on inheritance).

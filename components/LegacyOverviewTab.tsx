@@ -7,6 +7,7 @@ import { X, Users, BookOpen, Crown, TrendingUp, Activity, Brain } from 'lucide-r
 import FamilyTreeModal from './FamilyTreeModal';
 import MemoryBookModal from './MemoryBookModal';
 import { getTraitById } from '@/lib/legacy/geneticTraits';
+import { getDynastyProgress } from '@/lib/legacy/dynasty';
 const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
@@ -20,11 +21,16 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
   const activeTraits = useGameSelector((s) => s.activeTraits);
   const legacyBonuses = useGameSelector((s) => s.legacyBonuses);
   const generationNumber = useGameSelector((s) => s.generationNumber);
+  const dynastyStats = useGameSelector((s) => s.dynastyStats);
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
   const [showTree, setShowTree] = useState(false);
   const [showMemories, setShowMemories] = useState(false);
 
   const traits = (activeTraits || []).map(id => getTraitById(id)).filter(Boolean);
+  // The dynasty rank. `getDynastyTier` shipped with six ranks and ZERO
+  // consumers — a working, persisted, cross-life progression score no player
+  // had ever seen. This is its first readout.
+  const dynasty = dynastyStats ? getDynastyProgress(dynastyStats) : null;
   const bonuses = legacyBonuses || { incomeMultiplier: 1, learningMultiplier: 1, reputationBonus: 0 };
 
   return (
@@ -57,6 +63,36 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
               </View>
               <Crown size={40} color="rgba(255,255,255,0.3)" />
             </LinearGradient>
+
+            {/* Dynasty rank — the cross-life ladder. */}
+            {dynasty && (
+              <View style={[styles.rankCard, settings.darkMode && styles.rankCardDark]}>
+                <View style={styles.rankHead}>
+                  <Text style={[styles.rankTitle, settings.darkMode && styles.textDark]}>
+                    {dynasty.rank.title}
+                  </Text>
+                  <Text style={[styles.rankScore, settings.darkMode && styles.textDark]}>
+                    {dynasty.score.toLocaleString()}
+                  </Text>
+                </View>
+                <Text style={[styles.rankDesc, settings.darkMode && styles.rankDescDark]}>
+                  {dynasty.rank.description}
+                </Text>
+                <View style={[styles.rankTrack, settings.darkMode && styles.rankTrackDark]}>
+                  <View
+                    style={[
+                      styles.rankFill,
+                      { width: `${Math.max(3, dynasty.progress * 100)}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.rankDesc, settings.darkMode && styles.rankDescDark]}>
+                  {dynasty.next
+                    ? `${(dynasty.next.minScore - dynasty.score).toLocaleString()} to ${dynasty.next.title}`
+                    : 'The highest rank a family can reach.'}
+                </Text>
+              </View>
+            )}
 
             {/* Quick Actions */}
             <View style={styles.actionGrid}>
@@ -191,6 +227,35 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
   },
+  rankCard: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    // Full border on all four sides — a one-sided coloured stripe is banned
+    // app-wide (Hard Rule #7).
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  rankCardDark: {
+    backgroundColor: '#1E293B',
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  rankHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rankTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  rankScore: { fontSize: 15, fontWeight: '800', color: '#0F172A', fontVariant: ['tabular-nums'] },
+  rankDesc: { fontSize: 12, color: '#64748B', marginTop: 4 },
+  rankDescDark: { color: '#94A3B8' },
+  rankTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  rankTrackDark: { backgroundColor: 'rgba(255,255,255,0.10)' },
+  rankFill: { height: '100%', borderRadius: 4, backgroundColor: '#7C3AED' },
   actionGrid: {
     flexDirection: 'row',
     gap: 12,

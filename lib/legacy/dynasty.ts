@@ -231,7 +231,53 @@ export function updateHeirloomGenerations(heirlooms: Heirloom[]): Heirloom[] {
 }
 
 /**
- * Calculate dynasty tier based on stats
+ * The dynasty rank ladder.
+ *
+ * `getDynastyTier` shipped with SIX tiers, a title and a description each —
+ * and **zero consumers** anywhere in the app. It is a working, persisted,
+ * cross-life progression score that no player has ever seen, which is the same
+ * "built but unreachable" class as the legacy shop's missing buy button.
+ *
+ * Surfacing it also exposed that the ladder stopped where a long dynasty is
+ * only getting started. `calculateDynastyScore` is unbounded in practice:
+ * `totalGenerations` grows +1 per death forever, and each heirloom contributes
+ * `generationsHeld * 2`, so a 50-generation family scores in the low thousands
+ * while the old top rank capped out at 1,000. Three ranks were added above
+ * Legendary, with thresholds derived from that curve rather than chosen as
+ * round numbers: a deep-but-plausible family (60 generations, $2B of combined
+ * wealth, 15 legendary heirlooms held 30 generations, max reputation) scores
+ * ~2,700, so the ladder runs 1,500 / 2,000 / 2,600 — the top rank is a real
+ * climb past Legendary that such a dynasty just finishes.
+ *
+ * The first pass used 1,800 / 3,000 / 5,000, chosen as round numbers, and the
+ * accompanying test caught that 5,000 was unreachable by any plausible family.
+ * Thresholds are derived FROM the growth curve, not imposed on it.
+ */
+export interface DynastyRank {
+  tier: string;
+  title: string;
+  description: string;
+  /** Score at which this rank is earned. */
+  minScore: number;
+}
+
+export const DYNASTY_RANKS: DynastyRank[] = [
+  { tier: 'humble', title: 'Humble Beginnings', description: 'Every great dynasty starts somewhere', minScore: 0 },
+  { tier: 'emerging', title: 'Emerging Dynasty', description: 'Your family is beginning to build a legacy', minScore: 50 },
+  { tier: 'established', title: 'Established Dynasty', description: 'A respectable family with growing influence', minScore: 100 },
+  { tier: 'notable', title: 'Notable Dynasty', description: 'Your family has made a mark on society', minScore: 250 },
+  { tier: 'prestigious', title: 'Prestigious Dynasty', description: 'A family of great influence and power', minScore: 500 },
+  { tier: 'legendary', title: 'Legendary Dynasty', description: 'Your family name is known throughout history', minScore: 1000 },
+  { tier: 'storied', title: 'Storied House', description: 'Historians argue about your family', minScore: 1500 },
+  { tier: 'immortal', title: 'Immortal Line', description: 'The name has outlived everyone who first carried it', minScore: 2000 },
+  { tier: 'mythic', title: 'Mythic Dynasty', description: 'Your family is no longer quite believed to be real', minScore: 2600 },
+];
+
+/**
+ * Calculate dynasty tier based on stats.
+ *
+ * Return shape is unchanged from the original six-tier version so any future
+ * caller written against it keeps working.
  */
 export function getDynastyTier(stats: DynastyStats): {
   tier: string;
@@ -239,82 +285,82 @@ export function getDynastyTier(stats: DynastyStats): {
   description: string;
 } {
   const score = calculateDynastyScore(stats);
-  
-  if (score >= 1000) {
-    return {
-      tier: 'legendary',
-      title: 'Legendary Dynasty',
-      description: 'Your family name is known throughout history',
-    };
+  // Highest rank whose threshold is met. Walked from the top so the ladder
+  // stays correct if ranks are ever inserted mid-table.
+  for (let i = DYNASTY_RANKS.length - 1; i >= 0; i -= 1) {
+    if (score >= DYNASTY_RANKS[i].minScore) {
+      const { tier, title, description } = DYNASTY_RANKS[i];
+      return { tier, title, description };
+    }
   }
-  if (score >= 500) {
-    return {
-      tier: 'prestigious',
-      title: 'Prestigious Dynasty',
-      description: 'A family of great influence and power',
-    };
-  }
-  if (score >= 250) {
-    return {
-      tier: 'notable',
-      title: 'Notable Dynasty',
-      description: 'Your family has made a mark on society',
-    };
-  }
-  if (score >= 100) {
-    return {
-      tier: 'established',
-      title: 'Established Dynasty',
-      description: 'A respectable family with growing influence',
-    };
-  }
-  if (score >= 50) {
-    return {
-      tier: 'emerging',
-      title: 'Emerging Dynasty',
-      description: 'Your family is beginning to build a legacy',
-    };
-  }
-  return {
-    tier: 'humble',
-    title: 'Humble Beginnings',
-    description: 'Every great dynasty starts somewhere',
-  };
+  const first = DYNASTY_RANKS[0];
+  return { tier: first.tier, title: first.title, description: first.description };
 }
 
 /**
- * Calculate dynasty score for tier determination
+ * Current score, current rank, and what is next — everything a readout needs.
+ * `progress` is 0..1 through the CURRENT band, so a bar can't jump backwards
+ * when a new rank is entered.
  */
-function calculateDynastyScore(stats: DynastyStats): number {
+export function getDynastyProgress(stats: DynastyStats): {
+  score: number;
+  rank: DynastyRank;
+  next?: DynastyRank;
+  progress: number;
+} {
+  const score = calculateDynastyScore(stats);
+  let index = 0;
+  for (let i = DYNASTY_RANKS.length - 1; i >= 0; i -= 1) {
+    if (score >= DYNASTY_RANKS[i].minScore) { index = i; break; }
+  }
+  const rank = DYNASTY_RANKS[index];
+  const next = DYNASTY_RANKS[index + 1];
+  const span = next ? next.minScore - rank.minScore : 0;
+  const progress = next && span > 0
+    ? Math.max(0, Math.min(1, (score - rank.minScore) / span))
+    : 1;
+  return { score, rank, next, progress };
+}
+
+/**
+ * Calculate dynasty score for tier determination.
+ *
+ * Exported so a readout can show the number the rank is derived from — a rank
+ * with no visible score is a badge, not a progression bar.
+ */
+export function calculateDynastyScore(stats: DynastyStats): number {
   let score = 0;
-  
+
   // Generation score
-  score += stats.totalGenerations * 10;
-  
+  score += (stats.totalGenerations ?? 0) * 10;
+
   // Wealth score
-  if (stats.totalWealth >= 1000000000) score += 200;
-  else if (stats.totalWealth >= 100000000) score += 100;
-  else if (stats.totalWealth >= 10000000) score += 50;
-  else if (stats.totalWealth >= 1000000) score += 20;
-  
+  const wealth = stats.totalWealth ?? 0;
+  if (wealth >= 1000000000) score += 200;
+  else if (wealth >= 100000000) score += 100;
+  else if (wealth >= 10000000) score += 50;
+  else if (wealth >= 1000000) score += 20;
+
   // Reputation score
-  score += stats.familyReputation;
-  
+  score += stats.familyReputation ?? 0;
+
   // Heirloom score
-  stats.heirlooms.forEach(heirloom => {
+  (stats.heirlooms ?? []).forEach(heirloom => {
     score += heirloom.rarity === 'legendary' ? 50 : heirloom.rarity === 'rare' ? 20 : 5;
-    score += heirloom.generationsHeld * 2;
+    score += (heirloom.generationsHeld ?? 0) * 2;
   });
-  
+
   // Achievement score
-  score += stats.familyAchievements.length * 2;
-  
+  score += (stats.familyAchievements ?? []).length * 2;
+
   // Longevity bonus
-  if (stats.longestLivingMember.age >= 90) score += 30;
-  else if (stats.longestLivingMember.age >= 80) score += 15;
-  
+  const age = stats.longestLivingMember?.age ?? 0;
+  if (age >= 90) score += 30;
+  else if (age >= 80) score += 15;
+
   return score;
 }
+
 
 /**
  * Get family reputation effects on gameplay
