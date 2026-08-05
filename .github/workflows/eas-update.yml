@@ -56,7 +56,24 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
+      # An OTA update ships a fresh JS bundle to every installed device with no
+      # review and no preflight. `EXPO_PUBLIC_SAVE_HMAC_KEY` signs both saves
+      # and permanent IAP entitlements, so a bundle published without it makes
+      # every save unreadable and presents every paying player as never having
+      # purchased — instantly, in the field. preflight §8 guards `eas build`;
+      # this guards the faster path.
+      - name: Verify save-signing key is configured (preview)
+        if: ${{ github.event_name == 'pull_request' && env.HAS_EXPO_TOKEN == 'true' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: node scripts/check-update-signing.js preview
+
       # PR → preview channel (skipped until EXPO_TOKEN is configured)
+      #
+      # `--environment` is REQUIRED, not cosmetic: without it `eas update` builds
+      # the bundle from the CI shell's environment, which has none of the EAS
+      # project variables — so the signing key inlines as `undefined` even though
+      # it is correctly configured in EAS.
       - name: EAS Update (preview for PRs)
         if: ${{ github.event_name == 'pull_request' && env.HAS_EXPO_TOKEN == 'true' }}
         env:
@@ -65,19 +82,26 @@ jobs:
           # brace-expansion@^5 (named `.expand`), but the resolved tree dedupes
           # to 2.x and crashes. The bundle still uploads fine without it.
           EAS_SKIP_AUTO_FINGERPRINT: '1'
-        run: eas update --channel=preview --message="CI preview update" --non-interactive
+        run: eas update --channel=preview --environment preview --message="CI preview update" --non-interactive
 
       - name: EAS Update skipped (no EXPO_TOKEN)
         if: ${{ github.event_name == 'pull_request' && env.HAS_EXPO_TOKEN != 'true' }}
         run: echo "::notice title=EAS Update skipped::Add repository secret EXPO_TOKEN to enable eas update on PRs (https://docs.expo.dev/accounts/programmatic-access/)"
 
-      # main → production channel
+      - name: Verify save-signing key is configured (production)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_EXPO_TOKEN == 'true' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: node scripts/check-update-signing.js production
+
+      # main → production channel. See the preview step for why `--environment`
+      # is load-bearing.
       - name: EAS Update (production on main)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_EXPO_TOKEN == 'true' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EAS_SKIP_AUTO_FINGERPRINT: '1'
-        run: eas update --channel=production --message="CI production update" --non-interactive
+        run: eas update --channel=production --environment production --message="CI production update" --non-interactive
 
       - name: EAS Update skipped on main (no EXPO_TOKEN)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_EXPO_TOKEN != 'true' }}

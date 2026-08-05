@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Alert } from 'react-native';
 import type { GameState } from '@/contexts/game/types';
 // BUGFIX: importing from `@/contexts/GameContext` re-routes through the
 // `contexts/game/index.ts` barrel which in turn imports `GameProvider` which
@@ -7,7 +8,7 @@ import type { GameState } from '@/contexts/game/types';
 // Pulling the hooks directly from the leaf context modules breaks the cycle.
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { iapService } from '@/services/IAPService';
+import { iapService, IAPService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 
 export function IAPHandler() {
@@ -85,6 +86,68 @@ export function IAPHandler() {
             iapService.setStateUpdater(null);
         };
     }, [setGameState, saveGame]);
+
+    // ── Entitlements present but unreadable → offer a restore ──────────────
+    //
+    // `loadPermanentPerks` already detects this precisely: a permanent-perk
+    // envelope that EXISTS but fails verification means the player bought
+    // something and we cannot read it — not that they never bought anything. It
+    // sets `entitlementsUnreadable` and persists a marker, and the comment
+    // there says the point is "so the app can offer a restore instead of
+    // silently presenting a paying player as never having bought anything".
+    //
+    // Nothing ever read it. The detection shipped; the offer did not, so the
+    // paying player got silence and an app that behaved as if they were free.
+    // The usual trigger is a change to EXPO_PUBLIC_SAVE_HMAC_KEY, which
+    // invalidates every entitlement envelope on every device at once — and a
+    // restore genuinely fixes it, because the App Store is the source of truth
+    // and the re-grant re-signs under the CURRENT key.
+    useEffect(() => {
+        let cancelled = false;
+
+        const offerRestore = async () => {
+            try {
+                if (!(await IAPService.areEntitlementsUnreadable())) return;
+                if (cancelled) return;
+
+                logger.warn('IAPHandler: entitlements unreadable — prompting for restore');
+                Alert.alert(
+                    'Restore Your Purchases',
+                    "We can see you've bought something, but this device can't read the record right now. " +
+                        'Restoring re-checks with the App Store and puts everything back. Your purchases are safe.',
+                    [
+                        { text: 'Later', style: 'cancel' },
+                        {
+                            text: 'Restore',
+                            onPress: () => {
+                                void (async () => {
+                                    try {
+                                        const { success } = await iapService.restorePurchases();
+                                        if (success) {
+                                            await iapService.loadPurchases();
+                                            // Only clear the marker on a real restore, so a
+                                            // failed attempt still prompts next launch.
+                                            await IAPService.clearEntitlementsUnreadable();
+                                        }
+                                    } catch (restoreError) {
+                                        logger.error('IAPHandler: restore after unreadable entitlements failed', restoreError);
+                                    }
+                                })();
+                            },
+                        },
+                    ]
+                );
+            } catch (error) {
+                // Never let a diagnostic prompt take the app down.
+                logger.error('IAPHandler: entitlement readability check failed', error);
+            }
+        };
+
+        void offerRestore();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     return null;
 }

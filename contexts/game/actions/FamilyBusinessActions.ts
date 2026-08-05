@@ -57,70 +57,67 @@ export const createFamilyBusiness = (
   log.info(`Created family business for company ${companyId}`);
 };
 
-export const manageFamilyBusiness = (
-  gameState: GameState,
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+/** What one management action costs and what it buys. */
+const MANAGE_EFFECTS: Record<
+  'marketing' | 'branding' | 'reputation',
+  { cost: number; brandGain: number; reputationGain: number }
+> = {
+  marketing: { cost: 10_000, brandGain: 5, reputationGain: 0 },
+  branding: { cost: 50_000, brandGain: 15, reputationGain: 2 },
+  reputation: { cost: 25_000, brandGain: 0, reputationGain: 10 },
+};
+
+export interface FamilyBusinessActionResult {
+  success: boolean;
+  message: string;
+}
+
+interface ManageTransition {
+  next: GameState;
+  result: FamilyBusinessActionResult;
+}
+
+/**
+ * Pure: what managing `companyId` does to `state`, and what to tell the player.
+ *
+ * Returns `state` unchanged on every rejection, so the caller's updater can use
+ * it directly and a second tap in the same batch is a genuine no-op.
+ */
+export function resolveManageFamilyBusiness(
+  state: GameState,
   companyId: string,
   action: 'marketing' | 'branding' | 'reputation',
-  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
-  _deps?: { updateMoney: typeof updateMoney }
-) => {
-  const business = gameState.familyBusinesses?.find(fb => fb.companyId === companyId);
+): ManageTransition {
+  const business = state.familyBusinesses?.find(fb => fb.companyId === companyId);
   if (!business) {
-    log.warn(`Family business not found for ${companyId}`);
-    return { success: false, message: 'Family business not found' };
+    return { next: state, result: { success: false, message: 'Family business not found' } };
   }
 
-  let cost = 0;
-  let brandGain = 0;
-  let reputationGain = 0;
-
-  switch (action) {
-    case 'marketing':
-      cost = 10000; // Scale this based on company size later
-      brandGain = 5;
-      break;
-    case 'branding':
-      cost = 50000;
-      brandGain = 15;
-      reputationGain = 2;
-      break;
-    case 'reputation':
-      cost = 25000;
-      reputationGain = 10;
-      break;
+  const effects = MANAGE_EFFECTS[action];
+  if (!effects) {
+    return { next: state, result: { success: false, message: 'That action is no longer available.' } };
   }
+  const { cost, brandGain, reputationGain } = effects;
 
-  if (gameState.stats.money < cost) {
-    const shortfall = cost - gameState.stats.money;
+  const spend = applyMoneyDelta(state, -cost, `Family Business: ${action}`);
+  if (!spend) {
+    const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
     return {
-      success: false,
-      message: `Need ${formatMoney(cost)} for "${action}" — you have ${formatMoney(gameState.stats.money)} (${formatMoney(shortfall)} short).`,
+      next: state,
+      result: {
+        success: false,
+        message: `Need ${formatMoney(cost)} for "${action}" — you have ${formatMoney(cash)} (${formatMoney(Math.max(0, cost - cash))} short).`,
+      },
     };
   }
 
-  // ATOMICITY FIX: fold the debit AND the brand/reputation gain into ONE
-  // functional updater that reads `prev` (mirrors createFamilyBusiness above).
-  // The previous code charged via a standalone `deps.updateMoney(-cost)` and then
-  // applied the gains in a SEPARATE, UNCONDITIONAL updater — so a same-batch
-  // double-tap (or a concurrent spend) could apply the benefit twice while the
-  // overdraft-guarded charge only went through once (one charge, TWO benefits), or
-  // apply the benefit even when the charge was rejected. `applyMoneyDelta` returns
-  // null when the spend is unaffordable against fresh state → we `return prev`, so
-  // the gain never lands without a matching debit. The `didManage` flag mirrors the
-  // repairRig pattern for the caller-facing result.
-  void _deps; // charge now flows through applyMoneyDelta, not deps.updateMoney
-  let didManage = false;
-  setGameState(prev => {
-    const fresh = prev.familyBusinesses?.find(fb => fb.companyId === companyId);
-    if (!fresh) return prev; // dedup / business vanished between snapshot and commit
-    const spend = applyMoneyDelta(prev, -cost, `Family Business: ${action}`);
-    if (!spend) return prev; // unaffordable against fresh state → reject atomically
-    didManage = true;
-    return {
-      ...prev,
+  return {
+    next: {
+      ...state,
+      // Charge and grant in ONE object, so a same-batch double tap cannot pay
+      // once and apply the benefit twice (§4.4).
       ...spend,
-      familyBusinesses: prev.familyBusinesses?.map(fb =>
+      familyBusinesses: state.familyBusinesses?.map(fb =>
         fb.companyId === companyId
           ? {
               ...fb,
@@ -129,16 +126,49 @@ export const manageFamilyBusiness = (
             }
           : fb
       ),
-    };
-  });
+    },
+    result: { success: true, message: `${action} completed successfully` },
+  };
+}
 
-  if (!didManage) {
-    return {
-      success: false,
-      message: `Need ${formatMoney(cost)} for "${action}" — you have ${formatMoney(gameState.stats.money)}.`,
-    };
+/**
+ * Spend on marketing / branding / reputation for a family business.
+ *
+ * ── Why this is a pure resolver called twice ──────────────────────────────
+ *
+ * It used to assign `didManage = true` INSIDE the `setGameState` updater and
+ * read it on the next line. That is the pessimistic capture the C-9 ratchet's
+ * own header rules out: React runs the first functional update of a batch
+ * eagerly (so the capture reads) and DEFERS the second (so it does not).
+ *
+ * In the field it read `false` on a successful spend, so the updater charged the
+ * $10,000 and applied the brand gain while the caller showed
+ * `Need $10,000 for "marketing" — you have $1.54M.` A player reported exactly
+ * that, having tapped through roughly $1.3M of real charges while being told
+ * every single one had failed. The money was right; the answer was not — the
+ * same shape as C-8, in the opposite direction.
+ *
+ * The outcome is now a pure function of state, called in both places, so no
+ * variable crosses the updater boundary (the C-10 pattern).
+ */
+export const manageFamilyBusiness = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  companyId: string,
+  action: 'marketing' | 'branding' | 'reputation',
+  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney }
+): FamilyBusinessActionResult => {
+  void _deps; // charge flows through applyMoneyDelta, not deps.updateMoney
+
+  const { result } = resolveManageFamilyBusiness(gameState, companyId, action);
+  if (!result.success) {
+    if (result.message === 'Family business not found') log.warn(`Family business not found for ${companyId}`);
+    return result;
   }
-  return { success: true, message: `${action} completed successfully` };
+
+  setGameState(prev => resolveManageFamilyBusiness(prev, companyId, action).next);
+  return result;
 };
 
 export const inheritFamilyBusinesses = (

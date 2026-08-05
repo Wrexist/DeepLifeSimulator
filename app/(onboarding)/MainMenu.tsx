@@ -31,7 +31,12 @@ import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils
 import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import {
+  isSaveFromFutureError,
+  isSaveUnreadableError,
+  SAVE_FROM_FUTURE_MESSAGE,
+  SAVE_UNREADABLE_MESSAGE,
+} from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -456,7 +461,10 @@ export default function MainMenu() {
         // showed the generic "or start a new game" message over an intact save
         // from a newer build — the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
-        if (isSaveFromFutureError(loadError)) throw loadError;
+        // Same reasoning for a present-but-unreadable save: it has its own
+        // handler below, and the generic "or start a new game" advice would
+        // destroy the very data being reported.
+        if (isSaveFromFutureError(loadError) || isSaveUnreadableError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
@@ -532,6 +540,13 @@ export default function MainMenu() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version');
         Alert.alert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        return;
+      }
+      // The save is on the device and this build cannot read it. Say so, and
+      // never offer the new game that would overwrite it.
+      if (isSaveUnreadableError(error)) {
+        log.error('Save present but unreadable', { reason: error.reason });
+        Alert.alert('Save Could Not Be Read', SAVE_UNREADABLE_MESSAGE, [{ text: 'OK' }]);
         return;
       }
       log.error('Error in continueGame:', error);

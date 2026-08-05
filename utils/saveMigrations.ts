@@ -41,6 +41,53 @@ export function isSaveFromFutureError(error: unknown): error is SaveFromFutureEr
 export const SAVE_FROM_FUTURE_MESSAGE =
   'This save was made by a newer version of DeepLife. Update the app to load it. Your save has not been changed.';
 
+/**
+ * The save is PHYSICALLY THERE and could not be verified or read.
+ *
+ * `doubleBufferLoad` works hard to keep three outcomes apart — `'none'` (the
+ * slot is genuinely empty), `'unverified'` (bytes present, signature failed)
+ * and `'unknown'` (the read itself threw) — and carries `blobPresent` so a
+ * caller can tell "nothing stored" from "stored and unreadable". `loadGame`
+ * then collapsed all three into `null`, and the menu said:
+ *
+ *     "No save data found. Please try loading from Save Slots or start a new game."
+ *
+ * Suggesting a NEW GAME is the one action that can destroy the save being
+ * reported as absent, and the most common cause is not corruption at all — it
+ * is a change to `EXPO_PUBLIC_SAVE_HMAC_KEY`, which invalidates every save on
+ * every device at once while leaving the bytes perfectly intact (and takes paid
+ * entitlements with it, since they share the envelope). That is recoverable by
+ * restoring the old key alongside the new one; it is NOT recoverable if the
+ * player follows the advice and starts over.
+ */
+export class SaveUnreadableError extends Error {
+  readonly isSaveUnreadable = true;
+  /** `'unverified'` (signature/checksum failed) or `'unknown'` (the read threw). */
+  readonly reason: 'unverified' | 'unknown';
+
+  constructor(reason: 'unverified' | 'unknown' = 'unverified') {
+    super('Save data is present but could not be verified.');
+    this.name = 'SaveUnreadableError';
+    this.reason = reason;
+  }
+}
+
+/** Duck-typed check — survives the dynamic import boundary and a bundle split. */
+export function isSaveUnreadableError(error: unknown): error is SaveUnreadableError {
+  return !!error && typeof error === 'object' && (error as { isSaveUnreadable?: unknown }).isSaveUnreadable === true;
+}
+
+/**
+ * What to tell a player whose save is there but unreadable.
+ *
+ * Never suggests starting a new game: the data is intact and the usual cause is
+ * a signing-key change, which is fixable from the build side.
+ */
+export const SAVE_UNREADABLE_MESSAGE =
+  'Your save is still on this device, but this version of the app cannot read it. ' +
+  'Do NOT start a new game — that would overwrite it. Try updating the app, and if the ' +
+  'problem persists, contact support so we can recover it.';
+
 export const CURRENT_STATE_VERSION = STATE_VERSION;
 
 /**

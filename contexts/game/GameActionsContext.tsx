@@ -4067,6 +4067,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const loadResult = await doubleBufferLoad(`save_slot_${slot}`, undefined, { allowLegacy });
 
  if (!loadResult.data) {
+ // `blobPresent` is the whole point of `doubleBufferLoad` returning a result
+ // object rather than a string: "nothing stored" and "stored but unreadable"
+ // are different answers to the player. Collapsing both into `null` made the
+ // menu advise starting a NEW GAME over a save that is physically present —
+ // the one action that destroys it. The commonest cause is a change to
+ // EXPO_PUBLIC_SAVE_HMAC_KEY, which invalidates every save on every device
+ // while leaving the bytes intact and is fixable from the build side.
+ if (loadResult.blobPresent) {
+   const { SaveUnreadableError } = await import('@/utils/saveMigrations');
+   logger.error('[LOAD_GAME] Save data present but unreadable — refusing to report it as empty', {
+     slot,
+     source: loadResult.source,
+   });
+   throw new SaveUnreadableError(loadResult.source === 'unknown' ? 'unknown' : 'unverified');
+ }
  logger.warn('No save data found for slot:', { slot });
  return null;
  }

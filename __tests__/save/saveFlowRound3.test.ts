@@ -85,7 +85,12 @@ describe('R3-S3 — a newer save is refused, not reported as missing', () => {
   it('MainMenu no longer swallows it in its inner catch', () => {
     const source = read('app/(onboarding)/MainMenu.tsx');
 
-    expect(source).toMatch(/if \(isSaveFromFutureError\(loadError\)\) throw loadError;/);
+    // Matched on INTENT rather than on the exact line: the guard has since
+    // grown a second typed error (`isSaveUnreadableError`, for a save that is
+    // physically present but fails verification) which needs the same
+    // re-throw. Pinning the original text would have failed on a change that
+    // strengthens the very property this test protects.
+    expect(source).toMatch(/if \(.*isSaveFromFutureError\(loadError\).*\) throw loadError;/);
   });
 
   it('MainMenu still has the handler that this now reaches', () => {
