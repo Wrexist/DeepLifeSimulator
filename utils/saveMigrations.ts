@@ -831,6 +831,23 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 31;
     return state;
   },
+  /**
+   * v32 — `rental`, the home the player is renting.
+   *
+   * Default `undefined`: an absent key already means "not renting", which is the
+   * correct state for every existing save. So this is a carve-out — version
+   * bumped, NO backfill and no `repairGameState` mirror. Writing a tenancy would
+   * be actively wrong: it would start charging rent to a player who never signed
+   * for anything.
+   *
+   * Registered here rather than left as silent drift because it is a NEW field
+   * on `initialState`'s type surface, and Hard Rule #3 exists for exactly the
+   * case where that goes unrecorded.
+   */
+  32: (state) => {
+    state.version = 32;
+    return state;
+  },
 };
 
 /**

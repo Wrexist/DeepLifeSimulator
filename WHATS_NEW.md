@@ -29,6 +29,12 @@ The economy update.
 • Economic policy has teeth. Inflation runs for the first time instead of being
   a number that never moved, so policies you enact now push the cost of starting
   and upgrading a business.
+• Rent a place to live. A rental ladder from a shared room up to a penthouse
+  lease, and your home now gives you weekly health, happiness and energy.
+  Sleeping rough wears you down, so a roof is worth working for — and buying
+  still beats renting, because it stops the rent and keeps the benefits.
+• Your home finally does what it says. Owned homes listed an energy bonus that
+  was never actually paid. It is paid now, and owning helps your health too.
 • Work beats hustling. Street jobs paid more per week than a real career, so
   the sensible play was to ignore the job board. Both were rescaled, and your
   first property is a long-term goal again rather than an early purchase.

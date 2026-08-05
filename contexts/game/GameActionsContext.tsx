@@ -132,6 +132,7 @@ import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
+import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -943,10 +944,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  const {
    weeklyRent,
-   housingHappinessBonus,
    housingRentalIncome,
    housingUpkeep,
  } = rentAndHousingResult;
+
+ // Housing wellbeing: health + energy from wherever the player lives, the rent
+ // owed on a tenancy, and the penalty for having nowhere at all.
+ //
+ // `weeklyEnergy` on every property had NO reader in shipping code while
+ // `TopStatsBar` was already adding it to the predicted weekly change — the HUD
+ // promised an energy bonus the tick never paid. This reducer pays it, adds the
+ // health effect housing never had, and makes homelessness cost something.
+ const housingWellbeing = guardTick(
+   'housingWellbeing',
+   () => applyHousingWellbeing({
+     prevState,
+     ownedHappinessBonus: rentAndHousingResult.housingHappinessBonus,
+     nextWeeksLived,
+   }, weeklyCtx),
+   { rent: 0, happiness: rentAndHousingResult.housingHappinessBonus, homeless: false },
+ );
+ const housingHappinessBonus = housingWellbeing.happiness;
  let updatedRealEstate = rentAndHousingResult.updatedRealEstate;
  // v22 Wave A: persist the capped real-estate activity timeline (feeds the
  // RealEstateApp Activity tab). Sourced entirely from the real-estate weekly
@@ -983,7 +1001,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // shortfall as a debt that is paid off the top of next week's income and drags
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
- const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
+ const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
  const arrears = applyArrears({
    availableCash: currentMoney + totalIncome + housingRentalIncome,
    billsDue: weeklyBillsDue,

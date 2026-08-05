@@ -51,6 +51,24 @@ export const CHANGELOG: ChangelogEntry[] = [
     summary: 'Investing works, wages make sense, and money finally has consequences.',
     changes: [
       {
+        category: 'new',
+        title: 'Rent a place to live',
+        bullets: [
+          'A rental ladder from a shared room up to a penthouse lease.',
+          'Your home now gives you weekly health, happiness and energy.',
+          'Sleeping rough wears you down, so a roof is worth working for.',
+          'Buying still beats renting — it stops the rent and keeps the benefits.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Your home finally does what it says',
+        bullets: [
+          'Owned homes listed an energy bonus that was never actually paid.',
+          'It is paid now, and owning a home helps your health as well.',
+        ],
+      },
+      {
         category: 'fixed',
         title: 'The stock market works',
         bullets: [
