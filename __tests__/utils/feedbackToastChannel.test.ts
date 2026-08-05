@@ -16,8 +16,11 @@
  * These tests assert the ROUTE, not the rendering.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { setToastHandler, showGlobalToast, hasToastHandler } from '@/utils/toastBridge';
 import { FeedbackSystem } from '@/utils/feedbackSystem';
+import * as feedbackModule from '@/utils/feedbackSystem';
 
 describe('toastBridge', () => {
   afterEach(() => setToastHandler(null));
@@ -70,7 +73,7 @@ describe('feedbackSystem routes messages to the toast channel', () => {
 
   // Each of the four helpers must reach the toast channel. Parameterised so a
   // new helper added without wiring fails here rather than shipping mute.
-  const cases: Array<['success' | 'error' | 'warning' | 'info', string]> = [
+  const cases: ['success' | 'error' | 'warning' | 'info', string][] = [
     ['success', 'You rest up — +14 energy'],
     ['error', 'Something went wrong'],
     ['warning', 'Already done that this week'],
@@ -104,8 +107,8 @@ describe('feedbackSystem routes messages to the toast channel', () => {
     // achievements (reward > 0); routing generic feedback back through it is
     // what made this channel mute in the first place. Matches a CALL or an
     // IMPORT, so the explanatory comment naming the helper doesn't trip it.
-    const source = require('fs').readFileSync(
-      require('path').join(__dirname, '../../utils/feedbackSystem.ts'),
+    const source = fs.readFileSync(
+      path.join(__dirname, '../../utils/feedbackSystem.ts'),
       'utf8'
     );
     expect(source).not.toMatch(/showAchievementToast\s*\(/);
@@ -115,7 +118,6 @@ describe('feedbackSystem routes messages to the toast channel', () => {
   it('exports no second useToast that would shadow the real channel', () => {
     // A local-state `useToast` used to live in this file with the same name as
     // the context hook and zero importers — a trap pointing at a dead channel.
-    const mod = require('@/utils/feedbackSystem');
-    expect(mod.useToast).toBeUndefined();
+    expect((feedbackModule as Record<string, unknown>).useToast).toBeUndefined();
   });
 });

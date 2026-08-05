@@ -19,7 +19,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No |
-| 6 | Luxury Collections & Curator | ★★★☆☆ | S | No |
+| 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No |
 | 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No |
@@ -187,7 +187,25 @@ account-level bonus).
 
 ---
 
-## 6. Luxury Collections & Curator tiers
+## 6. Luxury Collections & Curator tiers — ✅ SHIPPED
+
+> **Shipped 2026-08-05** as `lib/luxury/collections.ts` (7 sets: four tier sets
+> derived from the catalog's own `tier` field, two thematic sets cutting across
+> tiers, and the full-catalog Curator set), surfaced in the Luxury app's
+> Collection tab and wired into the reputation soft target and hosting payoff.
+> No migration — membership is derived from the existing `luxuryItems` id list.
+>
+> Two balance guarantees are pinned by tests: sets grant **no cash** (luxury
+> stays a sink), and the reputation bonus is clamped by the same
+> `LUXURY_REPUTATION_CAP` the per-item path already respects.
+>
+> One design correction during the build: the hosting bonus was initially folded
+> into `guests.multiplier`, which broke that field's documented +60% ceiling —
+> caught by the existing `hosting.test.ts`. A completed set raises the *host's
+> standing*, which is a different concept from *who turns up*, so it now applies
+> in `quoteEvent` and deliberately does not scale event **cost** (completing a
+> collection must never read as a punishment).
+
 
 **Hooks:** `lib/luxury/catalog.ts`, the `luxuryHoldings` sidecar
 (STATE_VERSION 24), `lib/luxury/hosting.ts`.

@@ -26,6 +26,7 @@ import {
   appreciateLuxuryHoldings,
   getTotalLuxuryHappiness,
   getTotalLuxuryPrestige,
+  getCollectionReputationBonus,
   getTotalLuxuryUpkeep,
   getTotalLuxuryYield,
   getLoanIncome,
@@ -93,7 +94,12 @@ export function applyLuxuryItemsForWeek(
   // (c) Prestige → reputation SOFT TARGET. Only nudge up while below the
   // collection's prestige total (capped), so it can never rail past what the
   // owned collection justifies, and never fights other reputation writers down.
-  const prestige = getTotalLuxuryPrestige(ids);
+  // Completed COLLECTIONS lift the same soft target rather than granting
+  // reputation outright — finishing a set changes the ceiling you drift toward,
+  // one LUXURY_REPUTATION_STEP a week, exactly like the per-item path. Both are
+  // clamped by LUXURY_REPUTATION_CAP, so no combination of sets can rail past
+  // the ceiling that already existed.
+  const prestige = getTotalLuxuryPrestige(ids) + getCollectionReputationBonus(ids);
   if (prestige > 0) {
     const target = Math.min(LUXURY_REPUTATION_CAP, prestige);
     const rep = typeof ctx.newStats.reputation === 'number' && isFinite(ctx.newStats.reputation) ? ctx.newStats.reputation : 0;

@@ -328,7 +328,6 @@ export default function AdRewardOrb() {
       // component is gone. 600ms covers the slide-down animation with margin.
       addTimer(finish, 600);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleWatch = useCallback(async () => {

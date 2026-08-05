@@ -55,13 +55,24 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 
 ---
 
+### Interruption queue — shipped
+- [x] `contexts/InterruptionContext.tsx` — one priority queue, one winner.
+      Replaces four independent chains that could not see each other and the
+      O(n²) `&&` cascades they were built from. Declarative (claims derive from
+      each surface's own `wants` flag), so nothing can wedge the queue by
+      forgetting to release. Migrated: the four Home popups, the weekly result
+      sheet, the premium promo, the ad orb.
+
+### Luxury Collections — shipped (roadmap #6)
+- [x] `lib/luxury/collections.ts` — 7 completion sets, a title ladder, a
+      reputation bonus clamped by the existing cap, and a bounded hosting
+      multiplier. Surfaced in the Luxury app's Collection tab. No migration.
+
+---
+
 ## Next — in order
 
 ### Before any new feature
-- [ ] **One `InterruptionQueue`** with an explicit priority enum. Seven surfaces
-      can currently stack on a single "Next Week" press, from four independent
-      priority chains that cannot see each other. Highest-leverage change
-      available; two symptoms are patched, the architecture is not.
 - [ ] **Write the journal.** `journal: []` has no writer anywhere in the repo, so
       the one surface that could answer "what just happened?" is permanently
       empty — on the screen Help points at. Same fix as the muted week digest.

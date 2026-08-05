@@ -83,6 +83,8 @@ import {
   getRestoreCost,
   CONDITION_POOR,
   isLuxuryLifeComplete,
+  getAllCollectionProgress,
+  getLuxuryTitle,
   LUXURY_LIFE_MIN_ITEMS,
   LUXURY_LIFE_VALUE_THRESHOLD,
   verbsForItem,
@@ -618,6 +620,84 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     );
   };
 
+  /**
+   * Completion sets. The catalog was twelve independent purchases with nothing
+   * that recognised finishing a themed group — a player owning eleven pieces had
+   * the same standing as one owning eleven different pieces. Each row is a
+   * long-horizon target that stays legible from the first purchase to the last.
+   *
+   * Deliberately rendered even when nothing is complete: the whole point is to
+   * show the player what they are working toward.
+   */
+  const renderCollectionSets = () => {
+    const progress = getAllCollectionProgress(gameState.luxuryItems);
+    const title = getLuxuryTitle(gameState.luxuryItems);
+
+    return (
+      <>
+        <SectionTitle theme={theme}>
+          {title ? `Collections · ${title}` : 'Collections'}
+        </SectionTitle>
+        {progress.map((p) => {
+          const frac = p.total > 0 ? p.owned / p.total : 0;
+          return (
+            <View
+              key={p.collection.id}
+              style={[
+                getGlassCard(darkMode, 6),
+                styles.setRow,
+                {
+                  backgroundColor: theme.surface,
+                  // Full border on all four sides — a one-sided colored stripe is
+                  // banned app-wide (Hard Rule #7).
+                  borderColor: p.complete ? `rgba(${IDENTITY_RGB}, 0.45)` : theme.border,
+                },
+              ]}
+            >
+              <View style={styles.setHead}>
+                <Text style={styles.setEmoji}>{p.collection.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.setName, { color: theme.text }]} numberOfLines={1}>
+                    {p.collection.name}
+                  </Text>
+                  <Text style={[styles.setDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                    {p.complete
+                      ? `Complete — you are ${p.collection.title}.`
+                      : p.collection.description}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.setCount,
+                    { color: p.complete ? IDENTITY : theme.textMuted },
+                  ]}
+                >
+                  {p.owned}/{p.total}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.progressTrack,
+                  { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : theme.surfaceElevated },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.max(3, frac * 100)}%`,
+                      backgroundColor: p.complete ? EMERALD : IDENTITY,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </>
+    );
+  };
+
   // Collection showcase summary — value / upkeep / prestige at a glance.
   const renderCollectionSummary = () => (
     <View
@@ -1056,6 +1136,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
           <>
             {renderCollectionSummary()}
             {renderLuxuryLife()}
+            {renderCollectionSets()}
             <SectionTitle theme={theme}>Your trophies</SectionTitle>
             {owned.map((item, i) => (
               <LuxuryCard
@@ -1212,6 +1293,17 @@ const styles = StyleSheet.create({
   heroEyebrow: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8 },
   heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800', marginTop: 2, fontVariant: ['tabular-nums'] },
   heroSub: { fontSize: responsiveFontSize.xs, marginTop: 4, fontVariant: ['tabular-nums'] },
+  setRow: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  setHead: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
+  setEmoji: { fontSize: responsiveFontSize.xl },
+  setName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  setDesc: { fontSize: responsiveFontSize.sm, marginTop: scale(2) },
+  setCount: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   progressTrack: { height: scale(8), borderRadius: scale(4), overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: scale(4) },
 
