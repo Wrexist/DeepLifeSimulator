@@ -1,16 +1,12 @@
-import { GameState, LifeStage } from './types';
+import { GameState } from './types';
 import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+// One definition, in lib/config — this file, GameDataContext and the Family
+// header each carried their own identical copy of the thresholds.
+import { getLifeStage } from '@/lib/config/gameConstants';
 
 export const STATE_VERSION = 32;
-
-const getLifeStage = (age: number): LifeStage => {
-  if (age < 13) return 'child';
-  if (age < 20) return 'teen';
-  if (age < 65) return 'adult';
-  return 'senior';
-};
 
 export const initialGameState: GameState = {
   version: STATE_VERSION,

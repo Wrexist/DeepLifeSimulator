@@ -1,19 +1,35 @@
 /**
- * Family Tab Component
- * 
- * Comprehensive family management with spouse, children, and family activities
+ * Family Tab — spouse / partner, children, pregnancy and the parenting loop.
+ *
+ * Opened as a `presentationStyle="fullScreen"` Modal from `app/(tabs)/life.tsx`,
+ * which is the whole reason this file has to think about safe areas at all:
+ *
+ * PLAYER REPORT (2026-08-05, with screenshot): "it's too far up, can't press
+ * close". A full-screen RN Modal is not inset by the tab navigator, so the old
+ * `paddingTop: scale(16)` drew the header from y=0 — the title under the clock
+ * and the close button under the battery indicator / Dynamic Island. The
+ * control itself was already the right SIZE (the 2026-08-01 accessibility pass
+ * gave it `minTouchTargetStyle` + `hitSlopToMinTarget`); it was in the wrong
+ * place. A 44pt target behind the system status bar is still unhittable.
+ *
+ * Dark-first: light mode was removed from the game (`saveValidation` coerces
+ * `settings.darkMode` back to `true`), so the old `darkMode && styles.xDark`
+ * pairs were dead branches. Colours come from `lib/config/theme.ts`.
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Platform, View,
+import {
+ View,
  Text,
  StyleSheet,
  ScrollView,
  TouchableOpacity,
  Alert,
  Image,
- Modal } from 'react-native';
+ Modal,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { safeSettings } from '@/utils/safeGameState';
 import {
  Users,
  Heart,
@@ -27,7 +43,8 @@ import {
  Sparkles,
  X,
  ChevronRight,
- Activity,
+ Lock,
+ Smile,
  TrendingUp,
  BookOpen,
  Stethoscope,
@@ -44,8 +61,9 @@ import {
  Car,
  Brain,
  Dumbbell,
- Smile,
  ShieldCheck,
+ Activity,
+ Search,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -58,6 +76,8 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
+import { colors, accent } from '@/lib/config/theme';
+import { getLifeStage } from '@/lib/config/gameConstants';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
  getActionsForAge,
@@ -70,8 +90,21 @@ import {
  type ParentingAction,
  type NurtureStatKey,
 } from '@/lib/parenting';
-import type { ChildInfo } from '@/contexts/game/types';
+import type { ChildInfo, Relationship } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
+
+const c = colors.dark;
+
+/**
+ * Relationship gates, quoted from the action modules that enforce them so the
+ * hint on a disabled button can never drift from what actually happens:
+ * `DatingActions.proposeMarriage` (>= 60), `SocialActions.moveInTogether`
+ * (>= 60) and `handleHaveChild` below (>= 70, adult, committed).
+ */
+const SCORE_TO_MOVE_IN = 60;
+const SCORE_TO_PROPOSE = 60;
+const SCORE_TO_TRY_FOR_BABY = 70;
+const AGE_TO_TRY_FOR_BABY = 18;
 
 // Maps a parenting action's icon hint to a concrete lucide component. Falls back
 // to Sparkles so an unknown hint can never crash the modal.
@@ -96,11 +129,11 @@ const PARENTING_ICONS: Record<string, LucideIcon> = {
 // Nurture stat readout config (label, icon, semantic color). `relationship`
 // reuses the child's relationshipScore (bond with the parent).
 const NURTURE_DISPLAY: { key: NurtureStatKey; label: string; icon: LucideIcon; color: string }[] = [
- { key: 'intelligence', label: 'Intellect', icon: Brain, color: '#3B82F6' },
- { key: 'health', label: 'Health', icon: Dumbbell, color: '#10B981' },
- { key: 'happiness', label: 'Happiness', icon: Smile, color: '#F59E0B' },
+ { key: 'intelligence', label: 'Intellect', icon: Brain, color: accent.info },
+ { key: 'health', label: 'Health', icon: Dumbbell, color: accent.success },
+ { key: 'happiness', label: 'Happiness', icon: Smile, color: accent.warning },
  { key: 'discipline', label: 'Discipline', icon: ShieldCheck, color: '#8B5CF6' },
- { key: 'relationship', label: 'Bond', icon: Heart, color: '#EF4444' },
+ { key: 'relationship', label: 'Bond', icon: Heart, color: accent.danger },
 ];
 
 const NURTURE_LABEL_BY_KEY = NURTURE_DISPLAY.reduce(
@@ -116,8 +149,88 @@ function formatParentingEffects(action: ParentingAction): string {
  .join(' · ');
 }
 
+function bondColor(score: number): string {
+ if (score >= 80) return accent.success;
+ if (score >= 60) return accent.warning;
+ if (score >= 40) return accent.danger;
+ return c.textMuted;
+}
+
 interface FamilyTabProps {
  onClose?: () => void;
+}
+
+/**
+ * One always-visible action row.
+ *
+ * The old card RENDERED NOTHING for an action the player had not unlocked yet
+ * (`canMoveIn`, `canTryForBaby` were plain `&&` guards) and drew "Propose" at
+ * half opacity with no explanation. Neither shape tells the player what to do
+ * next. Every action is now drawn, and a locked one states its own requirement
+ * — the pattern the parenting list further down this file already used.
+ */
+function ActionRow({
+ icon: Icon,
+ label,
+ hint,
+ tone,
+ gradient,
+ onPress,
+ lockedReason,
+}: {
+ icon: LucideIcon;
+ label: string;
+ hint?: string;
+ tone: 'primary' | 'secondary';
+ gradient?: readonly [string, string];
+ onPress?: () => void;
+ lockedReason?: string | null;
+}) {
+ const locked = Boolean(lockedReason);
+ const body = (
+ <View style={styles.actionRowBody}>
+ <View style={[styles.actionRowIcon, tone === 'primary' && styles.actionRowIconPrimary]}>
+ {locked ? <Lock size={scale(16)} color={c.textMuted} /> : <Icon size={scale(18)} color={tone === 'primary' ? '#FFF' : accent.info} />}
+ </View>
+ <View style={styles.actionRowText}>
+ <Text style={[styles.actionRowLabel, tone === 'primary' && !locked && styles.actionRowLabelPrimary]}>
+ {label}
+ </Text>
+ {!!(lockedReason || hint) && (
+ <Text style={[styles.actionRowHint, locked && styles.actionRowHintLocked]} numberOfLines={2}>
+ {lockedReason || hint}
+ </Text>
+ )}
+ </View>
+ {!locked && <ChevronRight size={scale(18)} color={tone === 'primary' ? 'rgba(255,255,255,0.85)' : c.textMuted} />}
+ </View>
+ );
+
+ return (
+ <TouchableOpacity
+ style={[styles.actionRow, locked && styles.actionRowLocked]}
+ onPress={onPress}
+ disabled={locked || !onPress}
+ activeOpacity={0.75}
+ accessibilityRole="button"
+ accessibilityLabel={label}
+ accessibilityHint={lockedReason || hint}
+ accessibilityState={{ disabled: locked }}
+ >
+ {tone === 'primary' && !locked ? (
+ <LinearGradient
+ colors={gradient ?? (['#6366F1', '#8B5CF6'] as const)}
+ start={{ x: 0, y: 0 }}
+ end={{ x: 1, y: 1 }}
+ style={styles.actionRowFill}
+ >
+ {body}
+ </LinearGradient>
+ ) : (
+ <View style={styles.actionRowPlain}>{body}</View>
+ )}
+ </TouchableOpacity>
+ );
 }
 
 function FamilyTab({ onClose }: FamilyTabProps) {
@@ -129,35 +242,51 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  haveChild,
  } = useGame();
 
- // R2-A: defensive — this is the family tab, hit on every play session.
- const settings = safeSettings(gameState);
+ const insets = useSafeAreaInsets();
+ const router = useRouter();
  const [selectedChild, setSelectedChild] = useState<string | null>(null);
  const [showChildModal, setShowChildModal] = useState(false);
  const [showRingModal, setShowRingModal] = useState(false);
  const [showWeddingModal, setShowWeddingModal] = useState(false);
- 
+
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
- const children = gameState.family?.children || [];
- const lifeStage = gameState.lifeStage;
+ // Memoized because the `|| []` fallback allocates a NEW empty array on every
+ // render, which would make the householdMood memo below re-run every time.
+ const children = useMemo(() => gameState.family?.children || [], [gameState.family?.children]);
+ const age = Math.floor(gameState.date.age);
+ /**
+  * Derived from age, NOT read from `gameState.lifeStage`.
+  *
+  * That field is written exactly once — `initialState.ts` sets it to
+  * `getLifeStage(18)` = 'teen' — and nothing ever updates it: no birthday
+  * handler, no weekly subsystem, no scenario override. This header was its
+  * only product consumer (the other reader is `src/debug/aiDebugSnapshot`),
+  * which is why the screen said "Teen · Age 21" on a fresh Trust Fund Baby —
+  * and would still have said Teen at 70.
+  */
+ const lifeStage = useMemo(() => getLifeStage(age), [age]);
 
- // Calculate family happiness
- const familyHappiness = useMemo(() => {
- let happiness = 0;
- if (spouse) {
- happiness += Math.floor(spouse.relationshipScore / 10);
- }
+ /**
+  * Household mood, 0-100.
+  *
+  * This used to render as "+{n} Family Happiness", a small integer with a plus
+  * sign — which reads as a weekly happiness bonus. There is no such bonus:
+  * nothing in `contexts/game/actions/weekly/` reads it, and `familyHappiness`
+  * on a child has no writer anywhere in the repo. It is a readout of how the
+  * household is doing, so it is now labelled and scaled as one: the average of
+  * the partner/spouse bond and each child's happiness.
+  */
+ const householdMood = useMemo(() => {
+ const scores: number[] = [];
+ if (spouse) scores.push(spouse.relationshipScore);
+ else if (partner) scores.push(partner.relationshipScore);
  children.forEach(child => {
- // R3-F8: prefer `child.happiness`, the nurture stat the parenting loop
- // actually writes. `familyHappiness` has NO writer anywhere in the repo —
- // its would-be setter `updateChildWeekly` has zero callers — so every child
- // contributed a constant `floor(50/20) = 2` and this headline number never
- // responded to how the children were doing. The card at line ~779 already
- // reads `child.happiness ?? child.familyHappiness ?? 50`; this did not.
- happiness += Math.floor((child.happiness ?? child.familyHappiness ?? 50) / 20);
+ scores.push(child.happiness ?? child.familyHappiness ?? 50);
  });
- return happiness;
- }, [spouse, children]);
+ if (scores.length === 0) return null;
+ return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+ }, [spouse, partner, children]);
 
  /**
   * What the household ACTUALLY contributes per week.
@@ -191,13 +320,29 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const isPregnant = babyTarget?.isPregnant ?? false;
  const pregnancyWeeks = isPregnant && babyTarget?.pregnancyStartWeek != null
  ? (gameState.weeksLived || 0) - babyTarget.pregnancyStartWeek
-: 0;
+ : 0;
  const pregnancyProgress = Math.min(100, Math.round((pregnancyWeeks / 10) * 100));
+
+ // The Apps tab only exists in the bar once a device is owned (see
+ // `app/(tabs)/_layout.tsx`), so the empty-state CTA has to check the same
+ // thing before it offers to take the player there.
+ const ownsDevice = useMemo(
+ () => (gameState.items || []).some(item => (item.id === 'smartphone' || item.id === 'computer') && item.owned),
+ [gameState.items],
+ );
+
+ // `?app=tinder` opens the dating app itself. Without it this lands on the
+ // launcher grid — and on a computer-owning save the grid opens on "Desktop
+ // Apps", where Dating is not even in the visible category.
+ const handleFindPartner = useCallback(() => {
+ onClose?.();
+ router.push('/(tabs)/apps?app=tinder');
+ }, [onClose, router]);
 
  const handlePropose = useCallback(() => {
  if (!partner) return;
 
- if (partner.relationshipScore < 60) {
+ if (partner.relationshipScore < SCORE_TO_PROPOSE) {
  Alert.alert(
  'Not Ready',
  `Your relationship with ${partner.name} needs to be stronger before proposing. Current: ${partner.relationshipScore}/100`,
@@ -230,7 +375,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const handleMoveIn = useCallback(() => {
  if (!partner) return;
 
- if (partner.relationshipScore < 60) {
+ if (partner.relationshipScore < SCORE_TO_MOVE_IN) {
  Alert.alert(
  'Not Ready',
  `You should strengthen your relationship before moving in together. Current: ${partner.relationshipScore}/100`,
@@ -266,12 +411,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return;
  }
 
- if (gameState.date.age < 18) {
+ if (gameState.date.age < AGE_TO_TRY_FOR_BABY) {
  Alert.alert('Too Young', 'You must be at least 18 years old to have children.');
  return;
  }
 
- if (babyTarget.relationshipScore < 70) {
+ if (babyTarget.relationshipScore < SCORE_TO_TRY_FOR_BABY) {
  Alert.alert(
  'Not Ready',
  `Your relationship with ${babyTarget.name} needs to be stronger before starting a family. Current: ${babyTarget.relationshipScore}/100`
@@ -295,80 +440,27 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  );
  }, [babyTarget, gameState.date.age, haveChild, saveGame]);
 
- const getLifeStageColor = (stage: string) => {
- switch (stage) {
- case 'child': return ['#60A5FA', '#3B82F6'];
- case 'teen': return ['#A78BFA', '#8B5CF6'];
- case 'adult': return ['#34D399', '#10B981'];
- case 'senior': return ['#FBBF24', '#F59E0B'];
- default: return ['#6B7280', '#4B5563'];
+ // Why "Try for a baby" is unavailable, or null when it is available. Shared by
+ // the spouse and partner cards so both quote the same rule.
+ const babyLockReason = useCallback((target: Relationship, committed: boolean): string | null => {
+ if (age < AGE_TO_TRY_FOR_BABY) return `You must be at least ${AGE_TO_TRY_FOR_BABY} to start a family`;
+ if (target.relationshipScore < SCORE_TO_TRY_FOR_BABY) {
+ return `Needs ${SCORE_TO_TRY_FOR_BABY}% bond — you're at ${target.relationshipScore}%`;
  }
- };
+ if (!committed) return 'Move in together or get engaged first';
+ return null;
+ }, [age]);
 
- const getRelationshipStatusColor = (score: number) => {
- if (score >= 80) return '#10B981';
- if (score >= 60) return '#F59E0B';
- if (score >= 40) return '#EF4444';
- return '#6B7280';
- };
-
- const renderSpouseCard = () => {
- if (!spouse) return null;
-
- return (
- <View style={[styles.card, settings.darkMode && styles.cardDark]}>
- <LinearGradient
- colors={settings.darkMode ? ['#334155', '#1E293B']: ['#FDF2F8', '#FCE7F3']}
- style={styles.cardGradient}
- >
- <View style={styles.cardHeader}>
- <View style={styles.avatarContainer}>
- <Image
- source={getRelationshipImage(spouse.age || 25, spouse.gender || 'female', 'spouse', spouse.id)}
- style={styles.avatar}
- />
- <View style={styles.statusBadge}>
- <Ring size={12} color="#FFD700" />
- </View>
- </View>
- <View style={styles.cardInfo}>
- <View style={styles.nameRow}>
- <Text style={[styles.cardName, settings.darkMode && styles.textDark]}>
- {spouse.name}
- </Text>
- <Heart size={16} color="#EF4444" fill="#EF4444" />
- </View>
- <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
- Your Spouse {'\u2022'} {spouse.personality}
- </Text>
- <View style={styles.statsRow}>
- <View style={styles.statItem}>
- <Heart size={14} color={getRelationshipStatusColor(spouse.relationshipScore)} />
- <Text style={[styles.statText, { color: getRelationshipStatusColor(spouse.relationshipScore) }]}>
- {spouse.relationshipScore}%
- </Text>
- </View>
- {spouse.income && (
- <View style={styles.statItem}>
- <DollarSign size={14} color="#10B981" />
- <Text style={styles.incomeText}>${spouse.income}/week</Text>
- </View>
- )}
- </View>
- </View>
- </View>
-
- {/* Pregnancy progress indicator */}
- {isPregnant && (
+ const renderPregnancy = (target: Relationship) => (
  <View style={styles.pregnancySection}>
  <View style={styles.pregnancyHeader}>
- <Baby size={16} color="#EC4899" />
- <Text style={[styles.pregnancyTitle, settings.darkMode && styles.textDark]}>
- Expecting a {babyTarget?.pregnancyChildGender === 'male' ? 'Boy': 'Girl'}!
+ <Baby size={scale(16)} color="#EC4899" />
+ <Text style={styles.pregnancyTitle}>
+ Expecting a {target.pregnancyChildGender === 'male' ? 'Boy' : 'Girl'}!
  </Text>
  </View>
- <Text style={[styles.pregnancySubtext, settings.darkMode && styles.textMuted]}>
- {babyTarget?.pregnancyChildName} {'\u2022'} Week {pregnancyWeeks} of 10
+ <Text style={styles.pregnancySubtext}>
+ {target.pregnancyChildName} {'•'} Week {pregnancyWeeks} of 10
  </Text>
  <View style={styles.pregnancyBarContainer}>
  <View style={styles.pregnancyBarBg}>
@@ -377,23 +469,67 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={styles.pregnancyPercent}>{pregnancyProgress}%</Text>
  </View>
  </View>
+ );
+
+ // Shared header for the spouse/partner card: avatar, name, status, bond bar.
+ const renderRelationshipHeader = (
+ person: Relationship,
+ kind: 'spouse' | 'partner',
+ statusLine: string,
+ ) => {
+ const score = person.relationshipScore;
+ return (
+ <View style={styles.cardHeader}>
+ <View style={styles.avatarContainer}>
+ <Image
+ source={getRelationshipImage(person.age || 25, person.gender || 'female', kind, person.id)}
+ style={styles.avatar}
+ />
+ {kind === 'spouse' && (
+ <View style={styles.statusBadge}>
+ <Ring size={scale(11)} color={accent.gold} />
+ </View>
  )}
+ </View>
+ <View style={styles.cardInfo}>
+ <View style={styles.nameRow}>
+ <Text style={styles.cardName} numberOfLines={1}>{person.name}</Text>
+ <Heart size={scale(15)} color={bondColor(score)} fill={score >= 60 ? bondColor(score) : 'transparent'} />
+ </View>
+ <Text style={styles.cardSubtitle} numberOfLines={1}>{statusLine}</Text>
+ <View style={styles.progressBar}>
+ <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, score))}%`, backgroundColor: bondColor(score) }]} />
+ </View>
+ <Text style={styles.progressText}>
+ <Text style={{ color: bondColor(score), fontWeight: '700' }}>{score}% bond</Text>
+ {person.income ? ` · $${person.income.toLocaleString()}/wk` : ''}
+ </Text>
+ </View>
+ </View>
+ );
+ };
+
+ const renderSpouseCard = () => {
+ if (!spouse) return null;
+ const target = spouseRelationship ?? spouse;
+
+ return (
+ <View style={styles.card}>
+ {renderRelationshipHeader(spouse, 'spouse', `Your spouse · ${spouse.personality}`)}
+
+ {isPregnant && renderPregnancy(target)}
 
  {!isPregnant && (
- <TouchableOpacity
- style={styles.actionButton}
+ <ActionRow
+ icon={Baby}
+ label="Try for a baby"
+ hint="Start or grow your family"
+ tone="primary"
+ gradient={['#EC4899', '#DB2777'] as const}
  onPress={handleHaveChild}
- >
- <LinearGradient
- colors={['#EC4899', '#DB2777']}
- style={styles.actionButtonGradient}
- >
- <Baby size={18} color="#FFF" />
- <Text style={styles.actionButtonText}>Try for Baby</Text>
- </LinearGradient>
- </TouchableOpacity>
+ lockedReason={babyLockReason(target, true)}
+ />
  )}
- </LinearGradient>
  </View>
  );
  };
@@ -403,144 +539,71 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const isEngaged = partner.engagementWeek != null;
  const hasWeddingPlan = Boolean(partner.weddingPlanned);
- const canPropose = partner.relationshipScore >= 60 && !isEngaged;
- const canMoveIn = partner.relationshipScore >= 60 &&!partner.livingTogether;
- const canTryForBaby = !partner.isPregnant
- && partner.relationshipScore >= 70
- && (partner.livingTogether || partner.engagementWeek != null);
+ const committed = Boolean(partner.livingTogether) || isEngaged;
+ const score = partner.relationshipScore;
+
+ const status = [
+ isEngaged ? 'Your fiancé(e)' : 'Your partner',
+ partner.personality,
+ partner.livingTogether ? 'Living together' : null,
+ ].filter(Boolean).join(' · ');
 
  return (
- <View style={[styles.card, settings.darkMode && styles.cardDark]}>
- <LinearGradient
- colors={settings.darkMode ? ['#334155', '#1E293B']: ['#FEF3C7', '#FDE68A']}
- style={styles.cardGradient}
- >
- <View style={styles.cardHeader}>
- <View style={styles.avatarContainer}>
- <Image
- source={getRelationshipImage(partner.age || 25, partner.gender || 'female', 'partner', partner.id)}
- style={styles.avatar}
- />
- </View>
- <View style={styles.cardInfo}>
- <View style={styles.nameRow}>
- <Text style={[styles.cardName, settings.darkMode && styles.textDark]}>
- {partner.name}
- </Text>
- <Heart size={16} color="#F59E0B" />
- </View>
- <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
- {isEngaged ? 'Your Fiancé(e)' : 'Your Partner'} • {partner.personality}
- {partner.livingTogether && ' • Living Together'}
- </Text>
- <View style={styles.progressContainer}>
- <View style={styles.progressBar}>
- <View
- style={[
- styles.progressFill,
- {
- width: `${partner.relationshipScore}%`,
- backgroundColor: getRelationshipStatusColor(partner.relationshipScore),
- },
- ]}
- />
- </View>
- <Text style={[styles.progressText, settings.darkMode && styles.textMuted]}>
- {partner.relationshipScore}% • {isEngaged ? 'Engaged!' : partner.relationshipScore >= 60 ? 'Ready for proposal!': 'Building relationship...'}
- </Text>
- </View>
- </View>
- </View>
+ <View style={styles.card}>
+ {renderRelationshipHeader(partner, 'partner', status)}
 
- <View style={styles.actionRow}>
- {canMoveIn && (
- <TouchableOpacity
- style={[styles.secondaryButton, { flex: 1, marginRight: scale(8) }]}
+ {partner.isPregnant && renderPregnancy(partner)}
+
+ {!partner.livingTogether && (
+ <ActionRow
+ icon={Home}
+ label="Move in together"
+ hint="Share a home — and the rent"
+ tone="secondary"
  onPress={handleMoveIn}
- >
- <Home size={16} color={settings.darkMode ? '#60A5FA': '#3B82F6'} />
- <Text style={[styles.secondaryButtonText, settings.darkMode && { color: '#60A5FA' }]}>
- Move In
- </Text>
- </TouchableOpacity>
+ lockedReason={score < SCORE_TO_MOVE_IN ? `Needs ${SCORE_TO_MOVE_IN}% bond — you're at ${score}%` : null}
+ />
  )}
+
  {!isEngaged && (
- <TouchableOpacity
- style={[styles.actionButton, { flex: 1, opacity: canPropose ? 1: 0.5 }]}
+ <ActionRow
+ icon={Ring}
+ label="Propose"
+ hint="Pick a ring and pop the question"
+ tone="primary"
  onPress={handlePropose}
- disabled={!canPropose}
- >
- <LinearGradient
- colors={canPropose ? ['#8B5CF6', '#7C3AED']: ['#6B7280', '#4B5563']}
- style={styles.actionButtonGradient}
- >
- <Ring size={18} color="#FFF" />
- <Text style={styles.actionButtonText}>Propose</Text>
- </LinearGradient>
- </TouchableOpacity>
+ lockedReason={score < SCORE_TO_PROPOSE ? `Needs ${SCORE_TO_PROPOSE}% bond — you're at ${score}%` : null}
+ />
  )}
+
  {isEngaged && !hasWeddingPlan && (
- <TouchableOpacity
- style={[styles.actionButton, { flex: 1 }]}
+ <ActionRow
+ icon={Heart}
+ label="Plan the wedding"
+ hint="Pick a venue, a date and a budget"
+ tone="primary"
+ gradient={['#EC4899', '#DB2777'] as const}
  onPress={() => setShowWeddingModal(true)}
- >
- <LinearGradient
- colors={['#EC4899', '#DB2777']}
- style={styles.actionButtonGradient}
- >
- <Heart size={18} color="#FFF" />
- <Text style={styles.actionButtonText}>Plan Wedding</Text>
- </LinearGradient>
- </TouchableOpacity>
+ />
  )}
+
  {isEngaged && hasWeddingPlan && (
- <View style={[styles.actionButton, { flex: 1 }]}>
- <LinearGradient
- colors={['#10B981', '#059669']}
- style={styles.actionButtonGradient}
- >
- <Heart size={18} color="#FFF" />
- <Text style={styles.actionButtonText}>Wedding scheduled!</Text>
- </LinearGradient>
- </View>
- )}
- </View>
-
- {partner.isPregnant && (
- <View style={styles.pregnancySection}>
- <View style={styles.pregnancyHeader}>
- <Baby size={16} color="#EC4899" />
- <Text style={[styles.pregnancyTitle, settings.darkMode && styles.textDark]}>
- Expecting a {partner.pregnancyChildGender === 'male' ? 'Boy': 'Girl'}!
- </Text>
- </View>
- <Text style={[styles.pregnancySubtext, settings.darkMode && styles.textMuted]}>
- {partner.pregnancyChildName} {'•'} Week {pregnancyWeeks} of 10
- </Text>
- <View style={styles.pregnancyBarContainer}>
- <View style={styles.pregnancyBarBg}>
- <View style={[styles.pregnancyBarFill, { width: `${pregnancyProgress}%` }]} />
- </View>
- <Text style={styles.pregnancyPercent}>{pregnancyProgress}%</Text>
- </View>
+ <View style={styles.scheduledBanner}>
+ <Heart size={scale(16)} color={accent.success} />
+ <Text style={styles.scheduledBannerText}>Wedding scheduled — it happens on its week</Text>
  </View>
  )}
 
- {canTryForBaby && (
- <TouchableOpacity
- style={[styles.actionButton, { marginTop: scale(8) }]}
+ {!partner.isPregnant && (
+ <ActionRow
+ icon={Baby}
+ label="Try for a baby"
+ hint="Start your family"
+ tone="secondary"
  onPress={handleHaveChild}
- >
- <LinearGradient
- colors={['#EC4899', '#DB2777']}
- style={styles.actionButtonGradient}
- >
- <Baby size={18} color="#FFF" />
- <Text style={styles.actionButtonText}>Try for Baby</Text>
- </LinearGradient>
- </TouchableOpacity>
+ lockedReason={babyLockReason(partner, committed)}
+ />
  )}
- </LinearGradient>
  </View>
  );
  };
@@ -573,7 +636,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  setGameState(prev => {
  const w = prev.weeksLived || 0;
  const prevChildren = prev.family?.children || [];
- const child = prevChildren.find(c => c.id === childId);
+ const child = prevChildren.find(ch => ch.id === childId);
  if (!child) return prev;
 
  const outcome = applyParentingAction(child, actionId, w, prev.stats.money || 0, prev.stats.energy || 0);
@@ -601,25 +664,29 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  dailySummary,
  family: {
  ...prev.family,
- children: prevChildren.map(c => (c.id === childId ? outcome.child! : c)),
+ children: prevChildren.map(ch => (ch.id === childId ? outcome.child! : ch)),
  },
  };
  });
  saveGame();
  }, [gameState.family?.children, gameState.weeksLived, gameState.stats.money, gameState.stats.energy, setGameState, saveGame]);
 
- const renderChildCard = (child: any) => {
+ const renderChildCard = (child: ChildInfo) => {
  const childAge = Math.floor(child.age);
  const isAdult = childAge >= 18;
+ const mood = child.happiness ?? child.familyHappiness ?? 50;
 
  return (
  <TouchableOpacity
  key={child.id}
- style={[styles.childCard, settings.darkMode && styles.childCardDark]}
+ style={styles.childCard}
  onPress={() => {
  setSelectedChild(child.id);
  setShowChildModal(true);
  }}
+ activeOpacity={0.8}
+ accessibilityRole="button"
+ accessibilityLabel={`${child.name}, age ${childAge}`}
  >
  <View style={styles.childAvatarContainer}>
  <Image
@@ -628,25 +695,35 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  />
  {isAdult && (
  <View style={styles.adultBadge}>
- <Star size={12} color="#FFD700" fill="#FFD700" />
+ <Star size={scale(11)} color={accent.gold} fill={accent.gold} />
  </View>
  )}
  </View>
  <View style={styles.childInfo}>
- <Text style={[styles.childName, settings.darkMode && styles.textDark]}>
- {child.name}
+ <Text style={styles.childName} numberOfLines={1}>{child.name}</Text>
+ <Text style={styles.childAge}>
+ Age {childAge} · {isAdult ? 'Adult' : childAge >= 13 ? 'Teen' : 'Child'}
  </Text>
- <Text style={[styles.childAge, settings.darkMode && styles.textMuted]}>
- Age {childAge} • {isAdult ? 'Adult': childAge >= 13 ? 'Teen': 'Child'}
- </Text>
- {child.educationLevel && (
- <View style={styles.childBadge}>
- <GraduationCap size={12} color="#3B82F6" />
- <Text style={styles.childBadgeText}>{child.educationLevel}</Text>
+ {/* Mood + bond on the row itself: the two numbers that decide whether
+     this child needs attention this week, without opening the sheet. */}
+ <View style={styles.childChipRow}>
+ <View style={styles.childChip}>
+ <Smile size={scale(11)} color={accent.warning} />
+ <Text style={styles.childChipText}>{Math.round(mood)}%</Text>
+ </View>
+ <View style={styles.childChip}>
+ <Heart size={scale(11)} color={bondColor(child.relationshipScore)} />
+ <Text style={styles.childChipText}>{Math.round(child.relationshipScore)}%</Text>
+ </View>
+ {!!child.educationLevel && child.educationLevel !== 'none' && (
+ <View style={styles.childChip}>
+ <GraduationCap size={scale(11)} color={accent.info} />
+ <Text style={styles.childChipText}>{child.educationLevel}</Text>
  </View>
  )}
  </View>
- <ChevronRight size={20} color={settings.darkMode ? '#94A3B8': '#6B7280'} />
+ </View>
+ <ChevronRight size={scale(20)} color={c.textMuted} />
  </TouchableOpacity>
  );
  };
@@ -664,11 +741,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const remaining = Math.max(0, MAX_PARENTING_ACTIONS_PER_WEEK - usedThisWeek);
 
  return (
- <View style={[styles.parentingSection, settings.darkMode && styles.parentingSectionDark]}>
+ <View style={styles.parentingSection}>
  <View style={styles.parentingHeader}>
- <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark, styles.parentingHeaderTitle]}>
- Parenting
- </Text>
+ <Text style={[styles.sectionTitle, styles.parentingHeaderTitle]}>Parenting</Text>
  <View style={styles.parentingQuotaBadge}>
  <Text style={styles.parentingQuotaText}>{remaining}/{MAX_PARENTING_ACTIONS_PER_WEEK} this week</Text>
  </View>
@@ -678,13 +753,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.nurtureRow}>
  {NURTURE_DISPLAY.map(({ key, label, icon: Icon, color }) => (
  <View key={key} style={styles.nurtureChip}>
- <Icon size={14} color={color} />
- <Text style={[styles.nurtureValue, settings.darkMode && styles.textDark]}>
- {getNurtureStat(child, key)}
- </Text>
- <Text style={[styles.nurtureLabel, settings.darkMode && styles.textMuted]} numberOfLines={1}>
- {label}
- </Text>
+ <Icon size={scale(14)} color={color} />
+ <Text style={styles.nurtureValue}>{getNurtureStat(child, key)}</Text>
+ <Text style={styles.nurtureLabel} numberOfLines={1}>{label}</Text>
  </View>
  ))}
  </View>
@@ -700,39 +771,31 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <TouchableOpacity
  key={action.id}
- style={[
- styles.parentingAction,
- settings.darkMode && styles.parentingActionDark,
- disabled && styles.parentingActionDisabled,
- ]}
+ style={[styles.parentingAction, disabled && styles.parentingActionDisabled]}
  onPress={() => handleParentingAction(child.id, action.id)}
  disabled={disabled}
  activeOpacity={0.7}
  >
- <View style={[styles.parentingActionIcon, settings.darkMode && styles.parentingActionIconDark]}>
- <Icon size={20} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+ <View style={styles.parentingActionIcon}>
+ <Icon size={scale(20)} color={accent.info} />
  </View>
  <View style={styles.parentingActionBody}>
- <Text style={[styles.parentingActionLabel, settings.darkMode && styles.textDark]}>
- {action.label}
- </Text>
- <Text style={[styles.parentingActionDesc, settings.darkMode && styles.textMuted]} numberOfLines={2}>
- {action.description}
- </Text>
+ <Text style={styles.parentingActionLabel}>{action.label}</Text>
+ <Text style={styles.parentingActionDesc} numberOfLines={2}>{action.description}</Text>
  <View style={styles.parentingActionMetaRow}>
  {action.moneyCost > 0 && (
  <View style={styles.parentingCostChip}>
- <DollarSign size={11} color="#10B981" />
- <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#10B981' : '#059669' }]}>{action.moneyCost.toLocaleString()}</Text>
+ <DollarSign size={scale(11)} color={accent.success} />
+ <Text style={[styles.parentingCostText, { color: accent.success }]}>{action.moneyCost.toLocaleString()}</Text>
  </View>
  )}
  {action.energyCost > 0 && (
  <View style={styles.parentingCostChip}>
- <Activity size={11} color="#F59E0B" />
- <Text style={[styles.parentingCostText, { color: settings.darkMode ? '#F59E0B' : '#B45309' }]}>{action.energyCost}</Text>
+ <Activity size={scale(11)} color={accent.warning} />
+ <Text style={[styles.parentingCostText, { color: accent.warning }]}>{action.energyCost}</Text>
  </View>
  )}
- <Text style={[styles.parentingEffectText, settings.darkMode && { color: '#93C5FD' }]} numberOfLines={1}>
+ <Text style={styles.parentingEffectText} numberOfLines={1}>
  {formatParentingEffects(action)}
  </Text>
  </View>
@@ -748,7 +811,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  };
 
  const renderChildModal = () => {
- const child = children.find(c => c.id === selectedChild);
+ const child = children.find(ch => ch.id === selectedChild);
  if (!child) return null;
 
  const childAge = Math.floor(child.age);
@@ -760,76 +823,56 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  animationType="slide"
  onRequestClose={() => setShowChildModal(false)}
  >
- <View style={styles.modalOverlay}>
- <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
+ <View style={[styles.modalOverlay, { paddingTop: insets.top + scale(24), paddingBottom: insets.bottom + scale(24) }]}>
+ <View style={styles.modalContent}>
  <View style={styles.modalHeader}>
- <Text style={[styles.modalTitle, settings.darkMode && styles.textDark]}>
- {child.name}
- </Text>
+ <Text style={styles.modalTitle} numberOfLines={1}>{child.name}</Text>
  <TouchableOpacity
  onPress={() => setShowChildModal(false)}
- style={minTouchTargetStyle}
+ style={[styles.closeButton, minTouchTargetStyle]}
  hitSlop={hitSlopToMinTarget(scale(24))}
  {...CLOSE_BUTTON_A11Y}
  >
- <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
+ <X size={scale(20)} color={c.text} />
  </TouchableOpacity>
  </View>
 
- <ScrollView style={styles.modalScroll}>
+ <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
  <View style={styles.childProfileHeader}>
  <Image
  source={getCharacterImage(childAge, child.gender || 'male', child.id)}
  style={styles.childProfileAvatar}
  />
  <View style={styles.childProfileInfo}>
- <Text style={[styles.childProfileName, settings.darkMode && styles.textDark]}>
- {child.name}
- </Text>
- <Text style={[styles.childProfileAge, settings.darkMode && styles.textMuted]}>
- Age {childAge} • {child.gender === 'male' ? 'Son': 'Daughter'}
+ <Text style={styles.childProfileName} numberOfLines={1}>{child.name}</Text>
+ <Text style={styles.childProfileAge}>
+ Age {childAge} · {child.gender === 'male' ? 'Son' : 'Daughter'}
  </Text>
  </View>
  </View>
 
  <View style={styles.childStatsGrid}>
- <View style={[styles.childStatCard, settings.darkMode && styles.childStatCardDark]}>
- <Heart size={20} color="#EF4444" />
- <Text style={[styles.childStatValue, settings.darkMode && styles.textDark]}>
- {child.happiness ?? child.familyHappiness ?? 50}%
- </Text>
- <Text style={[styles.childStatLabel, settings.darkMode && styles.textMuted]}>
- Happiness
- </Text>
+ <View style={styles.childStatCard}>
+ <Heart size={scale(18)} color={accent.danger} />
+ <Text style={styles.childStatValue}>{child.happiness ?? child.familyHappiness ?? 50}%</Text>
+ <Text style={styles.childStatLabel}>Happiness</Text>
  </View>
- <View style={[styles.childStatCard, settings.darkMode && styles.childStatCardDark]}>
- <GraduationCap size={20} color="#3B82F6" />
- <Text style={[styles.childStatValue, settings.darkMode && styles.textDark]}>
- {child.educationLevel || 'None'}
- </Text>
- <Text style={[styles.childStatLabel, settings.darkMode && styles.textMuted]}>
- Education
- </Text>
+ <View style={styles.childStatCard}>
+ <GraduationCap size={scale(18)} color={accent.info} />
+ <Text style={styles.childStatValue}>{child.educationLevel || 'None'}</Text>
+ <Text style={styles.childStatLabel}>Education</Text>
  </View>
  {childAge >= 18 && (
  <>
- <View style={[styles.childStatCard, settings.darkMode && styles.childStatCardDark]}>
- <DollarSign size={20} color="#10B981" />
- <Text style={[styles.childStatValue, settings.darkMode && styles.textDark]}>
- ${(child.savings || 0).toLocaleString()}
- </Text>
- <Text style={[styles.childStatLabel, settings.darkMode && styles.textMuted]}>
- Savings
- </Text>
+ <View style={styles.childStatCard}>
+ <DollarSign size={scale(18)} color={accent.success} />
+ <Text style={styles.childStatValue}>${(child.savings || 0).toLocaleString()}</Text>
+ <Text style={styles.childStatLabel}>Savings</Text>
  </View>
- <View style={[styles.childStatCard, settings.darkMode && styles.childStatCardDark]}>
- <TrendingUp size={20} color="#8B5CF6" />
- <Text style={[styles.childStatValue, settings.darkMode && styles.textDark]}>
- {child.careerPath || 'Seeking'}
- </Text>
- <Text style={[styles.childStatLabel, settings.darkMode && styles.textMuted]}>
- Career
- </Text>
+ <View style={styles.childStatCard}>
+ <TrendingUp size={scale(18)} color="#8B5CF6" />
+ <Text style={styles.childStatValue}>{child.careerPath || 'Seeking'}</Text>
+ <Text style={styles.childStatLabel}>Career</Text>
  </View>
  </>
  )}
@@ -838,14 +881,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {renderParentingSection(child)}
 
  {child.geneticTraits && child.geneticTraits.length > 0 && (
- <View style={[styles.traitsSection, settings.darkMode && styles.traitsSectionDark]}>
- <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark]}>
- Genetic Traits
- </Text>
+ <View style={styles.traitsSection}>
+ <Text style={styles.sectionTitle}>Genetic Traits</Text>
  <View style={styles.traitsContainer}>
  {child.geneticTraits.map((trait: string, index: number) => (
  <View key={index} style={styles.traitBadge}>
- <Sparkles size={12} color="#F59E0B" />
+ <Sparkles size={scale(11)} color={accent.warning} />
  <Text style={styles.traitText}>{trait}</Text>
  </View>
  ))}
@@ -859,7 +900,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  colors={['#F59E0B', '#D97706']}
  style={styles.heirBannerGradient}
  >
- <Crown size={24} color="#FFF" />
+ <Crown size={scale(22)} color="#FFF" />
  <Text style={styles.heirBannerText}>Eligible Heir</Text>
  </LinearGradient>
  </View>
@@ -872,17 +913,21 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  };
 
  return (
- <View style={[styles.container, settings.darkMode && styles.containerDark]}>
- <LinearGradient
- colors={settings.darkMode ? ['#1E293B', '#0F172A']: ['#FFFFFF', '#F8FAFC']}
- style={styles.gradient}
- >
- {/* Header */}
- <View style={styles.header}>
- <View style={styles.headerContent}>
- <Users size={28} color={settings.darkMode ? '#60A5FA': '#3B82F6'} />
- <Text style={[styles.headerTitle, settings.darkMode && styles.textDark]}>
- Family
+ <View style={styles.container}>
+ {/*
+   * SAFE AREA — the fix for "it's too far up, can't press close".
+   * This screen is hosted in a full-screen Modal, which sits OUTSIDE the tab
+   * navigator's safe-area padding, so the inset has to be applied here or the
+   * header is drawn under the status bar / Dynamic Island.
+   */}
+ <View style={[styles.header, { paddingTop: insets.top + scale(8) }]}>
+ <View style={styles.headerIcon}>
+ <Users size={scale(20)} color={accent.info} />
+ </View>
+ <View style={styles.headerTitleWrap}>
+ <Text style={styles.headerTitle}>Family</Text>
+ <Text style={styles.headerSubtitle}>
+ {lifeStage.charAt(0).toUpperCase() + lifeStage.slice(1)} · Age {age}
  </Text>
  </View>
  {onClose && (
@@ -892,109 +937,115 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  hitSlop={hitSlopToMinTarget(scale(24))}
  {...CLOSE_BUTTON_A11Y}
  >
- <X size={24} color={settings.darkMode ? '#F9FAFB': '#0F172A'} />
+ <X size={scale(20)} color={c.text} />
  </TouchableOpacity>
  )}
  </View>
 
- {/* Life Stage Badge */}
- <View style={styles.lifeStageBadge}>
- <LinearGradient
- colors={getLifeStageColor(lifeStage)}
- style={styles.lifeStageBadgeGradient}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 0 }}
+ <ScrollView
+ style={styles.content}
+ contentContainerStyle={[styles.contentInner, { paddingBottom: insets.bottom + scale(32) }]}
+ showsVerticalScrollIndicator={false}
  >
- <Activity size={16} color="#FFF" />
- <Text style={styles.lifeStageText}>
- {lifeStage.charAt(0).toUpperCase() + lifeStage.slice(1)} • Age {Math.floor(gameState.date.age)}
- </Text>
- </LinearGradient>
- </View>
-
- {/* Family Stats Summary */}
- <View style={[styles.statsCard, settings.darkMode && styles.statsCardDark]}>
+ {/* Household summary */}
+ <View style={styles.statsCard}>
  <View style={styles.statsItem}>
- <Heart size={20} color="#EF4444" />
- <Text style={[styles.statsValue, settings.darkMode && styles.textDark]}>
- +{familyHappiness}
- </Text>
- <Text style={[styles.statsLabel, settings.darkMode && styles.textMuted]}>
- Family Happiness
- </Text>
+ <Heart size={scale(18)} color={householdMood == null ? c.textMuted : bondColor(householdMood)} />
+ <Text style={styles.statsValue}>{householdMood == null ? '—' : `${householdMood}%`}</Text>
+ <Text style={styles.statsLabel}>Household Mood</Text>
  </View>
  <View style={styles.statsDivider} />
  <View style={styles.statsItem}>
- <Users size={20} color="#3B82F6" />
- <Text style={[styles.statsValue, settings.darkMode && styles.textDark]}>
- {children.length}
- </Text>
- <Text style={[styles.statsLabel, settings.darkMode && styles.textMuted]}>
- Children
- </Text>
+ <Users size={scale(18)} color={accent.info} />
+ <Text style={styles.statsValue}>{children.length}</Text>
+ <Text style={styles.statsLabel}>Children</Text>
  </View>
  <View style={styles.statsDivider} />
  <View style={styles.statsItem}>
- <DollarSign size={20} color="#10B981" />
- <Text style={[styles.statsValue, settings.darkMode && styles.textDark]}>
- ${familyIncome}
- </Text>
- <Text style={[styles.statsLabel, settings.darkMode && styles.textMuted]}>
- Family Income/wk
- </Text>
+ <DollarSign size={scale(18)} color={accent.success} />
+ <Text style={styles.statsValue}>${familyIncome.toLocaleString()}</Text>
+ <Text style={styles.statsLabel}>Partner Income/wk</Text>
  </View>
  </View>
 
- <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
  {/* Spouse Section */}
  {spouse && (
  <View style={styles.section}>
- <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark]}>
- Spouse
- </Text>
+ <Text style={styles.sectionTitle}>Spouse</Text>
  {renderSpouseCard()}
  </View>
  )}
 
  {/* Partner Section */}
- {partner &&!spouse && (
+ {partner && !spouse && (
  <View style={styles.section}>
- <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark]}>
- Partner
- </Text>
+ <Text style={styles.sectionTitle}>Partner</Text>
  {renderPartnerCard()}
  </View>
  )}
 
- {/* No Relationship State */}
- {!partner &&!spouse && (
- <View style={[styles.emptyState, settings.darkMode && styles.emptyStateDark]}>
- <Heart size={48} color={settings.darkMode ? '#475569': '#D1D5DB'} />
- <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
- No Partner Yet
+ {/* No Relationship State — an actionable dead end instead of a sentence
+     telling the player where to go. */}
+ {!partner && !spouse && (
+ <View style={styles.emptyState}>
+ <View style={styles.emptyStateIcon}>
+ <Heart size={scale(32)} color={accent.danger} />
+ </View>
+ <Text style={styles.emptyStateTitle}>No partner yet</Text>
+ <Text style={styles.emptyStateText}>
+ {ownsDevice
+ ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
+ : 'Buy a smartphone from the Market to unlock the dating app — that is where every relationship starts.'}
  </Text>
- <Text style={[styles.emptyStateText, settings.darkMode && styles.textMuted]}>
- Use the Dating app to find someone special!
- </Text>
+ {ownsDevice && (
+ <TouchableOpacity
+ style={styles.emptyStateCta}
+ onPress={handleFindPartner}
+ activeOpacity={0.85}
+ accessibilityRole="button"
+ accessibilityLabel="Open the dating app"
+ >
+ <LinearGradient
+ colors={['#EC4899', '#DB2777']}
+ start={{ x: 0, y: 0 }}
+ end={{ x: 1, y: 1 }}
+ style={styles.emptyStateCtaFill}
+ >
+ <Search size={scale(17)} color="#FFF" />
+ <Text style={styles.emptyStateCtaText}>Open the dating app</Text>
+ </LinearGradient>
+ </TouchableOpacity>
+ )}
+ <View style={styles.pathList}>
+ {[
+ `Build the bond to ${SCORE_TO_MOVE_IN}% to move in together`,
+ `${SCORE_TO_PROPOSE}% and a ring to propose`,
+ `${SCORE_TO_TRY_FOR_BABY}% and living together to start a family`,
+ ].map(step => (
+ <View key={step} style={styles.pathRow}>
+ <View style={styles.pathDot} />
+ <Text style={styles.pathText}>{step}</Text>
+ </View>
+ ))}
+ </View>
  </View>
  )}
 
  {/* Children Section */}
  {children.length > 0 && (
  <View style={styles.section}>
- <Text style={[styles.sectionTitle, settings.darkMode && styles.textDark]}>
- Children ({children.length})
- </Text>
+ <Text style={styles.sectionTitle}>Children ({children.length})</Text>
  {children.map(renderChildCard)}
  </View>
  )}
 
  {/* Empty Children State */}
- {spouse && children.length === 0 && (
- <View style={[styles.emptyChildrenState, settings.darkMode && styles.emptyChildrenStateDark]}>
- <Baby size={32} color={settings.darkMode ? '#475569': '#D1D5DB'} />
- <Text style={[styles.emptyChildrenText, settings.darkMode && styles.textMuted]}>
- No children yet. Start your family!
+ {(spouse || partner) && children.length === 0 && (
+ <View style={styles.emptyChildrenState}>
+ <Baby size={scale(28)} color={c.textMuted} />
+ <Text style={styles.emptyChildrenText}>
+ No children yet. Any child you raise here can inherit everything when this
+ life ends.
  </Text>
  </View>
  )}
@@ -1021,7 +1072,6 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  partnerName={partner.name}
  />
  )}
- </LinearGradient>
  </View>
  );
 }
@@ -1029,149 +1079,126 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 const styles = StyleSheet.create({
  container: {
  flex: 1,
+ backgroundColor: c.background,
  },
- containerDark: {
- backgroundColor: '#0F172A',
- },
- gradient: {
- flex: 1,
- },
+ // ── Header ────────────────────────────────────────────────────────────
  header: {
  flexDirection: 'row',
  alignItems: 'center',
- justifyContent: 'space-between',
  paddingHorizontal: scale(16),
- paddingTop: scale(16),
  paddingBottom: scale(12),
+ // Structural divider, not a decorative accent bar — allowed by Hard Rule #7.
+ borderBottomWidth: StyleSheet.hairlineWidth,
+ borderBottomColor: c.border,
  },
- headerContent: {
- flexDirection: 'row',
- alignItems: 'center',
- },
- headerTitle: {
- fontSize: fontScale(24),
- fontWeight: 'bold',
- marginLeft: scale(12),
- color: '#0F172A',
- },
- closeButton: {
- padding: scale(8),
- },
- lifeStageBadge: {
- marginHorizontal: scale(16),
- marginBottom: scale(12),
+ headerIcon: {
+ width: scale(36),
+ height: scale(36),
  borderRadius: scale(12),
- overflow: 'hidden',
- },
- lifeStageBadgeGradient: {
- flexDirection: 'row',
+ backgroundColor: 'rgba(59, 130, 246, 0.14)',
  alignItems: 'center',
  justifyContent: 'center',
- paddingVertical: scale(10),
- paddingHorizontal: scale(16),
  },
- lifeStageText: {
- color: '#FFF',
- fontSize: fontScale(14),
- fontWeight: '600',
- marginLeft: scale(8),
- },
- statsCard: {
- flexDirection: 'row',
- marginHorizontal: scale(16),
- marginBottom: scale(16),
- backgroundColor: '#FFF',
- borderRadius: scale(12),
- padding: scale(16),
-...Platform.select({
- web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
- default: {
- shadowColor: '#000',
- shadowOffset: { width: 0, height: 2 },
- shadowOpacity: 0.1,
- shadowRadius: 4,
- },
- }),
- elevation: 3,
- },
- statsCardDark: {
- backgroundColor: '#1E293B',
- },
- statsItem: {
+ headerTitleWrap: {
  flex: 1,
- alignItems: 'center',
+ marginLeft: scale(12),
  },
- statsDivider: {
- width: 1,
- backgroundColor: '#475569',
- marginHorizontal: scale(8),
+ headerTitle: {
+ fontSize: fontScale(22),
+ fontWeight: '700',
+ color: c.text,
  },
- statsValue: {
- fontSize: fontScale(18),
- fontWeight: 'bold',
- color: '#0F172A',
- marginTop: scale(4),
+ headerSubtitle: {
+ fontSize: fontScale(12),
+ color: c.textMuted,
+ marginTop: scale(1),
  },
- statsLabel: {
- fontSize: fontScale(11),
- color: '#6B7280',
- marginTop: scale(2),
- textAlign: 'center',
+ closeButton: {
+ borderRadius: scale(22),
+ backgroundColor: c.surfaceElevated,
+ borderWidth: 1,
+ borderColor: c.border,
  },
+ // ── Layout ────────────────────────────────────────────────────────────
  content: {
  flex: 1,
+ },
+ contentInner: {
  paddingHorizontal: scale(16),
+ paddingTop: scale(16),
  },
  section: {
  marginBottom: scale(20),
  },
  sectionTitle: {
- fontSize: fontScale(18),
- fontWeight: '600',
- color: '#0F172A',
- marginBottom: scale(12),
+ fontSize: fontScale(13),
+ fontWeight: '700',
+ color: c.textMuted,
+ letterSpacing: 0.8,
+ textTransform: 'uppercase',
+ marginBottom: scale(10),
  },
- card: {
+ // ── Household summary ─────────────────────────────────────────────────
+ statsCard: {
+ flexDirection: 'row',
+ alignItems: 'stretch',
+ backgroundColor: c.surface,
  borderRadius: scale(16),
- overflow: 'hidden',
-...Platform.select({
- web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
- default: {
- shadowColor: '#000',
- shadowOffset: { width: 0, height: 2 },
- shadowOpacity: 0.1,
- shadowRadius: 4,
- },
- }),
- elevation: 3,
- },
- cardDark: {
  borderWidth: 1,
- borderColor: '#334155',
+ borderColor: c.border,
+ paddingVertical: scale(14),
+ marginBottom: scale(20),
  },
- cardGradient: {
- padding: scale(16),
+ statsItem: {
+ flex: 1,
+ alignItems: 'center',
+ paddingHorizontal: scale(4),
+ },
+ statsDivider: {
+ width: StyleSheet.hairlineWidth,
+ backgroundColor: c.border,
+ marginVertical: scale(4),
+ },
+ statsValue: {
+ fontSize: fontScale(18),
+ fontWeight: '700',
+ color: c.text,
+ marginTop: scale(6),
+ },
+ statsLabel: {
+ fontSize: fontScale(10),
+ color: c.textMuted,
+ marginTop: scale(2),
+ textAlign: 'center',
+ },
+ // ── Relationship card ─────────────────────────────────────────────────
+ card: {
+ backgroundColor: c.surface,
+ borderRadius: scale(16),
+ borderWidth: 1,
+ borderColor: c.border,
+ padding: scale(14),
  },
  cardHeader: {
  flexDirection: 'row',
  alignItems: 'center',
- marginBottom: scale(12),
+ marginBottom: scale(14),
  },
  avatarContainer: {
  position: 'relative',
  },
  avatar: {
- width: scale(64),
- height: scale(64),
- borderRadius: scale(32),
- borderWidth: 3,
- borderColor: '#FFF',
+ width: scale(60),
+ height: scale(60),
+ borderRadius: scale(30),
+ borderWidth: 2,
+ borderColor: c.borderStrong,
  },
  statusBadge: {
  position: 'absolute',
- bottom: 0,
- right: 0,
- backgroundColor: '#FFF',
+ bottom: -scale(2),
+ right: -scale(2),
+ backgroundColor: c.surfaceElevated,
  borderRadius: scale(10),
  padding: scale(4),
  },
@@ -1182,47 +1209,25 @@ const styles = StyleSheet.create({
  nameRow: {
  flexDirection: 'row',
  alignItems: 'center',
+ gap: scale(6),
  },
  cardName: {
  fontSize: fontScale(18),
- fontWeight: 'bold',
- color: '#0F172A',
- marginRight: scale(8),
+ fontWeight: '700',
+ color: c.text,
+ flexShrink: 1,
  },
  cardSubtitle: {
- fontSize: fontScale(13),
- color: '#6B7280',
+ fontSize: fontScale(12),
+ color: c.textMuted,
  marginTop: scale(2),
- },
- statsRow: {
- flexDirection: 'row',
- alignItems: 'center',
- marginTop: scale(8),
- },
- statItem: {
- flexDirection: 'row',
- alignItems: 'center',
- marginRight: scale(16),
- },
- statText: {
- fontSize: fontScale(13),
- fontWeight: '600',
- marginLeft: scale(4),
- },
- incomeText: {
- fontSize: fontScale(13),
- color: '#10B981',
- fontWeight: '600',
- marginLeft: scale(4),
- },
- progressContainer: {
- marginTop: scale(8),
  },
  progressBar: {
  height: scale(6),
- backgroundColor: 'rgba(0,0,0,0.1)',
+ backgroundColor: 'rgba(255,255,255,0.08)',
  borderRadius: scale(3),
  overflow: 'hidden',
+ marginTop: scale(8),
  },
  progressFill: {
  height: '100%',
@@ -1230,82 +1235,107 @@ const styles = StyleSheet.create({
  },
  progressText: {
  fontSize: fontScale(11),
- color: '#6B7280',
- marginTop: scale(4),
+ color: c.textSecondary,
+ marginTop: scale(5),
  },
+ // ── Action rows ───────────────────────────────────────────────────────
  actionRow: {
- flexDirection: 'row',
- },
- actionButton: {
- borderRadius: scale(10),
+ borderRadius: scale(12),
  overflow: 'hidden',
+ marginTop: scale(8),
  },
- actionButtonGradient: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- paddingVertical: scale(12),
- paddingHorizontal: scale(20),
+ actionRowLocked: {
+ opacity: 0.75,
  },
- actionButtonText: {
- color: '#FFF',
- fontSize: fontScale(14),
- fontWeight: '600',
- marginLeft: scale(8),
+ actionRowFill: {
+ paddingVertical: scale(11),
+ paddingHorizontal: scale(12),
  },
- secondaryButton: {
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- paddingVertical: scale(12),
- paddingHorizontal: scale(16),
- backgroundColor: 'rgba(59, 130, 246, 0.1)',
- borderRadius: scale(10),
+ actionRowPlain: {
+ paddingVertical: scale(11),
+ paddingHorizontal: scale(12),
+ backgroundColor: c.surfaceElevated,
+ borderRadius: scale(12),
  borderWidth: 1,
- borderColor: '#3B82F6',
+ borderColor: c.border,
  },
- secondaryButtonText: {
- color: '#3B82F6',
+ actionRowBody: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ },
+ actionRowIcon: {
+ width: scale(32),
+ height: scale(32),
+ borderRadius: scale(10),
+ alignItems: 'center',
+ justifyContent: 'center',
+ backgroundColor: 'rgba(59, 130, 246, 0.14)',
+ marginRight: scale(10),
+ },
+ actionRowIconPrimary: {
+ backgroundColor: 'rgba(255,255,255,0.18)',
+ },
+ actionRowText: {
+ flex: 1,
+ },
+ actionRowLabel: {
  fontSize: fontScale(14),
- fontWeight: '600',
- marginLeft: scale(6),
+ fontWeight: '700',
+ color: c.text,
  },
+ actionRowLabelPrimary: {
+ color: '#FFF',
+ },
+ actionRowHint: {
+ fontSize: fontScale(11),
+ color: c.textSecondary,
+ marginTop: scale(2),
+ },
+ actionRowHintLocked: {
+ color: accent.warning,
+ },
+ scheduledBanner: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(8),
+ marginTop: scale(8),
+ paddingVertical: scale(11),
+ paddingHorizontal: scale(12),
+ borderRadius: scale(12),
+ backgroundColor: 'rgba(16, 185, 129, 0.12)',
+ borderWidth: 1,
+ borderColor: 'rgba(16, 185, 129, 0.35)',
+ },
+ scheduledBannerText: {
+ flex: 1,
+ fontSize: fontScale(12),
+ fontWeight: '600',
+ color: accent.success,
+ },
+ // ── Children ──────────────────────────────────────────────────────────
  childCard: {
  flexDirection: 'row',
  alignItems: 'center',
- backgroundColor: '#FFF',
- borderRadius: scale(12),
+ backgroundColor: c.surface,
+ borderRadius: scale(14),
+ borderWidth: 1,
+ borderColor: c.border,
  padding: scale(12),
  marginBottom: scale(8),
-...Platform.select({
- web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' } as any,
- default: {
- shadowColor: '#000',
- shadowOffset: { width: 0, height: 1 },
- shadowOpacity: 0.05,
- shadowRadius: 2,
- },
- }),
- elevation: 1,
- },
- childCardDark: {
- backgroundColor: '#1E293B',
- borderWidth: 1,
- borderColor: '#334155',
  },
  childAvatarContainer: {
  position: 'relative',
  },
  childAvatar: {
- width: scale(48),
- height: scale(48),
- borderRadius: scale(24),
+ width: scale(46),
+ height: scale(46),
+ borderRadius: scale(23),
  },
  adultBadge: {
  position: 'absolute',
- bottom: -2,
- right: -2,
- backgroundColor: '#FFF',
+ bottom: -scale(2),
+ right: -scale(2),
+ backgroundColor: c.surfaceElevated,
  borderRadius: scale(8),
  padding: scale(2),
  },
@@ -1314,187 +1344,243 @@ const styles = StyleSheet.create({
  marginLeft: scale(12),
  },
  childName: {
- fontSize: fontScale(16),
- fontWeight: '600',
- color: '#0F172A',
+ fontSize: fontScale(15),
+ fontWeight: '700',
+ color: c.text,
  },
  childAge: {
- fontSize: fontScale(13),
- color: '#6B7280',
- marginTop: scale(2),
+ fontSize: fontScale(12),
+ color: c.textMuted,
+ marginTop: scale(1),
  },
- childBadge: {
+ childChipRow: {
+ flexDirection: 'row',
+ flexWrap: 'wrap',
+ gap: scale(6),
+ marginTop: scale(6),
+ },
+ childChip: {
  flexDirection: 'row',
  alignItems: 'center',
- backgroundColor: 'rgba(59, 130, 246, 0.1)',
- paddingHorizontal: scale(8),
- paddingVertical: scale(2),
- borderRadius: scale(4),
- marginTop: scale(4),
- alignSelf: 'flex-start',
+ gap: scale(3),
+ backgroundColor: 'rgba(255,255,255,0.06)',
+ borderRadius: scale(8),
+ paddingHorizontal: scale(7),
+ paddingVertical: scale(3),
  },
- childBadgeText: {
+ childChipText: {
  fontSize: fontScale(10),
- color: '#3B82F6',
- marginLeft: scale(4),
- fontWeight: '500',
+ fontWeight: '600',
+ color: c.textSecondary,
  },
+ // ── Empty states ──────────────────────────────────────────────────────
  emptyState: {
  alignItems: 'center',
- justifyContent: 'center',
- padding: scale(40),
- backgroundColor: '#F9FAFB',
+ paddingVertical: scale(28),
+ paddingHorizontal: scale(20),
+ backgroundColor: c.surface,
  borderRadius: scale(16),
- marginVertical: scale(20),
+ borderWidth: 1,
+ borderColor: c.border,
+ marginBottom: scale(20),
  },
- emptyStateDark: {
- backgroundColor: '#1E293B',
+ emptyStateIcon: {
+ width: scale(64),
+ height: scale(64),
+ borderRadius: scale(32),
+ alignItems: 'center',
+ justifyContent: 'center',
+ backgroundColor: 'rgba(239, 68, 68, 0.12)',
  },
  emptyStateTitle: {
  fontSize: fontScale(18),
- fontWeight: '600',
- color: '#0F172A',
- marginTop: scale(16),
+ fontWeight: '700',
+ color: c.text,
+ marginTop: scale(14),
  },
  emptyStateText: {
- fontSize: fontScale(14),
- color: '#6B7280',
- marginTop: scale(8),
+ fontSize: fontScale(13),
+ color: c.textSecondary,
+ marginTop: scale(6),
  textAlign: 'center',
+ lineHeight: fontScale(19),
+ },
+ emptyStateCta: {
+ alignSelf: 'stretch',
+ borderRadius: scale(12),
+ overflow: 'hidden',
+ marginTop: scale(16),
+ },
+ emptyStateCtaFill: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'center',
+ gap: scale(8),
+ paddingVertical: scale(13),
+ },
+ emptyStateCtaText: {
+ color: '#FFF',
+ fontSize: fontScale(14),
+ fontWeight: '700',
+ },
+ pathList: {
+ alignSelf: 'stretch',
+ marginTop: scale(16),
+ gap: scale(8),
+ },
+ pathRow: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(8),
+ },
+ pathDot: {
+ width: scale(5),
+ height: scale(5),
+ borderRadius: scale(3),
+ backgroundColor: c.textMuted,
+ },
+ pathText: {
+ flex: 1,
+ fontSize: fontScale(12),
+ color: c.textMuted,
  },
  emptyChildrenState: {
  alignItems: 'center',
- padding: scale(24),
- backgroundColor: '#F9FAFB',
- borderRadius: scale(12),
- },
- emptyChildrenStateDark: {
- backgroundColor: '#1E293B',
+ paddingVertical: scale(22),
+ paddingHorizontal: scale(20),
+ backgroundColor: c.surface,
+ borderRadius: scale(14),
+ borderWidth: 1,
+ borderColor: c.border,
+ marginBottom: scale(20),
  },
  emptyChildrenText: {
- fontSize: fontScale(14),
- color: '#6B7280',
+ fontSize: fontScale(12),
+ color: c.textMuted,
  marginTop: scale(8),
  textAlign: 'center',
+ lineHeight: fontScale(18),
  },
+ // ── Child sheet ───────────────────────────────────────────────────────
  modalOverlay: {
  flex: 1,
- backgroundColor: 'rgba(0,0,0,0.5)',
+ backgroundColor: c.overlay,
  justifyContent: 'center',
  alignItems: 'center',
- padding: scale(20),
+ paddingHorizontal: scale(16),
  },
  modalContent: {
  width: '100%',
- maxWidth: scale(400),
- maxHeight: '80%',
- backgroundColor: '#FFF',
+ maxWidth: scale(420),
+ maxHeight: '100%',
+ backgroundColor: c.surface,
  borderRadius: scale(20),
+ borderWidth: 1,
+ borderColor: c.border,
  overflow: 'hidden',
  ...getPlatformShadows(6, 0.25, 4, 14),
- },
- modalContentDark: {
- backgroundColor: '#1E293B',
  },
  modalHeader: {
  flexDirection: 'row',
  alignItems: 'center',
  justifyContent: 'space-between',
- padding: scale(16),
- borderBottomWidth: 1,
- borderBottomColor: '#475569',
+ paddingHorizontal: scale(16),
+ paddingVertical: scale(12),
+ borderBottomWidth: StyleSheet.hairlineWidth,
+ borderBottomColor: c.border,
  },
  modalTitle: {
- fontSize: fontScale(20),
- fontWeight: 'bold',
- color: '#0F172A',
+ flex: 1,
+ fontSize: fontScale(18),
+ fontWeight: '700',
+ color: c.text,
  },
  modalScroll: {
+ flexGrow: 0,
+ },
+ modalScrollContent: {
  padding: scale(16),
  },
  childProfileHeader: {
  flexDirection: 'row',
  alignItems: 'center',
- marginBottom: scale(20),
+ marginBottom: scale(18),
  },
  childProfileAvatar: {
- width: scale(80),
- height: scale(80),
- borderRadius: scale(40),
- borderWidth: 3,
- borderColor: '#3B82F6',
+ width: scale(72),
+ height: scale(72),
+ borderRadius: scale(36),
+ borderWidth: 2,
+ borderColor: accent.info,
  },
  childProfileInfo: {
- marginLeft: scale(16),
+ flex: 1,
+ marginLeft: scale(14),
  },
  childProfileName: {
- fontSize: fontScale(22),
- fontWeight: 'bold',
- color: '#0F172A',
+ fontSize: fontScale(20),
+ fontWeight: '700',
+ color: c.text,
  },
  childProfileAge: {
- fontSize: fontScale(14),
- color: '#6B7280',
- marginTop: scale(4),
+ fontSize: fontScale(13),
+ color: c.textMuted,
+ marginTop: scale(3),
  },
  childStatsGrid: {
  flexDirection: 'row',
  flexWrap: 'wrap',
- marginHorizontal: scale(-4),
+ gap: scale(8),
  },
  childStatCard: {
- width: '48%',
- backgroundColor: '#F3F4F6',
+ flexGrow: 1,
+ flexBasis: '46%',
+ backgroundColor: c.surfaceElevated,
  borderRadius: scale(12),
+ borderWidth: 1,
+ borderColor: c.border,
  padding: scale(12),
  alignItems: 'center',
- margin: scale(4),
- },
- childStatCardDark: {
- backgroundColor: '#334155',
  },
  childStatValue: {
- fontSize: fontScale(16),
- fontWeight: 'bold',
- color: '#0F172A',
+ fontSize: fontScale(15),
+ fontWeight: '700',
+ color: c.text,
  marginTop: scale(6),
  textAlign: 'center',
  },
  childStatLabel: {
- fontSize: fontScale(11),
- color: '#6B7280',
+ fontSize: fontScale(10),
+ color: c.textMuted,
  marginTop: scale(2),
  textAlign: 'center',
  },
  traitsSection: {
  marginTop: scale(16),
  padding: scale(12),
- backgroundColor: '#F3F4F6',
+ backgroundColor: c.surfaceElevated,
  borderRadius: scale(12),
- },
- traitsSectionDark: {
- backgroundColor: '#334155',
+ borderWidth: 1,
+ borderColor: c.border,
  },
  traitsContainer: {
  flexDirection: 'row',
  flexWrap: 'wrap',
- marginTop: scale(8),
+ gap: scale(6),
  },
  traitBadge: {
  flexDirection: 'row',
  alignItems: 'center',
- backgroundColor: '#FEF3C7',
+ gap: scale(4),
+ backgroundColor: 'rgba(245, 158, 11, 0.15)',
  paddingHorizontal: scale(10),
  paddingVertical: scale(4),
- borderRadius: scale(12),
- marginRight: scale(8),
- marginBottom: scale(4),
+ borderRadius: scale(10),
  },
  traitText: {
- fontSize: fontScale(12),
- color: '#92400E',
- marginLeft: scale(4),
- fontWeight: '500',
+ fontSize: fontScale(11),
+ color: accent.warning,
+ fontWeight: '600',
  },
  heirBanner: {
  marginTop: scale(16),
@@ -1505,29 +1591,22 @@ const styles = StyleSheet.create({
  flexDirection: 'row',
  alignItems: 'center',
  justifyContent: 'center',
+ gap: scale(8),
  paddingVertical: scale(14),
  },
  heirBannerText: {
  color: '#FFF',
- fontSize: fontScale(16),
- fontWeight: 'bold',
- marginLeft: scale(8),
- },
- textDark: {
- color: '#F9FAFB',
- },
- textMuted: {
- color: '#94A3B8',
+ fontSize: fontScale(15),
+ fontWeight: '700',
  },
  // ── Parenting section ─────────────────────────────────────────────────
  parentingSection: {
  marginTop: scale(16),
  padding: scale(12),
- backgroundColor: '#F3F4F6',
+ backgroundColor: c.surfaceElevated,
  borderRadius: scale(12),
- },
- parentingSectionDark: {
- backgroundColor: '#334155',
+ borderWidth: 1,
+ borderColor: c.border,
  },
  parentingHeader: {
  flexDirection: 'row',
@@ -1539,15 +1618,15 @@ const styles = StyleSheet.create({
  marginBottom: 0,
  },
  parentingQuotaBadge: {
- backgroundColor: 'rgba(59, 130, 246, 0.12)',
+ backgroundColor: 'rgba(59, 130, 246, 0.16)',
  borderRadius: scale(10),
  paddingHorizontal: scale(8),
  paddingVertical: scale(3),
  },
  parentingQuotaText: {
  fontSize: fontScale(11),
- fontWeight: '600',
- color: '#3B82F6',
+ fontWeight: '700',
+ color: accent.info,
  },
  nurtureRow: {
  flexDirection: 'row',
@@ -1561,28 +1640,24 @@ const styles = StyleSheet.create({
  },
  nurtureValue: {
  fontSize: fontScale(14),
- fontWeight: 'bold',
- color: '#0F172A',
+ fontWeight: '700',
+ color: c.text,
  marginTop: scale(2),
  },
  nurtureLabel: {
  fontSize: fontScale(9),
- color: '#6B7280',
+ color: c.textMuted,
  marginTop: scale(1),
  },
  parentingAction: {
  flexDirection: 'row',
  alignItems: 'flex-start',
- backgroundColor: '#FFFFFF',
+ backgroundColor: c.surface,
  borderRadius: scale(12),
  padding: scale(10),
  marginBottom: scale(8),
  borderWidth: 1,
- borderColor: 'rgba(148, 163, 184, 0.2)',
- },
- parentingActionDark: {
- backgroundColor: '#1E293B',
- borderColor: 'rgba(148, 163, 184, 0.25)',
+ borderColor: c.border,
  },
  parentingActionDisabled: {
  opacity: 0.5,
@@ -1591,13 +1666,10 @@ const styles = StyleSheet.create({
  width: scale(38),
  height: scale(38),
  borderRadius: scale(10),
- backgroundColor: '#EFF6FF',
+ backgroundColor: 'rgba(59, 130, 246, 0.14)',
  alignItems: 'center',
  justifyContent: 'center',
  marginRight: scale(10),
- },
- parentingActionIconDark: {
- backgroundColor: 'rgba(96, 165, 250, 0.15)',
  },
  parentingActionBody: {
  flex: 1,
@@ -1605,11 +1677,11 @@ const styles = StyleSheet.create({
  parentingActionLabel: {
  fontSize: fontScale(14),
  fontWeight: '700',
- color: '#0F172A',
+ color: c.text,
  },
  parentingActionDesc: {
  fontSize: fontScale(11),
- color: '#6B7280',
+ color: c.textMuted,
  marginTop: scale(1),
  },
  parentingActionMetaRow: {
@@ -1631,22 +1703,24 @@ const styles = StyleSheet.create({
  parentingEffectText: {
  fontSize: fontScale(11),
  fontWeight: '600',
- color: '#3B82F6',
+ color: '#93C5FD',
  flexShrink: 1,
  },
  parentingReason: {
  fontSize: fontScale(10),
- color: '#DC2626',
+ color: accent.danger,
  marginTop: scale(4),
  fontWeight: '500',
  },
+ // ── Pregnancy ─────────────────────────────────────────────────────────
  pregnancySection: {
- marginTop: scale(12),
+ marginTop: scale(4),
+ marginBottom: scale(4),
  padding: scale(12),
- backgroundColor: 'rgba(236, 72, 153, 0.08)',
+ backgroundColor: 'rgba(236, 72, 153, 0.10)',
  borderRadius: scale(12),
  borderWidth: 1,
- borderColor: 'rgba(255, 255, 255, 0.2)',
+ borderColor: 'rgba(236, 72, 153, 0.30)',
  },
  pregnancyHeader: {
  flexDirection: 'row',
@@ -1655,13 +1729,13 @@ const styles = StyleSheet.create({
  marginBottom: scale(4),
  },
  pregnancyTitle: {
- fontSize: fontScale(15),
+ fontSize: fontScale(14),
  fontWeight: '700',
- color: '#EC4899',
+ color: '#F472B6',
  },
  pregnancySubtext: {
  fontSize: fontScale(12),
- color: '#6B7280',
+ color: c.textSecondary,
  marginBottom: scale(8),
  },
  pregnancyBarContainer: {
@@ -1672,7 +1746,7 @@ const styles = StyleSheet.create({
  pregnancyBarBg: {
  flex: 1,
  height: scale(8),
- backgroundColor: 'rgba(236, 72, 153, 0.15)',
+ backgroundColor: 'rgba(236, 72, 153, 0.20)',
  borderRadius: scale(4),
  overflow: 'hidden',
  },
@@ -1683,12 +1757,11 @@ const styles = StyleSheet.create({
  },
  pregnancyPercent: {
  fontSize: fontScale(12),
- fontWeight: '600',
- color: '#EC4899',
+ fontWeight: '700',
+ color: '#F472B6',
  minWidth: scale(32),
  textAlign: 'right',
  },
 });
 
 export default React.memo(FamilyTab);
-

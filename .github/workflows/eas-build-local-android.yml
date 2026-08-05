@@ -67,6 +67,10 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    # Already on the 1x runner, so this is not the cost fix the iOS workflow
+    # needed — it is only a backstop so a hung build or a stalled Play
+    # submission ends in a red job instead of burning to the 6h default.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:

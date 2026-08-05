@@ -5,6 +5,15 @@ global.__DEV__ = false;
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = process.env.EXPO_PUBLIC_SAVE_HMAC_KEY || 'test-save-hmac-key-0123456789abcdef';
 process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES = process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES || 'true';
 
+// `testEnvironment: 'node'` has no rAF, and React Native's Animated calls it on
+// the first frame of any animation. Without these a component that animates on
+// mount (TopStatsBar) threw "requestAnimationFrame is not defined" — caught by
+// the nearest ProviderBoundary, so its render smoke test still went green.
+if (typeof global.requestAnimationFrame !== 'function') {
+  global.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 0);
+  global.cancelAnimationFrame = (id) => clearTimeout(id);
+}
+
 // Mock performance API for performance tests
 global.performance = {
   now: () => Date.now(),
@@ -148,6 +157,18 @@ jest.mock('expo-router', () => ({
     canGoBack: jest.fn(() => true),
   })),
   useLocalSearchParams: jest.fn(() => ({})),
+  // Screens that register a tabPress/focus listener (the onboarding Perks
+  // screen, the mobile/computer launchers) call this on mount.
+  useNavigation: jest.fn(() => ({
+    addListener: jest.fn(() => jest.fn()),
+    removeListener: jest.fn(),
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+    isFocused: jest.fn(() => true),
+  })),
+  useFocusEffect: jest.fn(),
+  usePathname: jest.fn(() => '/'),
 }));
 
 jest.mock('expo-linear-gradient', () => 'LinearGradient');
@@ -280,6 +301,10 @@ jest.mock('react-native', () => {
       get: jest.fn(() => ({ width: 390, height: 844, scale: 3, fontScale: 1 })),
       addEventListener: jest.fn(() => ({ remove: jest.fn() })),
     },
+    // The hook form of the same thing. Its absence took down every component
+    // that used it (TopStatsBar) — silently, because the ProviderBoundary
+    // caught the throw and the smoke test only checked that SOMETHING rendered.
+    useWindowDimensions: jest.fn(() => ({ width: 390, height: 844, scale: 3, fontScale: 1 })),
     StyleSheet: {
       create: (styles) => styles,
       flatten: (style) => style,
@@ -415,41 +440,31 @@ jest.mock('moti', () => ({
 }), { virtual: true });
 
 // Mock Lucide React Native
-jest.mock('lucide-react-native', () => ({
-  ArrowLeft: 'ArrowLeft',
-  ArrowRight: 'ArrowRight',
-  ChevronLeft: 'ChevronLeft',
-  ChevronRight: 'ChevronRight',
-  X: 'X',
-  HelpCircle: 'HelpCircle',
-  Play: 'Play',
-  XCircle: 'XCircle',
-  User: 'User',
-  Users: 'Users',
-  Dice1: 'Dice1',
-  MessageCircle: 'MessageCircle',
-  DollarSign: 'DollarSign',
-  Gift: 'Gift',
-  // ErrorBoundary crash-screen icons
-  AlertTriangle: 'AlertTriangle',
-  RefreshCw: 'RefreshCw',
-  Home: 'Home',
-  Download: 'Download',
-  FileText: 'FileText',
-  // WeeklyEventModal (Heads Up) + seasonal/economic event icons
-  AlertCircle: 'AlertCircle',
-  CheckCircle: 'CheckCircle',
-  Check: 'Check',
-  TrendingUp: 'TrendingUp',
-  Crown: 'Crown',
-  TrendingDown: 'TrendingDown',
-  ArrowUp: 'ArrowUp',
-  ArrowDown: 'ArrowDown',
-  Leaf: 'Leaf',
-  Sun: 'Sun',
-  Snowflake: 'Snowflake',
-  // Add other icons as needed
-}));
+//
+// A hand-maintained allowlist here is worse than no mock at all: an icon that
+// is not listed resolves to `undefined`, React throws "Element type is
+// invalid", and the ProviderBoundary catches it and renders its crash screen.
+// Every render smoke test asserts `json.length > 0` — which the crash screen
+// satisfies — so the suite goes GREEN on a component that did not render. That
+// is exactly what happened to FamilyTab's first render test (Lock/Search/Smile
+// were unlisted). The Proxy answers for every icon lucide exports, so the mock
+// can never be the reason a component fails to mount.
+jest.mock('lucide-react-native', () =>
+  new Proxy(
+    {},
+    {
+      get: (_target, prop) => {
+        if (prop === '__esModule') return true;
+        // Never answer `then` with a truthy value: a module object with a
+        // `then` is treated as a thenable by dynamic import / await.
+        if (prop === 'then' || typeof prop !== 'string') return undefined;
+        // String tags render as host components under react-test-renderer.
+        return prop;
+      },
+      has: () => true,
+    }
+  )
+);
 
 // Global test utilities
 // NOTE: Use the proper createTestGameState from __tests__/helpers/createTestGameState.ts instead
