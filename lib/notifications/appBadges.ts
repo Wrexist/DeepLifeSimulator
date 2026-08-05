@@ -6,8 +6,10 @@
  * Everything is defensively optional-chained: a missing/partial field yields 0,
  * never a crash, so it is safe on legacy/degraded saves.
  *
- * Keys are the app ids used by both grids (mobile.tsx + computer.tsx). Pets use
- * 'pet' on mobile and 'paw' on computer, so both are set.
+ * Keys are the app ids used by both grids (mobile.tsx + computer.tsx), which
+ * agree on every id. (Pets used to be 'pet' on mobile and 'paw' on computer,
+ * so this file set both. The split broke the `?app=` deep link — one id could
+ * only ever match one launcher — and the launchers were unified on 'pet'.)
  */
 import type { GameState } from '@/contexts/game/types';
 
@@ -34,7 +36,7 @@ export function getAppBadgeCounts(gameState: GameState | undefined | null): Reco
       (n, p) => n + (!p?.isDead && ((p?.health ?? 100) <= 20 || (p?.hunger ?? 100) <= 10) ? 1 : 0),
       0,
     );
-    if (critical > 0) { counts.pet = critical; counts.paw = critical; }
+    if (critical > 0) counts.pet = critical;
 
     // Hustle / companies — unread company notifications (scandals, offers).
     const companies: any[] = g.companies ?? [];

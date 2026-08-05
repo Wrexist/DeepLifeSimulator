@@ -5,6 +5,8 @@ import { renderWithProviders } from './helpers/renderWithProviders';
 import FamilyTab from '@/components/FamilyTab';
 import { initialGameState } from '@/contexts/game/initialState';
 import { getLifeStage } from '@/lib/config/gameConstants';
+import { isFeatureUnlocked } from '@/lib/progress/featureUnlocks';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 /**
  * PLAYER REPORT (2026-08-05, with screenshot): the Family screen opened with
@@ -88,6 +90,61 @@ describe('render — FamilyTab', () => {
     // RN splits the interpolated subtitle into separate text children.
     expect(json).toContain(`"${stage.charAt(0).toUpperCase()}${stage.slice(1)}"," · Age ","${age}"`);
     unmount();
+  });
+
+  it('never shows a CTA the launcher would refuse', () => {
+    // Two independent gates: owning a device, and `app:tinder` being unlocked
+    // (tier 2 — "Finish Chapter 2"). The first version checked only ownership,
+    // so a fresh save could be offered a button that lands on a padlocked
+    // tile now that the launcher validates the deep link.
+    expect(isFeatureUnlocked(createTestGameState(), 'app:tinder')).toBe(false);
+
+    const { json, unmount } = renderWithProviders(<FamilyTab onClose={() => {}} />);
+
+    // Default save owns no device either, so it gets the device copy — and
+    // crucially, no CTA.
+    expect(json).not.toContain('Open the dating app');
+    expect(json).toContain('Buy a smartphone from the Market');
+
+    // The third branch — device owned, Spark still locked — is the one the
+    // ownership-only check got wrong. Pin that it exists and is gated on both.
+    expect(FAMILY_TAB).toContain('const canOpenDating = ownsDevice && datingUnlocked;');
+    expect(FAMILY_TAB).toContain('{canOpenDating && (');
+    expect(FAMILY_TAB).toContain('The dating app unlocks a little later');
+    unmount();
+  });
+
+  it('maps stored enums to labels a player can read', () => {
+    // `educationLevel` / `careerPath` reached three render sites raw, so a
+    // child's chip read "highSchool" and their career read "blueCollar".
+    expect(FAMILY_TAB).not.toMatch(/\{child\.educationLevel[^A-Za-z]/);
+    expect(FAMILY_TAB).not.toContain("child.careerPath || 'Seeking'");
+    expect(FAMILY_TAB).toContain('educationLabel(child.educationLevel)');
+    expect(FAMILY_TAB).toContain('careerLabel(child.careerPath)');
+  });
+
+  it('clamps the pregnancy bar at BOTH ends', () => {
+    // `weeksLived - pregnancyStartWeek` goes negative on a rewound or partially
+    // repaired save, and RN cannot lay out `width: '-40%'`.
+    expect(FAMILY_TAB).toMatch(/Math\.max\(0, Math\.min\(100, Math\.round\(\(pregnancyWeeks/);
+    expect(FAMILY_TAB).toContain('Number.isFinite(pregnancyWeeks)');
+  });
+
+  it('resolves the spouse record once instead of mixing two sources', () => {
+    // `family.spouse` and the `relationships` entry can hold different scores;
+    // the bond bar read one and the baby gate read the other.
+    expect(FAMILY_TAB).toContain('const resolvedSpouse =');
+    expect(FAMILY_TAB).not.toContain('spouse.relationshipScore');
+    expect(FAMILY_TAB).not.toContain('spouse.personality');
+  });
+
+  it('announces a disabled parenting action as disabled', () => {
+    // The row dimmed to opacity 0.5 but told a screen reader nothing, so the
+    // rejection reason beside it was never read out.
+    const parenting = FAMILY_TAB.slice(FAMILY_TAB.indexOf('styles.parentingAction,'));
+
+    expect(parenting).toContain('accessibilityState={{ disabled }}');
+    expect(parenting).toContain('accessibilityHint={disabled ? reasonText : action.description}');
   });
 
   it('does not headline a family-happiness BONUS the week loop never grants', () => {

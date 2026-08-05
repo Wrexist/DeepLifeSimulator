@@ -27,7 +27,7 @@ import { MobileScreenContent } from './mobile';
  * grid, where Dating is not even in the visible category. The param removes
  * that guesswork from the caller: it names the app, this screen finds it.
  */
-function AppsScreen() {
+function AppsScreen(): React.ReactElement {
   const { gameState } = useGame();
   const router = useRouter();
   const { app } = useLocalSearchParams<{ app?: string }>();

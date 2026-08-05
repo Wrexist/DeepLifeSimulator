@@ -901,3 +901,30 @@ DOING, not how long it takes.** A step that is blocked on someone else's queue
 belongs on the cheapest runner that can hold the connection — and any job that
 waits on an external service needs a `timeout-minutes`, or the failure mode is
 six hours of billing.
+
+## 2026-08-05 — a deep link is a door with no padlock on it
+
+The `?app=<id>` deep link added in PR #104 handed its id straight to the
+launcher, which called `setActiveApp(id)`. The launcher's padlock lives on the
+grid TILE — and a deep link never touches a tile. So one query param walked past
+the entire progressive-disclosure system: `?app=onion` opened a tier-5 app on a
+week-1 save, and an unknown id reached `apps[activeApp]`, where `undefined`
+throws "Element type is invalid" — the exact production crash class
+`__tests__/startup/screenImports.test.ts` exists to prevent.
+
+The gate was never missing; it was just attached to the wrong thing. It lived in
+`displayedApps`, a *render* memo, so only the render path enforced it. Moving it
+into `canOpenAppId` (`lib/progress/deepLinkableApps.ts`) and calling it from both
+launchers makes the rule about the ACTION rather than the drawing of the button.
+
+The same review turned up why `?app=pet` was a coin flip: the two launchers used
+different ids for the same app — `paw` on the computer, `pet` on the phone. Each
+was internally consistent, so nothing was visibly broken for years;
+`appBadges.ts` even set both keys with a comment explaining why, and
+`featureUnlocks` carried both `app:paw` and `app:pet`. It only became a bug when
+the id became a cross-launcher contract.
+
+**Two lessons.** When you add a second way to reach an action, the guard that
+protected the first way does not come with it — go and find where the guard
+actually lives. And a duplicated constant with a comment explaining the
+duplication is a bug that has not been triggered yet: the comment is the smell.

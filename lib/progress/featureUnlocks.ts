@@ -102,7 +102,6 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'app:social', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:tinder', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:education', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
-  { id: 'app:paw', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:pet', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
 
   // ── Tier 3 — On The Rise done: $10k, a partner, an investment ───────────

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
+import { canOpenAppId } from '@/lib/progress/deepLinkableApps';
 import {
   Monitor,
   Bitcoin,
@@ -97,7 +98,7 @@ const { width: screenWidth } = Dimensions.get('window');
  * desktop grid. Named here because the deep link needs the same split to pick
  * which category to leave showing behind an app it opened.
  */
-const MOBILE_APP_IDS = ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'];
+const MOBILE_APP_IDS = ['tinder', 'contacts', 'social', 'stocks', 'bank', 'pet'];
 
 function ComputerScreen() {
   return (
@@ -107,32 +108,26 @@ function ComputerScreen() {
   );
 }
 
+export interface ComputerScreenContentProps {
+  /** Rendered inside the merged Apps tab rather than as its own route. */
+  embedded?: boolean;
+  /** App id to open straight away — see the Apps tab's `?app=` deep link. */
+  initialApp?: string;
+  /** Called once the deep link has been handled, so the caller can clear it. */
+  onInitialAppConsumed?: () => void;
+}
+
 export function ComputerScreenContent({
   embedded = false,
   initialApp,
   onInitialAppConsumed,
-}: {
-  embedded?: boolean;
-  /** App id to open straight away — see the Apps tab's `?app=` deep link. */
-  initialApp?: string;
-  onInitialAppConsumed?: () => void;
-}) {
+}: ComputerScreenContentProps): React.ReactElement | null {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
-
-  // Deep link: another screen asked for a specific app (e.g. the Family tab's
-  // "Open the dating app"). Open it, switch the grid behind it to the matching
-  // category so BACK lands somewhere sensible, then tell the parent to clear
-  // the param — otherwise returning to this tab would re-open the app forever.
-  useEffect(() => {
-    if (!initialApp) return;
-    setActiveApp(initialApp);
-    setAppCategory(MOBILE_APP_IDS.includes(initialApp) ? 'mobile' : 'desktop');
-    onInitialAppConsumed?.();
-  }, [initialApp, onInitialAppConsumed]);
+  const { gameState } = useGame();
 
   // Run in-phone apps full-screen (hide the game TopStatsBar + floating tab bar)
   // so they don't feel sandwiched between the game chrome. Reset on unmount so
@@ -144,7 +139,6 @@ export function ComputerScreenContent({
     setFullscreenApp(isFocused && !!activeApp);
     return () => setFullscreenApp(false);
   }, [isFocused, activeApp]);
-  const { gameState } = useGame();
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
   // Haptic parity with the phone grid — opening an app on mobile buzzed,
@@ -303,7 +297,7 @@ export function ComputerScreenContent({
       available: true,
     },
     {
-      id: 'paw',
+      id: 'pet',
       name: t('computer.pets'),
       description: t('computer.adoptPet'),
       icon: PawPrint,
@@ -360,6 +354,31 @@ export function ComputerScreenContent({
       available: true,
     },
   ], [t]);
+
+  // Deep link: another screen asked for a specific app (e.g. the Family tab's
+  // "Open the dating app"). Open it, switch the grid behind it to the matching
+  // category so BACK lands somewhere sensible, then tell the parent to clear
+  // the param — otherwise returning to this tab would re-open the app forever.
+  //
+  // Declared HERE, below `appsList`, because a dependency array is evaluated
+  // during render: referencing `appsList` from a hook above its own `const`
+  // would be a temporal-dead-zone ReferenceError, not a lint nit.
+  //
+  // The id is validated against the SAME gate the grid tile uses. Without that
+  // check `?app=onion` would open a tier-5 app on a week-1 save — the padlock
+  // lives on the tile, and a deep link never touches a tile, so one query param
+  // would bypass the whole progressive-disclosure system. An unknown id would
+  // reach the component lookup below and throw "Element type is invalid". The
+  // param is consumed either way, so a rejected link clears itself instead of
+  // retrying on every focus.
+  useEffect(() => {
+    if (!initialApp) return;
+    if (canOpenAppId(gameState, initialApp, appsList)) {
+      setActiveApp(initialApp);
+      setAppCategory(MOBILE_APP_IDS.includes(initialApp) ? 'mobile' : 'desktop');
+    }
+    onInitialAppConsumed?.();
+  }, [initialApp, onInitialAppConsumed, gameState, appsList]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 
@@ -430,7 +449,7 @@ export function ComputerScreenContent({
       bank: AdvancedBankApp,
       education: EducationApp,
       company: CompanyApp,
-      paw: PetApp,
+      pet: PetApp,
       gaming: GamingApp,
       streaming: GamingStreamingApp,
       travel: TravelApp,

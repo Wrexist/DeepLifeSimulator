@@ -78,6 +78,7 @@ import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 import { colors, accent } from '@/lib/config/theme';
 import { getLifeStage } from '@/lib/config/gameConstants';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
  getActionsForAge,
@@ -147,6 +148,33 @@ function formatParentingEffects(action: ParentingAction): string {
  .filter(([, v]) => typeof v === 'number' && v !== 0)
  .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${NURTURE_LABEL_BY_KEY[k]}`)
  .join(' · ');
+}
+
+/**
+ * `educationLevel` and `careerPath` are stored enums, and three sites rendered
+ * them raw — so a child's chip read "highSchool" and their career read
+ * "blueCollar". Mapped, with the same fallbacks the sites already used.
+ */
+const EDUCATION_LABEL: Record<NonNullable<ChildInfo['educationLevel']>, string> = {
+ none: 'None',
+ highSchool: 'High School',
+ university: 'University',
+ specialized: 'Specialized',
+};
+
+const CAREER_LABEL: Record<NonNullable<ChildInfo['careerPath']>, string> = {
+ blueCollar: 'Blue Collar',
+ whiteCollar: 'White Collar',
+ professional: 'Professional',
+ entrepreneur: 'Entrepreneur',
+};
+
+function educationLabel(level: ChildInfo['educationLevel']): string {
+ return level ? EDUCATION_LABEL[level] ?? level : 'None';
+}
+
+function careerLabel(path: ChildInfo['careerPath']): string {
+ return path ? CAREER_LABEL[path] ?? path : 'Seeking';
 }
 
 function bondColor(score: number): string {
@@ -268,6 +296,24 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const lifeStage = useMemo(() => getLifeStage(age), [age]);
 
  /**
+  * THE spouse record — resolved once, read everywhere.
+  *
+  * A married player exists twice in state: `family.spouse` and an entry in
+  * `relationships`. The array is the one the weekly tick writes, so the two
+  * can hold different `relationshipScore` values, and this screen used to mix
+  * them — the bond bar read `family.spouse` while the "Try for a baby" gate
+  * read the array. Same frame, two different numbers, a button that refuses a
+  * player the bar says is at 80%. One resolution, above every reader.
+  */
+ const spouseRelationship = useMemo(() =>
+ gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
+ [gameState.relationships, spouse?.id]
+ );
+ const resolvedSpouse = spouse ? (spouseRelationship ?? spouse) : undefined;
+ /** Whoever the household revolves around — spouse first, else the partner. */
+ const household = resolvedSpouse ?? partner ?? null;
+
+ /**
   * Household mood, 0-100.
   *
   * This used to render as "+{n} Family Happiness", a small integer with a plus
@@ -279,14 +325,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   */
  const householdMood = useMemo(() => {
  const scores: number[] = [];
- if (spouse) scores.push(spouse.relationshipScore);
- else if (partner) scores.push(partner.relationshipScore);
+ if (household) scores.push(household.relationshipScore);
  children.forEach(child => {
  scores.push(child.happiness ?? child.familyHappiness ?? 50);
  });
  if (scores.length === 0) return null;
  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
- }, [spouse, partner, children]);
+ }, [household, children]);
 
  /**
   * What the household ACTUALLY contributes per week.
@@ -309,27 +354,37 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  [gameState.relationships],
  );
 
- // Check pregnancy status from relationships array (has latest state).
- // Falls back to the partner relationship so engaged/cohabiting couples
+ // Pregnancy hangs off the same resolved record, so engaged/cohabiting couples
  // (who never reach family.spouse) can also start a family.
- const spouseRelationship = useMemo(() =>
- gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
- [gameState.relationships, spouse?.id]
- );
- const babyTarget = spouseRelationship ?? partner ?? null;
+ const babyTarget = household;
  const isPregnant = babyTarget?.isPregnant ?? false;
  const pregnancyWeeks = isPregnant && babyTarget?.pregnancyStartWeek != null
  ? (gameState.weeksLived || 0) - babyTarget.pregnancyStartWeek
  : 0;
- const pregnancyProgress = Math.min(100, Math.round((pregnancyWeeks / 10) * 100));
+ // Clamped at BOTH ends and guarded against a non-finite result: a save whose
+ // `pregnancyStartWeek` is ahead of `weeksLived` (a rewound clock, a partially
+ // repaired save) yields a negative week count, and `width: '-40%'` is not a
+ // style RN can lay out. The bond bar below already clamped both ends.
+ const pregnancyProgress = Number.isFinite(pregnancyWeeks)
+ ? Math.max(0, Math.min(100, Math.round((pregnancyWeeks / 10) * 100)))
+ : 0;
 
- // The Apps tab only exists in the bar once a device is owned (see
- // `app/(tabs)/_layout.tsx`), so the empty-state CTA has to check the same
- // thing before it offers to take the player there.
+ /**
+  * Can the player actually reach Spark right now? Two independent gates, and
+  * the CTA must respect BOTH or it becomes the dead end it replaced:
+  *   - the Apps tab only appears once a device is owned (`(tabs)/_layout.tsx`), and
+  *   - `app:tinder` is a tier-2 unlock, so a brand-new save sees a padlock.
+  * Offering the button anyway would take the player to a grid with Spark
+  * greyed out — worse than telling them what to do, which is what the copy
+  * below does instead.
+  */
  const ownsDevice = useMemo(
  () => (gameState.items || []).some(item => (item.id === 'smartphone' || item.id === 'computer') && item.owned),
  [gameState.items],
  );
+ const datingUnlocked = isFeatureUnlocked(gameState, 'app:tinder');
+ const datingRequirement = unlockRequirement(gameState, 'app:tinder');
+ const canOpenDating = ownsDevice && datingUnlocked;
 
  // `?app=tinder` opens the dating app itself. Without it this lands on the
  // launcher grid — and on a computer-owning save the grid opens on "Desktop
@@ -510,12 +565,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  };
 
  const renderSpouseCard = () => {
- if (!spouse) return null;
- const target = spouseRelationship ?? spouse;
+ const target = resolvedSpouse;
+ if (!target) return null;
 
  return (
  <View style={styles.card}>
- {renderRelationshipHeader(spouse, 'spouse', `Your spouse · ${spouse.personality}`)}
+ {renderRelationshipHeader(target, 'spouse', `Your spouse · ${target.personality}`)}
 
  {isPregnant && renderPregnancy(target)}
 
@@ -718,7 +773,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {!!child.educationLevel && child.educationLevel !== 'none' && (
  <View style={styles.childChip}>
  <GraduationCap size={scale(11)} color={accent.info} />
- <Text style={styles.childChipText}>{child.educationLevel}</Text>
+ <Text style={styles.childChipText}>{educationLabel(child.educationLevel)}</Text>
  </View>
  )}
  </View>
@@ -775,6 +830,10 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  onPress={() => handleParentingAction(child.id, action.id)}
  disabled={disabled}
  activeOpacity={0.7}
+ accessibilityRole="button"
+ accessibilityLabel={action.label}
+ accessibilityHint={disabled ? reasonText : action.description}
+ accessibilityState={{ disabled }}
  >
  <View style={styles.parentingActionIcon}>
  <Icon size={scale(20)} color={accent.info} />
@@ -859,7 +918,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <View style={styles.childStatCard}>
  <GraduationCap size={scale(18)} color={accent.info} />
- <Text style={styles.childStatValue}>{child.educationLevel || 'None'}</Text>
+ <Text style={styles.childStatValue}>{educationLabel(child.educationLevel)}</Text>
  <Text style={styles.childStatLabel}>Education</Text>
  </View>
  {childAge >= 18 && (
@@ -871,7 +930,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <View style={styles.childStatCard}>
  <TrendingUp size={scale(18)} color="#8B5CF6" />
- <Text style={styles.childStatValue}>{child.careerPath || 'Seeking'}</Text>
+ <Text style={styles.childStatValue}>{careerLabel(child.careerPath)}</Text>
  <Text style={styles.childStatLabel}>Career</Text>
  </View>
  </>
@@ -993,11 +1052,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <Text style={styles.emptyStateTitle}>No partner yet</Text>
  <Text style={styles.emptyStateText}>
- {ownsDevice
+ {canOpenDating
  ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
- : 'Buy a smartphone from the Market to unlock the dating app — that is where every relationship starts.'}
+ : !ownsDevice
+ ? 'Buy a smartphone from the Market to unlock the dating app — that is where every relationship starts.'
+ : `The dating app unlocks a little later — ${datingRequirement.toLowerCase()}. Every relationship starts there.`}
  </Text>
- {ownsDevice && (
+ {canOpenDating && (
  <TouchableOpacity
  style={styles.emptyStateCta}
  onPress={handleFindPartner}
