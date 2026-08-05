@@ -18,7 +18,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No | **✅ SHIPPED** |
 | 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
-| 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No |
+| 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No |
@@ -182,7 +182,27 @@ Multi-objective contracts that persist across prestige and escalate in tiers:
 
 ---
 
-## 5. Career capstones — Board Seat and Emeritus
+## 5. Career capstones — Board Seat and Emeritus — ✅ SHIPPED
+
+> **Shipped 2026-08-05** on the five advanced ladders (CEO, Research Scientist,
+> Creative Director, Investment Banker, Surgeon), which topped out at 13–16
+> years of tenure and then never moved again. Two rungs each: **Board Seat** at
+> 20 years in the same career and an **Emeritus** title at 30.
+>
+> Pure data — `experienceRequired` is a shipped field that `promotionGating`
+> already enforces, so no new gating logic. The tests drive the real
+> `getPromotionEligibility` rather than re-reading the catalogue, so the gate is
+> proven to bite at 19 vs 20 years.
+>
+> Note: this covers the five ADVANCED ladders. Extending the 30 base ladders is
+> follow-up — their salaries vary per career, so it is a real authoring job
+> rather than a mechanical one.
+>
+> One existing test needed correcting, not working around: it pinned
+> `levels.length` to exactly 6, while its own name and rationale were about
+> ladders no longer being *short*. The exact pin made a floor read as a ceiling
+> and blocked adding any career tail.
+
 
 **Hooks:** `lib/careers/promotionGating.ts`, `Career.levels[]`.
 
