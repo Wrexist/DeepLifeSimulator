@@ -4,6 +4,47 @@
 
 ## Patterns to Watch For
 
+### 2026-08-05 - Follow-up: the legacy shop had no buy button, and three navigation gates that disagreed with themselves
+
+- **A shipped, tested, context-exposed system with no call site is not shipped.**
+  `purchaseLegacyUpgrade` lived in `MoneyActionsContext`, was exported on the
+  context value, and had 20+ passing tests. `PrestigeShopModal` displayed the
+  Legacy Points balance. **No screen anywhere called the action**, so the entire
+  currency was unspendable in the app — a readout next to a locked door. This is
+  the SAME session's `feedbackSystem` bug in a different costume, and the third
+  time this file has recorded it (`applyBenefit` 2026-06-30,
+  `applyWeeklyInflation` 2026-08-04). The pattern is now unmistakable: a leaf
+  with green tests, a context that exposes it, and nothing that calls it. Rule:
+  when a feature's whole value is that a PLAYER can reach it, one test must
+  assert a screen reaches it. A grep for the symbol across `components/` and
+  `app/` is a one-line assertion. Sibling offenders still open:
+  `lib/automation/` (7 files, ticked weekly, zero UI) and `getDynastyTier`
+  (6 tiers, zero consumers).
+- **Two surfaces enforcing the same gate must read the same state.** `home.tsx`
+  pushed `/(tabs)/progression` with no unlock check while `life.tsx` locked the
+  identical destination behind `tab:progression` — so the padlock read as
+  broken. Fixing it exposed a second, subtler bug: `home.tsx` subscribes through
+  a NARROW selector, and `unlockTier()` reads `completedChapters` and
+  `generationNumber`, neither of which the selector carried. Calling the helper
+  with a partial state would have scored the chapter path 0 and left only the
+  money/weeks fallback — showing a lock the other screen doesn't. Rule: before
+  calling a helper with a selector slice, check every field the helper actually
+  reads. A narrow selector silently returns wrong answers rather than throwing.
+- **An id that differs between two screens is a dead link waiting to happen.**
+  The pet app was `paw` on one grid and `pet` on the other. Badges set both,
+  `featureUnlocks` registered both — the only layer that did NOT was the `?app=`
+  deep link, which resolved `undefined` and bounced silently. Nothing shipped
+  that link yet, which is exactly why it was worth fixing: it was a trap for the
+  next notification tap anyone added.
+- **My own mistakes this round, both caught by tests I wrote first:** a
+  source-scanning test anchored on `const apps`, which also matched
+  `const appsList` (the descriptor ARRAY) and scooped up its `id`/`name`/`icon`
+  keys — so it passed on noise, and two of its three assertions were vacuous.
+  And a "every branch has exactly one root" assertion that failed correctly:
+  parallel chains within a branch are a real tree shape, so the rationale was
+  wrong, not the data. Rule: when a test parses source, assert the PARSE first —
+  a regex that matches nothing makes every later assertion vacuous.
+
 ### 2026-08-05 - Whole-game audit: three feedback channels that rendered nothing, and a suppression that outlived its reason
 
 - **A message bus with a gate on it is not a message bus.**

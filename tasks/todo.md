@@ -63,6 +63,20 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       forgetting to release. Migrated: the four Home popups, the weekly result
       sheet, the premium promo, the ad orb.
 
+### Navigation — shipped
+- [x] Android hardware back exits an open sub-app instead of popping the tab
+      stack (`useHardwareBack` existed and was wired into onboarding only)
+- [x] The Progress screen's gate now agrees between Home and Life — plus the
+      selector fields `unlockTier()` actually reads
+- [x] `paw`/`pet` deep-link ids resolve in both launchers
+- [x] Visible long-press affordance on vitals carrying quick actions
+
+### Dynasty Tree — shipped (roadmap #2)
+- [x] 6 upgrades / 340 points → 17 nodes across 4 branches with prerequisites,
+      25 → 3,600, tree total ~8,700. No migration.
+- [x] **Built the missing purchase UI** — `purchaseLegacyUpgrade` shipped with
+      no screen calling it, so the whole currency was unspendable in the app
+
 ### Luxury Collections — shipped (roadmap #6)
 - [x] `lib/luxury/collections.ts` — 7 completion sets, a title ladder, a
       reputation bonus clamped by the existing cap, and a bounded hosting
