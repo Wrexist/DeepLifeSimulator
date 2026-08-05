@@ -92,6 +92,13 @@ const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 
+/**
+ * Apps that live under the launcher's "Mobile Apps" toggle rather than the
+ * desktop grid. Named here because the deep link needs the same split to pick
+ * which category to leave showing behind an app it opened.
+ */
+const MOBILE_APP_IDS = ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'];
+
 function ComputerScreen() {
   return (
     <ErrorBoundary>
@@ -100,12 +107,32 @@ function ComputerScreen() {
   );
 }
 
-export function ComputerScreenContent({ embedded = false }: { embedded?: boolean }) {
+export function ComputerScreenContent({
+  embedded = false,
+  initialApp,
+  onInitialAppConsumed,
+}: {
+  embedded?: boolean;
+  /** App id to open straight away — see the Apps tab's `?app=` deep link. */
+  initialApp?: string;
+  onInitialAppConsumed?: () => void;
+}) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Deep link: another screen asked for a specific app (e.g. the Family tab's
+  // "Open the dating app"). Open it, switch the grid behind it to the matching
+  // category so BACK lands somewhere sensible, then tell the parent to clear
+  // the param — otherwise returning to this tab would re-open the app forever.
+  useEffect(() => {
+    if (!initialApp) return;
+    setActiveApp(initialApp);
+    setAppCategory(MOBILE_APP_IDS.includes(initialApp) ? 'mobile' : 'desktop');
+    onInitialAppConsumed?.();
+  }, [initialApp, onInitialAppConsumed]);
 
   // Run in-phone apps full-screen (hide the game TopStatsBar + floating tab bar)
   // so they don't feel sandwiched between the game chrome. Reset on unmount so
@@ -339,8 +366,8 @@ export function ComputerScreenContent({ embedded = false }: { embedded?: boolean
     ['bitcoin', 'realestate', 'onion', 'gaming', 'streaming', 'travel', 'political', 'statistics', 'vehicle', 'luxury', 'company', 'education'].includes(app.id)
   ), [appsList]);
   
-  const mobileApps = useMemo(() => appsList.filter(app => 
-    ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'].includes(app.id)
+  const mobileApps = useMemo(() => appsList.filter(app =>
+    MOBILE_APP_IDS.includes(app.id)
   ), [appsList]);
   
   /**

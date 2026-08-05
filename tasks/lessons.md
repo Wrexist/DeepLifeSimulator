@@ -805,3 +805,99 @@ two — but presenting its raw output as severity would have justified a 62-site
 refactor of critical action code for almost no player benefit, which is exactly
 the kind of churn the priority order (Correctness → Simplicity → Root causes)
 is meant to prevent. Read the candidates before quoting the number.
+
+---
+
+## 2026-08-05 — a 44pt target in the wrong place is still unhittable
+
+Player report, with a screenshot: the Family tab "is too far up, can't press
+close". The close button was the SAME control the 2026-08-01 accessibility pass
+had already fixed — it carried `minTouchTargetStyle`, `hitSlopToMinTarget` and
+`CLOSE_BUTTON_A11Y`, and `__tests__/render/touchTargetsAndConfirm.test.ts`
+asserted all three. The test was green and the button was unpressable.
+
+The cause was position, not size. `app/(tabs)/life.tsx` hosts `FamilyTab` in a
+`presentationStyle="fullScreen"` Modal, and a full-screen RN Modal sits OUTSIDE
+the tab navigator's safe-area padding. The header started at `scale(16)` from
+y=0, so on any notch / Dynamic Island phone it drew under the status bar: title
+behind the clock, X behind the battery.
+
+**The lesson: an accessibility pass that measures the control and not its frame
+finds half the bug.** When a player says a control is hard to hit, check where
+it is drawn before concluding the fix already landed — and when a surface is
+hosted in a Modal, it owns its own insets.
+
+The pass also left the rule untested in the axis that broke: there was a test
+for the size and none for the position. Both are now pinned in
+`__tests__/render/familyTab.render.test.tsx`.
+
+## 2026-08-05 — render smoke tests that pass on the crash screen
+
+Chasing the above turned up something worse. Every provider is wrapped in a
+`ProviderBoundary`, so a throw anywhere in the tree is caught and a crash screen
+renders instead. That screen is a perfectly valid tree — and the assertion in
+nearly every render test was `expect(json.length).toBeGreaterThan(0)`.
+
+So the suite went green on components that had rendered NOTHING. Three were
+live: `TopStatsBar` (no `requestAnimationFrame` in `testEnvironment: 'node'`),
+the onboarding Perks screen (no `useNavigation` in the expo-router mock), and
+FamilyTab itself (the `lucide-react-native` mock was a hand-maintained
+allowlist, so any unlisted icon was `undefined` → "Element type is invalid").
+
+Fixes: `renderWithProviders` now throws on the boundary's crash screen and names
+the failing provider; the lucide mock is a Proxy that answers for every icon; the
+two missing hook mocks and the rAF polyfill are in `jest.setup.js`.
+
+**Two generalisable rules.** A mock that is an allowlist will silently fail open
+the first time someone uses an entry that is not on it — prefer one that cannot
+be incomplete. And "it rendered something" is not an assertion: if the failure
+mode of the code under test produces a valid tree, assert on content the
+component itself owns.
+
+## 2026-08-05 — a stored field nothing writes is not state
+
+The Family header read `gameState.lifeStage` and rendered "Teen · Age 21" on a
+21-year-old. `lifeStage` is assigned exactly once — `initialState.ts` seeds it
+from `getLifeStage(18)` — and no birthday handler, weekly subsystem or scenario
+ever updates it. Every player is a teenager forever, at 21 and at 70.
+
+It survived because it had exactly one product reader (this header) and one
+debug reader, and because the same `getLifeStage` helper existed as three
+identical private copies, so nothing pointed at the drift.
+
+Fixed by deriving from age at the point of use and collapsing the three copies
+into `lib/config/gameConstants.ts`. **When a display value looks wrong, grep for
+its WRITERS before its readers** — the same question ("who writes this?") is what
+exposed `child.familyHappiness`, the headline right next to it, as another field
+with no writer at all.
+
+## 2026-08-05 — 73% of a TestFlight release was a macOS runner waiting
+
+"Why do my TestFlight builds take over an hour now? It drains my GitHub usage."
+Run #50 of `eas-build-local-ios.yml`, step by step:
+
+    EAS Build iOS (local)   17m 26s   ← the actual compile
+    Upload .ipa artifact         4s
+    Submit to TestFlight    53m 15s   ← eas submit, waiting on EAS's queue
+    ---------------------------------
+    total                 1h 13m 12s
+
+The submit step does about two seconds of work — it uploads the .ipa and
+schedules a job — and then blocks until EAS finishes talking to Apple. All 53
+minutes of that were a `macos-26` runner sitting idle at the **10x** billing
+rate: roughly 530 billed minutes per release, for waiting.
+
+Nothing in `eas submit` needs macOS. It needs the .ipa, `eas.json` and an
+`EXPO_TOKEN`. So it is now its own `ubuntu-latest` job that downloads the
+artifact the build job already uploads. Same wait, same pass/fail signal in CI,
+one tenth the price.
+
+`--no-wait` was the tempting one-flag fix and it is worse: it makes the job
+green the instant the submission is *scheduled*, so a rejected binary shows as a
+passing release. Paying 1x to keep the signal beats paying nothing to lose it.
+
+**The generalisable lesson: on a metered runner, look at what each step is
+DOING, not how long it takes.** A step that is blocked on someone else's queue
+belongs on the cheapest runner that can hold the connection — and any job that
+waits on an external service needs a `timeout-minutes`, or the failure mode is
+six hours of billing.

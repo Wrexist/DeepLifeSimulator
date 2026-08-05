@@ -84,10 +84,17 @@ function LifeScreen() {
             <ProgressionScreenContent embedded />
           )}
         </View>
+        {/*
+          `statusBarTranslucent` so Android matches iOS's fullScreen
+          presentation: the modal owns the full window and FamilyTab pads its
+          own header by `insets.top`. Without it Android would inset the modal
+          AND FamilyTab would inset again, double-padding the header.
+        */}
         <Modal
           visible={showFamily}
           animationType="slide"
           presentationStyle="fullScreen"
+          statusBarTranslucent
           onRequestClose={() => setShowFamily(false)}
         >
           <FamilyTab onClose={() => setShowFamily(false)} />

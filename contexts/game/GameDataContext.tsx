@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { GameState } from './types';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { WEEKS_PER_YEAR, getLifeStage } from '@/lib/config/gameConstants';
 
 interface GameDataContextType {
   initialState: GameState;
@@ -24,13 +24,6 @@ interface GameDataProviderProps {
   initialState: GameState;
   stateVersion: number;
 }
-
-const getLifeStage = (age: number): 'child' | 'teen' | 'adult' | 'senior' => {
-  if (age < 13) return 'child';
-  if (age < 20) return 'teen';
-  if (age < 65) return 'adult';
-  return 'senior';
-};
 
 const addWeekToAge = (age: number): number => {
   // CRITICAL FIX: Improve precision by using more precise calculation
