@@ -132,6 +132,8 @@ import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
+import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
+import { resolveTenancyStep } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -943,10 +945,36 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  const {
    weeklyRent,
-   housingHappinessBonus,
    housingRentalIncome,
    housingUpkeep,
  } = rentAndHousingResult;
+
+ // Housing wellbeing: health + energy from wherever the player lives, the rent
+ // owed on a tenancy, and the penalty for having nowhere at all.
+ //
+ // `weeklyEnergy` on every property had NO reader in shipping code while
+ // `TopStatsBar` was already adding it to the predicted weekly change — the HUD
+ // promised an energy bonus the tick never paid. This reducer pays it, adds the
+ // health effect housing never had, and makes homelessness cost something.
+ const housingWellbeing = guardTick(
+   'housingWellbeing',
+   () => applyHousingWellbeing({
+     prevState,
+     ownedHappinessBonus: rentAndHousingResult.housingHappinessBonus,
+     nextWeeksLived,
+   }, weeklyCtx),
+   {
+     rent: 0,
+     happiness: rentAndHousingResult.housingHappinessBonus,
+     homeless: false,
+     // Read ownership off prevState rather than defaulting to false: a hard
+     // `false` here would send a homeowner carrying a dangling tenancy down the
+     // renter branch below and start evicting them from a flat they are not
+     // paying for — the exact case `resolveTenancyStep` exists to prevent.
+     owns: (prevState.realEstate ?? []).some((p) => p?.owned && p.currentResidence === true),
+   },
+ );
+ const housingHappinessBonus = housingWellbeing.happiness;
  let updatedRealEstate = rentAndHousingResult.updatedRealEstate;
  // v22 Wave A: persist the capped real-estate activity timeline (feeds the
  // RealEstateApp Activity tab). Sourced entirely from the real-estate weekly
@@ -983,7 +1011,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // shortfall as a debt that is paid off the top of next week's income and drags
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
- const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
+ const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
  const arrears = applyArrears({
    availableCash: currentMoney + totalIncome + housingRentalIncome,
    billsDue: weeklyBillsDue,
@@ -998,6 +1026,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
      message: `You came up $${arrears.newShortfall.toLocaleString()} short this week. $${arrears.overdueBalance.toLocaleString()} is now overdue and comes out of next week's income first.`,
    });
  }
+ // Eviction clock. Runs AFTER settlement, so it reads the arrears that actually
+ // stand at the end of the week rather than a mid-calculation figure.
+ //
+ // The counter resets to zero the moment the balance clears, which is what keeps
+ // this pressure rather than a countdown — paying what you owe always buys back
+ // the full four weeks. Eviction does not clear the debt; it stops the rent and
+ // starts the homeless penalty.
+ //
+ // `resolveTenancyStep` also handles the owner case: buying a home ends the
+ // lease rather than counting down to an eviction from a flat nobody is paying
+ // for.
+ const tenancy = guardTick(
+   'tenancyArrears',
+   () => resolveTenancyStep({
+     rental: prevState.rental,
+     overdueBalance: arrears.overdueBalance,
+     owns: housingWellbeing.owns,
+   }),
+   { rental: prevState.rental, evicted: false, notice: '' },
+ );
+ if (tenancy.notice) {
+   pendingNotifications.push({
+     id: `tenancy-${nextWeeksLived}`,
+     title: tenancy.evicted ? 'Evicted' : housingWellbeing.owns ? 'Lease Ended' : 'Rent Overdue',
+     message: tenancy.notice,
+   });
+ }
+ if (tenancy.evicted) {
+   logger.info(`[TENANCY] Evicted at week ${nextWeeksLived} with $${arrears.overdueBalance} outstanding`);
+ }
+
  const loanResult = guardTick('loanAutopay', () => applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,
@@ -1610,10 +1669,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[PET FOOD TICK] Failed:', foodErr);
  }
 
- // Housing happiness bonus from current residence
- if (housingHappinessBonus > 0) {
- newStats.happiness = Math.min(100, newStats.happiness + housingHappinessBonus);
- }
+ // Housing happiness — SIGNED, so this fold must not be guarded on `> 0`.
+ //
+ // It used to be an owned-residence bonus that could never be negative, and the
+ // guard was harmless. It now carries the value from `applyHousingWellbeing`,
+ // which returns HOMELESS_PENALTY.happiness (−4) for a player with nowhere to
+ // live. A `> 0` guard therefore dropped exactly the case the penalty exists
+ // for: health and energy landed (they are written straight into newStats) while
+ // happiness silently did not, and the HUD — which reads the same signed value —
+ // predicted a cost the week never charged.
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + housingHappinessBonus));
 
  // CRITICAL: Cap stats to valid ranges (0-100) after all calculations.
  // Use isFinite, NOT `typeof === 'number'`: `typeof NaN === 'number'` is true and
@@ -2648,6 +2713,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // cleared debt actually clears — a `&&` guard here would leave the last
  // non-zero value stuck on the save forever.
  overdueBalance: arrears.overdueBalance,
+ // v32: the tenancy, with its eviction clock advanced. `undefined` here means
+ // evicted (or never renting), and writing it unconditionally is what makes an
+ // eviction actually take the home away.
+ rental: tenancy.rental,
  // Stocks: prefer the Remake 6 tick result (includes sector tilt,
  // dividends, fills); fall back to legacy refresh if tick failed.
  stocks: stocksTickResult

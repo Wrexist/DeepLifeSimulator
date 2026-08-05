@@ -3,7 +3,7 @@
 ## v2.6.0 — The Economy Update
 
 **Covers:** everything since **v2.5.13**.
-**Compatibility:** all existing saves load. Save format moves to v31; the
+**Compatibility:** all existing saves load. Save format moves to v32; the
 migration runs automatically on first load and is one-way, so take a backup
 before installing if you want to be able to roll back.
 
@@ -26,8 +26,24 @@ The economy update.
 • Bills you cannot afford are no longer forgiven. They become an overdue
   balance that comes out of next week's income and drags your credit score —
   so money finally has stakes.
-• Inflation is real. Prices drift up over a lifetime and your salary keeps
-  pace, so the economic policies you vote in actually mean something.
+• Economic policy has teeth. Inflation runs for the first time instead of being
+  a number that never moved, so policies you enact now push the cost of starting
+  and upgrading a business.
+• Rent a place to live. A rental ladder from a shared room up to a penthouse
+  lease, and your home now gives you weekly health, happiness and energy.
+  Sleeping rough wears you down, so a roof is worth working for — and buying
+  still beats renting, because it stops the rent and keeps the benefits.
+• Fall behind and you lose the place. Four straight weeks behind on rent and
+  your landlord evicts you — with warnings from the second week and a countdown.
+  Clearing what you owe resets the clock completely, and eviction stops the rent
+  but not the debt.
+• Your home finally does what it says. Owned homes listed an energy bonus that
+  was never actually paid. It is paid now, and owning helps your health too.
+• Work beats hustling. Street jobs paid more per week than a real career, so
+  the sensible play was to ignore the job board. Both were rescaled, and your
+  first property is a long-term goal again rather than an early purchase.
+• Property is an investment, not a printer. Rent used to repay a property in
+  under four years; yields are now realistic. Renting a home costs less too.
 • The app is 200MB smaller.
 • Fixes: the calendar no longer drifts out of step with the month, getting
   arrested can't shorten a sentence, police fines scale with your wealth, and

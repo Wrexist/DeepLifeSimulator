@@ -51,6 +51,34 @@ export const CHANGELOG: ChangelogEntry[] = [
     summary: 'Investing works, wages make sense, and money finally has consequences.',
     changes: [
       {
+        category: 'new',
+        title: 'Rent a place to live',
+        bullets: [
+          'A rental ladder from a shared room up to a penthouse lease.',
+          'Your home now gives you weekly health, happiness and energy.',
+          'Sleeping rough wears you down, so a roof is worth working for.',
+          'Buying still beats renting — it stops the rent and keeps the benefits.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Fall behind and you lose the place',
+        bullets: [
+          'Four straight weeks behind on rent and your landlord evicts you.',
+          'You get warned from the second week, with a countdown.',
+          'Clearing what you owe resets the clock completely, every time.',
+          'Eviction stops the rent but not the debt — and a shared room is always affordable.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Your home finally does what it says',
+        bullets: [
+          'Owned homes listed an energy bonus that was never actually paid.',
+          'It is paid now, and owning a home helps your health as well.',
+        ],
+      },
+      {
         category: 'fixed',
         title: 'The stock market works',
         bullets: [
@@ -69,6 +97,24 @@ export const CHANGELOG: ChangelogEntry[] = [
         ],
       },
       {
+        category: 'improved',
+        title: 'Work beats hustling',
+        bullets: [
+          'Street jobs paid more per week than holding down an actual career.',
+          'They are now a real bridge out of unemployment, not the better plan.',
+          'Your first property is a long-term goal again, not an early purchase.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Property is an investment, not a printer',
+        bullets: [
+          'Rent used to repay a property in under four years.',
+          'Yields are now realistic, so landlording competes with careers instead of replacing them.',
+          'Renting a home costs less too — the same rate drives both.',
+        ],
+      },
+      {
         category: 'new',
         title: 'Bills you can actually miss',
         bullets: [
@@ -80,10 +126,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'new',
-        title: 'Inflation is real',
+        title: 'Economic policy has teeth',
         bullets: [
-          'Prices drift up across a lifetime, and your salary keeps pace.',
-          'Economic policies you vote in now move the cost of living.',
+          'Inflation runs for the first time, instead of being a number that never moved.',
+          'Policies you enact now push the cost of starting and upgrading a business.',
         ],
       },
       {

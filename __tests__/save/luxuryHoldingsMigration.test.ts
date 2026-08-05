@@ -13,9 +13,9 @@ import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
   it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(31);
-    expect(CURRENT_STATE_VERSION).toBe(31);
-    for (const v of [24, 25, 26, 27, 28, 29, 30, 31]) {
+    expect(STATE_VERSION).toBe(32);
+    expect(CURRENT_STATE_VERSION).toBe(32);
+    for (const v of [24, 25, 26, 27, 28, 29, 30, 31, 32]) {
       expect(`v${v} covered: ${isMigrationVersionCovered(v)}`).toBe(`v${v} covered: true`);
     }
   });
@@ -28,6 +28,36 @@ describe('STATE_VERSION registration', () => {
     for (let v = 2; v <= CURRENT_STATE_VERSION; v += 1) {
       expect(isMigrationVersionCovered(v)).toBe(true);
     }
+  });
+});
+
+describe('migration 32 — `rental`, a no-backfill carve-out', () => {
+  // Registration alone proves nothing here: the whole point of a carve-out is
+  // that the migration writes NOTHING, and "writes nothing" and "was never
+  // written" are indistinguishable unless the absence is asserted. Writing a
+  // tenancy would start charging rent to a player who never signed for one.
+  it('leaves `rental` absent on a v31 save', () => {
+    const save = { version: 31, weeksLived: 300, overdueBalance: 0 };
+    const result = runMigrations(save as never);
+
+    expect(result.state.version).toBe(32);
+    expect('rental' in (result.state as object)).toBe(false);
+  });
+
+  it('does not disturb a tenancy that is already there', () => {
+    const rental = { tierId: 'bedsit', startedWeek: 12, missedWeeks: 2 };
+    const result = runMigrations({ version: 31, weeksLived: 300, rental } as never);
+
+    // Including the eviction counter — a migration that reset it would hand a
+    // tenant three weeks behind a free reprieve on update day.
+    expect(result.state.rental).toEqual(rental);
+  });
+
+  it('adds no repair mirror either, for the same reason', () => {
+    const partial = { version: 32, weeksLived: 300 } as never;
+    const repaired = repairGameState(partial);
+    const state = (repaired as { state?: object }).state ?? repaired;
+    expect('rental' in (state as object)).toBe(false);
   });
 });
 

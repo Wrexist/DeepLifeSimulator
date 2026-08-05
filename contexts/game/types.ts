@@ -2487,6 +2487,32 @@ export interface GameState {
    */
   lastLoginRewardAt?: number;
   /**
+   * The home the player currently RENTS, if any.
+   *
+   * Separate from `realEstate` on purpose. A tenancy is not a holding: putting a
+   * synthetic entry in that array would make `calculateNetWorth` add the
+   * property's full price to the player's wealth for a place they do not own,
+   * and would surface a rental in the portfolio UI as if it were an asset.
+   *
+   * Default `undefined` — an absent key already means "not renting", so v32
+   * bumps the version without backfilling it.
+   */
+  rental?: {
+    /** Id from `RENTAL_TIERS`. An unknown id degrades to homeless, not a crash. */
+    tierId: string;
+    /** `weeksLived` when the tenancy started, for the UI and for tenure. */
+    startedWeek: number;
+    /**
+     * Consecutive weeks ended in arrears. Four means eviction.
+     *
+     * Absent means zero, and it resets to zero the week the balance clears — so
+     * no backfill is needed and the parent object is itself optional. Lives on
+     * the tenancy rather than at the top level because it is meaningless without
+     * one: moving out or being evicted should take the counter with it.
+     */
+    missedWeeks?: number;
+  };
+  /**
    * `weeksLived` at the last daily-login gem claim. The gate that actually
    * holds.
    *

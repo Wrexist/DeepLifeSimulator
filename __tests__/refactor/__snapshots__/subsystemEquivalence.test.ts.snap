@@ -4492,7 +4492,7 @@ exports[`pre-tick equivalence — applyRentAndHousing multiple rented properties
         "weeklyHappiness": 0,
       },
     ],
-    "weeklyRent": 33,
+    "weeklyRent": 10,
   },
 }
 `;
@@ -4518,7 +4518,7 @@ exports[`pre-tick equivalence — applyRentAndHousing rented (not owned) propert
         "weeklyHappiness": 0,
       },
     ],
-    "weeklyRent": 8,
+    "weeklyRent": 2,
   },
 }
 `;

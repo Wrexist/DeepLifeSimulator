@@ -45,9 +45,28 @@ export const PREGNANCY_DURATION_WEEKS = 10; // ~2.5 months game time
 export const BANKRUPTCY_FLOOR = 500; // Minimum cash before bankruptcy triggers
 
 // ── Real Estate Rent ────────────────────────────────────
-/** Canonical rent rate: 2% of property value per month, applied weekly (0.02 / 4 = 0.005).
- *  Used for BOTH player-pays-rent and landlord-earns-rent calculations. */
-export const RENT_INCOME_RATE = 0.005;
+/**
+ * Canonical weekly rent, as a fraction of property value. Used for BOTH
+ * player-pays-rent and landlord-earns-rent — one number, both directions.
+ *
+ * Was 0.005 (described as "2% per month"), which annualises to a **26% gross
+ * yield**: a $95 000 studio paid $475/week and repaid its own purchase price in
+ * 3.8 years. That made landlording strictly dominant over every career in the
+ * game — better than a bottom-rung wage from the first property, with no energy
+ * cost and no risk — and it was the real money printer behind "the game gives
+ * too much money", not the salary ladder alone.
+ *
+ * 0.0015 is ~7.8%/yr gross, which is a believable rental return and takes ~13
+ * years to repay the purchase. Property stays a genuinely good investment; it
+ * stops being the only one worth making.
+ *
+ * NOTE this cuts both ways: renting a home is now correspondingly cheaper for
+ * the player. That is the honest consequence of one shared rate, and it is the
+ * right trade — the landlord side was the exploit.
+ *
+ * `__tests__/economy/incomeScale.test.ts` bounds the resulting yield.
+ */
+export const RENT_INCOME_RATE = 0.0015;
 
 // ── Death & Health ────────────────────────────────────────
 export const ZERO_STAT_DEATH_WEEKS = 4;

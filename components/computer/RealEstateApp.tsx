@@ -73,6 +73,8 @@ import {
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
+import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 const LinearGradient = LinearGradientFallback;
@@ -213,11 +215,16 @@ interface RealEstateAppProps {
   onBack: () => void;
 }
 
-type Tab = 'portfolio' | 'browse' | 'activity';
+type Tab = 'portfolio' | 'rent' | 'browse' | 'activity';
 type Route = { kind: 'list' } | { kind: 'detail'; id: string; source: 'portfolio' | 'browse' };
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Home },
+  // Rent sits BEFORE Browse on purpose: the cheapest property is $95,000, which
+  // is roughly 16 years of a bottom-rung wage, so for most of a life renting is
+  // the only housing a player can actually reach. Putting the unreachable option
+  // first would make the screen read as "nothing here for you".
+  { id: 'rent',      label: 'Rent',      icon: KeyRound },
   { id: 'browse',    label: 'Browse',    icon: ShoppingBag },
   { id: 'activity',  label: 'Activity',  icon: Activity },
 ];
@@ -687,6 +694,114 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     );
   };
 
+  const handleRent = useCallback((tierId: string) => {
+    const result = rentHome(setGameState, gameState, tierId);
+    Alert.alert(result.success ? 'Moved in' : 'Cannot rent that', result.message);
+    if (result.success) void saveGame();
+  }, [gameState, setGameState, saveGame]);
+
+  const handleEndRental = useCallback(() => {
+    const result = endRental(setGameState, gameState);
+    Alert.alert(result.success ? 'Moved out' : 'Not renting', result.message);
+    if (result.success) void saveGame();
+  }, [gameState, setGameState, saveGame]);
+
+  const renderRent = () => {
+    const options = listRentalOptions(gameState);
+    const currentTier = getRentalTier(gameState.rental?.tierId);
+    const missedWeeks = gameState.rental?.missedWeeks ?? 0;
+    const ownsHome = (gameState.realEstate ?? []).some((p) => p.owned && p.currentResidence);
+
+    return (
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Where you live</SectionTitle>
+
+        <View style={[getGlassCard(darkMode, 6), styles.rentStatusCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.rentStatusTitle, { color: theme.text }]}>
+            {ownsHome ? 'You own your home' : currentTier ? currentTier.name : 'Nowhere to live'}
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+            {ownsHome
+              ? 'Owning beats renting — no rent, and your home still keeps you well.'
+              : currentTier
+              ? `${formatMoney(currentTier.weeklyRent)}/wk · +${currentTier.health} health · +${currentTier.happiness} happiness · +${currentTier.energy} energy each week.`
+              : 'Sleeping rough costs you health, happiness and energy every week. Even a shared room helps.'}
+          </Text>
+          {/* The eviction clock, on the screen rather than only in a toast a
+              player may have dismissed. Someone about to lose their home should
+              be able to SEE how close they are, and how to stop it. */}
+          {missedWeeks > 0 && currentTier && !ownsHome ? (
+            <Text style={[styles.rentReason, { color: accent.warning }]}>
+              {missedWeeks >= EVICTION_AFTER_WEEKS - 1
+                ? `Final notice — ${missedWeeks} weeks behind. Clear what you owe or you lose this place next week.`
+                : `${missedWeeks} week${missedWeeks === 1 ? '' : 's'} behind on rent. ${EVICTION_AFTER_WEEKS - missedWeeks} more and you are evicted.`}
+            </Text>
+          ) : null}
+          {currentTier && !ownsHome ? (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleEndRental}
+              style={styles.tintedBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Move out"
+            >
+              <Text style={styles.tintedBtnText}>Move out</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {ownsHome ? null : (
+          <>
+            <SectionTitle theme={theme}>Available to rent</SectionTitle>
+            {options.map(({ tier, current, allowed, reason }) => (
+              <View
+                key={tier.id}
+                style={[getGlassCard(darkMode, 6), styles.rentCard, { backgroundColor: theme.surface, borderColor: current ? IDENTITY : theme.border }]}
+              >
+                <View style={styles.rentCardHead}>
+                  <Text style={[styles.rentName, { color: theme.text }]}>{tier.name}</Text>
+                  <Text style={[styles.rentPrice, { color: IDENTITY }]}>{formatMoney(tier.weeklyRent)}/wk</Text>
+                </View>
+                <Text style={[styles.emptyText, { color: theme.textMuted }]}>{tier.description}</Text>
+                <View style={styles.rentStats}>
+                  <Text style={[styles.rentStat, { color: theme.textSecondary }]}>+{tier.health} health</Text>
+                  <Text style={[styles.rentStat, { color: theme.textSecondary }]}>+{tier.happiness} happiness</Text>
+                  <Text style={[styles.rentStat, { color: theme.textSecondary }]}>+{tier.energy} energy</Text>
+                </View>
+                {current ? (
+                  <Text style={[styles.rentStat, { color: IDENTITY }]}>You live here</Text>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      disabled={!allowed}
+                      onPress={() => handleRent(tier.id)}
+                      style={[styles.tintedBtn, !allowed && { opacity: 0.45 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rent the ${tier.name}`}
+                      // Without this a screen reader announces an ordinary
+                      // button: the dimming is the ONLY signal that it will not
+                      // respond, and the refusal reason below is a separate text
+                      // node the control is not associated with.
+                      accessibilityState={{ disabled: !allowed }}
+                      accessibilityHint={!allowed && reason ? reason : undefined}
+                    >
+                      <KeyRound size={scale(14)} color={IDENTITY} />
+                      <Text style={styles.tintedBtnText}>Move in</Text>
+                    </TouchableOpacity>
+                    {!allowed && reason ? (
+                      <Text style={[styles.rentReason, { color: theme.textMuted }]}>{reason}</Text>
+                    ) : null}
+                  </>
+                )}
+              </View>
+            ))}
+          </>
+        )}
+      </View>
+    );
+  };
+
   const renderBrowse = () => (
     <View style={{ gap: responsiveSpacing.sm }}>
       <View style={styles.browseHeader}>
@@ -978,6 +1093,8 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           ? renderDetail(detailProperty, (route as Extract<Route, { kind: 'detail' }>).source)
           : activeTab === 'portfolio'
           ? renderPortfolio()
+          : activeTab === 'rent'
+          ? renderRent()
           : activeTab === 'browse'
           ? renderBrowse()
           : renderActivity()}
@@ -1516,6 +1633,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
   },
   ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '800' },
+  rentStatusCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(6) },
+  rentStatusTitle: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  rentCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(8) },
+  rentCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rentName: { fontSize: responsiveFontSize.md, fontWeight: '800', flex: 1 },
+  rentPrice: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  rentStats: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(10) },
+  rentStat: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  rentReason: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   detailBlock: { borderWidth: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   detailBlockRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
   detailBlockHeader: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
