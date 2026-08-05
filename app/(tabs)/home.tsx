@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { reconcileRedeemClaim, applyRedeemReward } from '@/utils/redeemCodes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,6 +53,7 @@ import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 // Lazy load heavy modals and popups
@@ -153,6 +154,12 @@ function HomeScreenContent() {
       prestigeAvailable: s?.prestigeAvailable,
       prestige: s?.prestige,
       discoveredSystems: s?.discoveredSystems,
+      // Required by unlockTier() for the Progress card's gate. Without these
+      // the chapter path scores 0 and only the money/weeks fallback applies,
+      // so a chapter-completing player would see a lock the Life tab does not
+      // — the same inconsistency this gate exists to remove, inverted.
+      completedChapters: s?.completedChapters,
+      generationNumber: s?.generationNumber,
     }),
     shallowEqual
   ) as unknown as GameState;
@@ -178,6 +185,12 @@ function HomeScreenContent() {
   // Root-level blocking modals (death/wedding) own the screen — every
   // celebration/reward popup below defers to them.
   const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
+
+  // The Progress screen is `href: null` (never a tab button), so this card is
+  // its front door — and must apply the same tier gate the Life tab's Stats
+  // segment does. See the card below.
+  const progressLocked = !isFeatureUnlocked(gameState, 'tab:progression');
+  const progressLockReason = unlockRequirement(gameState, 'tab:progression');
 
   // Interruption slots. These four popups used to gate on a hand-rolled chain of
   // `&&` terms that grew with every popup added — and could not see the weekly
@@ -722,17 +735,38 @@ function HomeScreenContent() {
             other entry point — this card is its front door. Always visible. */}
         <FadeInUp delay={110}>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/progression')}
+            onPress={() => {
+              // Respect the SAME gate the Life tab enforces on its Stats
+              // segment. This card used to push straight through, so a week-1
+              // player was told "locked" in one place and handed the whole
+              // screen in another — which reads as a broken gate and silently
+              // defeated progressive disclosure for its one tier-gated surface.
+              // Shown-but-locked rather than hidden: the destination stays
+              // discoverable, and the requirement is stated.
+              if (progressLocked) {
+                Alert.alert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
+                return;
+              }
+              router.push('/(tabs)/progression');
+            }}
             activeOpacity={0.85}
             style={styles.progressLinkCard}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: progressLocked }}
           >
             <View style={styles.progressLinkIcon}>
-              <Trophy size={scale(20)} color="#F59E0B" />
+              {progressLocked ? (
+                <Lock size={scale(18)} color="#94A3B8" />
+              ) : (
+                <Trophy size={scale(20)} color="#F59E0B" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.progressLinkTitle}>Your Progress</Text>
               <Text style={styles.progressLinkSub}>
-                Prestige, Legacy Pass, life story & lifetime stats
+                {progressLocked
+                  ? progressLockReason || 'Keep playing to unlock this.'
+                  : 'Prestige, Legacy Pass, life story & lifetime stats'}
               </Text>
             </View>
             <ChevronRight size={scale(18)} color="#94A3B8" />

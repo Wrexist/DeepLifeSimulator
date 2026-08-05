@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -52,6 +52,7 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useIsFocused } from '@react-navigation/native';
@@ -139,6 +140,17 @@ export function MobileScreenContent({
   const navigation = useNavigation<any>();
   const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
   const { logRender } = usePerformanceMonitor();
+
+  // Android hardware back exits the open sub-app rather than popping the tab
+  // stack — see the matching comment in computer.tsx. Consumes the press only
+  // while an app is open, so the grid keeps default navigator behaviour.
+  useHardwareBack(
+    useCallback(() => {
+      if (!activeApp) return false;
+      setActiveApp(null);
+      return true;
+    }, [activeApp])
+  );
 
   // Reset to apps grid when the Mobile tab is pressed
   useEffect(() => {
@@ -262,7 +274,10 @@ export function MobileScreenContent({
       bank: BankApp,
       education: EducationApp,
       company: CompanyApp,
+      // Alias — see the matching comment in computer.tsx. `paw` is the id the
+      // desktop grid and MOBILE_APP_IDS use; both must resolve here too.
       pet: PetApp,
+      paw: PetApp,
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];

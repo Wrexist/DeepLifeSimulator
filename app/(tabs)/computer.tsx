@@ -80,6 +80,7 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useIsFocused } from '@react-navigation/native';
@@ -183,6 +184,20 @@ export function ComputerScreenContent({
     buttonPress();
     setActiveApp(null);
   }, [buttonPress]);
+
+  // Android hardware back must exit the SUB-APP, not the tab stack.
+  // Opening an app calls setFullscreenApp(true), which hides both the
+  // TopStatsBar and the tab bar — so the app's own back chevron was the only
+  // way out, and the system gesture instead popped the navigator, dumping the
+  // player on Home (or out of the app) while `activeApp` stayed set.
+  // Returning true consumes the press only while an app is open.
+  useHardwareBack(
+    useCallback(() => {
+      if (!activeApp) return false;
+      handleCloseApp();
+      return true;
+    }, [activeApp, handleCloseApp])
+  );
 
   // Reset to apps grid when the Computer tab is pressed
   useEffect(() => {
@@ -430,7 +445,12 @@ export function ComputerScreenContent({
       bank: AdvancedBankApp,
       education: EducationApp,
       company: CompanyApp,
+      // The pet app is 'paw' on this grid and 'pet' on the phone grid — an
+      // inconsistency the badge layer already has to paper over by setting
+      // both. Accept either id in BOTH launchers so a `?app=` deep link can
+      // never resolve to undefined and silently bounce back to the grid.
       paw: PetApp,
+      pet: PetApp,
       gaming: GamingApp,
       streaming: GamingStreamingApp,
       travel: TravelApp,
