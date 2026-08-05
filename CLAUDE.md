@@ -514,5 +514,6 @@ replaced with review checklists.
 | `docs/LAUNCH_CHECKLIST.md`, `docs/LAUNCH_PLAN.md`, `docs/STORE_LISTING.md`, `docs/DATA_SAFETY.md` | Store/release |
 | `marketing/apple-ads/` | Apple Ads (App Store Ads) program — campaign structure, keyword + negative-keyword CSVs, CPP briefs, LTV→max-CPA model, optimization playbook. Start at its `README.md` |
 | `docs/RELEASE_SECRETS.md`, `tasks/leaked-key-rotation-runbook.md` | Secret handling |
+| `docs/SAVE-KEY-RECOVERY-RUNBOOK.md` | **`EXPO_PUBLIC_SAVE_HMAC_KEY` is append-only.** It signs saves AND permanent IAP entitlements through one envelope, so changing it makes every save unreadable and every paid entitlement fail closed to `[]`, on every device at once. Step-by-step recovery, including extracting a previous key from a shipped bundle |
 | `RELEASE_NOTES.md`, `WHATS_NEW.md` | Player-facing release copy |
 | `SCREENSHOT_GUIDE.md`, `scripts/README_BUILD_SCRIPTS.md` | Asset/screenshot generation |
