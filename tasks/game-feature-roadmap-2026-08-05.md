@@ -15,7 +15,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | # | Feature | Impact | Cost | Migration? |
 |---|---|---|---|---|
 | 1 | Conglomerate / Holding Company | ★★★★★ | M | No |
-| 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No |
+| 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No | **✅ SHIPPED** |
 | 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No |
@@ -62,7 +62,33 @@ and finally becomes a real trade-off instead of a silent tax.
 
 ---
 
-## 2. Dynasty Tree — turn Legacy Points into an actual tree
+## 2. Dynasty Tree — turn Legacy Points into an actual tree — ✅ SHIPPED
+
+> **Shipped 2026-08-05.** Six upgrades / 340 points became **17 nodes across
+> four branches** (Wealth, Blood, Name, Craft) with prerequisite edges, running
+> 25 → 3,600 for a tree total of ~8,700 — so a 1,000-week life (~5,050 points)
+> can buy most of a branch but not the tree. The original six ids are unchanged
+> and are now the branch roots, so no existing save loses a purchase. No
+> migration: `legacyUpgrades: string[]` already shipped at v29.
+>
+> **The bigger find along the way:** the shop had no purchase UI at all.
+> `purchaseLegacyUpgrade` shipped in `MoneyActionsContext` and the modal showed
+> the point balance — but *no screen ever called the action*, so the entire
+> system was unreachable in the app. Same class as `getDynastyTier` and
+> `lib/automation/`. Added a Dynasty tab to `PrestigeShopModal`, plus a
+> reachability test, because this is the third time `lessons.md` has recorded
+> "is it called?" being a different question from "does it work?".
+>
+> Depth goes on the Wealth branch specifically because `prestigeExecution`
+> clamps stat and reputation bonuses to 100 — a 900-point "+35 health" node
+> would be mostly wasted. Money is the only unclamped effect.
+>
+> One design correction: my own test asserted "exactly one root per branch". It
+> failed, correctly — Blood carries parallel health/fitness lines and Craft
+> carries intelligence/happiness, which is a real tree shape and gives a choice
+> *within* a branch. The rationale was wrong, not the data; the assertion is now
+> the invariant that matters (no branch unreachable or empty).
+
 
 **Hooks:** `lib/legacy/legacyShop.ts`, `legacyUpgrades: string[]` (already
 migrated and repaired at STATE_VERSION 29).
