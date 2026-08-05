@@ -23,6 +23,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { scale, fontScale } from '@/utils/scaling';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import {
   ensureCurrentSeason,
   getTierForXp,
@@ -118,7 +119,13 @@ export default function PremiumPassPromo() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [weeksLived, pass.premiumOwned, stats.locked, hapticEnabled, haptic, blocked]);
 
-  if (!visible) return null;
+  // Lowest-but-one priority in the shared queue: an upsell must lose to every
+  // reward, every celebration and the weekly sheet. `blocked` above still
+  // short-circuits death/wedding independently, since those are root-level
+  // modals that gate their own dismissal.
+  const slot = useInterruptionSlot('promo:premium-pass', INTERRUPTION_PRIORITY.PROMO, visible);
+
+  if (!slot) return null;
 
   const close = () => setVisible(false);
   const goToPass = () => { setVisible(false); router.push('/(tabs)/progression?openPass=1' as never); };

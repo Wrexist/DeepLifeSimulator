@@ -17,6 +17,7 @@ import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
@@ -171,7 +172,15 @@ export default function TabLayout() {
     gameState?.showDeathPopup || gameState?.showWeddingPopup ||
     gameState?.lifeMoments?.pendingMoment || eventInboxOpen
   );
-  const showWeekResult = resultWeek !== null && !higherModalUp && weekSummaryEnabled;
+  // The weekly sheet is a plain absolute View, so the RN Modals raised by Home
+  // (goal / daily reward / welcome back / community) covered it outright and its
+  // "Continue" button became unreachable until they were dismissed. Routing it
+  // through the shared queue makes it WAIT for them instead of racing them.
+  const showWeekResult = useInterruptionSlot(
+    'tabs:week-result',
+    INTERRUPTION_PRIORITY.WEEK_RESULT,
+    resultWeek !== null && !higherModalUp && weekSummaryEnabled
+  );
   // The inbox pill shows when decisions are waiting and nothing else is up.
   const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
 

@@ -30,6 +30,7 @@ import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
@@ -116,6 +117,15 @@ export default function AdRewardOrb() {
   // be) on screen. The component stays mounted so the Modal can animate out and
   // report its native dismissal, but nothing of ours is visible or tappable.
   const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
+  // Lowest priority in the shared queue. The orb only claims a slot while the
+  // ORB is showing — once the player taps through to the ad it is their own
+  // deliberate action and no longer an interruption, so it doesn't hold the
+  // queue against anything else.
+  const orbSlot = useInterruptionSlot(
+    'orb:ad-reward',
+    INTERRUPTION_PRIORITY.AD_ORB,
+    phase === 'orb'
+  );
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
@@ -412,7 +422,7 @@ export default function AdRewardOrb() {
   return (
     <>
       {/* ── The left-edge orb ─────────────────────────────────── */}
-      {phase === 'orb' ? (
+      {phase === 'orb' && orbSlot ? (
         <Animated.View
           pointerEvents="box-none"
           style={[styles.orbWrap, { top: '42%', transform: [{ translateX: slideX }] }]}

@@ -53,6 +53,7 @@ import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
@@ -177,6 +178,33 @@ function HomeScreenContent() {
   // Root-level blocking modals (death/wedding) own the screen — every
   // celebration/reward popup below defers to them.
   const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
+
+  // Interruption slots. These four popups used to gate on a hand-rolled chain of
+  // `&&` terms that grew with every popup added — and could not see the weekly
+  // result sheet, the premium promo or the ad orb, which live in other files.
+  // Now every interrupting surface in the app competes in ONE priority queue and
+  // exactly one wins. Death/wedding still short-circuit locally: they are
+  // root-level modals that gate their own dismissal.
+  const goalSlot = useInterruptionSlot(
+    'home:goal-complete',
+    INTERRUPTION_PRIORITY.GOAL_COMPLETE,
+    showGoalCompletion && !blockingModalUp
+  );
+  const dailyRewardSlot = useInterruptionSlot(
+    'home:daily-reward',
+    INTERRUPTION_PRIORITY.DAILY_REWARD,
+    !!gameState.showDailyRewardPopup && !blockingModalUp
+  );
+  const welcomeBackSlot = useInterruptionSlot(
+    'home:welcome-back',
+    INTERRUPTION_PRIORITY.WELCOME_BACK,
+    showWelcomeBack && !blockingModalUp
+  );
+  const communitySlot = useInterruptionSlot(
+    'home:community-reward',
+    INTERRUPTION_PRIORITY.COMMUNITY_REWARD,
+    showCommunityReward && !blockingModalUp
+  );
 
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
@@ -764,7 +792,7 @@ function HomeScreenContent() {
           instead of whichever setTimeout won the race. */}
       <Suspense fallback={null}>
         <GoalCompletionPopup
-          visible={showGoalCompletion && !blockingModalUp}
+          visible={goalSlot}
           completedGoal={completedGoal}
           nextGoal={nextGoal}
           onClose={() => setShowGoalCompletion(false)}
@@ -773,7 +801,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <DailyRewardPopup
-          visible={(gameState.showDailyRewardPopup || false) && !blockingModalUp && !showGoalCompletion}
+          visible={dailyRewardSlot}
           rewardAmount={gameState.dailyRewardAmount || 0}
           onClose={() => setGameState(prev => ({
             ...prev,
@@ -784,7 +812,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <WelcomeBackPopup
-          visible={showWelcomeBack && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup}
+          visible={welcomeBackSlot}
           onClose={() => {
             setShowWelcomeBack(false);
             // Actually GRANT the welcome-back bonus the popup advertised (it was
@@ -812,7 +840,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <CommunityRewardPopup
-          visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
+          visible={communitySlot}
           rewardAmount={communityRewardAmount}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
