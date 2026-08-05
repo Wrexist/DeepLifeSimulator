@@ -870,3 +870,34 @@ into `lib/config/gameConstants.ts`. **When a display value looks wrong, grep for
 its WRITERS before its readers** — the same question ("who writes this?") is what
 exposed `child.familyHappiness`, the headline right next to it, as another field
 with no writer at all.
+
+## 2026-08-05 — 73% of a TestFlight release was a macOS runner waiting
+
+"Why do my TestFlight builds take over an hour now? It drains my GitHub usage."
+Run #50 of `eas-build-local-ios.yml`, step by step:
+
+    EAS Build iOS (local)   17m 26s   ← the actual compile
+    Upload .ipa artifact         4s
+    Submit to TestFlight    53m 15s   ← eas submit, waiting on EAS's queue
+    ---------------------------------
+    total                 1h 13m 12s
+
+The submit step does about two seconds of work — it uploads the .ipa and
+schedules a job — and then blocks until EAS finishes talking to Apple. All 53
+minutes of that were a `macos-26` runner sitting idle at the **10x** billing
+rate: roughly 530 billed minutes per release, for waiting.
+
+Nothing in `eas submit` needs macOS. It needs the .ipa, `eas.json` and an
+`EXPO_TOKEN`. So it is now its own `ubuntu-latest` job that downloads the
+artifact the build job already uploads. Same wait, same pass/fail signal in CI,
+one tenth the price.
+
+`--no-wait` was the tempting one-flag fix and it is worse: it makes the job
+green the instant the submission is *scheduled*, so a rejected binary shows as a
+passing release. Paying 1x to keep the signal beats paying nothing to lose it.
+
+**The generalisable lesson: on a metered runner, look at what each step is
+DOING, not how long it takes.** A step that is blocked on someone else's queue
+belongs on the cheapest runner that can hold the connection — and any job that
+waits on an external service needs a `timeout-minutes`, or the failure mode is
+six hours of billing.
