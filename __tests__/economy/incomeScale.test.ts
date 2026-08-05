@@ -33,7 +33,7 @@
  * strictly richer than either.
  */
 import fs from 'fs';
-import { INITIAL_CAREERS } from '@/lib/careers/careerData';
+import { INITIAL_CAREERS, MIN_ENTRY_WEEKLY_SALARY } from '@/lib/careers/careerData';
 import { calculateIncomeTax } from '@/lib/economy/constants';
 import { RENT_INCOME_RATE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { initialGameState } from '@/contexts/game/initialState';
@@ -179,10 +179,11 @@ describe('rent is a return, not a money printer', () => {
 describe('the career board holds together', () => {
   it('starts no ladder below the floor', () => {
     for (const career of INITIAL_CAREERS) {
+      // Against the CONSTANT, not a hand-copied 100. The floor is 110, so the
+      // literal left a 10-dollar band in which a regression passed this test.
       expect(`${career.id}: ${career.levels[0].salary}`).toBe(
-        `${career.id}: ${Math.max(career.levels[0].salary, 0)}`,
+        `${career.id}: ${Math.max(career.levels[0].salary, MIN_ENTRY_WEEKLY_SALARY)}`,
       );
-      expect(career.levels[0].salary).toBeGreaterThanOrEqual(100);
     }
   });
 

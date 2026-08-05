@@ -26,12 +26,12 @@ const ctx = (): WeekContext =>
     notifications: [],
   }) as unknown as WeekContext;
 
-const renting = (startedWeek: number, weeksLived: number): GameState => ({
-  ...createTestGameState(),
-  weeksLived,
-  realEstate: [],
-  rental: { tierId: TIER.id, startedWeek },
-});
+const renting = (startedWeek: number, weeksLived: number): GameState =>
+  createTestGameState({
+    weeksLived,
+    realEstate: [],
+    rental: { tierId: TIER.id, startedWeek },
+  });
 
 const run = (prevState: GameState, c = ctx()) => ({
   result: applyHousingWellbeing(
@@ -62,12 +62,12 @@ describe('the signing week is not charged twice', () => {
   });
 
   it('treats a legacy tenancy with no startedWeek as an ordinary rent week', () => {
-    const state = {
-      ...createTestGameState(),
+    const state = createTestGameState({
       weeksLived: 30,
       realEstate: [],
+      // A tenancy written before `startedWeek` existed.
       rental: { tierId: TIER.id } as GameState['rental'],
-    } as GameState;
+    });
     expect(run(state).result.rent).toBe(TIER.weeklyRent);
   });
 });
@@ -82,7 +82,7 @@ describe('`owns` says who the home belongs to, not what it costs', () => {
   });
 
   it('is false when homeless', () => {
-    const state = { ...createTestGameState(), realEstate: [], rental: undefined } as GameState;
+    const state = createTestGameState({ realEstate: [], rental: undefined });
     const { result } = run(state);
     expect(result.owns).toBe(false);
     expect(result.homeless).toBe(true);
@@ -90,16 +90,15 @@ describe('`owns` says who the home belongs to, not what it costs', () => {
   });
 
   it('is true for an owned residence, which keeps the housing module’s happiness', () => {
-    const state = {
-      ...createTestGameState(),
+    const state = createTestGameState({
       realEstate: [
         {
           id: 'home', name: 'House', price: 100_000, weeklyHappiness: 4, weeklyEnergy: 6,
-          owned: true, currentResidence: true, interior: [], upgradeLevel: 0,
+          owned: true, currentResidence: true, status: 'owner', interior: [], upgradeLevel: 0,
         },
       ],
       rental: undefined,
-    } as unknown as GameState;
+    });
     const { result } = run(state);
     expect(result.owns).toBe(true);
     expect(result.rent).toBe(0);

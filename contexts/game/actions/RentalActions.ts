@@ -20,7 +20,9 @@
  */
 import React from 'react';
 import type { GameState } from '../types';
+import type { LettingVerdict, RentalTier } from '@/lib/realEstate/rentals';
 import { RENTAL_TIERS, canRent, getRentalTier } from '@/lib/realEstate/rentals';
+import { applyMoneyDelta } from './MoneyActions';
 import { logger } from '@/utils/logger';
 
 const log = logger.scope('RentalActions');
@@ -56,17 +58,36 @@ export function resolveRentHome(state: GameState, tierId: string): RentalTransit
     return { next: state, result: { success: false, message: verdict.reason } };
   }
 
-  const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+  // The canonical money path (§4.4). It re-checks affordability against the
+  // state it is charging and returns null rather than a floored balance, so the
+  // rejection and the debit cannot disagree — and it records the charge in
+  // `dailySummary`, which a hand-rolled `stats.money` write skips.
+  const spend = applyMoneyDelta(state, -tier.weeklyRent, `First week's rent — ${tier.name}`);
+  if (!spend) {
+    return {
+      next: state,
+      result: { success: false, message: `The first week is due on signing: $${tier.weeklyRent.toLocaleString()}.` },
+    };
+  }
 
   return {
     next: {
       ...state,
-      rental: { tierId: tier.id, startedWeek: state.weeksLived ?? 0 },
-      stats: {
-        ...state.stats,
-        // Charge and record in ONE object — the gate-then-grant split is the
-        // most repeated bug class in this repo (§4.4).
-        money: Math.max(0, cash - tier.weeklyRent),
+      // Charge and record in ONE object — the gate-then-grant split is the most
+      // repeated bug class in this repo (§4.4).
+      ...spend,
+      rental: {
+        tierId: tier.id,
+        startedWeek: state.weeksLived ?? 0,
+        // Moving house does not pay what you owe, so it must not reset the
+        // eviction clock either. Rebuilding this record from scratch let a
+        // tenant three weeks behind drop to the $45 room and buy back the full
+        // four weeks, repeatedly, while `overdueBalance` stood untouched —
+        // `canRent` only asks for the first week's cash, and arrears are settled
+        // off next week's INCOME, so holding cash and owing money is normal.
+        // The counter still resets the week the balance clears, which is the
+        // documented escape and the only one.
+        ...(state.rental?.missedWeeks ? { missedWeeks: state.rental.missedWeeks } : {}),
       },
     },
     result: {
@@ -129,8 +150,15 @@ export function endRental(
   return result;
 }
 
+/** One row of the Rent screen: the tier, whether it is home, and the verdict. */
+export interface RentalOption extends LettingVerdict {
+  tier: RentalTier;
+  /** True when this is the tier the player currently rents. */
+  current: boolean;
+}
+
 /** Tiers the player could sign for right now, with the reason when they cannot. */
-export function listRentalOptions(gameState: GameState) {
+export function listRentalOptions(gameState: GameState): RentalOption[] {
   return RENTAL_TIERS.map((tier) => ({
     tier,
     current: gameState.rental?.tierId === tier.id,

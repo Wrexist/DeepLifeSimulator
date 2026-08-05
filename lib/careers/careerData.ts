@@ -16,7 +16,13 @@ import { Career } from '@/contexts/game/types';
  *   lifted = originalTop x (MIN_ENTRY_WEEKLY_SALARY / originalEntry)
  *   top    = max(originalTop, CEILING x (1 - e^(-lifted / CEILING)))
  *   entry  = MIN_ENTRY_WEEKLY_SALARY
- *   rungs  = linear interpolation between those two anchors
+ *   rungs  = each original rung mapped to its SAME relative position between the
+ *            two new anchors — a linear rescale of the ladder, not evenly
+ *            spaced steps. Fast food ran 50/60/64/70/85/110, so its middle
+ *            rungs sit at 0.17/0.23/0.33/0.58 of the span and land on
+ *            130/140/150/180 rather than on an even 24 apart. Preserving the
+ *            shape keeps each ladder's own pacing — where the jumps come, and
+ *            how flat the early years feel.
  *
  * Two anchors rather than a flat multiplier, because a flat one propagates each
  * ladder's internal ratio into its top: the musician ladder spans 40x, so

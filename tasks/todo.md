@@ -47,7 +47,11 @@ rent is the bill the arrears system was built for and never received.
 - [x] Rent flows through the arrears bill line, so an unaffordable week becomes
       a debt instead of being silently forgiven.
 - [x] `rentHome` / `endRental` actions, atomic per §4.4.
-- [x] State + v32 migration + repair mirror + test-helper entry.
+- [x] State + v32 migration + test-helper entry. NO backfill and no
+      `repairGameState` mirror: `rental` defaults to `undefined`, so it is a
+      carve-out like v26/v27/v28 — an absent key already means "not renting",
+      and writing a tenancy would start charging rent to someone who never
+      signed for anything.
 - [x] Pay the energy bonus the HUD has been promising, and give owned residences
       the same health/energy treatment as rentals.
 - [x] A "Rent" tab in RealEstateApp.
@@ -153,6 +157,53 @@ Skipping the signing-week charge is why `HousingWellbeingResult` gained an
 explicit `owns` flag: `rent === 0` is now true for an owner, a new tenant and a
 homeless character alike, and (3) would otherwise have cancelled every lease on
 its first week.
+
+### Second pass — automated review (2026-08-05)
+
+Two more Majors, both mine, both created by the first pass:
+
+4. **The homeless happiness penalty was predicted and never charged.** Making
+   `housingHappinessBonus` signed left an unchanged `if (housingHappinessBonus
+   > 0)` fold several hundred lines downstream, which dropped exactly the −4.
+   Health and energy landed (the reducer writes those straight into `newStats`),
+   so homelessness cost two stats of the three it advertised — and the HUD, which
+   I had just wired to the same signed value, displayed the cost the week never
+   took. I reopened advertised-vs-actual on the stat I was fixing.
+
+5. **A $45 tier swap reset the eviction clock.** `resolveRentHome` rebuilt the
+   tenancy record from scratch, dropping `missedWeeks`, so a tenant three weeks
+   from eviction could move to the cheapest room and buy back the full four
+   weeks, repeatedly, with the debt untouched. The counter now survives a move;
+   it still resets the week the balance clears, which is the documented escape
+   and now the only one.
+
+**Why the existing tests missed (4):** `applyHousingWellbeing` was unit-tested
+and correct — it returned −4 and the test asserted −4. No unit test can see a
+consumer three hundred lines downstream. `__tests__/stress/housingTick.stress.test.ts`
+now drives the provider's real `nextWeek`, and it caught the bug when re-checked
+against a deliberate revert.
+
+Two traps that cost time in writing it, both recorded because they make a broken
+test look like a passing one:
+
+- `nextWeek` is async behind an anti-mash ref it clears after an await. Inside a
+  synchronous `act()` that continuation never runs, so a SECOND `nextWeek()` on
+  the same mount silently does nothing — the second measurement reads as "this
+  effect is zero" rather than as a broken test. One tick per mount, and assert
+  the week advanced before reading anything.
+- Seeding energy at 60 put the rented case at 101 → clamped to 100, which ate a
+  point of the gap and made the ladder's own numbers look wrong. Stats have to
+  finish the week clear of both 0 and 100 for a delta to mean anything.
+
+Also from that review: `weeklyIncomeForLetting` now clamps `career.level` before
+indexing (an out-of-range level read as "earns nothing" and locked every tier
+with an income requirement); the first week's rent goes through
+`applyMoneyDelta`; `WHATS_NEW.md` said the save format moves to v31 when it
+ships v32; the `rungs = linear interpolation` line in `careerData.ts` described
+evenly-spaced rungs when the rule maps each ORIGINAL rung to its same relative
+position. Declined, with reasons, in the PR thread: typing only the v32
+migration callback when all 31 neighbours are untyped, `?? []` → `|| []`, and a
+claim that the nurse ladder changed — it is byte-identical to the original.
 
 ---
 

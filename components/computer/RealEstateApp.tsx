@@ -85,8 +85,6 @@ const LinearGradient = LinearGradientFallback;
 // accent.success / accent.danger AS DATA, keeping portfolio P/L semantics
 // distinct from this identity usage.
 const IDENTITY = '#10B981';
-/** Eviction-warning amber. Matches the FIXED tag in the What's New feed. */
-const WARN = '#FBBF24';
 const IDENTITY_RGB = '16, 185, 129';
 
 // ─── Real property photos ───────────────────────────────────────────────────
@@ -726,14 +724,14 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             {ownsHome
               ? 'Owning beats renting — no rent, and your home still keeps you well.'
               : currentTier
-              ? `$${currentTier.weeklyRent}/wk · +${currentTier.health} health · +${currentTier.happiness} happiness · +${currentTier.energy} energy each week.`
+              ? `${formatMoney(currentTier.weeklyRent)}/wk · +${currentTier.health} health · +${currentTier.happiness} happiness · +${currentTier.energy} energy each week.`
               : 'Sleeping rough costs you health, happiness and energy every week. Even a shared room helps.'}
           </Text>
           {/* The eviction clock, on the screen rather than only in a toast a
               player may have dismissed. Someone about to lose their home should
               be able to SEE how close they are, and how to stop it. */}
           {missedWeeks > 0 && currentTier && !ownsHome ? (
-            <Text style={[styles.rentReason, { color: WARN }]}>
+            <Text style={[styles.rentReason, { color: accent.warning }]}>
               {missedWeeks >= EVICTION_AFTER_WEEKS - 1
                 ? `Final notice — ${missedWeeks} weeks behind. Clear what you owe or you lose this place next week.`
                 : `${missedWeeks} week${missedWeeks === 1 ? '' : 's'} behind on rent. ${EVICTION_AFTER_WEEKS - missedWeeks} more and you are evicted.`}
@@ -762,7 +760,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               >
                 <View style={styles.rentCardHead}>
                   <Text style={[styles.rentName, { color: theme.text }]}>{tier.name}</Text>
-                  <Text style={[styles.rentPrice, { color: IDENTITY }]}>${tier.weeklyRent}/wk</Text>
+                  <Text style={[styles.rentPrice, { color: IDENTITY }]}>{formatMoney(tier.weeklyRent)}/wk</Text>
                 </View>
                 <Text style={[styles.emptyText, { color: theme.textMuted }]}>{tier.description}</Text>
                 <View style={styles.rentStats}>
@@ -781,6 +779,12 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
                       style={[styles.tintedBtn, !allowed && { opacity: 0.45 }]}
                       accessibilityRole="button"
                       accessibilityLabel={`Rent the ${tier.name}`}
+                      // Without this a screen reader announces an ordinary
+                      // button: the dimming is the ONLY signal that it will not
+                      // respond, and the refusal reason below is a separate text
+                      // node the control is not associated with.
+                      accessibilityState={{ disabled: !allowed }}
+                      accessibilityHint={!allowed && reason ? reason : undefined}
                     >
                       <KeyRound size={scale(14)} color={IDENTITY} />
                       <Text style={styles.tintedBtnText}>Move in</Text>

@@ -71,7 +71,10 @@ export function applyHousingWellbeing(
   ctx: WeekContext,
 ): HousingWellbeingResult {
   const wellbeing = computeHousingWellbeing(input.prevState);
-  const owns = !wellbeing.homeless && wellbeing.rent === 0;
+  // Carried, not re-derived from `rent === 0` — that is also true while homeless
+  // and on a tenancy's signing week (see below), and either read as ownership
+  // would end the lease on the next tick.
+  const owns = wellbeing.owned;
 
   ctx.newStats.health = clampStat(ctx.newStats.health + wellbeing.health);
   ctx.newStats.energy = clampStat(ctx.newStats.energy + wellbeing.energy);

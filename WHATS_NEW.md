@@ -3,7 +3,7 @@
 ## v2.6.0 — The Economy Update
 
 **Covers:** everything since **v2.5.13**.
-**Compatibility:** all existing saves load. Save format moves to v31; the
+**Compatibility:** all existing saves load. Save format moves to v32; the
 migration runs automatically on first load and is one-way, so take a backup
 before installing if you want to be able to roll back.
 

@@ -109,6 +109,49 @@ describe('signing a tenancy', () => {
     // Only the new tier's first week — no exit fee, no double charge.
     expect(stub.current().stats.money).toBe(afterFirst - second.weeklyRent);
   });
+
+  it('a swap does NOT reset the eviction clock', () => {
+    // Moving house does not pay what you owe. Rebuilding the tenancy record from
+    // scratch dropped `missedWeeks`, so a tenant three weeks from eviction could
+    // drop to the cheapest room for one week's rent and buy back the full four
+    // weeks — repeatedly, while `overdueBalance` stood untouched. `canRent` only
+    // asks for the first week's cash, and arrears come off next week's INCOME,
+    // so holding cash while owing money is the normal state, not a corner case.
+    const state = tenantReady(5000, {
+      currentJob: 'probe',
+      careers: [{
+        id: 'probe', levels: [{ name: 'Probe', salary: 900 }], level: 0,
+        description: 'fixture', requirements: {}, progress: 0, applied: true, accepted: true,
+      }],
+      rental: { tierId: RENTAL_TIERS[2].id, startedWeek: 4, missedWeeks: 3 },
+      overdueBalance: 800,
+    } as Partial<GameState>);
+    const stub = createSetGameStateStub(state);
+
+    rentHome(stub.setGameState, stub.current(), RENTAL_TIERS[0].id);
+
+    expect(stub.current().rental?.tierId).toBe(RENTAL_TIERS[0].id);
+    expect(stub.current().rental?.missedWeeks).toBe(3);
+    // And the debt itself is untouched by the move.
+    expect(stub.current().overdueBalance).toBe(800);
+  });
+
+  it('carries no counter when the player was paid up', () => {
+    // The reset still belongs to clearing the balance, so a paid-up mover must
+    // not inherit a phantom counter.
+    const state = tenantReady(5000, {
+      currentJob: 'probe',
+      careers: [{
+        id: 'probe', levels: [{ name: 'Probe', salary: 900 }], level: 0,
+        description: 'fixture', requirements: {}, progress: 0, applied: true, accepted: true,
+      }],
+      rental: { tierId: RENTAL_TIERS[2].id, startedWeek: 4, missedWeeks: 0 },
+    } as Partial<GameState>);
+    const stub = createSetGameStateStub(state);
+
+    rentHome(stub.setGameState, stub.current(), RENTAL_TIERS[0].id);
+    expect(stub.current().rental?.missedWeeks).toBeFalsy();
+  });
 });
 
 describe('ending a tenancy', () => {

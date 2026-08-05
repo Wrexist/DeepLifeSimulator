@@ -963,7 +963,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
      ownedHappinessBonus: rentAndHousingResult.housingHappinessBonus,
      nextWeeksLived,
    }, weeklyCtx),
-   { rent: 0, happiness: rentAndHousingResult.housingHappinessBonus, homeless: false, owns: false },
+   {
+     rent: 0,
+     happiness: rentAndHousingResult.housingHappinessBonus,
+     homeless: false,
+     // Read ownership off prevState rather than defaulting to false: a hard
+     // `false` here would send a homeowner carrying a dangling tenancy down the
+     // renter branch below and start evicting them from a flat they are not
+     // paying for — the exact case `resolveTenancyStep` exists to prevent.
+     owns: (prevState.realEstate ?? []).some((p) => p?.owned && p.currentResidence === true),
+   },
  );
  const housingHappinessBonus = housingWellbeing.happiness;
  let updatedRealEstate = rentAndHousingResult.updatedRealEstate;
@@ -1660,10 +1669,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[PET FOOD TICK] Failed:', foodErr);
  }
 
- // Housing happiness bonus from current residence
- if (housingHappinessBonus > 0) {
- newStats.happiness = Math.min(100, newStats.happiness + housingHappinessBonus);
- }
+ // Housing happiness — SIGNED, so this fold must not be guarded on `> 0`.
+ //
+ // It used to be an owned-residence bonus that could never be negative, and the
+ // guard was harmless. It now carries the value from `applyHousingWellbeing`,
+ // which returns HOMELESS_PENALTY.happiness (−4) for a player with nowhere to
+ // live. A `> 0` guard therefore dropped exactly the case the penalty exists
+ // for: health and energy landed (they are written straight into newStats) while
+ // happiness silently did not, and the HUD — which reads the same signed value —
+ // predicted a cost the week never charged.
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + housingHappinessBonus));
 
  // CRITICAL: Cap stats to valid ranges (0-100) after all calculations.
  // Use isFinite, NOT `typeof === 'number'`: `typeof NaN === 'number'` is true and

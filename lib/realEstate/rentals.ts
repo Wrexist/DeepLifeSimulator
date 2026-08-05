@@ -158,16 +158,24 @@ export const EVICTION_AFTER_WEEKS = 4;
 /** The week the player first gets told this is heading somewhere. */
 const EVICTION_FIRST_WARNING_WEEK = 2;
 
+/**
+ * The persisted tenancy record. Derived from `GameState['rental']` rather than
+ * restated, so a field added there cannot go missing from this reducer's types
+ * while the code keeps compiling — it spreads `...rental`, so an extra field
+ * would survive at runtime and be invisible to the checker.
+ */
+export type Tenancy = NonNullable<GameState['rental']>;
+
 export interface TenancyArrearsInput {
   /** The tenancy at the start of the week, if any. */
-  rental: { tierId: string; startedWeek: number; missedWeeks?: number } | undefined;
+  rental: Tenancy | undefined;
   /** Arrears standing at the END of this week, after settlement. */
   overdueBalance: number;
 }
 
 export interface TenancyArrearsResult {
   /** The tenancy going forward. `undefined` means evicted (or none to begin with). */
-  rental: { tierId: string; startedWeek: number; missedWeeks?: number } | undefined;
+  rental: Tenancy | undefined;
   /** True on the week the tenancy ends. */
   evicted: boolean;
   /** Player-facing warning or eviction notice. Empty when there is nothing to say. */
@@ -275,7 +283,13 @@ export function weeklyIncomeForLetting(state: GameState | undefined | null): num
   if (!currentJob) return 0;
   const career = careers.find((c) => c.id === currentJob && c.accepted);
   if (!career) return 0;
-  const level = career.levels?.[career.level ?? 0];
+  // Bound the index. An out-of-range `level` yields an undefined salary, which
+  // reads as "earns nothing" and locks every tier with an income requirement for
+  // a player who does hold a job. `applyCareerSalaryAndPenalty` clamps the same
+  // index for the same reason, and the two readers of `career.level` must agree.
+  const levels = career.levels ?? [];
+  if (levels.length === 0) return 0;
+  const level = levels[Math.max(0, Math.min(career.level ?? 0, levels.length - 1))];
   const salary = level?.salary;
   return typeof salary === 'number' && isFinite(salary) && salary > 0 ? salary : 0;
 }
@@ -299,7 +313,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   if (income < tier.incomeRequirement) {
     return {
       allowed: false,
-      reason: `Needs proof of $${tier.incomeRequirement}/wk income — you earn $${income}/wk.`,
+      reason: `Needs proof of $${tier.incomeRequirement.toLocaleString()}/wk income — you earn $${income.toLocaleString()}/wk.`,
     };
   }
   const cash = state.stats?.money;
@@ -307,7 +321,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   if (safeCash < tier.weeklyRent) {
     return {
       allowed: false,
-      reason: `The first week is due on signing: $${tier.weeklyRent}.`,
+      reason: `The first week is due on signing: $${tier.weeklyRent.toLocaleString()}.`,
     };
   }
   return { allowed: true, reason: '' };
@@ -321,6 +335,14 @@ export interface HousingWellbeing {
   rent: number;
   /** True when the player has no home at all — the penalty case. */
   homeless: boolean;
+  /**
+   * True when the residence is OWNED.
+   *
+   * Carried rather than inferred from `rent === 0`, which is also 0 while
+   * homeless and would be 0 for a free or promotional tier — and a renter read
+   * as an owner has their lease ended on the next tick.
+   */
+  owned: boolean;
 }
 
 /**
@@ -362,6 +384,7 @@ export function computeHousingWellbeing(
       energy,
       rent: 0,
       homeless: false,
+      owned: true,
     };
   }
 
@@ -373,10 +396,11 @@ export function computeHousingWellbeing(
       energy: tier.energy,
       rent: tier.weeklyRent,
       homeless: false,
+      owned: false,
     };
   }
 
-  return { ...HOMELESS_PENALTY, rent: 0, homeless: true };
+  return { ...HOMELESS_PENALTY, rent: 0, homeless: true, owned: false };
 }
 
 const numberOr = (n: unknown, fallback: number): number =>
