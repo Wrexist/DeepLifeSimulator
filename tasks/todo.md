@@ -103,9 +103,9 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 ## Next — in order
 
 ### Before any new feature
-- [ ] **Write the journal.** `journal: []` has no writer anywhere in the repo, so
-      the one surface that could answer "what just happened?" is permanently
-      empty — on the screen Help points at. Same fix as the muted week digest.
+- [x] **The journal has a writer.** `appendWeekToJournal` records the week's
+      notable notifications into `journal` from the tick's state assembly, keyed
+      by notification id so a StrictMode double-invoke cannot double-append.
 - [ ] **Settle the design-token collision.** `spacing.md` is 12 in
       `lib/config/theme.ts` and 16 in `utils/scaling.ts`, with a third orphaned
       copy in `utils/designSystem.ts`. Every mechanical sweep is blocked behind
@@ -118,6 +118,10 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       of flooring at $0, and the total folds into the same `overdueBalance`
 - [x] Ad-orb cash grants gated on the GAME week (v35 carve-out), replacing a
       wall-clock-only limiter that let net worth double every ~2.2h of real time
+- [x] Rent + luxury yield folded into the tax base — ~$450k/wk of late-game
+      income was untaxed, making real estate strictly dominant. The luxury
+      figure is computed early from the owned ids (it is credited later in the
+      tick), so the cash still lands where it always did.
 - [x] Vehicle running costs + accident bills, pet food and birth costs now
       defer too. Diet and education deliberately left alone — both are ALREADY
       in `weeklyBillsDue`, so deferring them would double-charge. Mining power
@@ -129,8 +133,9 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       readout and the charge now share one implementation and cannot drift
 
 ### Navigation
-- [ ] Move renting out of the desktop-only, tier-3 Real Estate app — it is a
-      week-1 survival need
+- [x] Renting is now on Life → Market (no device, no tier) as well as in the
+      Real Estate app — it was a week-1 survival need behind a $5,000 computer
+      and a Chapter-3 gate. The Real Estate path is kept, not replaced.
 - [ ] Retire the Desktop/Mobile segment split (buying a computer currently *adds*
       a tap to five apps and relocates two)
 - [ ] Promote the Discovery Center to a real, always-visible "All Systems"

@@ -16,6 +16,8 @@ import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
+import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
+import { getTotalLuxuryYield, getLoanIncome } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
@@ -995,8 +997,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { savingsInterest, newBankSavings } = savingsResult;
 
  // Progressive income tax on weekly earnings.
+ //
+ // TAX BASE (2026-08-06): rent and luxury yield are now in it. They used to be
+ // credited to cash WITHOUT ever entering `totalIncome`, so at the top bracket
+ // $150k/wk of rent was worth $150k while $150k/wk of salary was worth $91k —
+ // and combined with luxury yields roughly $450k/wk of late-game income was
+ // both untaxed AND outside the net-worth soft cap. That made real estate a
+ // strictly dominant strategy for a reason nothing in the design ever stated.
+ //
+ // Luxury yield is CREDITED later (applyLuxuryItemsForWeek, further down), but
+ // the figure is a pure function of the owned ids, so it can be computed here
+ // for the tax base without moving where the cash lands.
+ //
  // Life Skills: Tax Strategy (-10% tax) scales the owed tax down (bounded mult).
- const incomeTax = Math.round(calculateIncomeTax(totalIncome) * lifeSkillMods.taxMult);
+ const taxableLuxuryYield =
+   getTotalLuxuryYield(prevState.luxuryItems) +
+   getLoanIncome(prevState.luxuryItems, prevState.luxuryHoldings, nextWeeksLived);
+ const taxableIncome = totalIncome + housingRentalIncome + taxableLuxuryYield;
+ const incomeTax = Math.round(calculateIncomeTax(taxableIncome) * lifeSkillMods.taxMult);
 
  // R7 Phase 2 step 2.4e: per-loan autopay extracted into
  // ./actions/weekly/applyLoanAutopay.ts. Pure helper threads cash through
@@ -2726,6 +2744,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // cleared debt actually clears — a `&&` guard here would leave the last
  // non-zero value stuck on the save forever.
  overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
+ // The journal finally gets a writer. `journal` shipped with a full reader,
+ // a pruner and a life-story consumer, and NOTHING wrote to it — so the one
+ // surface that answers "what just happened to me?" always rendered its empty
+ // state, on the screen Help points at. Same source as the transient weekly
+ // messages, so the digest is both a message and a permanent record.
+ // Keyed by notification id (which encodes the week), so a StrictMode
+ // double-invoke of this updater cannot double-append.
+ journal: appendWeekToJournal(prevState.journal, pendingNotifications, nextWeeksLived),
  // v32: the tenancy, with its eviction clock advanced. `undefined` here means
  // evicted (or never renting), and writing it unconditionally is what makes an
  // eviction actually take the home away.
