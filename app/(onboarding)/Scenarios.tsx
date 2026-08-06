@@ -24,6 +24,7 @@ import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShe
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
+import ImageScrim from '@/components/ui/ImageScrim';
 import {
   getDifficultyColor,
   getDifficultyLabel,
@@ -230,11 +231,14 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {/* Hero artwork — the scenario's own painting, full-bleed, with a
-              scrim so the title and difficulty read cleanly over any art. */}
+          {/* Hero artwork — the scenario's own painting, full-bleed, under a
+              bottom FADE so the title and difficulty read cleanly without
+              hiding the art. This used to be one flat 90%-opaque band across
+              the bottom 55%, which blacked out over half of every painting
+              behind a hard horizontal edge. */}
           <View style={styles.heroWrap}>
             <Image source={scenario.icon} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroScrim} />
+            <ImageScrim height={0.42} strength={0.72} />
             {isRecommended ? (
               <View style={styles.recommendedPill}>
                 <Star size={11} color="#60A5FA" />
@@ -683,16 +687,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  heroScrim: {
-    // One flat band over the bottom of the hero so the title/difficulty read
-    // cleanly — never a gradient (the fallback would render a hard-edged block).
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '55%',
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-  },
+  // (the flat `heroScrim` band is gone — see ImageScrim in the hero above)
   heroTitleRow: {
     position: 'absolute',
     left: 0,
