@@ -20,7 +20,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** | **✅ SHIPPED (v33)** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
-| 7 | Operating Overhead | ★★★★☆ | M | Maybe |
+| 7 | Operating Overhead | ★★★★☆ | M | Maybe | **◐ PARTIAL — made visible, not yet a decision** |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No | **✅ MECHANISM SHIPPED** |
 | 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 10 | Grandchildren | ★★★★☆ | M–L | **Yes** |
@@ -361,7 +361,25 @@ hosting multiplier; own all 12 → **Curator**, with a permanent prestige floor.
 
 ---
 
-## 7. Operating Overhead — replace the passive-income soft cap
+## 7. Operating Overhead — replace the passive-income soft cap — ◐ PARTIAL
+
+> **Shipped 2026-08-05: the visibility half.** `passiveIncomeEfficiency` and
+> `getOperatingOverhead` are exported from `lib/economy/passiveIncome.ts`, and
+> the soft cap now derives its multiplier from that SAME helper — so the number
+> a readout shows and the number actually charged share one implementation and
+> cannot drift, which is the advertised-vs-actual class these audits keep
+> finding.
+>
+> **No balance change.** A test reproduces the original inline math across the
+> whole curve as a behavioural oracle, so the refactor is provably
+> behaviour-preserving; `incomeScale` and all 512 economy tests stayed green.
+>
+> **Deliberately NOT shipped: the management purchase ladder** (Group COO,
+> property managers, family office) that turns the drag into a decision. That is
+> the half that genuinely moves the money axis — it needs `incomeScale`
+> re-tuning and new ratchet floors, and it is the wrong thing to bolt on at the
+> end of a large branch. The visibility work is its prerequisite and is done.
+
 
 **Hooks:** `lib/economy/passiveIncome.ts`.
 
