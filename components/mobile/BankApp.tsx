@@ -55,6 +55,9 @@ import OpenAccountModal from '@/components/banking/OpenAccountModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import ApplyCardModal from '@/components/banking/ApplyCardModal';
 import AddBillModal from '@/components/banking/AddBillModal';
+import TaxStatement from '@/components/banking/TaxStatement';
+import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
 import {
@@ -86,7 +89,7 @@ interface BankAppProps {
 }
 
 /** Local list→detail routing (presentational only — reads existing state). */
-type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | null;
+type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind: 'tax' } | null;
 
 function formatMoney(n: number): string {
   if (!isFinite(n)) return '$0';
@@ -177,6 +180,13 @@ function BankAppInner({ onBack }: BankAppProps) {
     for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies]);
+
+  // Tax Strategy discount, read from the same source the week loop charges from
+  // so the Tax page cannot quote a rate the tick does not apply.
+  const taxMult = useMemo(
+    () => clampTaxMult(getLifeSkillModifiers(gameState).taxMult),
+    [gameState]
+  );
 
   const queueSave = useCallback(() => {
     saveGame().catch(() => {});
@@ -387,6 +397,41 @@ function BankAppInner({ onBack }: BankAppProps) {
   };
 
   // ───────────────────────────── Credit report page ────────────────────────
+  // ─────────────────────────────── Tax page ──────────────────────────────────
+  //
+  // The tax surface shipped on the DESKTOP bank app only, so the whole system —
+  // brackets, the year-to-date total, the four other taxes, the Tax Strategy
+  // discount — was behind a $5,000 computer. A player crosses their first
+  // bracket around week 10, long before they can buy one. Same trap renting was
+  // in, same fix: put it where the early player already is.
+  //
+  // Renders the SAME `TaxStatement` the desktop tab does, so the two cannot
+  // disagree about what the game charges.
+  const renderTaxDetail = () => (
+    <>
+      {renderHeader(`Tax · Year ${taxYearOf(gameState.weeksLived)}`, {
+        back: () => setSubView(null),
+        right: (
+          <View style={[styles.typeDot, { backgroundColor: 'rgba(245, 158, 11, 0.16)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}>
+            <Percent size={scale(14)} color={accent.warning} />
+          </View>
+        ),
+      })}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
+      >
+        <TaxStatement
+          banking={banking}
+          weeksLived={gameState.weeksLived}
+          weeklyIncome={weeklyIncome}
+          taxMult={taxMult}
+          darkMode={darkMode}
+        />
+      </ScrollView>
+    </>
+  );
+
   const renderCreditDetail = () => {
     const cs = banking.creditScore;
     const history = cs.history ?? [];
@@ -570,15 +615,30 @@ function BankAppInner({ onBack }: BankAppProps) {
               {/* `taxDueThisYear` finally has a writer (the week loop's tax
                   ledger), so this chip is no longer permanently hidden behind
                   its `> 0` gate. Relabelled: the number is tax already PAID
-                  this game year, not a bill waiting to be settled. The full
-                  breakdown — brackets, capital gains, the Tax Strategy
-                  discount — lives on the desktop Bank Pro app's Tax tab. */}
+                  this game year, not a bill waiting to be settled. */}
               {banking.taxDueThisYear > 0 && (
                 <LedgerChip theme={theme} icon={Percent} label="Tax paid" value={formatMoney(banking.taxDueThisYear)} color={accent.warning} />
               )}
             </View>
           </View>
         </View>
+
+        {/* Tax breakdown — always offered, not gated on having paid any yet.
+            A week-1 player who has paid nothing is exactly the one who benefits
+            from seeing the bands before they cross one. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setSubView({ kind: 'tax' })}
+          accessibilityRole="button"
+          accessibilityLabel="View tax breakdown"
+          style={[styles.reportCta, { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}
+        >
+          <Percent size={scale(14)} color={accent.warning} />
+          <Text style={[styles.reportCtaText, { color: accent.warning }]}>
+            {banking.taxDueThisYear > 0 ? 'See where your tax goes' : 'How tax works'}
+          </Text>
+          <ChevronRight size={scale(15)} color={accent.warning} />
+        </TouchableOpacity>
 
         {/* Credit summary — whole block taps to the report (visible affordance) */}
         <TouchableOpacity
@@ -719,9 +779,11 @@ function BankAppInner({ onBack }: BankAppProps) {
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
       {subView?.kind === 'credit'
         ? renderCreditDetail()
-        : detailAccount
-          ? renderAccountDetail(detailAccount)
-          : renderMainList()}
+        : subView?.kind === 'tax'
+          ? renderTaxDetail()
+          : detailAccount
+            ? renderAccountDetail(detailAccount)
+            : renderMainList()}
 
       <AmountInputModal
         visible={!!depositTarget}

@@ -98,18 +98,9 @@ import {
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
-import {
-  CAPITAL_GAINS_TAX_RATE,
-  PROPERTY_GAINS_TAX_RATE,
-  TAX_YEAR_WEEKS,
-  bracketBreakdown,
-  clampTaxMult,
-  effectiveTaxRate,
-  marginalRate,
-  taxYearOf,
-  weekOfTaxYear,
-} from '@/lib/economy/taxLedger';
+import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import TaxStatement from '@/components/banking/TaxStatement';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -413,6 +404,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     if (banking.taxDueThisYear > 0) {
       activityRows.push({ icon: Percent, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Tax paid this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
     }
+    // The Tax tab is the fifth of five — the one furthest from the thumb and
+    // the easiest to never notice. The statement row that summarises it links
+    // straight there, the same way the credit gauge links to the full report.
+    const hasTaxToShow = banking.taxDueThisYear > 0;
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
@@ -516,6 +511,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             />
           ))}
         </StatementSection>
+        {hasTaxToShow && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setActiveTab('tax')}
+            accessibilityRole="button"
+            accessibilityLabel="View tax breakdown"
+            style={[styles.reportCta, { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}
+          >
+            <Percent size={scale(14)} color={accent.warning} />
+            <Text style={[styles.reportCtaText, { color: accent.warning }]}>See where your tax goes</Text>
+            <ChevronRight size={scale(15)} color={accent.warning} />
+          </TouchableOpacity>
+        )}
 
         {/* Credit standing — gauge stays; full report is one tap away. */}
         <SectionTitle theme={theme}>Credit standing</SectionTitle>
@@ -881,147 +889,18 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   //
   // Read-only by design: this is a statement, not a mechanic. Everything here
   // comes from state the tick already writes.
-  const renderTax = () => {
-    const lastBucket = [...banking.budgetSpend].sort((a, b) => a.weeksLived - b.weeksLived).slice(-1)[0];
-    const lastWeekTax = lastBucket?.byCategory?.taxes ?? 0;
-    const bands = bracketBreakdown(weeklyIncome);
-    const marginal = marginalRate(weeklyIncome);
-    const effective = weeklyIncome > 0 && lastWeekTax > 0
-      ? lastWeekTax / weeklyIncome
-      : effectiveTaxRate(weeklyIncome, taxMult);
-    const discountPct = Math.round((1 - taxMult) * 100);
-
-    const otherTaxRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; tintRGB: string; label: string; value: string; valueColor: string }[] = [
-      { icon: LineChart, tintHex: '#a855f7', tintRGB: '168, 85, 247', label: 'Stock gains + dividends · at each sale', value: `${Math.round(CAPITAL_GAINS_TAX_RATE * taxMult * 100)}%`, valueColor: theme.text },
-      { icon: Coins, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Crypto gains · every 52nd week', value: `${Math.round(CAPITAL_GAINS_TAX_RATE * taxMult * 100)}%`, valueColor: theme.text },
-      { icon: Building2, tintHex: '#06b6d4', tintRGB: '6, 182, 212', label: 'Property gains · when you sell', value: `${Math.round(PROPERTY_GAINS_TAX_RATE * 100)}%`, valueColor: theme.text },
-      { icon: Landmark, tintHex: '#06b6d4', tintRGB: '6, 182, 212', label: 'Property tax · in weekly carrying costs', value: '~1.2%/yr', valueColor: theme.text },
-    ];
-
-    return (
-      <View style={{ gap: responsiveSpacing.md }}>
-        <SectionTitle theme={theme}>Tax year {taxYearOf(gameState.weeksLived)}</SectionTitle>
-        <View style={styles.summaryStrip}>
-          <SummaryCell theme={theme} icon={Percent} label="Paid this yr" value={formatMoney(banking.taxDueThisYear)} tint={accent.warning} />
-          <SummaryCell theme={theme} icon={Receipt} label="Last week" value={formatMoney(lastWeekTax)} tint={accent.warning} />
-          <SummaryCell theme={theme} icon={TrendingDown} label="Effective" value={`${(effective * 100).toFixed(1)}%`} tint={accent.info} />
-        </View>
-
-        {/* The answer to "how do I pay tax?". Stated plainly, because the
-            mechanic is the absence of one. */}
-        <View
-          style={[
-            getGlassCard(darkMode, 6),
-            { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: scale(6) },
-          ]}
-        >
-          <View style={styles.headerTitleLine}>
-            <FileText size={scale(14)} color={accent.info} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Nothing to file</Text>
-          </View>
-          <Text style={[styles.taxBody, { color: theme.textSecondary }]}>
-            Tax is withheld automatically every week, before the money reaches you — there is no return to
-            file and no deadline to miss. Week {weekOfTaxYear(gameState.weeksLived)} of {TAX_YEAR_WEEKS} in
-            this tax year.
-          </Text>
-          <Text style={[styles.taxBody, { color: theme.textMuted }]}>
-            If a week&apos;s bills exceed what you have, the shortfall — tax included — becomes overdue debt
-            paid off the top of next week&apos;s income, and drags your credit score while it stands.
-          </Text>
-        </View>
-
-        {/* Progressive bands. Only income ABOVE each threshold is taxed at that
-            rate — the single most misread thing about a bracket system, so the
-            table shows the slice of THIS player's income sitting in each band. */}
-        <SectionHeader
-          theme={theme}
-          title="Income tax bands"
-          meta={`on ${formatMoney(weeklyIncome)}/wk earned · top band ${Math.round(marginal * 100)}%`}
-        />
-        <View
-          style={[
-            getGlassCard(darkMode, 6),
-            { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-          ]}
-        >
-          {bands.map((band, i) => (
-            <View
-              key={band.from}
-              style={[
-                styles.taxBandRow,
-                i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-                band.isCurrent && { backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.10)' : 'rgba(59, 130, 246, 0.07)' },
-              ]}
-            >
-              <Text style={[styles.taxBandRate, { color: band.taxedAmount > 0 ? theme.text : theme.textMuted }]}>
-                {Math.round(band.rate * 100)}%
-              </Text>
-              <Text style={[styles.taxBandRange, { color: theme.textSecondary }]} numberOfLines={1}>
-                {band.to == null
-                  ? `${formatMoney(band.from)}+`
-                  : band.from === 0
-                    ? `first ${formatMoney(band.to)}`
-                    : `${formatMoney(band.from)} – ${formatMoney(band.to)}`}
-              </Text>
-              <Text
-                style={[styles.taxBandAmount, { color: band.tax > 0 ? accent.warning : theme.textMuted }]}
-                numberOfLines={1}
-              >
-                {band.taxedAmount > 0 ? `-${formatMoney(band.tax)}` : '—'}
-              </Text>
-            </View>
-          ))}
-        </View>
-        <Text style={[styles.taxFootnote, { color: theme.textMuted }]}>
-          Rent collected and luxury-asset yields count as income too. Crime and dark-web earnings do not —
-          nobody is reporting those.
-        </Text>
-
-        {/* The four taxes that are not the weekly withholding. Every one of them
-            was previously discoverable only by watching your cash drop. */}
-        <SectionHeader theme={theme} title="Other taxes" />
-        <View
-          style={[
-            getGlassCard(darkMode, 6),
-            { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-          ]}
-        >
-          {otherTaxRows.map((row, i) => (
-            <View
-              key={row.label}
-              style={[
-                styles.taxBandRow,
-                i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-              ]}
-            >
-              <View style={[styles.taxRowIcon, { backgroundColor: `rgba(${row.tintRGB}, 0.14)` }]}>
-                <row.icon size={scale(12)} color={row.tintHex} />
-              </View>
-              <Text style={[styles.taxBandRange, { color: theme.textSecondary }]} numberOfLines={1}>{row.label}</Text>
-              <Text style={[styles.taxBandAmount, { color: row.valueColor }]} numberOfLines={1}>{row.value}</Text>
-            </View>
-          ))}
-        </View>
-
-        <SectionHeader theme={theme} title="Tax Strategy" meta="Life Skills · Financial Acumen" />
-        <View
-          style={[
-            getGlassCard(darkMode, 6),
-            { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: scale(6) },
-          ]}
-        >
-          <Text style={[styles.taxBody, { color: discountPct > 0 ? accent.success : theme.textSecondary }]}>
-            {discountPct > 0
-              ? `Active — every tax below is cut by ${discountPct}%, income and capital gains alike.`
-              : 'Not yet learned. It cuts every tax on this page by 10% — income tax and capital gains alike.'}
-          </Text>
-          <Text style={[styles.taxBody, { color: theme.textMuted }]}>
-            Buy it under Financial Acumen in the Life Skills tree.
-          </Text>
-        </View>
-      </View>
-    );
-  };
+  const renderTax = () => (
+    <View style={{ gap: responsiveSpacing.md }}>
+      <SectionTitle theme={theme}>Tax year {taxYearOf(gameState.weeksLived)}</SectionTitle>
+      <TaxStatement
+        banking={banking}
+        weeksLived={gameState.weeksLived}
+        weeklyIncome={weeklyIncome}
+        taxMult={taxMult}
+        darkMode={darkMode}
+      />
+    </View>
+  );
 
   // ─────────────────────────── Account statement page ────────────────────────
   const renderAccountDetail = (account: BankAccount) => {
@@ -1313,8 +1192,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               accessibilityLabel={t.label}
               style={[styles.tab, active && { borderBottomColor: accent.info }]}
             >
-              <Icon size={scale(16)} color={active ? accent.info : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(17)} color={active ? accent.info : theme.textMuted} />
+              <Text
+                style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}
+                numberOfLines={1}
+              >
+                {t.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -1955,17 +1839,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
   },
+  // Icon STACKED over the label, not beside it.
+  //
+  // The row layout needed ~80pt per tab ("Statement" at 12pt bold, plus a 16pt
+  // icon and its gap). Four tabs on a 375pt screen gave 94pt each and it just
+  // fit; the fifth (Tax) cut that to 75pt and the longest label started
+  // squeezing. Stacking drops the requirement to the label width alone, so all
+  // five sit on an even grid with room to spare — and an even grid is most of
+  // what "premium" means in a tab bar.
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: scale(3),
     paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: scale(2),
+    minHeight: touchTargets.minimum,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  tabText: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.2 },
 
   // ── Statement masthead (Recipe B): shadow on outer, tints clipped inside ──
   mastheadInner: {
@@ -2127,50 +2020,6 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
 
-  // ── Tax tab ───────────────────────────────────────────────────────────────
-  // Rows are separated by hairline DIVIDERS (a structural exception under Hard
-  // Rule #7), never by a coloured side stripe. The current band is marked with
-  // a tinted background instead.
-  taxBandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.md,
-    minHeight: scale(40),
-  },
-  taxRowIcon: {
-    width: scale(22),
-    height: scale(22),
-    borderRadius: scale(11),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  taxBandRate: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '800',
-    width: scale(38),
-    fontVariant: ['tabular-nums'],
-  },
-  taxBandRange: {
-    flex: 1,
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '500',
-  },
-  taxBandAmount: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  taxBody: {
-    fontSize: responsiveFontSize.sm,
-    lineHeight: responsiveFontSize.sm * 1.45,
-  },
-  taxFootnote: {
-    fontSize: responsiveFontSize.xs,
-    lineHeight: responsiveFontSize.xs * 1.45,
-    paddingHorizontal: responsiveSpacing.xs,
-  },
   transferBtn: {
     flexDirection: 'row',
     alignItems: 'center',

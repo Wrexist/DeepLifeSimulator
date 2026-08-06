@@ -163,9 +163,9 @@ describe('the rates the Tax tab quotes are the rates the ticks charge', () => {
     );
   });
 
-  it('the Bank app derives its bands from the same module, not a copy', () => {
-    const app = read('components/computer/AdvancedBankApp.tsx');
-    expect(app).toMatch(/from '@\/lib\/economy\/taxLedger'/);
-    expect(app).toMatch(/bracketBreakdown\(weeklyIncome\)/);
+  it('the shared statement derives its bands from the same module, not a copy', () => {
+    const statement = read('components/banking/TaxStatement.tsx');
+    expect(statement).toMatch(/from '@\/lib\/economy\/taxLedger'/);
+    expect(statement).toMatch(/bracketBreakdown\(weeklyIncome\)/);
   });
 });
