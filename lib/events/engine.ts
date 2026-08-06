@@ -30,7 +30,19 @@ import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 export interface EventChoiceEffects {
+  /** Flat amount. Also the FLOOR when `moneyPct` is set. Sign carries. */
   money?: number;
+  /**
+   * Fraction of net worth this choice is worth, e.g. `0.01` for 1%.
+   *
+   * Omit for a flat effect — every existing template does, so scaling is a
+   * no-op until a template opts in. When set, the resolved amount is the larger
+   * of `money` and `netWorth * moneyPct`, so an early-game player still sees
+   * the hand-tuned figure and a wealthy one sees something they can feel.
+   * Bounded by MAX_EVENT_NET_WORTH_FRACTION regardless of what is declared —
+   * see lib/events/moneyScaling.ts.
+   */
+  moneyPct?: number;
   stats?: Partial<GameStats>;
   relationship?: number; // change to specific relation if relationId provided
   pet?: { hunger?: number; happiness?: number; health?: number };

@@ -21,7 +21,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe |
-| 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No |
+| 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No | **✅ MECHANISM SHIPPED** |
 | 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 10 | Grandchildren | ★★★★☆ | M–L | **Yes** |
 
@@ -366,7 +366,29 @@ family office.
 
 ---
 
-## 8. Wealth-scaled events + a Tycoon event pack
+## 8. Wealth-scaled events + a Tycoon event pack — ✅ MECHANISM SHIPPED
+
+> **Shipped 2026-08-05:** `lib/events/moneyScaling.ts` plus a `moneyPct` field
+> on `EventChoiceEffects`, wired into `resolveEvent` in the week loop. A choice
+> declaring `moneyPct` resolves to the LARGER of its authored flat figure and
+> that fraction of net worth, keeping the flat sign — so an early-game player
+> still sees the hand-tuned number and a wealthy one sees something they can
+> feel. `money` is a floor, not a default that gets overwritten.
+>
+> Two caps, neither overridable by a template: any single event is bounded to 5%
+> of net worth (so a mis-authored `0.9` cannot wipe a player out) and to $50M
+> absolute. That is how percentage-based negative events stop feeling like a bug.
+>
+> **It is a strict no-op today**, and a test asserts that: no shipped template
+> declares `moneyPct`, so all ~400 resolve to exactly `effects.money` as before.
+> That is the property that made it safe to land without a rebalance —
+> `incomeScale` and `audit:weekly` stayed green.
+>
+> **Still open: the content.** The ~40-event Tycoon pack (hostile takeovers,
+> regulator investigations, activist investors, a $40M lawsuit) is the bulk of
+> this item and is not written. The mechanism it needs now exists, and adopting
+> it is a one-field edit per choice.
+
 
 **Hooks:** `lib/events/engine.ts`, the `LifeStagePack` type.
 

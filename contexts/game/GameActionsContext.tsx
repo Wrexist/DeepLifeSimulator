@@ -14,7 +14,8 @@ import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
-import { evaluateAchievements } from '@/lib/progress/achievements';
+import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
+import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
@@ -3232,12 +3233,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // 0). Track affordability and skip the beneficial stat block below when broke.
  // (Event choices should also be gated to affordable-only in the UI.)
  let effectsAffordable = true;
- if (effects.money!== undefined) {
+ // Wealth scaling: a choice may declare `moneyPct` (a fraction of net worth),
+ // in which case the resolved amount is the LARGER of the authored flat figure
+ // and that percentage, keeping the flat sign. Every one of the ~400 existing
+ // templates omits it and so resolves to exactly `effects.money` — this is a
+ // no-op until a template opts in. Without it a "$200 unexpected bill" fires
+ // unchanged at $200M net worth.
+ const resolvedMoney = resolveEventMoney(effects, netWorth(prevState));
+ if (effects.money !== undefined || isScaledMoneyEffect(effects)) {
  const currentMoney = updatedStats.money || 0;
- if (effects.money < 0 && currentMoney + effects.money < 0) {
+ if (resolvedMoney < 0 && currentMoney + resolvedMoney < 0) {
  effectsAffordable = false;
  }
- updatedStats.money = Math.max(0, currentMoney + effects.money);
+ updatedStats.money = Math.max(0, currentMoney + resolvedMoney);
  }
 
  // Apply stat changes
