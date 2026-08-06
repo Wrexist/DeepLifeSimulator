@@ -8,7 +8,7 @@ import {
   Easing,
   Platform,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
 import { accent, shadows, typography } from '@/lib/config/theme';
@@ -20,7 +20,7 @@ import {
 import { useFeedback } from '@/utils/feedbackSystem';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ToastNotificationProps {
   id: string;

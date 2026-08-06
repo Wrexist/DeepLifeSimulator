@@ -143,6 +143,13 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
+  // Second step of goal creation: the weekly auto-contribution. `applySavingsGoals`
+  // has swept `goal.autoContribute` every week since it shipped, with tests
+  // proving asset conservation — but nothing could ever SET it, so the sweep ran
+  // over `undefined` forever. Mirrors the desktop Bank Pro flow.
+  const [autoGoalPick, setAutoGoalPick] = useState<
+    { name: string; category: SavingsGoalCategory; targetAmount: number } | null
+  >(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
@@ -316,7 +323,11 @@ function BankAppInner({ onBack }: BankAppProps) {
                 style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
               >
                 <View style={styles.ctaInner}>
-                  <LinearGradient pointerEvents="none" colors={[pal.hex, pal.hex]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                  {/* A two-identical-stop "gradient" is a flat fill. It only
+                      existed because the old fallback painted colors[0]; now
+                      that Gradient renders a real SVG there is no reason to
+                      mount one per account card to paint a single colour. */}
+                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: pal.hex }]} />
                   <Coins size={scale(16)} color="#fff" />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
@@ -896,15 +907,59 @@ function BankAppInner({ onBack }: BankAppProps) {
         darkMode={darkMode}
         onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
+          // Hand off to the auto-contribute step so the goal is written once
+          // with its final shape.
           if (addGoalPick) {
+            setAutoGoalPick({ ...addGoalPick, targetAmount: amt });
+          }
+          setAddGoalPick(null);
+        }}
+      />
+
+      {/* Auto-contribute step. Closing without confirming creates the goal with
+          no sweep — manual-only is a legitimate choice, so it must not require
+          typing 0. */}
+      <AmountInputModal
+        visible={!!autoGoalPick}
+        title="Save automatically?"
+        subtitle={
+          autoGoalPick
+            ? `Move money toward "${autoGoalPick.name}" every week. Close to skip.`
+            : ''
+        }
+        confirmLabel="Set weekly amount"
+        presets={
+          autoGoalPick
+            ? [
+                Math.max(10, Math.round(autoGoalPick.targetAmount / 52)),
+                Math.max(25, Math.round(autoGoalPick.targetAmount / 26)),
+                Math.max(50, Math.round(autoGoalPick.targetAmount / 12)),
+              ]
+            : [50, 100, 250]
+        }
+        darkMode={darkMode}
+        onClose={() => {
+          if (autoGoalPick) {
             createSavingsGoal(setGameState, {
-              name: addGoalPick.name,
-              targetAmount: amt,
-              category: addGoalPick.category,
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
             });
             queueSave();
           }
-          setAddGoalPick(null);
+          setAutoGoalPick(null);
+        }}
+        onConfirm={(weekly) => {
+          if (autoGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
+              autoContribute: weekly,
+            });
+            queueSave();
+          }
+          setAutoGoalPick(null);
         }}
       />
 

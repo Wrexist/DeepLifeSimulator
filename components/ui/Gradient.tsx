@@ -129,7 +129,11 @@ export default function Gradient({
   const radius = typeof flat?.borderRadius === 'number' ? flat.borderRadius : 0;
 
   return (
-    <View style={style} pointerEvents={pointerEvents} {...rest}>
+    // `zIndex: 0` FIRST so a caller's own zIndex still wins. It is not
+    // cosmetic: RN-web gives every View `position: relative`, so a z-index here
+    // makes this element a stacking context, which is what keeps the `-1` paint
+    // layer below the children instead of on top of them.
+    <View style={[styles.root, style]} pointerEvents={pointerEvents} {...rest}>
       {stops.length > 0 && (
         <View
           pointerEvents="none"
@@ -157,6 +161,21 @@ export default function Gradient({
 }
 
 const styles = StyleSheet.create({
-  // On the INNER view only. The outer keeps the caller's shadow intact.
-  clip: { overflow: 'hidden' },
+  /**
+   * Establishes a stacking context so the paint layer below can sit behind the
+   * children. Applied BEFORE the caller's style so an explicit zIndex wins.
+   */
+  root: { zIndex: 0 },
+  /**
+   * The paint layer. `overflow: 'hidden'` lives on this INNER view only — the
+   * outer keeps the caller's shadow intact, since a shadow on an
+   * overflow-hidden view is clipped away on iOS.
+   *
+   * `zIndex: -1` is load-bearing, and its absence was a real regression: an
+   * absolutely-positioned sibling paints ABOVE static in-flow siblings in CSS,
+   * so on web the gradient covered its own children. It blanked the three HUD
+   * control icons and the next-week arrow — visible only by looking at the
+   * running app, because nothing about it fails a type-check or a test.
+   */
+  clip: { overflow: 'hidden', zIndex: -1 },
 });

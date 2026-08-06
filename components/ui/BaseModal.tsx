@@ -30,7 +30,32 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { colors, spacing, typography, radii, shadows } from '@/lib/config/theme';
+import { colors, typography, radii, shadows } from '@/lib/config/theme';
+import { responsiveSpacing, scale } from '@/utils/scaling';
+
+/**
+ * Spacing, mapped off the theme scale BY VALUE.
+ *
+ * `lib/config/theme.ts`'s `spacing` was a second, raw scale used by exactly one
+ * file — this one. Raw means it never ran through `scale()`, so BaseModal was
+ * the only shared chassis in the app whose padding did not grow with the
+ * device: 16pt of padding inside chrome scaled to 1.8x on a tablet, roughly 45%
+ * too tight, and worse the larger the screen.
+ *
+ * Mapped by VALUE, never by key — the two scales are offset by one step
+ * (theme `lg` 16 === responsive `md` 16), so a key-for-key swap would have
+ * inflated every value. Three of the five steps in use (2, 12, 20) have no
+ * equivalent in the target scale and become explicit `scale()` calls rather
+ * than being rounded onto the nearest token, which would have moved the layout
+ * for no reason.
+ */
+const sp = {
+  xxs: scale(2),                 // was raw 2
+  sm: responsiveSpacing.sm,      // scale(8)  — was raw 8
+  md: scale(12),                 // was raw 12, no token at this step
+  lg: responsiveSpacing.md,      // scale(16) — was raw 16
+  xl: scale(20),                 // was raw 20, no token at this step
+} as const;
 import { useTheme } from '@/hooks/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -128,13 +153,13 @@ export default function BaseModal({
               themed.container,
               isBottom && [
                 styles.containerBottom,
-                { paddingBottom: insets.bottom + spacing.lg },
+                { paddingBottom: insets.bottom + sp.lg },
               ],
               isFullscreen && [
                 styles.containerFullscreen,
                 {
-                  paddingTop: insets.top + spacing.sm,
-                  paddingBottom: insets.bottom + spacing.sm,
+                  paddingTop: insets.top + sp.sm,
+                  paddingBottom: insets.bottom + sp.sm,
                 },
               ],
               !isFullscreen && { maxHeight: containerMaxHeight },
@@ -208,7 +233,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: sp.lg,
   },
   overlayBottom: {
     justifyContent: 'flex-end',
@@ -245,14 +270,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingHorizontal: sp.xl,
+    paddingTop: sp.lg,
+    paddingBottom: sp.md,
     borderBottomWidth: 1,
   },
   headerText: {
     flex: 1,
-    marginRight: spacing.md,
+    marginRight: sp.md,
   },
   title: {
     fontSize: typography.size.xl,
@@ -260,7 +285,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: typography.size.sm,
-    marginTop: spacing.xxs,
+    marginTop: sp.xxs,
   },
   closeButton: {
     width: 32,
@@ -275,13 +300,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   bodyContent: {
-    padding: spacing.xl,
+    padding: sp.xl,
   },
 
   // Footer
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: sp.xl,
+    paddingVertical: sp.lg,
     borderTopWidth: 1,
   },
 });

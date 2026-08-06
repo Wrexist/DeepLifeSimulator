@@ -35,7 +35,7 @@ const MIN_LOCKED = 3;
 const COOLDOWN_WEEKS = 8;
 const LAST_WEEK_KEY = 'premium_promo_last_week';
 
-export default function PremiumPassPromo() {
+function PremiumPassPromo() {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
   const { haptic } = useFeedback();
@@ -184,3 +184,13 @@ const styles = StyleSheet.create({
   ctaSecondary: { paddingVertical: scale(10), marginTop: scale(4) },
   ctaSecondaryText: { fontSize: fontScale(12.5), fontWeight: '700', color: '#3B2F00', opacity: 0.8 },
 });
+
+/**
+ * `React.memo` is load-bearing here, not decoration.
+ *
+ * Rendered INLINE in `app/(tabs)/_layout.tsx`, which subscribes to game state.
+ * A selector inside a component cannot stop a re-render driven by its parent,
+ * so this component's own narrowing was worth nothing without a barrier. It
+ * takes no props, which makes `React.memo` a total one.
+ */
+export default React.memo(PremiumPassPromo);

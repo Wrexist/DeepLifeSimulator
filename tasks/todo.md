@@ -102,6 +102,53 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 
 ## Next — in order
 
+### 2026-08-06 audit round — shipped
+
+- [x] **Seasonal events were half dead code.** `shouldTriggerSeasonalEvent` read
+      `state.seasonalEvents`, a field nothing writes, so `completedEvents` was
+      always empty (events could repeat) and `lastSeason` was always `''` —
+      making the "season changed" branch always true and the 0.4% base chance
+      plus the whole `weekInSeason` rarity curve UNREACHABLE. Now derived from
+      `weeksLived` (the Legacy Contracts v33 precedent): one roll per
+      (event, season) decides whether it happens, a second decides which single
+      week. At most one firing per season, no state, no migration, replay-safe.
+- [x] **75 designed gradients were flat slabs.** `expo-linear-gradient` is
+      banned (iOS 26 TurboModule crash) so all 265 sites use
+      `LinearGradientFallback`, which paints `colors[0]` flat.
+      `components/ui/Gradient.tsx` is a drop-in with the identical prop
+      signature backed by `react-native-svg` — a different library, already used
+      directly by GradientButton/ProgressRing/ImageScrim. 32 files migrated,
+      107 call sites. `ErrorBoundary` deliberately left flat: the crash screen
+      must not depend on native views, and its gradient is two off-whites.
+- [x] **`useTheme` took a full-state subscription to read one boolean.** 64
+      files call it, so 64 components re-rendered on every commit — silently
+      cancelling narrowing work already done in `home.tsx` and `AdRewardOrb`
+      (11 files were in that state). Now a selector. Same for `useTranslation`
+      (10 files). `React.memo` added to the three always-mounted inline children
+      of the layout roots, without which their own narrowing is worth nothing.
+- [x] **`lib/automation/` deleted** — 1,445 lines, unreachable since
+      `state.automation` was never in `initialState`. All four capabilities
+      already ship elsewhere (billPayRules, applySavingsGoals,
+      applySubscriptions, applyAutoReinvest); building its UI would have added a
+      SECOND debit path for money the first already moves. No migration: no save
+      ever carried the key. Prestige rows kept so an already-bought bonus still
+      renders.
+- [x] **`savingsGoals.autoContribute` has a writer.** The weekly sweep, its
+      tests and its asset-conservation proof all shipped; nothing could set the
+      field. Both banks now collect it as a second goal-creation step.
+- [x] **`computerPreviouslyOwned` has a writer** — stamped on buy AND on sell,
+      so the flag self-heals on saves made before it had one.
+- [x] **Dead design tokens deleted** — net 841 lines. `androidScale`,
+      `iosScale` and four internal duplicates had ZERO consumers;
+      `utils/designSystem.ts` and `utils/responsiveDesign.ts` are gone.
+      `BaseModal` moved off the raw 12-scale onto the device-scaled one — it was
+      the only shared chassis whose padding did not grow with the screen.
+
+**Correction to the earlier finding:** the token collision was NOT "55 files
+importing two scales blocking every sweep". `scaling.ts:705/746` were dead
+exports; the real scale (`responsiveSpacing`, 156 files) never conflicted with
+anything. The collision was 21 call sites in 2 files.
+
 ### Before any new feature
 - [x] **The journal has a writer.** `appendWeekToJournal` records the week's
       notable notifications into `journal` from the tick's state assembly, keyed
