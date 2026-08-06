@@ -782,7 +782,27 @@ function HomeScreenContent() {
           (death/wedding) — no celebration/reward popup may present on top of
           them. Within this screen, popups present strictly one at a time in
           priority order (daily reward > welcome back > community) instead of
-          whichever setTimeout won the race. */}
+          whichever setTimeout won the race.
+
+          Each is MOUNTED only while it holds the slot, which is the pattern the
+          rest of the app already uses for a lazy modal (`app/_layout.tsx` gates
+          Death/Wedding/Sickness, `(tabs)/_layout.tsx` gates the life moment and
+          the weekly sheet). This screen was the outlier: it mounted all three
+          unconditionally and passed `visible={false}`, so every Home mount fired
+          three dynamic `import()`s for modals the player almost never sees on
+          that render — defeating the point of `lazy()`, which is to keep those
+          graphs out of the screen's work, not merely out of its first paint.
+
+          It also livelocked `__tests__/render/screens.render.test.tsx`. Under
+          ts-jest an `import()` compiles to `Promise.resolve().then(() =>
+          require(…))`, so it can only settle on a microtask — and the harness's
+          synchronous `act()` never yields one. React kept restarting the render
+          from the shell to retry the pending lazy: ~1.4M `beginWork` calls per
+          pass, forever, with `scheduleUpdateOnFiber` never firing (so it was not
+          a re-render loop, and jest's own `testTimeout` could not fire either
+          because the spin blocks the event loop). Nothing suspends now, because
+          nothing invisible mounts. */}
+      {dailyRewardSlot && (
       <Suspense fallback={null}>
         <DailyRewardPopup
           visible={dailyRewardSlot}
@@ -794,6 +814,8 @@ function HomeScreenContent() {
           }))}
         />
       </Suspense>
+      )}
+      {welcomeBackSlot && (
       <Suspense fallback={null}>
         <WelcomeBackPopup
           visible={welcomeBackSlot}
@@ -822,6 +844,8 @@ function HomeScreenContent() {
           }}
         />
       </Suspense>
+      )}
+      {communitySlot && (
       <Suspense fallback={null}>
         <CommunityRewardPopup
           visible={communitySlot}
@@ -830,6 +854,7 @@ function HomeScreenContent() {
           onDismiss={handleDismissCommunity}
         />
       </Suspense>
+      )}
 
       {/* Prestige Modals */}
       <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />

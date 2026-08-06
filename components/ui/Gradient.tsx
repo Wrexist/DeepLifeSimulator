@@ -82,6 +82,21 @@ function splitColor(input: unknown): { color: string; opacity: number } {
   return { color: value, opacity: 1 };
 }
 
+/** Recombine a split colour into something a `backgroundColor` accepts. */
+function solidFill(stop: { color: string; opacity: number }): string {
+  if (stop.opacity >= 1) return stop.color;
+  const rgb = stop.color.match(/^rgb\((\d+), (\d+), (\d+)\)$/);
+  if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${stop.opacity})`;
+  const hex = stop.color.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (hex) {
+    const [r, g, b] = [1, 2, 3].map((i) => parseInt(hex[i], 16));
+    return `rgba(${r}, ${g}, ${b}, ${stop.opacity})`;
+  }
+  // Named colour with alpha — rare; keep the colour and drop the alpha rather
+  // than emitting something the style system will reject outright.
+  return stop.color;
+}
+
 /** Unique id per instance — SVG `<Defs>` ids share one namespace on web. */
 let _gid = 0;
 
@@ -128,13 +143,43 @@ export default function Gradient({
   const flat = StyleSheet.flatten(style) as ViewStyle | undefined;
   const radius = typeof flat?.borderRadius === 'number' ? flat.borderRadius : 0;
 
+  /**
+   * A "gradient" whose stops are all the same colour is a flat fill.
+   *
+   * Worth special-casing rather than rendering anyway: a real gradient costs an
+   * `<Svg>` + `<Defs>` + `<LinearGradient>` + N `<Stop>` + `<Rect>` — around six
+   * nodes — where a background colour costs zero. Plenty of call sites pass
+   * `[c, c]` or a variable that happens to hold one colour, and those were the
+   * ones the old flat fallback served perfectly well.
+   *
+   * It is only a node-count saving, though — do NOT read it as a fix for the
+   * `screens.render.test.tsx` hang that was being chased when it was written.
+   * That was a `React.lazy` livelock in `app/(tabs)/home.tsx` (see
+   * `__tests__/render/lazyMountGating.render.test.tsx`), and this short-circuit
+   * did not move it at all. Recorded because "the optimisation I added while
+   * debugging" is the easiest thing to later mistake for the cure.
+   */
+  const isFlat =
+    stops.length > 0 &&
+    stops.every((s) => s.color === stops[0].color && s.opacity === stops[0].opacity);
+
   return (
     // `zIndex: 0` FIRST so a caller's own zIndex still wins. It is not
     // cosmetic: RN-web gives every View `position: relative`, so a z-index here
     // makes this element a stacking context, which is what keeps the `-1` paint
     // layer below the children instead of on top of them.
-    <View style={[styles.root, style]} pointerEvents={pointerEvents} {...rest}>
-      {stops.length > 0 && (
+    <View
+      style={[
+        styles.root,
+        style,
+        // Flat case: paint it directly. `backgroundColor` respects the caller's
+        // borderRadius on its own, so no clip layer is needed either.
+        isFlat && { backgroundColor: solidFill(stops[0]) },
+      ]}
+      pointerEvents={pointerEvents}
+      {...rest}
+    >
+      {!isFlat && stops.length > 0 && (
         <View
           pointerEvents="none"
           style={[
