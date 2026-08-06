@@ -20,6 +20,7 @@ import {
   canRent,
   resolveTenancyStep,
 } from '@/lib/realEstate/rentals';
+import { resolveEndRental, resolveRentHome } from '@/contexts/game/actions/RentalActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -207,13 +208,37 @@ describe('you cannot move out to dodge the eviction clock', () => {
   it('does NOT block a tier-to-tier move made while in arrears', () => {
     // Swapping keeps the same tenancy and carries `missedWeeks` across, so it is
     // not a clock reset and must stay allowed — downsizing is how a struggling
-    // tenant cuts their rent.
+    // tenant cuts their rent. (That the swap PRESERVES `missedWeeks` is pinned in
+    // rentalActions.test.ts, "a swap does NOT reset the eviction clock".)
     const swapping = createTestGameState({
       stats: { ...createTestGameState().stats, money: 10_000 },
       rental: { tierId: RENTAL_TIERS[2].id, startedWeek: 4, missedWeeks: 3 },
       overdueBalance: 800,
     } as Partial<GameState>);
     expect(canRent(swapping, bottom).allowed).toBe(true);
+  });
+
+  it('cannot be reset by the actual move-out → re-rent reducer sequence', () => {
+    // The end-to-end path, not just the guard in isolation: drive the real
+    // reducers. Near eviction and in arrears, move out (free), then try to
+    // re-sign. The re-rent must be refused while the debt stands, and the debt
+    // must survive the move — otherwise the eviction clock could be laundered by
+    // going homeless for a single beat.
+    const renting = createTestGameState({
+      stats: { ...createTestGameState().stats, money: 10_000 },
+      rental: { tierId: bottom.id, startedWeek: 4, missedWeeks: 3 },
+      overdueBalance: 800,
+    } as Partial<GameState>);
+
+    const movedOut = resolveEndRental(renting);
+    expect(movedOut.result.success).toBe(true);
+    expect(movedOut.next.rental).toBeUndefined();
+    expect(movedOut.next.overdueBalance).toBe(800); // the debt survives the move
+
+    const reRent = resolveRentHome(movedOut.next, bottom.id);
+    expect(reRent.result.success).toBe(false);
+    expect(reRent.next).toBe(movedOut.next); // rejected: state returned untouched
+    expect(reRent.next.rental).toBeUndefined();
   });
 });
 
