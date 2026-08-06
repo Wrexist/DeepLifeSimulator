@@ -17,7 +17,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 1 | Conglomerate / Holding Company | ★★★★★ | M | No | **✅ SHIPPED** |
 | 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No | **✅ SHIPPED** |
 | 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No | **✅ SHIPPED (layer + first tier)** |
-| 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
+| 4 | Legacy Contracts | ★★★★☆ | M | **Yes** | **✅ SHIPPED (v33)** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe |
@@ -207,7 +207,32 @@ ventures, 8 = the Dynasty board, 9 = Ascension.
 
 ---
 
-## 4. Legacy Contracts — the missing 10-hour goal
+## 4. Legacy Contracts — the missing 10-hour goal — ✅ SHIPPED (STATE_VERSION 33)
+
+> **Shipped 2026-08-05.** 14 contracts across five metric chains (prestiges,
+> generations, peak net worth, lifetime weeks, companies founded), paying Legacy
+> Points into the Dynasty Tree — so #2's supply and this item's demand compose
+> into one economy rather than two screens. The longest, "Prestige 25 times", is
+> the genuinely multi-session goal the depth audit found missing.
+>
+> **Progress is DERIVED, not stored** — every metric reads a value the save
+> already tracks and that only ever increases. So nothing can drift out of sync,
+> a tick that runs twice cannot double-credit, and an existing save loads with
+> its contracts already part-complete: a 12-generation dynasty gets credit for
+> work it did before this shipped, rather than starting from zero.
+>
+> Only the claimed ids are stored. Concrete default (`{ claimedIds: [] }`) → a
+> REAL migration backfill **and** a `repairGameState` mirror, both tested,
+> including a structurally-wrong value and not just a missing key.
+>
+> Two test corrections were needed, both of the "pinned the wrong thing" kind:
+> `luxuryHoldingsMigration` hard-pinned `STATE_VERSION === 32`, making it a
+> tripwire that fails on any correct future bump (the C-11 suite had already
+> been fixed for this exact reason); and my own suite used `as GameState`
+> casts, which Hard Rule #3's static guard flagged — correctly, since a
+> spread-and-cast is how a test ends up asserting on a shape that no longer
+> exists. It now mutates a `createTestGameState()` instance instead.
+
 
 **Hooks:** `lib/challenges/weeklyChallenges.ts` (objective/`checkCurrent` shape
 is already right), `lib/ambitions/progress.ts` (sticky-milestone reconciliation).

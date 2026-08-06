@@ -1025,6 +1025,18 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing legacyUpgrades to []');
     repaired = true;
   }
+
+  // Legacy Contracts / v33 mirror. Concrete stored default, so the migration's
+  // backfill must be mirrored here for a PARTIAL save — the parity CLAUDE.md §7
+  // warns is not checked by the static audit. Claimed ids are the only stored
+  // part; progress is derived, so a repaired save simply resumes where its
+  // lifetime metrics already put it.
+  const contracts = s.legacyContracts as { claimedIds?: unknown } | undefined;
+  if (!contracts || typeof contracts !== 'object' || !Array.isArray(contracts.claimedIds)) {
+    s.legacyContracts = { claimedIds: [] };
+    repairs.push('Set missing legacyContracts to { claimedIds: [] }');
+    repaired = true;
+  }
   // MON-5 / v30 mirror. Same reasoning as legacyUpgrades above: a concrete
   // stored default (`false`) needs the partial-save path too, not just the
   // migration. `false` is also the only safe repair — inventing a banked revive

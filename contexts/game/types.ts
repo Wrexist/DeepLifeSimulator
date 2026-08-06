@@ -2822,6 +2822,15 @@ export interface GameState {
    * Carried into the heir — what you bought is what your heir starts with.
    */
   legacyUpgrades?: string[];
+  /**
+   * Legacy Contracts (v33) — multi-life goals that pay Legacy Points.
+   *
+   * Only the CLAIMED ids are stored. Progress itself is derived from metrics
+   * the save already tracks and that only ever increase (prestige count,
+   * generations, lifetime weeks), so nothing can drift out of sync and a
+   * contract cannot be double-credited by a tick that runs twice.
+   */
+  legacyContracts?: { claimedIds: string[] };
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks

@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 32`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 33`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -240,7 +240,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 32`** — single source of truth in
+- **Canonical `STATE_VERSION = 33`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -313,6 +313,17 @@ including the crash screen.
   `undefined`, so it is a carve-out: version bumped, NO backfill and no
   `repairGameState` mirror — writing a tenancy would start charging rent to a
   player who never signed for anything.
+- **v33 adds `legacyContracts`** — the claimed-id record for Legacy Contracts,
+  the multi-life goals that pay Legacy Points into the Dynasty Tree. Concrete
+  stored default (`{ claimedIds: [] }`), so a REAL backfill **and** a
+  `repairGameState` mirror. An absent key genuinely means "nothing claimed",
+  which is also the only safe repair: inventing a claim would deny the player
+  the points for a contract they had already earned. Note what is deliberately
+  NOT stored — progress. Every contract metric is read from a value the save
+  already tracks and that only ever increases (prestige count, generations,
+  lifetime weeks), so nothing can drift out of sync, a tick that runs twice
+  cannot double-credit, and an existing save loads with its contracts already
+  part-complete rather than reset to zero.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

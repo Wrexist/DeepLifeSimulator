@@ -6,7 +6,7 @@ import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 // header each carried their own identical copy of the thresholds.
 import { getLifeStage } from '@/lib/config/gameConstants';
 
-export const STATE_VERSION = 32;
+export const STATE_VERSION = 33;
 
 export const initialGameState: GameState = {
   version: STATE_VERSION,
@@ -1727,6 +1727,7 @@ export const initialGameState: GameState = {
   weekResult: undefined,
   legacyPoints: 0,
   legacyUpgrades: [],
+  legacyContracts: { claimedIds: [] },
   legacyBuffs: undefined,
   completedChapters: [],
   // Life Ambition (additive/optional) — set from onboarding; absent = freeform life.

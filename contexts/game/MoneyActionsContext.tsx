@@ -7,6 +7,7 @@ import { logger } from '@/utils/logger';
 import { isIncomeReason } from './actions/MoneyActions';
 import { getBonusPurchaseCost, canPurchaseBonus, isInertBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { purchaseLegacyUpgrade } from '@/lib/legacy/legacyShop';
+import { claimContract } from '@/lib/legacy/contracts';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
@@ -42,6 +43,7 @@ interface MoneyActionsContextType {
   purchasePrestigeBonus: (bonusId: string) => { success: boolean; message?: string };
   /** C-11: spend legacy points on the heir's starting position. */
   purchaseLegacyUpgrade: (upgradeId: string) => { success: boolean; message: string };
+  claimLegacyContract: (contractId: string) => { success: boolean; message: string };
 }
 
 const MoneyActionsContext = createContext<MoneyActionsContextType | undefined>(undefined);
@@ -523,6 +525,35 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     return preview;
   }, [setGameState]);
 
+  /**
+   * Claim a completed Legacy Contract for its Legacy Points.
+   *
+   * Same shape as purchaseLegacyUpgradeAction: the reducer is PURE and
+   * idempotent — owning the claimed id is what blocks a second run — so it is
+   * safe to run once for the report and again inside the updater. The points
+   * are added in the SAME updater that records the claim, so a double-tap in
+   * one React batch cannot pay twice (§4.4).
+   */
+  const claimLegacyContractAction = useCallback((contractId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = claimContract(state, contractId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = claimContract(prev, contractId);
+      if (!applied.success || !applied.claimedIds) return prev;
+      return {
+        ...prev,
+        legacyContracts: { claimedIds: applied.claimedIds },
+        legacyPoints: (prev.legacyPoints ?? 0) + applied.reward,
+      };
+    });
+
+    return preview;
+  }, [setGameState]);
+
   const purchasePrestigeBonus = useCallback((bonusId: string): { success: boolean; message?: string } => {
     const state = stateRef.current;
     if (!state?.prestige) {
@@ -619,7 +650,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     swapCrypto,
     purchasePrestigeBonus,
     purchaseLegacyUpgrade: purchaseLegacyUpgradeAction,
-  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction]);
+    claimLegacyContract: claimLegacyContractAction,
+  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction, claimLegacyContractAction]);
 
   return (
     <MoneyActionsContext.Provider value={value}>

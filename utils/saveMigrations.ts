@@ -848,6 +848,29 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 32;
     return state;
   },
+
+  // Version 33: `legacyContracts` — the claimed-id record for Legacy Contracts,
+  // the multi-life goals that pay Legacy Points into the Dynasty Tree.
+  //
+  // Concrete stored default (`{ claimedIds: [] }`), so unlike the v26/v27/v28
+  // and v32 carve-outs this takes a REAL backfill and a `repairGameState`
+  // mirror. An absent key genuinely means "nothing claimed yet", which is the
+  // correct answer for every save written before contracts existed — and the
+  // only safe one, since inventing a claim would silently deny the player the
+  // points for a contract they have already earned.
+  //
+  // Note what is NOT stored: progress. Every contract metric is read from
+  // values the save already tracks and that only ever increase, so an existing
+  // save loads with its contracts already part-complete — a 12-generation
+  // dynasty gets credit for the work it did before this shipped.
+  33: (state) => {
+    const existing = state.legacyContracts as { claimedIds?: unknown } | undefined;
+    if (!existing || typeof existing !== 'object' || !Array.isArray(existing.claimedIds)) {
+      state.legacyContracts = { claimedIds: [] };
+    }
+    state.version = 33;
+    return state;
+  },
 };
 
 /**
