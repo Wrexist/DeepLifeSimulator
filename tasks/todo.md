@@ -77,6 +77,24 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 - [x] **Built the missing purchase UI** — `purchaseLegacyUpgrade` shipped with
       no screen calling it, so the whole currency was unspendable in the app
 
+### Late-game features — 9 of 10 shipped, 1 partial
+- [x] #1 Conglomerate — up to 3 companies per type at 2.5x escalating cost. A
+      pure SINK: PER_SOURCE_CAPS.companies already caps company income at
+      $200k/wk, which the five maxed originals exceed.
+- [x] #2 Dynasty Tree — 6 upgrades/340 pts → 17 nodes across 4 branches
+- [x] #3 Prestige tiers — first thing ever gated on prestiging
+- [x] #4 Legacy Contracts (v33) — 14 multi-life goals, derived progress
+- [x] #5 Career capstones — Board Seat @20yr, Emeritus @30yr (advanced ladders)
+- [x] #6 Luxury Collections — 7 completion sets
+- [x] #8 Wealth-scaled event money — mechanism (content pack still unwritten)
+- [x] #9 Dynasty rank surfaced + 3 ranks above Legendary
+- [x] #10 Grandchildren (v34) — deterministic, bounded, no nested loop
+- [ ] #7 Operating Overhead — **PARTIAL.** The soft cap is now legible and
+      shares one implementation with the readout. The management purchase
+      ladder (Group COO / property managers / family office) is NOT built: it
+      genuinely moves the money axis and needs incomeScale re-tuning plus new
+      ratchet floors.
+
 ### Luxury Collections — shipped (roadmap #6)
 - [x] `lib/luxury/collections.ts` — 7 completion sets, a title ladder, a
       reputation bonus clamped by the existing cap, and a bounded hosting

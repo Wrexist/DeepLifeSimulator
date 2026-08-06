@@ -4,6 +4,46 @@
 
 ## Patterns to Watch For
 
+### 2026-08-05 - Feature round: a test that pins a version number is a tripwire, and three caps that had to be proven to bind
+
+- **A test that hard-pins `STATE_VERSION` fails on every correct future bump.**
+  `luxuryHoldingsMigration` asserted `STATE_VERSION === 32`, so shipping v33
+  broke a test in an unrelated file that had nothing wrong with it. The C-11
+  suite had ALREADY been fixed for this exact reason and left a comment saying
+  so — which is the tell that this is a pattern, not an accident. What a
+  migration test should assert is that `STATE_VERSION === CURRENT_STATE_VERSION`
+  and that no version in the chain is unregistered; today's number is not the
+  invariant. Same shape as the career test that pinned `levels.length === 6`
+  while its own name said "no longer short" — a floor written as an equality
+  becomes a ceiling.
+- **A bound that never binds proves nothing.** Three separate caps landed this
+  round (luxury hosting multiplier, event money fraction, grandchildren per
+  child), and in each case the useful test is not "the result is ≤ cap" — that
+  passes when the cap is unreachable — but "the uncapped value EXCEEDS the cap,
+  and the capped one equals it". The grandchildren test runs 6,000 weeks and
+  asserts both that the bound holds and that births actually happened.
+- **Check a threshold against the curve before choosing it.** I set the new top
+  dynasty rank at 5,000 because it was a round number; the test I wrote first
+  showed a deep-but-plausible 60-generation family scores ~2,700, so the rank
+  was decoration. Derive thresholds FROM the growth function, then sanity-check
+  with a realistic worst case.
+- **A per-source income cap can turn a "risky" feature into a safe one.**
+  Conglomerate read as the highest-risk item on the roadmap until
+  `PER_SOURCE_CAPS.companies` turned out to be a hard $200k/wk ceiling that the
+  five maxed originals already exceed. Every subsidiary therefore adds cost and
+  no income. Rule: before assuming a feature moves the economy, find the cap
+  that already governs it — the answer changes the design, not just the risk.
+- **Derived progress beats stored progress whenever the metric only increases.**
+  Legacy Contracts store only claimed ids; progress is read from lifetime
+  counters. That removes an entire class of bug (drift, double-credit on a
+  re-run tick) and has a real player benefit: an existing save loads with its
+  contracts already part-complete instead of starting from zero.
+- **An optional parameter is how you extend a hot path without touching its
+  callers.** `applyChildAging(rel, weeksLived?)` rolls grandchild births only
+  when a clock is supplied, so every existing caller and test kept working and
+  the conservative default (no births) is the safe one.
+
+
 ### 2026-08-05 - Follow-up: the legacy shop had no buy button, and three navigation gates that disagreed with themselves
 
 - **A shipped, tested, context-exposed system with no call site is not shipped.**
