@@ -31,6 +31,7 @@ import {
   BarChart3,
   Car,
   Video,
+  Mail,
   Crown, Lock } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -54,6 +55,7 @@ import GamingApp from '@/components/computer/GamingApp';
 import GamingStreamingApp from '@/components/computer/GamingStreamingApp';
 import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
+import MailApp from '@/components/mobile/Mail/MailApp';
 import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
 import CompanyApp from '@/components/mobile/Hustle/HustleApp';
@@ -101,7 +103,7 @@ const { width: screenWidth } = Dimensions.get('window');
  * Contacts and Pet. The list survives because the phone/computer distinction
  * is still worth showing; it just no longer hides anything.
  */
-const MOBILE_APP_IDS = ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'];
+const MOBILE_APP_IDS = ['tinder', 'contacts', 'mail', 'social', 'stocks', 'bank', 'paw'];
 
 function ComputerScreen() {
   return (
@@ -256,6 +258,15 @@ export function ComputerScreenContent({
       icon: Users,
       gradient: ['#00D2D3', '#54A0FF'], // Teal-blue gradient to match contacts icon
       iconGradient: ['#00D2D3', '#54A0FF'],
+      available: true,
+    },
+    {
+      id: 'mail',
+      name: 'DeepMail',
+      description: 'Statements & receipts',
+      icon: Mail,
+      gradient: ['#EA4335', '#FBBC04'],
+      iconGradient: ['#EA4335', '#FBBC04'],
       available: true,
     },
     {
@@ -467,6 +478,7 @@ export function ComputerScreenContent({
       onion: OnionApp,
       tinder: DatingApp,
       contacts: ContactsApp,
+      mail: MailApp,
       social: PulseApp,
       stocks: StocksApp,
       bank: AdvancedBankApp,

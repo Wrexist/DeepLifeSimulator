@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Building,
   PawPrint,
+  Mail,
   Lock,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -32,6 +33,7 @@ import { useRouter } from 'expo-router';
 // REVERTED R6 lazy-loading: see comment in computer.tsx — same regression.
 import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
+import MailApp from '@/components/mobile/Mail/MailApp';
 import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
 import BankApp from '@/components/mobile/BankApp';
@@ -182,6 +184,15 @@ export function MobileScreenContent({
       available: true,
     },
     {
+      id: 'mail',
+      name: 'DeepMail',
+      description: 'Statements & receipts',
+      icon: Mail,
+      gradient: ['#EA4335', '#FBBC04'],
+      iconGradient: ['#EA4335', '#FBBC04'],
+      available: true,
+    },
+    {
       id: 'social',
       name: 'Pulse',
       description: 'Feel the room',
@@ -269,6 +280,7 @@ export function MobileScreenContent({
     const apps = {
       tinder: DatingApp,
       contacts: ContactsApp,
+      mail: MailApp,
       social: PulseApp,
       stocks: StocksApp,
       bank: BankApp,

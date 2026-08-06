@@ -140,6 +140,7 @@ import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
 import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
+import { applyMail } from './actions/weekly/applyMail';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
@@ -3063,6 +3064,52 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    }
  } catch (ambitionErr) {
    logger.error('[AMBITION TICK] failed:', ambitionErr);
+ }
+
+ /**
+  * Mail delivery — payslips, statements, invoices, and the phishing that rides
+  * in alongside them.
+  *
+  * Runs LAST for the same reason the ambition payout does: the documents quote
+  * arbitrary corners of the save (cash after the writeback, the arrears
+  * balance, tuition weeks left, dark-web vendor reputation), so anything
+  * earlier would be quoting a figure that is still moving.
+  *
+  * The figures the tick MOVED are passed explicitly rather than recomputed in
+  * a template. Paid salary runs through a raise premium, two IAP multipliers,
+  * a life skill, a DeepLife+ boost and a jail withholding — a payslip quoting
+  * `levels[level].salary` would disagree with the money that landed, which is
+  * the one thing a payslip must never do.
+  *
+  * Guarded like every other subsystem (§4.3): mail is the least important
+  * thing in a tick and must never be the reason a week is lost.
+  */
+ try {
+   const mailResult = applyMail({
+     state: nextState,
+     week: nextState.weeksLived ?? 0,
+     facts: {
+       careerSalary,
+       partnerIncome,
+       passiveIncome,
+       totalIncome,
+       incomeTax,
+       weeklyRent,
+       loanPaid: totalLoanAutoPaid,
+       loanPenalty: totalLoanPenalty,
+       savingsInterest,
+       moneyBefore: currentMoney,
+       moneyAfter: newMoney,
+     },
+   });
+   if (mailResult.state) {
+     nextState = mailResult.state;
+     if (mailResult.delivered > 0) {
+       logger.info(`[MAIL] Delivered ${mailResult.delivered} message(s)`);
+     }
+   }
+ } catch (mailErr) {
+   logger.error('[MAIL TICK] failed:', mailErr);
  }
 
  // PERF (freeze fix): expose the computed state to the post-update code below.

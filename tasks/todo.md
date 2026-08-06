@@ -314,3 +314,96 @@ could interrupt it.
 - [x] Full suite green: 496 suites / 6,245 tests / 0 failures in **64s**. The
       previous run took 1,558s and lost a worker, so the livelock had been
       eating the whole suite's wall clock, not just its own test.
+
+---
+
+## Mail app — the game's paper trail (2026-08-06)
+
+Owner ask: a mail app with real-looking receipts, invoices, payslips and
+important info; scam mail when the player has dealt with untrusted dark-web
+vendors; Gmail as the design reference; a key feature, not a curiosity.
+
+**Why it fits.** The game already produces every number a mail would quote —
+salary and withholding, rent, tuition, subscriptions, loan interest, tax,
+dark-web vendor reputation — and shows almost none of it as a durable
+document. The journal records what happened in a week; mail is where the
+*paperwork* lives, and it is the natural home for the one thing the game has
+never had: a channel the player must judge rather than just read.
+
+### Data
+- [ ] `MailState` on GameState — `messages[]`, `lastGeneratedWeek`, `address`.
+      **v37, carve-out** (default `undefined`): absence already means "no mail
+      yet", and inventing an inbox on an existing save would fabricate receipts
+      for purchases that never happened. Bounded to `MAX_MESSAGES` so a 60-year
+      life cannot grow the save without limit.
+- [ ] Every read goes through `lib/mail/state.ts`, degrading a missing or
+      malformed shape to the empty inbox rather than throwing in the week loop.
+
+### Content
+- [ ] `lib/mail/templates/` — one module per family, each a pure
+      `(ctx) => MailMessage | null` so a template that cannot apply this week
+      simply returns null:
+      payslip · bank statement · rent/mortgage invoice · subscription receipts ·
+      tuition invoice · tax notice · overdue notice · dividend + trade
+      confirmations · job offer / interview / rejection · insurance ·
+      vehicle service · property purchase receipt · luxury purchase receipt ·
+      family + social (wedding invite, birth, condolence) · promotions ·
+      security alerts (new sign-in, password) · **scam**.
+- [ ] Attachments render as REAL documents — a payslip with gross → deductions →
+      net and YTD, an invoice with line items, VAT and a due date, a receipt with
+      an order id and payment method. Numbers come from the save, never invented.
+
+### The scam mechanic (the reason this is a feature and not a feed)
+- [ ] Risk is EARNED, not random: buying from a low-reputation or scam-flagged
+      dark-web vendor, high investigation heat, and leaked-credential events all
+      raise the odds. A player who never touches the dark web still sees the
+      occasional generic phish, at a much lower rate.
+- [ ] A scam can only cost money if the player ACTS on it (taps the fake
+      "verify"/"claim"), never passively. The charge happens inside the same
+      `setGameState` updater that marks the message resolved, re-checked against
+      `prev` (§4.4) — a double-tap in one React batch must pay once.
+- [ ] Every scam carries real TELLS (lookalike domain, urgency, wrong greeting,
+      mismatched link), revealed after resolution either way, so the mechanic
+      teaches instead of taxing.
+- [ ] "Report phishing" is always safe and always available.
+- [ ] Recovery: disputing the charge with the bank can recover part of a loss,
+      once per incident — so being scammed is a setback with an answer, not a
+      dead loss.
+
+### UI — Gmail's DNA
+- [ ] Search pill + avatar header, category tabs (Primary / Finance /
+      Promotions / Social), density-matched list rows (coloured sender avatar,
+      unread weight, star, snippet, date), folder drawer (Inbox / Starred /
+      Archive / Spam / Trash), detail view with sender block, verified badge,
+      attachment card, and per-message actions.
+- [ ] Reachable from BOTH launchers (phone and computer), like Bank — with an
+      unread badge on the tile, which is what makes it a channel rather than a
+      screen nobody opens.
+
+### Gates
+- [x] Weekly generator runs as a guarded subsystem (§4.3); a throw must not cost
+      the week.
+- [x] Deterministic from `weeksLived` — a tick that runs twice produces the same
+      inbox (ids encode the week, appends are keyed), asserted both ways plus a
+      `Math.random` spy.
+- [x] type-check · test-tree ratchet 0 · lint 0 errors · routes · full suite.
+
+### Two things the build surfaced that were NOT about mail
+
+- [x] **`dynastyTiers.test.ts` pinned `CURRENT_STATE_VERSION` to 36.** It failed
+      the moment v37 landed, while proving nothing about `dynasty` — a test that
+      breaks on every future bump. Rewritten to assert what actually matters
+      (v36 is registered, migrating across it writes no `dynasty` key) in a form
+      that survives the next version. Same hardcoded-literal trap already
+      recorded in `scripts/lib/coverageRatchet.js`.
+- [ ] **The state-size sanity budget is nearly exhausted, and mail is not why.**
+      `realProviderLoop.stress.test.ts` allows 100 KB of growth over 20 ticks.
+      Mail's first cadence (a document most weeks) cost ~17.8 KB and broke it;
+      halving the cadence brought the total to 98.8 KB, which passes with **1.2
+      KB to spare**. So the next feature to add any per-week state will trip this
+      test and get blamed for it. The actual consumer is `checkpoints`: five full
+      `Partial<GameState>` snapshots, **657 KB after 100 ticks — 6.5× everything
+      else in the save combined**. It is capped and therefore bounded, not a
+      leak, but it is where the headroom went. Worth a decision (compress the
+      snapshots, store a diff, or cut to 3) before the budget is raised to
+      accommodate something smaller.

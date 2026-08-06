@@ -90,6 +90,14 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'tab:apps', tier: 0, requirement: '' },
   { id: 'tab:mobile', tier: 0, requirement: '' },
   { id: 'tab:computer', tier: 0, requirement: '' },
+  // DeepMail is tier 0 on purpose, alongside the tabs rather than with the
+  // other apps. It is where the game explains itself in documents — the first
+  // payslip, the first statement, the first rent invoice — and gating it behind
+  // Chapter 1 would withhold the paperwork for exactly the weeks a new player
+  // most needs to see where their money went. It also has to be reachable
+  // before the first phishing attempt can arrive, or the mechanic would fire at
+  // a player with no way to look at it.
+  { id: 'app:mail', tier: 0, requirement: '' },
 
   // ── Tier 1 — Fresh Start done: earned $500, got hired, survived 4 weeks ──
   // Life → Stats: achievements, prestige and legacy. Dense, and none of it is

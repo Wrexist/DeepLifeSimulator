@@ -536,6 +536,111 @@ export interface DarkWebState {
   recentEvents: { id: string; week: number; text: string }[];
 }
 
+// ---------------------------------------------------------------------------
+// Mail (STATE_VERSION 37)
+// ---------------------------------------------------------------------------
+
+/** Where a message currently lives. Exactly one folder per message. */
+export type MailFolder = 'inbox' | 'archive' | 'spam' | 'trash';
+
+/**
+ * The tab a message lands under. Mirrors the split Gmail made standard, which
+ * is worth copying because players already know it: money things together,
+ * marketing out of the way, people separate from machines.
+ */
+export type MailCategory = 'primary' | 'finance' | 'promotions' | 'social';
+
+/**
+ * A rendered document attached to a message — a payslip, an invoice, a receipt.
+ *
+ * Deliberately a list of label/value rows rather than free text: the detail view
+ * lays them out as a real document (right-aligned figures, a ruled total), and
+ * every value is formatted from a number the save already holds, so nothing here
+ * can disagree with the player's balance.
+ */
+export interface MailAttachment {
+  kind: 'payslip' | 'invoice' | 'receipt' | 'statement' | 'notice' | 'contract';
+  /** Shown on the document header, e.g. "Payslip — Week 312". */
+  title: string;
+  /** Issuer line under the title, e.g. "Northwind Logistics · Payroll". */
+  issuer: string;
+  /** Human reference the player can pretend to quote, e.g. "INV-4417-22". */
+  reference: string;
+  rows: { label: string; value: string; muted?: boolean; negative?: boolean }[];
+  /** The ruled bottom line. Omitted for documents that do not total. */
+  total?: { label: string; value: string };
+  /** Optional footer note — payment terms, a due date, a disclaimer. */
+  note?: string;
+}
+
+/**
+ * A button the message offers.
+ *
+ * `kind` drives BOTH the styling and the consequence: `danger` is the only kind
+ * that can cost the player anything, and only a scam message ever carries one.
+ */
+export interface MailAction {
+  id: string;
+  label: string;
+  kind: 'safe' | 'danger';
+}
+
+/**
+ * Fraud metadata. Present ONLY on messages that are actually scams.
+ *
+ * `tells` is the teaching half of the mechanic — the specific things that gave
+ * it away, revealed once the message is resolved either way, so a player who
+ * fell for it learns what to look for instead of just losing money.
+ */
+export interface MailScam {
+  /** Fraction of liquid cash at risk if the player acts on it, 0..1. */
+  lossFraction: number;
+  /** Hard ceiling on the loss, so a late-game fortune cannot be wiped. */
+  lossCap: number;
+  /** What should have given it away. Shown after resolution. */
+  tells: string[];
+}
+
+export interface MailMessage {
+  id: string;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  /** One-line snippet for the list row. */
+  preview: string;
+  /** Full body. Blank lines separate paragraphs. */
+  body: string;
+  /** Absolute week (`weeksLived`) the message arrived. */
+  atWeek: number;
+  read: boolean;
+  starred: boolean;
+  folder: MailFolder;
+  category: MailCategory;
+  /**
+   * True for senders the game vouches for — the player's own bank, employer,
+   * government. A scam can never set this, which is what makes its ABSENCE a
+   * usable tell rather than decoration.
+   */
+  verified?: boolean;
+  attachment?: MailAttachment;
+  action?: MailAction;
+  /** Set once the player resolves the action. Makes every action one-shot. */
+  actionTaken?: 'accepted' | 'reported';
+  /** How much a scam actually took, stamped when it is paid. Enables disputes. */
+  lostAmount?: number;
+  /** Set when a loss has been disputed, so a dispute cannot be run twice. */
+  disputed?: boolean;
+  scam?: MailScam;
+}
+
+export interface MailState {
+  messages: MailMessage[];
+  /** Last `weeksLived` the generator ran, so a replayed tick cannot double-send. */
+  lastGeneratedWeek?: number;
+  /** The player's own address, derived once from their name. */
+  address?: string;
+}
+
 export interface Food {
   id: string;
   name: string;
@@ -2904,6 +3009,25 @@ export interface GameState {
    * hand-edited save degrades to the empty answer instead of throwing.
    */
   dynasty?: DynastyState;
+  /**
+   * Mail (v37) — the game's paper trail.
+   *
+   * Every number the game moves already exists somewhere in this save; mail is
+   * where it becomes a DOCUMENT the player can look back at — a payslip with
+   * its deductions, an invoice with its due date, a receipt with an order id.
+   * It is also the only channel in the game the player must JUDGE rather than
+   * read, because a scam arrives looking like the rest of it.
+   *
+   * Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+   * and no `repairGameState` mirror. An absent key already means "no mail yet",
+   * and seeding an inbox onto an existing save would fabricate receipts for
+   * purchases that never happened and payslips for weeks already lived.
+   *
+   * Read through `lib/mail/state.ts`, never directly, so a partial or
+   * hand-edited save degrades to an empty inbox instead of throwing in the
+   * week loop.
+   */
+  mail?: MailState;
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks

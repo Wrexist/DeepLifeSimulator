@@ -552,9 +552,15 @@ describe('the Archive — new contracts the Seat opens, not old ones it hides', 
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('the save story for `dynasty` (v36 carve-out)', () => {
-  it('STATE_VERSION is 36 and a v36 migration is registered', () => {
-    expect(CURRENT_STATE_VERSION).toBe(36);
+  // Deliberately NOT `expect(CURRENT_STATE_VERSION).toBe(36)`. That assertion
+  // was here and it failed the moment v37 landed — a test that breaks on every
+  // future version bump while proving nothing about `dynasty`, which is the
+  // hardcoded-literal trap already recorded in `scripts/lib/coverageRatchet.js`.
+  // What actually matters is that v36 is registered and that migrating ACROSS
+  // it leaves no `dynasty` key, and both stay true however far the chain grows.
+  it('v36 is a registered migration and the chain has reached it', () => {
     expect(isMigrationVersionCovered(36)).toBe(true);
+    expect(CURRENT_STATE_VERSION).toBeGreaterThanOrEqual(36);
   });
 
   it('the migration writes NO `dynasty` key — absence already means empty', () => {
@@ -563,7 +569,7 @@ describe('the save story for `dynasty` (v36 carve-out)', () => {
     // existing save would make them all look like they had opted in.
     const old = { version: 35 } as Record<string, unknown>;
     const { state } = runMigrations(old);
-    expect(state.version).toBe(36);
+    expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect('dynasty' in state).toBe(false);
   });
 

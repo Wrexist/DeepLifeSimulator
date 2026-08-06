@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 36`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 37`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -246,7 +246,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 36`** — single source of truth in
+- **Canonical `STATE_VERSION = 37`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -354,6 +354,20 @@ including the crash screen.
   a prestige**, so `initialGameState`'s empty board was restored every cycle and
   the whole contract ladder was re-claimable. Both paths now run one hook,
   `applyDynastyTransition` (`lib/dynasty/transition.ts`).
+- **v37 adds `mail`** — the paper trail (payslips, statements, invoices,
+  receipts) and the phishing channel that rides on it. Default `undefined`, so
+  another CARVE-OUT: version bumped, NO backfill and no `repairGameState`
+  mirror. Absence is the only honest state here — seeding an inbox would have to
+  invent the documents to fill it, and every one would be a number the player
+  could check and find wrong (payslips for weeks already lived, statements for
+  balances that have since moved). A scam message is worse still: it is an
+  unresolved decision, and writing one onto an existing save would present a
+  choice about money earned before the feature existed. Reads go through
+  `lib/mail/state.ts`. Generation is deterministic in `weeksLived` and
+  double-guarded (a `lastGeneratedWeek` marker plus week-encoded ids), so a
+  double-invoked updater cannot deliver twice — which matters because one of the
+  messages can take money. Losses are only ever charged when the player taps the
+  fraudulent action, inside the same updater that marks it resolved (§4.4).
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

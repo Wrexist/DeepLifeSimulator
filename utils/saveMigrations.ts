@@ -924,6 +924,32 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 36;
     return state;
   },
+
+  // Version 37: `mail` — the game's paper trail (payslips, statements,
+  // invoices, receipts) and the phishing channel that rides on it.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32/v34/v36
+  // mould: version bumped, NO backfill and no `repairGameState` mirror.
+  //
+  // The absence is not just harmless here, it is the only honest state. An
+  // empty inbox is exactly what a save that has never had mail should show, and
+  // the alternative — seeding one — would have to invent the documents to put
+  // in it: payslips for weeks already lived, statements for balances that have
+  // since moved, receipts for purchases that never happened. Every one of those
+  // would be a number the player could check and find wrong, which is worse
+  // than an empty mailbox that fills from the next tick onward.
+  //
+  // Nor can the fraud half be backfilled: a scam message is an unresolved
+  // decision, and writing one onto an existing save would present the player
+  // with a choice about money they earned before the feature existed.
+  //
+  // Every read goes through `lib/mail/state.ts`, which degrades a missing or
+  // malformed shape to the empty inbox rather than throwing inside the week
+  // loop.
+  37: (state) => {
+    state.version = 37;
+    return state;
+  },
 };
 
 /**
