@@ -6,10 +6,13 @@
  * Card artwork needs a darkened base so an overlaid title stays legible. The
  * obvious tool is `LinearGradient`, but `expo-linear-gradient` is BANNED
  * app-wide — direct imports hard-abort on iOS 26 TurboModule init (recorded as
- * P0-7/P0-8 in `tasks/critical-bugs-2026-05-29.md`), so all 265 call sites go
- * through `LinearGradientFallback`, which takes `colors[0]` and paints a flat
- * block. A `['transparent', 'black']` scrim therefore disappears, and a
- * `['black', 'transparent']` one becomes an opaque slab across the art.
+ * P0-7/P0-8 in `tasks/critical-bugs-2026-05-29.md`). Every call site used to go
+ * through `LinearGradientFallback`, which took `colors[0]` and painted a flat
+ * block: a `['transparent', 'black']` scrim disappeared, and a
+ * `['black', 'transparent']` one became an opaque slab across the art. Call
+ * sites now render `components/ui/Gradient` (SVG) and the flat fallback is
+ * deleted — but this component stays, because a scrim wants exactly one
+ * purpose-built shape and gets to own its alpha curve.
  *
  * Four separate surfaces independently settled for a single flat band —
  * `height: '55%', backgroundColor: 'rgba(15, 23, 42, 0.9)'` and friends — which

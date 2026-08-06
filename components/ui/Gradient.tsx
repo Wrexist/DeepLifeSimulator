@@ -27,6 +27,11 @@
  * + const LinearGradient = Gradient;
  * ```
  *
+ * Every call site has now made that swap, so `LinearGradientFallback` is
+ * deleted rather than left sitting in `components/fallbacks/` — a dead
+ * drop-in with the right-looking name is exactly what a future author reaches
+ * for, and it would silently flatten the gradient again.
+ *
  * ## Anatomy
  *
  * Outer view carries the caller's style (so shadows keep working — never put

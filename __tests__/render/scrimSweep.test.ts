@@ -7,9 +7,9 @@
  * horizontal line across the artwork, hiding everything below it.
  *
  * It appeared four separate times, each with the same rationale in its comment —
- * `LinearGradient` here resolves to `LinearGradientFallback`, which paints only
- * `colors[0]` as a flat background, so a real gradient scrim either vanishes
- * (`transparent → dark`) or becomes an opaque block (`dark → transparent`).
+ * `LinearGradient` here resolved to `LinearGradientFallback`, which painted only
+ * `colors[0]` as a flat background, so a real gradient scrim either vanished
+ * (`transparent → dark`) or became an opaque block (`dark → transparent`).
  * Four authors independently reached for a flat band as the workaround:
  *
  *   app/(onboarding)/Scenarios.tsx          heroScrim   55% @ 0.90

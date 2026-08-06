@@ -6,11 +6,12 @@
  * more than half the image with a hard horizontal edge, the art below the line
  * was simply not visible, and the boundary read as a rendering fault.
  *
- * It was a flat band on purpose: `LinearGradient` in this app resolves to
- * `LinearGradientFallback`, which paints the FIRST colour as a solid
- * background, so a real gradient scrim either vanishes or becomes an opaque
- * slab. `ImageScrim` builds the fade from stacked plain Views instead, which
- * behaves identically on every platform with no native module involved.
+ * It was a flat band on purpose: `LinearGradient` in this app used to resolve to
+ * `LinearGradientFallback`, which painted the FIRST colour as a solid
+ * background, so a real gradient scrim either vanished or became an opaque slab.
+ * `ImageScrim` draws the fade with `react-native-svg` instead — a different
+ * library from the crashing Expo module, and the same one `components/ui/
+ * Gradient` now uses at the call sites that fallback served.
  */
 
 import fs from 'fs';
