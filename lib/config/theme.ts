@@ -2,11 +2,13 @@ import { Platform } from 'react-native';
 /**
  * Design Token System — DeepLifeSim
  *
- * Single source of truth for colors, spacing, typography, and radii.
+ * Single source of truth for colors, typography, and radii. Spacing lives in
+ * `@/utils/scaling` (`responsiveSpacing`, `scale`) and deliberately NOT here —
+ * see the note where its ladder used to be.
  * Components should import from here instead of hardcoding values.
  *
  * Usage:
- *   import { colors, spacing, typography, radii } from '@/lib/config/theme';
+ *   import { colors, typography, radii } from '@/lib/config/theme';
  *   // or with dark mode:
  *   const c = colors.dark; // or colors.light
  */
@@ -139,17 +141,26 @@ export const accent = {
 // Spacing (4px base grid)
 // ---------------------------------------------------------------------------
 
-export const spacing = {
-  xxs: 2,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
-  xxxxl: 48,
-} as const;
+/**
+ * There is no `spacing` export here. That is the resolution of a real problem,
+ * so it is recorded rather than left as an absence.
+ *
+ * This file used to export a raw ladder — `md: 12`, `lg: 16` — while
+ * `utils/scaling.ts` exported `responsiveSpacing` with the SAME key names and
+ * different values (`md: scale(16)`, `lg: scale(24)`). Same names, different
+ * numbers, and only one of the two scaled with the device: on a tablet a screen
+ * mixing them drifted, and a reviewer reading `spacing.md` could not tell which
+ * ladder was meant without checking the import line.
+ *
+ * The two were never reconciled because reconciling them looked like a
+ * 156-file migration. It was not: by the time anyone measured, this ladder had
+ * ZERO importers left — every screen had already drifted onto
+ * `responsiveSpacing` on its own. Deleting it costs nothing and leaves exactly
+ * one spacing scale in the app.
+ *
+ * Use `responsiveSpacing` / `scale()` from `@/utils/scaling`. Do not
+ * reintroduce an unscaled ladder here; that is the bug, not the fix.
+ */
 
 // ---------------------------------------------------------------------------
 // Typography

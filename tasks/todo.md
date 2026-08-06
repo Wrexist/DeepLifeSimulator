@@ -188,11 +188,24 @@ anything. The collision was 21 call sites in 2 files.
 - [x] **The journal has a writer.** `appendWeekToJournal` records the week's
       notable notifications into `journal` from the tick's state assembly, keyed
       by notification id so a StrictMode double-invoke cannot double-append.
-- [ ] **Settle the design-token collision.** `spacing.md` is 12 in
-      `lib/config/theme.ts` and 16 in `utils/scaling.ts`, with a third orphaned
-      copy in `utils/designSystem.ts`. Every mechanical sweep is blocked behind
-      this decision.
-- [ ] **Consolidate the four parallel objective systems** before adding a fifth.
+- [x] **Design-token collision settled by deletion.** The premise that this was
+      a blocking 156-file decision was wrong twice over. `utils/designSystem.ts`
+      (the third copy) was already deleted; and when the remaining two were
+      finally *counted* rather than estimated, `lib/config/theme.ts`'s raw
+      `spacing` ladder had **zero importers** — every screen had drifted onto
+      `responsiveSpacing` on its own. Deleted, with a note in its place saying
+      why not to reintroduce it. One spacing scale now: `responsiveSpacing` /
+      `scale()`. It did leave a mark: `PULSE_DENSITY.cardPadding` was commented
+      `// 12` against `responsiveSpacing.md` (16) because its author was reading
+      the other ladder. The comment was wrong, not the number.
+- [x] **"Consolidate the four parallel objective systems" — dropped, premise
+      wrong.** There are seven, not four, and they run on deliberately different
+      horizons (a week, a chapter, a life, a dynasty). Life Chapters is
+      load-bearing for the tab gates. Merging them would collapse the horizons
+      that make them readable. What is actually missing is one shared "what
+      next?" surface on Home that READS all of them — kept below, unbuilt.
+- [ ] **One "what next?" surface on Home** that reads every objective system
+      rather than each shipping its own card.
 
 ### Economy
 - [x] Arrears now covers the post-writeback costs too — luxury upkeep and
@@ -228,10 +241,12 @@ anything. The collision was 21 call sites in 2 files.
 - [x] Renting is now on Life → Market (no device, no tier) as well as in the
       Real Estate app — it was a week-1 survival need behind a $5,000 computer
       and a Chapter-3 gate. The Real Estate path is kept, not replaced.
-- [ ] Retire the Desktop/Mobile segment split (buying a computer currently *adds*
-      a tap to five apps and relocates two)
-- [ ] Promote the Discovery Center to a real, always-visible "All Systems"
-      directory with working navigation
+- [x] Retire the Desktop/Mobile segment split (buying a computer currently *adds*
+      a tap to five apps and relocates two) — the toggle is gone; Phone and
+      Computer are now two labelled sections of one launcher list
+- [x] Promote the Discovery Center to a real, always-visible "All Systems"
+      directory with working navigation — every card routes through
+      `lib/depth/systemRoutes.ts`, and the list is no longer truncated at 10
 
 ### Features — what is left of the roadmap
 - [ ] #8's content: the ~40-event Tycoon pack. The `moneyPct` mechanism ships
@@ -240,8 +255,9 @@ anything. The collision was 21 call sites in 2 files.
       Patriarch/Matriarch activity set. The data and score input exist.
 - [ ] #5 beyond the advanced ladders: the 30 base careers have per-career salary
       curves, so capstones there are an authoring job, not a mechanical one.
-- [ ] Prestige tiers 2–5 have no entries yet — the plumbing exists, they need
-      content to gate.
+- [x] Prestige tiers 2–5 have no entries yet — the plumbing exists, they need
+      content to gate. (Shipped as the Vault / Endowment / Trials / Seat, v36
+      `dynasty`; see the section below.)
 
 ---
 
@@ -265,3 +281,36 @@ one per tier. Nothing that exists today is moved behind a wall.
       carried, so every prestige re-armed the whole contract board).
 - [x] Surface all four in the Prestige Shop's Dynasty tab, padlocked when locked.
 - [x] Tests in `__tests__/prestige/dynastyTiers.test.ts` + reachability.
+
+---
+
+## The render suite stopped completing (2026-08-06)
+
+`__tests__/render/screens.render.test.tsx` did not fail — its worker was killed
+by SIGTERM with no message, and jest's own `testTimeout` never fired. That second
+fact was the diagnosis: the spin blocked the event loop, so nothing scheduled
+could interrupt it.
+
+- [x] Root cause: `app/(tabs)/home.tsx` mounted its three `React.lazy` reward
+      popups unconditionally with `visible={false}`. Under ts-jest an `import()`
+      compiles to `Promise.resolve().then(() => require(…))`, so it settles only
+      on a microtask — and `renderWithProviders` renders inside a SYNCHRONOUS
+      `act()`, which never yields one. React restarted the render from the shell
+      to retry the pending lazy: ~1.4M `beginWork` calls per pass, forever, with
+      `scheduleUpdateOnFiber` called under 600 times in total. Not a re-render
+      loop, so React's own "too many re-renders" guard could not see it either.
+- [x] Found by attaching to the hung process over the V8 inspector (interrupt for
+      a stack, then CPU-profile), then patching `lazyInitializer` to name the
+      pending payload. Three popup imports, each stuck Pending after ~950k
+      retries. Four rounds of source-level bisection had narrowed it to the file
+      but named the wrong line, because the change there was a pure deletion.
+- [x] Fix: mount each popup only while it holds its interruption slot — the shape
+      `app/_layout.tsx`, `(tabs)/_layout.tsx` and `MainMenu.tsx` already used.
+      Home was the only exception among the four files that use `lazy()`.
+- [x] Guard: `__tests__/render/lazyMountGating.render.test.tsx`, asserting the
+      invariant across `app/` from SOURCE — a render-based guard would reproduce
+      the hang instead of reporting it. Verified in both directions; its first
+      version passed on deliberately broken input and was rewritten.
+- [x] Full suite green: 496 suites / 6,245 tests / 0 failures in **64s**. The
+      previous run took 1,558s and lost a worker, so the livelock had been
+      eating the whole suite's wall clock, not just its own test.

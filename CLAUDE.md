@@ -161,7 +161,13 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
 ## 5. Conventions
 
 - **Theme:** `useTheme()` or `getThemeColors(darkMode)` from `lib/config/theme.ts`
-  (`colors`, `accent`, `spacing`, `typography`, `radii`, `shadows`, `animation`).
+  (`colors`, `accent`, `typography`, `radii`, `shadows`, `animation`). **Spacing is
+  not there** — it used to export a raw `spacing` ladder whose keys collided with
+  `responsiveSpacing` in `utils/scaling.ts` at different values (`md` was 12 vs
+  `scale(16)`), so `spacing.md` meant two things depending on the import line and
+  only one of the two scaled with the device. By the time it was measured the raw
+  ladder had zero importers; it is deleted, and `responsiveSpacing` / `scale()`
+  are the one spacing scale.
 - **Scaling:** always `scale()` / `fontScale()` from `utils/scaling.ts` — never raw pixels.
 - **Z-index:** `Z_INDEX` in `utils/zIndexConstants.ts` —
   `CONTENT 1 → DROPDOWN 100 → TOOLTIP 200 → MODAL 300 → TOAST 400 → LOADING 500 → DEBUG 999`.
