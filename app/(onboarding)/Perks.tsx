@@ -34,6 +34,7 @@ import {
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
+import ImageScrim from '@/components/ui/ImageScrim';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 
@@ -164,11 +165,14 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent && styles.permanentPerkCard,
           ]}
         >
-          {/* Hero artwork — the perk's own painting, full-bleed with a scrim so
-              the title and rarity read cleanly over any illustration. */}
+          {/* Hero artwork — the perk's own painting, full-bleed under a bottom
+              FADE so the title and rarity read cleanly without hiding the art.
+              This used to be one flat 90%-opaque band across the bottom 55%,
+              which blacked out over half of every illustration behind a hard
+              horizontal edge. */}
           <View style={styles.heroWrap}>
             <Image source={perk.icon} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroScrim} />
+            <ImageScrim height={0.42} strength={0.72} />
             {isPermanent ? (
               <View style={styles.permanentPill}>
                 <Text style={styles.permanentPillText}>PERMANENT</Text>
@@ -293,7 +297,7 @@ const MindsetCard = React.memo(function MindsetCard({
               to match the perk cards; the purple accent marks the category. */}
           <View style={styles.heroWrap}>
             <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroScrim} />
+            <ImageScrim height={0.42} strength={0.72} />
             {isRecommended ? (
               <View style={[styles.recommendedPill, styles.recommendedPillPurple]}>
                 <Star size={11} color="#A78BFA" />
@@ -782,16 +786,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  heroScrim: {
-    // One flat band over the bottom of the hero so the title/rarity read
-    // cleanly — never a gradient (the fallback would render a hard-edged block).
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '55%',
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-  },
+  // (the flat `heroScrim` band is gone — see ImageScrim in the heroes above)
   heroTitleRow: {
     position: 'absolute',
     left: 0,

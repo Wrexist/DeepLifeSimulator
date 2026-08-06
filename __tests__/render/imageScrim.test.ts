@@ -18,22 +18,39 @@ import path from 'path';
 
 const read = (rel: string) => fs.readFileSync(path.join(__dirname, '../..', rel), 'utf8');
 
-const SCENARIOS = read('app/(onboarding)/Scenarios.tsx');
 const SCRIM = read('components/ui/ImageScrim.tsx');
 
-describe('the flat slab is gone', () => {
+// Both onboarding pickers shipped the identical slab, copy-pasted.
+const HOSTS: [string, string][] = [
+  ['Scenarios', 'app/(onboarding)/Scenarios.tsx'],
+  ['Perks', 'app/(onboarding)/Perks.tsx'],
+];
+
+describe.each(HOSTS)('%s — the flat slab is gone', (_name, file) => {
+  const SRC = read(file);
+
   it('no longer defines a 55% opaque band', () => {
-    expect(SCENARIOS).not.toMatch(/height: '55%'/);
-    expect(SCENARIOS).not.toMatch(/rgba\(15, 23, 42, 0\.9\)/);
+    expect(SRC).not.toMatch(/height: '55%'/);
+    expect(SRC).not.toMatch(/rgba\(15, 23, 42, 0\.9\)/);
   });
 
   it('renders the shared fade over the hero instead', () => {
-    expect(SCENARIOS).toMatch(/<ImageScrim /);
-    expect(SCENARIOS).toMatch(/from '@\/components\/ui\/ImageScrim'/);
+    expect(SRC).toMatch(/<ImageScrim /);
+    expect(SRC).toMatch(/from '@\/components\/ui\/ImageScrim'/);
+  });
+
+  it('every hero image is followed by a fade, not a leftover band', () => {
+    // Perks has TWO heroes (perk cards and trait cards) — the first fix missed
+    // exactly this kind of second instance elsewhere in the file.
+    const heroes = SRC.match(/style=\{styles\.heroImage\}/g) ?? [];
+    const scrims = SRC.match(/<ImageScrim /g) ?? [];
+    expect(heroes.length).toBeGreaterThan(0);
+    expect(scrims.length).toBe(heroes.length);
+    expect(SRC).not.toMatch(/<View style=\{styles\.heroScrim\} \/>/);
   });
 
   it('the fade covers less of the image than the old band did', () => {
-    const used = SCENARIOS.match(/<ImageScrim height=\{([\d.]+)\}/);
+    const used = SRC.match(/<ImageScrim height=\{([\d.]+)\}/);
     expect(used).not.toBeNull();
     expect(Number(used![1])).toBeLessThan(0.55);
   });
