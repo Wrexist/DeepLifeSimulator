@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 33`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 34`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -240,7 +240,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 33`** — single source of truth in
+- **Canonical `STATE_VERSION = 34`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -313,6 +313,15 @@ including the crash screen.
   `undefined`, so it is a carve-out: version bumped, NO backfill and no
   `repairGameState` mirror — writing a tenancy would start charging rent to a
   player who never signed for anything.
+- **v34 adds `grandchildren`** on `ChildInfo` — lightweight records one
+  generation below the player's children, so the 13 genetic traits and the
+  nurture stats stop terminating at the heir. Default `undefined`, so it is a
+  CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror. An
+  absent key already means "no grandchildren", and writing an empty array onto
+  every child of every save would churn the whole family tree for nothing.
+  Births are rolled deterministically from `weeksLived` inside the pass the tick
+  already makes over children (`applyChildAging`), so no nested loop is added —
+  the perf audit tracks nested-loop density in the weekly path.
 - **v33 adds `legacyContracts`** — the claimed-id record for Legacy Contracts,
   the multi-life goals that pay Legacy Points into the Dynasty Tree. Concrete
   stored default (`{ claimedIds: [] }`), so a REAL backfill **and** a

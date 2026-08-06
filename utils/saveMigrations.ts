@@ -871,6 +871,19 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 33;
     return state;
   },
+
+  // Version 34: `grandchildren` on ChildInfo — lightweight records one
+  // generation below the player's children.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32 mould:
+  // version bumped, NO backfill and no `repairGameState` mirror. An absent key
+  // already means "no grandchildren", and writing an empty array onto every
+  // child of every existing save would churn the whole family tree for no
+  // behavioural gain. Births are derived by the weekly tick from that point on.
+  34: (state) => {
+    state.version = 34;
+    return state;
+  },
 };
 
 /**

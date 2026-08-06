@@ -353,6 +353,11 @@ export function calculateDynastyScore(stats: DynastyStats): number {
   // Achievement score
   score += (stats.familyAchievements ?? []).length * 2;
 
+  // Descendants. `totalChildrenAllGenerations` accumulates on every death, so
+  // a family that keeps having children keeps climbing — which is what makes
+  // grandchildren (v34) feed the rank rather than being a display-only tree.
+  score += Math.min(200, (stats.totalChildrenAllGenerations ?? 0) * 3);
+
   // Longevity bonus
   const age = stats.longestLivingMember?.age ?? 0;
   if (age >= 90) score += 30;

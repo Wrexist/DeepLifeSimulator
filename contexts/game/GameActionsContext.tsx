@@ -1262,7 +1262,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // R7 Phase 2 step 2.6-iii-B: child aging extracted to applyChildAging.
  if (rel.type === 'child') {
- return applyChildAging(rel);
+ // weeksLivedNow seeds the deterministic grandchild-birth roll — same save,
+ // same week, same outcome, so a reload cannot be used to reroll a birth.
+ return applyChildAging(rel, weeksLivedNow);
  }
 
  // R7 Phase 2 step 2.6-iii-E: relationship health extracted to

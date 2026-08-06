@@ -53,6 +53,14 @@ export interface ChildParentingState {
   totalActions: number;
 }
 
+export interface GrandchildInfo {
+  id: string;
+  name: string;
+  /** Absolute week (`weeksLived`) at which they were born. */
+  birthWeeksLived: number;
+  geneticTraits?: string[];
+}
+
 export interface ChildInfo extends Relationship {
   birthWeeksLived?: number;
   educationLevel?: 'none' | 'highSchool' | 'university' | 'specialized';
@@ -79,6 +87,15 @@ export interface ChildInfo extends Relationship {
   discipline?: number;
   /** Weekly-cap + cooldown bookkeeping for the parenting action loop. */
   parenting?: ChildParentingState;
+  /**
+   * Grandchildren (v34) — lightweight records, one generation deep.
+   *
+   * Default `undefined`, so this is a CARVE-OUT: version bumped, no backfill
+   * and no `repairGameState` mirror. An absent key already means "no
+   * grandchildren", and writing an empty array everywhere would churn every
+   * child on every existing save for no behavioural gain.
+   */
+  grandchildren?: GrandchildInfo[];
 }
 
 export interface FamilyState {

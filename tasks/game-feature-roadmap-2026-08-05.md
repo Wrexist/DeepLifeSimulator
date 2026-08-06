@@ -23,7 +23,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 7 | Operating Overhead | ★★★★☆ | M | Maybe | **◐ PARTIAL — made visible, not yet a decision** |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No | **✅ MECHANISM SHIPPED** |
 | 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No | **✅ SHIPPED** |
-| 10 | Grandchildren | ★★★★☆ | M–L | **Yes** |
+| 10 | Grandchildren | ★★★★☆ | M–L | **Yes** | **✅ SHIPPED (v34)** |
 
 ---
 
@@ -502,7 +502,35 @@ dynasty score, each with a permanent account-level perk.
 
 ---
 
-## 10. Grandchildren
+## 10. Grandchildren — ✅ SHIPPED (STATE_VERSION 34)
+
+> **Shipped 2026-08-05**, scoped deliberately: grandchildren are LIGHTWEIGHT
+> records on `ChildInfo`, not a second full NPC simulation. No NPC careers, no
+> NPC marriages, no recursion past one level.
+>
+> That scope is what defused the two Cons below. Births are rolled inside the
+> pass the tick ALREADY makes over children (`applyChildAging`), so no nested
+> loop is added — the perf audit tracks nested-loop density in the weekly path
+> and it stayed green. `MAX_GRANDCHILDREN_PER_CHILD` makes the tree provably
+> finite, with a test that runs 6,000 weeks and asserts the bound holds while
+> still producing some.
+>
+> Births are DETERMINISTIC — a hash of the child's identity and the absolute
+> week, no `Math.random` (asserted with a spy) — so reloading a save cannot
+> reroll a birth, and different children don't all deliver in lockstep.
+>
+> Genetic traits pass down one more generation, which is the point: the 13
+> authored traits previously terminated at the heir.
+>
+> Migration is a CARVE-OUT (default `undefined`): version bumped, no backfill,
+> no `repairGameState` mirror. Writing an empty array onto every child of every
+> save would churn the whole family tree for no behavioural gain. The
+> `weeksLived` parameter on `applyChildAging` is optional, so every existing
+> caller and test kept working untouched.
+>
+> **Still open:** the family-tree UI at three generations, and the
+> Patriarch/Matriarch activity set. The data and the score input exist.
+
 
 **Hooks:** `lib/legacy/familyTree.ts`, `lib/parenting/catalog.ts`,
 `family.children[]`.
