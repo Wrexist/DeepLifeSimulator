@@ -10,7 +10,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
   Monitor,
@@ -88,7 +88,7 @@ import { useIsFocused } from '@react-navigation/native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
 

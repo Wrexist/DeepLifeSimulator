@@ -12,7 +12,7 @@
  *   • Studio tab    — a gear score ring + an owned/next-tier upgrade GRID using
  *                     the YouVideo/Upgrades art.
  *
- * Still Slate Glass: LinearGradientFallback only (colors[0] flat), elevation via
+ * Still Slate Glass: gradients via the SVG-backed `Gradient`, elevation via
  * getGlass* / getPlatformShadows, no expo-blur, no raw boxShadow, no `as any`.
  * ZERO REMOVAL — every prior action/stat is re-homed and still reachable.
  *
@@ -101,10 +101,10 @@ import {
 } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ImageScrim from '@/components/ui/ImageScrim';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Slate Glass identity accent for the Gaming app: violet #8B5CF6.
 const IDENTITY = '#8B5CF6';

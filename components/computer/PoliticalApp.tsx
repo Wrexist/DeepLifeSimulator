@@ -45,7 +45,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -76,7 +76,7 @@ import { getLobbyistById, getAvailableLobbyists } from '@/lib/politics/lobbyists
 import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Identity accent — sky #60A5FA. Solid only on small CTAs / badges / dots;
 // everywhere else it appears as a translucent tint (fills 0.12–0.18, rims

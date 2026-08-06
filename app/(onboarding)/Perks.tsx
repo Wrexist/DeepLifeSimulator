@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useRouter, useNavigation } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
@@ -77,7 +77,7 @@ import { forceSave } from '@/utils/saveQueue';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 type TabType = 'perks' | 'mindset';

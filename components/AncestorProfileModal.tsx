@@ -1,11 +1,11 @@
 import React from 'react';
 import { Platform, Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, User, Star, Brain } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { height } = Dimensions.get('window');
 

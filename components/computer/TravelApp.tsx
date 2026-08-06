@@ -14,7 +14,7 @@
  * full per-destination event pool, fare/duration breakdowns, trip progress,
  * absolute depart/return weeks, times-visited counts, passive-income totals.
  *
- * Slate Glass still binding: LinearGradientFallback only (colors[0] flat),
+ * Slate Glass still binding: gradients via the SVG-backed `Gradient`,
  * elevation via glass helpers + getPlatformShadows, no expo-blur, no raw boxShadow,
  * no `as any`. Identity accent = teal #14B8A6 (solid only on small
  * CTAs/badges/glyphs); per-destination vibe hues are categorical Recipe-C
@@ -107,9 +107,9 @@ import {
   getGlassIconContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Slate Glass identity accent for the Travel app: teal #14B8A6.
 // Solid only on small CTAs/badges/glyphs; elsewhere the translucent tints.

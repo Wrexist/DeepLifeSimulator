@@ -3,7 +3,7 @@
  *
  * Terminal DNA (differentiation pass). A full aesthetic break from the shared
  * "eyebrow hero + uniform rows" template while keeping the Slate Glass crash-safe
- * primitives (getGlassCard / getPlatformShadows elevation, LinearGradientFallback
+ * primitives (getGlassCard / getPlatformShadows elevation, the gradient wrapper
  * is intentionally NOT used — the terminal look is flat phosphor, purple only as
  * cursor/accent glints). Everything reads as a monospace console: near-black
  * panels, "> "/"$ " prompts, ASCII dividers/bars, hex-dump wallet block, and every

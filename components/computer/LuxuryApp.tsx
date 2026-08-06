@@ -52,7 +52,7 @@ import type { LuxuryHolding } from '@/contexts/game/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import usePressableScale from '@/hooks/usePressableScale';
 import { useTimerManager } from '@/hooks/useTimerManager';
@@ -105,7 +105,7 @@ import {
 } from '@/contexts/game/actions/LuxuryActions';
 import { luxuryArtFor, luxuryTierVisual, LUXURY_ART_BASE } from '@/components/computer/luxury/luxuryArt';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Single blue identity accent for this app (Slate Glass semantic blue).
 const IDENTITY = '#3B82F6';

@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGameActions } from '@/contexts/GameContext';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
@@ -27,7 +27,7 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import type { PulseRecentPost } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface PostCardProps {
   post: PulseRecentPost;

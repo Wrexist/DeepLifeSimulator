@@ -8,7 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Radio, Plus } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -17,7 +17,7 @@ import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface StoriesRailProps {
   onGoLive: () => void;

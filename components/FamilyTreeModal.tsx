@@ -5,11 +5,11 @@ import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Di
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 

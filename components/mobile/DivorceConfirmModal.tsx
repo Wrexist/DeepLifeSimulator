@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, AlertTriangle, DollarSign, Heart, Gem, Scale, TrendingDown, Shield, Star } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { DIVORCE_LAWYERS, getLawyerExpectedValue } from '@/lib/dating/divorceLawyers';
 import { formatMoney } from '@/utils/moneyFormatting';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface DivorceConfirmModalProps {
   visible: boolean;

@@ -14,7 +14,7 @@ import {
   Rocket, TrendingUp, UserMinus, UserPlus, Users,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -26,7 +26,7 @@ import EmptyState from '../components/EmptyState';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface DashboardScreenProps {
   onOpenCompany: (companyId: string) => void;

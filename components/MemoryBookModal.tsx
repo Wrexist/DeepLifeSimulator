@@ -15,7 +15,7 @@ import { Platform, Modal,
   Dimensions,
   Animated } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   X,
   BookOpen,
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react-native';
 import { Memory } from '@/lib/legacy/memories';
 import { scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 

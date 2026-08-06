@@ -14,7 +14,8 @@
  * invisible row-tap), and the detail page re-homes every action plus a cross-nav
  * to the Insurance tab.
  *
- * Slate Glass is still binding: LinearGradientFallback (renders colors[0] flat),
+ * Slate Glass is still binding. (The flat gradient stub this once worked around
+ * is gone — `components/ui/Gradient.tsx` renders a real SVG gradient now.)
  * elevation only via getGlass helpers / getPlatformShadows, orange identity accent, one
  * focal gradient per screen, dark/light branching, a11y + nav-safety preserved.
  *

@@ -10,7 +10,7 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check, Lock, Users } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
@@ -32,7 +32,7 @@ import { getAllContractProgress, getClaimableContracts } from '@/lib/legacy/cont
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import DynastyBoard from '@/components/prestige/DynastyBoard';
 import { scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 
 /** The shop's tab set: the prestige-point categories, plus the Legacy tree. */

@@ -6,13 +6,13 @@
 import React from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, Platform, type ViewStyle } from 'react-native';
 import { Target, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 export default function LifeGoalsPanel() {
   // The LIVE achievement system, not `s.achievements` — that array's `completed`

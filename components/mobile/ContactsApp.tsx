@@ -14,7 +14,7 @@
  *     reconnect for personal, View profile for network allies).
  *
  * Slate Glass tokens stay binding: amber identity, Recipe A/B/C/D, crash-safe
- * LinearGradientFallback + getPlatformShadows only. ZERO REMOVAL — every action
+ * `Gradient` (react-native-svg) + getPlatformShadows only. ZERO REMOVAL — every action
  * and readout the old file had is still reachable.
  */
 
@@ -76,7 +76,7 @@ import {
   getGlassButton,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ProgressRing from '@/components/ui/ProgressRing';
 import {
   responsiveFontSize as fs,
@@ -88,7 +88,7 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
 
@@ -152,9 +152,9 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [darkMode]
   );
 
-  // Recipe B — the single focal amber hero per tab-view. Depth is faked with a
-  // flat tint wash + one glow blob (the LinearGradient fallback renders only
-  // colors[0]); the passed-in content is the hero body.
+  // Recipe B — the single focal amber hero per tab-view. Depth is a flat tint
+  // wash + one glow blob (a shape the flat gradient stub forced at the
+  // time, kept as-is); the passed-in content is the hero body.
   const statsHero = (title: string, children: React.ReactNode) => (
     <View
       style={[

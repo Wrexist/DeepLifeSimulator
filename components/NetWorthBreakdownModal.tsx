@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
@@ -11,7 +11,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getTotalLuxuryMarketValue } from '@/lib/luxury';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface NetWorthBreakdownModalProps {
   visible: boolean;

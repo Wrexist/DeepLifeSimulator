@@ -11,7 +11,7 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, Briefcase, Building2, Check, DollarSign, Factory, Utensils, Landmark } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -35,7 +35,7 @@ import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleT
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleIndustry } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Presentational profile labels — mirror each industry's existing description
 // (no new mechanics; createCompany remains the single source of economy truth).

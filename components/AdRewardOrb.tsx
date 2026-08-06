@@ -18,7 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Play, Gift, DollarSign, Heart, Smile, Zap, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game';
@@ -36,7 +36,7 @@ import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
 import { noFillOnCooldown, stampNoFillGrant } from '@/lib/ads/noFillCourtesy';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
 const VITALITY_GRADIENT = ['#E11D48', '#FB7185'] as const;
 

@@ -5,10 +5,10 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, t
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // 2% commission — MUST match STOCK_FEE in contexts/game/actions/StockActions.ts
 // (buy validation here mirrors buyStockMarket's gross-cost check).

@@ -57,7 +57,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import BuyPropertyModal from '@/components/realEstate/BuyPropertyModal';
 import ManagePropertyModal from '@/components/realEstate/ManagePropertyModal';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 
 import {
   buyPropertyWithMortgage,
@@ -77,7 +77,7 @@ import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
 import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Real Estate identity accent — emerald (#10B981). Used ONLY as translucent
 // tints on large surfaces (hero wash/blob, Recipe C icon bubbles, value chip)

@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -24,7 +24,7 @@ import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, PulseComment } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 

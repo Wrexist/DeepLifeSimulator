@@ -8,12 +8,12 @@
  * they're intentionally omitted here.
  *
  * Styling mirrors SparkPremiumUpsellModal: a bottom sheet over a dim backdrop,
- * theme-aware, crash-safe LinearGradientFallback.
+ * theme-aware, crash-safe `Gradient` (react-native-svg, not expo-linear-gradient).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -24,7 +24,7 @@ import type { GameState } from '@/contexts/game/types';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const BIO_MAX = 150;
 const MAX_INTERESTS = 8;

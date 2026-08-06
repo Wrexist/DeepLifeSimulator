@@ -9,14 +9,14 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Flame, MessageCircle, X } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { SPARK_GRADIENT, SPARK_MOTION } from '../styles/sparkTheme';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface MatchBannerProps {
   visible: boolean;

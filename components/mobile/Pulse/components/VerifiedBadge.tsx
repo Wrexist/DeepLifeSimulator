@@ -7,13 +7,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Check } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_MOTION } from '../styles/pulseTheme';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface VerifiedBadgeProps {
   verified: boolean;

@@ -21,7 +21,7 @@ import {
   View,
 } from 'react-native';
 import { Heart, Rewind, Star, X, Zap } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -42,7 +42,7 @@ import { SPARK_ACTION, SPARK_GRADIENT, SPARK_COLORS, SPARK_MOTION } from '../sty
 import { sparkHaptics } from '../utils/sparkHaptics';
 import { useTimerManager } from '@/hooks/useTimerManager';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 /** Compose an rgba() string from a #RRGGBB hex + alpha — for Recipe C tint fills/rims. */
 function withAlpha(hex: string, alpha: number): string {

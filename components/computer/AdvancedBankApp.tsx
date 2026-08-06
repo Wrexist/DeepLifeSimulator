@@ -60,7 +60,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
 
@@ -102,7 +102,7 @@ import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import TaxStatement from '@/components/banking/TaxStatement';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type Tab = 'overview' | 'accounts' | 'borrow' | 'budget' | 'tax';
 
