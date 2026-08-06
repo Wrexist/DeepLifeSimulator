@@ -5,6 +5,10 @@ import React from 'react';
 import { GameState, Company } from '../types';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from '../companyUpgradeCatalog';
 import {
+  isPrestigeFeatureUnlocked,
+  prestigeUnlockRequirement,
+} from '@/lib/progress/featureUnlocks';
+import {
   countCompaniesOfType,
   nextCompanyId,
   subsidiaryCost,
@@ -76,6 +80,17 @@ export const createCompany = (
     return {
       success: false,
       message: `Need ${formatMoney(cost)} to start this company — you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
+    };
+  }
+
+  // Prestige gate: a SECOND company of a type is conglomerate play, and is the
+  // first concrete answer this game has ever had to "why prestige again?".
+  // Only bites on subsidiaries — the first of each type is untouched, so
+  // nothing an existing player can already do is taken away.
+  if (ownedOfType > 0 && !isPrestigeFeatureUnlocked(gameState, 'feature:conglomerate')) {
+    return {
+      success: false,
+      message: prestigeUnlockRequirement(gameState, 'feature:conglomerate'),
     };
   }
 

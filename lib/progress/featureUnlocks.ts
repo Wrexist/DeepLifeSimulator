@@ -199,3 +199,82 @@ export function unlockRequirement(state: GameState | undefined | null, id: strin
 export function featuresUnlockedAtTier(tier: UnlockTier): FeatureUnlock[] {
   return FEATURE_UNLOCKS.filter((f) => f.tier === tier);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prestige tiers — the ladder ABOVE the chapter spine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Why this is a separate axis rather than tiers 6–10 on `UnlockTier`.
+ *
+ * The chapter spine hard-stops: `unlockTier` returns 5 for anyone who has
+ * prestiged at all, or simply reached `weeksLived >= 120`. That escape hatch is
+ * correct — a veteran should not be re-taught the game — but it means the
+ * chapter scale is *saturated* long before the late game, and extending it to
+ * 10 would make the veteran shortcut skip five tiers at once.
+ *
+ * So progression past the chapter arc keys on `prestige.totalPrestiges`
+ * instead, which is already persisted and only ever increases.
+ *
+ * **The gap this closes:** before this, a repo-wide grep for `prestigeLevel >=`
+ * found only cosmetic UI checks. NOTHING in the game was gated on having
+ * prestiged more than once, so prestige #5 was mechanically identical to
+ * prestige #2 and the question "why prestige again?" had no answer.
+ *
+ * **Rule for anything added here: NEW content only.** Moving a feature players
+ * already have behind a prestige wall is a takeaway, not a reward.
+ */
+export type PrestigeTier = 0 | 1 | 2 | 3 | 4 | 5;
+
+export interface PrestigeUnlock {
+  /** `feature:<name>` — a capability, not a route. */
+  id: string;
+  /** Completed prestiges required. */
+  tier: PrestigeTier;
+  /** Shown on the padlock. Written for a player. */
+  requirement: string;
+}
+
+export const PRESTIGE_UNLOCKS: PrestigeUnlock[] = [
+  {
+    // Founding a SECOND company of a type. New in the same change that added
+    // this table, so nothing is being taken away from anyone.
+    id: 'feature:conglomerate',
+    tier: 1,
+    requirement: 'Prestige once to start building a conglomerate',
+  },
+];
+
+const PRESTIGE_BY_ID = new Map(PRESTIGE_UNLOCKS.map((f) => [f.id, f]));
+
+/** Completed prestiges, clamped to the tier ceiling. */
+export function prestigeTier(state: GameState | undefined | null): PrestigeTier {
+  const total = state?.prestige?.totalPrestiges;
+  const n = typeof total === 'number' && Number.isFinite(total) && total > 0 ? Math.floor(total) : 0;
+  return Math.min(5, n) as PrestigeTier;
+}
+
+/**
+ * Is this prestige-gated capability available?
+ *
+ * Same default as `isFeatureUnlocked`: an unregistered id is UNLOCKED, so
+ * forgetting to register something makes it visible rather than invisible.
+ */
+export function isPrestigeFeatureUnlocked(
+  state: GameState | undefined | null,
+  id: string
+): boolean {
+  const feature = PRESTIGE_BY_ID.get(id);
+  if (!feature) return true;
+  return prestigeTier(state) >= feature.tier;
+}
+
+/** What the padlock should say. Empty string when already unlocked. */
+export function prestigeUnlockRequirement(
+  state: GameState | undefined | null,
+  id: string
+): string {
+  const feature = PRESTIGE_BY_ID.get(id);
+  if (!feature || isPrestigeFeatureUnlocked(state, id)) return '';
+  return feature.requirement;
+}

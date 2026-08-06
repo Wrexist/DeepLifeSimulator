@@ -24,6 +24,11 @@ import {
   canFoundAnother,
   subsidiaryName,
 } from '@/lib/business/subsidiaries';
+import {
+  isPrestigeFeatureUnlocked,
+  prestigeUnlockRequirement,
+  prestigeTier,
+} from '@/lib/progress/featureUnlocks';
 
 const co = (id: string, type: string) => ({ id, type });
 
@@ -186,5 +191,58 @@ describe('the action and the UI quote the same price', () => {
     const source = read('contexts/game/actions/CompanyActions.ts');
     const updater = source.slice(source.indexOf('setGameState(prev =>'));
     expect(updater).toMatch(/canFoundAnother\(prev\.companies/);
+  });
+});
+
+describe('the prestige gate — the first answer to "why prestige again?"', () => {
+  // Before this, a repo-wide grep for `prestigeLevel >=` found only cosmetic UI
+  // checks: NOTHING was gated on having prestiged, so prestige #5 was
+  // mechanically identical to prestige #2.
+  const stateWith = (totalPrestiges: number) =>
+    ({ prestige: { totalPrestiges } }) as never;
+
+  it('locks subsidiaries for a player who has never prestiged', () => {
+    expect(isPrestigeFeatureUnlocked(stateWith(0), 'feature:conglomerate')).toBe(false);
+    expect(prestigeUnlockRequirement(stateWith(0), 'feature:conglomerate')).toMatch(/prestige/i);
+  });
+
+  it('unlocks them after one prestige', () => {
+    expect(isPrestigeFeatureUnlocked(stateWith(1), 'feature:conglomerate')).toBe(true);
+    expect(prestigeUnlockRequirement(stateWith(1), 'feature:conglomerate')).toBe('');
+  });
+
+  it('treats a missing or corrupt prestige record as zero rather than NaN', () => {
+    for (const bad of [undefined, null, {}, { prestige: {} }, { prestige: { totalPrestiges: NaN } }]) {
+      expect(`${JSON.stringify(bad)}:${prestigeTier(bad as never)}`)
+        .toBe(`${JSON.stringify(bad)}:0`);
+    }
+  });
+
+  it('clamps the tier so a 50-prestige veteran does not overflow the scale', () => {
+    expect(prestigeTier(stateWith(50))).toBe(5);
+  });
+
+  it('leaves an unregistered capability UNLOCKED', () => {
+    // Same deliberate default as isFeatureUnlocked: forgetting to register
+    // something should make it visible, not invisible.
+    expect(isPrestigeFeatureUnlocked(stateWith(0), 'feature:not_registered')).toBe(true);
+  });
+
+  it('does NOT gate the first company of a type', () => {
+    // The rule for this table: new content only. Gating something players
+    // already have is a takeaway, not a reward.
+    const source = fs.readFileSync(
+      path.join(__dirname, '../..', 'contexts/game/actions/CompanyActions.ts'),
+      'utf8'
+    );
+    expect(source).toMatch(/ownedOfType > 0 && !isPrestigeFeatureUnlocked/);
+  });
+
+  it('the UI surfaces the same lock, so no tap dead-ends', () => {
+    const screen = fs.readFileSync(
+      path.join(__dirname, '../..', 'components/mobile/Hustle/screens/CreateCompanyScreen.tsx'),
+      'utf8'
+    );
+    expect(screen).toMatch(/isPrestigeFeatureUnlocked/);
   });
 });

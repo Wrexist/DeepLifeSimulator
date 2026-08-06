@@ -16,7 +16,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 |---|---|---|---|---|
 | 1 | Conglomerate / Holding Company | ★★★★★ | M | No | **✅ SHIPPED** |
 | 2 | Dynasty Tree (Legacy Points) | ★★★★★ | S–M | No | **✅ SHIPPED** |
-| 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No |
+| 3 | Prestige-Gated Content Tiers 6–10 | ★★★★★ | S + content | No | **✅ SHIPPED (layer + first tier)** |
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
@@ -153,7 +153,30 @@ Replace the flat 6-item shop with a **40–60 node tree** across four branches
 
 ---
 
-## 3. Prestige-gated content tiers 6–10
+## 3. Prestige-gated content tiers 6–10 — ✅ SHIPPED (the layer + its first tier)
+
+> **Shipped 2026-08-05** as a SEPARATE axis, not tiers 6–10 on `UnlockTier`.
+> The chapter spine saturates early — `unlockTier` returns 5 for anyone who has
+> prestiged at all *or* simply reached `weeksLived >= 120` — so extending that
+> enum would make the veteran shortcut skip five tiers at once. Progression past
+> the chapter arc keys on `prestige.totalPrestiges` instead, via
+> `PRESTIGE_UNLOCKS` / `isPrestigeFeatureUnlocked` / `prestigeUnlockRequirement`,
+> mirroring the existing API shape (including the deliberate "unregistered id is
+> UNLOCKED" default).
+>
+> Its first entry is `feature:conglomerate` at tier 1: founding a **second**
+> company of a type requires having prestiged once. That is the first thing in
+> this codebase ever gated on prestige — a repo-wide grep for `prestigeLevel >=`
+> previously found only cosmetic UI checks.
+>
+> The "new content only" rule from the Cons below was respected literally: the
+> gate bites on `ownedOfType > 0`, so the first company of every type is
+> untouched and no existing player loses anything. Conglomerate itself shipped
+> in the same batch, so nobody had it to lose.
+>
+> **Still open:** tiers 2–5 have no entries yet. The table and the padlock
+> plumbing exist; what they need is content, which is what #4/#7/#8/#10 are for.
+
 
 **Hooks:** `lib/progress/featureUnlocks.ts` (already derives tiers),
 `prestige.totalPrestiges`.

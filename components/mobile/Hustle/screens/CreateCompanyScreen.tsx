@@ -26,6 +26,10 @@ import {
   canFoundAnother,
   MAX_PER_COMPANY_TYPE,
 } from '@/lib/business/subsidiaries';
+import {
+  isPrestigeFeatureUnlocked,
+  prestigeUnlockRequirement,
+} from '@/lib/progress/featureUnlocks';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -155,9 +159,13 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           const inflatedCost = nextCostFor(ind.id, ind.cost);
           const ownedOfType = countCompaniesOfType(gameState.companies, ind.id);
           const atCap = !canFoundAnother(gameState.companies, ind.id);
+          // A subsidiary needs a prestige. Surfaced here so the card never
+          // offers a tap that dead-ends in the action's rejection.
+          const needsPrestige =
+            ownedOfType > 0 && !isPrestigeFeatureUnlocked(gameState, 'feature:conglomerate');
           const canAfford = playerMoney >= inflatedCost;
           const locked = !meetsCompanyGate;
-          const selectable = canAfford && !locked && !atCap;
+          const selectable = canAfford && !locked && !atCap && !needsPrestige;
           const shortfall = Math.max(0, inflatedCost - playerMoney);
           const profile = PROFILE[ind.id];
           return (
@@ -169,6 +177,8 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                   setError(
                     atCap
                       ? `You already run ${MAX_PER_COMPANY_TYPE} ${ind.name} companies. That is the limit.`
+                      : needsPrestige
+                        ? prestigeUnlockRequirement(gameState, 'feature:conglomerate')
                       : locked
                         ? lockReason
                         : `You need $${shortfall.toLocaleString()} more to found ${ind.name}.`,
