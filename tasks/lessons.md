@@ -901,3 +901,29 @@ DOING, not how long it takes.** A step that is blocked on someone else's queue
 belongs on the cheapest runner that can hold the connection — and any job that
 waits on an external service needs a `timeout-minutes`, or the failure mode is
 six hours of billing.
+
+## 2026-08-06 — an anti-exploit invariant left a second door open
+
+Weekly audit. Static layer + all dynamic backstops green; the deep economy pass
+found the one real thing. The eviction feature (3068ede) documents its own
+invariant at `RentalActions.ts:86-90`: the eviction counter "resets the week the
+balance clears, which is the documented escape and the only one." A prior fix
+(d5daaf8) hardened the tier-SWAP path — `resolveRentHome` carries `missedWeeks`
+across a swap so a tenant can't drop to the $45 room to buy back the four weeks.
+
+But `missedWeeks` lives on the `rental` record, and `resolveEndRental` discards
+that record wholesale. So the SAME reset was reachable by the move-OUT path:
+move out (free) → re-rent, and the clock is back to zero while `overdueBalance`
+stands untouched. One door was bolted; the adjacent one was left open because
+the fix carried the counter *on the object the other path deletes*.
+
+Fix: gate re-entry in `canRent` — a landlord won't sign a new lease while the
+player is in default (`!state.rental && overdueBalance > 0`), scoped to
+`!state.rental` so tier swaps (which keep the clock) are untouched. That makes
+"reset only when the balance clears" literally true.
+
+**The generalisable lesson: when you close an exploit, enumerate every path that
+reaches the same state, not just the one in front of you.** A counter stored on
+a record is only as durable as the record — any code that rebuilds or discards
+that record is a second copy of the exploit. Grep every writer/deleter of the
+field the invariant depends on before calling it closed.

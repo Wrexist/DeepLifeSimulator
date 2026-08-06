@@ -17,8 +17,11 @@ import {
   EVICTION_AFTER_WEEKS,
   RENTAL_TIERS,
   applyTenancyArrears,
+  canRent,
   resolveTenancyStep,
 } from '@/lib/realEstate/rentals';
+import { createTestGameState } from '../helpers/createTestGameState';
+import type { GameState } from '@/contexts/game/types';
 
 const TIER = RENTAL_TIERS[1];
 const tenancy = (missedWeeks?: number) => ({
@@ -171,6 +174,46 @@ describe('the weekly tick actually runs it', () => {
     expect(tick).toMatch(/resolveTenancyStep\s*\(/);
     // And the result has to be WRITTEN back, or the clock resets every week.
     expect(tick).toMatch(/rental:\s*tenancy\.rental/);
+  });
+});
+
+describe('you cannot move out to dodge the eviction clock', () => {
+  // `missedWeeks` lives on the tenancy, and moving out discards it. A tenant a
+  // week from eviction could otherwise move out (free) and re-sign to a clean
+  // four-week clock while the debt stood untouched — the same "buy back the four
+  // weeks" hole the tier-SWAP path was hardened against, reached instead by the
+  // move-OUT path. A landlord will not sign someone who is currently in default.
+  const bottom = RENTAL_TIERS[0]; // no income requirement
+
+  const homelessOwing = (over: number): GameState =>
+    createTestGameState({
+      stats: { ...createTestGameState().stats, money: 10_000 },
+      rental: undefined,
+      overdueBalance: over,
+    } as Partial<GameState>);
+
+  it('refuses a new lease while the player is in arrears', () => {
+    const verdict = canRent(homelessOwing(800), bottom);
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.reason).toMatch(/overdue balance/i);
+  });
+
+  it('allows the lease again the moment the balance is clear', () => {
+    // Recoverable, not a trap: arrears settle off income, and once square a
+    // landlord signs you. The escape is still clearing what you owe.
+    expect(canRent(homelessOwing(0), bottom).allowed).toBe(true);
+  });
+
+  it('does NOT block a tier-to-tier move made while in arrears', () => {
+    // Swapping keeps the same tenancy and carries `missedWeeks` across, so it is
+    // not a clock reset and must stay allowed — downsizing is how a struggling
+    // tenant cuts their rent.
+    const swapping = createTestGameState({
+      stats: { ...createTestGameState().stats, money: 10_000 },
+      rental: { tierId: RENTAL_TIERS[2].id, startedWeek: 4, missedWeeks: 3 },
+      overdueBalance: 800,
+    } as Partial<GameState>);
+    expect(canRent(swapping, bottom).allowed).toBe(true);
   });
 });
 
