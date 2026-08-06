@@ -129,6 +129,18 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       so it was never forgiven (the audit's claim there was imprecise).
 - [x] Make the passive-income soft cap legible (roadmap #7, first half) — the
       readout and the charge now share one implementation and cannot drift
+- [x] **Tax is legible and consistent.** `banking.taxDueThisYear` had two
+      readers and no writer, so both bank-app rows were dead on every save ever
+      made; it is now the year-to-date tax PAID ledger (no migration — 0 was
+      already the right value). New Tax tab in Bank Pro: brackets with the
+      player's band marked, YTD total, the four non-withholding taxes, and the
+      Tax Strategy discount. Unaffordable stock capital-gains tax was WRITTEN
+      OFF — it now defers into the same `overdueBalance` the income tax uses, so
+      the game has one answer to "you cannot pay" instead of three. Tax Strategy
+      now reaches capital gains (it moved income tax and nothing else, so the
+      only tax skill was worth zero to an investor). Crypto's yearly tax +
+      DCA notifications are week-keyed — a fixed id is deduped by the journal
+      writer, so they'd have been recorded once in a 60-year life.
 
 ### Navigation
 - [x] Renting is now on Life → Market (no device, no tier) as well as in the

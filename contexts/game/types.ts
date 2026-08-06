@@ -1975,7 +1975,19 @@ export interface BankingState {
   totalLateFeesPaid: number;
   totalInterestEarned: number;
   totalInterestPaid: number;
-  /** Capital-gains/tax accrual — debited yearly. */
+  /**
+   * Tax PAID so far this game year — income tax plus stock/crypto capital
+   * gains, reset at the 52-week boundary. Written by the week loop via
+   * `accrueYearlyTax` (`lib/economy/taxLedger.ts`) and read by the Bank app's
+   * Tax tab.
+   *
+   * The old comment here promised "capital-gains/tax accrual — debited yearly",
+   * which never happened: nothing in the repo wrote this field, so both UI rows
+   * reading it sat behind a `> 0` gate that could never open. Since tax in this
+   * game is withheld weekly at source and never "due", the honest meaning is
+   * year-to-date paid. Repurposed rather than renamed — 0 is the correct value
+   * for every existing save either way, so no migration is needed.
+   */
   taxDueThisYear: number;
   /** Last observed economy state — used to surface "rates changed" notifications. */
   lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';

@@ -93,6 +93,7 @@ import {
  MINER_PRICES,
  calculateIncomeTax,
 } from '@/lib/economy/constants';
+import { accrueYearlyTax } from '@/lib/economy/taxLedger';
 import {
  WEEKS_PER_YEAR,
  ADULTHOOD_AGE,
@@ -2163,6 +2164,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let finalCryptos = updatedCryptos;
  let finalCryptoMarket = prevState.cryptoMarket ?? initialGameState.cryptoMarket!;
  let bankingAfterCrypto = prevState.banking ?? initialGameState.banking!;
+ // Capital gains collected this tick, for the year-to-date tax ledger below.
+ let cryptoCapitalGainsTax = 0;
  try {
  const cryptoTick = runCryptoWeeklyTick({
  market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
@@ -2171,6 +2174,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  cashIn: newStats.money,
  currentWeek: nextWeeksLived,
  economyState: prevState.economy?.economyEvents?.currentState,
+ // Tax Strategy now reaches capital gains too — it used to move the weekly
+ // income tax and nothing else, so the only tax skill in the game was worth
+ // exactly zero to a player living off investments.
+ taxMult: lifeSkillMods.taxMult,
  // Seeded by the absolute week so price walks / order fills are deterministic:
  // React 19 runs this updater twice (StrictMode / speculative renders), and a
  // live Math.random() made the two invocations disagree — React keeps whichever
@@ -2180,6 +2187,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  finalCryptos = cryptoTick.cryptos;
  finalCryptoMarket = cryptoTick.market;
+ cryptoCapitalGainsTax = cryptoTick.capitalGainsTaxUSD ?? 0;
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
  applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
@@ -2443,8 +2451,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Macro teeth: a recession/crash/boom now drives a broad-market drift on
  // equities (crypto already reacts via forced regimes).
  economyState: prevState.economy?.economyEvents?.currentState,
+ // Same skill, same reach as the crypto tick above.
+ taxMult: lifeSkillMods.taxMult,
  rollFor: weeklyRoll,
  });
+ // Investment tax the player could not cover is now DEBT, not a write-off.
+ // Cash still floors at $0 inside the tick; the shortfall joins the same
+ // `overdueBalance` bucket the weekly income tax defers into, so the game has
+ // one answer to "you cannot pay" instead of three.
+ if (stocksTickResult.capitalGainsTaxUnpaid > 0) {
+ weeklyCtx.deferredCharges = (weeklyCtx.deferredCharges ?? 0) + stocksTickResult.capitalGainsTaxUnpaid;
+ }
  // AUTO-REINVEST (prestige QOL bonus) — now driven by the quarterly dividend.
  //
  // It used to consume a SECOND, weekly dividend computed in
@@ -2544,6 +2561,33 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  tickProfiler.mark('stocks');
+
+ // ── Year-to-date tax ledger ───────────────────────────────────────────────
+ //
+ // `banking.taxDueThisYear` shipped with two readers (the desktop statement's
+ // "Tax accrued this year" row and the phone ledger's "Tax due" chip), both
+ // gated on `> 0`, and NO WRITER anywhere in the repo — so both were dead UI on
+ // every save ever made. `docs/app-depth-audit.json` flagged it and it was
+ // never actioned. It now means what a withholding system can actually
+ // report: tax PAID so far this game year, across every stream.
+ //
+ // No migration: the stored value is 0 on every existing save, and 0 is also
+ // the right value for "nothing paid yet this year" (v22 already backfills it).
+ // Placed after the stocks tick so all three streams are known.
+ const taxPaidThisWeek =
+   incomeTax +
+   cryptoCapitalGainsTax +
+   (stocksTickResult?.capitalGainsTaxUSD ?? 0);
+ if (nextBankingSlice) {
+   nextBankingSlice = {
+     ...nextBankingSlice,
+     taxDueThisYear: accrueYearlyTax(
+       prevState.banking?.taxDueThisYear,
+       taxPaidThisWeek,
+       nextWeeksLived
+     ),
+   };
+ }
 
       // Politics tick: scandal exposure (driven by dark-web heat + dirty PAC
  // money + karma), severity decay, approval drift. Cross-wires with

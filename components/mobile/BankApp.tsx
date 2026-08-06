@@ -567,8 +567,14 @@ function BankAppInner({ onBack }: BankAppProps) {
               <LedgerChip theme={theme} icon={TrendingUp} label="Earned" value={formatMoney(banking.totalInterestEarned)} color={accent.success} />
               <LedgerChip theme={theme} icon={TrendingDown} label="Paid" value={formatMoney(banking.totalInterestPaid)} color={accent.danger} />
               <LedgerChip theme={theme} icon={Receipt} label="Late fees" value={formatMoney(banking.totalLateFeesPaid)} color={accent.warning} />
+              {/* `taxDueThisYear` finally has a writer (the week loop's tax
+                  ledger), so this chip is no longer permanently hidden behind
+                  its `> 0` gate. Relabelled: the number is tax already PAID
+                  this game year, not a bill waiting to be settled. The full
+                  breakdown — brackets, capital gains, the Tax Strategy
+                  discount — lives on the desktop Bank Pro app's Tax tab. */}
               {banking.taxDueThisYear > 0 && (
-                <LedgerChip theme={theme} icon={Calendar} label="Tax due" value={formatMoney(banking.taxDueThisYear)} color={accent.warning} />
+                <LedgerChip theme={theme} icon={Percent} label="Tax paid" value={formatMoney(banking.taxDueThisYear)} color={accent.warning} />
               )}
             </View>
           </View>
