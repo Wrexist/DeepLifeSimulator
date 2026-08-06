@@ -117,11 +117,23 @@ describe('the forgiving pattern is gone from the mandatory-cost reducers', () =>
     'contexts/game/actions/weekly/applyLuxuryItems.ts',
     'contexts/game/actions/weekly/applyCrimeTick.ts',
     'contexts/game/actions/weekly/applyEducationProgression.ts',
+    'contexts/game/actions/weekly/applyVehicles.ts',
+    'contexts/game/actions/weekly/applyPets.ts',
+    'contexts/game/actions/weekly/applyPregnancyProgression.ts',
   ])('%s defers instead of flooring', (rel) => {
     const source = read(rel);
     expect(source).toMatch(/chargeOrDefer\(/);
     // The specific shape that forgave the debt: `money = Math.max(0, money - x)`.
     expect(source).not.toMatch(/newStats\.money\s*=\s*Math\.max\(\s*0\s*,[^)]*-\s*/);
+  });
+
+  it('leaves diet and education alone — they are ALREADY in weeklyBillsDue', () => {
+    // Deferring them here too would double-charge: `dietWeeklyCost` and
+    // `educationWeeklyCost` are both summed into the pre-writeback bill line
+    // that applyArrears already settles. Diet additionally self-skips when
+    // unaffordable, which is its own (correct) handling.
+    const diet = read('contexts/game/actions/weekly/applyDietPlan.ts');
+    expect(diet).not.toMatch(/chargeOrDefer\(/);
   });
 
   it('the tick folds the deferred total into overdueBalance', () => {

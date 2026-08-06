@@ -118,8 +118,11 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       of flooring at $0, and the total folds into the same `overdueBalance`
 - [x] Ad-orb cash grants gated on the GAME week (v35 carve-out), replacing a
       wall-clock-only limiter that let net worth double every ~2.2h of real time
-- [ ] Still open: vehicle running costs and mining power also floor at $0 —
-      same fix, `chargeOrDefer`, not yet applied to those two reducers
+- [x] Vehicle running costs + accident bills, pet food and birth costs now
+      defer too. Diet and education deliberately left alone — both are ALREADY
+      in `weeklyBillsDue`, so deferring them would double-charge. Mining power
+      needs nothing: it is netted out of crypto earnings, never charged to cash,
+      so it was never forgiven (the audit's claim there was imprecise).
 - [ ] Fold rental + luxury income into the tax base — ~$450k/wk of late-game
       income is currently untaxed and bypasses the net-worth soft cap
 - [x] Make the passive-income soft cap legible (roadmap #7, first half) — the

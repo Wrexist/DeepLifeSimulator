@@ -46,6 +46,7 @@ import { logger } from '@/utils/logger';
 import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import type { WeekContext } from './weekContext';
+import { chargeOrDefer } from './chargeOrDefer';
 import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
 
 const CHILD_PERSONALITIES = ['Playful', 'Curious', 'Energetic', 'Sweet', 'Adventurous'];
@@ -103,7 +104,8 @@ export function applyPregnancyProgression(
     };
     (newChild as ChildInfo).birthWeeksLived = nextWeeksLived;
 
-    ctx.newStats.money = Math.max(0, ctx.newStats.money - 5000); // Hospital/birth costs
+    // Hospital/birth costs — mandatory, so defer rather than forgive.
+    chargeOrDefer(ctx, 5000);
     ctx.newStats.happiness = Math.min(100, ctx.newStats.happiness + 30);
     const birthMessage = `${rel.name} gave birth to a beautiful ${childGender === 'male' ? 'baby boy' : 'baby girl'} named ${childName}!`;
 
