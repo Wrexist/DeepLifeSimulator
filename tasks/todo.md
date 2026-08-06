@@ -120,8 +120,8 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 - [ ] Ad-orb cash grants need a **game-week** gate (today's limit is wall-clock)
 - [ ] Fold rental + luxury income into the tax base — ~$450k/wk of late-game
       income is currently untaxed and bypasses the net-worth soft cap
-- [ ] Replace the invisible passive-income soft cap with visible Operating
-      Overhead (roadmap #7)
+- [x] Make the passive-income soft cap legible (roadmap #7, first half) — the
+      readout and the charge now share one implementation and cannot drift
 
 ### Navigation
 - [ ] Move renting out of the desktop-only, tier-3 Real Estate app — it is a
@@ -131,7 +131,15 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 - [ ] Promote the Discovery Center to a real, always-visible "All Systems"
       directory with working navigation
 
-### Features
-- [ ] Wave 1 (no migrations): Dynasty Tree · Career Capstones · Luxury
-      Collections · surface Dynasty rank
-- [ ] Wave 2: Conglomerate · Prestige tiers 6–10 · Legacy Contracts
+### Features — what is left of the roadmap
+- [ ] #7's second half: the Operating Overhead management ladder (Group COO /
+      property managers / family office). The soft cap is legible now; turning
+      it into a decision is the part that moves the money axis.
+- [ ] #8's content: the ~40-event Tycoon pack. The `moneyPct` mechanism ships
+      and is a no-op until a template adopts it — one field per choice.
+- [ ] #10's UI: the family tree at three generations, and the
+      Patriarch/Matriarch activity set. The data and score input exist.
+- [ ] #5 beyond the advanced ladders: the 30 base careers have per-career salary
+      curves, so capstones there are an authoring job, not a mechanical one.
+- [ ] Prestige tiers 2–5 have no entries yet — the plumbing exists, they need
+      content to gate.
