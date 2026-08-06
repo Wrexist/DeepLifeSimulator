@@ -113,6 +113,11 @@ function MailAppInner({ onBack }: Props) {
     (s) => ({ darkWeb: s?.darkWeb, stats: s?.stats, bankSavings: s?.bankSavings }),
     shallowEqual
   );
+  // The tab layout floats a "N decisions waiting" pill at `bottom: scale(88)`
+  // and keeps it up while a sub-app is open. Reserve room for it only while it
+  // is actually there — see the note on `MailDetail`'s `pillClearance`.
+  const decisionPending = useGameSelector((s) => (s?.pendingEvents?.length ?? 0) > 0);
+  const pillClearance = decisionPending ? scale(110) : 0;
 
   const theme = getThemeColors(darkMode);
   const s = useMemo(() => makeStyles(theme, darkMode), [theme, darkMode]);
@@ -210,6 +215,7 @@ function MailAppInner({ onBack }: Props) {
           message={open}
           darkMode={darkMode}
           bottomInset={insets.bottom}
+          pillClearance={pillClearance}
           onBack={closeMessage}
           onToggleStar={() => toggleMailStar(setGameState, open.id)}
           onArchive={() => {
@@ -320,7 +326,9 @@ function MailAppInner({ onBack }: Props) {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
+        contentContainerStyle={{
+          paddingBottom: getAppScreenBottomPadding(insets.bottom) + pillClearance,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {visible.length === 0 ? (

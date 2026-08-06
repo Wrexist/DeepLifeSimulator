@@ -46,6 +46,18 @@ interface Props {
   message: MailMessage;
   darkMode: boolean;
   bottomInset: number;
+  /**
+   * Extra bottom clearance for the tab layout's floating "N decisions waiting"
+   * pill, which is rendered by `(tabs)/_layout.tsx` at `bottom: scale(88)` and
+   * is NOT hidden while a sub-app is open. `getAppScreenBottomPadding` reserves
+   * only the home indicator — deliberately, so sticky composers can sit against
+   * it — so nothing in the shared helper accounts for the pill, and it landed
+   * directly on top of this screen's dispute button.
+   *
+   * Passed in rather than assumed so the space is only reserved when a decision
+   * is actually pending; otherwise every message would end in a blank strip.
+   */
+  pillClearance: number;
   onBack: () => void;
   onToggleStar: () => void;
   onArchive: () => void;
@@ -59,6 +71,7 @@ function MailDetail({
   message,
   darkMode,
   bottomInset,
+  pillClearance,
   onBack,
   onToggleStar,
   onArchive,
@@ -122,7 +135,7 @@ function MailDetail({
       <ScrollView
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: getAppScreenBottomPadding(bottomInset) },
+          { paddingBottom: getAppScreenBottomPadding(bottomInset) + pillClearance },
         ]}
         showsVerticalScrollIndicator={false}
       >
