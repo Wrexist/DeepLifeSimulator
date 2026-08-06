@@ -144,6 +144,41 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       `BaseModal` moved off the raw 12-scale onto the device-scaled one — it was
       the only shared chassis whose padding did not grow with the screen.
 
+### 2026-08-06, second wave — shipped
+
+- [x] **Every onboarding perk was permanently locked.** `isPerkUnlocked` read
+      `gameState.achievements[].completed`, whose only writer is a no-op stub, so
+      all 20 perks rendered disabled and the only unlock path left was the IAP
+      call — a character-creation step behaving as a paywall gallery. 17 of the
+      20 pointed at achievement ids absent from the catalogue. Repointed at
+      `getSatisfiedAchievementIds`, all 20 ids remapped onto live achievements,
+      locked copy now names the real achievement instead of a raw slug. Provably
+      unlock-only; no version bump.
+- [x] **Legacy Contracts were re-claimable every prestige.** `claimedIds` was
+      never carried across a transition, so the empty board returned each cycle
+      and the whole 14-contract Legacy Point ladder could be farmed once per
+      life. Verified against the commit that shipped contracts. Both the prestige
+      and death-to-heir paths now run `applyDynastyTransition`.
+- [x] **The linear goal system could never fire.** Every goal's show-condition
+      was the negation of its completion condition. It ran weekly and held the
+      top interruption-queue slot. Deleted; `completedGoals` kept as a carve-out.
+- [x] **The ambition payout moved into the tick.** The largest reward in the game
+      ($60k–$300k + gems + up to 900 prestige points) had one caller: a card's
+      claim handler, with no badge and no notification. Now a guarded weekly
+      subsystem; the card is read-only so there is one granting path, not two.
+- [x] **Prestige tiers 2–5 have content** (v36 `dynasty`, carve-out). Vault /
+      Endowment / Trials / Dynasty Seat — all NEW capabilities, nothing existing
+      moved behind a wall. Money had no cross-life use at all before this.
+- [x] **45 wealth-scaled events** — the first content to declare `moneyPct`, a
+      mechanism that shipped as a no-op and is why late-game events stopped
+      mattering. Reachability asserted through the real selector.
+- [x] **Discovery Center navigates**; **Desktop/Mobile toggle retired**.
+
+**Correction to my own earlier report:** I looked at a screenshot of the Perks
+screen, saw every card dimmed, and called it "the intentional locked state". It
+was the dead-flag bug above. Looking at a screen is only worth something if you
+question what you see.
+
 **Correction to the earlier finding:** the token collision was NOT "55 files
 importing two scales blocking every sweep". `scaling.ts:705/746` were dead
 exports; the real scale (`responsiveSpacing`, 156 files) never conflicted with
