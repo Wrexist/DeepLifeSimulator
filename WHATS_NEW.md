@@ -11,7 +11,65 @@ before installing if you want to be able to roll back.
 
 ---
 
-## 📱 Store "What's New" (copy-paste ready)
+## 🍎 App Store Connect v1.5.0 — "What's New" (copy-paste ready)
+
+This is the text that ships on the store product page. The **store version
+record is 1.5.0**; the binary reports 2.6.0 — see CLAUDE.md §9, the two numbers
+have never matched and must not be reconciled (store versions only ever
+increase, so raising the record to 2.6.0 permanently abandons the 1.x line).
+
+Minor bump rather than a patch on the store line too: this changes numbers
+players will feel.
+
+```
+v1.5.0 The Economy Update
+
+We rebuilt the money side of the game and fixed what you told us was broken:
+
+• The stock market actually works - a maths bug pushed every share price toward
+  zero over a long life, no matter how well you played. Prices grow properly
+  now, riskier stocks pay more on average, and portfolios the bug wiped out are
+  restored on first load
+• Money finally has stakes - bills you can't afford are no longer quietly
+  forgiven; they become an overdue balance that hits next week's income and
+  drags your credit score. Wages start livable, careers beat street hustles
+  again, and property yields are realistic instead of paying themselves off in
+  four years
+• Rent a place to live - a full rental ladder from a shared room to a penthouse
+  lease, with real weekly health, happiness and energy from having a roof. Fall
+  four weeks behind and your landlord evicts you (with warnings first)
+• 75+ fixes across four full audits - save system hardened with signed saves,
+  real backups and a pre-prestige restore point, several money and gem exploits
+  closed, event chains that got stuck are unblocked, and your character no
+  longer changes face as they age
+• Hidden systems made visible - your wanted level, criminal record,
+  vaccinations, and your business's real income from brand, market share and key
+  hires were all working but never shown. Now they are, so you can see what your
+  choices are doing
+• Purchases fixed - the Revival Pack now banks a revive for when you actually
+  need it instead of doing nothing, and the Family tab is reachable again
+• 200MB smaller - faster to download, faster to load
+
+This update tackles the top issues reported in your reviews. Thank you for
+playing.
+
+Join our Discord to share feedback: https://discord.com/invite/rzktazdX8v
+
+No forced ads. No pay-to-win. Just a fair, strategic life sim.
+```
+
+Where the "75+" comes from: the four audit findings files in `tasks/`
+(`whole-app-audit-2026-07-30-round2` 9, `-07-31-round3` 13, `-07-31-round4` 10,
+`save-system-audit-2026-07-29` 7) plus the 29 verified findings of the six-domain
+audit and the seven Discord bug reports of 2026-08-02. Recount before reusing
+the number in a later release.
+
+---
+
+## 📱 Long-form store notes — v2.6.0 binary (reference)
+
+The fuller version of the same release, kept for the in-app feed and for
+reference. The block above is what goes in App Store Connect.
 
 ```
 The economy update.
