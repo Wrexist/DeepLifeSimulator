@@ -1069,3 +1069,73 @@ number from the OLD state, never accumulate onto the new one.** `newLegacyPoints
 = oldPoints + reward` is idempotent — re-running the transition on the same save
 gives the same answer. `newState.legacyPoints += reward` is not, and a
 transition that runs twice is not a hypothetical in a React codebase.
+
+---
+
+## 2026-08-06 — A test suite that HANGS tells you almost nothing, so instrument the process, not the source
+
+`__tests__/render/screens.render.test.tsx` stopped completing. What CI reported
+was a worker killed by SIGTERM with no message and no failing assertion.
+
+The first useful observation was a negative one: `--testTimeout=25000` never
+fired. Jest cannot time out a test whose spin blocks the event loop, so "the
+timeout did not fire" is not a missing signal — it is the signal. It rules out
+everything asynchronous and says the loop is synchronous, in-process, and inside
+React.
+
+I then spent four rounds bisecting by reverting source. That located the FILE
+and named the wrong cause, because the change in it was a pure deletion —
+reverting it fixed the symptom while proving nothing about the mechanism. Two of
+my intermediate conclusions from that bisect were wrong, and I nearly shipped a
+comment crediting an unrelated optimisation (`Gradient`'s flat-fill
+short-circuit) with the fix.
+
+What actually worked, in order, and each step took minutes:
+
+1. **Run it under `node --inspect` and interrupt it.** Node 22 has a global
+   `WebSocket`, so a ~30-line script can attach to the inspector, send
+   `Debugger.pause`, and print `callFrames`. V8 can interrupt a spinning script.
+   Launch `node --inspect node_modules/jest/bin/jest.js …` directly — putting
+   `--inspect` in `NODE_OPTIONS` with `npx` attaches to the npx launcher and the
+   real process then fails with "address already in use".
+2. **CPU-profile it** (`Profiler.start` / `stop` over the same socket). The
+   hottest frames were `propagateParentContextChanges`, `lazyInitializer` and
+   `throwException`, with **no application frames at all** — which says React is
+   spinning in its own reconciler without calling a single component.
+3. **Count what React is doing.** Patching `scheduleUpdateOnFiber` to throw
+   after 600 calls proved it was NOT a re-render loop (it never tripped).
+   Patching `beginWork` to print every 200,000 calls showed a perfectly periodic
+   ~1.4M-call cycle through the same fibers. That combination — millions of
+   `beginWork`, almost no `scheduleUpdateOnFiber` — is React restarting a render
+   from the shell, not re-rendering.
+4. **Name the suspender.** Patching `lazyInitializer` to print its payload's
+   source gave three `import()` calls, each stuck Pending after ~950k retries.
+
+The bug: `app/(tabs)/home.tsx` mounted three `React.lazy` popups
+unconditionally with `visible={false}`. Under ts-jest an `import()` compiles to
+`Promise.resolve().then(() => require(…))`, so it can only settle on a
+microtask — and the render harness renders inside a **synchronous** `act()`,
+which never yields one. React retried forever.
+
+**Rules:**
+
+- A lazy component must be MOUNTED behind a condition, never mounted always with
+  `visible={false}`. That defeats the point of `lazy()` — it defers the paint by
+  a tick and still pays for the graph on every mount of the host screen — and
+  under a synchronous `act()` it livelocks. Guarded app-wide by
+  `__tests__/render/lazyMountGating.render.test.tsx`.
+- **Never guard a hang with a test that renders.** It reproduces the hang
+  instead of reporting it, and the hang is precisely the unreadable signal. Read
+  the source and fail in milliseconds with a message naming the file.
+- **Verify a guard by breaking the code**, not by watching it pass. The first
+  version of that guard brace-matched backwards from the tag to find the
+  enclosing JSX expression; with no gate present the walk escapes past every
+  balanced sibling and lands on the component function's own opening brace,
+  whose body is full of `&&`. It passed on deliberately broken input. A guard
+  that has never failed has not been tested.
+- **Count before declaring something a blocker.** In the same session, "settle
+  the design-token collision" had sat open as a 156-file migration. Counted: the
+  contested ladder had zero importers. Two other premises from earlier in the
+  session (four objective systems, a repo-wide design-token collision) were also
+  wrong in the same direction — estimated scope, never measured.
+- Restore any `node_modules` you patch, and `diff` to prove it.
