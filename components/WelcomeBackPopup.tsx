@@ -6,7 +6,7 @@ import { Platform, Modal,
   StyleSheet,
   Animated,
   Dimensions } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import {
   Home,
@@ -25,7 +25,7 @@ import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: _screenWidth } = Dimensions.get('window');
 

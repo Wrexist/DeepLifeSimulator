@@ -16,13 +16,13 @@ import {
   Share,
 } from 'react-native';
 import { X, BookOpen, Share2, ChevronRight } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { generateLifeStory, generateShareableStory, type LifeStory, type StoryChapter } from '@/lib/lifeMoments/storyGenerator';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { haptic } from '@/utils/haptics';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface Props {
   visible: boolean;

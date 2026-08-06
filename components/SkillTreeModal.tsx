@@ -14,7 +14,7 @@ import { Platform, View,
   Animated,
   Dimensions,
   Alert } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   X,
@@ -43,7 +43,7 @@ import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/ut
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

@@ -23,8 +23,6 @@ import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
-import { processAutomationRules } from '@/lib/automation/automationEngine';
-import { buyStockMarket } from '@/contexts/game/actions/StockActions';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -3161,87 +3159,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Normal completion - stop loading
  setIsLoading(false);
 
- // Process automation rules (if enabled). Prefer the captured post-tick state
- // (the ref may not have committed yet after dropping the 50ms wait).
- const currentState = postTickState ?? gameStateRef.current;
- if (currentState) {
- try {
- 
- const executions = processAutomationRules(currentState);
-
- if (executions.length > 0) {
- // Calculate total money spent by successful automation actions
- const saveTransfer = executions
-.filter(e => e.success && e.type === 'save')
-.reduce((sum, e) => sum + e.actionsTaken
-.filter(a => a.result === 'success')
-.reduce((s, a) => s + (a.value || 0), 0), 0);
-
- // 'save' rules move cash into bank savings (net-worth-neutral) inside this
- // updater. 'invest' rules now perform REAL stock buys as well, but those run
- // through the canonical buyStockMarket action below — which owns the cash
- // debit — so this updater must NOT charge for them (doing so would DOUBLE-
- // charge). 'pay'/'renew' still record to history only; loans are already
- // serviced by the weekly loan tick.
- setGameState(prevState => {
- if (!prevState.automation) return prevState;
-
- const currentMoney = prevState.stats?.money || 0;
- // Never transfer more cash than the player actually has.
- const transfer = Math.max(0, Math.min(saveTransfer, currentMoney));
-
- const currentHistory = prevState.automation.executionHistory || [];
- // Strip the transient investOrders before persisting — it's apply-time wiring,
- // not history, and is executed exactly once below (never replayed from a save).
- const newHistory = [...currentHistory,...executions.map(e => ({...e, investOrders: undefined }))].slice(-50);
-
- if (transfer <= 0) {
- return {
-...prevState,
- automation: {
-...prevState.automation,
- executionHistory: newHistory,
- },
- };
- }
-
- return {
-...prevState,
- stats: {
-...prevState.stats,
- money: currentMoney - transfer,
- },
- bankSavings: (prevState.bankSavings || 0) + transfer,
- automation: {
-...prevState.automation,
- executionHistory: newHistory,
- },
- };
- });
-
- // Execute the REAL stock purchases planned by 'invest' rules via the canonical
- // buy action. buyStockMarket owns the cash debit + 2% broker fee + affordability
- // check and writes ONLY stats.money (never a mirrored banking account). It
- // re-checks live cash on every call, so multiple orders share one running budget
- // and none can overspend; an unaffordable order is rejected (no fake fill).
- const plannedInvestOrders = executions
-.filter(e => e.type === 'invest' && e.success)
-.flatMap(e => e.investOrders ?? []);
- for (const order of plannedInvestOrders) {
- try {
- buyStockMarket(setGameState, order.symbol, order.amountUSD, order.midPrice);
- } catch (buyErr) {
- logger.warn('[AUTOMATION] Invest order failed:', { order, buyErr });
- }
- }
-
- logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}, invest orders: ${plannedInvestOrders.length}`);
- }
- } catch (error) {
- logger.error('[AUTOMATION] Failed to process automation rules:', error);
- // Don't block week progression if automation fails
- }
- }
+ // The lib/automation rule engine used to run here. Deleted 2026-08-06: it
+ // read `state.automation`, a key no save has ever carried (never in
+ // initialState, never migrated), so its updater's first line — `if
+ // (!prevState.automation) return prevState;` — bailed on every tick for every
+ // player. Its four rule types are all served by wired, tested subsystems:
+ // pay → banking.billPayRules + applyLoanAutopay, save → applySavingsGoals,
+ // renew → applySubscriptions, invest → applyAutoReinvest.
 
  // Auto-save after week progression (non-blocking).
  // P1-15: surface storage-quota errors immediately to the user — the

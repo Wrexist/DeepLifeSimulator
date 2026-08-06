@@ -8,11 +8,11 @@ import { getCurrentEconomicState } from '@/lib/events/economyEvents';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const { height: screenHeight } = Dimensions.get('window');
 const log = logger.scope('WeeklyEventModal');
 

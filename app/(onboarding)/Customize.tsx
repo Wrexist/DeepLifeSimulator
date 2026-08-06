@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { Play, Shuffle } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
@@ -34,7 +34,7 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 const BlurView = BlurViewFallback;
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type SexOption = IdentitySex;
 type SexualityOption = IdentitySexuality;

@@ -7,7 +7,7 @@ import { safeSettings } from '@/utils/safeGameState';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X, Gem, Sparkles, Star, TrendingUp, RefreshCw, AlertCircle, ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { scale, fontScale, responsiveBorderRadius, responsiveSpacing, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -23,7 +23,7 @@ import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/i
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
 // a short slide-up + fade on an ease-out curve, kept under the 300ms UI budget.

@@ -12,8 +12,8 @@ import {
   responsiveSpacing,
   responsiveFontSize,
   responsiveBorderRadius,
+  getResponsiveValue,
 } from '@/utils/scaling';
-import { getResponsiveValue } from '@/utils/responsiveDesign';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 export const styles = StyleSheet.create({

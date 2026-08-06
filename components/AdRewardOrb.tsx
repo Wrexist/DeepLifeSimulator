@@ -95,7 +95,7 @@ function computeReward(state: GameState): number {
   return Math.max(REWARD_MIN, Math.round(clamped / 10) * 10);
 }
 
-export default function AdRewardOrb() {
+function AdRewardOrb() {
   /**
    * PERF-7: this component is mounted in the tab-tree root for the entire
    * session, and it used `useGame()` — a full-state subscription — so every
@@ -715,3 +715,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+
+/**
+ * `React.memo` is load-bearing here, not decoration.
+ *
+ * This is rendered INLINE in a layout root (app/(tabs)/_layout.tsx), which itself
+ * subscribes to game state. A selector inside a component cannot stop a
+ * re-render driven by its parent — so narrowing this component's own
+ * subscription achieved nothing on its own. Taking no props, `React.memo` is a
+ * total barrier against that cascade, which is what makes the narrowing pay.
+ */
+export default React.memo(AdRewardOrb);

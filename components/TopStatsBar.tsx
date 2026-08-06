@@ -22,7 +22,7 @@ import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
@@ -69,7 +69,7 @@ import { useFeedback } from '@/utils/feedbackSystem';
 import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
 import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {

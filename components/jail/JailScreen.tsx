@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { computeBailCost } from '@/lib/config/gameConstants';
@@ -26,7 +26,7 @@ import {
   Flower2,
   Smile
 } from 'lucide-react-native';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface JailScreenProps {
   onClose?: () => void;

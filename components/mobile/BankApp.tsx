@@ -40,7 +40,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
 
@@ -82,7 +82,7 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import WatchAdRewardButton from '@/components/WatchAdRewardButton';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface BankAppProps {
   onBack: () => void;

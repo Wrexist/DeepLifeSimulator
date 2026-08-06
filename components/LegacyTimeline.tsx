@@ -12,7 +12,7 @@ import { Platform, View,
   TouchableOpacity,
   Modal,
   Dimensions } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   X,
   Crown,
@@ -37,7 +37,7 @@ import {
   scale,
   fontScale,
 } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width } = Dimensions.get('window');
 

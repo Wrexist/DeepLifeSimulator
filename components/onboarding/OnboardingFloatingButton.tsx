@@ -1,10 +1,10 @@
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import usePressableScale from '@/hooks/usePressableScale';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface OnboardingFloatingButtonProps {
   title: string;

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface YouthPillModalProps {
   visible: boolean;

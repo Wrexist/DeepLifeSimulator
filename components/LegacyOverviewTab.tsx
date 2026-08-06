@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, Users, BookOpen, Crown, TrendingUp, Activity, Brain } from 'lucide-react-native';
 import FamilyTreeModal from './FamilyTreeModal';
 import MemoryBookModal from './MemoryBookModal';
 import { getTraitById } from '@/lib/legacy/geneticTraits';
 import { getDynastyProgress } from '@/lib/legacy/dynasty';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 

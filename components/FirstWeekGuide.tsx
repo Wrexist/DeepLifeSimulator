@@ -26,9 +26,9 @@ import {
 } from 'lucide-react-native';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const FIRST_WEEK_GUIDE_KEY = '@deep_life_first_week_guide_seen';
 

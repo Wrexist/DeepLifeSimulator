@@ -5,7 +5,8 @@
  * by `dynastyStats` (persisted, and updated on every death) — and **zero
  * consumers anywhere in the app**. A working cross-life progression score no
  * player had ever seen. Same "built but unreachable" class as the legacy shop's
- * missing buy button and `lib/automation/`'s missing UI.
+ * missing buy button and the automation engine's missing UI (that one was
+ * deleted outright in 2026-08-06 rather than surfaced).
  *
  * Surfacing it exposed the second problem: the ladder capped at 1,000 while the
  * score is unbounded in practice (`totalGenerations` grows +1 per death

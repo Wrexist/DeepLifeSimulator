@@ -5,7 +5,7 @@ import { View,
   TouchableOpacity,
   Modal,
   ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import DailyGemClaim from '@/components/DailyGemClaim';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
@@ -37,7 +37,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
 import type { Loan } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Type guard helpers for Loan properties
 function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {

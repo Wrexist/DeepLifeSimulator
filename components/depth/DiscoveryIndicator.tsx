@@ -12,7 +12,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   Compass,
   Lock,
@@ -24,7 +24,7 @@ import {
 import { GameState } from '@/contexts/game/types';
 import { getDiscoveryProgress, getAllDiscoverableSystems, getSystemUnlockRequirements } from '@/lib/depth/discoverySystem';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface DiscoveryIndicatorProps {
   gameState: GameState;

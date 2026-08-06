@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Alert, Linking, Animated } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
@@ -38,7 +38,7 @@ import {
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
 // debug graph (DevToolsModal → TestRunner / AIDebugMenu → SimulationRunner →

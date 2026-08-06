@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert, Share } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
@@ -23,7 +23,7 @@ import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 function DeathPopup() {
   const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, reviveWithPack, currentSlot, saveGame } = useGame();

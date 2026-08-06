@@ -15,7 +15,6 @@ import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
-import type { AutomationState } from '@/lib/automation/automationTypes';
 
 import type { CareerRequirements } from '@/lib/types/requirements';
 
@@ -2719,7 +2718,11 @@ export interface GameState {
     lastSeason: string;
     completedEvents: string[];
   };
-  automation?: AutomationState;
+  // `automation` (the lib/automation rule engine) was deleted 2026-08-06: the
+  // key was never in initialState, never migrated, and never written by
+  // anything, so it was `undefined` in every save that has ever existed. The
+  // four capabilities it described all ship elsewhere (banking.billPayRules +
+  // applyLoanAutopay, applySavingsGoals, applySubscriptions, applyAutoReinvest).
   socialMedia?: {
     // ── Legacy v10-v12 fields (preserved verbatim for save compat) ──
     followers: number;
