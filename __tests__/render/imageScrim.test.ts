@@ -57,26 +57,53 @@ describe.each(HOSTS)('%s — the flat slab is gone', (_name, file) => {
 });
 
 describe('ImageScrim actually fades', () => {
-  it('is built from plain Views, not LinearGradient', () => {
-    // The whole reason it exists: LinearGradientFallback paints the first
-    // colour flat, so a gradient scrim cannot be trusted here.
-    // Scoped to real code — the file's own doc comment names LinearGradient
-    // precisely to explain why it is not used.
-    const code = SCRIM.slice(SCRIM.indexOf("import React"));
-    expect(code).not.toMatch(/LinearGradient/);
-    expect(code).toMatch(/from 'react-native'/);
+  const code = SCRIM.slice(SCRIM.indexOf('import React'));
+
+  it('draws a REAL gradient via react-native-svg', () => {
+    // The first version faked the fade with stacked flat bands. That removed
+    // the hard edge but replaced it with visible BANDING, and more steps could
+    // not fix it — banding is quantisation of the composited colour, not of
+    // pixels. Over the Optimist card's yellow sun (~250,190,60) against slate
+    // (15,23,42) one channel spans ~235 levels, so an alpha step of 0.05 is a
+    // 12-level jump. Getting under one level would need ~250 bands per card.
+    expect(code).toMatch(/from 'react-native-svg'/);
+    expect(code).toMatch(/<SvgLinearGradient/);
+    expect(code).toMatch(/<Stop/);
   });
 
-  it('uses more than a couple of bands, so the steps are imperceptible', () => {
-    const steps = SCRIM.match(/steps = (\d+)/);
-    expect(steps).not.toBeNull();
-    expect(Number(steps![1])).toBeGreaterThanOrEqual(8);
+  it('never imports the Expo gradient module', () => {
+    // `expo-linear-gradient` hard-aborts on iOS 26 TurboModule init (P0-7/P0-8,
+    // tasks/critical-bugs-2026-05-29.md), which is why all 265 call sites use
+    // the flat fallback. react-native-svg is a DIFFERENT library and is already
+    // imported directly by GradientButton, ProgressRing and DeepLifePlusUpsell.
+    expect(code).not.toMatch(/expo-linear-gradient/);
   });
 
-  it('eases rather than ramping linearly', () => {
-    // A linear ramp starts as a visible wash partway up the art; squaring keeps
-    // the top of the fade near-invisible.
-    expect(SCRIM).toMatch(/const ease = \(t: number\): number => t \* t;/);
+  it('has no stacked bands left', () => {
+    // Structural, not word-based: the surviving prose legitimately mentions
+    // "steps" to explain why five gradient stops are not five steps.
+    expect(code).not.toMatch(/steps\?:/);
+    expect(code).not.toMatch(/steps =/);
+    expect(code).not.toMatch(/Array\.from/);
+  });
+
+  it('curves rather than ramping linearly', () => {
+    // A linear fade reads as a wash starting abruptly partway up the art;
+    // squaring keeps the top near-invisible. The stops are t and t² sampled —
+    // SVG interpolates between them, so five stops is a curve, not five steps.
+    const stops = code.match(/\[([\d.]+), ([\d.]+)\]/g) ?? [];
+    expect(stops.length).toBeGreaterThanOrEqual(5);
+    for (const stop of stops) {
+      const [t, v] = stop.match(/[\d.]+/g)!.map(Number);
+      expect(`${t} -> ${v}`).toBe(`${t} -> ${Number((t * t).toFixed(4))}`);
+    }
+  });
+
+  it('gives each instance a unique gradient id', () => {
+    // SVG <Defs> ids share one document namespace on web, so a fixed id would
+    // make every scrim on screen resolve to whichever mounted last.
+    expect(code).toMatch(/_gid \+= 1/);
+    expect(code).toMatch(/url\(#\$\{gid\}\)/);
   });
 
   it('never fully hides the art at its darkest point', () => {

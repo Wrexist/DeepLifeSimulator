@@ -126,7 +126,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             style={styles.coverImg}
           />
         )}
-        <ImageScrim height={0.5} strength={0.7} steps={28} />
+        <ImageScrim height={0.5} strength={0.7} />
       </View>
 
       {/* Avatar + identity */}

@@ -957,7 +957,7 @@ function VideoThumb({
   const durStr = typeof v.duration === 'string' && v.duration.trim() ? v.duration.trim() : null;
   return (
     <ImageBackground source={videoThumb(v)} style={[styles.thumbBase, style]} imageStyle={styles.thumbImg} resizeMode="cover">
-      {scrim ? <ImageScrim height={0.55} strength={0.5} rgb="0, 0, 0" /> : null}
+      {scrim ? <ImageScrim height={0.55} strength={0.5} color="#000000" /> : null}
       {badge ? (
         <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: tint(0.92) }]}>
           <Text style={styles.thumbBadgeText}>{badge}</Text>
