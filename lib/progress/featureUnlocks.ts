@@ -235,6 +235,32 @@ export interface PrestigeUnlock {
   requirement: string;
 }
 
+/**
+ * ── Tiers 2–5 ─────────────────────────────────────────────────────────────
+ *
+ * For a long time this table had exactly one row, which meant tiers 2–5 did
+ * nothing and the gap documented above was only half closed: prestige #5 was
+ * still mechanically identical to prestige #2.
+ *
+ * The four capabilities below all obey the NEW-content rule at the top of this
+ * block, and it is worth spelling out how, because "is this new?" is the only
+ * question that matters when adding a row here:
+ *
+ *   Vault      — no material object had EVER survived a life. Prestige rebuilds
+ *                the save from `initialGameState`; the luxury collection was
+ *                simply deleted. Preserving one is a thing nobody could do.
+ *   Endowment  — money had no cross-life use at all. Legacy Points were earned
+ *                by TIME alone, so a 900-week pauper funded the Dynasty Tree at
+ *                the same rate as a 900-week trillionaire.
+ *   Trials     — nothing anywhere let a player make a life HARDER. Every meta
+ *                system in the game moved in one direction: more head start.
+ *   Seat       — money could not outlive the character. There was no permanent,
+ *                cross-life structure to spend a late-game fortune on.
+ *
+ * None of them takes anything away from a player who never prestiges again.
+ * They also compose deliberately: each Seat wing deepens one of the three tiers
+ * beneath it, which is what makes tier 5 a capstone rather than a fifth menu.
+ */
 export const PRESTIGE_UNLOCKS: PrestigeUnlock[] = [
   {
     // Founding a SECOND company of a type. New in the same change that added
@@ -242,6 +268,30 @@ export const PRESTIGE_UNLOCKS: PrestigeUnlock[] = [
     id: 'feature:conglomerate',
     tier: 1,
     requirement: 'Prestige once to start building a conglomerate',
+  },
+  {
+    // The Vault — carry a luxury piece across death. `lib/dynasty/vault.ts`.
+    id: 'feature:vault',
+    tier: 2,
+    requirement: 'Prestige twice to open the Vault',
+  },
+  {
+    // The Endowment — turn money into Legacy Points. `lib/dynasty/endowment.ts`.
+    id: 'feature:endowment',
+    tier: 3,
+    requirement: 'Prestige three times to endow your family',
+  },
+  {
+    // Dynasty Trials — opt-in handicaps. `lib/dynasty/trials.ts`.
+    id: 'feature:trials',
+    tier: 4,
+    requirement: 'Prestige four times to swear a Trial',
+  },
+  {
+    // The Dynasty Seat — the capstone estate. `lib/dynasty/seat.ts`.
+    id: 'feature:dynasty_seat',
+    tier: 5,
+    requirement: 'Prestige five times to claim the Dynasty Seat',
   },
 ];
 

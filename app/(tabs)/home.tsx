@@ -29,7 +29,6 @@ import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
@@ -59,7 +58,6 @@ import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/Interrupt
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
 const WelcomeBackPopup = lazy(() => import('@/components/WelcomeBackPopup'));
-const GoalCompletionPopup = lazy(() => import('@/components/GoalCompletionPopup'));
 const CommunityRewardPopup = lazy(() => import('@/components/CommunityRewardPopup'));
 
 // Stable empty array so the redeemedCodeHashes selector doesn't churn renders
@@ -136,7 +134,6 @@ function HomeScreenContent() {
       careers: s?.careers,
       currentJob: s?.currentJob,
       bankSavings: s?.bankSavings,
-      completedGoals: s?.completedGoals,
       weeksLived: s?.weeksLived,
       week: s?.week,
       jailWeeks: s?.jailWeeks,
@@ -170,9 +167,6 @@ function HomeScreenContent() {
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   // ENGAGEMENT: Track stat changes for floating indicators on week advance
   useStatChangeTracker(gameState);
-  const [showGoalCompletion, setShowGoalCompletion] = useState(false);
-  const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
-  const [nextGoal, setNextGoal] = useState<Goal | null>(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
@@ -192,17 +186,12 @@ function HomeScreenContent() {
   const progressLocked = !isFeatureUnlocked(gameState, 'tab:progression');
   const progressLockReason = unlockRequirement(gameState, 'tab:progression');
 
-  // Interruption slots. These four popups used to gate on a hand-rolled chain of
+  // Interruption slots. These popups used to gate on a hand-rolled chain of
   // `&&` terms that grew with every popup added — and could not see the weekly
   // result sheet, the premium promo or the ad orb, which live in other files.
   // Now every interrupting surface in the app competes in ONE priority queue and
   // exactly one wins. Death/wedding still short-circuit locally: they are
   // root-level modals that gate their own dismissal.
-  const goalSlot = useInterruptionSlot(
-    'home:goal-complete',
-    INTERRUPTION_PRIORITY.GOAL_COMPLETE,
-    showGoalCompletion && !blockingModalUp
-  );
   const dailyRewardSlot = useInterruptionSlot(
     'home:daily-reward',
     INTERRUPTION_PRIORITY.DAILY_REWARD,
@@ -231,47 +220,17 @@ function HomeScreenContent() {
     }
   }, [gameState.jailWeeks, router]);
 
-  // Check for goal completion — only re-evaluate on week advance or job change
-  useEffect(() => {
-    if (showGoalCompletion) return;
-
-    const { completedGoal: newCompletedGoal, nextGoal: newNextGoal } = checkGoalCompletion(gameState);
-
-    if (newCompletedGoal) {
-      setCompletedGoal(newCompletedGoal);
-      setNextGoal(newNextGoal);
-      setShowGoalCompletion(true);
-
-      const reward = newCompletedGoal.reward;
-      setGameState(prev => {
-        if ((prev.completedGoals || []).includes(newCompletedGoal.id)) return prev;
-
-        const freshStats = { ...prev.stats };
-        switch (reward.type) {
-          case 'money':
-            freshStats.money += reward.amount;
-            break;
-          case 'gems':
-            freshStats.gems += reward.amount;
-            break;
-          case 'happiness':
-            freshStats.happiness = Math.min(100, freshStats.happiness + reward.amount);
-            break;
-          case 'energy':
-            freshStats.energy = Math.min(100, freshStats.energy + reward.amount);
-            break;
-          case 'health':
-            freshStats.health = Math.min(100, freshStats.health + reward.amount);
-            break;
-        }
-        return {
-          ...prev,
-          stats: freshStats,
-          completedGoals: [...(prev.completedGoals || []), newCompletedGoal.id],
-        };
-      });
-    }
-  }, [gameState.weeksLived, gameState.week, gameState.currentJob, gameState.bankSavings, gameState.completedGoals]);
+  // REMOVED: the linear goal system (`utils/goalSystem.ts` +
+  // `GoalCompletionPopup`). `checkGoalCompletion` ran here every week and could
+  // never fire: in `getNextGoal` each goal's `shouldShow` predicate was the exact
+  // negation of its completion predicate, so a goal was only ever OFFERED while
+  // it was incomplete and vanished the instant it completed. All six were
+  // affected — e.g. `earn_100` showed only while `money < 200` but completed at
+  // `money >= 200`; `get_job` was offered only while `!currentJob`, which pinned
+  // its `current` at 0. Zero states in the whole predicate space were completable,
+  // so the popup, the rewards and `completedGoals` were unreachable code.
+  // Life Chapters (`LifeChapterCard` + `applyChapterProgress`) are the real
+  // progression ladder and are paid by the week tick.
 
   // Show tutorial for new users
   useEffect(() => {
@@ -822,17 +781,8 @@ function HomeScreenContent() {
       {/* NOISE: light popup coordination. The root layout owns blocking modals
           (death/wedding) — no celebration/reward popup may present on top of
           them. Within this screen, popups present strictly one at a time in
-          priority order (goal > daily reward > welcome back > community)
-          instead of whichever setTimeout won the race. */}
-      <Suspense fallback={null}>
-        <GoalCompletionPopup
-          visible={goalSlot}
-          completedGoal={completedGoal}
-          nextGoal={nextGoal}
-          onClose={() => setShowGoalCompletion(false)}
-          darkMode={isDark}
-        />
-      </Suspense>
+          priority order (daily reward > welcome back > community) instead of
+          whichever setTimeout won the race. */}
       <Suspense fallback={null}>
         <DailyRewardPopup
           visible={dailyRewardSlot}

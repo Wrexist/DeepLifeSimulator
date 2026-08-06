@@ -901,6 +901,29 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 35;
     return state;
   },
+
+  // Version 36: `dynasty` — the bookkeeping behind prestige tiers 2–5 (the
+  // Vault, the Endowment, Dynasty Trials, the Dynasty Seat).
+  //
+  // ONE optional object rather than four top-level keys, so four new systems
+  // cost one carve-out instead of four backfills and four repair mirrors.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32/v34/v35
+  // mould: version bumped, NO backfill and no `repairGameState` mirror. An
+  // absent key already means precisely the right thing for every save written
+  // before this — empty vault, nothing endowed, no Trial sworn or running, no
+  // Seat wings — and writing `{}` onto every save would churn every slot to say
+  // what absence already says. Each sub-field is read through
+  // `lib/dynasty/state.ts`, which degrades a missing or malformed shape to the
+  // empty answer rather than throwing.
+  //
+  // Nothing here can be invented safely either: stamping a vault item, a taken
+  // tranche or an active Trial onto an existing save would hand out (or charge
+  // for) something the player never chose.
+  36: (state) => {
+    state.version = 36;
+    return state;
+  },
 };
 
 /**

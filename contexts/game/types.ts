@@ -2705,6 +2705,20 @@ export interface GameState {
   diseaseImmunities?: string[]; // Diseases player has immunity to (from previous infections)
   vaccinations?: string[]; // Vaccinations player has received
   goals: Goal[];
+  /**
+   * VESTIGIAL, and deliberately kept. The linear goal system that wrote this
+   * (`utils/goalSystem.ts` + `GoalCompletionPopup`) was deleted once it was
+   * shown to be unreachable — each goal's `shouldShow` predicate was the exact
+   * negation of its completion predicate, so nothing could ever be appended
+   * here. It is therefore `[]` on every save ever written, and nothing reads it.
+   *
+   * Removing it would be a STATE_VERSION bump and a migration that deletes a key
+   * whose only possible value is the empty array — a schema change for no
+   * behavioural difference, and a migration is the riskiest kind of no-op. Same
+   * carve-out reasoning as the `undefined`-default fields in CLAUDE.md §7
+   * (`ambitionId` et al): when the stored value already equals the only value it
+   * can have, leave it alone. Do not write to it; do not add readers.
+   */
   completedGoals: string[];
   // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
   // socialGroups, socialInteractions, lastEventTimes) and the old
@@ -2877,6 +2891,19 @@ export interface GameState {
    * contract cannot be double-credited by a tick that runs twice.
    */
   legacyContracts?: { claimedIds: string[] };
+  /**
+   * The Dynasty — bookkeeping for the four prestige-tier systems (v36).
+   *
+   * ONE optional object rather than four top-level keys, so the whole feature
+   * set is one carve-out instead of four. Default `undefined`: version bumped,
+   * NO backfill and NO `repairGameState` mirror, because an absent key already
+   * means exactly the right thing for every save written before this — empty
+   * vault, nothing endowed, no Trial running, no wings built.
+   *
+   * Read through `lib/dynasty/state.ts`, never directly, so a partial or
+   * hand-edited save degrades to the empty answer instead of throwing.
+   */
+  dynasty?: DynastyState;
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks
@@ -3246,6 +3273,29 @@ export interface LifetimeStatistics {
 // ============================================
 // Legacy & Dynasty System Interfaces
 // ============================================
+
+/**
+ * Persisted state for the four prestige-tier systems (STATE_VERSION 36).
+ *
+ * Every field is optional and absent-means-empty, which is what lets the whole
+ * object be a documented carve-out (CLAUDE.md §7) rather than four backfills.
+ * The logic lives in `lib/dynasty/`; this is only the shape.
+ */
+export interface DynastyState {
+  /** Tier 2 — luxury catalog ids preserved across death and prestige. */
+  vaultItemIds?: string[];
+  /** Tier 3 — endowment tranche ids taken. Once per id, forever. */
+  endowments?: string[];
+  /** Tier 4 — handicaps sworn for the next life, and borne by this one. */
+  trials?: {
+    /** Sworn, not yet started. Promoted to `active` at the next transition. */
+    pending?: string[];
+    /** Being lived under right now. Settled for Legacy Points at the next one. */
+    active?: string[];
+  };
+  /** Tier 5 — Dynasty Seat wings built. Permanent; never lost. */
+  seatWings?: string[];
+}
 
 export interface Heirloom {
   id: string;

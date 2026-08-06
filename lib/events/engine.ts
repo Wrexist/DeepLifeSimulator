@@ -15,6 +15,7 @@ import { childhoodEventTemplates } from './childhoodEvents';
 import { parentEventTemplates } from './parentEvents';
 import { midlifeEventTemplates } from './midlifeEvents';
 import { seniorEventTemplates } from './seniorEvents';
+import { wealthEventTemplates } from './wealthEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import {
@@ -2867,6 +2868,12 @@ export const eventTemplates: EventTemplate[] = [
   ...parentEventTemplates,
   ...midlifeEventTemplates,
   ...seniorEventTemplates,
+  // Late-game / wealth-tier pack — the ONLY templates that declare `moneyPct`,
+  // so a choice is worth a fraction of net worth instead of a flat figure that
+  // has become noise. Gated on the canonical netWorth() at four tiers ($1M /
+  // $10M / $50M / $250M) plus weeksLived >= 26, so an early-game player never
+  // sees one. See lib/events/wealthEvents.ts for the calibration.
+  ...wealthEventTemplates,
 ];
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──

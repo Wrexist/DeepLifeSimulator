@@ -207,3 +207,26 @@ anything. The collision was 21 call sites in 2 files.
       curves, so capstones there are an authoring job, not a mechanical one.
 - [ ] Prestige tiers 2–5 have no entries yet — the plumbing exists, they need
       content to gate.
+
+---
+
+## Prestige tiers 2–5 — real content (2026-08-06)
+
+`PRESTIGE_UNLOCKS` had exactly ONE entry (`feature:conglomerate`, tier 1), so
+prestige #5 was mechanically identical to prestige #2. Four NEW capabilities,
+one per tier. Nothing that exists today is moved behind a wall.
+
+- [x] Tier 2 — **The Vault**: pay a preservation fee to carry owned luxury
+      pieces across death/prestige. First material thing that survives a life.
+- [x] Tier 3 — **The Endowment**: one-time-ever tranches that convert money
+      into Legacy Points. First cross-life use for money; a wealth-scaled sink.
+- [x] Tier 4 — **Dynasty Trials**: opt-in handicaps on the NEXT life, settled
+      for Legacy Points at the following transition. Makes each life differ.
+- [x] Tier 5 — **The Dynasty Seat**: a four-wing estate ($100M → $5B) bought
+      across lives, each wing deepening one of the tiers above.
+- [x] One new GameState field `dynasty` (default `undefined` → carve-out),
+      STATE_VERSION 35 → 36, no backfill, no `repairGameState` mirror.
+- [x] Carry `dynasty` AND `legacyContracts` across prestige (the latter was not
+      carried, so every prestige re-armed the whole contract board).
+- [x] Surface all four in the Prestige Shop's Dynasty tab, padlocked when locked.
+- [x] Tests in `__tests__/prestige/dynastyTiers.test.ts` + reachability.

@@ -71,7 +71,7 @@ describe('InterruptionContext', () => {
       ['death', INTERRUPTION_PRIORITY.DEATH],
       ['wedding', INTERRUPTION_PRIORITY.WEDDING],
       ['life-moment', INTERRUPTION_PRIORITY.LIFE_MOMENT],
-      ['goal', INTERRUPTION_PRIORITY.GOAL_COMPLETE],
+      ['inbox', INTERRUPTION_PRIORITY.EVENT_INBOX],
       ['daily', INTERRUPTION_PRIORITY.DAILY_REWARD],
       ['week-result', INTERRUPTION_PRIORITY.WEEK_RESULT],
       ['promo', INTERRUPTION_PRIORITY.PROMO],

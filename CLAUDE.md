@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 35`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 36`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -240,7 +240,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 35`** — single source of truth in
+- **Canonical `STATE_VERSION = 36`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -333,6 +333,21 @@ including the crash screen.
   lifetime weeks), so nothing can drift out of sync, a tick that runs twice
   cannot double-credit, and an existing save loads with its contracts already
   part-complete rather than reset to zero.
+- **v36 adds `dynasty`** — one object holding the bookkeeping for prestige
+  tiers 2–5 (the Vault, the Endowment, Dynasty Trials, the Dynasty Seat). ONE
+  optional field rather than four top-level keys, so four new systems cost one
+  carve-out instead of four backfills and four repair mirrors. Default
+  `undefined`, so it is a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror. Absence already means empty vault / nothing endowed
+  / no Trial / no wings, and nothing here can be invented safely — stamping a
+  vaulted item, a taken tranche or an active Trial would hand out or charge for
+  something the player never chose. Every read goes through
+  `lib/dynasty/state.ts`, which degrades a missing or malformed shape to the
+  empty answer rather than throwing inside the week loop. Shipped alongside a
+  fix in the same area: `legacyContracts.claimedIds` was **never carried across
+  a prestige**, so `initialGameState`'s empty board was restored every cycle and
+  the whole contract ladder was re-claimable. Both paths now run one hook,
+  `applyDynastyTransition` (`lib/dynasty/transition.ts`).
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

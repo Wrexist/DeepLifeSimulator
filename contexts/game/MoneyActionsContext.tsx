@@ -8,6 +8,10 @@ import { isIncomeReason } from './actions/MoneyActions';
 import { getBonusPurchaseCost, canPurchaseBonus, isInertBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { purchaseLegacyUpgrade } from '@/lib/legacy/legacyShop';
 import { claimContract } from '@/lib/legacy/contracts';
+import { storeInVault, removeFromVault } from '@/lib/dynasty/vault';
+import { claimEndowment } from '@/lib/dynasty/endowment';
+import { addPendingTrial, removePendingTrial } from '@/lib/dynasty/trials';
+import { buySeatWing } from '@/lib/dynasty/seat';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
@@ -44,6 +48,20 @@ interface MoneyActionsContextType {
   /** C-11: spend legacy points on the heir's starting position. */
   purchaseLegacyUpgrade: (upgradeId: string) => { success: boolean; message: string };
   claimLegacyContract: (contractId: string) => { success: boolean; message: string };
+
+  // The Dynasty — prestige tiers 2-5. All five share one shape: a PURE reducer
+  // in `lib/dynasty/` run once for the report and again inside the updater, so
+  // a double-tap in one React batch cannot pay twice (§4.4).
+  /** Tier 2 — preserve a luxury piece across death, for a fee. */
+  storeInDynastyVault: (itemId: string) => { success: boolean; message: string };
+  removeFromDynastyVault: (itemId: string) => { success: boolean; message: string };
+  /** Tier 3 — convert money into Legacy Points, once per tranche, forever. */
+  claimDynastyEndowment: (trancheId: string) => { success: boolean; message: string };
+  /** Tier 4 — swear (or withdraw) a handicap for the next life. */
+  swearDynastyTrial: (trialId: string) => { success: boolean; message: string };
+  withdrawDynastyTrial: (trialId: string) => { success: boolean; message: string };
+  /** Tier 5 — build a wing of the Dynasty Seat. */
+  buyDynastySeatWing: (wingId: string) => { success: boolean; message: string };
 }
 
 const MoneyActionsContext = createContext<MoneyActionsContextType | undefined>(undefined);
@@ -554,6 +572,139 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     return preview;
   }, [setGameState]);
 
+  // ── The Dynasty: prestige tiers 2-5 ────────────────────────────────────────
+  //
+  // Five actions, one shape, copied deliberately from
+  // `purchaseLegacyUpgradeAction` above: the reducer in `lib/dynasty/` is PURE
+  // and idempotent on its id, so it is run once against `stateRef.current` for
+  // the caller's report and again against `prev` inside the updater. Where
+  // money is involved the debit lands in the SAME updater that records the
+  // purchase, and the reducer re-checks affordability against `prev`, so a
+  // double-tap inside one React batch cannot pay twice or grant twice (§4.4).
+  //
+  // Each reducer also re-checks its own prestige-tier gate, so no caller — a
+  // deep link, a devtool, a future screen — can reach a capability the save has
+  // not earned.
+
+  /** Tier 2 — preserve a luxury piece across death, for a preservation fee. */
+  const storeInDynastyVaultAction = useCallback((itemId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = storeInVault(state, itemId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = storeInVault(prev, itemId);
+      if (!applied.success || !applied.dynasty) return prev;
+      const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - applied.cost },
+        dynasty: applied.dynasty,
+        lifetimeStatistics: trackMoneySpent(currentStats, -applied.cost),
+      };
+    });
+
+    return preview;
+  }, [setGameState]);
+
+  const removeFromDynastyVaultAction = useCallback((itemId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = removeFromVault(state, itemId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = removeFromVault(prev, itemId);
+      if (!applied.success || !applied.dynasty) return prev;
+      return { ...prev, dynasty: applied.dynasty };
+    });
+
+    return preview;
+  }, [setGameState]);
+
+  /** Tier 3 — money into Legacy Points, once per tranche, forever. */
+  const claimDynastyEndowmentAction = useCallback((trancheId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = claimEndowment(state, trancheId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = claimEndowment(prev, trancheId);
+      if (!applied.success || !applied.dynasty) return prev;
+      const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - applied.cost },
+        dynasty: applied.dynasty,
+        legacyPoints: (prev.legacyPoints ?? 0) + applied.points,
+        lifetimeStatistics: trackMoneySpent(currentStats, -applied.cost),
+      };
+    });
+
+    return preview;
+  }, [setGameState]);
+
+  /** Tier 4 — swear a handicap for the next life. Costs nothing until it starts. */
+  const swearDynastyTrialAction = useCallback((trialId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = addPendingTrial(state, trialId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = addPendingTrial(prev, trialId);
+      if (!applied.success || !applied.dynasty) return prev;
+      return { ...prev, dynasty: applied.dynasty };
+    });
+
+    return preview;
+  }, [setGameState]);
+
+  const withdrawDynastyTrialAction = useCallback((trialId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = removePendingTrial(state, trialId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = removePendingTrial(prev, trialId);
+      if (!applied.success || !applied.dynasty) return prev;
+      return { ...prev, dynasty: applied.dynasty };
+    });
+
+    return preview;
+  }, [setGameState]);
+
+  /** Tier 5 — build a wing of the Dynasty Seat. The one thing money outlives. */
+  const buyDynastySeatWingAction = useCallback((wingId: string): { success: boolean; message: string } => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const preview = buySeatWing(state, wingId);
+    if (!preview.success) return preview;
+
+    setGameState(prev => {
+      const applied = buySeatWing(prev, wingId);
+      if (!applied.success || !applied.dynasty) return prev;
+      const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - applied.cost },
+        dynasty: applied.dynasty,
+        lifetimeStatistics: trackMoneySpent(currentStats, -applied.cost),
+      };
+    });
+
+    return preview;
+  }, [setGameState]);
+
   const purchasePrestigeBonus = useCallback((bonusId: string): { success: boolean; message?: string } => {
     const state = stateRef.current;
     if (!state?.prestige) {
@@ -651,7 +802,13 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     purchasePrestigeBonus,
     purchaseLegacyUpgrade: purchaseLegacyUpgradeAction,
     claimLegacyContract: claimLegacyContractAction,
-  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction, claimLegacyContractAction]);
+    storeInDynastyVault: storeInDynastyVaultAction,
+    removeFromDynastyVault: removeFromDynastyVaultAction,
+    claimDynastyEndowment: claimDynastyEndowmentAction,
+    swearDynastyTrial: swearDynastyTrialAction,
+    withdrawDynastyTrial: withdrawDynastyTrialAction,
+    buyDynastySeatWing: buyDynastySeatWingAction,
+  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction, claimLegacyContractAction, storeInDynastyVaultAction, removeFromDynastyVaultAction, claimDynastyEndowmentAction, swearDynastyTrialAction, withdrawDynastyTrialAction, buyDynastySeatWingAction]);
 
   return (
     <MoneyActionsContext.Provider value={value}>

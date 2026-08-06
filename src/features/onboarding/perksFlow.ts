@@ -30,11 +30,6 @@ export interface PerkBenefit {
   type: 'stat' | 'income' | 'start';
 }
 
-interface Achievement {
-  id: string;
-  completed?: boolean;
-}
-
 // ---------------------------------------------------------------------------
 // Sorting
 // ---------------------------------------------------------------------------
@@ -43,11 +38,11 @@ interface Achievement {
 export function sortPerksByUnlockStatus(
   perksList: PerkDefinition[],
   permanentPerkIds: string[],
-  achievements: Achievement[]
+  earnedAchievementIds: string[]
 ): PerkDefinition[] {
   return [...perksList].sort((a, b) => {
-    const aUnlocked = isPerkUnlocked(a, permanentPerkIds, achievements);
-    const bUnlocked = isPerkUnlocked(b, permanentPerkIds, achievements);
+    const aUnlocked = isPerkUnlocked(a, permanentPerkIds, earnedAchievementIds);
+    const bUnlocked = isPerkUnlocked(b, permanentPerkIds, earnedAchievementIds);
 
     if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
 
@@ -62,24 +57,68 @@ export function sortPerksByUnlockStatus(
 // Lock / unlock checks
 // ---------------------------------------------------------------------------
 
-/** A perk is unlocked if it has no requirement, is permanent, or its achievement is done. */
+/**
+ * A perk is unlocked if it has no requirement, is permanent, or its achievement
+ * has been earned.
+ *
+ * `earnedAchievementIds` MUST come from `getSatisfiedAchievementIds(state)`
+ * (`lib/progress/earnedAchievements.ts`) — the live achievement system, where
+ * completion is derived from each achievement's `progressSpec` against current
+ * state, plus anything already in `claimedProgressAchievements`.
+ *
+ * It used to read `gameState.achievements[].completed`. That array is the
+ * deprecated catalogue seeded in `initialState.ts`, and its `completed` flag has
+ * no writer in shipping code: `evaluateAchievements` is an explicit no-op stub,
+ * so its only caller `checkAchievements` does nothing. The single exception is a
+ * one-off `luxury_life` flip in `GameActionsContext`. Every perk in
+ * `perksData.ts` carries an `unlock`, so every perk evaluated against an
+ * all-false list and rendered permanently disabled — the perk step was a gallery
+ * of things no amount of play could ever grant. Same failure and same fix as
+ * GP-3 on the Progression screen and the scenario win conditions.
+ */
 export function isPerkUnlocked(
   perk: PerkDefinition,
   permanentPerkIds: string[],
-  achievements: Achievement[]
+  earnedAchievementIds: string[]
 ): boolean {
   if (!perk.unlock) return true;
   if (permanentPerkIds.includes(perk.id)) return true;
-  return !!achievements.find((a) => a.id === perk.unlock?.achievementId)?.completed;
+  return earnedAchievementIds.includes(perk.unlock.achievementId);
 }
 
-/** A perk is locked if it has an unlock requirement AND is not permanent AND its achievement is incomplete. */
+/** A perk is locked if it has an unlock requirement AND is not permanent AND its achievement is unearned. */
 export function isPerkLocked(
   perk: PerkDefinition,
   permanentPerkIds: string[],
-  achievements: Achievement[]
+  earnedAchievementIds: string[]
 ): boolean {
-  return !isPerkUnlocked(perk, permanentPerkIds, achievements);
+  return !isPerkUnlocked(perk, permanentPerkIds, earnedAchievementIds);
+}
+
+/**
+ * Player-facing line under a locked perk, e.g. "Requires: Fitness Deity".
+ *
+ * The card used to print the raw slug (`Requires achievement: fitness_deity`),
+ * which named an internal id the player has never seen anywhere in the app. The
+ * title is resolved from the live catalogue; if an id ever stops resolving the
+ * copy degrades to the slug rather than rendering "Requires: undefined", and
+ * `perksCatalogueIntegrity.test.ts` fails the build for it.
+ */
+export function getPerkUnlockRequirementText(perk: PerkDefinition): string {
+  if (!perk.unlock) return '';
+  return `Requires: ${getAchievementTitle(perk.unlock.achievementId)}`;
+}
+
+/** Title of a live achievement, falling back to its id. */
+export function getAchievementTitle(achievementId: string): string {
+  // Lazy require: keeps this pure-logic module's init free of the achievement
+  // catalogue's asset `require()`s, and mirrors the pattern already used in
+  // `lib/progress/earnedAchievements.ts` for the same dependency.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require('./achievementsData') as {
+    achievements: { id: string; title: string }[];
+  };
+  return (mod.achievements || []).find((a) => a.id === achievementId)?.title ?? achievementId;
 }
 
 /** Whether a perk is a purchased permanent perk. */

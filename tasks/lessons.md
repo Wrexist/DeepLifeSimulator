@@ -1034,3 +1034,38 @@ DOING, not how long it takes.** A step that is blocked on someone else's queue
 belongs on the cheapest runner that can hold the connection — and any job that
 waits on an external service needs a `timeout-minutes`, or the failure mode is
 six hours of billing.
+
+---
+
+## 2026-08-06 — "carried across prestige" is a list somebody has to remember
+
+Building prestige tiers 2–5 meant persisting four small things (Vault,
+Endowment, Trials, Seat) and making them survive a life boundary. That is not a
+save-format problem — the save carries them fine. It is a `prestigeExecution`
+problem: `createResetGameState` and `createChildGameState` both rebuild the
+state from `initialGameState` and then **hand-copy** each field that is lineage
+data rather than character data.
+
+Every one of those copies is a line somebody has to remember to add, and the
+cost of forgetting is silent. Found while adding to that list:
+`legacyContracts.claimedIds` was **never copied**. So `initialGameState`'s empty
+board came back on every single prestige, the whole contract ladder was
+re-claimable, and it printed the full board's worth of Legacy Points per cycle.
+Nobody reported it because a feature that quietly resets looks like a feature
+that was never finished.
+
+Same shape as the entitlement wipe (MON-1/2/3) and the ambition wipe: a
+hand-maintained copy list where an omission reads as "not implemented yet".
+
+**The rule:** anything that must outlive a character goes through ONE hook that
+both paths call — here `applyDynastyTransition` (`lib/dynasty/transition.ts`) —
+and the test asserts the hook appears on **both** paths, by count. The death →
+heir flow (`continueAsChild`) reaches `createChildGameState` without going
+through `executePrestige`, so a hook wired to only one path silently skips
+everything on the other.
+
+Second rule, from the same change: **make the transition hook derive every
+number from the OLD state, never accumulate onto the new one.** `newLegacyPoints
+= oldPoints + reward` is idempotent — re-running the transition on the same save
+gives the same answer. `newState.legacyPoints += reward` is not, and a
+transition that runs twice is not a hypothetical in a React codebase.

@@ -18,8 +18,9 @@ import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle from the barrel's eager `export * from './game'`).
-import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
@@ -45,6 +46,7 @@ import {
   isPerkLocked,
   isPerkPermanent,
   getPerkBenefits,
+  getPerkUnlockRequirementText,
   getStatColor,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
@@ -213,7 +215,7 @@ const PerkCard = React.memo(function PerkCard({
             </Text>
             {perk.unlock && isLocked && (
               <Text style={styles.requirementText}>
-                Requires achievement: {perk.unlock.achievementId}
+                {getPerkUnlockRequirementText(perk)}
               </Text>
             )}
 
@@ -354,9 +356,19 @@ const MindsetCard = React.memo(function MindsetCard({
 
 export default function Perks() {
   const { state, clearDraft } = useOnboarding();
-  // R-perf: subscribe only to `achievements` (used for perk unlock state) instead
-  // of the whole game state, so settings/theme changes don't re-render this screen.
-  const achievements = useGameSelector((s) => s.achievements);
+  // Perk unlock state comes from the LIVE achievement system. This used to select
+  // `s.achievements` — the deprecated catalogue whose `completed` flag has no
+  // writer — so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
+  // derives completion from each achievement's own progressSpec plus anything
+  // already claimed, so it can only ever return MORE ids than the all-false array
+  // it replaces: no perk a player could previously select becomes locked.
+  //
+  // R-perf: the selector derives a new array each call, so `shallowEqual` keeps
+  // this screen from re-rendering on unrelated state changes (see useGameSelector).
+  const earnedAchievementIds = useGameSelector(
+    (s) => getSatisfiedAchievementIds(s),
+    shallowEqual
+  );
   const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
@@ -402,8 +414,8 @@ export default function Perks() {
 
   // Sorted perks using extracted logic
   const sortedPerks = useMemo(
-    () => sortPerksByUnlockStatus(perks, permanentPerks, achievements || []),
-    [achievements, permanentPerks]
+    () => sortPerksByUnlockStatus(perks, permanentPerks, earnedAchievementIds),
+    [earnedAchievementIds, permanentPerks]
   );
 
   // Backdrop, entrance animation, and floating particles are all owned by
@@ -673,7 +685,7 @@ export default function Perks() {
                     perk={perk}
                     isSelected={selected.includes(perk.id)}
                     isPermanent={isPerkPermanent(perk.id, permanentPerks)}
-                    isLocked={isPerkLocked(perk, permanentPerks, achievements || [])}
+                    isLocked={isPerkLocked(perk, permanentPerks, earnedAchievementIds)}
                     onToggle={toggle}
                   />
                 ))}

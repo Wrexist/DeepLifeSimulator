@@ -35,6 +35,7 @@ import HobbiesModal from '@/components/HobbiesModal';
 import LegacyPassModal from '@/components/LegacyPassModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getClaimableContracts } from '@/lib/legacy/contracts';
 import {
   getClaimableCount,
   getTierForXp,
@@ -59,6 +60,11 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const { settings } = gameState;
   const insets = useSafeAreaInsets();
   const legacyClaimable = getClaimableCount(gameState.legacyPass);
+  // Legacy Contracts live on the Dynasty tab of the prestige shop — the sixth of
+  // six scrolling tabs, below the Dynasty board. This card is the Progress
+  // screen's door to that shop, so a completed contract gets counted here too;
+  // without it `getClaimableContracts` was surfaced nowhere in the app.
+  const contractsClaimable = getClaimableContracts(gameState).length;
   // Screen defaults to dark unless darkMode is explicitly false.
   const isDark = settings?.darkMode !== false;
   const theme = getThemeColors(isDark);
@@ -159,8 +165,14 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             // the one surface advertising the action was the one surface that
             // could not perform it — the real entry point is a button on Home
             // that only renders when prestige is already available.
+            // A badge must lead to the thing it counts, so claimable Legacy
+            // Contracts route to the shop (they are claimed on its Dynasty tab,
+            // which the shop opens on when any are waiting). Prestige-ready
+            // still wins: the card whose meta line says "Ready to prestige" has
+            // to be the card that starts one.
             onPress={() => {
               if (prestigeAvailable && prestigeLevel === 0) setShowPrestige(true);
+              else if (contractsClaimable > 0) setShowPrestigeShop(true);
               else if (prestigeLevel > 0) setShowPrestigeHistory(true);
               else setShowPrestigeShop(true);
             }}
@@ -169,6 +181,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             <View style={styles.heroCardHead}>
               <Sparkles size={scale(14)} color={accent.purple} />
               <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Prestige</Text>
+              <ClaimableBadge count={contractsClaimable} />
             </View>
             <Text style={[styles.heroValue, { color: theme.text }]}>Lv {prestigeLevel}</Text>
             <Text style={[styles.heroMeta, { color: theme.textMuted }]}>

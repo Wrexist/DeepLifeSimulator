@@ -59,7 +59,9 @@ export const INTERRUPTION_PRIORITY = {
   WEDDING: 90,
   LIFE_MOMENT: 80,
   EVENT_INBOX: 70,
-  GOAL_COMPLETE: 60,
+  // 60 was GOAL_COMPLETE, retired with the linear goal system (its completion
+  // predicates were unreachable, so the popup could never present). The gap is
+  // left deliberately: renumbering would silently reorder every surface below.
   DAILY_REWARD: 50,
   WELCOME_BACK: 45,
   COMMUNITY_REWARD: 42,

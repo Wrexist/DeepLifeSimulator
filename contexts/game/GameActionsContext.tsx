@@ -139,6 +139,7 @@ import { resolveTenancyStep } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
+import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
@@ -2500,6 +2501,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  if (cashDeltaAfterReinvest!== 0) {
  applyCashAndRecord(cashDeltaAfterReinvest); // TICK-A4
+ }
+ // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
+ // price so the move reaches the market board, Movers sort, market-order fills,
+ // and the savedMarketPrices snapshot below — and COMPOUNDS next week (the walk
+ // starts from the moved price). Determinism is preserved: the factors are
+ // seeded (weeklyRoll) and the moved price is what gets snapshotted/restored.
+ // adjustStockPrice re-clamps to the same [0.01, $1M] band as the walk.
+ for (const sym in stocksTickResult.priceFactors) {
+ adjustStockPrice(sym, stocksTickResult.priceFactors[sym]);
+ }
+ for (const note of stocksTickResult.notifications) {
+ pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
+ }
+ } catch (stkErr) {
+ logger.error('[STOCKS TICK] failed:', stkErr);
+ }
+
+ tickProfiler.mark('stocks');
 
  /**
   * Life-chapter completion — the spine of progressive disclosure.
@@ -2513,6 +2532,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   * education — evaluating earlier would judge the player on a half-finished
   * week. Guarded like every other subsystem (§4.3): a throw here must not cost
   * the whole week.
+  *
+  * It also has to sit OUTSIDE the stocks try/catch and outside that block's
+  * `if (cashDeltaAfterReinvest !== 0)` branch, where it was accidentally nested:
+  * chapter completion was therefore skipped on every week whose stocks tick
+  * produced no cash movement — which is most weeks for a player who owns no
+  * stocks — and skipped entirely whenever the stocks tick threw.
   */
  try {
    const chapterResult = applyChapterProgress({
@@ -2541,24 +2566,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (chapterErr) {
    logger.error('[CHAPTER TICK] failed:', chapterErr);
  }
- }
- // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
- // price so the move reaches the market board, Movers sort, market-order fills,
- // and the savedMarketPrices snapshot below — and COMPOUNDS next week (the walk
- // starts from the moved price). Determinism is preserved: the factors are
- // seeded (weeklyRoll) and the moved price is what gets snapshotted/restored.
- // adjustStockPrice re-clamps to the same [0.01, $1M] band as the walk.
- for (const sym in stocksTickResult.priceFactors) {
- adjustStockPrice(sym, stocksTickResult.priceFactors[sym]);
- }
- for (const note of stocksTickResult.notifications) {
- pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
- }
- } catch (stkErr) {
- logger.error('[STOCKS TICK] failed:', stkErr);
- }
-
- tickProfiler.mark('stocks');
 
  // ── Year-to-date tax ledger ───────────────────────────────────────────────
  //
@@ -2668,7 +2675,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- const nextState: GameState = {
+ let nextState: GameState = {
 ...prevState,
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
  // just flipped to complete — see updatedAchievements above).
@@ -3023,6 +3030,39 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weekResult.netChange = 0;
  weekResult.luckyBonus = undefined;
  weekResult.streakBonus = undefined;
+ }
+
+ /**
+  * Life Ambition payoff — the biggest single reward in the game, previously
+  * payable ONLY by finding the "Fulfil Ambition" button on `AmbitionCard`.
+  * See ./actions/weekly/applyAmbitionPayout.ts for why the tick owns it now
+  * (same argument as the chapter payout, five times the money).
+  *
+  * Placed HERE, on the fully assembled `nextState`, because ambition milestones
+  * read arbitrary corners of the save — companies, careers, relationships,
+  * children, educations, investments, reputation, net worth — and a
+  * hand-enumerated projection would silently judge the player on a stale field
+  * the moment a new milestone reads one it forgot. Running last means every
+  * subsystem's result is already folded in.
+  *
+  * After the death revert on purpose: that block rewrites `stats.money` back to
+  * the pre-tick value, so granting before it would set the "claimed" flags while
+  * the money was rolled back — the one way to lose the payoff permanently.
+  *
+  * Guarded like every other subsystem (§4.3): a throw here must not cost the
+  * whole week. On failure `nextState` is simply left as it was.
+  */
+ try {
+   const ambitionResult = applyAmbitionPayout({ state: nextState });
+   if (ambitionResult.state) {
+     nextState = ambitionResult.state;
+     for (const note of ambitionResult.notifications) pendingNotifications.push(note);
+     if (ambitionResult.granted) {
+       logger.info(`[AMBITION] Payout granted for ${nextState.ambitionId}`);
+     }
+   }
+ } catch (ambitionErr) {
+   logger.error('[AMBITION TICK] failed:', ambitionErr);
  }
 
  // PERF (freeze fix): expose the computed state to the post-update code below.

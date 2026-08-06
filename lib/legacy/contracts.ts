@@ -29,6 +29,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { hasSeatWing } from '@/lib/dynasty/seat';
 
 export type ContractMetric =
   | 'totalPrestiges'
@@ -83,6 +84,48 @@ export const LEGACY_CONTRACTS: LegacyContract[] = [
   { id: 'contract_companies_5', name: 'Founder', description: 'Found 5 companies across every life.', metric: 'companiesFounded', target: 5, reward: 120, tier: 1 },
   { id: 'contract_companies_20', name: 'Serial Founder', description: 'Found 20 companies across every life.', metric: 'companiesFounded', target: 20, reward: 800, tier: 2 },
 ];
+
+/**
+ * The Archive Contracts — what the Dynasty Seat's Archive wing (prestige tier
+ * 5) opens.
+ *
+ * Deliberately beyond the board above by an order of magnitude. The top of the
+ * standard ladder is "prestige 25 times"; the Archive starts where that ends,
+ * and its wealth target is a number the game has no other reason to name. That
+ * is the point of a capstone: the ceiling should be visible and not yet
+ * reached.
+ *
+ * They are NEW contracts, not existing ones moved behind the wing. Nobody's
+ * board shrinks when the Archive is unbuilt — it simply has three fewer rows
+ * than it will have later.
+ */
+export const ARCHIVE_CONTRACT_WING = 'seat_archive';
+
+export const ARCHIVE_CONTRACTS: LegacyContract[] = [
+  { id: 'contract_archive_prestige_50', name: 'The Fiftieth Turn', description: 'Prestige 50 times.', metric: 'totalPrestiges', target: 50, reward: 6_000, tier: 5 },
+  { id: 'contract_archive_gen_50', name: 'Fifty Generations', description: 'Carry the family to a fiftieth generation.', metric: 'generations', target: 50, reward: 5_000, tier: 4 },
+  { id: 'contract_archive_networth_1t', name: 'Thirteen Figures', description: 'Reach $1,000,000,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 1_000_000_000_000, reward: 8_000, tier: 4 },
+];
+
+/**
+ * The contracts a given save can see.
+ *
+ * A save without the Archive wing sees exactly the board it saw before the wing
+ * existed — the Archive rows are additive, never a replacement.
+ */
+export function visibleContracts(state: GameState | undefined | null): LegacyContract[] {
+  return hasSeatWing(state, ARCHIVE_CONTRACT_WING)
+    ? [...LEGACY_CONTRACTS, ...ARCHIVE_CONTRACTS]
+    : LEGACY_CONTRACTS;
+}
+
+/** Lookup across BOTH boards — a claimed Archive id must still resolve. */
+function findContract(contractId: string): LegacyContract | undefined {
+  return (
+    LEGACY_CONTRACTS.find((c) => c.id === contractId) ??
+    ARCHIVE_CONTRACTS.find((c) => c.id === contractId)
+  );
+}
 
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
@@ -152,9 +195,9 @@ export function getContractProgress(
   };
 }
 
-/** Every contract, in catalogue order. */
+/** Every contract this save can see, in catalogue order. */
 export function getAllContractProgress(state: GameState | undefined | null): ContractProgress[] {
-  return LEGACY_CONTRACTS.map((c) => getContractProgress(state, c));
+  return visibleContracts(state).map((c) => getContractProgress(state, c));
 }
 
 /** Contracts that can be claimed right now. */
@@ -182,8 +225,18 @@ export function claimContract(
   state: GameState | undefined | null,
   contractId: string
 ): ClaimResult {
-  const contract = LEGACY_CONTRACTS.find((c) => c.id === contractId);
+  const contract = findContract(contractId);
   if (!contract) return { success: false, message: 'Unknown contract.', reward: 0 };
+
+  // An Archive contract is only claimable while the wing that opened it stands.
+  // Checked here rather than only in the UI so no other caller can claim a row
+  // the player cannot see.
+  if (
+    ARCHIVE_CONTRACTS.some((c) => c.id === contractId) &&
+    !hasSeatWing(state, ARCHIVE_CONTRACT_WING)
+  ) {
+    return { success: false, message: 'The Archive is not built.', reward: 0 };
+  }
 
   const claimedIds = state?.legacyContracts?.claimedIds ?? [];
   if (claimedIds.includes(contractId)) {
@@ -207,7 +260,8 @@ export function claimContract(
   };
 }
 
-/** Total points the whole contract board can ever pay. */
-export function totalContractRewards(): number {
-  return LEGACY_CONTRACTS.reduce((sum, c) => sum + c.reward, 0);
+/** Total points the whole contract board can ever pay, Archive included or not. */
+export function totalContractRewards(includeArchive = false): number {
+  const board = includeArchive ? [...LEGACY_CONTRACTS, ...ARCHIVE_CONTRACTS] : LEGACY_CONTRACTS;
+  return board.reduce((sum, c) => sum + c.reward, 0);
 }

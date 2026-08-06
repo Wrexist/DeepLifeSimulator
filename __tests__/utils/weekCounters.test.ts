@@ -1,5 +1,3 @@
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import { getNextGoal } from '@/utils/goalSystem';
 import {
   getWeeksSinceStoredWeek,
   normalizeStoredWeekToAbsolute,
@@ -28,42 +26,8 @@ describe('weekCounters', () => {
   });
 });
 
-describe('getNextGoal week gating regression', () => {
-  it('does not show early-week job goals after week 10 when week resets to 1', () => {
-    const base = createTestGameState();
-    const state = createTestGameState({
-      week: 1, // UI week-of-month
-      weeksLived: 11, // Absolute progression week
-      currentJob: undefined,
-      bankSavings: 0,
-      completedGoals: [],
-      stats: {
-        ...base.stats,
-        money: 500, // skip earn_100
-        happiness: 90, // skip improve_happiness
-      },
-    });
-
-    const goal = getNextGoal(state);
-    expect(goal?.id).toBe('build_wealth');
-  });
-
-  it('still shows get_job during early progression', () => {
-    const base = createTestGameState();
-    const state = createTestGameState({
-      week: 2,
-      weeksLived: 2,
-      currentJob: undefined,
-      bankSavings: 0,
-      completedGoals: [],
-      stats: {
-        ...base.stats,
-        money: 500,
-        happiness: 90,
-      },
-    });
-
-    const goal = getNextGoal(state);
-    expect(goal?.id).toBe('get_job');
-  });
-});
+// The `getNextGoal` week-gating regression suite that lived here was removed with
+// `utils/goalSystem.ts`: every goal's `shouldShow` predicate was the negation of
+// its completion predicate, so no goal in that system could ever complete and the
+// whole module was unreachable code. The week-counter helpers it exercised are
+// still covered by the suite above.

@@ -28,7 +28,9 @@ import {
   isUpgradeUnlocked,
   getLegacyUpgrade,
 } from '@/lib/legacy/legacyShop';
-import { getAllContractProgress } from '@/lib/legacy/contracts';
+import { getAllContractProgress, getClaimableContracts } from '@/lib/legacy/contracts';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import DynastyBoard from '@/components/prestige/DynastyBoard';
 import { scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
@@ -64,7 +66,25 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
 
   const categories: ShopTab[] = ['starting', 'multiplier', 'unlock', 'qol', 'special', 'dynasty'];
 
+  // Legacy Contracts sit on the SIXTH of six horizontally-scrolling tabs, below
+  // the Dynasty board — two or three taps and a scroll from anywhere the player
+  // normally is. `getClaimableContracts` had no non-test caller at all, so a
+  // completed contract announced itself nowhere in the app. It now drives a
+  // count badge on the tab, matching how the Legacy Pass badges on Progress.
+  const claimableContracts = useMemo(
+    () => getClaimableContracts(gameState).length,
+    [gameState]
+  );
+
   const showDynasty = selectedCategory === 'dynasty';
+
+  // Open ON the Dynasty tab when something is waiting there, so the badge that
+  // brought the player here does not then ask them to go hunting for it. Keyed
+  // on `visible` so it only steers a fresh open, never a tab the player picked.
+  useEffect(() => {
+    if (visible && claimableContracts > 0) setSelectedCategory('dynasty');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- steer on open only
+  }, [visible]);
 
   const filteredBonuses = useMemo(() => {
     // The Dynasty tab spends Legacy Points, not prestige points, so it has no
@@ -264,6 +284,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
                       </LinearGradient>
+                      {category === 'dynasty' && <ClaimableBadge count={claimableContracts} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -287,6 +308,15 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       ? `${legacyAvailable.toLocaleString()} legacy points to spend on your heir's starting position.`
                       : 'Legacy points accrue as you live. Spend them here on the next generation.'}
                   </Text>
+
+                  {/* Prestige tiers 2-5 — the Vault, the Endowment, Trials and
+                      the Dynasty Seat. Rendered first because they are the
+                      answer to "why prestige again?", and because two of them
+                      (the Endowment, and Trials) are SOURCES of the legacy
+                      points the contracts and the tree below deal in. Locked
+                      tiers render padlocked rather than hidden, so the shape of
+                      the late game is legible before it is earned. */}
+                  <DynastyBoard gameState={gameState} />
 
                   {/* Contracts — the multi-life goals that PAY the points the
                       tree below spends. Rendered first so the board reads as
