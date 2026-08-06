@@ -1019,6 +1019,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    previousOverdue: prevState.overdueBalance,
  });
  const cashBeforeLoans = arrears.cashAfter;
+ // Post-writeback mandatory costs (luxury upkeep + insurance, crime fines,
+ // student loans) used to floor at $0 and vanish — so the game had two
+ // different answers to "you cannot pay" depending on which side of the money
+ // writeback a cost sat on. Those reducers now defer onto `ctx.deferredCharges`
+ // via `chargeOrDefer`, and the total is folded into the SAME overdue balance
+ // here. Read after every reducer has run (see `totalOverdue` below).
  if (arrears.newShortfall > 0) {
    logger.info(`[ARREARS] Short $${arrears.newShortfall} on this week's bills — carried forward (balance now $${arrears.overdueBalance})`);
    pendingNotifications.push({
@@ -1042,6 +1048,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    'tenancyArrears',
    () => resolveTenancyStep({
      rental: prevState.rental,
+     // Eviction reads the RENT/BILLS arrears only, deliberately. The deferred
+     // post-writeback charges are folded in at final assembly, but the reducers
+     // that produce them have not all run at this point — including a partial
+     // total here would make eviction depend on reducer ordering.
      overdueBalance: arrears.overdueBalance,
      owns: housingWellbeing.owns,
    }),
@@ -2189,7 +2199,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // already do, so falling behind on rent and tax has the same consequence as
  // falling behind on debt. Derived from the standing balance, so it lifts the
  // moment the debt is cleared.
- overdueBalance: arrears.overdueBalance,
+ overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
  // v22 Wave A interest ledgers: legacy savings interest credited this week +
  // interest serviced on the real loan-autopay path. Feed the previously-$0
  // totalInterestEarned / totalInterestPaid chips and crossSystemSummary.
@@ -2715,7 +2725,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // v31: unpaid bills carried into next week. Written unconditionally so a
  // cleared debt actually clears — a `&&` guard here would leave the last
  // non-zero value stuck on the save forever.
- overdueBalance: arrears.overdueBalance,
+ overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
  // v32: the tenancy, with its eviction clock advanced. `undefined` here means
  // evicted (or never renting), and writing it unconditionally is what makes an
  // eviction actually take the home away.

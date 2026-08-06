@@ -884,6 +884,23 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 34;
     return state;
   },
+
+  // Version 35: `settings.lastAdCashGrantWeek` — the game-week marker capping
+  // rewarded-ad CASH grants to one per game week.
+  //
+  // The orb's only limiter was a wall-clock respawn timer, decoupled from
+  // `weeksLived` entirely, so the 1.5%-of-net-worth reward compounded on REAL
+  // time — doubling net worth roughly every 2.2 hours of play, invisibly to the
+  // tax brackets and the net-worth soft cap.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+  // and no `repairGameState` mirror. Same reasoning as v28's
+  // `lastNoFillGrantWeek` and v31's `lastLoginRewardWeek` — stamping a week
+  // would deny an existing player their next legitimate claim.
+  35: (state) => {
+    state.version = 35;
+    return state;
+  },
 };
 
 /**

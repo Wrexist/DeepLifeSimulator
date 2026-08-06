@@ -17,6 +17,8 @@ import {
   getOperatingOverhead,
   PASSIVE_SOFT_CAP_THRESHOLD,
   PASSIVE_SOFT_CAP_FLOOR,
+  managementLevels,
+  MAX_MANAGEMENT_FLOOR_GAIN,
 } from '@/lib/economy/passiveIncome';
 
 /** The original inline implementation, kept as the behavioural oracle. */
@@ -115,5 +117,64 @@ describe('reporting the drag as a weekly cost', () => {
     const o = getOperatingOverhead(238_000, 150_000_000);
     expect(o.active).toBe(true);
     expect(o.weeklyCost).toBeGreaterThan(150_000);
+  });
+});
+
+describe('the management ladder — the drag becomes a decision', () => {
+  it('changes nothing for a player who has bought none', () => {
+    // The property that made this safe to land: default 0 managers reproduces
+    // the previous curve exactly.
+    for (let worth = 0; worth <= 300_000_000; worth += 10_000_000) {
+      expect(`${worth}:${passiveIncomeEfficiency(worth, 0)}`)
+        .toBe(`${worth}:${passiveIncomeEfficiency(worth)}`);
+    }
+  });
+
+  it('raises the floor, not the whole curve', () => {
+    // Just above the threshold the decay has not reached the floor, so
+    // management must NOT help there — otherwise it is a flat income buff.
+    expect(passiveIncomeEfficiency(20_000_000, 10)).toBeCloseTo(
+      passiveIncomeEfficiency(20_000_000, 0), 5
+    );
+    // Deep in the floor it does help.
+    expect(passiveIncomeEfficiency(500_000_000, 10)).toBeGreaterThan(
+      passiveIncomeEfficiency(500_000_000, 0)
+    );
+  });
+
+  it('is bounded — full management never removes the cap', () => {
+    const best = passiveIncomeEfficiency(1e12, 999);
+    expect(best).toBe(PASSIVE_SOFT_CAP_FLOOR + MAX_MANAGEMENT_FLOOR_GAIN);
+    // A whale with everything still loses more than half their passive income.
+    expect(best).toBeLessThan(0.5);
+  });
+
+  it('reads levels off the existing upgrades array — no new stored field', () => {
+    const companies = [
+      { upgrades: [{ id: 'ops_management', level: 3 }, { id: 'machinery', level: 5 }] },
+      { upgrades: [{ id: 'ops_management', level: 2 }] },
+      { upgrades: [] },
+    ];
+    expect(managementLevels(companies)).toBe(5);
+  });
+
+  it('does not confuse the pre-existing realestate `management` upgrade', () => {
+    // realestate already shipped an income upgrade with id 'management'.
+    // Counting it would hand overhead relief to a player who bought a
+    // completely different thing.
+    expect(managementLevels([{ upgrades: [{ id: 'management', level: 3 }] }])).toBe(0);
+  });
+
+  it('survives missing or corrupt company data', () => {
+    for (const bad of [undefined, null, [], [null], [{}], [{ upgrades: null }]]) {
+      expect(`${JSON.stringify(bad)}:${managementLevels(bad as never)}`)
+        .toBe(`${JSON.stringify(bad)}:0`);
+    }
+    expect(managementLevels([{ upgrades: [{ id: 'ops_management', level: NaN }] }])).toBe(0);
+  });
+
+  it('the reported cost still reconciles once management is owned', () => {
+    const o = getOperatingOverhead(238_000, 500_000_000, 10);
+    expect(238_000 - o.weeklyCost).toBe(Math.round(238_000 * o.efficiency));
   });
 });

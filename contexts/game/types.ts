@@ -1660,6 +1660,20 @@ export interface GameSettings {
    * clock — a real-time key is farmable by moving the device clock.
    */
   lastNoFillGrantWeek?: number;
+  /**
+   * Game-week marker capping rewarded-ad CASH grants (v35).
+   *
+   * The orb's only limiter was a wall-clock respawn timer (now 6-10 min), which
+   * is decoupled from `weeksLived` entirely — so a player who sat and tapped
+   * every orb compounded net worth by 1.5% each time, doubling roughly every
+   * 2.2 hours of real time, invisibly to the tax brackets and the net-worth
+   * soft cap. Gating on the GAME week is the one clock a scrubber cannot touch,
+   * exactly as v28's `lastNoFillGrantWeek` and v31's `lastLoginRewardWeek` do.
+   *
+   * Default `undefined` — a carve-out. Stamping a week would deny an existing
+   * player their next legitimate claim.
+   */
+  lastAdCashGrantWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle

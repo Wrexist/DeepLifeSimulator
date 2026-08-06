@@ -20,7 +20,7 @@ of a ~4,200-week life, and nothing anywhere is gated on `prestigeLevel >= 2`.
 | 4 | Legacy Contracts | ★★★★☆ | M | **Yes** | **✅ SHIPPED (v33)** |
 | 5 | Career Capstones (Board Seat / Emeritus) | ★★★★☆ | S | No | **✅ SHIPPED** |
 | 6 | Luxury Collections & Curator | ★★★☆☆ | S | No | **✅ SHIPPED** |
-| 7 | Operating Overhead | ★★★★☆ | M | Maybe | **◐ PARTIAL — made visible, not yet a decision** |
+| 7 | Operating Overhead | ★★★★☆ | M | No | **✅ SHIPPED** |
 | 8 | Wealth-Scaled Events + Tycoon pack | ★★★☆☆ | M | No | **✅ MECHANISM SHIPPED** |
 | 9 | Dynasty Rank, surfaced | ★★★☆☆ | S | No | **✅ SHIPPED** |
 | 10 | Grandchildren | ★★★★☆ | M–L | **Yes** | **✅ SHIPPED (v34)** |
@@ -361,7 +361,7 @@ hosting multiplier; own all 12 → **Curator**, with a permanent prestige floor.
 
 ---
 
-## 7. Operating Overhead — replace the passive-income soft cap — ◐ PARTIAL
+## 7. Operating Overhead — replace the passive-income soft cap — ✅ SHIPPED
 
 > **Shipped 2026-08-05: the visibility half.** `passiveIncomeEfficiency` and
 > `getOperatingOverhead` are exported from `lib/economy/passiveIncome.ts`, and
@@ -374,11 +374,25 @@ hosting multiplier; own all 12 → **Curator**, with a permanent prestige floor.
 > whole curve as a behavioural oracle, so the refactor is provably
 > behaviour-preserving; `incomeScale` and all 512 economy tests stayed green.
 >
-> **Deliberately NOT shipped: the management purchase ladder** (Group COO,
-> property managers, family office) that turns the drag into a decision. That is
-> the half that genuinely moves the money axis — it needs `incomeScale`
-> re-tuning and new ratchet floors, and it is the wrong thing to bolt on at the
-> end of a large branch. The visibility work is its prerequisite and is done.
+> **The management ladder shipped too.** A `ops_management` upgrade on every
+> company type (no weekly income — its whole value is overhead relief) raises
+> the efficiency FLOOR by 2pp per level, capped at +20pp: 25% → 45% at most. A
+> floor and not a multiplier on purpose — management should make a large empire
+> survivable, never remove the cap, and a fully-managed whale still loses more
+> than half their passive income.
+>
+> **No migration:** levels are read off the existing `company.upgrades` array
+> (id + level), which already ships. Zero managers reproduces the old curve
+> exactly, and a test sweeps the whole range to prove it — so no existing player
+> is affected until they buy in. `incomeScale` and `audit:economy` stayed green,
+> so no ratchet floors moved.
+>
+> Two collisions caught while building: `realestate` already had an upgrade with
+> id `management` (renamed mine to `ops_management` — a duplicate id in one
+> array would make `buyCompanyUpgrade` resolve the wrong entry), and a test that
+> took `COMPANY_UPGRADES[TYPE][0]` and assumed it granted income. Management now
+> sits last in each ladder (it is a late-game purchase) and that test picks an
+> income-bearing upgrade explicitly.
 
 
 **Hooks:** `lib/economy/passiveIncome.ts`.

@@ -89,11 +89,9 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
 - [x] #8 Wealth-scaled event money — mechanism (content pack still unwritten)
 - [x] #9 Dynasty rank surfaced + 3 ranks above Legendary
 - [x] #10 Grandchildren (v34) — deterministic, bounded, no nested loop
-- [ ] #7 Operating Overhead — **PARTIAL.** The soft cap is now legible and
-      shares one implementation with the readout. The management purchase
-      ladder (Group COO / property managers / family office) is NOT built: it
-      genuinely moves the money axis and needs incomeScale re-tuning plus new
-      ratchet floors.
+- [x] #7 Operating Overhead — soft cap made legible AND the management ladder
+      built (`ops_management`, +2pp floor per level, capped at +20pp). No
+      migration; zero managers reproduces the old curve exactly.
 
 ### Luxury Collections — shipped (roadmap #6)
 - [x] `lib/luxury/collections.ts` — 7 completion sets, a title ladder, a
@@ -114,10 +112,14 @@ vs ceiling 1240) · routes OK · `audit:weekly` all green ·
       this decision.
 - [ ] **Consolidate the four parallel objective systems** before adding a fifth.
 
-### Economy (each needs `incomeScale` re-run + ratchet floors)
-- [ ] Arrears covers only 6 of ~11 mandatory cost lines; luxury upkeep, vehicles,
-      fines, student loans, mining power and subs are still silently forgiven
-- [ ] Ad-orb cash grants need a **game-week** gate (today's limit is wall-clock)
+### Economy
+- [x] Arrears now covers the post-writeback costs too — luxury upkeep and
+      insurance, crime fines and student loans defer via `chargeOrDefer` instead
+      of flooring at $0, and the total folds into the same `overdueBalance`
+- [x] Ad-orb cash grants gated on the GAME week (v35 carve-out), replacing a
+      wall-clock-only limiter that let net worth double every ~2.2h of real time
+- [ ] Still open: vehicle running costs and mining power also floor at $0 —
+      same fix, `chargeOrDefer`, not yet applied to those two reducers
 - [ ] Fold rental + luxury income into the tax base — ~$450k/wk of late-game
       income is currently untaxed and bypasses the net-worth soft cap
 - [x] Make the passive-income soft cap legible (roadmap #7, first half) — the

@@ -294,6 +294,33 @@ export default function AdRewardOrb() {
 
   const grant = useCallback(() => {
     if (kind === 'cash') {
+      // GAME-WEEK gate. The orb's reward is 1.5% of net worth and its only
+      // limiter was a wall-clock respawn timer — decoupled from `weeksLived`,
+      // so tapping every orb compounded net worth ~1.5% each time and doubled
+      // it roughly every 2.2 hours of REAL time, invisible to the tax brackets
+      // and the net-worth soft cap. One cash grant per game week turns it from
+      // a faucet into a top-up.
+      //
+      // Stamp-and-reserve: the updater that records the week IS the gate. It
+      // returns `prev` unchanged when the week is already claimed, and the
+      // `allowed` flag is captured INSIDE it — the established pattern here for
+      // pairing a guard with the module-form `updateMoney` (§4.4). Vitality
+      // orbs are deliberately ungated: they cannot be banked or compounded.
+      let allowed = false;
+      setGameState(prev => {
+        const week = prev.weeksLived ?? 0;
+        if (prev.settings?.lastAdCashGrantWeek === week) return prev;
+        allowed = true;
+        return {
+          ...prev,
+          settings: { ...prev.settings, lastAdCashGrantWeek: week },
+        };
+      });
+      if (!allowed) {
+        setGranted(true);
+        haptic.success();
+        return;
+      }
       updateMoney(setGameState, reward, 'Rewarded ad bonus');
     } else {
       // +100 to each caps Health/Happiness/Energy at 100 — a full vitality refill.

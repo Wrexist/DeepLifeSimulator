@@ -64,6 +64,24 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
         level: 0,
         maxLevel: 4,
       },
+      {
+        // ── Management ──────────────────────────────────────────────────────
+        // Pays NO weekly income. Its entire value is reducing Operating
+        // Overhead — the passive-income soft cap that silently takes up to 75%
+        // of a wealthy player's passive income. Buying management is how the
+        // drag becomes a decision instead of a tax; see
+        // lib/economy/passiveIncome.ts.
+        // NB: 'management' was already taken by realestate's "Property
+        // Management" income upgrade. A duplicate id in one array would make
+        // buyCompanyUpgrade resolve the wrong entry.
+        id: 'ops_management',
+        name: 'Professional Management',
+        description: 'A real operating team. Reduces the overhead on ALL your passive income.',
+        cost: 250000,
+        weeklyIncomeBonus: 0,
+        level: 0,
+        maxLevel: 5,
+      },
     ],
     ai: [
       {
@@ -119,6 +137,24 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
         weeklyIncomeBonus: 3000,
         level: 0,
         maxLevel: 3,
+      },
+      {
+        // ── Management ──────────────────────────────────────────────────────
+        // Pays NO weekly income. Its entire value is reducing Operating
+        // Overhead — the passive-income soft cap that silently takes up to 75%
+        // of a wealthy player's passive income. Buying management is how the
+        // drag becomes a decision instead of a tax; see
+        // lib/economy/passiveIncome.ts.
+        // NB: 'management' was already taken by realestate's "Property
+        // Management" income upgrade. A duplicate id in one array would make
+        // buyCompanyUpgrade resolve the wrong entry.
+        id: 'ops_management',
+        name: 'Professional Management',
+        description: 'A real operating team. Reduces the overhead on ALL your passive income.',
+        cost: 250000,
+        weeklyIncomeBonus: 0,
+        level: 0,
+        maxLevel: 5,
       },
     ],
     restaurant: [
@@ -176,6 +212,24 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
         level: 0,
         maxLevel: 2,
       },
+      {
+        // ── Management ──────────────────────────────────────────────────────
+        // Pays NO weekly income. Its entire value is reducing Operating
+        // Overhead — the passive-income soft cap that silently takes up to 75%
+        // of a wealthy player's passive income. Buying management is how the
+        // drag becomes a decision instead of a tax; see
+        // lib/economy/passiveIncome.ts.
+        // NB: 'management' was already taken by realestate's "Property
+        // Management" income upgrade. A duplicate id in one array would make
+        // buyCompanyUpgrade resolve the wrong entry.
+        id: 'ops_management',
+        name: 'Professional Management',
+        description: 'A real operating team. Reduces the overhead on ALL your passive income.',
+        cost: 250000,
+        weeklyIncomeBonus: 0,
+        level: 0,
+        maxLevel: 5,
+      },
     ],
     realestate: [
       {
@@ -232,6 +286,24 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
         level: 0,
         maxLevel: 2,
       },
+      {
+        // ── Management ──────────────────────────────────────────────────────
+        // Pays NO weekly income. Its entire value is reducing Operating
+        // Overhead — the passive-income soft cap that silently takes up to 75%
+        // of a wealthy player's passive income. Buying management is how the
+        // drag becomes a decision instead of a tax; see
+        // lib/economy/passiveIncome.ts.
+        // NB: 'management' was already taken by realestate's "Property
+        // Management" income upgrade. A duplicate id in one array would make
+        // buyCompanyUpgrade resolve the wrong entry.
+        id: 'ops_management',
+        name: 'Professional Management',
+        description: 'A real operating team. Reduces the overhead on ALL your passive income.',
+        cost: 250000,
+        weeklyIncomeBonus: 0,
+        level: 0,
+        maxLevel: 5,
+      },
     ],
     bank: [
       {
@@ -287,6 +359,24 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
         weeklyIncomeBonus: 12000,
         level: 0,
         maxLevel: 2,
+      },
+      {
+        // ── Management ──────────────────────────────────────────────────────
+        // Pays NO weekly income. Its entire value is reducing Operating
+        // Overhead — the passive-income soft cap that silently takes up to 75%
+        // of a wealthy player's passive income. Buying management is how the
+        // drag becomes a decision instead of a tax; see
+        // lib/economy/passiveIncome.ts.
+        // NB: 'management' was already taken by realestate's "Property
+        // Management" income upgrade. A duplicate id in one array would make
+        // buyCompanyUpgrade resolve the wrong entry.
+        id: 'ops_management',
+        name: 'Professional Management',
+        description: 'A real operating team. Reduces the overhead on ALL your passive income.',
+        cost: 250000,
+        weeklyIncomeBonus: 0,
+        level: 0,
+        maxLevel: 5,
       },
     ],
 };
