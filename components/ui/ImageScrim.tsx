@@ -31,7 +31,20 @@ interface ImageScrimProps {
   height?: number;
   /** Alpha at the very bottom — the darkest point, behind the title. */
   strength?: number;
-  /** Number of bands. More = smoother; 10 is imperceptible at card sizes. */
+  /**
+   * Number of bands.
+   *
+   * Banding shows up as ALPHA steps, not pixel steps, so the number that
+   * matters is the largest jump between adjacent bands — with quadratic easing
+   * that is the pair nearest the bottom. At 10 steps and strength 0.7 the
+   * bottom jump is ~0.12, which is invisible over busy artwork but clearly
+   * visible over a large flat saturated area (it showed on the Pulse profile
+   * cover, which is a solid pink field). 18 halves it.
+   *
+   * Raise it further for big single surfaces; the bands are empty Views, so the
+   * cost is trivial — but they DO multiply across list items, which is why the
+   * default is not simply set to 30.
+   */
   steps?: number;
   /** Base colour as an "r, g, b" triplet. Defaults to the app's slate-900. */
   rgb?: string;
@@ -50,7 +63,7 @@ const ease = (t: number): number => t * t;
 export default function ImageScrim({
   height = 0.45,
   strength = 0.72,
-  steps = 10,
+  steps = 18,
   rgb = '15, 23, 42',
 }: ImageScrimProps) {
   const bands = useMemo(() => {

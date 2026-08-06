@@ -19,6 +19,7 @@ import InfluenceMeter from '../components/InfluenceMeter';
 import VerifiedBadge from '../components/VerifiedBadge';
 import EmptyState from '../components/EmptyState';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageScrim from '@/components/ui/ImageScrim';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, PulseComment } from '@/contexts/game/types';
@@ -125,7 +126,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             style={styles.coverImg}
           />
         )}
-        <View pointerEvents="none" style={styles.coverScrim} />
+        <ImageScrim height={0.5} strength={0.7} steps={28} />
       </View>
 
       {/* Avatar + identity */}
@@ -361,16 +362,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: COVER_HEIGHT,
   },
-  // Bottom-anchored scrim over the lower half of the cover (the transparent→dark
-  // gradient rendered as nothing under the fallback, since colors[0] is clear).
-  coverScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: COVER_HEIGHT / 2,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-  },
+  // (the flat `coverScrim` half-cover band is gone — see ImageScrim above)
   identityWrap: {
     paddingHorizontal: responsiveSpacing.lg,
     marginTop: -AVATAR_SIZE / 2,
