@@ -29,13 +29,31 @@ cannot create repositories — `POST /user/repos` returns
 - `app-ads.txt` — the authorized-sellers line. Publisher id `pub-2286247955186424`
   matches `admobIosAppId` / `admobAndroidAppId` in `app.config.js`.
 - `index.html` — redirects the bare root to the support site, so it isn't blank.
+- `publish.sh` — creates the repo and pushes both files in one command.
+
+`__tests__/monetization/appAdsTxt.test.ts` keeps the three copies of
+`app-ads.txt` in this repo byte-identical and pinned to the publisher id in
+`app.config.js`, so the file can't quietly drift into authorizing the wrong
+seller once it is live.
 
 It takes ~1 minute.
 
-## Publish (copy-paste, needs the `gh` CLI logged in as Wrexist)
+## Publish — one command (needs the `gh` CLI logged in as Wrexist)
 
 ```bash
-# from a clone of DeepLifeSimulator, in this folder:
+# from a clone of DeepLifeSimulator:
+./user-pages/publish.sh
+```
+
+It derives the repo name from your `gh` login (the name must be exactly
+`<login>.github.io` or the root still 404s), creates the repo if it is missing,
+pushes `app-ads.txt` + `index.html`, then polls the live URL until it serves.
+Safe to re-run — an existing repo is updated, not replaced.
+
+GitHub auto-publishes `<user>.github.io` repos from `main`, so there are no Pages
+settings to flip. If you'd rather do it by hand:
+
+```bash
 cd user-pages
 gh repo create wrexist.github.io --public --disable-issues --disable-wiki
 git init -b main
@@ -43,12 +61,7 @@ git add app-ads.txt index.html
 git commit -m "User Pages site: app-ads.txt for AdMob"
 git remote add origin https://github.com/Wrexist/wrexist.github.io.git
 git push -u origin main
-```
 
-GitHub auto-publishes `<user>.github.io` repos from `main` — no Pages settings
-needed. Within a minute:
-
-```bash
 curl -sS https://wrexist.github.io/app-ads.txt
 # → google.com, pub-2286247955186424, DIRECT, f08c47fec0942fa0
 ```
