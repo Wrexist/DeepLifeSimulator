@@ -414,20 +414,38 @@ never had: a channel the player must judge rather than just read.
       restoring it rewound the market alongside the player — rewind to before
       the crash, trade a window you already watched. The position itself is
       `cryptos[].owned` and is untouched. Save 914 KB -> **744 KB (-19%)**.
-- [ ] **Remaining, and it needs a decision.** Checkpoints are still 77% of the
-      save. The options, measured:
-        - **Strip `mail`** — biggest single win left (~39 KB/snapshot, ~195 KB
-          total) but it has a gameplay cost: `pendingEvents` is NOT stripped, so
-          a routed letter-event would survive a rewind with nowhere to render,
-          invisible in both surfaces until `applyMailLapse` hands it back at its
-          deadline. Fixable by resetting routed events to `channel: 'modal'` on
-          restore, which is real work rather than a one-liner.
-        - **`MAX_CHECKPOINTS` 5 -> 3** — mechanical, ~230 KB, costs the player
-          two rewind targets.
-        - **Compress snapshots** — strictly the best outcome and no gameplay
-          trade at all, but there is no compression library in the project
-          (CLAUDE.md 4.5 lists `utils/saveCompression.ts`; it does not exist),
-          so it means adding a dependency.
+- [x] **Stripped `mail`** (~39 KB/snapshot, the largest single field) and
+      **`jailActivities`** (4.2 KB, verified catalogue-only). Mail needed a fix
+      to be safe: `pendingEvents` is NOT stripped, so a routed letter-event
+      came back with no inbox to render it in — invisible in both surfaces
+      until it lapsed. `rewindToCheckpoint` now clears `channel` on restored
+      mail-routed events, handing them to `WeeklyEventModal`. Break-tested.
+- [x] **`MAX_CHECKPOINTS` 5 -> 3.** `getRewindCost` doubles per use in a life
+      (500 / 1,000 / 2,000), so targets 4 and 5 cost 8,000 and 16,000 gems —
+      more than reviving outright. They were unreachable at ~100 KB each.
+- [x] **Result: 914 KB -> 434 KB (-53%).** Checkpoints 743 KB -> 264 KB.
+- [ ] **Compression: NOT done, and I do not think it should be.** It was on the
+      list, but after a 53% cut the remaining delta does not justify what it
+      costs: a new dependency, and a discriminator in the save format because
+      `CheckpointSnapshot` already allows a plain-JSON `string` for legacy
+      saves — compressed strings would be indistinguishable from those without
+      one. That is save-format surface area in a PR already at 313 files.
+      Worth revisiting as its own change if the save grows again.
+- [ ] **Stripping stops here.** The next two by size are NOT safe, and the
+      field names do not say so: `streetJobs` (8.5 KB) carries `progress`, and
+      `darkWebItems` (2.8 KB) carries `owned`. Both are in `repairGameState`'s
+      `catalogArrays`, which restores them WHOLESALE from defaults when absent,
+      so stripping either would reset crime progress or repossess purchases on
+      every rewind. Pinned by a test.
+- [ ] **LATENT SAVE BUG found on the way, not fixed.** That same
+      `catalogArrays` list treats `streetJobs`, `darkWebItems` and `dietPlans`
+      as pure catalogues, but they carry `progress`, `owned` and `active`. Any
+      save that loses one entirely gets it replaced from defaults and logged as
+      "Restored missing X catalog from defaults" — silent progress loss
+      reported as a successful repair. Narrow (needs the whole array missing)
+      but real. The trade is genuine: the alternative is `validateGameEntry`
+      rejecting the save and locking the player out, which is what this code
+      was written to fix. Worth an owner decision rather than a quiet change.
 - [ ] **Also found, not addressed:** `careers` is 13.6 KB and `streetJobs` 8.5 KB
       inside every snapshot, because `initialState` seeds the full CATALOGUE
       into the save and mixes per-career progress into it. That is a structural

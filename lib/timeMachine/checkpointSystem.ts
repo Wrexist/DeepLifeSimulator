@@ -11,7 +11,20 @@ import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
-export const MAX_CHECKPOINTS = 5;
+/**
+ * How many rewind targets a life keeps.
+ *
+ * Five, until the save was measured: each snapshot is most of a copy of the
+ * game state, so five of them were 81% of a 914 KB file. Three is a 40% cut in
+ * the single largest thing in the save.
+ *
+ * Three is also enough for the feature as priced. `getRewindCost` doubles per
+ * use within a life — 500, 1,000, 2,000 — so a fourth and fifth target cost
+ * 8,000 and 16,000 gems, more than reviving outright at `REVIVE_GEM_COST`.
+ * They were targets almost nobody could reach the price of, kept at roughly
+ * 100 KB each.
+ */
+export const MAX_CHECKPOINTS = 3;
 export const BASE_REWIND_COST = 500;
 export const COST_MULTIPLIER = 2;
 
@@ -65,15 +78,48 @@ export interface Checkpoint {
  * an absent slice is restored to a valid default on load — the same mechanism
  * `eventLog` already relies on.
  *
- * NOT on the list, deliberately: `mail`. It is the single largest field in a
- * snapshot (~39 KB) and dropping it would be the biggest remaining win, but
- * mail now carries decisions with deadlines. `pendingEvents` is NOT stripped,
- * so a routed letter-event would survive the rewind with nowhere to render —
- * invisible in both surfaces until `applyMailLapse` hands it back at its
- * deadline. That is a gameplay cost, not a cosmetic one, so it is a decision
- * for the owner rather than a saving to take quietly.
+ * ## Why `mail` is on the list, and what had to be fixed to put it there
+ *
+ * The largest field in a snapshot — ~39 KB of 170 KB. Mail is a paper trail:
+ * payslips, statements and receipts about weeks the rewind is undoing anyway,
+ * so restoring them would reinstate documents describing a history that no
+ * longer happened.
+ *
+ * The catch is that mail also carries DECISIONS with deadlines, and
+ * `pendingEvents` is not stripped. A routed letter-event would therefore
+ * survive the rewind with no inbox to render it in — invisible in both
+ * surfaces until `applyMailLapse` handed it back at its deadline, which is the
+ * exact silent failure `lib/events/routing.ts` was written to prevent.
+ *
+ * So `rewindToCheckpoint` now clears `channel` on any restored mail-routed
+ * event, handing it to `WeeklyEventModal` instead. Stripping mail without that
+ * would have traded 39 KB for a decision the player can never make.
+ *
+ * ## `jailActivities`, and where the stripping stops
+ *
+ * Pure catalogue — id, name, description, costs and gains, no player state —
+ * and `repairGameState` lists it in `catalogArrays`, so it is re-seeded from
+ * `initialGameState` on restore. Free to drop.
+ *
+ * The next two by size are NOT, and the difference is worth stating because it
+ * is invisible from the field name:
+ *
+ *   - `streetJobs` (8.5 KB) carries `progress` — rank progress toward the next
+ *     tier of each job.
+ *   - `darkWebItems` (2.8 KB) carries `owned` — items bought with BTC.
+ *
+ * Both look like catalogues and both sit in `repairGameState`'s `catalogArrays`
+ * list, which restores them WHOLESALE from defaults when absent. Stripping
+ * either would have quietly reset the player's crime progress or repossessed
+ * their purchases on every rewind, and reported it as a successful repair.
+ * `achievements` and `dietPlans` (`active`) have the same shape.
  */
-const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog', 'cryptoMarket'] as const;
+const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = [
+  'eventLog',
+  'cryptoMarket',
+  'mail',
+  'jailActivities',
+] as const;
 const CHECKPOINT_STRIPPED_SOCIAL_KEYS = ['recentPosts', 'notifications', 'commentThreads'] as const;
 
 /**
@@ -271,6 +317,24 @@ export function rewindToCheckpoint(
     restored.showDeathPopup = false;
     restored.deathReason = undefined;
     restored.showZeroStatPopup = false;
+
+    // ── Hand mail-routed events back to the modal ────────────────────────
+    // `mail` is stripped from snapshots (see CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS)
+    // but `pendingEvents` is NOT, so a letter-event restored here has a
+    // decision and no inbox to render it in. Left alone it would be invisible
+    // in BOTH surfaces until `applyMailLapse` handed it back at its deadline —
+    // the exact silent failure `lib/events/routing.ts` exists to prevent.
+    //
+    // Clearing `channel` returns it to `WeeklyEventModal`, which is where it
+    // would have appeared if mail did not exist. The deadline goes too: a
+    // letter's expiry is meaningless once there is no letter, and leaving it
+    // would let `expiredMailEvents` re-lapse an event the player can already
+    // see.
+    if (Array.isArray(restored.pendingEvents)) {
+      restored.pendingEvents = restored.pendingEvents.map((e) =>
+        e && e.channel === 'mail' ? { ...e, channel: 'modal' as const, expiresAtWeek: undefined } : e
+      );
+    }
 
     logger.info(`[TIME_MACHINE] Rewound to checkpoint "${checkpoint.label}" (cost: ${cost} gems)`);
     return restored;
