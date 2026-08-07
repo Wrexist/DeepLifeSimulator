@@ -169,20 +169,48 @@ export function appendMessages(
 }
 
 /**
- * The player's own address, derived from their name.
+ * The character's display name.
  *
- * Derived rather than stored-on-creation so an existing save gets a sensible
- * one the first time mail is opened, instead of a blank From line.
+ * `userProfile.name` is NOT it — that is a handle, and it defaults to "player".
+ * The name the game shows is `firstName` + `lastName`, resolved exactly the way
+ * `IdentityCard` resolves it. Reading the wrong field addressed every message
+ * to `player@deepmail.com` and opened the welcome with "Hi player", which is
+ * the sort of thing that makes a whole feature feel unfinished.
+ *
+ * Exported so the address and the greeting cannot drift apart.
+ */
+export function characterName(state: GameState | null | undefined): string {
+  const profile = state?.userProfile;
+  return (
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') ||
+    profile?.name ||
+    ''
+  ).trim();
+}
+
+/**
+ * The player's own address.
+ *
+ * DERIVED every time, never trusted from storage. It was stored once on first
+ * generation, which meant a save that had already stamped the fallback
+ * (`player@deepmail.com`, from reading the handle instead of the character
+ * name) kept it forever — the fix for the name bug would have shipped and
+ * changed nothing for anyone already playing.
+ *
+ * Deriving is also just more correct: on prestige the character changes, and a
+ * new character should not inherit the previous one's address. There is nothing
+ * to keep stable here, so there is nothing worth the storage.
  */
 export function deriveAddress(state: GameState | null | undefined): string {
-  const stored = getMailState(state).address;
-  if (stored) return stored;
-  const name = (state?.userProfile?.name || '').trim();
+  const name = characterName(state);
   const slug = name
     .toLowerCase()
     .replace(/[^a-z\s]/g, '')
     .split(/\s+/)
     .filter(Boolean)
     .join('.');
-  return `${slug || 'me'}@deepmail.com`;
+  // Only fall back to a stored address when there is no name to derive from —
+  // a degraded save, mid-migration.
+  return slug ? `${slug}@deepmail.com` : getMailState(state).address || 'me@deepmail.com';
 }
+

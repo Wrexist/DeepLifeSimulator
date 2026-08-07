@@ -11,7 +11,7 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { generateWeeklyMail, MAX_MESSAGES_PER_WEEK } from '@/lib/mail/generate';
 import { applyMail } from '@/contexts/game/actions/weekly/applyMail';
-import { appendMessages, getMailState, MAX_MAIL_MESSAGES } from '@/lib/mail/state';
+import { appendMessages, deriveAddress, getMailState, MAX_MAIL_MESSAGES } from '@/lib/mail/state';
 import type { GameState, MailMessage } from '@/contexts/game/types';
 
 const salariedAt = (week: number): GameState =>
@@ -247,5 +247,46 @@ describe('mail — gates that must not be dead', () => {
       state = next.state ?? state;
     }
     expect(getMailState(state).messages.filter((m) => m.id.startsWith('mail-welcome'))).toHaveLength(1);
+  });
+});
+
+describe('mail — addressed to the right person', () => {
+  /**
+   * `userProfile.name` is a HANDLE and defaults to "player". The character's
+   * name is `firstName` + `lastName`, which is what `IdentityCard` shows. Both
+   * the address and the greeting read the wrong one, so every message went to
+   * `player@deepmail.com` and the welcome opened "Hi player". Found by opening
+   * the drawer and reading the From line.
+   */
+  it('derives the address from the character, not the handle', () => {
+    const state = createTestGameState({});
+    state.userProfile = {
+      ...state.userProfile,
+      name: 'player',
+      firstName: 'Thomas',
+      lastName: 'White',
+    };
+    expect(deriveAddress(state)).toBe('thomas.white@deepmail.com');
+  });
+
+  it('greets the character by their first name', () => {
+    const state = createTestGameState({ weeksLived: 104 });
+    state.userProfile = {
+      ...state.userProfile,
+      name: 'player',
+      firstName: 'Thomas',
+      lastName: 'White',
+    };
+    const welcome = generateWeeklyMail({ state, week: 105, facts: {} }).find((m) =>
+      m.id.startsWith('mail-welcome')
+    );
+    expect(welcome!.body).toContain('Hi Thomas');
+    expect(welcome!.body).not.toContain('Hi player');
+  });
+
+  it('falls back to the handle when no character name is set', () => {
+    const state = createTestGameState({});
+    state.userProfile = { ...state.userProfile, name: 'nova', firstName: undefined, lastName: undefined };
+    expect(deriveAddress(state)).toBe('nova@deepmail.com');
   });
 });

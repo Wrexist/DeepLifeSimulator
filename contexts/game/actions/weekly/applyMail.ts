@@ -17,7 +17,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { generateWeeklyMail } from '@/lib/mail/generate';
 import type { MailFacts } from '@/lib/mail/types';
-import { appendMessages, deriveAddress, getMailState } from '@/lib/mail/state';
+import { appendMessages, getMailState } from '@/lib/mail/state';
 
 export interface ApplyMailInput {
   state: GameState;
@@ -54,9 +54,9 @@ export function applyMail(input: ApplyMailInput): ApplyMailResult {
     state: {
       ...input.state,
       mail: {
+        ...mail,
         messages: nextMessages,
         lastGeneratedWeek: week,
-        address: mail.address ?? deriveAddress(input.state),
       },
     },
     delivered: nextMessages === mail.messages ? 0 : nextMessages.length - mail.messages.length,

@@ -21,7 +21,7 @@
 import type { GameState, MailMessage } from '@/contexts/game/types';
 import { SENDERS } from './senders';
 import { docDate, docMoney, docPercent, docReference, docWhole } from './format';
-import { getMailState } from './state';
+import { characterName, getMailState } from './state';
 import type { MailContext, MailTemplate } from './types';
 
 /** Weeks in a pay period. Four is the game's own month. */
@@ -95,7 +95,7 @@ const welcome: MailTemplate = (ctx) => {
   //
   // "The inbox is empty" is also just what the message means.
   if (getMailState(ctx.state).messages.length > 0) return null;
-  const name = (ctx.state.userProfile?.name || 'there').split(' ')[0];
+  const name = characterName(ctx.state).split(' ')[0] || 'there';
   return compose(ctx, SENDERS.security, {
     idSuffix: 'welcome',
     subject: 'Welcome to DeepMail',

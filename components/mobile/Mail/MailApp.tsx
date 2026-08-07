@@ -54,7 +54,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { shallowEqual, useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/GameContext';
 import { getThemeColors } from '@/lib/config/theme';
-import { getMailState, unreadByCategory, unreadCount } from '@/lib/mail/state';
+import { deriveAddress, getMailState, unreadByCategory, unreadCount } from '@/lib/mail/state';
 import { scamRisk } from '@/lib/mail/scam';
 import { protections } from '@/lib/mail/security';
 import { docMoney } from '@/lib/mail/format';
@@ -124,6 +124,11 @@ function MailAppInner({ onBack }: Props) {
   // is actually there — see the note on `MailDetail`'s `pillClearance`.
   const decisionPending = useGameSelector((s) => (s?.pendingEvents?.length ?? 0) > 0);
   const currentWeek = useGameSelector((s) => s?.weeksLived ?? 0);
+  // The From line. Derived from the CHARACTER, so it follows a prestige into
+  // the next life instead of carrying the previous one's name. Selected as a
+  // string rather than by passing `userProfile` through `getMailState`, which
+  // would re-render this screen on every profile field that changes.
+  const address = useGameSelector((st) => deriveAddress(st));
   const pillClearance = decisionPending ? scale(110) : 0;
 
   const theme = getThemeColors(darkMode);
@@ -419,7 +424,7 @@ function MailAppInner({ onBack }: Props) {
         >
           <TouchableOpacity activeOpacity={1} style={[s.drawer, { paddingTop: insets.top + scale(12) }]}>
             <Text style={s.drawerTitle}>DeepMail</Text>
-            <Text style={s.drawerAddress}>{state.address ?? 'me@deepmail.com'}</Text>
+            <Text style={s.drawerAddress}>{address}</Text>
 
             {FOLDERS.map(({ key, label, Icon }) => {
               const active = key === folder;
