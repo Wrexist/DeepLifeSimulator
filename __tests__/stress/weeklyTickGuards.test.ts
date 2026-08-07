@@ -88,6 +88,12 @@ describe('every apply* call in the weekly tick is guarded', () => {
     'applyEconomicEvent',
     'applyWeeklyEvents',
     'applyLifeMoment',
+    // Added with the rental/arrears feature after the original thirteen. It
+    // landed running bare under the outer catch (it routes everything through
+    // `safe()` so it could not throw, but "cannot throw today" is exactly the
+    // assumption a future edit breaks). Guarded in the 2026-08-07 weekly audit;
+    // pinned here so it stays that way.
+    'applyArrears',
   ];
 
   it.each(PREVIOUSLY_UNGUARDED)('%s runs inside a guard', (helper) => {

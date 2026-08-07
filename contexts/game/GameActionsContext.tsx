@@ -1012,10 +1012,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
  const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
- const arrears = applyArrears({
-   availableCash: currentMoney + totalIncome + housingRentalIncome,
+ const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome;
+ // Guarded like every other weekly subsystem (§4.3). It routes all inputs
+ // through `safe()` and only touches Math.min/max/round, so it cannot throw
+ // today — but this loop's outer catch returns `prevState`, so an unguarded
+ // throw here would cost the whole week rather than one subsystem. The fallback
+ // is the honest "arrears did nothing this week": pay what cash allows and
+ // forgive the rest (the pre-arrears cash line), carrying the prior balance
+ // unchanged rather than inventing new debt or clearing standing debt.
+ const arrears = guardTick('arrears', () => applyArrears({
+   availableCash: arrearsAvailableCash,
    billsDue: weeklyBillsDue,
    previousOverdue: prevState.overdueBalance,
+ }), {
+   cashAfter: Math.max(0, Math.round(arrearsAvailableCash - weeklyBillsDue)),
+   overdueBalance: Math.max(0, Math.round(prevState.overdueBalance ?? 0)),
+   paidTowardOverdue: 0,
+   newShortfall: 0,
+   surcharge: 0,
+   creditScoreDelta: 0,
  });
  const cashBeforeLoans = arrears.cashAfter;
  if (arrears.newShortfall > 0) {

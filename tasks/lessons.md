@@ -927,3 +927,33 @@ reaches the same state, not just the one in front of you.** A counter stored on
 a record is only as durable as the record — any code that rebuilds or discards
 that record is a second copy of the exploit. Grep every writer/deleter of the
 field the invariant depends on before calling it closed.
+
+## 2026-08-07 — a new weekly subsystem landed outside the guard, again
+
+Weekly audit. Static layer + every dynamic backstop green (economy 522,
+save/startup 331, money-conservation clean, type-check clean); the deep logic
+pass found the one real thing. `applyArrears` — the settlement reducer added
+with the rental/arrears feature — was called bare at `GameActionsContext.tsx`,
+the ONE weekly `apply*` not inside `guardTick`. It routes every input through
+`safe()` and only touches `Math.min/max/round`, so it cannot throw *today* — but
+the tick's outer catch returns `prevState`, so an unguarded throw there costs the
+whole week (a soft-lock that presents as a dead "Next Week" button). "Cannot
+throw today" is exactly the assumption the next edit breaks.
+
+This is the same class §4.3 and this file already record five times over (the
+last was `trackBudgetSpend`, 2026-07-07): the failure mode is FORGETTING to wrap,
+not mis-handling. `weeklyTickGuards.test.ts` proves coverage by reading the tick
+source — but only for the historical thirteen it enumerates, so a fourteenth
+subsystem added later slips straight past it.
+
+Fix: wrap `applyArrears` in `guardTick('arrears', …)` with an honest fallback
+("did nothing this week": pay what cash allows, carry the prior balance
+unchanged, book no new debt or surcharge), and add `applyArrears` to the
+coverage list so the test now pins it too.
+
+**The generalisable lesson: a coverage test that hard-codes a historical list
+does not cover what lands after it was written.** When the guarantee is "every X
+is guarded", the check must enumerate every X in the source, not a snapshot of
+the ones that existed the day the test was authored — otherwise the guard rots
+one new subsystem at a time, which is precisely how the original thirteen
+accumulated.
