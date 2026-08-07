@@ -8,12 +8,29 @@ fails to bundle.
 
 So these are upgrades, not blockers. Generate what you want, drop it in, wire it.
 
-> **Status:** asset 1 has not been generated. It was attempted through the
-> connected image tool and refused — the workspace is on a free plan with 1.68
-> credits, which does not cover a generation. The drawn hero was tightened in
-> the meantime (inset stone face, crack, tapering three-layer wisp, moss tufts,
-> the white flower), but it is a stand-in for the prompt below, not a
-> substitute for it. Top up the workspace or run the prompt in any image tool.
+> **Status — 2026-08-07: four candidates for asset 1 exist, and they are not in
+> this repo.**
+>
+> Generated on Higgsfield with `z_image`, 16:9, 2048 × 1152, 0.15 credits each
+> (0.60 total; `nano_banana_pro` wanted 2.00 against a 1.68 balance, which is
+> why the first attempt failed outright). Job ids:
+>
+> ```
+> c3ba8e11-6b9e-435a-814f-e44f943f89f9
+> 66fbdab6-e291-4305-bafb-d28a0ebc16df
+> 16a82deb-d3ab-4092-a1af-4ec530f2023b
+> fa5df7ab-f425-4b93-9cc4-42999e41ad91
+> ```
+>
+> They could not be pulled into the container: this environment's network
+> policy denies `d8j0ntlcm91z4.cloudfront.net` (403 on CONNECT, for both curl
+> and headless Chromium), so nobody has inspected them — **check the no-text
+> constraint before using one**, since a carved epitaph is the failure this
+> prompt guards against hardest and the one models most like to add anyway.
+>
+> Until one is dropped in, the drawn hero stands: inset stone face, crack,
+> tapering three-layer wisp, moss tufts, the white flower. It is a stand-in for
+> the prompt below, not a substitute for it.
 
 ---
 
