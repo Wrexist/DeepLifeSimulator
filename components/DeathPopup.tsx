@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { useGame } from '@/contexts/GameContext';
-import { useGemStore } from '@/contexts/GemStoreContext';
+import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
+import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem, ChevronRight } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
@@ -153,7 +154,25 @@ function DeathPopup() {
     };
   }, [fadeAnim, scaleAnim]);
 
-  const checkpoints = useMemo(() => gameState.checkpoints ?? [], [gameState.checkpoints]);
+  /**
+   * Rewind targets.
+   *
+   * "Before Death" is filtered out. It is no longer created (see
+   * `applyAutoCheckpoint`), but every save written before that change still
+   * carries one, and offering it would keep the exploit alive for exactly the
+   * players who already have it: a 500-gem rewind that returns a living
+   * character one week older, which is what Revive charges thousands for and
+   * what the $2.99 Revival Pack sells.
+   *
+   * Filtered rather than migrated away. The snapshot is harmless sitting in the
+   * save, it rotates out of the 5-slot ring on its own as year checkpoints
+   * accumulate, and deleting player data to fix a pricing mistake is a trade
+   * worth not making.
+   */
+  const checkpoints = useMemo(
+    () => (gameState.checkpoints ?? []).filter((cp) => cp?.label !== 'Before Death'),
+    [gameState.checkpoints]
+  );
   const rewindCost = useMemo(() => {
     try {
       const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
@@ -245,6 +264,11 @@ function DeathPopup() {
   const pendingStoreRef = useRef(false);
   const storeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Which store tab the pending bridge should land on. A ref rather than state
+  // because `flushPendingStore` is also the Modal's `onDismiss` handler, which
+  // must stay callable with no arguments.
+  const pendingStoreTabRef = useRef<GemStoreTab>('gems');
+
   const flushPendingStore = useCallback(() => {
     if (!pendingStoreRef.current) return;
     pendingStoreRef.current = false;
@@ -252,20 +276,40 @@ function DeathPopup() {
       clearTimeout(storeTimerRef.current);
       storeTimerRef.current = null;
     }
-    openStore('gems');
+    openStore(pendingStoreTabRef.current);
   }, [openStore]);
 
   // Quiet bridge for the out-of-gems dead-ends: flip suppression + arm the
   // fallback so the death Modal dismisses, THEN the store opens. Never
   // auto-invoked — only fired by an explicit tap.
-  const bridgeToStore = useCallback(() => {
-    pendingStoreRef.current = true;
-    setStoreBridging(true);
-    if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
-    storeTimerRef.current = setTimeout(flushPendingStore, 600);
-  }, [flushPendingStore]);
+  const bridgeToStore = useCallback(
+    (tab: GemStoreTab = 'gems') => {
+      pendingStoreTabRef.current = tab;
+      pendingStoreRef.current = true;
+      setStoreBridging(true);
+      if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
+      storeTimerRef.current = setTimeout(flushPendingStore, 600);
+    },
+    [flushPendingStore]
+  );
 
-  const handleGetMoreGems = useCallback(() => bridgeToStore(), [bridgeToStore]);
+  const handleGetMoreGems = useCallback(() => bridgeToStore('gems'), [bridgeToStore]);
+
+  /**
+   * Buy the Revival Pack with real money.
+   *
+   * Lands on the `perks` tab, where the pack lives. It deliberately does NOT
+   * run the purchase inline: `GemShopModal` owns the whole flow — store
+   * loading, localized pricing, receipt verification, entitlement grant,
+   * restore — and a second copy of that on the death screen would be a second
+   * set of rules for taking someone's money.
+   *
+   * Buying while dead banks the charge (`revivalPack: true`), so the death
+   * screen re-presents with "Use Revival Pack" waiting at the top. That is the
+   * same one-shot machinery the pack has always used, reached from the one
+   * place it was never reachable from.
+   */
+  const handleBuyRevivalPack = useCallback(() => bridgeToStore('perks'), [bridgeToStore]);
 
   // Re-present the death Modal once the store closes. The bridge flag is cleared
   // only when the store is DOWN, so `visible` never flickers true mid-bridge.
@@ -488,6 +532,11 @@ function DeathPopup() {
 
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
   const hasBankedRevive = gameState.revivalPack === true;
+
+  // The config USD price. The live localized price lives in the store modal —
+  // this is the death screen's label, and a missing config price hides the row
+  // rather than rendering a purchase button with no price on it.
+  const revivalPackPrice = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 
@@ -992,6 +1041,44 @@ function DeathPopup() {
                       </Text>
                     </View>
                   </TouchableOpacity>
+
+                  {/* ── Revive with real money ──────────────────────────────
+                      Shown only while the pack can still be bought. It is a
+                      NON-CONSUMABLE, so it is purchasable exactly once per
+                      Apple/Google account, ever — after that the row would be
+                      a button that cannot do anything, which is worse than no
+                      row. (Making it repeatable is a store-side product change,
+                      not a code one.)
+
+                      It says the price is better than the gem route because it
+                      is: the pack is a few dollars and REVIVE_GEM_COST is
+                      thousands of gems. A death screen that hid that while
+                      showing the expensive option first would be taking
+                      advantage of the moment. */}
+                  {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                    <TouchableOpacity
+                      style={[styles.optionRow, styles.optionRevive]}
+                      onPress={handleBuyRevivalPack}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
+                    >
+                      <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                        <Heart size={20} color="#F472B6" fill="#F472B6" />
+                      </View>
+                      <View style={styles.optionText}>
+                        <Text style={styles.optionTitle}>Revival Pack</Text>
+                        <Text style={styles.optionSubtitle}>
+                          Revive without spending gems. One-time purchase.
+                        </Text>
+                      </View>
+                      <View style={[styles.optionPill, styles.optionPillRevive]}>
+                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                          {revivalPackPrice}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
 
                   {/* The store bridge. No urgency copy, and the store is still
                       never opened automatically — this is a row you can tap,

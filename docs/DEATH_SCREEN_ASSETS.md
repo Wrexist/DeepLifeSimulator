@@ -8,6 +8,13 @@ fails to bundle.
 
 So these are upgrades, not blockers. Generate what you want, drop it in, wire it.
 
+> **Status:** asset 1 has not been generated. It was attempted through the
+> connected image tool and refused — the workspace is on a free plan with 1.68
+> credits, which does not cover a generation. The drawn hero was tightened in
+> the meantime (inset stone face, crack, tapering three-layer wisp, moss tufts,
+> the white flower), but it is a stand-in for the prompt below, not a
+> substitute for it. Top up the workspace or run the prompt in any image tool.
+
 ---
 
 ## How to wire one once it is generated

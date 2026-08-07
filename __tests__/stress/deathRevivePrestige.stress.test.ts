@@ -5,7 +5,7 @@
  *
  *   - Death by health=0 after 4 zero-weeks
  *   - Death by happiness=0 after 4 zero-weeks
- *   - Revive with sufficient gems (resurrects + deducts 15K gems + clears flags)
+ *   - Revive with sufficient gems (resurrects + deducts REVIVE_GEM_COST + clears flags)
  *   - Revive without gems (no-op, state unchanged)
  *   - executePrestige('reset') after some progress (age, weeksLived reset)
  *   - executePrestige('child', childId) when a heir-eligible child exists
@@ -233,7 +233,7 @@ describe('Death → Revive → Prestige cycle', () => {
   });
 
   // ── REVIVE ──────────────────────────────────────────────────────────────
-  it('Revive: with sufficient gems restores stats and deducts 15K gems', () => {
+  it('Revive: with sufficient gems restores stats and deducts the revive cost', () => {
     mounted = mountGame();
     seedDead('health', 20000);
     expect(captured!.state.showDeathPopup).toBe(true);
@@ -245,7 +245,7 @@ describe('Death → Revive → Prestige cycle', () => {
     expect(captured!.state.stats.health).toBe(100);
     expect(captured!.state.stats.happiness).toBe(100);
     expect(captured!.state.stats.energy).toBe(100);
-    expect(captured!.state.stats.gems).toBe(20000 - 15000);
+    expect(captured!.state.stats.gems).toBe(20000 - REVIVE_GEM_COST);
     expect(captured!.state.healthZeroWeeks).toBe(0);
     expect(captured!.state.happinessZeroWeeks).toBe(0);
     assertClean('revive with gems');
@@ -265,9 +265,12 @@ describe('Death → Revive → Prestige cycle', () => {
     assertClean('revive without gems');
   });
 
-  it('Revive: exact-15K gems revives and leaves 0 gems', () => {
+  it('Revive: an exact balance revives and leaves 0 gems', () => {
     mounted = mountGame();
-    seedDead('health', 15000);
+    // Seeded from the constant, not a literal — the point of this case is the
+    // boundary (`gems === cost`), which a hard-coded 15000 stopped testing the
+    // moment the price moved.
+    seedDead('health', REVIVE_GEM_COST);
 
     act(() => { captured!.reviveCharacter(); });
 
@@ -284,7 +287,7 @@ describe('Death → Revive → Prestige cycle', () => {
      * re-check passed the second time (30,000 -> 15,000 -> 0) because nothing
      * re-checked that the character was still dead.
      *
-     * REVIVE_GEM_COST is 15,000 and the 15,000-gem pack retails at $49.99, so
+     * The 15,000-gem pack retails at $49.99, so at the old 15,000 cost
      * this cost a player real money for one revive.
      */
     mounted = mountGame();

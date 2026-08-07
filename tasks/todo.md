@@ -574,3 +574,24 @@ Owner supplied a mockup. Differences from what ships today, top to bottom:
       than a missing X. Flagged for the owner rather than guessed at.
 - [x] Rule #7: every card gets a full four-sided border, never a side stripe.
       `scale()`/`fontScale()` throughout, no raw pixels.
+
+### Death screen — economy + IAP (2026-08-07, owner follow-up)
+- [x] `REVIVE_GEM_COST` 15,000 → 5,000 (owner's number). Help copy now reads the
+      constant instead of quoting "15,000 gems" as a literal.
+- [x] "Before Death" checkpoint removed. A 500-gem rewind to it handed back a
+      living character one week older — what Revive charges thousands for and
+      what the $2.99 pack sells. Creation removed AND filtered from the death
+      screen so existing saves lose the exploit too.
+- [x] Revival Pack row added to the death screen, bridging to the `perks` tab.
+- [ ] **OWNER ACTION — the Revival Pack is a NON-CONSUMABLE.** It can be bought
+      once per Apple/Google account, ever. "Revive with real money" therefore
+      works exactly once per player, and the row hides itself afterwards rather
+      than showing a button that cannot fire. Making it repeatable means
+      changing the product type in App Store Connect and Play Console, plus
+      moving it to `CONSUMABLE_PRODUCTS` in `utils/iapConfig.ts` and dropping
+      it from the restore carve-out in `services/IAPService.ts`. Not done —
+      changing a live product's type is a store decision with billing
+      consequences.
+- [ ] **OWNER ACTION — the hero image is still not generated.** The image tool
+      refused: free plan, 1.68 credits. Prompt is ready in
+      `docs/DEATH_SCREEN_ASSETS.md`; wiring it is one prop.

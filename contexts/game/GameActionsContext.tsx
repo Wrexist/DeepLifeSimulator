@@ -3013,14 +3013,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
 : prevState.legacyPass,
  // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
- // ./actions/weekly/applyAutoCheckpoint.ts. Same year-boundary gate
- // (with `Age <N>` label), same pre-death snapshot using prevState
- // UNMODIFIED, same try/catch swallow.
+ // ./actions/weekly/applyAutoCheckpoint.ts. Year-boundary gate only now
+ // (with `Age <N>` label) — the pre-death snapshot was removed, so this no
+ // longer needs to know whether the player died this tick.
 ...applyAutoCheckpoint({
    prevState,
    newStats,
    nextWeeksLived,
-   newShowDeathPopup,
  }).partial,
  };
 

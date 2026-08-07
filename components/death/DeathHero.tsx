@@ -73,8 +73,8 @@ function DeathHero({ source, height, mood = 'poor' }: Props) {
     );
   }
 
-  const stoneHeight = height * 0.62;
-  const stoneWidth = stoneHeight * 0.72;
+  const stoneHeight = height * 0.6;
+  const stoneWidth = stoneHeight * 0.74;
 
   return (
     <View style={s.band} accessibilityRole="image" accessibilityLabel="A lit gravestone">
@@ -102,11 +102,14 @@ function DeathHero({ source, height, mood = 'poor' }: Props) {
         />
       ))}
 
-      {/* The wisp — a soft column of light rising to the right of the stone. */}
-      <View style={[s.wisp, { height: stoneHeight * 0.9, right: '26%' }]} />
-      <View style={[s.wisp, s.wispInner, { height: stoneHeight * 0.6, right: '27.5%' }]} />
+      {/* The wisp — three tapering columns, widest at the base, so it reads as
+          flame rising rather than as a bar of light. */}
+      <View style={[s.wisp, { height: stoneHeight * 0.86, width: scale(13), right: '25%' }]} />
+      <View style={[s.wisp, { height: stoneHeight * 0.62, width: scale(8), right: '26.4%', opacity: 0.5 }]} />
+      <View style={[s.wisp, s.wispInner, { height: stoneHeight * 0.36, right: '27.6%' }]} />
 
-      {/* Headstone: a rounded-top slab. */}
+      {/* Headstone: a rounded-top slab, with a lighter inner face so the edge
+          reads as carved depth instead of a flat rectangle. */}
       <View
         style={[
           s.stone,
@@ -118,11 +121,43 @@ function DeathHero({ source, height, mood = 'poor' }: Props) {
           },
         ]}
       >
-        <Skull size={stoneWidth * 0.42} color="#0B0F16" strokeWidth={1.6} />
+        <View
+          style={[
+            s.stoneFace,
+            {
+              width: stoneWidth * 0.82,
+              height: stoneHeight * 0.88,
+              borderTopLeftRadius: stoneWidth / 2,
+              borderTopRightRadius: stoneWidth / 2,
+            },
+          ]}
+        />
+        {/* Hairline crack down the right shoulder. */}
+        <View style={[s.crack, { height: stoneHeight * 0.3, right: stoneWidth * 0.22, top: stoneHeight * 0.34 }]} />
+        <Skull size={stoneWidth * 0.44} color="#0A0E15" strokeWidth={1.6} />
       </View>
 
       {/* Ground mound the stone sits in. */}
       <View style={[s.mound, { width: height * 1.5, height: height * 0.34, borderTopLeftRadius: height, borderTopRightRadius: height }]} />
+
+      {/* Moss tufts along the mound, and the one small flower catching the
+          light. Fixed offsets — nothing here rolls dice. */}
+      {[-0.30, -0.18, -0.07, 0.09, 0.2, 0.31].map((offset, i) => (
+        <View
+          key={offset}
+          style={[
+            s.tuft,
+            {
+              left: `${50 + offset * 100}%` as never,
+              bottom: height * (0.11 + (i % 3) * 0.025),
+              width: scale(3),
+              height: scale(7 + (i % 3) * 3),
+            },
+          ]}
+        />
+      ))}
+      <View style={[s.flower, { bottom: height * 0.15, left: '61%' }]} />
+      <View style={[s.flowerCore, { bottom: height * 0.163, left: '62.1%' }]} />
     </View>
   );
 }
@@ -154,9 +189,9 @@ const makeStyles = (height: number, glow: string) =>
       backgroundColor: glow,
       opacity: 0.35,
     },
-    wispInner: { width: scale(5), backgroundColor: '#DDD6FE', opacity: 0.5 },
+    wispInner: { width: scale(4), backgroundColor: '#EDE9FE', opacity: 0.65 },
     stone: {
-      backgroundColor: '#3B4453',
+      backgroundColor: '#2E3644',
       alignItems: 'center',
       justifyContent: 'center',
       paddingTop: '14%',
@@ -166,10 +201,37 @@ const makeStyles = (height: number, glow: string) =>
       borderWidth: 1,
       borderColor: '#4C5567',
     },
+    /** Lighter inset face, so the rim reads as thickness rather than outline. */
+    stoneFace: {
+      position: 'absolute',
+      top: 0,
+      backgroundColor: '#3F4959',
+    },
+    crack: { position: 'absolute', width: 1, backgroundColor: '#232A36' },
     mound: {
       position: 'absolute',
       bottom: 0,
       backgroundColor: '#161B24',
+    },
+    tuft: {
+      position: 'absolute',
+      backgroundColor: '#243027',
+      borderTopLeftRadius: scale(3),
+      borderTopRightRadius: scale(3),
+    },
+    flower: {
+      position: 'absolute',
+      width: scale(7),
+      height: scale(7),
+      borderRadius: scale(4),
+      backgroundColor: '#E8E6F5',
+    },
+    flowerCore: {
+      position: 'absolute',
+      width: scale(3),
+      height: scale(3),
+      borderRadius: scale(2),
+      backgroundColor: '#C4B5FD',
     },
   });
 
