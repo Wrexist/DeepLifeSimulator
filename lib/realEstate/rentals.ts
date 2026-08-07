@@ -309,6 +309,34 @@ export interface LettingVerdict {
  *    in arrears.
  */
 export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
+  // Re-entry gate: a landlord will not take on a tenant who is currently in
+  // default. This is what makes "the eviction counter resets only when the
+  // balance clears" literally true. `missedWeeks` lives on the `rental` record,
+  // and moving out (`resolveEndRental`) discards that record wholesale — so
+  // without this, a tenant a week from eviction could move out (free) and
+  // immediately re-sign to a clean four-week clock while `overdueBalance` stood
+  // untouched, the same "buy back the full four weeks" hole the tier-swap path
+  // was already hardened against (`resolveRentHome` carries `missedWeeks` across
+  // a swap; a move-out has nothing to carry it on).
+  //
+  // Scoped to `!state.rental` so it never blocks a tier-to-tier move, which
+  // legitimately keeps its eviction clock. Move-out itself stays free and
+  // immediate (the escape hatch for a player who can no longer pay), and arrears
+  // settle off income, so this stays fully recoverable: earn the balance down,
+  // then a landlord will sign you again.
+  if (!state.rental) {
+    const owed =
+      typeof state.overdueBalance === 'number' && isFinite(state.overdueBalance)
+        ? state.overdueBalance
+        : 0;
+    if (owed > 0) {
+      return {
+        allowed: false,
+        reason: `Clear your $${owed.toLocaleString()} overdue balance before a landlord will sign a new lease.`,
+      };
+    }
+  }
+
   const income = weeklyIncomeForLetting(state);
   if (income < tier.incomeRequirement) {
     return {
