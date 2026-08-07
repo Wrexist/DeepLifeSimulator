@@ -21,6 +21,7 @@
 import type { GameState, MailMessage } from '@/contexts/game/types';
 import { SENDERS } from './senders';
 import { docDate, docMoney, docPercent, docReference, docWhole } from './format';
+import { getMailState } from './state';
 import type { MailContext, MailTemplate } from './types';
 
 /** Weeks in a pay period. Four is the game's own month. */
@@ -81,7 +82,19 @@ function currentCareer(state: GameState) {
 // ---------------------------------------------------------------------------
 
 const welcome: MailTemplate = (ctx) => {
-  if (ctx.week > 2) return null;
+  // Fires on the first message the mailbox ever receives, NOT at a low absolute
+  // week — that version was a dead gate and shipped as one.
+  //
+  // `weeksLived` is not 0 at the start of a game. `computeWeeksLived(age)` is
+  // `(startingAge - 18) * 52`, so a scenario beginning at 20 starts at week 104
+  // and one beginning at 30 starts at 624. A `week <= 2` gate therefore fired
+  // only for the three scenarios that start at exactly 18, and silently never
+  // fired for the other twelve. Found by opening the app and seeing an empty
+  // inbox where the welcome should have been — no test would have caught it,
+  // because every test picks its own week.
+  //
+  // "The inbox is empty" is also just what the message means.
+  if (getMailState(ctx.state).messages.length > 0) return null;
   const name = (ctx.state.userProfile?.name || 'there').split(' ')[0];
   return compose(ctx, SENDERS.security, {
     idSuffix: 'welcome',

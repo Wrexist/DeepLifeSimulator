@@ -210,3 +210,42 @@ describe('mail — documents quote the tick, not a recomputation', () => {
     expect(messages.find((m) => m.id.startsWith('mail-payslip'))).toBeUndefined();
   });
 });
+
+describe('mail — gates that must not be dead', () => {
+  /**
+   * The welcome message shipped with `if (week > 2) return null`, which looked
+   * obviously right and was obviously wrong: `computeWeeksLived(age)` is
+   * `(startingAge - 18) * 52`, so a new game starts at week 104 for a
+   * 20-year-old and 624 for a 30-year-old. The gate fired for exactly the three
+   * scenarios that begin at 18 and silently never fired for the other twelve.
+   *
+   * It was found by opening the app, not by a test — every test had picked its
+   * own convenient week. This is that test, written from the real starting
+   * weeks rather than from a round number.
+   */
+  const STARTING_WEEKS_BY_SCENARIO_AGE = [18, 19, 20, 21, 22, 25, 28, 30].map(
+    (age) => (age - 18) * 52
+  );
+
+  it.each(STARTING_WEEKS_BY_SCENARIO_AGE)(
+    'sends the welcome on the first tick of a life starting at week %i',
+    (startWeek) => {
+      const state = createTestGameState({ weeksLived: startWeek });
+      const messages = generateWeeklyMail({ state, week: startWeek + 1, facts: {} });
+      expect(messages.some((m) => m.id.startsWith('mail-welcome'))).toBe(true);
+    }
+  );
+
+  it('sends it exactly once, however many weeks pass', () => {
+    let state = createTestGameState({ weeksLived: 104 });
+    const first = applyMail({ state, week: 105, facts: {} });
+    state = first.state ?? state;
+    expect(getMailState(state).messages.filter((m) => m.id.startsWith('mail-welcome'))).toHaveLength(1);
+
+    for (let w = 106; w < 130; w += 1) {
+      const next = applyMail({ state, week: w, facts: {} });
+      state = next.state ?? state;
+    }
+    expect(getMailState(state).messages.filter((m) => m.id.startsWith('mail-welcome'))).toHaveLength(1);
+  });
+});
