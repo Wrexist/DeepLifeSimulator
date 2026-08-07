@@ -14,10 +14,16 @@
  * thing being double-tapped is a button designed to be tapped in a panic.
  */
 
-import type { GameState, MailFolder, MailMessage } from '@/contexts/game/types';
+import type { GameState, MailFolder, MailMessage, MailResolver } from '@/contexts/game/types';
 import { getMailState } from '@/lib/mail/state';
 import { scamLossFor } from '@/lib/mail/scam';
-import { applyArrearsPayment, applyCareerOffer } from '@/lib/mail/resolve';
+import {
+  applyArrearsPayment,
+  applyCareerOffer,
+  applyExtortion,
+  applyRecruiterLeverage,
+  applySecurityShield,
+} from '@/lib/mail/resolve';
 import { docMoney } from '@/lib/mail/format';
 import { logger } from '@/utils/logger';
 
@@ -88,14 +94,32 @@ export function moveMail(setGameState: SetGameState, id: string, folder: MailFol
  * has already told you the answer.
  */
 export function reportMailPhishing(setGameState: SetGameState, id: string): void {
-  setGameState((prev) =>
-    patchMessage(prev, id, (m) => ({
-      ...m,
-      folder: 'spam',
-      read: true,
-      actionTaken: m.scam ? 'reported' : m.actionTaken,
-    }))
-  );
+  setGameState((prev) => {
+    const patched = patchMessage(prev, id, (m) =>
+      // Returning null is the no-op path. Without this guard the patch built a
+      // fresh object every time — `patchMessage` compares by reference, so
+      // re-reporting an already-filed message counted again, and the vigilance
+      // discount could be farmed by tapping one message repeatedly. Caught by a
+      // test whose premise was that this already worked.
+      m.folder === 'spam'
+        ? null
+        : {
+            ...m,
+            folder: 'spam',
+            read: true,
+            actionTaken: m.scam ? 'reported' : m.actionTaken,
+          }
+    );
+    if (patched === prev) return prev;
+
+    // Reporting is not just filing. It is the second lever the player has over
+    // their own exposure, and the only one that costs nothing — so it has to
+    // COUNT, and the count has to be visible. `VIGILANCE_RISK_REDUCTION` kicks
+    // in at `REPORTS_FOR_VIGILANCE` and the drawer says so.
+    const mail = getMailState(patched);
+    const reportsMade = (mail.reportsMade ?? 0) + 1;
+    return { ...patched, mail: { ...mail, reportsMade } };
+  });
 }
 
 export interface ScamActionResult {
@@ -283,19 +307,44 @@ export function chooseMailDecision(
       return resolveDecisionOn(prev, id, choiceId, 'chosen', 'Answered.');
     }
 
-    if (resolver.kind === 'careerOffer') {
-      const outcomeState = applyCareerOffer(prev, resolver.careerId, choiceId);
-      result = { outcome: outcomeState.outcome };
-      return resolveDecisionOn(outcomeState.state, id, choiceId, 'chosen', outcomeState.outcome);
-    }
-
-    // payArrears
-    const paid = applyArrearsPayment(prev, choiceId);
-    result = { outcome: paid.outcome };
-    return resolveDecisionOn(paid.state, id, choiceId, 'chosen', paid.outcome);
+    const applied = applyResolver(prev, resolver, choiceId);
+    result = { outcome: applied.outcome };
+    return resolveDecisionOn(applied.state, id, choiceId, 'chosen', applied.outcome);
   });
 
   onResolved(result);
+}
+
+/**
+ * One dispatcher for every non-event resolver.
+ *
+ * Shared by the tap path and the lapse path so "ignored it" and "chose the
+ * default" cannot drift apart — the reason the appliers are pure in the first
+ * place. `event` never reaches here: it delegates to `resolveEvent`, which owns
+ * effect application for everything the events engine can do.
+ *
+ * Union access goes through `.kind` rather than optional-field sniffing
+ * (Hard Rule #2), so a new resolver kind is a compile error here rather than a
+ * silent no-op.
+ */
+function applyResolver(
+  prev: GameState,
+  resolver: Exclude<MailResolver, { kind: 'event' }>,
+  choiceId: string
+): { state: GameState; outcome: string } {
+  const week = prev.weeksLived ?? 0;
+  switch (resolver.kind) {
+    case 'careerOffer':
+      return applyCareerOffer(prev, resolver.careerId, choiceId);
+    case 'payArrears':
+      return applyArrearsPayment(prev, choiceId);
+    case 'recruiterLeverage':
+      return applyRecruiterLeverage(prev, resolver.careerId, choiceId, week);
+    case 'securityShield':
+      return applySecurityShield(prev, choiceId, resolver.cost, resolver.weeks, week);
+    case 'extortion':
+      return applyExtortion(prev, choiceId, resolver.demand);
+  }
 }
 
 /**
@@ -324,16 +373,13 @@ export function lapseMailDecision(
       return resolveDecisionOn(prev, id, choiceId, 'lapsed', 'No reply sent.');
     }
 
-    if (resolver.kind === 'careerOffer') {
-      const applied = applyCareerOffer(prev, resolver.careerId, choiceId);
-      const outcome = `You started without replying. ${applied.outcome}`;
-      result = { outcome };
-      return resolveDecisionOn(applied.state, id, choiceId, 'lapsed', outcome);
-    }
-
-    const paid = applyArrearsPayment(prev, choiceId);
-    result = { outcome: paid.outcome };
-    return resolveDecisionOn(paid.state, id, choiceId, 'lapsed', paid.outcome);
+    const applied = applyResolver(prev, resolver, choiceId);
+    const outcome =
+      resolver.kind === 'careerOffer'
+        ? `You started without replying. ${applied.outcome}`
+        : applied.outcome;
+    result = { outcome };
+    return resolveDecisionOn(applied.state, id, choiceId, 'lapsed', outcome);
   });
 
   onResolved(result);

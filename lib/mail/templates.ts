@@ -507,17 +507,37 @@ const recruiterApproach: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.recruiter, {
     idSuffix: 'recruiter',
+    threadId: `recruiter-${ctx.state.currentJob}`,
     subject: `A ${job.title} role worth a look`,
     preview: `Around ${docWhole(offer)} a week, similar sector.`,
     body:
       `I came across your profile and thought of a ${job.title} opening I am ` +
       'working on.\n\n' +
       `The range lands around ${docWhole(offer)} a week — a step up on where ` +
-      'most people at your level sit. No obligation; happy to send the detail ' +
-      'if it is interesting.\n\n' +
-      'Either way, worth knowing what you are worth. Ask for a raise where you ' +
-      'are if you would rather not move.',
+      'most people at your level sit. No obligation.\n\n' +
+      'Plenty of people never move on one of these. They take it to their ' +
+      'manager instead, and find out what they are worth without changing ' +
+      'desks. That works right up until it does not.',
     category: 'primary',
+    decision: {
+      choices: [
+        {
+          id: 'leverage',
+          label: 'Take it to your manager',
+          detail: 'A guaranteed step up if they want to keep you — and it spends your raise window.',
+          kind: 'primary',
+        },
+        {
+          id: 'ignore',
+          label: 'Let it go',
+          detail: 'Costs nothing. The role goes to someone else.',
+          kind: 'neutral',
+        },
+      ],
+      expiresAtWeek: ctx.week + 3,
+      lapseChoiceId: 'ignore',
+      resolver: { kind: 'recruiterLeverage', careerId: ctx.state.currentJob as string },
+    },
   });
 };
 

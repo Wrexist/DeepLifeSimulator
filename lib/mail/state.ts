@@ -34,18 +34,44 @@ export const MAX_MAIL_MESSAGES = 50;
 
 const EMPTY: MailMessage[] = [];
 
-/** The mail slice, or a valid empty one. Never throws, never returns null. */
+/**
+ * The mail slice, or a valid empty one. Never throws, never returns null.
+ *
+ * ## Why it spreads instead of enumerating
+ *
+ * The first version listed the fields it knew about and returned an object
+ * built only from those. That silently DROPPED every field added afterwards:
+ * `shieldUntilWeek` and `reportsMade` were written by their actions, read back
+ * through here, and came out undefined — so rotating your credentials charged
+ * you and did nothing, and reporting phishing counted to zero forever. Five
+ * tests caught it at once; nothing in the type system would have.
+ *
+ * Enumerating is a trap on any accessor that everything else reads through:
+ * the failure mode is a field that appears to work at the write and vanishes at
+ * the read. So the raw slice is spread first and only the fields that need
+ * NORMALISING are overridden, which is what a defensive reader should do
+ * anyway — it repairs what it understands and preserves what it does not.
+ */
 export function getMailState(state: GameState | null | undefined): MailState {
   const raw = (state as { mail?: unknown } | null | undefined)?.mail;
   if (!raw || typeof raw !== 'object') return { messages: EMPTY };
   const mail = raw as Partial<MailState>;
   return {
+    ...mail,
     messages: Array.isArray(mail.messages) ? mail.messages.filter(isMessage) : EMPTY,
     lastGeneratedWeek:
       typeof mail.lastGeneratedWeek === 'number' && Number.isFinite(mail.lastGeneratedWeek)
         ? mail.lastGeneratedWeek
         : undefined,
     address: typeof mail.address === 'string' ? mail.address : undefined,
+    shieldUntilWeek:
+      typeof mail.shieldUntilWeek === 'number' && Number.isFinite(mail.shieldUntilWeek)
+        ? mail.shieldUntilWeek
+        : undefined,
+    reportsMade:
+      typeof mail.reportsMade === 'number' && Number.isFinite(mail.reportsMade)
+        ? Math.max(0, Math.floor(mail.reportsMade))
+        : undefined,
   };
 }
 

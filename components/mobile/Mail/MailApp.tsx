@@ -56,6 +56,7 @@ import { useGameActions } from '@/contexts/GameContext';
 import { getThemeColors } from '@/lib/config/theme';
 import { getMailState, unreadByCategory, unreadCount } from '@/lib/mail/state';
 import { scamRisk } from '@/lib/mail/scam';
+import { protections } from '@/lib/mail/security';
 import { docMoney } from '@/lib/mail/format';
 import {
   actOnScamMail,
@@ -140,7 +141,14 @@ function MailAppInner({ onBack }: Props) {
   const state = useMemo(() => getMailState({ mail } as never), [mail]);
   const unreadInbox = useMemo(() => unreadCount({ mail } as never, 'inbox'), [mail]);
   const catUnread = useMemo(() => unreadByCategory({ mail } as never), [mail]);
-  const risk = useMemo(() => scamRisk(riskState as never), [riskState]);
+  const risk = useMemo(() => scamRisk(riskState as never, currentWeek), [riskState, currentWeek]);
+  // What is holding the risk DOWN. Shown next to what pushed it up, because a
+  // player who paid to rotate their credentials should be able to see it
+  // working — otherwise the purchase is an act of faith.
+  const defences = useMemo(
+    () => protections({ mail } as never, currentWeek),
+    [mail, currentWeek]
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -170,6 +178,14 @@ function MailAppInner({ onBack }: Props) {
     () => (openId ? state.messages.find((m) => m.id === openId) ?? null : null),
     [openId, state.messages]
   );
+
+  /** Earlier messages in the open message's thread, oldest first. */
+  const thread = useMemo(() => {
+    if (!open?.threadId) return [];
+    return state.messages
+      .filter((m) => m.threadId === open.threadId && m.id !== open.id)
+      .sort((a, b) => (a.atWeek ?? 0) - (b.atWeek ?? 0));
+  }, [open, state.messages]);
 
   const openMessage = useCallback(
     (id: string) => {
@@ -259,6 +275,7 @@ function MailAppInner({ onBack }: Props) {
           onDispute={handleDispute}
           onChoose={handleChoose}
           currentWeek={currentWeek}
+          thread={thread}
         />
       </View>
     );
@@ -453,6 +470,11 @@ function MailAppInner({ onBack }: Props) {
                   • {r}
                 </Text>
               ))}
+              {defences.map((d) => (
+                <Text key={d} style={s.riskDefence}>
+                  ✓ {d}
+                </Text>
+              ))}
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -594,6 +616,11 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       fontSize: fontScale(11),
       lineHeight: fontScale(16),
       color: theme.textSecondary,
+    },
+    riskDefence: {
+      fontSize: fontScale(11),
+      lineHeight: fontScale(16),
+      color: darkMode ? '#81C995' : '#188038',
     },
   });
 

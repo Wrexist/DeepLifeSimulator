@@ -15,6 +15,7 @@ import { MAIL_TEMPLATES } from './templates';
 import { generateScam } from './scam';
 import { letterFromEvent } from './letters';
 import { arrearsInvoice, jobOfferLetter } from './offers';
+import { breachNotice, extortionDemand } from './security';
 import { mailEvents } from '@/lib/events/routing';
 import type { MailContext, MailFacts } from './types';
 
@@ -115,6 +116,23 @@ export function generateWeeklyMail(input: GenerateMailInput): MailMessage[] {
       const invoice = arrearsInvoice(input.state, week);
       if (invoice) out.push(invoice);
     }
+  } catch {
+    /* see above */
+  }
+
+  // The dark web writing back. Both are outside the cap for the same reason the
+  // scam is: they are the consequence of what the player chose to do, and a
+  // routine invoice must never crowd out the warning that precedes a loss.
+  try {
+    const breach = breachNotice(input.state, week);
+    if (breach) out.push(breach);
+  } catch {
+    /* see above */
+  }
+
+  try {
+    const demand = extortionDemand(input.state, week);
+    if (demand) out.push(demand);
   } catch {
     /* see above */
   }

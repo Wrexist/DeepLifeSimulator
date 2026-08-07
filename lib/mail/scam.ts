@@ -35,6 +35,7 @@
 
 import type { GameState, MailMessage } from '@/contexts/game/types';
 import { docMoney } from './format';
+import { riskMultiplier } from './security';
 import type { MailContext } from './types';
 
 /** Ceiling on how much of the player's cash any single scam can take. */
@@ -78,7 +79,10 @@ export interface ScamRisk {
  *  - `heat` — the composite the dark-web systems already maintain.
  *  - visible wealth, which attracts targeting regardless of conduct.
  */
-export function scamRisk(state: GameState | null | undefined): ScamRisk {
+export function scamRisk(
+  state: GameState | null | undefined,
+  atWeek?: number
+): ScamRisk {
   const reasons: string[] = [];
   let chance = BASE_RISK;
 
@@ -118,7 +122,12 @@ export function scamRisk(state: GameState | null | undefined): ScamRisk {
     reasons.push('Everyone gets the occasional generic phishing attempt.');
   }
 
-  return { chance: Math.min(MAX_RISK, chance), reasons };
+  // Defences come off the total, and they are the only inputs that push DOWN.
+  // Applied last so the reasons above still explain the exposure that was
+  // earned — the player should see both halves, not a single netted number.
+  const defended = Math.min(MAX_RISK, chance) * riskMultiplier(state, atWeek ?? state?.weeksLived ?? 0);
+
+  return { chance: Math.max(0, defended), reasons };
 }
 
 interface ScamBlueprint {
@@ -294,7 +303,7 @@ const BLUEPRINTS: ScamBlueprint[] = [
  * rather than rolling again for a second chance at the player's money.
  */
 export function generateScam(ctx: MailContext): MailMessage | null {
-  const risk = scamRisk(ctx.state);
+  const risk = scamRisk(ctx.state, ctx.week);
   if (ctx.rand('scam-fire') > risk.chance) return null;
 
   // Same rule as `scamRisk`: the seeded vendor directory is not evidence the

@@ -1119,7 +1119,13 @@ export const promoteCareer = (
 // well-kept your stats are) + a cooldown. Real risk: a denial bruises your
 // standing (happiness) and can draw a formal warning (3 = fired).
 export const RAISE_COOLDOWN_WEEKS = 8;
-const RAISE_MIN_PERFORMANCE = 45;
+/**
+ * Exported because the mail app's recruiter-leverage letter uses the SAME
+ * floor: an outside offer is only leverage if your manager believes you are
+ * worth keeping. Two copies of this number would let one path call a bluff the
+ * other path rewarded.
+ */
+export const RAISE_MIN_PERFORMANCE = 45;
 
 export const requestRaise = (
   gameState: GameState,

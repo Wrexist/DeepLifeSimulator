@@ -1139,3 +1139,64 @@ which never yields one. React retried forever.
   session (four objective systems, a repo-wide design-token collision) were also
   wrong in the same direction — estimated scope, never measured.
 - Restore any `node_modules` you patch, and `diff` to prove it.
+
+---
+
+## 2026-08-07 — A defensive accessor that ENUMERATES fields is a trap
+
+`lib/mail/state.ts`'s `getMailState` is the safe read layer every consumer goes
+through — it repairs a missing or malformed slice into a valid empty one rather
+than letting the week loop throw. It was written as an enumeration:
+
+```ts
+return { messages: …, lastGeneratedWeek: …, address: … };
+```
+
+Correct on the day, and a landmine afterwards. Two fields added later
+(`shieldUntilWeek`, `reportsMade`) were written by their actions, read back
+through this function, and came out `undefined` — so paying to rotate
+credentials charged the player and did nothing, and reporting phishing counted
+to zero forever. **The write worked and the read silently dropped it**, which is
+the worst shape a bug can have: nothing throws, nothing type-errors, and the
+feature is simply inert.
+
+Five tests caught it at once only because they were written against the
+BEHAVIOUR ("does the risk actually go down?") rather than against the accessor.
+A test asserting `getMailState(x).shieldUntilWeek === 12` would have been written
+from the same wrong mental model and passed nothing.
+
+**The rule:** a defensive reader spreads first and overrides only what it
+normalises.
+
+```ts
+return { ...mail, messages: normalise(mail.messages), … };
+```
+
+That is what "repair what you understand, preserve what you do not" actually
+means. Enumeration turns every future field into a silent drop.
+
+## The same day — `patchMessage` compares by reference, so a no-op patch is not a no-op
+
+`reportMailPhishing` built a fresh message object every call:
+
+```ts
+patchMessage(prev, id, (m) => ({ ...m, folder: 'spam', read: true }))
+```
+
+`patchMessage` skips the write when `updated === original`, which is a REFERENCE
+check — and a spread always produces a new reference. So re-reporting a message
+already in Spam patched again and incremented the vigilance counter again. The
+discount that reduces fraud risk could be farmed by tapping one message
+repeatedly.
+
+Found by a test whose premise was that this already worked ("never counts the
+same message twice"), written to document the behaviour rather than to hunt a
+bug. Worth noting: the test was RIGHT about what should happen and WRONG about
+what did, and that gap is where the finding was.
+
+**The rule:** when a helper's skip condition is reference equality, the patch
+callback must return `null` for the no-op case explicitly. Do not rely on
+"the values are the same" — the helper cannot see that.
+
+Same family as the gate→grant bugs in §4.4: a guard that looks like it holds,
+against a comparison that cannot see what you assumed it could.

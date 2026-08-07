@@ -69,6 +69,15 @@ interface Props {
   onChoose: (choiceId: string) => void;
   /** Current absolute week, for the countdown on an open decision. */
   currentWeek: number;
+  /**
+   * Earlier messages in the same thread, oldest first.
+   *
+   * Rendered as a collapsed trail above the open message, the way a mail client
+   * shows what came before. Threads exist only where the game genuinely replied
+   * — a manager answering an outside offer — so a trail here means a
+   * conversation happened, not that a field was set.
+   */
+  thread: MailMessage[];
 }
 
 function MailDetail({
@@ -85,6 +94,7 @@ function MailDetail({
   onDispute,
   onChoose,
   currentWeek,
+  thread,
 }: Props) {
   const theme = getThemeColors(darkMode);
   const s = makeStyles(theme, darkMode);
@@ -146,6 +156,27 @@ function MailDetail({
         showsVerticalScrollIndicator={false}
       >
         <Text style={s.subject}>{message.subject}</Text>
+
+        {thread.length > 0 ? (
+          <View style={s.thread}>
+            <Text style={s.threadHead}>
+              Earlier in this thread · {thread.length}
+            </Text>
+            {thread.map((earlier) => (
+              <View key={earlier.id} style={s.threadRow}>
+                <Text style={s.threadSender} numberOfLines={1}>
+                  {earlier.senderName}
+                </Text>
+                <Text style={s.threadSubject} numberOfLines={1}>
+                  {earlier.subject}
+                </Text>
+                <Text style={s.threadSnippet} numberOfLines={2}>
+                  {earlier.preview || earlier.body}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View style={s.senderRow}>
           <View style={[s.avatar, { backgroundColor: senderColor(message.senderEmail) }]}>
@@ -423,6 +454,28 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       color: darkMode ? '#81C995' : '#188038',
       fontSize: fontScale(13),
       fontWeight: '600',
+    },
+    thread: {
+      marginBottom: responsiveSpacing.md,
+      padding: responsiveSpacing.sm,
+      borderRadius: responsiveBorderRadius.md,
+      borderWidth: 1,
+      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      gap: responsiveSpacing.xs,
+    },
+    threadHead: {
+      fontSize: fontScale(10.5),
+      letterSpacing: 0.8,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    threadRow: { gap: scale(1) },
+    threadSender: { fontSize: fontScale(12), fontWeight: '700', color: theme.text },
+    threadSubject: { fontSize: fontScale(11.5), color: theme.text },
+    threadSnippet: {
+      fontSize: fontScale(11),
+      lineHeight: fontScale(16),
+      color: theme.textSecondary,
     },
     decision: {
       marginTop: responsiveSpacing.md,

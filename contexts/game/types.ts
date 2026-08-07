@@ -610,7 +610,13 @@ export interface MailChoice {
 export type MailResolver =
   | { kind: 'event'; eventId: string }
   | { kind: 'careerOffer'; careerId: string }
-  | { kind: 'payArrears' };
+  | { kind: 'payArrears' }
+  /** Take an outside offer to your manager. Spends the raise window. */
+  | { kind: 'recruiterLeverage'; careerId: string }
+  /** Rotate credentials after a breach notice — buys a window of lower risk. */
+  | { kind: 'securityShield'; cost: number; weeks: number }
+  /** Pay off, or refuse, someone who has something on you. */
+  | { kind: 'extortion'; demand: number };
 
 /**
  * A decision the player can take their time over.
@@ -652,6 +658,15 @@ export interface MailScam {
 
 export interface MailMessage {
   id: string;
+  /**
+   * Groups a message with its replies and follow-ups.
+   *
+   * Absent means a standalone message, which is most of them. A thread exists
+   * only where the game genuinely has more to say after the player acts — a
+   * recruiter answering, a security team confirming a report — so the feature
+   * is conversation where conversation is real, not a chat system bolted on.
+   */
+  threadId?: string;
   senderName: string;
   senderEmail: string;
   subject: string;
@@ -686,6 +701,17 @@ export interface MailMessage {
 
 export interface MailState {
   messages: MailMessage[];
+  /**
+   * Absolute week until which rotated credentials suppress fraud attempts.
+   *
+   * The one lever the player has over their own exposure. Everything else that
+   * feeds `scamRisk` only ever pushes it UP — dark-web trading, heat, wealth —
+   * so without this the risk panel reports a number the player can read and
+   * never act on.
+   */
+  shieldUntilWeek?: number;
+  /** How many phishing reports the player has filed. Earns a standing discount. */
+  reportsMade?: number;
   /** Last `weeksLived` the generator ran, so a replayed tick cannot double-send. */
   lastGeneratedWeek?: number;
   /** The player's own address, derived once from their name. */
