@@ -385,13 +385,23 @@ export function lapseMailDecision(
   onResolved(result);
 }
 
-/** Permanently drop everything in Trash and Spam. */
-export function emptyMailBin(setGameState: SetGameState): void {
+/**
+ * Permanently drop everything in ONE folder.
+ *
+ * The folder argument is not a convenience. This emptied Trash and Spam
+ * together whichever one the player was standing in, behind a button labelled
+ * just "Empty" — so clearing the bin also destroyed every message in Spam,
+ * unasked and unannounced. Gmail keeps these separate ("Empty trash now",
+ * "Delete all spam messages now") for the same reason: an irreversible delete
+ * must take exactly what the player was looking at when they pressed it.
+ */
+export function emptyMailBin(
+  setGameState: SetGameState,
+  folder: 'trash' | 'spam'
+): void {
   setGameState((prev) => {
     const mail = getMailState(prev);
-    const messages = mail.messages.filter(
-      (m) => m.folder !== 'trash' && m.folder !== 'spam'
-    );
+    const messages = mail.messages.filter((m) => (m.folder ?? 'inbox') !== folder);
     if (messages.length === mail.messages.length) return prev;
     return { ...prev, mail: { ...mail, messages } };
   });

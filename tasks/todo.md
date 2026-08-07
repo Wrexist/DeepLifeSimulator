@@ -476,3 +476,56 @@ effects engine.
 **Gates:** type-check clean · test-tree ratchet 0 · lint 0 errors · routes OK ·
 audit:weekly all five domains green · full suite **500 suites / 6,298 tests /
 0 failures** (was 499 / 6,273).
+
+---
+
+## Mail app — navigation and filters (2026-08-07)
+
+Owner ask: make the mail app easy to use and navigate, with clean filters.
+
+Read the finished screen looking for what a player actually has to DO to find a
+message. Four of the six items below are defects rather than polish — the
+navigation is not just inconvenient, it answers some questions wrong.
+
+### Defects
+- [x] **`emptyMailBin` empties Spam AND Trash whatever folder you are in.**
+      The visible label just says "Empty". Standing in Trash and tapping it
+      wipes Spam too — data loss the player did not ask for. Scope it.
+- [x] **Search only covers the current folder.** The module docblock says
+      search exists so "did my bank really write from that address?" is
+      answerable in the app — but an archived message returns "No matches",
+      which answers that question WRONG. Search must span folders.
+- [x] **A decision letter with a deadline looks exactly like a promo.** The
+      highest-stakes row in the game — a summons that auto-resolves in two
+      weeks — has no badge, no filter and no count. Nothing surfaces it.
+- [x] **Drawer counts are Inbox-only** (`key === 'inbox' ? unreadInbox : 0`),
+      so nothing tells the player Spam or Starred has anything in it.
+
+### Navigation
+- [x] **Every folder switch is a modal round-trip** — hamburger, tap, close;
+      three taps to look in Spam and come back.
+- [x] **No filters beyond the four category tabs**, and those exist only in
+      Inbox, so Archive and Spam have no way to narrow anything.
+
+### Approach
+- [x] `lib/mail/filters.ts` — the filter model as pure functions: `matchesFilter`,
+      `filterCounts`, `searchMessages` (cross-folder), `folderCounts`,
+      `decisionDeadline`. Testable without a renderer, and the deadline copy
+      lives here so the row and the detail cannot drift.
+- [x] Chip row under the search bar — Gmail's own current design (Unread /
+      Attachments / Starred are literally chips there today), carrying the
+      filters this game needs: Unread, Needs reply, Documents, Unverified.
+- [x] The current folder is the FIRST chip when not in Inbox, dismissable —
+      so where you are is always visible and getting back is one tap.
+- [x] Deadline chip on the row; folder label on cross-folder search results.
+- [x] Filter-aware empty states ("No unread mail", not "Nothing here").
+
+### Found while working, NOT fixed — out of scope
+- [ ] `components/DeathPopup.tsx:563` shows `safeUserProfile(gameState).name`,
+      which is the HANDLE (defaults to "player"), not the character's
+      `firstName`/`lastName`. Seen live: a save named Thomas White gets a death
+      screen headed "You Died / Player". Same wrong-field bug as the one fixed
+      in mail, on the most emotionally loaded screen in the game.
+      `characterName()` in `lib/mail/state.ts` already resolves this correctly
+      and should probably move somewhere shared. Left for the owner to schedule
+      — it is a different surface from the one this task was about.

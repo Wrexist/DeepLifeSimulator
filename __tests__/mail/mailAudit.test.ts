@@ -78,7 +78,7 @@ describe('a deleted letter cannot strand the decision it carried', () => {
     const h = harness(state);
 
     moveMail(h.setGameState, letter.id, 'trash');
-    emptyMailBin(h.setGameState);
+    emptyMailBin(h.setGameState, 'trash');
     expect(getMailState(h.get()).messages).toHaveLength(0);
 
     const result = applyMailLapse({ state: h.get(), week: 105 });
@@ -134,7 +134,7 @@ describe('the welcome is once per life, not once per empty inbox', () => {
     for (const m of getMailState(h.get()).messages) {
       moveMail(h.setGameState, m.id, 'trash');
     }
-    emptyMailBin(h.setGameState);
+    emptyMailBin(h.setGameState, 'trash');
     expect(getMailState(h.get()).messages).toHaveLength(0);
 
     for (let w = 209; w <= 320; w += 1) {

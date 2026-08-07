@@ -4,19 +4,37 @@
  * ## Shape
  *
  * Gmail's, because players already know it and none of it is arbitrary: a
- * search pill instead of a title bar, category tabs that separate money from
- * marketing from people, a dense list where weight carries unread, and a folder
- * drawer behind the hamburger. Copying a layout this well-worn means the player
- * spends their attention on the CONTENT — which is the part that can cost them
- * money — instead of on learning a mail client.
+ * search pill instead of a title bar, a filter chip strip under it, category
+ * tabs that separate money from marketing from people, a dense list where
+ * weight carries unread, and a folder drawer behind the hamburger. Copying a
+ * layout this well-worn means the player spends their attention on the
+ * CONTENT — which is the part that can cost them money — instead of on
+ * learning a mail client.
+ *
+ * ## Navigation, and what it costs to get it wrong
+ *
+ * The chip strip is Gmail's own current design and it earns its place here for
+ * a reason a mail client does not have: this inbox contains decisions that
+ * EXPIRE. Everything else in the app can be found by scrolling; a summons that
+ * settles itself in two weeks has to be findable on purpose. So "Needs reply"
+ * is a chip, its badge counts across every folder, and the row carries the
+ * deadline. A chip is also a question you can answer by looking — unlike a
+ * search operator, which you have to know exists before you can discover it.
+ *
+ * The current folder is the FIRST chip whenever it is not the Inbox, and it is
+ * dismissable. Location is then always visible, and getting back is one tap
+ * rather than a hamburger-tap-close round trip.
  *
  * ## What is not decoration
  *
  * - The unverified-sender warning shows on every unverified message, not only
  *   the fraudulent ones. A warning that fires exactly on scams is the answer,
- *   not a warning.
- * - Search covers sender, address, subject and body, so "did my bank really
- *   write from that address?" is answerable inside the app.
+ *   not a warning. The Unverified CHIP is the same idea promoted to a filter:
+ *   never "here are the scams", only "here is who nobody vouched for".
+ * - Search spans folders. This screen's stated reason for having search is that
+ *   "did my bank really write from that address?" should be answerable inside
+ *   it — and a folder-scoped search told a player who had archived the message
+ *   "No matches", which does not fail to answer that, it answers it wrongly.
  * - The risk panel in the drawer says WHY the player's exposure is what it is.
  *   Being phished more often because you shopped an untrusted vendor is a
  *   consequence; being phished more often for no visible reason is a bug report.
@@ -48,6 +66,10 @@ import {
   MailCheck,
   X,
   ShieldQuestion,
+  Mail as MailIcon,
+  Clock,
+  Paperclip,
+  ShieldOff,
 } from 'lucide-react-native';
 import type { MailFolder, MailMessage } from '@/contexts/game/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -60,8 +82,18 @@ import {
   getMailState,
   messagesInFolder,
   unreadByCategory,
-  unreadCount,
 } from '@/lib/mail/state';
+import {
+  FILTER_EMPTY_TEXT,
+  FILTER_LABELS,
+  MAIL_FILTERS,
+  filterCounts,
+  folderCounts,
+  matchesFilter,
+  pendingDecisions,
+  searchMessages,
+  type MailFilter,
+} from '@/lib/mail/filters';
 import { scamLossSummary, scamRisk } from '@/lib/mail/scam';
 import { protections } from '@/lib/mail/security';
 import { modalEventCount } from '@/lib/events/routing';
@@ -104,6 +136,13 @@ const FOLDERS: { key: View_; label: string; Icon: typeof Inbox }[] = [
   { key: 'spam', label: 'Spam', Icon: ShieldAlert },
   { key: 'trash', label: 'Trash', Icon: Trash2 },
 ];
+
+const FILTER_ICONS: Record<MailFilter, typeof Inbox> = {
+  unread: MailIcon,
+  decisions: Clock,
+  documents: Paperclip,
+  unverified: ShieldOff,
+};
 
 interface Props {
   onBack: () => void;
@@ -148,6 +187,7 @@ function MailAppInner({ onBack }: Props) {
 
   const [folder, setFolder] = useState<View_>('inbox');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]['key']>('primary');
+  const [filter, setFilter] = useState<MailFilter | null>(null);
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -156,8 +196,12 @@ function MailAppInner({ onBack }: Props) {
   // `getMailState` is the safe read layer — a partial or absent slice degrades
   // to an empty inbox rather than throwing.
   const state = useMemo(() => getMailState({ mail } as never), [mail]);
-  const unreadInbox = useMemo(() => unreadCount({ mail } as never, 'inbox'), [mail]);
+  const counts = useMemo(() => folderCounts({ mail } as never), [mail]);
   const catUnread = useMemo(() => unreadByCategory({ mail } as never), [mail]);
+  // Counted across EVERY folder, unlike the chip badges. Archiving a summons
+  // does not stop it lapsing, so a badge that only looked in the Inbox would
+  // under-report the one thing here with a consequence attached.
+  const waiting = useMemo(() => pendingDecisions({ mail } as never).length, [mail]);
   const risk = useMemo(() => scamRisk(riskState as never, currentWeek), [riskState, currentWeek]);
   // What is holding the risk DOWN. Shown next to what pushed it up, because a
   // player who paid to rotate their credentials should be able to see it
@@ -167,26 +211,59 @@ function MailAppInner({ onBack }: Props) {
     [mail, currentWeek]
   );
 
+  const searching = query.trim().length > 0;
+
+  /**
+   * The messages the list shows.
+   *
+   * Two modes, kept apart deliberately. SEARCHING spans folders — see the
+   * header note; intersecting it with the current folder and the category tab
+   * would silently exclude most of the mailbox from a query the player typed
+   * expecting it to look everywhere. BROWSING is folder-scoped, then narrowed
+   * by the chip, then (in the Inbox only) by the category tab.
+   */
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    if (searching) {
+      const found = searchMessages({ mail } as never, query);
+      return filter ? found.filter((m) => matchesFilter(m, filter)) : found;
+    }
     // `messagesInFolder` owns the folder rule (including that Starred is a VIEW
     // across folders, not a folder). It existed and this screen re-implemented
     // it inline, which is how the two would have disagreed the first time
     // either changed — and how the helper ended up looking like dead code.
     return messagesInFolder({ mail } as never, folder).filter((m) => {
+      if (filter && !matchesFilter(m, filter)) return false;
       // Category tabs are an INBOX affordance. Applying them to Archive or
       // Spam would hide messages inside a folder the player opened precisely
-      // to find one specific thing.
-      if (folder === 'inbox' && !q && (m.category ?? 'primary') !== category) return false;
-      if (!q) return true;
-      return (
-        m.senderName.toLowerCase().includes(q) ||
-        m.senderEmail.toLowerCase().includes(q) ||
-        m.subject.toLowerCase().includes(q) ||
-        (m.body ?? '').toLowerCase().includes(q)
-      );
+      // to find one specific thing — and applying them under an active chip
+      // would silently intersect two filters the player set one of.
+      if (folder === 'inbox' && !filter && (m.category ?? 'primary') !== category) {
+        return false;
+      }
+      return true;
     });
-  }, [mail, folder, category, query]);
+  }, [mail, folder, category, filter, query, searching]);
+
+  /** Chip badges, counted over what the player is actually looking at. */
+  const chipCounts = useMemo(
+    () =>
+      filterCounts(
+        searching ? searchMessages({ mail } as never, query) : messagesInFolder({ mail } as never, folder)
+      ),
+    [mail, folder, query, searching]
+  );
+
+  /**
+   * Which chips are worth showing.
+   *
+   * A chip that leads to "Nothing here" is a dead end the player had to tap to
+   * discover. The active one always stays, or clearing it would mean finding a
+   * control that just vanished.
+   */
+  const chips = useMemo(
+    () => MAIL_FILTERS.filter((f) => chipCounts[f] > 0 || f === filter),
+    [chipCounts, filter]
+  );
 
   const open: MailMessage | null = useMemo(
     () => (openId ? findMessage({ mail } as never, openId) : null),
@@ -314,7 +391,7 @@ function MailAppInner({ onBack }: Props) {
             style={s.searchInput}
             value={query}
             onChangeText={setQuery}
-            placeholder={`Search ${folderLabel.toLowerCase()}`}
+            placeholder="Search all mail"
             placeholderTextColor={theme.textSecondary}
             returnKeyType="search"
             accessibilityLabel="Search mail"
@@ -342,10 +419,64 @@ function MailAppInner({ onBack }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Category tabs — inbox only, and hidden while searching, because a
+      {/* Filter chips. The location chip comes first whenever the player is
+          not in the Inbox, so where they are is always on screen and getting
+          back costs one tap instead of a drawer round trip. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chipRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {folder !== 'inbox' && !searching ? (
+          <TouchableOpacity
+            style={[s.chip, s.chipLocation]}
+            onPress={() => {
+              setFolder('inbox');
+              setFilter(null);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`In ${folderLabel}. Back to inbox`}
+          >
+            <Text style={[s.chipText, s.chipTextLocation]}>{folderLabel}</Text>
+            <X size={scale(12)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
+          </TouchableOpacity>
+        ) : null}
+
+        {chips.map((key) => {
+          const active = key === filter;
+          const Icon = FILTER_ICONS[key];
+          const count = chipCounts[key];
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[s.chip, active && s.chipActive]}
+              onPress={() => setFilter(active ? null : key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`${FILTER_LABELS[key]}${count > 0 ? `, ${count}` : ''}`}
+            >
+              <Icon
+                size={scale(12)}
+                color={active ? (darkMode ? '#8AB4F8' : '#1A73E8') : theme.textSecondary}
+              />
+              <Text style={[s.chipText, active && s.chipTextActive]}>
+                {FILTER_LABELS[key]}
+                {count > 0 ? ` ${count}` : ''}
+              </Text>
+              {active ? (
+                <X size={scale(12)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Category tabs — inbox only, hidden while searching or filtering. A
           search that silently excluded three quarters of the mailbox would be
-          the most confusing thing in the app. */}
-      {folder === 'inbox' && query.trim().length === 0 ? (
+          the most confusing thing in the app, and a chip intersected with a
+          tab is the same problem with two controls instead of one. */}
+      {folder === 'inbox' && !searching && !filter ? (
         <View style={s.tabs}>
           {CATEGORIES.map((c) => {
             const active = c.key === category;
@@ -355,6 +486,7 @@ function MailAppInner({ onBack }: Props) {
                 style={[s.tab, active && s.tabActive]}
                 onPress={() => setCategory(c.key)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 accessibilityLabel={`${c.label} category`}
               >
                 <Text style={[s.tabText, active && s.tabTextActive]}>{c.label}</Text>
@@ -369,14 +501,21 @@ function MailAppInner({ onBack }: Props) {
         </View>
       ) : (
         <View style={s.folderHeader}>
-          <Text style={s.folderHeaderText}>{folderLabel}</Text>
-          {(folder === 'spam' || folder === 'trash') && visible.length > 0 ? (
+          <Text style={s.folderHeaderText}>
+            {searching
+              ? `${visible.length} result${visible.length === 1 ? '' : 's'}`
+              : folderLabel}
+          </Text>
+          {/* Scoped to the folder in view. This emptied Spam AND Trash
+              together whichever one you were standing in, behind a button
+              that just said "Empty". */}
+          {(folder === 'spam' || folder === 'trash') && !searching && visible.length > 0 ? (
             <TouchableOpacity
-              onPress={() => emptyMailBin(setGameState)}
+              onPress={() => emptyMailBin(setGameState, folder)}
               accessibilityRole="button"
-              accessibilityLabel="Empty spam and trash"
+              accessibilityLabel={`Empty ${folderLabel.toLowerCase()}`}
             >
-              <Text style={s.folderAction}>Empty</Text>
+              <Text style={s.folderAction}>Empty {folderLabel.toLowerCase()}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -391,14 +530,32 @@ function MailAppInner({ onBack }: Props) {
         {visible.length === 0 ? (
           <View style={s.empty}>
             <MailCheck size={scale(44)} color={theme.textSecondary} />
+            {/* Named dead ends. "Nothing here" under an active filter reads as
+                an empty mailbox, which sends the player looking for a message
+                that is one tap away in the folder behind the chip. */}
             <Text style={s.emptyTitle}>
-              {query.trim() ? 'No matches' : 'Nothing here'}
+              {searching
+                ? 'No matches'
+                : filter
+                  ? `No ${FILTER_LABELS[filter].toLowerCase()} mail`
+                  : 'Nothing here'}
             </Text>
             <Text style={s.emptyText}>
-              {query.trim()
-                ? 'Try a sender, an address or a word from the subject.'
-                : 'Payslips, statements and invoices arrive as the weeks pass.'}
+              {searching
+                ? 'Search covers every folder except Trash. Try a sender, an address or a word from the subject.'
+                : filter
+                  ? FILTER_EMPTY_TEXT[filter]
+                  : 'Payslips, statements and invoices arrive as the weeks pass.'}
             </Text>
+            {filter ? (
+              <TouchableOpacity
+                onPress={() => setFilter(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Clear filter"
+              >
+                <Text style={s.emptyAction}>Clear filter</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           visible.map((m) => (
@@ -406,6 +563,15 @@ function MailAppInner({ onBack }: Props) {
               key={m.id}
               message={m}
               darkMode={darkMode}
+              currentWeek={currentWeek}
+              // Only on results from somewhere else — labelling every row
+              // "Inbox" while standing in the Inbox is noise, and the label
+              // exists so a search hit can be found again afterwards.
+              folderLabel={
+                searching && (m.folder ?? 'inbox') !== 'inbox'
+                  ? FOLDERS.find((f) => f.key === m.folder)?.label
+                  : undefined
+              }
               onPress={() => openMessage(m.id)}
               onToggleStar={() => toggleMailStar(setGameState, m.id)}
             />
@@ -431,20 +597,51 @@ function MailAppInner({ onBack }: Props) {
             <Text style={s.drawerTitle}>DeepMail</Text>
             <Text style={s.drawerAddress}>{address}</Text>
 
+            {/* One tap to everything that is waiting on an answer, from
+                anywhere. This is the only queue in the app that expires, and
+                until now the drawer said nothing about it at all. */}
+            {waiting > 0 ? (
+              <TouchableOpacity
+                style={[s.drawerRow, s.drawerRowWaiting]}
+                onPress={() => {
+                  setFolder('inbox');
+                  setFilter('decisions');
+                  setQuery('');
+                  setDrawerOpen(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${waiting} waiting on a reply`}
+              >
+                <Clock size={scale(18)} color={darkMode ? '#FDD663' : '#B06000'} />
+                <Text style={[s.drawerRowText, s.drawerRowTextWaiting]}>
+                  Waiting on a reply
+                </Text>
+                <Text style={[s.drawerCount, s.drawerRowTextWaiting]}>{waiting}</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* Every folder carries its count. Showing one for the Inbox alone
+                made Spam and Archive read as permanently empty. */}
             {FOLDERS.map(({ key, label, Icon }) => {
               const active = key === folder;
-              const count = key === 'inbox' ? unreadInbox : 0;
+              const count = counts[key];
               return (
                 <TouchableOpacity
                   key={key}
                   style={[s.drawerRow, active && s.drawerRowActive]}
                   onPress={() => {
                     setFolder(key);
+                    setFilter(null);
                     setQuery('');
                     setDrawerOpen(false);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={label}
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={
+                    count > 0
+                      ? `${label}, ${count}${key === 'inbox' ? ' unread' : ''}`
+                      : label
+                  }
                 >
                   <Icon size={scale(18)} color={active ? '#1A73E8' : theme.text} />
                   <Text style={[s.drawerRowText, active && s.drawerRowTextActive]}>{label}</Text>
@@ -526,6 +723,37 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       backgroundColor: darkMode ? '#1C2530' : '#F1F3F4',
     },
     searchInput: { flex: 1, fontSize: fontScale(13), color: theme.text, padding: 0 },
+    chipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: responsiveSpacing.xs,
+      paddingHorizontal: responsiveSpacing.sm,
+      paddingBottom: responsiveSpacing.sm,
+    },
+    // Full border on all four sides. Hard Rule #7 bans a one-sided coloured
+    // stripe; a pill outlined the whole way round is the sanctioned form, and
+    // RN will not curl it against the radius.
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(5),
+      paddingHorizontal: responsiveSpacing.sm,
+      height: scale(30),
+      borderRadius: responsiveBorderRadius.full,
+      borderWidth: 1,
+      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+    },
+    chipActive: {
+      borderColor: darkMode ? '#4A6E9E' : '#1A73E8',
+      backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE',
+    },
+    chipLocation: {
+      borderColor: darkMode ? '#4A6E9E' : '#1A73E8',
+      backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE',
+    },
+    chipText: { fontSize: fontScale(12), fontWeight: '600', color: theme.textSecondary },
+    chipTextActive: { color: darkMode ? '#8AB4F8' : '#1A73E8' },
+    chipTextLocation: { color: darkMode ? '#8AB4F8' : '#1A73E8', fontWeight: '700' },
     tabs: {
       flexDirection: 'row',
       paddingHorizontal: responsiveSpacing.sm,
@@ -583,6 +811,12 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       textAlign: 'center',
       lineHeight: fontScale(18),
     },
+    emptyAction: {
+      marginTop: responsiveSpacing.sm,
+      fontSize: fontScale(13),
+      fontWeight: '700',
+      color: darkMode ? '#8AB4F8' : '#1A73E8',
+    },
     scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', flexDirection: 'row' },
     drawer: {
       width: '78%',
@@ -608,8 +842,13 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       borderRadius: responsiveBorderRadius.full,
     },
     drawerRowActive: { backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE' },
+    drawerRowWaiting: {
+      backgroundColor: darkMode ? 'rgba(249,171,0,0.13)' : '#FEF7E0',
+      marginBottom: scale(4),
+    },
     drawerRowText: { flex: 1, fontSize: fontScale(13.5), color: theme.text },
     drawerRowTextActive: { color: darkMode ? '#8AB4F8' : '#1A73E8', fontWeight: '700' },
+    drawerRowTextWaiting: { color: darkMode ? '#FDD663' : '#B06000', fontWeight: '700' },
     drawerCount: { fontSize: fontScale(12), fontWeight: '700', color: theme.textSecondary },
     riskCard: {
       marginTop: responsiveSpacing.md,

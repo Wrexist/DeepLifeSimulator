@@ -32,6 +32,7 @@ import type { MailMessage } from '@/contexts/game/types';
 import { getThemeColors } from '@/lib/config/theme';
 import { senderColor, senderInitial } from '@/lib/mail/senders';
 import { docDate, docMoney } from '@/lib/mail/format';
+import { decisionDeadline } from '@/lib/mail/filters';
 import MailDocument from './MailDocument';
 import {
   fontScale,
@@ -259,12 +260,10 @@ function MailDetail({
             screen and demands an answer; this one waits. */}
         {message.decision && !message.decision.chosenId ? (
           <View style={s.decision}>
+            {/* Same helper the list row uses. Two expressions rounding the
+                same subtraction is how "1 weeks" ships. */}
             <Text style={s.deadline}>
-              {(() => {
-                const left = message.decision.expiresAtWeek - currentWeek;
-                if (left <= 0) return 'Answer due this week';
-                return `${left} week${left === 1 ? '' : 's'} to reply`;
-              })()}
+              {decisionDeadline(message, currentWeek)?.label ?? 'Awaiting your reply'}
             </Text>
             {message.decision.choices.map((choice) => (
               <TouchableOpacity

@@ -10,28 +10,51 @@
  * Which is why the ADDRESS is on the row for unverified senders, not just in
  * the detail view. Hiding it until you open the message would make the tell
  * discoverable only after the decision.
+ *
+ * The DEADLINE is on the row for the same reason. A letter that settles itself
+ * in two weeks rendered identically to a promotional email — the one row in the
+ * app with a consequence attached was the one row with nothing to distinguish
+ * it. Triage is the point of a list, and you cannot triage what you cannot see.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Star, Paperclip, BadgeCheck } from 'lucide-react-native';
+import { Star, Paperclip, BadgeCheck, Clock } from 'lucide-react-native';
 import type { MailMessage } from '@/contexts/game/types';
 import { getThemeColors } from '@/lib/config/theme';
 import { senderColor, senderInitial } from '@/lib/mail/senders';
 import { docDateShort } from '@/lib/mail/format';
+import { decisionDeadline } from '@/lib/mail/filters';
 import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 
 interface Props {
   message: MailMessage;
   darkMode: boolean;
+  /** Absolute `weeksLived`, for the deadline chip. */
+  currentWeek: number;
+  /**
+   * Where this message lives, shown only when the list spans folders.
+   *
+   * Search does span them, and a result with no location is a message the
+   * player cannot find again — they read "Archive" here or they go hunting.
+   */
+  folderLabel?: string;
   onPress: () => void;
   onToggleStar: () => void;
 }
 
-function MailRow({ message, darkMode, onPress, onToggleStar }: Props) {
+function MailRow({
+  message,
+  darkMode,
+  currentWeek,
+  folderLabel,
+  onPress,
+  onToggleStar,
+}: Props) {
   const theme = getThemeColors(darkMode);
   const s = makeStyles(theme, darkMode);
   const unread = !message.read;
+  const deadline = decisionDeadline(message, currentWeek);
 
   return (
     <TouchableOpacity
@@ -39,7 +62,15 @@ function MailRow({ message, darkMode, onPress, onToggleStar }: Props) {
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${unread ? 'Unread. ' : ''}${message.senderName}. ${message.subject}`}
+      accessibilityLabel={[
+        unread ? 'Unread.' : '',
+        message.senderName + '.',
+        message.subject + '.',
+        deadline ? `Needs a reply, ${deadline.label}.` : '',
+        folderLabel ? `In ${folderLabel}.` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <View style={[s.avatar, { backgroundColor: senderColor(message.senderEmail) }]}>
         <Text style={s.avatarText}>{senderInitial(message.senderName)}</Text>
@@ -77,6 +108,42 @@ function MailRow({ message, darkMode, onPress, onToggleStar }: Props) {
             <Paperclip size={scale(12)} color={theme.textSecondary} />
           ) : null}
         </View>
+
+        {/* Chips: the deadline, and where the message lives when the list spans
+            folders. Full border on all four sides — Hard Rule #7 bans the
+            one-sided coloured stripe, and the colour still carries the meaning
+            (amber = last week to act). */}
+        {deadline || folderLabel ? (
+          <View style={s.chips}>
+            {deadline ? (
+              <View style={[s.chip, deadline.urgent ? s.chipUrgent : s.chipDue]}>
+                <Clock
+                  size={scale(10)}
+                  color={
+                    deadline.urgent
+                      ? darkMode
+                        ? '#FDD663'
+                        : '#B06000'
+                      : theme.textSecondary
+                  }
+                />
+                <Text
+                  style={[s.chipText, deadline.urgent && s.chipTextUrgent]}
+                  numberOfLines={1}
+                >
+                  {deadline.label}
+                </Text>
+              </View>
+            ) : null}
+            {folderLabel ? (
+              <View style={[s.chip, s.chipFolder]}>
+                <Text style={s.chipText} numberOfLines={1}>
+                  {folderLabel}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <TouchableOpacity
@@ -131,6 +198,35 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     address: { fontSize: fontScale(10.5), color: theme.textSecondary },
     preview: { flex: 1, fontSize: fontScale(12), color: theme.textSecondary },
     strong: { fontWeight: '700', color: theme.text },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: scale(5),
+      marginTop: scale(4),
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(3),
+      paddingHorizontal: scale(7),
+      paddingVertical: scale(2),
+      borderRadius: scale(9),
+      borderWidth: 1,
+    },
+    chipDue: {
+      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+    },
+    chipUrgent: {
+      borderColor: darkMode ? '#5C4813' : '#F9AB00',
+      backgroundColor: darkMode ? 'rgba(249,171,0,0.13)' : '#FEF7E0',
+    },
+    chipFolder: {
+      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      backgroundColor: 'transparent',
+    },
+    chipText: { fontSize: fontScale(10), fontWeight: '600', color: theme.textSecondary },
+    chipTextUrgent: { color: darkMode ? '#FDD663' : '#B06000' },
     star: {
       paddingLeft: scale(4),
       paddingTop: scale(4),
