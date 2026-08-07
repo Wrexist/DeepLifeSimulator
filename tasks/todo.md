@@ -407,3 +407,72 @@ never had: a channel the player must judge rather than just read.
       leak, but it is where the headroom went. Worth a decision (compress the
       snapshots, store a diff, or cut to 3) before the budget is raised to
       accommodate something smaller.
+
+---
+
+## Mail, round 2 — the inbox becomes a place where things happen (2026-08-06)
+
+Round 1 made mail a record. This makes it a surface you act on. All four items
+share one mechanism, which is the point: mail is the only channel in the game
+where a decision can WAIT, and everything below is an instance of that.
+
+### The mechanism
+- [x] `MailDecision` on a message: choices, an `expiresAtWeek` deadline, and a
+      TAGGED RESOLVER saying who applies the outcome. One presentation, several
+      handlers — not several decision systems.
+- [x] Letter-shaped events delegate to the EXISTING `resolveEvent(eventId,
+      choiceId)` rather than copying its ~200 lines of effect application. One
+      resolver, one set of rules about affordability, karma and follow-ups.
+- [x] `lib/events/routing.ts` — one place that decides modal vs mail, used by
+      BOTH the event inbox pill and `WeeklyEventModal`, so a routed event can
+      never appear in two channels.
+
+### 1. Letter-shaped events move to the inbox
+- [x] Nine existing events are described in their own copy as arriving by mail —
+      a jury duty summons, a lawsuit threat, a four-page revenue-service letter,
+      a reporter's fact-checking email — and all of them present as a
+      full-screen modal that demands an answer immediately. Route them to mail
+      with a deadline. Not new content: existing content in the right channel,
+      plus the ability to defer.
+
+### 2. The job offer letter
+- [x] `applyCareerApplications` silently flips `accepted: true` after 1–2 weeks.
+      No offer, no salary quoted, no start date, no way to decline. Replace with
+      a real offer letter: Accept / Negotiate / Decline.
+- [x] **Lapsing an offer ACCEPTS it**, which is deliberate. Today's behaviour is
+      auto-accept, so a player who never opens mail must land exactly where they
+      land now. Reading your mail earns the extra options; ignoring it costs
+      nothing. A feature that can silently leave a new player unemployed because
+      they did not find an inbox is not worth shipping.
+- [x] Negotiate reuses `raiseMultiplier` and its cooldown — an existing lever
+      moved to where it belongs, not a new economy.
+
+### 3. Payable bills
+- [x] `overdueBalance` has no player-facing action anywhere: written by the tick,
+      collected automatically, displayed in the bank, and otherwise a spectator
+      sport. An invoice with Pay now clears it early and lifts the credit score.
+      Atomic against `prev` (§4.4) and refused when unaffordable.
+
+### 4. Legal paper
+- [x] The crime axis produces stat changes and a jail counter and no documents.
+      Fines with contest-or-pay, a summons, a settlement offer with a deadline —
+      authored as EVENTS so they inherit the routing above and the one resolver,
+      rather than as a fifth bespoke system.
+
+### What ignoring a letter actually does — the design answer that mattered
+
+The tick cannot apply an ignored event's effects: `resolveEvent` is a React
+callback with its own updater, and copying its ~200 lines of affordability,
+karma and follow-up handling into the weekly pipeline would have created a
+second set of rules for what a choice can do. The alternative — expiring the
+letter silently — would have made every deadline meaningless.
+
+So an expired letter **stops being deferrable**: clearing `channel` hands the
+event back to `WeeklyEventModal`, where it would have appeared all along if mail
+did not exist. Ignoring your post produces precisely the thing you were avoiding
+— the decision interrupts you. One resolver, a real consequence, and no second
+effects engine.
+
+**Gates:** type-check clean · test-tree ratchet 0 · lint 0 errors · routes OK ·
+audit:weekly all five domains green · full suite **500 suites / 6,298 tests /
+0 failures** (was 499 / 6,273).

@@ -17,6 +17,8 @@
 import type { GameState, MailFolder, MailMessage } from '@/contexts/game/types';
 import { getMailState } from '@/lib/mail/state';
 import { scamLossFor } from '@/lib/mail/scam';
+import { applyArrearsPayment, applyCareerOffer } from '@/lib/mail/resolve';
+import { docMoney } from '@/lib/mail/format';
 import { logger } from '@/utils/logger';
 
 type SetGameState = (updater: (prev: GameState) => GameState) => void;
@@ -210,6 +212,131 @@ export function disputeMailCharge(
   });
 
   onResolved({ recovered, refused });
+}
+
+export interface DecisionResult {
+  /** Copy to show the player. Empty when the call was a no-op. */
+  outcome: string;
+  /**
+   * Set when the resolver is `event` — the caller must forward this to
+   * `resolveEvent(eventId, choiceId)`, which owns effect application. Mail
+   * deliberately does NOT reimplement it: money, karma, follow-ups, chains and
+   * affordability all live in one place and must keep living there.
+   */
+  delegateToEvent?: { eventId: string; choiceId: string };
+}
+
+/**
+ * Stamp a decision resolved. Returns `prev` when it was already resolved, which
+ * is what makes every one of these one-shot under a double-tap.
+ */
+function resolveDecisionOn(
+  prev: GameState,
+  id: string,
+  chosenId: string,
+  resolvedAs: 'chosen' | 'lapsed',
+  outcome: string
+): GameState {
+  return patchMessage(prev, id, (m) => {
+    if (!m.decision || m.decision.chosenId) return null;
+    return {
+      ...m,
+      read: true,
+      decision: { ...m.decision, chosenId, resolvedAs, outcome },
+    };
+  });
+}
+
+/**
+ * Take a choice on a mail decision.
+ *
+ * ONE updater does everything: the effect, the stamp, and the rejection path.
+ * Splitting them would be the gate→grant bug — and here the reject path is not
+ * theoretical, because a decision with a visible deadline is exactly the kind
+ * of button people press twice.
+ *
+ * Event-backed decisions are the exception by design: this stamps the message
+ * and hands the caller an instruction to invoke `resolveEvent`, which applies
+ * the effects in its own updater. The stamp is still one-shot, so the delegation
+ * can only be issued once.
+ */
+export function chooseMailDecision(
+  setGameState: SetGameState,
+  id: string,
+  choiceId: string,
+  onResolved: (result: DecisionResult) => void
+): void {
+  let result: DecisionResult = { outcome: '' };
+
+  setGameState((prev) => {
+    const mail = getMailState(prev);
+    const message = mail.messages.find((m) => m.id === id);
+    if (!message?.decision || message.decision.chosenId) return prev;
+
+    const { resolver } = message.decision;
+
+    if (resolver.kind === 'event') {
+      result = {
+        outcome: 'Answered.',
+        delegateToEvent: { eventId: resolver.eventId, choiceId },
+      };
+      return resolveDecisionOn(prev, id, choiceId, 'chosen', 'Answered.');
+    }
+
+    if (resolver.kind === 'careerOffer') {
+      const outcomeState = applyCareerOffer(prev, resolver.careerId, choiceId);
+      result = { outcome: outcomeState.outcome };
+      return resolveDecisionOn(outcomeState.state, id, choiceId, 'chosen', outcomeState.outcome);
+    }
+
+    // payArrears
+    const paid = applyArrearsPayment(prev, choiceId);
+    result = { outcome: paid.outcome };
+    return resolveDecisionOn(paid.state, id, choiceId, 'chosen', paid.outcome);
+  });
+
+  onResolved(result);
+}
+
+/**
+ * Lapse a decision nobody answered.
+ *
+ * Called by the tick, not the UI. Applies the decision's own `lapseChoiceId`
+ * through the same path a tap would, so "ignored" and "chose the default" can
+ * never diverge.
+ */
+export function lapseMailDecision(
+  setGameState: SetGameState,
+  id: string,
+  onResolved: (result: DecisionResult) => void
+): void {
+  let result: DecisionResult = { outcome: '' };
+
+  setGameState((prev) => {
+    const message = getMailState(prev).messages.find((m) => m.id === id);
+    if (!message?.decision || message.decision.chosenId) return prev;
+
+    const choiceId = message.decision.lapseChoiceId;
+    const { resolver } = message.decision;
+
+    if (resolver.kind === 'event') {
+      result = { outcome: 'No reply sent.', delegateToEvent: { eventId: resolver.eventId, choiceId } };
+      return resolveDecisionOn(prev, id, choiceId, 'lapsed', 'No reply sent.');
+    }
+
+    if (resolver.kind === 'careerOffer') {
+      const applied = applyCareerOffer(prev, resolver.careerId, choiceId);
+      const outcome = `You started without replying. ${applied.outcome}`;
+      result = { outcome };
+      return resolveDecisionOn(applied.state, id, choiceId, 'lapsed', outcome);
+    }
+
+    const paid = applyArrearsPayment(prev, choiceId);
+    result = { outcome: paid.outcome };
+    return resolveDecisionOn(paid.state, id, choiceId, 'lapsed', paid.outcome);
+  });
+
+  onResolved(result);
 }
 
 /** Permanently drop everything in Trash and Spam. */

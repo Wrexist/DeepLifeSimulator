@@ -141,6 +141,8 @@ import { applyContentMemberships } from './actions/weekly/applyContentMembership
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
 import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
 import { applyMail } from './actions/weekly/applyMail';
+import { applyMailLapse } from './actions/weekly/applyMailLapse';
+import { routeEvents } from '@/lib/events/routing';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
@@ -2944,8 +2946,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  cryptoMarket: finalCryptoMarket,
  // Degrade miner durability over time
  warehouse: updatedWarehouse,
- // Add new weekly events to pendingEvents
- pendingEvents: updatedPendingEvents,
+ // Add new weekly events to pendingEvents.
+ //
+ // `routeEvents` stamps `channel: 'mail'` on the letter-shaped ones — the
+ // events whose own copy already says they arrived in the post. It returns
+ // the SAME array when nothing needed routing, so an ordinary week is
+ // byte-identical to before. Everything downstream reads the surface through
+ // `lib/events/routing.ts` rather than filtering `pendingEvents` by hand, so
+ // the inbox pill and the modal cannot disagree about who owns an event.
+ pendingEvents: routeEvents(updatedPendingEvents, (prevState.weeksLived ?? 0) + 1),
  // #16: persist the dequeued follow-up chain queue (due ones surfaced above).
  pendingChainedEvents: updatedPendingChainedEvents,
  // GL-1 self-heal: a save latched by the old off-by-one carries an
@@ -3110,6 +3119,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    }
  } catch (mailErr) {
    logger.error('[MAIL TICK] failed:', mailErr);
+ }
+
+ /**
+  * Settle letters nobody answered. A deadline the game does not enforce is
+  * decoration.
+  *
+  * Runs AFTER delivery so a letter cannot be delivered and expired in the same
+  * tick, and guarded for the same reason as everything else here (§4.3).
+  */
+ try {
+   const lapseResult = applyMailLapse({ state: nextState, week: nextState.weeksLived ?? 0 });
+   if (lapseResult.state) {
+     nextState = lapseResult.state;
+     logger.info(`[MAIL] ${lapseResult.lapsed} letter(s) expired`);
+   }
+ } catch (lapseErr) {
+   logger.error('[MAIL LAPSE] failed:', lapseErr);
  }
 
  // PERF (freeze fix): expose the computed state to the post-update code below.

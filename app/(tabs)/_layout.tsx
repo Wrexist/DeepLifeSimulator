@@ -2,6 +2,7 @@ import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Platform, View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
+import { modalEventCount } from '@/lib/events/routing';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -163,7 +164,11 @@ export default function TabLayout() {
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
   const [eventInboxOpen, setEventInboxOpen] = useState(false);
-  const pendingEventCount = gameState?.pendingEvents?.length ?? 0;
+  // Letter-shaped events live in the mail app, so they must not inflate the
+  // pill — a player who saw "2 decisions waiting", opened the inbox and found
+  // one would have no way to find the other. One selector, shared with
+  // `WeeklyEventModal`, so the two can never disagree.
+  const pendingEventCount = modalEventCount(gameState);
   useEffect(() => {
     if (pendingEventCount === 0 && eventInboxOpen) setEventInboxOpen(false);
   }, [pendingEventCount, eventInboxOpen]);

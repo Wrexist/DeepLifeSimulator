@@ -585,6 +585,55 @@ export interface MailAction {
   kind: 'safe' | 'danger';
 }
 
+/** One option in a decision the message is asking the player to make. */
+export interface MailChoice {
+  id: string;
+  label: string;
+  /** One line under the label — the cost, the catch, or what it means. */
+  detail?: string;
+  kind?: 'primary' | 'neutral' | 'danger';
+}
+
+/**
+ * Who applies the outcome when a choice is taken.
+ *
+ * A tagged union rather than a bag of optional fields, so each handler reads
+ * only what it declares and adding a fifth kind cannot silently do nothing.
+ * Accessed through `'kind' in x` guards (Hard Rule #2).
+ *
+ * `event` is the important one: it DELEGATES to `resolveEvent(eventId,
+ * choiceId)`, the existing ~200-line resolver that already knows about
+ * affordability, karma, follow-up events, chains and memories. Copying that
+ * into mail would have created a second set of rules about what a choice can
+ * do, and the two would have drifted the first time either changed.
+ */
+export type MailResolver =
+  | { kind: 'event'; eventId: string }
+  | { kind: 'careerOffer'; careerId: string }
+  | { kind: 'payArrears' };
+
+/**
+ * A decision the player can take their time over.
+ *
+ * This is what mail adds that no other channel in the game can: every other
+ * decision surface (`WeeklyEventModal`, `LifeMomentModal`) covers the screen
+ * and demands an answer now. An offer that sits in the inbox until it expires
+ * is a different verb — you can weigh it, sleep on it, or let it lapse.
+ */
+export interface MailDecision {
+  choices: MailChoice[];
+  /** Absolute `weeksLived` after which the offer lapses. */
+  expiresAtWeek: number;
+  /** Which choice happens on its own if the player never answers. */
+  lapseChoiceId: string;
+  resolver: MailResolver;
+  /** Set once resolved — the id chosen, or the lapse choice. */
+  chosenId?: string;
+  resolvedAs?: 'chosen' | 'lapsed';
+  /** What happened, in words, once resolved. */
+  outcome?: string;
+}
+
 /**
  * Fraud metadata. Present ONLY on messages that are actually scams.
  *
@@ -624,6 +673,8 @@ export interface MailMessage {
   verified?: boolean;
   attachment?: MailAttachment;
   action?: MailAction;
+  /** A decision with a deadline. Mutually exclusive with `action` in practice. */
+  decision?: MailDecision;
   /** Set once the player resolves the action. Makes every action one-shot. */
   actionTaken?: 'accepted' | 'reported';
   /** How much a scam actually took, stamped when it is paid. Enables disputes. */

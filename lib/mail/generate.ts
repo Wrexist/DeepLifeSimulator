@@ -13,6 +13,9 @@
 import type { GameState, MailMessage } from '@/contexts/game/types';
 import { MAIL_TEMPLATES } from './templates';
 import { generateScam } from './scam';
+import { letterFromEvent } from './letters';
+import { arrearsInvoice, jobOfferLetter } from './offers';
+import { mailEvents } from '@/lib/events/routing';
 import type { MailContext, MailFacts } from './types';
 
 /**
@@ -82,6 +85,38 @@ export function generateWeeklyMail(input: GenerateMailInput): MailMessage[] {
     if (scam) out.push(scam);
   } catch {
     // Same contract as above.
+  }
+
+  // Decisions are also outside the cap, for a stronger reason than the scam:
+  // a routine invoice must never be able to stop a job offer or a summons from
+  // being delivered. Their ids are keyed on the thing they are about (the
+  // event, the career) rather than the week, so a decision that stays open for
+  // several weeks is delivered once and `appendMessages` drops the repeats.
+  try {
+    for (const event of mailEvents(input.state)) {
+      const letter = letterFromEvent(event, week);
+      if (letter) out.push(letter);
+    }
+  } catch {
+    // A malformed event costs its own letter and nothing else.
+  }
+
+  try {
+    const offer = jobOfferLetter(input.state, week);
+    if (offer) out.push(offer);
+  } catch {
+    /* see above */
+  }
+
+  try {
+    // One arrears notice per 4-week cycle, not one per tick — the id is keyed
+    // on the week, so an un-cycled week would mint a duplicate every time.
+    if (week % 4 === 3) {
+      const invoice = arrearsInvoice(input.state, week);
+      if (invoice) out.push(invoice);
+    }
+  } catch {
+    /* see above */
   }
 
   return out;

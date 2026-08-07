@@ -52,12 +52,14 @@ import {
 import type { MailFolder, MailMessage } from '@/contexts/game/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { shallowEqual, useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/GameContext';
 import { getThemeColors } from '@/lib/config/theme';
 import { getMailState, unreadByCategory, unreadCount } from '@/lib/mail/state';
 import { scamRisk } from '@/lib/mail/scam';
 import { docMoney } from '@/lib/mail/format';
 import {
   actOnScamMail,
+  chooseMailDecision,
   disputeMailCharge,
   emptyMailBin,
   markFolderRead,
@@ -101,6 +103,9 @@ interface Props {
 function MailAppInner({ onBack }: Props) {
   const insets = useSafeAreaInsets();
   const setGameState = useSetGameState();
+  // The one resolver. Mail delegates event-backed choices to it rather than
+  // reimplementing effect application — see `MailResolver`.
+  const { resolveEvent } = useGameActions();
 
   // Narrow subscription: the mail slice and the two booleans that style it.
   const mail = useGameSelector((s) => s?.mail);
@@ -117,6 +122,7 @@ function MailAppInner({ onBack }: Props) {
   // and keeps it up while a sub-app is open. Reserve room for it only while it
   // is actually there — see the note on `MailDetail`'s `pillClearance`.
   const decisionPending = useGameSelector((s) => (s?.pendingEvents?.length ?? 0) > 0);
+  const currentWeek = useGameSelector((s) => s?.weeksLived ?? 0);
   const pillClearance = decisionPending ? scale(110) : 0;
 
   const theme = getThemeColors(darkMode);
@@ -196,6 +202,28 @@ function MailAppInner({ onBack }: Props) {
     });
   }, [open, setGameState]);
 
+  /**
+   * Take a choice on a decision.
+   *
+   * Event-backed letters come back with a delegation instruction rather than an
+   * applied effect: `resolveEvent` owns money, karma, follow-ups and
+   * affordability, and mail must not grow a second copy of any of that. The
+   * stamp is one-shot, so the delegation can only be issued once however many
+   * times the button is pressed.
+   */
+  const handleChoose = useCallback(
+    (choiceId: string) => {
+      if (!open) return;
+      chooseMailDecision(setGameState, open.id, choiceId, ({ outcome, delegateToEvent }) => {
+        if (delegateToEvent) {
+          resolveEvent(delegateToEvent.eventId, delegateToEvent.choiceId);
+        }
+        if (outcome) setBanner(outcome);
+      });
+    },
+    [open, setGameState, resolveEvent]
+  );
+
   const handleReport = useCallback(() => {
     if (!open) return;
     reportMailPhishing(setGameState, open.id);
@@ -229,6 +257,8 @@ function MailAppInner({ onBack }: Props) {
           onReport={handleReport}
           onAct={handleAct}
           onDispute={handleDispute}
+          onChoose={handleChoose}
+          currentWeek={currentWeek}
         />
       </View>
     );

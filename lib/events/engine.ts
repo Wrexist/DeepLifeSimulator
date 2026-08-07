@@ -5,6 +5,7 @@ import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEven
 import { personalCrisisEventTemplates } from './personalCrises';
 import { enhancedEventTemplates } from './enhancedEvents';
 import { lifeMilestoneEventTemplates } from './lifeMilestoneEvents';
+import { legalEventTemplates } from './legalEvents';
 import { careerEventTemplates } from './careerEvents';
 import { travelEventTemplates } from './travelEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
@@ -92,6 +93,24 @@ export interface WeeklyEvent {
   chainStage?: number; // Stage number in the chain (0-based)
   followUpEventId?: string; // ID of follow-up event to trigger after choice
   generatedAtWeeksLived?: number; // Absolute week generated; used for persistence hygiene
+  /**
+   * Which surface delivered this event. Absent means the blocking modal, which
+   * is what every event did before mail existed — so an old save, or an event
+   * from a template that knows nothing about routing, behaves exactly as it did.
+   *
+   * Set to `'mail'` at DELIVERY time (not on the template) by
+   * `lib/events/routing.ts`, for the events whose own copy says they arrived as
+   * a letter. Read it through that module's selectors rather than directly:
+   * the event inbox and `WeeklyEventModal` must agree about which events they
+   * own, and a second hand-rolled filter is how they would stop agreeing.
+   */
+  channel?: 'modal' | 'mail';
+  /**
+   * Absolute `weeksLived` after which an un-answered mail-routed event lapses
+   * to its default choice. Only meaningful with `channel: 'mail'` — a modal
+   * event cannot be deferred, so it cannot expire.
+   */
+  expiresAtWeek?: number;
 }
 
 /**
@@ -2848,6 +2867,7 @@ export const eventTemplates: EventTemplate[] = [
   ...enhancedEventTemplates,
   // Life milestone events (relationships, family, age, wellness)
   ...lifeMilestoneEventTemplates,
+  ...legalEventTemplates,
   // Career events (performance, workplace, firing)
   ...careerEventTemplates,
   // Travel events (experiences while on trips)

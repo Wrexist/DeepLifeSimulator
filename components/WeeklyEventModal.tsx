@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp,
 import type { EnhancedEventChoice } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
+import { modalEvents } from '@/lib/events/routing';
 import { getCurrentEconomicState } from '@/lib/events/economyEvents';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -20,10 +21,14 @@ export default function WeeklyEventModal() {
  const { gameState, setGameState } = useGameState();
  const { resolveEvent, saveGame } = useGameActions();
 
- // CRASH FIX: Safe array access - prevent crash if pendingEvents is empty/undefined
- const event = gameState.pendingEvents && gameState.pendingEvents.length > 0
- ? gameState.pendingEvents[0]
-: null;
+ // CRASH FIX: Safe array access - prevent crash if pendingEvents is empty/undefined.
+ //
+ // `modalEvents` rather than `pendingEvents[0]`: letter-shaped events are routed
+ // to the mail app and must not also appear here. Reading the raw array would
+ // show a jury summons in a blocking modal AND in the inbox, and the dismiss
+ // below would then remove whichever event happened to be first.
+ const modalQueue = modalEvents(gameState);
+ const event = modalQueue.length > 0 ? modalQueue[0] : null;
 
  // Optional-chain `pets`: a save predating the field leaves it undefined, and
  // this modal mounts outside the home ErrorBoundary on any weekly event.
@@ -32,9 +37,12 @@ export default function WeeklyEventModal() {
  // Emergency dismiss function - clears the current event if something is wrong
  const handleEmergencyDismiss = useCallback(() => {
  log.warn('Emergency dismiss triggered for event:', { eventId: event?.id });
+ // Remove BY ID, not by index. `slice(1)` assumed the visible event was
+ // always `pendingEvents[0]`, which stopped being true the moment some events
+ // were routed elsewhere — it would have dismissed a mail letter instead.
  setGameState(prev => ({
 ...prev,
- pendingEvents: prev.pendingEvents.slice(1), // Remove the first (current) event
+ pendingEvents: (prev.pendingEvents ?? []).filter(e => e?.id !== event?.id),
  }));
  saveGame();
  }, [setGameState, saveGame, event?.id]);

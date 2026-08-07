@@ -65,6 +65,10 @@ interface Props {
   onReport: () => void;
   onAct: () => void;
   onDispute: () => void;
+  /** Take one of the decision's choices. */
+  onChoose: (choiceId: string) => void;
+  /** Current absolute week, for the countdown on an open decision. */
+  currentWeek: number;
 }
 
 function MailDetail({
@@ -79,6 +83,8 @@ function MailDetail({
   onReport,
   onAct,
   onDispute,
+  onChoose,
+  currentWeek,
 }: Props) {
   const theme = getThemeColors(darkMode);
   const s = makeStyles(theme, darkMode);
@@ -217,6 +223,72 @@ function MailDetail({
           </TouchableOpacity>
         ) : null}
 
+        {/* A decision with a deadline — the thing mail can do that no other
+            surface in this game can. Every other decision channel covers the
+            screen and demands an answer; this one waits. */}
+        {message.decision && !message.decision.chosenId ? (
+          <View style={s.decision}>
+            <Text style={s.deadline}>
+              {(() => {
+                const left = message.decision.expiresAtWeek - currentWeek;
+                if (left <= 0) return 'Answer due this week';
+                return `${left} week${left === 1 ? '' : 's'} to reply`;
+              })()}
+            </Text>
+            {message.decision.choices.map((choice) => (
+              <TouchableOpacity
+                key={choice.id}
+                style={[
+                  s.choiceBtn,
+                  choice.kind === 'primary' && s.choicePrimary,
+                ]}
+                onPress={() => onChoose(choice.id)}
+                accessibilityRole="button"
+                accessibilityLabel={choice.label}
+              >
+                <Text
+                  style={[
+                    s.choiceLabel,
+                    choice.kind === 'primary' && s.choiceLabelPrimary,
+                  ]}
+                >
+                  {choice.label}
+                </Text>
+                {choice.detail ? (
+                  <Text
+                    style={[
+                      s.choiceDetail,
+                      choice.kind === 'primary' && s.choiceDetailPrimary,
+                    ]}
+                  >
+                    {choice.detail}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+            {/* Naming the default is the whole point of a deadline. A silent
+                lapse would be a trap; a stated one is a choice to make later. */}
+            <Text style={s.lapseNote}>
+              If you do not reply:{' '}
+              {message.decision.choices.find((c) => c.id === message.decision!.lapseChoiceId)
+                ?.label ?? 'nothing happens'}
+              .
+            </Text>
+          </View>
+        ) : null}
+
+        {message.decision?.chosenId ? (
+          <View style={s.outcome}>
+            <View style={s.outcomeHead}>
+              <ShieldCheck size={scale(16)} color={darkMode ? '#81C995' : '#188038'} />
+              <Text style={s.outcomeTitle}>
+                {message.decision.resolvedAs === 'lapsed' ? 'Expired' : 'Answered'}
+              </Text>
+            </View>
+            <Text style={s.tellText}>{message.decision.outcome}</Text>
+          </View>
+        ) : null}
+
         {/* Outcome + the tells, once resolved either way. */}
         {resolved && message.scam ? (
           <View style={s.outcome}>
@@ -351,6 +423,41 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       color: darkMode ? '#81C995' : '#188038',
       fontSize: fontScale(13),
       fontWeight: '600',
+    },
+    decision: {
+      marginTop: responsiveSpacing.md,
+      gap: responsiveSpacing.sm,
+    },
+    deadline: {
+      fontSize: fontScale(11),
+      letterSpacing: 0.8,
+      fontWeight: '700',
+      color: darkMode ? '#FDD663' : '#B06000',
+    },
+    choiceBtn: {
+      minHeight: touchTargets.minimum,
+      justifyContent: 'center',
+      paddingHorizontal: responsiveSpacing.md,
+      paddingVertical: responsiveSpacing.sm,
+      borderRadius: responsiveBorderRadius.md,
+      borderWidth: 1,
+      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+    },
+    choicePrimary: { backgroundColor: '#1A73E8', borderColor: '#1A73E8' },
+    choiceLabel: { fontSize: fontScale(13.5), fontWeight: '700', color: theme.text },
+    choiceLabelPrimary: { color: '#FFFFFF' },
+    choiceDetail: {
+      marginTop: scale(2),
+      fontSize: fontScale(11.5),
+      lineHeight: fontScale(16),
+      color: theme.textSecondary,
+    },
+    choiceDetailPrimary: { color: 'rgba(255,255,255,0.85)' },
+    lapseNote: {
+      fontSize: fontScale(11),
+      lineHeight: fontScale(16),
+      color: theme.textSecondary,
+      fontStyle: 'italic',
     },
     outcome: {
       marginTop: responsiveSpacing.md,
