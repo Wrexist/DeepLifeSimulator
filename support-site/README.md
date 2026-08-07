@@ -12,6 +12,12 @@ Immersive multi-page GitHub Pages site for DeepLife Simulator.
 
 Shared: `styles.css`, `app.js`, `assets/` (real in-app screenshots + app icon).
 
+`app-ads.txt` ships here too, but read `user-pages/README.md` before assuming it
+does anything: AdMob only crawls the **root** of the developer domain, and this
+folder publishes to a subdirectory (`wrexist.github.io/DeepLifeSimulator/`). The
+copy here only becomes the live one if a custom domain is pointed at this site,
+which serves this folder at that domain's root.
+
 ## Deploy to the support repo (wrexist/deeplife-sim-support)
 Copy the contents of this folder to the root of that repo's published branch:
 
