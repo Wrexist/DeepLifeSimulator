@@ -32,7 +32,14 @@ export function pendingApplication(state: GameState | null | undefined) {
   const level = Math.max(0, Math.min(career.level ?? 0, career.levels.length - 1));
   const entry = career.levels[level];
   if (!entry || typeof entry.salary !== 'number' || entry.salary <= 0) return null;
-  return { career, title: entry.name ?? 'Staff', salary: Math.round(entry.salary) };
+  return {
+    career,
+    title: entry.name ?? 'Staff',
+    salary: Math.round(entry.salary),
+    // Increments on every application (`JobActions.applyToCareer`), so it is
+    // what makes a SECOND application to the same employer a second letter.
+    attempt: Math.max(1, career.applicationAttempts ?? 1),
+  };
 }
 
 /**
@@ -84,9 +91,13 @@ export function jobOfferLetter(
   ];
 
   return {
-    // Keyed on the career, not the week — one offer per application, however
-    // many weeks it sits unanswered.
-    id: `mail-offer-${pending.career.id}`,
+    // Keyed on the career AND the attempt number. Keyed on the career alone,
+    // a player who declined and later re-applied got no second letter at all:
+    // the resolved first offer was still in the mailbox, so `appendMessages`
+    // saw the id and dropped the new one. The attempt counter is what makes a
+    // second application a second letter, while still delivering ONE letter
+    // however many weeks that application sits unanswered.
+    id: `mail-offer-${pending.career.id}-${pending.attempt}`,
     senderName: SENDERS.payroll.name,
     senderEmail: SENDERS.payroll.email,
     verified: true,

@@ -18,7 +18,7 @@
  * can check them against the week they are living.
  */
 
-import type { GameState, MailMessage } from '@/contexts/game/types';
+import type { GameState, MailAttachment, MailMessage } from '@/contexts/game/types';
 import { SENDERS } from './senders';
 import { docDate, docMoney, docPercent, docReference, docWhole } from './format';
 import { characterName, getMailState } from './state';
@@ -93,8 +93,12 @@ const welcome: MailTemplate = (ctx) => {
   // inbox where the welcome should have been — no test would have caught it,
   // because every test picks its own week.
   //
-  // "The inbox is empty" is also just what the message means.
-  if (getMailState(ctx.state).messages.length > 0) return null;
+  // "The inbox has never run" rather than "the inbox is empty", which was the
+  // first fix and was still wrong: `emptyMailBin` and the 50-message prune can
+  // both take the count back to zero, and the welcome would then arrive again —
+  // with a fresh week-keyed id, so `appendMessages` would not dedupe it. The
+  // generation marker is the only thing that says "this mailbox is new".
+  if (getMailState(ctx.state).lastGeneratedWeek !== undefined) return null;
   const name = characterName(ctx.state).split(' ')[0] || 'there';
   return compose(ctx, SENDERS.security, {
     idSuffix: 'welcome',
@@ -182,10 +186,22 @@ const bankStatement: MailTemplate = (ctx) => {
   const interest = Math.round((ctx.facts.savingsInterest ?? 0) * LONG_PERIOD);
   const overdue = Math.round(ctx.state.overdueBalance ?? 0);
 
-  const rows = [
+  const rows: MailAttachment['rows'] = [
     { label: 'Cash account', value: docMoney(cash) },
     { label: 'Savings account', value: docMoney(savings) },
   ];
+
+  // Where the money came from. The HUD shows one "Cash Flow" number and the
+  // player has no way to see its composition anywhere else — a statement that
+  // splits earned from passive is the whole reason banks send them.
+  const total = Math.round((ctx.facts.totalIncome ?? 0) * LONG_PERIOD);
+  const passive = Math.round((ctx.facts.passiveIncome ?? 0) * LONG_PERIOD);
+  if (total > 0) {
+    rows.push({ label: 'Credits received this period', value: `+${docMoney(total)}` });
+    if (passive > 0) {
+      rows.push({ label: '  of which passive', value: docMoney(passive), muted: true });
+    }
+  }
   if (interest > 0) rows.push({ label: 'Interest credited this period', value: `+${docMoney(interest)}` });
   if (overdue > 0) {
     rows.push({ label: 'Overdue balance', value: `-${docMoney(overdue)}` });
@@ -360,6 +376,142 @@ const tuitionInvoice: MailTemplate = (ctx) => {
       ],
       total: { label: 'Due this term', value: docMoney(termCost) },
       note: 'Withdrawing forfeits the term. Speak to the registrar first.',
+    },
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Loan statement
+// ---------------------------------------------------------------------------
+
+/**
+ * The game has loans — principal, APR, term, autopay, penalties — and produced
+ * no paperwork for any of it. The only place a balance appeared was inside the
+ * bank app, and the only signal that a payment had been missed was a penalty
+ * quietly leaving the weekly cash line.
+ */
+const loanStatement: MailTemplate = (ctx) => {
+  if (ctx.week % LONG_PERIOD !== 5) return null;
+  const loans = Array.isArray(ctx.state.loans) ? ctx.state.loans : [];
+  const open = loans.filter((l) => l && (l.remaining ?? 0) > 0);
+  if (open.length === 0) return null;
+
+  const paid = Math.round((ctx.facts.loanPaid ?? 0) * LONG_PERIOD);
+  const penalty = Math.round((ctx.facts.loanPenalty ?? 0) * LONG_PERIOD);
+  const outstanding = open.reduce((n, l) => n + Math.max(0, Math.round(l.remaining ?? 0)), 0);
+
+  const rows: MailAttachment['rows'] = open.slice(0, 4).map((l) => ({
+    label: `${l.name ?? 'Loan'} · ${(Math.max(0, l.rateAPR ?? 0) * 100).toFixed(1)}% APR`,
+    value: docMoney(Math.max(0, l.remaining ?? 0)),
+  }));
+  if (paid > 0) rows.push({ label: 'Collected this period', value: `-${docMoney(paid)}`, muted: true });
+  if (penalty > 0) {
+    rows.push({ label: 'Late-payment charges', value: `-${docMoney(penalty)}`, negative: true });
+  }
+
+  return compose(ctx, SENDERS.bank, {
+    idSuffix: 'loans',
+    subject: `Loan statement — ${open.length} facilit${open.length === 1 ? 'y' : 'ies'}`,
+    preview: `${docMoney(outstanding)} outstanding.`,
+    body:
+      'Your loan statement for this period is attached.\n\n' +
+      (penalty > 0
+        ? 'A late-payment charge was applied. Charges are avoided entirely by ' +
+          'keeping enough cash to cover the weekly instalment — autopay skips ' +
+          'rather than overdrawing you, and a skipped payment is what draws the ' +
+          'charge.\n\n'
+        : 'Payments are collected automatically each week.\n\n') +
+      'Settling early reduces the total interest paid. There is no penalty for ' +
+      'doing so.',
+    category: 'finance',
+    attachment: {
+      kind: 'statement',
+      title: 'Loan statement',
+      issuer: 'DeepLife Bank · Lending',
+      reference: docReference('LON', ctx.week, 41),
+      rows,
+      total: { label: 'Total outstanding', value: docMoney(outstanding) },
+    },
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Recurring-charges receipt
+// ---------------------------------------------------------------------------
+
+/**
+ * A real receipt, which the app could render and never produced.
+ *
+ * `MailDocument` has always had a RECEIPT layout and no template emitted one,
+ * so that branch was unreachable — the same dead-branch pattern this codebase
+ * keeps growing. It is also the one document type the original brief asked for
+ * by name.
+ *
+ * Recurring charges are the honest subject: they are the money that leaves
+ * automatically every week, which is exactly the spending a player never sees
+ * itemised anywhere.
+ */
+const chargesReceipt: MailTemplate = (ctx) => {
+  if (ctx.week % LONG_PERIOD !== 7) return null;
+
+  const rows: MailAttachment['rows'] = [];
+
+  const pro = ctx.state.socialMedia?.verifiedPro;
+  if (pro?.active && (pro.weeklyPrice ?? 0) > 0) {
+    rows.push({
+      label: `Pulse Verified Pro · ${LONG_PERIOD} weeks @ ${docMoney(pro.weeklyPrice!)}`,
+      value: docMoney(pro.weeklyPrice! * LONG_PERIOD),
+    });
+  }
+
+  const spark = ctx.state.sparkApp?.premium;
+  if (spark?.active && (spark.weeklyPrice ?? 0) > 0) {
+    rows.push({
+      label: `Spark Premium · ${LONG_PERIOD} weeks @ ${docMoney(spark.weeklyPrice!)}`,
+      value: docMoney(spark.weeklyPrice! * LONG_PERIOD),
+    });
+  }
+
+  // `DietPlan` stores a DAILY cost, not a weekly one. Reading `weeklyCost`
+  // type-checked (optional chaining on a cast) and would have silently omitted
+  // every diet from the receipt — a dead branch inside the fix for dead
+  // branches. Checked against the interface rather than assumed.
+  const diet = (Array.isArray(ctx.state.dietPlans) ? ctx.state.dietPlans : []).find(
+    (d) => d?.active
+  );
+  const dietWeekly = Math.round((diet?.dailyCost ?? 0) * 7);
+  if (diet && dietWeekly > 0) {
+    rows.push({
+      label: `${diet.name} · ${LONG_PERIOD} weeks @ ${docMoney(dietWeekly)}`,
+      value: docMoney(dietWeekly * LONG_PERIOD),
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  const total = rows.reduce(
+    (n, r) => n + Number(r.value.replace(/[$,]/g, '')),
+    0
+  );
+
+  return compose(ctx, SENDERS.bank, {
+    idSuffix: 'charges',
+    subject: 'Receipt for your recurring charges',
+    preview: `${rows.length} active subscription${rows.length === 1 ? '' : 's'}.`,
+    body:
+      'Here is what left your account automatically this period.\n\n' +
+      'Recurring charges are easy to forget and they compound: anything here ' +
+      'that you are not using is money leaving every week for nothing. Each can ' +
+      'be cancelled from the app that sold it.',
+    category: 'finance',
+    attachment: {
+      kind: 'receipt',
+      title: 'Recurring charges',
+      issuer: 'DeepLife Bank · Direct Debits',
+      reference: docReference('RCT', ctx.week, 43),
+      rows,
+      total: { label: 'Charged this period', value: docMoney(total) },
+      note: 'Paid automatically. Cancel any time — no notice period.',
     },
   });
 };
@@ -625,6 +777,8 @@ export const MAIL_TEMPLATES: MailTemplate[] = [
   taxNotice,
   overdueNotice,
   tuitionInvoice,
+  loanStatement,
+  chargesReceipt,
   brokerageStatement,
   vehicleService,
   insuranceRenewal,

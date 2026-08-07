@@ -319,7 +319,6 @@ export function generateScam(ctx: MailContext): MailMessage | null {
   if (pool.length === 0) return null;
 
   const bp = pool[Math.floor(ctx.rand('scam-pick') * pool.length) % pool.length];
-  const cash = Math.max(0, ctx.state.stats?.money ?? 0);
 
   return {
     id: `mail-scam-${bp.key}-${ctx.week}`,
@@ -335,11 +334,7 @@ export function generateScam(ctx: MailContext): MailMessage | null {
     folder: 'inbox',
     category: bp.category,
     action: { id: bp.key, label: bp.actionLabel, kind: 'danger' },
-    scam: {
-      lossFraction: bp.lossFraction,
-      lossCap: Math.max(0, Math.round(cash * SCAM_LOSS_CAP_FRACTION)),
-      tells: bp.tells,
-    },
+    scam: { lossFraction: bp.lossFraction, tells: bp.tells },
   };
 }
 

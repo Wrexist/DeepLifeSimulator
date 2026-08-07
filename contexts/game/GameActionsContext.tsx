@@ -3099,7 +3099,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
      week: nextState.weeksLived ?? 0,
      facts: {
        careerSalary,
-       partnerIncome,
        passiveIncome,
        totalIncome,
        incomeTax,
@@ -3107,8 +3106,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
        loanPaid: totalLoanAutoPaid,
        loanPenalty: totalLoanPenalty,
        savingsInterest,
-       moneyBefore: currentMoney,
-       moneyAfter: newMoney,
      },
    });
    if (mailResult.state) {

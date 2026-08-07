@@ -94,8 +94,6 @@ export const SENDERS = {
   },
 } as const satisfies Record<string, MailSender>;
 
-export type SenderKey = keyof typeof SENDERS;
-
 /** The colour a list row tints its avatar circle with. */
 export function senderColor(email: string): string {
   const known = Object.values(SENDERS).find((s) => s.email === email);

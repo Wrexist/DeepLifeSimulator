@@ -1200,3 +1200,62 @@ callback must return `null` for the no-op case explicitly. Do not rely on
 
 Same family as the gate→grant bugs in §4.4: a guard that looks like it holds,
 against a comparison that cannot see what you assumed it could.
+
+## The same day — a test written from the same wrong model as the fix guards nothing
+
+Having fixed the enumerating accessor above, I wrote the test for it:
+
+```ts
+state.mail = { messages: [], shieldUntilWeek: 140, reportsMade: 3 };
+expect(getMailState(state).shieldUntilWeek).toBe(140);
+```
+
+Then deleted the `...mail` spread to check the guard bit. **It still passed.**
+
+Of course it did. The two fields are also named in the override list, so they
+survive either way. The test pins the two SYMPTOMS the bug happened to produce,
+not the PROPERTY that prevents it — and the property is the whole point, because
+the failure mode is specifically "the next field nobody has written yet". A
+future `MailState` field would have vanished exactly as those two did, with a
+green suite.
+
+The fix is to assert the invariant directly:
+
+```ts
+state.mail = { messages: [], futureField: 'kept' } as never;
+expect(getMailState(state).futureField).toBe('kept');
+```
+
+That one fails the moment the spread goes.
+
+**The rule:** after fixing a bug, break the fix and watch the new test fail. A
+test written immediately after a fix inherits the author's model of the fix, and
+if that model is "these two fields matter" rather than "unknown fields survive",
+it encodes the narrower thing and reads as coverage.
+
+Also worth stating plainly: five of the six guards written this session DID fail
+correctly when reverted. The one that did not was the one where I already
+believed I understood the bug best.
+
+## The same day — an audit finds the bugs the tests were never asked about
+
+Six defects in the mail app, all found by re-reading finished, green, shipped
+code rather than by a failing test. Every one is silent:
+
+| Defect | Shape |
+|---|---|
+| `getMailState` enumerated | write works, read drops it |
+| `reportMailPhishing` no-op patched | reference equality can't see "same values" |
+| lapse pass driven by the letter | deleting the letter stranded the event in BOTH channels |
+| welcome gated on "inbox empty" | `emptyMailBin` re-armed a once-per-life message |
+| offer id keyed on the career | a second application produced an id that already existed, so the letter was deduped away |
+| `MailAttachment.kind: 'receipt'` | a renderer branch with no producer that could ever select it |
+
+Three of them are the same bug in different clothes: **something looked at once
+and assumed to be once.** And two are this repo's oldest pattern — built,
+type-checked, context-exposed, and read by nothing (`lossCap`, seven `MailFacts`
+fields, `expiredMailEvents` itself, `yearOf`, `SenderKey`).
+
+**The rule:** when a feature is finished, read it once more asking only "what
+happens the SECOND time?" — second tap, second week, second application, second
+read of the same accessor. That question found five of these six.

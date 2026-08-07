@@ -70,7 +70,7 @@ const withScamMessage = (money: number, over: Partial<MailMessage> = {}): GameSt
         folder: 'inbox',
         category: 'finance',
         action: { id: 'bank-verify', label: 'Confirm account', kind: 'danger' },
-        scam: { lossFraction: 0.18, lossCap: 999_999, tells: ['lookalike domain'] },
+        scam: { lossFraction: 0.18, tells: ['lookalike domain'] },
         ...over,
       },
     ],

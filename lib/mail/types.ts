@@ -24,7 +24,6 @@ import type { GameState, MailMessage } from '@/contexts/game/types';
  */
 export interface MailFacts {
   careerSalary?: number;
-  partnerIncome?: number;
   passiveIncome?: number;
   totalIncome?: number;
   incomeTax?: number;
@@ -32,11 +31,15 @@ export interface MailFacts {
   loanPaid?: number;
   loanPenalty?: number;
   savingsInterest?: number;
-  /** Cash before the weekly writeback. */
-  moneyBefore?: number;
-  /** Cash after the weekly writeback. */
-  moneyAfter?: number;
 }
+
+/**
+ * Every field above has a reader. `partnerIncome`, `moneyBefore` and
+ * `moneyAfter` were threaded through the whole tick and read by nothing — the
+ * same "built and never wired" pattern this codebase keeps producing, in the
+ * plumbing rather than in a feature. They are gone; add one back when a
+ * document actually needs it, not in anticipation.
+ */
 
 export interface MailContext {
   /** The assembled state for the week being mailed about. */

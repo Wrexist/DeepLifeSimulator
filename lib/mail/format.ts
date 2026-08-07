@@ -8,8 +8,6 @@
  * cents and thousands separators, because being checkable is the whole point.
  */
 
-import type { GameDate } from '@/contexts/game/types';
-
 /** `$1,234.56`. Exact, always two decimals, sign outside the symbol. */
 export function docMoney(amount: number): string {
   const n = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
@@ -70,10 +68,4 @@ export function docReference(prefix: string, atWeek: number, salt = 0): string {
   const a = ((w * 7919 + salt * 104729) % 9000) + 1000;
   const b = (w % 90) + 10;
   return `${prefix}-${a}-${b}`;
-}
-
-/** Current in-world year, for copy that needs it. */
-export function yearOf(date: GameDate | undefined, atWeek: number): number {
-  const y = date?.year;
-  return typeof y === 'number' && Number.isFinite(y) ? y : 2025 + Math.floor((atWeek || 0) / 52);
 }

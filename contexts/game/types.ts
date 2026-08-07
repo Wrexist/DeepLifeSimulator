@@ -648,10 +648,17 @@ export interface MailDecision {
  * fell for it learns what to look for instead of just losing money.
  */
 export interface MailScam {
-  /** Fraction of liquid cash at risk if the player acts on it, 0..1. */
+  /**
+   * Fraction of liquid cash at risk if the player acts on it, 0..1.
+   *
+   * The CEILING is not stored alongside it, deliberately. A `lossCap` field
+   * shipped here and `scamLossFor` never read it — it clamps against
+   * `SCAM_LOSS_CAP_FRACTION` computed from the balance at the moment of the
+   * tap, which is the behaviour that matters (a scam banked while rich must not
+   * pay out at the old figure). A stored cap could only ever be the stale one,
+   * so it was a field with no reader and one wrong answer.
+   */
   lossFraction: number;
-  /** Hard ceiling on the loss, so a late-game fortune cannot be wiped. */
-  lossCap: number;
   /** What should have given it away. Shown after resolution. */
   tells: string[];
 }

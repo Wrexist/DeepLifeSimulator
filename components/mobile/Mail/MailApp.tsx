@@ -54,9 +54,17 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { shallowEqual, useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/GameContext';
 import { getThemeColors } from '@/lib/config/theme';
-import { deriveAddress, getMailState, unreadByCategory, unreadCount } from '@/lib/mail/state';
-import { scamRisk } from '@/lib/mail/scam';
+import {
+  deriveAddress,
+  findMessage,
+  getMailState,
+  messagesInFolder,
+  unreadByCategory,
+  unreadCount,
+} from '@/lib/mail/state';
+import { scamLossSummary, scamRisk } from '@/lib/mail/scam';
 import { protections } from '@/lib/mail/security';
+import { modalEventCount } from '@/lib/events/routing';
 import { docMoney } from '@/lib/mail/format';
 import {
   actOnScamMail,
@@ -122,7 +130,11 @@ function MailAppInner({ onBack }: Props) {
   // The tab layout floats a "N decisions waiting" pill at `bottom: scale(88)`
   // and keeps it up while a sub-app is open. Reserve room for it only while it
   // is actually there — see the note on `MailDetail`'s `pillClearance`.
-  const decisionPending = useGameSelector((s) => (s?.pendingEvents?.length ?? 0) > 0);
+  // `modalEventCount`, not `pendingEvents.length` — the pill stopped counting
+  // mail-routed letters when routing landed, so reserving space for it on the
+  // raw count would leave a dead strip whenever the only pending event was a
+  // letter the player is already reading.
+  const decisionPending = useGameSelector((s) => modalEventCount(s) > 0);
   const currentWeek = useGameSelector((s) => s?.weeksLived ?? 0);
   // The From line. Derived from the CHARACTER, so it follows a prestige into
   // the next life instead of carrying the previous one's name. Selected as a
@@ -157,31 +169,28 @@ function MailAppInner({ onBack }: Props) {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return state.messages
-      .filter((m) => {
-        const inFolder =
-          folder === 'starred'
-            ? m.starred && m.folder !== 'trash'
-            : (m.folder ?? 'inbox') === folder;
-        if (!inFolder) return false;
-        // Category tabs are an INBOX affordance. Applying them to Archive or
-        // Spam would hide messages inside a folder the player opened precisely
-        // to find one specific thing.
-        if (folder === 'inbox' && !q && (m.category ?? 'primary') !== category) return false;
-        if (!q) return true;
-        return (
-          m.senderName.toLowerCase().includes(q) ||
-          m.senderEmail.toLowerCase().includes(q) ||
-          m.subject.toLowerCase().includes(q) ||
-          (m.body ?? '').toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => (b.atWeek ?? 0) - (a.atWeek ?? 0));
-  }, [state.messages, folder, category, query]);
+    // `messagesInFolder` owns the folder rule (including that Starred is a VIEW
+    // across folders, not a folder). It existed and this screen re-implemented
+    // it inline, which is how the two would have disagreed the first time
+    // either changed — and how the helper ended up looking like dead code.
+    return messagesInFolder({ mail } as never, folder).filter((m) => {
+      // Category tabs are an INBOX affordance. Applying them to Archive or
+      // Spam would hide messages inside a folder the player opened precisely
+      // to find one specific thing.
+      if (folder === 'inbox' && !q && (m.category ?? 'primary') !== category) return false;
+      if (!q) return true;
+      return (
+        m.senderName.toLowerCase().includes(q) ||
+        m.senderEmail.toLowerCase().includes(q) ||
+        m.subject.toLowerCase().includes(q) ||
+        (m.body ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [mail, folder, category, query]);
 
   const open: MailMessage | null = useMemo(
-    () => (openId ? state.messages.find((m) => m.id === openId) ?? null : null),
-    [openId, state.messages]
+    () => (openId ? findMessage({ mail } as never, openId) : null),
+    [openId, mail]
   );
 
   /** Earlier messages in the open message's thread, oldest first. */
@@ -207,13 +216,9 @@ function MailAppInner({ onBack }: Props) {
 
   const handleAct = useCallback(() => {
     if (!open) return;
-    actOnScamMail(setGameState, open.id, ({ lost }) => {
-      setBanner(
-        lost > 0
-          ? `${docMoney(lost)} left your account.`
-          : 'Nothing was taken — there was nothing to take.'
-      );
-    });
+    // `scamLossSummary` owns this copy. It was exported, unused, and duplicated
+    // verbatim here — two sources for one sentence.
+    actOnScamMail(setGameState, open.id, ({ lost }) => setBanner(scamLossSummary(lost)));
   }, [open, setGameState]);
 
   const handleDispute = useCallback(() => {
