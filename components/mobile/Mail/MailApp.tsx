@@ -425,6 +425,13 @@ function MailAppInner({ onBack }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        // `style`, not just `contentContainerStyle`. A ScrollView inside a flex
+        // COLUMN stretches to fill the cross axis, so a horizontal one with no
+        // height cap claimed ~380px of vertical space: the chips floated in the
+        // middle of the screen and the message list was squashed to the bottom.
+        // Nothing in the test suite could see it — the tree was correct, only
+        // the pixels were wrong.
+        style={s.chipScroll}
         contentContainerStyle={s.chipRow}
         keyboardShouldPersistTaps="handled"
       >
@@ -723,6 +730,9 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       backgroundColor: darkMode ? '#1C2530' : '#F1F3F4',
     },
     searchInput: { flex: 1, fontSize: fontScale(13), color: theme.text, padding: 0 },
+    // Height-capped so the strip occupies exactly its own row. See the note at
+    // the ScrollView: without this it stretches down the cross axis.
+    chipScroll: { flexGrow: 0, flexShrink: 0 },
     chipRow: {
       flexDirection: 'row',
       alignItems: 'center',
