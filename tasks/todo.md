@@ -521,7 +521,8 @@ navigation is not just inconvenient, it answers some questions wrong.
 - [x] Filter-aware empty states ("No unread mail", not "Nothing here").
 
 ### Found while working, NOT fixed — out of scope
-- [ ] `components/DeathPopup.tsx:563` shows `safeUserProfile(gameState).name`,
+- [x] FIXED in the death-screen rebuild below. `components/DeathPopup.tsx:563`
+      showed `safeUserProfile(gameState).name`,
       which is the HANDLE (defaults to "player"), not the character's
       `firstName`/`lastName`. Seen live: a save named Thomas White gets a death
       screen headed "You Died / Player". Same wrong-field bug as the one fixed
@@ -529,3 +530,47 @@ navigation is not just inconvenient, it answers some questions wrong.
       `characterName()` in `lib/mail/state.ts` already resolves this correctly
       and should probably move somewhere shared. Left for the owner to schedule
       — it is a different surface from the one this task was about.
+
+---
+
+## Death screen — rebuild to the owner's design (2026-08-07)
+
+Owner supplied a mockup. Differences from what ships today, top to bottom:
+
+- [x] **Hero illustration** — a lit gravestone with skull, purple wisp, moss and
+      particles, filling the top ~20% of the screen. Today: a 48px skull in a
+      glass circle, inline with the title. This is the whole change in tone.
+- [x] **"You Died" centred and huge**, subtitle in indigo, cause in grey under
+      it. Today all three are a left-aligned stack sharing a row with the icon.
+- [x] **Identity card** — avatar in a ring, name, `Age N · N yrs lived`. Today
+      the name and age are the 2nd/3rd lines of the header text block, with no
+      portrait at all.
+- [x] **Life Quality arc gauge** — semicircular progress, a face that matches
+      the score, big percentage. Does not exist in any form.
+- [x] **Action rows** — Revive (pink), Get more gems (neutral), Rewind (amber),
+      each a full-width card with a title, a one-line description and a cost
+      pill. Today: two gradient pill buttons and a list of bare rewind chips.
+- [x] **Start New Life** — full-width purple CTA with a subtitle.
+
+### Decisions this needs
+
+- [x] **Life Quality has to be REAL.** A number the player can read is a number
+      they will check. Derive it in `lib/legacy/lifeQuality.ts` from the same
+      signals the ribbon system already reads — achievements, net worth,
+      family, career, education, health and happiness at death, years lived —
+      as a pure, deterministic, tested function. Not a cosmetic gauge.
+- [x] **The hero art does not exist yet.** Metro cannot `require` a missing
+      file, so the screen must look right TODAY without it. Build the hero as a
+      drawn composition with an optional image override, so dropping the
+      generated asset in is a one-line change and nothing is broken meanwhile.
+      Ship the AI prompt list alongside.
+- [x] **Fix the name while here.** `safeUserProfile(gameState).name` is the
+      handle and defaults to "player" — the mockup's own placeholder says
+      "Player", which is exactly the bug. One shared `characterName()` in
+      `utils/characterName.ts`, used by both this screen and mail.
+- [x] **NOT shipping the mockup's X button.** Death is a hard stop: there is no
+      dismiss handler because a dismissed death screen leaves the player in a
+      dead save with no way forward. An X that soft-locks the game is worse
+      than a missing X. Flagged for the owner rather than guessed at.
+- [x] Rule #7: every card gets a full four-sided border, never a side stripe.
+      `scale()`/`fontScale()` throughout, no raw pixels.

@@ -15,6 +15,7 @@ import type {
   MailMessage,
   MailState,
 } from '@/contexts/game/types';
+import { characterName } from '@/utils/characterName';
 
 /**
  * Hard cap on stored messages.
@@ -171,22 +172,14 @@ export function appendMessages(
 /**
  * The character's display name.
  *
- * `userProfile.name` is NOT it — that is a handle, and it defaults to "player".
- * The name the game shows is `firstName` + `lastName`, resolved exactly the way
- * `IdentityCard` resolves it. Reading the wrong field addressed every message
- * to `player@deepmail.com` and opened the welcome with "Hi player", which is
- * the sort of thing that makes a whole feature feel unfinished.
- *
- * Exported so the address and the greeting cannot drift apart.
+ * Moved to `utils/characterName.ts` and re-exported here, because the same bug
+ * — reading the `name` HANDLE (which defaults to "player") instead of
+ * `firstName`/`lastName` — had also shipped on the death screen. Two copies of
+ * a resolution this small is two chances to read the wrong key; there is now
+ * one. Re-exported rather than relocated outright so mail's existing importers
+ * keep working, and so the address and the greeting still cannot drift apart.
  */
-export function characterName(state: GameState | null | undefined): string {
-  const profile = state?.userProfile;
-  return (
-    [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') ||
-    profile?.name ||
-    ''
-  ).trim();
-}
+export { characterName };
 
 /**
  * The player's own address.
