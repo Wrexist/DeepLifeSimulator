@@ -47,8 +47,33 @@ export interface Checkpoint {
  * flags are all kept). On restore, `rewindToCheckpoint` runs the save-repair
  * pipeline, which re-defaults these fields, so dropping them from the frozen
  * snapshot is lossless for gameplay while removing most of its serialized size.
+ *
+ * ## Why `cryptoMarket` is on the list
+ *
+ * Measured, not guessed: at five years lived a snapshot is ~170 KB and
+ * `cryptoMarket` is ~37 KB of it — 22%, second only to mail. Almost all of that
+ * is `coinMarkets[*].priceHistory`, a 100-week chart series per coin.
+ *
+ * It is also the wrong thing to restore. `cryptoMarket` is MARKET simulation —
+ * regime, spread, price history. The player's actual position lives in
+ * `cryptos[].owned` and is untouched by this. So rewinding used to roll the
+ * market back too, handing the player a known-outcome window they had already
+ * watched play out: rewind to before the crash, then trade it. Letting the
+ * market stay where it is fixes that and costs 37 KB per snapshot.
+ *
+ * `repairGameState` lists `cryptoMarket` in its `subsystemObjects` recovery, so
+ * an absent slice is restored to a valid default on load — the same mechanism
+ * `eventLog` already relies on.
+ *
+ * NOT on the list, deliberately: `mail`. It is the single largest field in a
+ * snapshot (~39 KB) and dropping it would be the biggest remaining win, but
+ * mail now carries decisions with deadlines. `pendingEvents` is NOT stripped,
+ * so a routed letter-event would survive the rewind with nowhere to render —
+ * invisible in both surfaces until `applyMailLapse` hands it back at its
+ * deadline. That is a gameplay cost, not a cosmetic one, so it is a decision
+ * for the owner rather than a saving to take quietly.
  */
-const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog'] as const;
+const CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS = ['eventLog', 'cryptoMarket'] as const;
 const CHECKPOINT_STRIPPED_SOCIAL_KEYS = ['recentPosts', 'notifications', 'commentThreads'] as const;
 
 /**

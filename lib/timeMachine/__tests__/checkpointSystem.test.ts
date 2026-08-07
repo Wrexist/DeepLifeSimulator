@@ -13,6 +13,7 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
   createCheckpoint,
   rewindToCheckpoint,
@@ -183,5 +184,73 @@ describe('checkpointSystem — getRewindCost tiers', () => {
     live.checkpoints = [cp];
     live.goldUpgrades = { ...(live.goldUpgrades ?? {}), chronomaster: true };
     expect(rewindToCheckpoint(live, cp.id)).not.toBeNull();
+  });
+});
+
+/**
+ * What a snapshot must NOT carry.
+ *
+ * Measured on a five-year save: a snapshot is ~170 KB, five of them are 81% of
+ * the whole file, and `cryptoMarket` is ~37 KB of every one — almost all of it
+ * `coinMarkets[*].priceHistory`, a 100-week chart series per coin.
+ *
+ * Dropping it is not only a saving. `cryptoMarket` is MARKET simulation, and
+ * restoring it rolled the market back along with the player: rewind to before
+ * the crash, then trade a window you have already watched play out. The
+ * player's actual position is `cryptos[].owned` and must survive untouched —
+ * which is the half of this that a size-only fix would have got wrong.
+ */
+describe('checkpointSystem — the market is not part of the rewind', () => {
+  const withMarket = () => {
+    const state = createTestGameState({});
+    (state as unknown as Record<string, unknown>).cryptoMarket = {
+      coinMarkets: {
+        btc: {
+          cryptoId: 'btc',
+          regime: 'bull',
+          regimeWeeksRemaining: 4,
+          bidAskSpread: 0.01,
+          priceHistory: Array.from({ length: 100 }, (_, i) => ({ weeksLived: i, price: 1000 + i })),
+        },
+      },
+    };
+    (state as unknown as Record<string, unknown>).cryptos = [
+      { id: 'btc', name: 'Bitcoin', price: 1100, owned: 2.5 },
+    ];
+    return state;
+  };
+
+  it('leaves cryptoMarket out of the snapshot', () => {
+    const cp = createCheckpoint(withMarket(), 'Age 20');
+    expect((cp.snapshot as Record<string, unknown>).cryptoMarket).toBeUndefined();
+  });
+
+  it('KEEPS the player position, which lives on cryptos[].owned', () => {
+    // The half a size-only fix gets wrong. Stripping the market must not cost
+    // the player their coins.
+    const cp = createCheckpoint(withMarket(), 'Age 20');
+    const coins = (cp.snapshot as Record<string, unknown>).cryptos as { owned: number }[];
+    expect(coins).toHaveLength(1);
+    expect(coins[0].owned).toBe(2.5);
+  });
+
+  it('does not mutate the live state it snapshots', () => {
+    // `slimCheckpointSnapshot` deletes keys, and it runs on a shallow copy for
+    // exactly this reason — a miss here would wipe the live market mid-tick.
+    const state = withMarket();
+    createCheckpoint(state, 'Age 20');
+    expect((state as unknown as Record<string, unknown>).cryptoMarket).toBeDefined();
+  });
+
+  it('measurably shrinks the snapshot', () => {
+    const state = withMarket();
+    const withoutMarket = createTestGameState({});
+    (withoutMarket as unknown as Record<string, unknown>).cryptos = [
+      { id: 'btc', name: 'Bitcoin', price: 1100, owned: 2.5 },
+    ];
+    const a = JSON.stringify(createCheckpoint(state, 'Age 20').snapshot).length;
+    const b = JSON.stringify(createCheckpoint(withoutMarket, 'Age 20').snapshot).length;
+    // Same size either way — the market never makes it in.
+    expect(Math.abs(a - b)).toBeLessThan(50);
   });
 });

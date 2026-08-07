@@ -396,17 +396,42 @@ never had: a channel the player must judge rather than just read.
       (v36 is registered, migrating across it writes no `dynasty` key) in a form
       that survives the next version. Same hardcoded-literal trap already
       recorded in `scripts/lib/coverageRatchet.js`.
-- [ ] **The state-size sanity budget is nearly exhausted, and mail is not why.**
-      `realProviderLoop.stress.test.ts` allows 100 KB of growth over 20 ticks.
-      Mail's first cadence (a document most weeks) cost ~17.8 KB and broke it;
-      halving the cadence brought the total to 98.8 KB, which passes with **1.2
-      KB to spare**. So the next feature to add any per-week state will trip this
-      test and get blamed for it. The actual consumer is `checkpoints`: five full
-      `Partial<GameState>` snapshots, **657 KB after 100 ticks — 6.5× everything
-      else in the save combined**. It is capped and therefore bounded, not a
-      leak, but it is where the headroom went. Worth a decision (compress the
-      snapshots, store a diff, or cut to 3) before the budget is raised to
-      accommodate something smaller.
+- [x] **CORRECTED — the earlier note here was wrong on both numbers.** It said
+      the 100 KB growth budget passed with "1.2 KB to spare" and that
+      `checkpoints` was "657 KB after 100 ticks, 6.5x everything else combined".
+      Re-measured on the real provider loop:
+        - 20-tick growth is **20.7 KB of the 100 KB budget** — ~79 KB of
+          headroom, not 1.2 KB. The budget test never sees a checkpoint at all:
+          the first one fires at week 52, well past its 20-tick window.
+        - `checkpoints` after 100 ticks is **108 KB**, not 657 KB.
+      Where it IS bad is further out, and the earlier note undersold the shape:
+      at 260 ticks (5 years) the save is 914 KB and checkpoints are **743 KB of
+      it — 81%**. Each snapshot is ~170 KB, essentially a whole copy of the
+      state, and there are five.
+- [x] **Stripped `cryptoMarket` from checkpoint snapshots.** ~37 KB of every
+      170 KB snapshot, almost all `coinMarkets[*].priceHistory` (100 weeks per
+      coin). Also the right call independent of size: it is MARKET state, so
+      restoring it rewound the market alongside the player — rewind to before
+      the crash, trade a window you already watched. The position itself is
+      `cryptos[].owned` and is untouched. Save 914 KB -> **744 KB (-19%)**.
+- [ ] **Remaining, and it needs a decision.** Checkpoints are still 77% of the
+      save. The options, measured:
+        - **Strip `mail`** — biggest single win left (~39 KB/snapshot, ~195 KB
+          total) but it has a gameplay cost: `pendingEvents` is NOT stripped, so
+          a routed letter-event would survive a rewind with nowhere to render,
+          invisible in both surfaces until `applyMailLapse` hands it back at its
+          deadline. Fixable by resetting routed events to `channel: 'modal'` on
+          restore, which is real work rather than a one-liner.
+        - **`MAX_CHECKPOINTS` 5 -> 3** — mechanical, ~230 KB, costs the player
+          two rewind targets.
+        - **Compress snapshots** — strictly the best outcome and no gameplay
+          trade at all, but there is no compression library in the project
+          (CLAUDE.md 4.5 lists `utils/saveCompression.ts`; it does not exist),
+          so it means adding a dependency.
+- [ ] **Also found, not addressed:** `careers` is 13.6 KB and `streetJobs` 8.5 KB
+      inside every snapshot, because `initialState` seeds the full CATALOGUE
+      into the save and mixes per-career progress into it. That is a structural
+      issue well beyond checkpoints — it inflates the live save too.
 
 ---
 
