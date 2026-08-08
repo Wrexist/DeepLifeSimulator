@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
@@ -9,7 +9,7 @@ import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 interface ActivityCommitmentModalProps {

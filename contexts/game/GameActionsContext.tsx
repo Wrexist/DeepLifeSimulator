@@ -14,14 +14,15 @@ import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
-import { evaluateAchievements } from '@/lib/progress/achievements';
+import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
+import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
+import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
+import { getTotalLuxuryYield, getLoanIncome } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
-import { processAutomationRules } from '@/lib/automation/automationEngine';
-import { buyStockMarket } from '@/contexts/game/actions/StockActions';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -90,6 +91,7 @@ import {
  MINER_PRICES,
  calculateIncomeTax,
 } from '@/lib/economy/constants';
+import { accrueYearlyTax } from '@/lib/economy/taxLedger';
 import {
  WEEKS_PER_YEAR,
  ADULTHOOD_AGE,
@@ -137,6 +139,10 @@ import { resolveTenancyStep } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
+import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
+import { applyMail } from './actions/weekly/applyMail';
+import { applyMailLapse } from './actions/weekly/applyMailLapse';
+import { routeEvents } from '@/lib/events/routing';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
@@ -994,8 +1000,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { savingsInterest, newBankSavings } = savingsResult;
 
  // Progressive income tax on weekly earnings.
+ //
+ // TAX BASE (2026-08-06): rent and luxury yield are now in it. They used to be
+ // credited to cash WITHOUT ever entering `totalIncome`, so at the top bracket
+ // $150k/wk of rent was worth $150k while $150k/wk of salary was worth $91k —
+ // and combined with luxury yields roughly $450k/wk of late-game income was
+ // both untaxed AND outside the net-worth soft cap. That made real estate a
+ // strictly dominant strategy for a reason nothing in the design ever stated.
+ //
+ // Luxury yield is CREDITED later (applyLuxuryItemsForWeek, further down), but
+ // the figure is a pure function of the owned ids, so it can be computed here
+ // for the tax base without moving where the cash lands.
+ //
  // Life Skills: Tax Strategy (-10% tax) scales the owed tax down (bounded mult).
- const incomeTax = Math.round(calculateIncomeTax(totalIncome) * lifeSkillMods.taxMult);
+ const taxableLuxuryYield =
+   getTotalLuxuryYield(prevState.luxuryItems) +
+   getLoanIncome(prevState.luxuryItems, prevState.luxuryHoldings, nextWeeksLived);
+ const taxableIncome = totalIncome + housingRentalIncome + taxableLuxuryYield;
+ const incomeTax = Math.round(calculateIncomeTax(taxableIncome) * lifeSkillMods.taxMult);
 
  // R7 Phase 2 step 2.4e: per-loan autopay extracted into
  // ./actions/weekly/applyLoanAutopay.ts. Pure helper threads cash through
@@ -1018,6 +1040,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    previousOverdue: prevState.overdueBalance,
  });
  const cashBeforeLoans = arrears.cashAfter;
+ // Post-writeback mandatory costs (luxury upkeep + insurance, crime fines,
+ // student loans) used to floor at $0 and vanish — so the game had two
+ // different answers to "you cannot pay" depending on which side of the money
+ // writeback a cost sat on. Those reducers now defer onto `ctx.deferredCharges`
+ // via `chargeOrDefer`, and the total is folded into the SAME overdue balance
+ // here. Read after every reducer has run (see `totalOverdue` below).
  if (arrears.newShortfall > 0) {
    logger.info(`[ARREARS] Short $${arrears.newShortfall} on this week's bills — carried forward (balance now $${arrears.overdueBalance})`);
    pendingNotifications.push({
@@ -1041,6 +1069,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    'tenancyArrears',
    () => resolveTenancyStep({
      rental: prevState.rental,
+     // Eviction reads the RENT/BILLS arrears only, deliberately. The deferred
+     // post-writeback charges are folded in at final assembly, but the reducers
+     // that produce them have not all run at this point — including a partial
+     // total here would make eviction depend on reducer ordering.
      overdueBalance: arrears.overdueBalance,
      owns: housingWellbeing.owns,
    }),
@@ -1261,7 +1293,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // R7 Phase 2 step 2.6-iii-B: child aging extracted to applyChildAging.
  if (rel.type === 'child') {
- return applyChildAging(rel);
+ // weeksLivedNow seeds the deterministic grandchild-birth roll — same save,
+ // same week, same outcome, so a reload cannot be used to reroll a birth.
+ return applyChildAging(rel, weeksLivedNow);
  }
 
  // R7 Phase 2 step 2.6-iii-E: relationship health extracted to
@@ -2132,6 +2166,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let finalCryptos = updatedCryptos;
  let finalCryptoMarket = prevState.cryptoMarket ?? initialGameState.cryptoMarket!;
  let bankingAfterCrypto = prevState.banking ?? initialGameState.banking!;
+ // Capital gains collected this tick, for the year-to-date tax ledger below.
+ let cryptoCapitalGainsTax = 0;
  try {
  const cryptoTick = runCryptoWeeklyTick({
  market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
@@ -2140,6 +2176,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  cashIn: newStats.money,
  currentWeek: nextWeeksLived,
  economyState: prevState.economy?.economyEvents?.currentState,
+ // Tax Strategy now reaches capital gains too — it used to move the weekly
+ // income tax and nothing else, so the only tax skill in the game was worth
+ // exactly zero to a player living off investments.
+ taxMult: lifeSkillMods.taxMult,
  // Seeded by the absolute week so price walks / order fills are deterministic:
  // React 19 runs this updater twice (StrictMode / speculative renders), and a
  // live Math.random() made the two invocations disagree — React keeps whichever
@@ -2149,6 +2189,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  finalCryptos = cryptoTick.cryptos;
  finalCryptoMarket = cryptoTick.market;
+ cryptoCapitalGainsTax = cryptoTick.capitalGainsTaxUSD ?? 0;
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
  applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
@@ -2186,7 +2227,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // already do, so falling behind on rent and tax has the same consequence as
  // falling behind on debt. Derived from the standing balance, so it lifts the
  // moment the debt is cleared.
- overdueBalance: arrears.overdueBalance,
+ overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
  // v22 Wave A interest ledgers: legacy savings interest credited this week +
  // interest serviced on the real loan-autopay path. Feed the previously-$0
  // totalInterestEarned / totalInterestPaid chips and crossSystemSummary.
@@ -2412,8 +2453,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Macro teeth: a recession/crash/boom now drives a broad-market drift on
  // equities (crypto already reacts via forced regimes).
  economyState: prevState.economy?.economyEvents?.currentState,
+ // Same skill, same reach as the crypto tick above.
+ taxMult: lifeSkillMods.taxMult,
  rollFor: weeklyRoll,
  });
+ // Investment tax the player could not cover is now DEBT, not a write-off.
+ // Cash still floors at $0 inside the tick; the shortfall joins the same
+ // `overdueBalance` bucket the weekly income tax defers into, so the game has
+ // one answer to "you cannot pay" instead of three.
+ if (stocksTickResult.capitalGainsTaxUnpaid > 0) {
+ weeklyCtx.deferredCharges = (weeklyCtx.deferredCharges ?? 0) + stocksTickResult.capitalGainsTaxUnpaid;
+ }
  // AUTO-REINVEST (prestige QOL bonus) — now driven by the quarterly dividend.
  //
  // It used to consume a SECOND, weekly dividend computed in
@@ -2454,6 +2504,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  if (cashDeltaAfterReinvest!== 0) {
  applyCashAndRecord(cashDeltaAfterReinvest); // TICK-A4
+ }
+ // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
+ // price so the move reaches the market board, Movers sort, market-order fills,
+ // and the savedMarketPrices snapshot below — and COMPOUNDS next week (the walk
+ // starts from the moved price). Determinism is preserved: the factors are
+ // seeded (weeklyRoll) and the moved price is what gets snapshotted/restored.
+ // adjustStockPrice re-clamps to the same [0.01, $1M] band as the walk.
+ for (const sym in stocksTickResult.priceFactors) {
+ adjustStockPrice(sym, stocksTickResult.priceFactors[sym]);
+ }
+ for (const note of stocksTickResult.notifications) {
+ pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
+ }
+ } catch (stkErr) {
+ logger.error('[STOCKS TICK] failed:', stkErr);
+ }
+
+ tickProfiler.mark('stocks');
 
  /**
   * Life-chapter completion — the spine of progressive disclosure.
@@ -2467,6 +2535,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   * education — evaluating earlier would judge the player on a half-finished
   * week. Guarded like every other subsystem (§4.3): a throw here must not cost
   * the whole week.
+  *
+  * It also has to sit OUTSIDE the stocks try/catch and outside that block's
+  * `if (cashDeltaAfterReinvest !== 0)` branch, where it was accidentally nested:
+  * chapter completion was therefore skipped on every week whose stocks tick
+  * produced no cash movement — which is most weeks for a player who owns no
+  * stocks — and skipped entirely whenever the stocks tick threw.
   */
  try {
    const chapterResult = applyChapterProgress({
@@ -2495,24 +2569,33 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (chapterErr) {
    logger.error('[CHAPTER TICK] failed:', chapterErr);
  }
- }
- // Persist the weekly sector tilt + macro drift into the AUTHORITATIVE module
- // price so the move reaches the market board, Movers sort, market-order fills,
- // and the savedMarketPrices snapshot below — and COMPOUNDS next week (the walk
- // starts from the moved price). Determinism is preserved: the factors are
- // seeded (weeklyRoll) and the moved price is what gets snapshotted/restored.
- // adjustStockPrice re-clamps to the same [0.01, $1M] band as the walk.
- for (const sym in stocksTickResult.priceFactors) {
- adjustStockPrice(sym, stocksTickResult.priceFactors[sym]);
- }
- for (const note of stocksTickResult.notifications) {
- pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
- }
- } catch (stkErr) {
- logger.error('[STOCKS TICK] failed:', stkErr);
- }
 
- tickProfiler.mark('stocks');
+ // ── Year-to-date tax ledger ───────────────────────────────────────────────
+ //
+ // `banking.taxDueThisYear` shipped with two readers (the desktop statement's
+ // "Tax accrued this year" row and the phone ledger's "Tax due" chip), both
+ // gated on `> 0`, and NO WRITER anywhere in the repo — so both were dead UI on
+ // every save ever made. `docs/app-depth-audit.json` flagged it and it was
+ // never actioned. It now means what a withholding system can actually
+ // report: tax PAID so far this game year, across every stream.
+ //
+ // No migration: the stored value is 0 on every existing save, and 0 is also
+ // the right value for "nothing paid yet this year" (v22 already backfills it).
+ // Placed after the stocks tick so all three streams are known.
+ const taxPaidThisWeek =
+   incomeTax +
+   cryptoCapitalGainsTax +
+   (stocksTickResult?.capitalGainsTaxUSD ?? 0);
+ if (nextBankingSlice) {
+   nextBankingSlice = {
+     ...nextBankingSlice,
+     taxDueThisYear: accrueYearlyTax(
+       prevState.banking?.taxDueThisYear,
+       taxPaidThisWeek,
+       nextWeeksLived
+     ),
+   };
+ }
 
       // Politics tick: scandal exposure (driven by dark-web heat + dirty PAC
  // money + karma), severity decay, approval drift. Cross-wires with
@@ -2595,7 +2678,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- const nextState: GameState = {
+ let nextState: GameState = {
 ...prevState,
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
  // just flipped to complete — see updatedAchievements above).
@@ -2712,7 +2795,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // v31: unpaid bills carried into next week. Written unconditionally so a
  // cleared debt actually clears — a `&&` guard here would leave the last
  // non-zero value stuck on the save forever.
- overdueBalance: arrears.overdueBalance,
+ overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
+ // The journal finally gets a writer. `journal` shipped with a full reader,
+ // a pruner and a life-story consumer, and NOTHING wrote to it — so the one
+ // surface that answers "what just happened to me?" always rendered its empty
+ // state, on the screen Help points at. Same source as the transient weekly
+ // messages, so the digest is both a message and a permanent record.
+ // Keyed by notification id (which encodes the week), so a StrictMode
+ // double-invoke of this updater cannot double-append.
+ journal: appendWeekToJournal(prevState.journal, pendingNotifications, nextWeeksLived),
  // v32: the tenancy, with its eviction clock advanced. `undefined` here means
  // evicted (or never renting), and writing it unconditionally is what makes an
  // eviction actually take the home away.
@@ -2855,8 +2946,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  cryptoMarket: finalCryptoMarket,
  // Degrade miner durability over time
  warehouse: updatedWarehouse,
- // Add new weekly events to pendingEvents
- pendingEvents: updatedPendingEvents,
+ // Add new weekly events to pendingEvents.
+ //
+ // `routeEvents` stamps `channel: 'mail'` on the letter-shaped ones — the
+ // events whose own copy already says they arrived in the post. It returns
+ // the SAME array when nothing needed routing, so an ordinary week is
+ // byte-identical to before. Everything downstream reads the surface through
+ // `lib/events/routing.ts` rather than filtering `pendingEvents` by hand, so
+ // the inbox pill and the modal cannot disagree about who owns an event.
+ pendingEvents: routeEvents(updatedPendingEvents, (prevState.weeksLived ?? 0) + 1),
  // #16: persist the dequeued follow-up chain queue (due ones surfaced above).
  pendingChainedEvents: updatedPendingChainedEvents,
  // GL-1 self-heal: a save latched by the old off-by-one carries an
@@ -2915,14 +3013,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
 : prevState.legacyPass,
  // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
- // ./actions/weekly/applyAutoCheckpoint.ts. Same year-boundary gate
- // (with `Age <N>` label), same pre-death snapshot using prevState
- // UNMODIFIED, same try/catch swallow.
+ // ./actions/weekly/applyAutoCheckpoint.ts. Year-boundary gate only now
+ // (with `Age <N>` label) — the pre-death snapshot was removed, so this no
+ // longer needs to know whether the player died this tick.
 ...applyAutoCheckpoint({
    prevState,
    newStats,
    nextWeeksLived,
-   newShowDeathPopup,
  }).partial,
  };
 
@@ -2942,6 +3039,99 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weekResult.netChange = 0;
  weekResult.luckyBonus = undefined;
  weekResult.streakBonus = undefined;
+ }
+
+ /**
+  * Life Ambition payoff — the biggest single reward in the game, previously
+  * payable ONLY by finding the "Fulfil Ambition" button on `AmbitionCard`.
+  * See ./actions/weekly/applyAmbitionPayout.ts for why the tick owns it now
+  * (same argument as the chapter payout, five times the money).
+  *
+  * Placed HERE, on the fully assembled `nextState`, because ambition milestones
+  * read arbitrary corners of the save — companies, careers, relationships,
+  * children, educations, investments, reputation, net worth — and a
+  * hand-enumerated projection would silently judge the player on a stale field
+  * the moment a new milestone reads one it forgot. Running last means every
+  * subsystem's result is already folded in.
+  *
+  * After the death revert on purpose: that block rewrites `stats.money` back to
+  * the pre-tick value, so granting before it would set the "claimed" flags while
+  * the money was rolled back — the one way to lose the payoff permanently.
+  *
+  * Guarded like every other subsystem (§4.3): a throw here must not cost the
+  * whole week. On failure `nextState` is simply left as it was.
+  */
+ try {
+   const ambitionResult = applyAmbitionPayout({ state: nextState });
+   if (ambitionResult.state) {
+     nextState = ambitionResult.state;
+     for (const note of ambitionResult.notifications) pendingNotifications.push(note);
+     if (ambitionResult.granted) {
+       logger.info(`[AMBITION] Payout granted for ${nextState.ambitionId}`);
+     }
+   }
+ } catch (ambitionErr) {
+   logger.error('[AMBITION TICK] failed:', ambitionErr);
+ }
+
+ /**
+  * Mail delivery — payslips, statements, invoices, and the phishing that rides
+  * in alongside them.
+  *
+  * Runs LAST for the same reason the ambition payout does: the documents quote
+  * arbitrary corners of the save (cash after the writeback, the arrears
+  * balance, tuition weeks left, dark-web vendor reputation), so anything
+  * earlier would be quoting a figure that is still moving.
+  *
+  * The figures the tick MOVED are passed explicitly rather than recomputed in
+  * a template. Paid salary runs through a raise premium, two IAP multipliers,
+  * a life skill, a DeepLife+ boost and a jail withholding — a payslip quoting
+  * `levels[level].salary` would disagree with the money that landed, which is
+  * the one thing a payslip must never do.
+  *
+  * Guarded like every other subsystem (§4.3): mail is the least important
+  * thing in a tick and must never be the reason a week is lost.
+  */
+ try {
+   const mailResult = applyMail({
+     state: nextState,
+     week: nextState.weeksLived ?? 0,
+     facts: {
+       careerSalary,
+       passiveIncome,
+       totalIncome,
+       incomeTax,
+       weeklyRent,
+       loanPaid: totalLoanAutoPaid,
+       loanPenalty: totalLoanPenalty,
+       savingsInterest,
+     },
+   });
+   if (mailResult.state) {
+     nextState = mailResult.state;
+     if (mailResult.delivered > 0) {
+       logger.info(`[MAIL] Delivered ${mailResult.delivered} message(s)`);
+     }
+   }
+ } catch (mailErr) {
+   logger.error('[MAIL TICK] failed:', mailErr);
+ }
+
+ /**
+  * Settle letters nobody answered. A deadline the game does not enforce is
+  * decoration.
+  *
+  * Runs AFTER delivery so a letter cannot be delivered and expired in the same
+  * tick, and guarded for the same reason as everything else here (§4.3).
+  */
+ try {
+   const lapseResult = applyMailLapse({ state: nextState, week: nextState.weeksLived ?? 0 });
+   if (lapseResult.state) {
+     nextState = lapseResult.state;
+     logger.info(`[MAIL] ${lapseResult.lapsed} letter(s) expired`);
+   }
+ } catch (lapseErr) {
+   logger.error('[MAIL LAPSE] failed:', lapseErr);
  }
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
@@ -3078,87 +3268,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Normal completion - stop loading
  setIsLoading(false);
 
- // Process automation rules (if enabled). Prefer the captured post-tick state
- // (the ref may not have committed yet after dropping the 50ms wait).
- const currentState = postTickState ?? gameStateRef.current;
- if (currentState) {
- try {
- 
- const executions = processAutomationRules(currentState);
-
- if (executions.length > 0) {
- // Calculate total money spent by successful automation actions
- const saveTransfer = executions
-.filter(e => e.success && e.type === 'save')
-.reduce((sum, e) => sum + e.actionsTaken
-.filter(a => a.result === 'success')
-.reduce((s, a) => s + (a.value || 0), 0), 0);
-
- // 'save' rules move cash into bank savings (net-worth-neutral) inside this
- // updater. 'invest' rules now perform REAL stock buys as well, but those run
- // through the canonical buyStockMarket action below — which owns the cash
- // debit — so this updater must NOT charge for them (doing so would DOUBLE-
- // charge). 'pay'/'renew' still record to history only; loans are already
- // serviced by the weekly loan tick.
- setGameState(prevState => {
- if (!prevState.automation) return prevState;
-
- const currentMoney = prevState.stats?.money || 0;
- // Never transfer more cash than the player actually has.
- const transfer = Math.max(0, Math.min(saveTransfer, currentMoney));
-
- const currentHistory = prevState.automation.executionHistory || [];
- // Strip the transient investOrders before persisting — it's apply-time wiring,
- // not history, and is executed exactly once below (never replayed from a save).
- const newHistory = [...currentHistory,...executions.map(e => ({...e, investOrders: undefined }))].slice(-50);
-
- if (transfer <= 0) {
- return {
-...prevState,
- automation: {
-...prevState.automation,
- executionHistory: newHistory,
- },
- };
- }
-
- return {
-...prevState,
- stats: {
-...prevState.stats,
- money: currentMoney - transfer,
- },
- bankSavings: (prevState.bankSavings || 0) + transfer,
- automation: {
-...prevState.automation,
- executionHistory: newHistory,
- },
- };
- });
-
- // Execute the REAL stock purchases planned by 'invest' rules via the canonical
- // buy action. buyStockMarket owns the cash debit + 2% broker fee + affordability
- // check and writes ONLY stats.money (never a mirrored banking account). It
- // re-checks live cash on every call, so multiple orders share one running budget
- // and none can overspend; an unaffordable order is rejected (no fake fill).
- const plannedInvestOrders = executions
-.filter(e => e.type === 'invest' && e.success)
-.flatMap(e => e.investOrders ?? []);
- for (const order of plannedInvestOrders) {
- try {
- buyStockMarket(setGameState, order.symbol, order.amountUSD, order.midPrice);
- } catch (buyErr) {
- logger.warn('[AUTOMATION] Invest order failed:', { order, buyErr });
- }
- }
-
- logger.info(`[AUTOMATION] Executed ${executions.length} rules, saved $${saveTransfer}, invest orders: ${plannedInvestOrders.length}`);
- }
- } catch (error) {
- logger.error('[AUTOMATION] Failed to process automation rules:', error);
- // Don't block week progression if automation fails
- }
- }
+ // The lib/automation rule engine used to run here. Deleted 2026-08-06: it
+ // read `state.automation`, a key no save has ever carried (never in
+ // initialState, never migrated), so its updater's first line — `if
+ // (!prevState.automation) return prevState;` — bailed on every tick for every
+ // player. Its four rule types are all served by wired, tested subsystems:
+ // pay → banking.billPayRules + applyLoanAutopay, save → applySavingsGoals,
+ // renew → applySubscriptions, invest → applyAutoReinvest.
 
  // Auto-save after week progression (non-blocking).
  // P1-15: surface storage-quota errors immediately to the user — the
@@ -3232,12 +3348,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // 0). Track affordability and skip the beneficial stat block below when broke.
  // (Event choices should also be gated to affordable-only in the UI.)
  let effectsAffordable = true;
- if (effects.money!== undefined) {
+ // Wealth scaling: a choice may declare `moneyPct` (a fraction of net worth),
+ // in which case the resolved amount is the LARGER of the authored flat figure
+ // and that percentage, keeping the flat sign. Every one of the ~400 existing
+ // templates omits it and so resolves to exactly `effects.money` — this is a
+ // no-op until a template opts in. Without it a "$200 unexpected bill" fires
+ // unchanged at $200M net worth.
+ const resolvedMoney = resolveEventMoney(effects, netWorth(prevState));
+ if (effects.money !== undefined || isScaledMoneyEffect(effects)) {
  const currentMoney = updatedStats.money || 0;
- if (effects.money < 0 && currentMoney + effects.money < 0) {
+ if (resolvedMoney < 0 && currentMoney + resolvedMoney < 0) {
  effectsAffordable = false;
  }
- updatedStats.money = Math.max(0, currentMoney + effects.money);
+ updatedStats.money = Math.max(0, currentMoney + resolvedMoney);
  }
 
  // Apply stat changes

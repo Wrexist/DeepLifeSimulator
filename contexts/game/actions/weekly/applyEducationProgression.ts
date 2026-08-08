@@ -38,6 +38,7 @@
  */
 
 import type { Education } from '@/contexts/game/types';
+import { chargeOrDefer } from './chargeOrDefer';
 import { logger } from '@/utils/logger';
 import {
   isExamWeek,
@@ -195,7 +196,8 @@ export function applyEducationProgression(
       // Student loan weekly payment.
       if (edu.studentLoan && edu.studentLoan.remaining > 0) {
         const payment = Math.min(edu.studentLoan.weeklyPayment, edu.studentLoan.remaining);
-        ctx.newStats.money = Math.max(0, ctx.newStats.money - payment);
+        // Student-loan payments are mandatory; defer what cannot be covered.
+        chargeOrDefer(ctx, payment);
         updatedEdu.studentLoan = {
           ...edu.studentLoan,
           remaining: Math.max(0, edu.studentLoan.remaining - payment),

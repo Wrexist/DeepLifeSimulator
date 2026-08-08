@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert, Share } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert, Share, Dimensions } from 'react-native';
+import Gradient from '@/components/ui/Gradient';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { useGame } from '@/contexts/GameContext';
-import { useGemStore } from '@/contexts/GemStoreContext';
+import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
+import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
-import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem } from 'lucide-react-native';
+import { Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem, ChevronRight } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
@@ -23,7 +24,13 @@ import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
-const LinearGradient = LinearGradientFallback;
+import { characterName } from '@/utils/characterName';
+import { lifeQuality } from '@/lib/legacy/lifeQuality';
+import DeathHero from '@/components/death/DeathHero';
+import LifeQualityGauge from '@/components/death/LifeQualityGauge';
+import { scale } from '@/utils/scaling';
+const LinearGradient = Gradient;
+const { height: windowHeight } = Dimensions.get('window');
 
 function DeathPopup() {
   const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, reviveWithPack, currentSlot, saveGame } = useGame();
@@ -147,7 +154,25 @@ function DeathPopup() {
     };
   }, [fadeAnim, scaleAnim]);
 
-  const checkpoints = useMemo(() => gameState.checkpoints ?? [], [gameState.checkpoints]);
+  /**
+   * Rewind targets.
+   *
+   * "Before Death" is filtered out. It is no longer created (see
+   * `applyAutoCheckpoint`), but every save written before that change still
+   * carries one, and offering it would keep the exploit alive for exactly the
+   * players who already have it: a 500-gem rewind that returns a living
+   * character one week older, which is what Revive charges thousands for and
+   * what the $2.99 Revival Pack sells.
+   *
+   * Filtered rather than migrated away. The snapshot is harmless sitting in the
+   * save, it rotates out of the 5-slot ring on its own as year checkpoints
+   * accumulate, and deleting player data to fix a pricing mistake is a trade
+   * worth not making.
+   */
+  const checkpoints = useMemo(
+    () => (gameState.checkpoints ?? []).filter((cp) => cp?.label !== 'Before Death'),
+    [gameState.checkpoints]
+  );
   const rewindCost = useMemo(() => {
     try {
       const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
@@ -239,6 +264,11 @@ function DeathPopup() {
   const pendingStoreRef = useRef(false);
   const storeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Which store tab the pending bridge should land on. A ref rather than state
+  // because `flushPendingStore` is also the Modal's `onDismiss` handler, which
+  // must stay callable with no arguments.
+  const pendingStoreTabRef = useRef<GemStoreTab>('gems');
+
   const flushPendingStore = useCallback(() => {
     if (!pendingStoreRef.current) return;
     pendingStoreRef.current = false;
@@ -246,20 +276,40 @@ function DeathPopup() {
       clearTimeout(storeTimerRef.current);
       storeTimerRef.current = null;
     }
-    openStore('gems');
+    openStore(pendingStoreTabRef.current);
   }, [openStore]);
 
   // Quiet bridge for the out-of-gems dead-ends: flip suppression + arm the
   // fallback so the death Modal dismisses, THEN the store opens. Never
   // auto-invoked — only fired by an explicit tap.
-  const bridgeToStore = useCallback(() => {
-    pendingStoreRef.current = true;
-    setStoreBridging(true);
-    if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
-    storeTimerRef.current = setTimeout(flushPendingStore, 600);
-  }, [flushPendingStore]);
+  const bridgeToStore = useCallback(
+    (tab: GemStoreTab = 'gems') => {
+      pendingStoreTabRef.current = tab;
+      pendingStoreRef.current = true;
+      setStoreBridging(true);
+      if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
+      storeTimerRef.current = setTimeout(flushPendingStore, 600);
+    },
+    [flushPendingStore]
+  );
 
-  const handleGetMoreGems = useCallback(() => bridgeToStore(), [bridgeToStore]);
+  const handleGetMoreGems = useCallback(() => bridgeToStore('gems'), [bridgeToStore]);
+
+  /**
+   * Buy the Revival Pack with real money.
+   *
+   * Lands on the `perks` tab, where the pack lives. It deliberately does NOT
+   * run the purchase inline: `GemShopModal` owns the whole flow — store
+   * loading, localized pricing, receipt verification, entitlement grant,
+   * restore — and a second copy of that on the death screen would be a second
+   * set of rules for taking someone's money.
+   *
+   * Buying while dead banks the charge (`revivalPack: true`), so the death
+   * screen re-presents with "Use Revival Pack" waiting at the top. That is the
+   * same one-shot machinery the pack has always used, reached from the one
+   * place it was never reachable from.
+   */
+  const handleBuyRevivalPack = useCallback(() => bridgeToStore('perks'), [bridgeToStore]);
 
   // Re-present the death Modal once the store closes. The bridge flag is cleared
   // only when the store is DOWN, so `visible` never flickers true mid-bridge.
@@ -482,8 +532,25 @@ function DeathPopup() {
 
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
   const hasBankedRevive = gameState.revivalPack === true;
+
+  // The config USD price. The live localized price lives in the store modal —
+  // this is the death screen's label, and a missing config price hides the row
+  // rather than rendering a purchase button with no price on it.
+  const revivalPackPrice = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
+
+  // The name the player gave this character, not the `userProfile.name` handle
+  // (which defaults to "player"). Shared resolver — see utils/characterName.ts.
+  const displayName = characterName(gameState) || 'Unknown Soul';
+
+  // A real score over the whole life, not the final tick's happiness. It is the
+  // number under the arc, and a number this final is one the player will check.
+  const quality = lifeQuality(gameState);
+
+  // The hero band scales with the device but is capped, so a tablet does not
+  // give a third of the screen to a gravestone.
+  const heroHeight = Math.min(scale(190), windowHeight * 0.22);
 
   // Shared secondary action row (Read Story + Share) — appears in both footers.
   const secondaryActions = (
@@ -514,11 +581,16 @@ function DeathPopup() {
     <TouchableOpacity
       style={[styles.actionButton, styles.newLifeButton]}
       onPress={handleStartNewGame}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel="Start a new life"
     >
-      <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.buttonGradient}>
-        <Sparkles size={18} color="#FFF" />
-        <Text style={styles.buttonText}>Start New Life</Text>
+      <LinearGradient colors={['#7C4DFF', '#5B2BE0']} style={styles.buttonGradient}>
+        <Sparkles size={20} color="#FFF" />
+        <View>
+          <Text style={styles.buttonText}>Start New Life</Text>
+          <Text style={styles.buttonSubtext}>A new beginning awaits.</Text>
+        </View>
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -550,20 +622,48 @@ function DeathPopup() {
             colors={[c.background, c.surface, c.surfaceElevated]}
             style={styles.card}
           >
-            {/* Compact identity strip — persistent across both pages */}
-            <View style={styles.identityHeader}>
-              <View style={styles.identityIcon}>
-                <Skull size={26} color={c.text} />
+            {/* ── Hero ──────────────────────────────────────────────────────
+                The illustration, the verdict, and the cause. Centred, because
+                this is the one screen in the game that is not a dashboard: it
+                is an ending, and an ending reads down the middle.
+
+                `DeathHero` draws the gravestone today and accepts the painted
+                asset via `source` the moment one exists — see
+                `docs/DEATH_SCREEN_ASSETS.md`. */}
+            <DeathHero
+              height={heroHeight}
+              mood={quality.mood}
+              source={require('@/assets/images/death/gravestone.webp')}
+            />
+
+            <View style={styles.hero}>
+              <Text style={styles.heroTitle} numberOfLines={1} adjustsFontSizeToFit>
+                {deathTitle}
+              </Text>
+              <Text style={styles.heroSubtitle}>{deathSubtitle}</Text>
+              <Text style={styles.heroCause}>{deathMessage}</Text>
+            </View>
+
+            {/* Identity card — the portrait belongs here. A player who spent
+                sixty years as this character should see their face, not a
+                generic skull, and certainly not be eulogised as "Player":
+                `userProfile.name` is the HANDLE and defaults to that string.
+                `characterName` is the one resolver, shared with mail. */}
+            <View style={styles.identityCard}>
+              <View style={styles.identityAvatarRing}>
+                <Image
+                  source={getCharacterImage(age, safeUserProfile(gameState).sex || 'male', displayName)}
+                  style={styles.identityAvatar}
+                />
               </View>
               <View style={styles.identityText}>
-                <Text style={styles.identityTitle} numberOfLines={1}>
-                  {deathTitle}
-                </Text>
                 <Text style={styles.identityName} numberOfLines={1}>
-                  {safeUserProfile(gameState).name || 'Unknown Soul'}
+                  {displayName}
                 </Text>
                 <Text style={styles.identityDetails} numberOfLines={1}>
-                  Age {age} • {yearsLived > 0 ? `${yearsLived} yrs` : `${weeksLived} wks`} lived
+                  <Text style={styles.identityAge}>Age {age}</Text>
+                  {'  •  '}
+                  {yearsLived > 0 ? `${yearsLived} yrs` : `${weeksLived} wks`} lived
                 </Text>
               </View>
             </View>
@@ -605,34 +705,46 @@ function DeathPopup() {
                   nestedScrollEnabled={true}
                   bounces={true}
                 >
-                  {/* Cause of death + ribbon */}
-                  <View style={styles.causeCard}>
-                    <Text style={styles.causeSubtitle}>{deathSubtitle}</Text>
-                    <Text style={styles.causeMessage}>{deathMessage}</Text>
-                  </View>
-
-                  {lifeRibbon && (
-                    <View style={[styles.ribbonBanner, { borderColor: lifeRibbon.color }]}>
-                      <View style={styles.ribbonTextContainer}>
-                        <Text style={[styles.ribbonName, { color: lifeRibbon.color }]}>
-                          {lifeRibbon.hidden && !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
-                            ? 'NEW RIBBON DISCOVERED!'
-                            : lifeRibbon.name}
-                        </Text>
-                        <Text style={styles.ribbonDesc}>
-                          {lifeRibbon.description}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Life Summary Section */}
+                  {/* ── Life Summary verdict ────────────────────────────────
+                      The earned ribbon and the score, side by side, because
+                      they are two readings of the same life and separating
+                      them is how a LEGENDARY ribbon ends up sitting above a
+                      30% gauge with nothing to reconcile them. `lifeQuality`
+                      scores the same signals `classifyLife` judges. */}
                   <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                      <Sparkles size={20} color={settings.darkMode ? accent.gold : accent.warning} />
+                      <View style={styles.sectionIcon}>
+                        <Sparkles size={16} color={settings.darkMode ? '#A78BFA' : '#7C3AED'} />
+                      </View>
                       <Text style={styles.sectionTitle}>Life Summary</Text>
                     </View>
 
+                    <View style={styles.verdictCard}>
+                      <View style={styles.verdictText}>
+                        <Text
+                          style={[
+                            styles.verdictName,
+                            lifeRibbon ? { color: lifeRibbon.color } : null,
+                          ]}
+                        >
+                          {lifeRibbon
+                            ? lifeRibbon.hidden &&
+                              !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
+                              ? 'NEW RIBBON DISCOVERED!'
+                              : lifeRibbon.name.toUpperCase()
+                            : quality.verdict.toUpperCase()}
+                        </Text>
+                        <Text style={styles.verdictDesc}>
+                          {lifeRibbon ? lifeRibbon.description : deathMessage}
+                        </Text>
+                      </View>
+
+                      <LifeQualityGauge quality={quality} darkMode={settings.darkMode} />
+                    </View>
+                  </View>
+
+                  {/* Life details */}
+                  <View style={styles.section}>
                     <View style={styles.summaryCard}>
                       {/* Career */}
                       {currentJob && (
@@ -870,88 +982,162 @@ function DeathPopup() {
                   })()}
                 </ScrollView>
 
-                {/* Summary footer — revive / rewind THIS life, or start fresh */}
+                {/* ── Summary footer ──────────────────────────────────────────
+                    Three ways to keep this life, then one to leave it. Each is
+                    a full-width row that states what it does and what it costs
+                    on the same line, rather than a pill with the price crammed
+                    into its label.
+
+                    Every priced row stays PRESSABLE when it cannot be afforded,
+                    and dims only its price. A `disabled` button swallows the
+                    tap, and that tap is the only route into the "not enough
+                    gems → store" bridge the handlers already implement — so
+                    disabling it turned the shortest path to a purchase into a
+                    dead end. The rewind row already worked this way; revive now
+                    matches it. */}
                 <View style={styles.footer}>
                   {hasBankedRevive && (
                     <TouchableOpacity
-                      style={styles.actionButton}
+                      style={[styles.optionRow, styles.optionRevive]}
                       onPress={handleReviveWithPack}
-                      activeOpacity={0.8}
+                      activeOpacity={0.85}
                       accessibilityRole="button"
                       accessibilityLabel="Use your Revival Pack to come back to life"
                     >
-                      <LinearGradient
-                        colors={[accent.success, '#059669']}
-                        style={styles.buttonGradient}
-                      >
-                        <Heart size={18} color="#FFF" />
-                        <Text style={styles.buttonText}>Use Revival Pack</Text>
-                      </LinearGradient>
+                      <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                        <Heart size={20} color="#F472B6" fill="#F472B6" />
+                      </View>
+                      <View style={styles.optionText}>
+                        <Text style={styles.optionTitle}>Use Revival Pack</Text>
+                        <Text style={styles.optionSubtitle}>You already paid for this one.</Text>
+                      </View>
+                      <View style={[styles.optionPill, styles.optionPillRevive]}>
+                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>Free</Text>
+                      </View>
                     </TouchableOpacity>
                   )}
 
                   <TouchableOpacity
-                    style={[styles.actionButton, !canAffordRevive && styles.disabledButton]}
+                    style={[styles.optionRow, styles.optionRevive]}
                     onPress={handleRevive}
-                    disabled={!canAffordRevive}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Revive for ${REVIVE_GEM_COST.toLocaleString()} gems`}
+                    accessibilityHint={!canAffordRevive ? 'Not enough gems' : undefined}
                   >
-                    <LinearGradient
-                      colors={canAffordRevive ? [accent.success, '#059669'] : ['#94A3B8', '#6B7280']}
-                      style={styles.buttonGradient}
+                    <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                      <Heart size={20} color="#F472B6" fill="#F472B6" />
+                    </View>
+                    <View style={styles.optionText}>
+                      <Text style={styles.optionTitle}>Revive</Text>
+                      <Text style={styles.optionSubtitle}>Start over and try again.</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.optionPill,
+                        styles.optionPillRevive,
+                        !canAffordRevive && styles.optionPillShort,
+                      ]}
                     >
-                      <Heart size={18} color="#FFF" />
-                      <Text style={styles.buttonText}>
-                        Revive ({REVIVE_GEM_COST.toLocaleString()} Gems)
+                      <Gem size={13} color="#F472B6" />
+                      <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                        {REVIVE_GEM_COST.toLocaleString()}
                       </Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
 
-                  {/* Quiet bridge when revive is unaffordable — the disabled button
-                      stays honest; this only offers a path to buy gems. No urgency
-                      copy, and the store is never opened automatically. */}
-                  {!canAffordRevive && (
-                    <View style={styles.secondaryRow}>
-                      <TouchableOpacity
-                        style={styles.secondaryButton}
-                        onPress={handleGetMoreGems}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Get more gems in the shop"
-                      >
-                        <Gem size={16} color={c.text} />
-                        <Text style={styles.secondaryButtonText}>Get more gems</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  {/* ── Revive with real money ──────────────────────────────
+                      Shown only while the pack can still be bought. It is a
+                      NON-CONSUMABLE, so it is purchasable exactly once per
+                      Apple/Google account, ever — after that the row would be
+                      a button that cannot do anything, which is worse than no
+                      row. (Making it repeatable is a store-side product change,
+                      not a code one.)
 
-                  {/* Time Machine — Rewind to checkpoint (cheaper than revive) */}
-                  {checkpoints.length > 0 && (
-                    <View style={styles.rewindSection}>
-                      <Text style={styles.rewindTitle}>
-                        Rewind Time ({rewindCost.toLocaleString()} Gems)
-                      </Text>
-                      {checkpoints.slice().reverse().map((cp: any) => (
-                        // Kept PRESSABLE even when unaffordable (still visually
-                        // dimmed): a tap routes into handleRewind's existing
-                        // "Not Enough Gems → Get Gems" branch, which bridges to
-                        // the store. A `disabled` button would swallow that tap.
-                        <TouchableOpacity
-                          key={cp.id}
-                          style={[styles.rewindChip, !canAffordRewind && styles.disabledButton]}
-                          onPress={() => handleRewind(cp.id)}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
-                        >
-                          <RotateCcw size={14} color={canAffordRewind ? accent.warning : c.textSecondary} />
-                          <Text style={[styles.rewindChipText, !canAffordRewind && { color: c.textSecondary }]}>
-                            {cp.label} (Age {cp.age})
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      It says the price is better than the gem route because it
+                      is: the pack is a few dollars and REVIVE_GEM_COST is
+                      thousands of gems. A death screen that hid that while
+                      showing the expensive option first would be taking
+                      advantage of the moment. */}
+                  {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                    <TouchableOpacity
+                      style={[styles.optionRow, styles.optionRevive]}
+                      onPress={handleBuyRevivalPack}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
+                    >
+                      <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                        <Heart size={20} color="#F472B6" fill="#F472B6" />
+                      </View>
+                      <View style={styles.optionText}>
+                        <Text style={styles.optionTitle}>Revival Pack</Text>
+                        <Text style={styles.optionSubtitle}>
+                          Revive without spending gems. One-time purchase.
+                        </Text>
+                      </View>
+                      <View style={[styles.optionPill, styles.optionPillRevive]}>
+                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                          {revivalPackPrice}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {/* The store bridge. No urgency copy, and the store is still
+                      never opened automatically — this is a row you can tap,
+                      not a thing that happens to you. */}
+                  <TouchableOpacity
+                    style={styles.optionRow}
+                    onPress={handleGetMoreGems}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Get more gems in the shop"
+                  >
+                    <View style={styles.optionIcon}>
+                      <Gem size={20} color={c.textSecondary} />
                     </View>
-                  )}
+                    <View style={styles.optionText}>
+                      <Text style={styles.optionTitle}>Get more gems</Text>
+                      <Text style={styles.optionSubtitle}>Stock up and come back stronger.</Text>
+                    </View>
+                    <ChevronRight size={18} color={c.textSecondary} />
+                  </TouchableOpacity>
+
+                  {/* Time Machine — rewind to a checkpoint, cheaper than revive. */}
+                  {checkpoints.slice().reverse().map((cp: { id: string; label: string; age: number }) => (
+                    <TouchableOpacity
+                      key={cp.id}
+                      style={[styles.optionRow, styles.optionRewind]}
+                      onPress={() => handleRewind(cp.id)}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rewind time to ${cp.label}, age ${cp.age}, for ${rewindCost.toLocaleString()} gems`}
+                      accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
+                    >
+                      <View style={[styles.optionIcon, styles.optionIconRewind]}>
+                        <RotateCcw size={20} color={accent.warning} />
+                      </View>
+                      <View style={styles.optionText}>
+                        <Text style={[styles.optionTitle, styles.optionTitleRewind]}>Rewind Time</Text>
+                        <Text style={[styles.optionSubtitle, styles.optionSubtitleRewind]}>
+                          Go back to {cp.label.toLowerCase()} (Age {cp.age}).
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.optionPill,
+                          styles.optionPillRewind,
+                          !canAffordRewind && styles.optionPillShort,
+                        ]}
+                      >
+                        <Gem size={13} color={accent.warning} />
+                        <Text style={[styles.optionPillText, styles.optionPillTextRewind]}>
+                          {rewindCost.toLocaleString()}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
 
                   {startNewLifeButton}
                   {secondaryActions}

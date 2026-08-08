@@ -47,7 +47,7 @@ import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types'
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding, touchTargets } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
@@ -88,7 +88,7 @@ import {
   removeCryptoDCA,
 } from '@/contexts/game/actions/CryptoTradingActions';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Identity accent for the Crypto app — amber #F59E0B (rgb 245,158,11).
 // Solid (accent.warning === #F59E0B) is reserved for small CTAs / badges /

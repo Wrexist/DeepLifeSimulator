@@ -1,12 +1,12 @@
 import React, { useCallback, useRef } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 export default function LifeMomentModal() {
   const { gameState, setGameState } = useGameState();

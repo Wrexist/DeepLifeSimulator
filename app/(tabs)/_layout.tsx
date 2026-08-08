@@ -2,6 +2,7 @@ import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Platform, View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
+import { modalEventCount } from '@/lib/events/routing';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
@@ -17,6 +18,7 @@ import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
@@ -162,7 +164,11 @@ export default function TabLayout() {
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
   const [eventInboxOpen, setEventInboxOpen] = useState(false);
-  const pendingEventCount = gameState?.pendingEvents?.length ?? 0;
+  // Letter-shaped events live in the mail app, so they must not inflate the
+  // pill — a player who saw "2 decisions waiting", opened the inbox and found
+  // one would have no way to find the other. One selector, shared with
+  // `WeeklyEventModal`, so the two can never disagree.
+  const pendingEventCount = modalEventCount(gameState);
   useEffect(() => {
     if (pendingEventCount === 0 && eventInboxOpen) setEventInboxOpen(false);
   }, [pendingEventCount, eventInboxOpen]);
@@ -171,7 +177,15 @@ export default function TabLayout() {
     gameState?.showDeathPopup || gameState?.showWeddingPopup ||
     gameState?.lifeMoments?.pendingMoment || eventInboxOpen
   );
-  const showWeekResult = resultWeek !== null && !higherModalUp && weekSummaryEnabled;
+  // The weekly sheet is a plain absolute View, so the RN Modals raised by Home
+  // (goal / daily reward / welcome back / community) covered it outright and its
+  // "Continue" button became unreachable until they were dismissed. Routing it
+  // through the shared queue makes it WAIT for them instead of racing them.
+  const showWeekResult = useInterruptionSlot(
+    'tabs:week-result',
+    INTERRUPTION_PRIORITY.WEEK_RESULT,
+    resultWeek !== null && !higherModalUp && weekSummaryEnabled
+  );
   // The inbox pill shows when decisions are waiting and nothing else is up.
   const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
 

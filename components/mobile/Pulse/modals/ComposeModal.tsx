@@ -18,7 +18,8 @@ import {
   View,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -29,7 +30,7 @@ import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseContentType, PulseActiveBrandDeal } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const CONTENT_TYPES: { id: PulseContentType; label: string }[] = [
   { id: 'text', label: 'Text' },
@@ -46,6 +47,7 @@ interface ComposeModalProps {
 export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState<PulseContentType>('text');
@@ -137,7 +139,16 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.backdrop, { zIndex: Z_INDEX.MODAL }]}
       >
-        <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {/* paddingBottom must come from the real inset, not a scaled constant:
+            the home indicator is a fixed 34pt, while scale() shrinks toward 0.7
+            on small devices — i.e. the padding got smallest exactly where it was
+            already too tight. */}
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: theme.surface, borderColor: theme.border, paddingBottom: insets.bottom + responsiveSpacing.md },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <Pressable

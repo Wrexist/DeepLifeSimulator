@@ -15,7 +15,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   BookOpen,
   Search,
@@ -39,7 +39,7 @@ import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type JournalCategory = 'all' | 'career' | 'relationship' | 'achievement' | 'travel' | 'family' | 'crime' | 'health' | 'other';
 

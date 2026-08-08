@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { View, Text, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import { Shield, Bug, RotateCcw, X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGame } from '@/contexts/GameContext';
@@ -18,7 +18,7 @@ import { safeRemoveItem } from '@/utils/safeStorage';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface Props {
   onShowBugReport: () => void;

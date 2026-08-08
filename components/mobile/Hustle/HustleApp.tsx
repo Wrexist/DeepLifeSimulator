@@ -14,7 +14,7 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -28,7 +28,7 @@ import ResolveScandalModal from './modals/ResolveScandalModal';
 import IPOModal from './modals/IPOModal';
 import AcquireModal from './modals/AcquireModal';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type HustleRoute =
   | { kind: 'dashboard' }

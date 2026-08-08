@@ -7,7 +7,7 @@
 import React, { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X, AlertTriangle, MessagesSquare, Undo2, Scale, EyeOff, Building2 } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -17,7 +17,7 @@ import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleScandalResolution } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type OptionMeta = {
   id: HustleScandalResolution;

@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { logger } from '@/utils/logger';
 import { X, Play, Users } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
@@ -18,7 +18,7 @@ import { watchAdForFollowerBoost, canBoostFollowersWithAd } from '@/contexts/gam
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface RewardedAdModalProps {
   visible: boolean;

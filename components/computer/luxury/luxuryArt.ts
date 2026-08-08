@@ -64,9 +64,11 @@ export interface LuxuryTierVisual {
   /** Translucent accent border for the chip. */
   accentBorder: string;
   /**
-   * Placeholder banner wash. LinearGradientFallback paints the FIRST color as a
-   * flat fill, so a dark tier-tinted shade leads each pair over the deep base —
-   * giving each tier a distinct, still-premium panel until real art is imported.
+   * Placeholder banner wash, until real art is imported. Both colours now paint:
+   * `LuxuryApp` renders these through `components/ui/Gradient`, which draws a
+   * real interpolated ramp. The ordering is still first-colour-leads — a dark
+   * tier-tinted shade over the deep base — because that is what these pairs were
+   * chosen to look like, and it now reads as a diagonal wash rather than a slab.
    */
   gradient: readonly [string, string];
 }

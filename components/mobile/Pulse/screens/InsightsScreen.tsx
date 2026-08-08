@@ -15,7 +15,7 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lock, TrendingUp, Award, Heart, Zap, ShieldCheck, Star, Repeat2 } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -26,7 +26,7 @@ import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, PulseLifetimeStats } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface InsightsScreenProps {
   /** Tap the upsell strip → open the Verified Pro upsell (owned by PulseApp). */

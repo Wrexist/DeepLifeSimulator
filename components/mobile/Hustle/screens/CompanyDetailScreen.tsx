@@ -20,7 +20,7 @@ import {
   UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -46,7 +46,7 @@ import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types
 import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { getPortrait } from '@/utils/facePool';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Face art for named hires — a stable, unique adult face per hire id, drawn
 // from the seeded pool (utils/facePool). Sex derives from the id so it stays

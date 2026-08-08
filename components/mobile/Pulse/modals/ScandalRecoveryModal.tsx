@@ -8,7 +8,7 @@
 import React, { useCallback } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, MessageCircleOff, MessagesSquare, Gem, Scale } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
@@ -18,7 +18,7 @@ import { PULSE_GRADIENT, PULSE_COLORS, PULSE_SCANDAL_HIGH, PULSE_SCANDAL_MID } f
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseActiveScandal, PulseScandalResolution } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ScandalRecoveryModalProps {
   visible: boolean;

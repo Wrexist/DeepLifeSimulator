@@ -2,30 +2,28 @@
  * AmbitionCard — the in-game front door for the Life Ambition chosen at
  * character creation.
  *
- * It reuses the goals-evaluation PATTERN (the same reactive "read GameState →
- * pure predicates → surface progress → claim once" flow as LifeChapterCard),
- * NOT a new tick engine. Milestone progress is evaluated from the live state on
- * every render via pure helpers in lib/ambitions; freshly-reached milestones are
- * persisted onto GameState so the staged path is sticky; and the one-time payoff
- * is granted through the idempotent `grantAmbitionPayout` reducer (real currency
- * fields: money, gems, prestige points) with a success toast.
+ * READ-ONLY. Milestone progress is evaluated from the live state on every render
+ * via the pure helpers in lib/ambitions, and that is all this card does: it
+ * neither persists progress nor grants the payoff.
+ *
+ * The week tick owns both (`contexts/game/actions/weekly/applyAmbitionPayout.ts`).
+ * It used to be the other way round — this card held the ONLY call to
+ * `grantAmbitionPayout` anywhere in the app, behind a button, so the largest
+ * reward in the game ($60k–$300k + gems + prestige points) went unpaid for any
+ * player who never scrolled to it, and prestiging without tapping it burned the
+ * ambition for every future life. Leaving the button in place as a second
+ * granting path would just be two ways for the same one-time payoff to disagree,
+ * so it is gone.
  *
  * Renders nothing when the life has no chosen ambition (old saves + freeform
  * lives) — so it is safe on every existing save.
  */
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Check, Gem, Star, Target, Trophy } from 'lucide-react-native';
-import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
-import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { useToast } from '@/contexts/ToastContext';
-import { haptic } from '@/utils/haptics';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { formatMoney } from '@/utils/moneyFormatting';
-import {
-  getAmbitionCompletion,
-  grantAmbitionPayout,
-  reconcileAmbitionProgress,
-} from '@/lib/ambitions';
+import { getAmbitionCompletion } from '@/lib/ambitions';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
@@ -33,24 +31,8 @@ function AmbitionCard() {
   // Ambition milestones read arbitrary state fields, so select the whole
   // snapshot for this one card (same approach as LifeChapterCard).
   const state = useGameSelector((s) => s) as GameState;
-  const setGameState = useSetGameState();
-  const { saveGame } = useGameActions();
-  const { showSuccess } = useToast();
 
   const completion = useMemo(() => (state ? getAmbitionCompletion(state) : null), [state]);
-
-  // Persist freshly-reached milestones so the staged path stays "sticky". Keyed
-  // on the set of reached ids so it only writes when that set actually grows;
-  // reconcileAmbitionProgress returns the same reference when nothing changed,
-  // making the setState a no-op in the common case (no render loop, no save).
-  const reachedKey = completion
-    ? completion.milestones.filter((m) => m.complete).map((m) => m.id).join('|')
-    : '';
-  useEffect(() => {
-    if (!completion) return;
-    setGameState((prev) => reconcileAmbitionProgress(prev));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on reachedKey to avoid loops
-  }, [reachedKey]);
 
   if (!completion) return null;
   const { ambition, milestones, reachedCount, totalCount, alreadyClaimed, readyToClaim } = completion;
@@ -61,19 +43,6 @@ function AmbitionCard() {
   if (payoff.gems) rewardParts.push(`${payoff.gems} gems`);
   if (payoff.prestigePoints) rewardParts.push(`${payoff.prestigePoints} prestige`);
   const rewardLine = rewardParts.join(' · ');
-
-  const claim = () => {
-    // Guard on the captured snapshot; the reducer is idempotent anyway.
-    if (!readyToClaim) return;
-    haptic.success();
-    setGameState((prev) => grantAmbitionPayout(prev));
-    const toastParts: string[] = [];
-    if (payoff.money) toastParts.push(`+${formatMoney(payoff.money)}`);
-    if (payoff.gems) toastParts.push(`+${payoff.gems} gems`);
-    if (payoff.prestigePoints) toastParts.push(`+${payoff.prestigePoints} prestige`);
-    showSuccess(`Ambition fulfilled — ${ambition.name}! ${toastParts.join(', ')}`);
-    void saveGame?.(false);
-  };
 
   return (
     <View style={[styles.card, alreadyClaimed && styles.cardDone]}>
@@ -131,10 +100,12 @@ function AmbitionCard() {
           <Text style={styles.doneText}>Ambition fulfilled — reward claimed</Text>
         </View>
       ) : readyToClaim ? (
-        <TouchableOpacity style={styles.claimBtn} onPress={claim} activeOpacity={0.85}>
+        // Every milestone is reached and the tick has not run yet. No button:
+        // the payout lands on the next week advance without being asked for.
+        <View style={styles.claimBanner}>
           <Trophy size={scale(15)} color="#0F172A" />
-          <Text style={styles.claimText}>Fulfill Ambition · {rewardLine}</Text>
-        </TouchableOpacity>
+          <Text style={styles.claimText}>Fulfilled · {rewardLine} next week</Text>
+        </View>
       ) : (
         <View style={styles.rewardHint}>
           <View style={styles.rewardChips}>
@@ -224,7 +195,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#3B82F6' },
-  claimBtn: {
+  claimBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

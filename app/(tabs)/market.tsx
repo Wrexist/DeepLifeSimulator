@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
+import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp } from 'lucide-react-native';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -63,7 +64,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
+  const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym' | 'housing'>('items');
   const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
@@ -465,6 +466,27 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             ),
           },
           {
+            // HOUSING. Renting used to live as tab 2 of the Real Estate app —
+            // which is DESKTOP-ONLY (a $5,000 computer) and gated at tier 3
+            // ("Finish Chapter 3"). So a player in their first 30 weeks, bleeding
+            // vitals and with nowhere to live, could not see that housing
+            // existed at all — even though a tenancy grants weekly health,
+            // happiness and energy and carries an eviction failure state.
+            // Market is always reachable, needs no device and has no tier gate,
+            // which is what a week-1 survival need requires.
+            key: 'housing',
+            label: 'Housing',
+            icon: Home,
+            accessory: (
+              <InfoButton
+                title="Renting a Home"
+                content="A home gives you weekly health, happiness and energy. Rent is charged every week — fall behind for too long and you'll be evicted. Moving between tiers is free, so upgrade whenever you can afford it."
+                size="small"
+                darkMode={settings.darkMode}
+              />
+            ),
+          },
+          {
             key: 'gym',
             label: t('market.gym'),
             icon: Dumbbell,
@@ -568,6 +590,65 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 {t('market.buyFood')}
               </Text>
               {sortedFoods.map((food) => renderFood({ item: food }))}
+            </>
+          ) : activeTab === 'housing' ? (
+            <>
+              <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
+                A roof gives you weekly health, happiness and energy. Rent is charged every week.
+              </Text>
+              {listRentalOptions(gameState).map((option) => {
+                const t2 = option.tier;
+                const disabled = !option.current && !option.allowed;
+                return (
+                  <TouchableOpacity
+                    key={t2.id}
+                    activeOpacity={disabled ? 1 : 0.85}
+                    onPress={() => {
+                      if (option.current) {
+                        const r = endRental(setGameState, gameState);
+                        if (r.message) showInfo(r.message);
+                        return;
+                      }
+                      if (disabled) {
+                        showError(option.reason || 'You cannot rent this yet.');
+                        return;
+                      }
+                      const r = rentHome(setGameState, gameState, t2.id);
+                      if (r.success) showSuccess(r.message);
+                      else showError(r.message);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled, selected: option.current }}
+                    accessibilityLabel={`${t2.name}, ${formatMoney(t2.weeklyRent)} per week`}
+                    style={[
+                      styles.gymCard,
+                      {
+                        // Full border on all four sides — Hard Rule #7.
+                        borderWidth: 1,
+                        borderColor: option.current
+                          ? accent.success
+                          : settings.darkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+                        opacity: disabled ? 0.55 : 1,
+                        marginBottom: 10,
+                      },
+                    ]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      {option.current ? <Check size={18} color={accent.success} /> : <Home size={18} color={accent.info} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.gymCardTitle}>{t2.name}</Text>
+                        <Text style={styles.gymCardSubtitle}>
+                          {option.current
+                            ? 'Your home — tap to move out'
+                            : disabled
+                              ? option.reason || 'Not available yet'
+                              : `${formatMoney(t2.weeklyRent)} / week`}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </>
           ) : (
             <View style={styles.gymCard}>

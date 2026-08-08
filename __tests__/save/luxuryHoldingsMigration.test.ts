@@ -13,9 +13,14 @@ import { getTotalLuxuryResaleValue, getOwnedLuxuryCount } from '@/lib/luxury';
 
 describe('STATE_VERSION registration', () => {
   it('is the current version and every recent bump is covered', () => {
-    expect(STATE_VERSION).toBe(32);
-    expect(CURRENT_STATE_VERSION).toBe(32);
-    for (const v of [24, 25, 26, 27, 28, 29, 30, 31, 32]) {
+    // This used to pin STATE_VERSION === 32, which made it a tripwire for every
+    // future bump: a correct migration failed a test in an unrelated file. The
+    // same change was already made to the C-11 legacy-shop suite for the same
+    // reason. What matters is that the two constants AGREE and that no version
+    // in the chain is unregistered — not what today's number happens to be.
+    expect(STATE_VERSION).toBe(CURRENT_STATE_VERSION);
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(32);
+    for (let v = 24; v <= CURRENT_STATE_VERSION; v += 1) {
       expect(`v${v} covered: ${isMigrationVersionCovered(v)}`).toBe(`v${v} covered: true`);
     }
   });
@@ -40,7 +45,9 @@ describe('migration 32 — `rental`, a no-backfill carve-out', () => {
     const save = { version: 31, weeksLived: 300, overdueBalance: 0 };
     const result = runMigrations(save as never);
 
-    expect(result.state.version).toBe(32);
+    // Runs the whole remaining chain, so assert the CURRENT version rather than
+    // 32 — later bumps must still leave this carve-out alone.
+    expect(result.state.version).toBe(CURRENT_STATE_VERSION);
     expect('rental' in (result.state as object)).toBe(false);
   });
 

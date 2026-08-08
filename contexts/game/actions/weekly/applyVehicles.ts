@@ -47,6 +47,7 @@ import {
   type AccidentSeverity,
 } from '@/lib/vehicles/accidents';
 import type { WeekContext } from './weekContext';
+import { chargeOrDefer } from './chargeOrDefer';
 
 // Deterministic condition damage per severity tier. Kept out of accidents.ts
 // (which owns the probability + injury math) because the weekly tick needs a
@@ -70,7 +71,9 @@ export function applyVehiclesForWeek(
 
     // Deduct weekly maintenance + fuel cost
     const weeklyCost = (v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0);
-    ctx.newStats.money = Math.max(0, ctx.newStats.money - weeklyCost);
+    // Running costs are mandatory — defer what cannot be covered rather than
+    // forgiving it. See chargeOrDefer.
+    chargeOrDefer(ctx, weeklyCost);
 
     // Condition degrades ~1% per week (driving wear)
     // BUGFIX: use ?? so a totaled (condition=0) vehicle doesn't get
@@ -122,7 +125,8 @@ export function applyVehiclesForWeek(
       const safePrice = typeof v.price === 'number' && isFinite(v.price) ? v.price : 0;
       const repairCost = Math.floor(safePrice * damage * 0.001);
       const outOfPocket = Math.floor(repairCost * (1 - coveragePercent / 100));
-      ctx.newStats.money = Math.max(0, ctx.newStats.money - outOfPocket);
+      // An accident bill you cannot pay is still owed.
+      chargeOrDefer(ctx, outOfPocket);
 
       ctx.notifications.push({
         id: `vehicle-accident-${v.id}`,

@@ -5,6 +5,7 @@ import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEven
 import { personalCrisisEventTemplates } from './personalCrises';
 import { enhancedEventTemplates } from './enhancedEvents';
 import { lifeMilestoneEventTemplates } from './lifeMilestoneEvents';
+import { legalEventTemplates } from './legalEvents';
 import { careerEventTemplates } from './careerEvents';
 import { travelEventTemplates } from './travelEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
@@ -15,6 +16,7 @@ import { childhoodEventTemplates } from './childhoodEvents';
 import { parentEventTemplates } from './parentEvents';
 import { midlifeEventTemplates } from './midlifeEvents';
 import { seniorEventTemplates } from './seniorEvents';
+import { wealthEventTemplates } from './wealthEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import {
@@ -30,7 +32,19 @@ import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 export interface EventChoiceEffects {
+  /** Flat amount. Also the FLOOR when `moneyPct` is set. Sign carries. */
   money?: number;
+  /**
+   * Fraction of net worth this choice is worth, e.g. `0.01` for 1%.
+   *
+   * Omit for a flat effect — every existing template does, so scaling is a
+   * no-op until a template opts in. When set, the resolved amount is the larger
+   * of `money` and `netWorth * moneyPct`, so an early-game player still sees
+   * the hand-tuned figure and a wealthy one sees something they can feel.
+   * Bounded by MAX_EVENT_NET_WORTH_FRACTION regardless of what is declared —
+   * see lib/events/moneyScaling.ts.
+   */
+  moneyPct?: number;
   stats?: Partial<GameStats>;
   relationship?: number; // change to specific relation if relationId provided
   pet?: { hunger?: number; happiness?: number; health?: number };
@@ -79,6 +93,24 @@ export interface WeeklyEvent {
   chainStage?: number; // Stage number in the chain (0-based)
   followUpEventId?: string; // ID of follow-up event to trigger after choice
   generatedAtWeeksLived?: number; // Absolute week generated; used for persistence hygiene
+  /**
+   * Which surface delivered this event. Absent means the blocking modal, which
+   * is what every event did before mail existed — so an old save, or an event
+   * from a template that knows nothing about routing, behaves exactly as it did.
+   *
+   * Set to `'mail'` at DELIVERY time (not on the template) by
+   * `lib/events/routing.ts`, for the events whose own copy says they arrived as
+   * a letter. Read it through that module's selectors rather than directly:
+   * the event inbox and `WeeklyEventModal` must agree about which events they
+   * own, and a second hand-rolled filter is how they would stop agreeing.
+   */
+  channel?: 'modal' | 'mail';
+  /**
+   * Absolute `weeksLived` after which an un-answered mail-routed event lapses
+   * to its default choice. Only meaningful with `channel: 'mail'` — a modal
+   * event cannot be deferred, so it cannot expire.
+   */
+  expiresAtWeek?: number;
 }
 
 /**
@@ -2835,6 +2867,7 @@ export const eventTemplates: EventTemplate[] = [
   ...enhancedEventTemplates,
   // Life milestone events (relationships, family, age, wellness)
   ...lifeMilestoneEventTemplates,
+  ...legalEventTemplates,
   // Career events (performance, workplace, firing)
   ...careerEventTemplates,
   // Travel events (experiences while on trips)
@@ -2855,6 +2888,12 @@ export const eventTemplates: EventTemplate[] = [
   ...parentEventTemplates,
   ...midlifeEventTemplates,
   ...seniorEventTemplates,
+  // Late-game / wealth-tier pack — the ONLY templates that declare `moneyPct`,
+  // so a choice is worth a fraction of net worth instead of a flat figure that
+  // has become noise. Gated on the canonical netWorth() at four tiers ($1M /
+  // $10M / $50M / $250M) plus weeksLived >= 26, so an early-game player never
+  // sees one. See lib/events/wealthEvents.ts for the calibration.
+  ...wealthEventTemplates,
 ];
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──

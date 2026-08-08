@@ -29,7 +29,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
  Users,
  Heart,
@@ -91,7 +91,7 @@ import {
  type NurtureStatKey,
 } from '@/lib/parenting';
 import type { ChildInfo, Relationship } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const c = colors.dark;
 

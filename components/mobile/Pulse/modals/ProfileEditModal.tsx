@@ -30,7 +30,8 @@ import {
   View,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -38,7 +39,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const URL_RE = /^https?:\/\/[^\s]+$/i;
@@ -51,6 +52,7 @@ interface ProfileEditModalProps {
 export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const profile = gameState.userProfile ?? {};
 
   const initial = useMemo(() => ({
@@ -120,7 +122,13 @@ export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModa
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.backdrop, { zIndex: Z_INDEX.MODAL }]}
       >
-        <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {/* Real inset, not a scaled constant — see ComposeModal for the why. */}
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: theme.surface, borderColor: theme.border, paddingBottom: insets.bottom + responsiveSpacing.md },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <Pressable

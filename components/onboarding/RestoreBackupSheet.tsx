@@ -25,14 +25,14 @@ import {
   View,
 } from 'react-native';
 import { Clock, History, RotateCcw, ShieldCheck, X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { listBackups, restoreFromBackup, type BackupMetadata } from '@/utils/saveBackup';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { fontScale, scale, verticalScale } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const log = logger.scope('RestoreBackupSheet');
 
 interface Props {

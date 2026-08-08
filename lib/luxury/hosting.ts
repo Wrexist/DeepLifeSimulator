@@ -26,6 +26,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { getCollectionHostingMultiplier } from './collections';
 
 /** A luxury item you can hold an event at. */
 export interface HostingVenue {
@@ -138,6 +139,9 @@ export function getGuestList(state: GameState | null | undefined): GuestList {
   const owned = new Set(state?.luxuryItems ?? []);
   const circles = GUEST_SOURCES.filter((g) => owned.has(g.itemId)).map((g) => g.circle);
   // +12% per circle, capped at +60%. A broad collection is a better room.
+  // NOTE: this stays purely about WHO TURNS UP, and its +60% ceiling is a
+  // documented invariant with a test. Completed-collection standing is a
+  // separate concept and is applied in `quoteEvent`, not folded in here.
   const multiplier = 1 + Math.min(0.6, circles.length * 0.12);
   const summary =
     circles.length === 0
@@ -167,13 +171,21 @@ export function quoteEvent(
   if (!venue || !spec) return null;
 
   const guests = getGuestList(state);
+  // Completed collections raise the STANDING of the host, not the guest list —
+  // so the bonus lands on the payoff here rather than being folded into
+  // `guests.multiplier` (whose +60% ceiling is its own documented invariant).
+  // Its own product is capped at 2.0, so the combined ceiling stays bounded.
+  const standing = getCollectionHostingMultiplier(state?.luxuryItems);
   return {
     venue,
     spec,
     guests,
+    // Cost is deliberately NOT scaled by standing: a set bonus must not make
+    // entertaining more expensive, or completing a collection would read as a
+    // punishment.
     cost: Math.round(spec.baseCost * venue.scale),
-    reputation: Math.round(spec.baseReputation * venue.scale * guests.multiplier),
-    happiness: Math.round(spec.baseHappiness * guests.multiplier),
+    reputation: Math.round(spec.baseReputation * venue.scale * guests.multiplier * standing),
+    happiness: Math.round(spec.baseHappiness * guests.multiplier * standing),
     guestsReached: spec.guestsReached,
   };
 }

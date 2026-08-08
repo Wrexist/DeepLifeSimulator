@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { reconcileRedeemClaim, applyRedeemReward } from '@/utils/redeemCodes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +29,6 @@ import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
@@ -53,11 +52,12 @@ import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
 const WelcomeBackPopup = lazy(() => import('@/components/WelcomeBackPopup'));
-const GoalCompletionPopup = lazy(() => import('@/components/GoalCompletionPopup'));
 const CommunityRewardPopup = lazy(() => import('@/components/CommunityRewardPopup'));
 
 // Stable empty array so the redeemedCodeHashes selector doesn't churn renders
@@ -134,7 +134,6 @@ function HomeScreenContent() {
       careers: s?.careers,
       currentJob: s?.currentJob,
       bankSavings: s?.bankSavings,
-      completedGoals: s?.completedGoals,
       weeksLived: s?.weeksLived,
       week: s?.week,
       jailWeeks: s?.jailWeeks,
@@ -152,6 +151,12 @@ function HomeScreenContent() {
       prestigeAvailable: s?.prestigeAvailable,
       prestige: s?.prestige,
       discoveredSystems: s?.discoveredSystems,
+      // Required by unlockTier() for the Progress card's gate. Without these
+      // the chapter path scores 0 and only the money/weeks fallback applies,
+      // so a chapter-completing player would see a lock the Life tab does not
+      // — the same inconsistency this gate exists to remove, inverted.
+      completedChapters: s?.completedChapters,
+      generationNumber: s?.generationNumber,
     }),
     shallowEqual
   ) as unknown as GameState;
@@ -162,9 +167,6 @@ function HomeScreenContent() {
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   // ENGAGEMENT: Track stat changes for floating indicators on week advance
   useStatChangeTracker(gameState);
-  const [showGoalCompletion, setShowGoalCompletion] = useState(false);
-  const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
-  const [nextGoal, setNextGoal] = useState<Goal | null>(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
@@ -178,6 +180,34 @@ function HomeScreenContent() {
   // celebration/reward popup below defers to them.
   const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
 
+  // The Progress screen is `href: null` (never a tab button), so this card is
+  // its front door — and must apply the same tier gate the Life tab's Stats
+  // segment does. See the card below.
+  const progressLocked = !isFeatureUnlocked(gameState, 'tab:progression');
+  const progressLockReason = unlockRequirement(gameState, 'tab:progression');
+
+  // Interruption slots. These popups used to gate on a hand-rolled chain of
+  // `&&` terms that grew with every popup added — and could not see the weekly
+  // result sheet, the premium promo or the ad orb, which live in other files.
+  // Now every interrupting surface in the app competes in ONE priority queue and
+  // exactly one wins. Death/wedding still short-circuit locally: they are
+  // root-level modals that gate their own dismissal.
+  const dailyRewardSlot = useInterruptionSlot(
+    'home:daily-reward',
+    INTERRUPTION_PRIORITY.DAILY_REWARD,
+    !!gameState.showDailyRewardPopup && !blockingModalUp
+  );
+  const welcomeBackSlot = useInterruptionSlot(
+    'home:welcome-back',
+    INTERRUPTION_PRIORITY.WELCOME_BACK,
+    showWelcomeBack && !blockingModalUp
+  );
+  const communitySlot = useInterruptionSlot(
+    'home:community-reward',
+    INTERRUPTION_PRIORITY.COMMUNITY_REWARD,
+    showCommunityReward && !blockingModalUp
+  );
+
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
 
@@ -190,47 +220,17 @@ function HomeScreenContent() {
     }
   }, [gameState.jailWeeks, router]);
 
-  // Check for goal completion — only re-evaluate on week advance or job change
-  useEffect(() => {
-    if (showGoalCompletion) return;
-
-    const { completedGoal: newCompletedGoal, nextGoal: newNextGoal } = checkGoalCompletion(gameState);
-
-    if (newCompletedGoal) {
-      setCompletedGoal(newCompletedGoal);
-      setNextGoal(newNextGoal);
-      setShowGoalCompletion(true);
-
-      const reward = newCompletedGoal.reward;
-      setGameState(prev => {
-        if ((prev.completedGoals || []).includes(newCompletedGoal.id)) return prev;
-
-        const freshStats = { ...prev.stats };
-        switch (reward.type) {
-          case 'money':
-            freshStats.money += reward.amount;
-            break;
-          case 'gems':
-            freshStats.gems += reward.amount;
-            break;
-          case 'happiness':
-            freshStats.happiness = Math.min(100, freshStats.happiness + reward.amount);
-            break;
-          case 'energy':
-            freshStats.energy = Math.min(100, freshStats.energy + reward.amount);
-            break;
-          case 'health':
-            freshStats.health = Math.min(100, freshStats.health + reward.amount);
-            break;
-        }
-        return {
-          ...prev,
-          stats: freshStats,
-          completedGoals: [...(prev.completedGoals || []), newCompletedGoal.id],
-        };
-      });
-    }
-  }, [gameState.weeksLived, gameState.week, gameState.currentJob, gameState.bankSavings, gameState.completedGoals]);
+  // REMOVED: the linear goal system (`utils/goalSystem.ts` +
+  // `GoalCompletionPopup`). `checkGoalCompletion` ran here every week and could
+  // never fire: in `getNextGoal` each goal's `shouldShow` predicate was the exact
+  // negation of its completion predicate, so a goal was only ever OFFERED while
+  // it was incomplete and vanished the instant it completed. All six were
+  // affected — e.g. `earn_100` showed only while `money < 200` but completed at
+  // `money >= 200`; `get_job` was offered only while `!currentJob`, which pinned
+  // its `current` at 0. Zero states in the whole predicate space were completable,
+  // so the popup, the rewards and `completedGoals` were unreachable code.
+  // Life Chapters (`LifeChapterCard` + `applyChapterProgress`) are the real
+  // progression ladder and are paid by the week tick.
 
   // Show tutorial for new users
   useEffect(() => {
@@ -694,17 +694,38 @@ function HomeScreenContent() {
             other entry point — this card is its front door. Always visible. */}
         <FadeInUp delay={110}>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/progression')}
+            onPress={() => {
+              // Respect the SAME gate the Life tab enforces on its Stats
+              // segment. This card used to push straight through, so a week-1
+              // player was told "locked" in one place and handed the whole
+              // screen in another — which reads as a broken gate and silently
+              // defeated progressive disclosure for its one tier-gated surface.
+              // Shown-but-locked rather than hidden: the destination stays
+              // discoverable, and the requirement is stated.
+              if (progressLocked) {
+                Alert.alert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
+                return;
+              }
+              router.push('/(tabs)/progression');
+            }}
             activeOpacity={0.85}
             style={styles.progressLinkCard}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: progressLocked }}
           >
             <View style={styles.progressLinkIcon}>
-              <Trophy size={scale(20)} color="#F59E0B" />
+              {progressLocked ? (
+                <Lock size={scale(18)} color="#94A3B8" />
+              ) : (
+                <Trophy size={scale(20)} color="#F59E0B" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.progressLinkTitle}>Your Progress</Text>
               <Text style={styles.progressLinkSub}>
-                Prestige, Legacy Pass, life story & lifetime stats
+                {progressLocked
+                  ? progressLockReason || 'Keep playing to unlock this.'
+                  : 'Prestige, Legacy Pass, life story & lifetime stats'}
               </Text>
             </View>
             <ChevronRight size={scale(18)} color="#94A3B8" />
@@ -760,20 +781,31 @@ function HomeScreenContent() {
       {/* NOISE: light popup coordination. The root layout owns blocking modals
           (death/wedding) — no celebration/reward popup may present on top of
           them. Within this screen, popups present strictly one at a time in
-          priority order (goal > daily reward > welcome back > community)
-          instead of whichever setTimeout won the race. */}
-      <Suspense fallback={null}>
-        <GoalCompletionPopup
-          visible={showGoalCompletion && !blockingModalUp}
-          completedGoal={completedGoal}
-          nextGoal={nextGoal}
-          onClose={() => setShowGoalCompletion(false)}
-          darkMode={isDark}
-        />
-      </Suspense>
+          priority order (daily reward > welcome back > community) instead of
+          whichever setTimeout won the race.
+
+          Each is MOUNTED only while it holds the slot, which is the pattern the
+          rest of the app already uses for a lazy modal (`app/_layout.tsx` gates
+          Death/Wedding/Sickness, `(tabs)/_layout.tsx` gates the life moment and
+          the weekly sheet). This screen was the outlier: it mounted all three
+          unconditionally and passed `visible={false}`, so every Home mount fired
+          three dynamic `import()`s for modals the player almost never sees on
+          that render — defeating the point of `lazy()`, which is to keep those
+          graphs out of the screen's work, not merely out of its first paint.
+
+          It also livelocked `__tests__/render/screens.render.test.tsx`. Under
+          ts-jest an `import()` compiles to `Promise.resolve().then(() =>
+          require(…))`, so it can only settle on a microtask — and the harness's
+          synchronous `act()` never yields one. React kept restarting the render
+          from the shell to retry the pending lazy: ~1.4M `beginWork` calls per
+          pass, forever, with `scheduleUpdateOnFiber` never firing (so it was not
+          a re-render loop, and jest's own `testTimeout` could not fire either
+          because the spin blocks the event loop). Nothing suspends now, because
+          nothing invisible mounts. */}
+      {dailyRewardSlot && (
       <Suspense fallback={null}>
         <DailyRewardPopup
-          visible={(gameState.showDailyRewardPopup || false) && !blockingModalUp && !showGoalCompletion}
+          visible={dailyRewardSlot}
           rewardAmount={gameState.dailyRewardAmount || 0}
           onClose={() => setGameState(prev => ({
             ...prev,
@@ -782,9 +814,11 @@ function HomeScreenContent() {
           }))}
         />
       </Suspense>
+      )}
+      {welcomeBackSlot && (
       <Suspense fallback={null}>
         <WelcomeBackPopup
-          visible={showWelcomeBack && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup}
+          visible={welcomeBackSlot}
           onClose={() => {
             setShowWelcomeBack(false);
             // Actually GRANT the welcome-back bonus the popup advertised (it was
@@ -794,6 +828,12 @@ function HomeScreenContent() {
             setGameState(prev => {
               const last = prev.lastLogin || Date.now();
               const daysAway = Math.floor((Date.now() - last) / MS_PER_DAY);
+              // Reject re-entry against `prev`, not against an outer flag. The
+              // updater stamps lastLogin=now, so a second onClose in the same
+              // React batch sees daysAway=0 — and computeWelcomeBackBonus
+              // floors it back to 1 (`Math.max(daysAway, 1)`), paying a second
+              // half-week of salary. Returning prev unchanged is the rejection.
+              if (daysAway < 1) return prev;
               const bonus = computeWelcomeBackBonus(prev, daysAway);
               return {
                 ...prev,
@@ -804,14 +844,17 @@ function HomeScreenContent() {
           }}
         />
       </Suspense>
+      )}
+      {communitySlot && (
       <Suspense fallback={null}>
         <CommunityRewardPopup
-          visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
+          visible={communitySlot}
           rewardAmount={communityRewardAmount}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
         />
       </Suspense>
+      )}
 
       {/* Prestige Modals */}
       <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />

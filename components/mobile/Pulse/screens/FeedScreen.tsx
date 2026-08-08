@@ -19,7 +19,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ChevronRight, Send } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/contexts/ToastContext';
@@ -85,7 +85,7 @@ function ambientToEntry(sp: SocialPost, engagement?: { liked?: boolean; reposted
   };
 }
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface FeedScreenProps {
   /** Open the composer modal (owned by PulseApp). */

@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 

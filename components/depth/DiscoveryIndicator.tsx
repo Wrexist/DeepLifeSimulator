@@ -12,7 +12,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   Compass,
   Lock,
@@ -23,8 +23,11 @@ import {
 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
 import { getDiscoveryProgress, getAllDiscoverableSystems, getSystemUnlockRequirements } from '@/lib/depth/discoverySystem';
+import { routeForSystem } from '@/lib/depth/systemRoutes';
+import { useRouter } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface DiscoveryIndicatorProps {
   gameState: GameState;
@@ -195,8 +198,29 @@ function DiscoveryModal({
   darkMode,
   onClose,
 }: DiscoveryModalProps) {
+  const router = useRouter();
   const discoveredSystems = gameState.discoveredSystems || [];
   const lockedSystems = discoveryProgress.lockedSystems;
+
+  /**
+   * Take the player to the system they just tapped.
+   *
+   * The whole point of the change: this screen listed all 20 systems as inert
+   * cards, so it showed the player the entire game and gave them no way in.
+   * Close first, then navigate — leaving the modal mounted over the destination
+   * strands them behind an overlay they have to dismiss to see what they asked
+   * for.
+   */
+  const goToSystem = (systemId: string) => {
+    const route = routeForSystem(systemId);
+    if (!route) return;
+    onClose();
+    router.push(
+      route.appId
+        ? ({ pathname: route.pathname, params: { app: route.appId } } as never)
+        : (route.pathname as never)
+    );
+  };
 
   return (
     <Modal
@@ -232,9 +256,17 @@ function DiscoveryModal({
               ) : (
                 discoveredSystems.map((system) => {
                 const systemDef = allSystems[system.systemId];
+                const route = routeForSystem(system.systemId);
+                // A system with no single home stays a plain card rather than a
+                // button that lies about where it goes.
+                const Card = route ? TouchableOpacity : View;
                 return (
-                  <View
+                  <Card
                     key={system.systemId}
+                    onPress={route ? () => goToSystem(system.systemId) : undefined}
+                    accessibilityRole={route ? 'button' : undefined}
+                    accessibilityLabel={route ? `${system.systemName}. ${route.label}` : undefined}
+                    activeOpacity={0.85}
                     style={[styles.systemCard, darkMode && styles.systemCardDark]}
                   >
                     <View style={styles.systemCardHeader}>
@@ -251,10 +283,18 @@ function DiscoveryModal({
                     <Text style={[styles.systemCategory, darkMode && styles.systemCategoryDark]}>
                       {systemDef?.category || 'unknown'}
                     </Text>
-                    <Text style={[styles.systemStats, darkMode && styles.systemStatsDark]}>
-                      Used {system.timesUsed} time{system.timesUsed !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
+                    <View style={styles.systemFooter}>
+                      <Text style={[styles.systemStats, darkMode && styles.systemStatsDark]}>
+                        Used {system.timesUsed} time{system.timesUsed !== 1 ? 's' : ''}
+                      </Text>
+                      {route && (
+                        <View style={styles.systemGoRow}>
+                          <Text style={styles.systemGoText}>{route.label}</Text>
+                          <ChevronRight size={scale(14)} color="#60A5FA" />
+                        </View>
+                      )}
+                    </View>
+                  </Card>
                 );
               })
               )}
@@ -273,7 +313,7 @@ function DiscoveryModal({
                   All systems unlocked! Great job exploring everything.
                 </Text>
               ) : (
-                lockedSystems.slice(0, 10).map((systemId) => {
+                lockedSystems.map((systemId) => {
                   const systemDef = allSystems[systemId];
                   const requirements = getSystemUnlockRequirements(systemId);
                   
@@ -582,6 +622,22 @@ const styles = StyleSheet.create({
   },
   systemCategoryDark: {
     color: '#94A3B8',
+  },
+  systemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: responsiveSpacing.sm,
+  },
+  systemGoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(2),
+  },
+  systemGoText: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    color: '#60A5FA',
   },
   systemStats: {
     fontSize: fontScale(11),

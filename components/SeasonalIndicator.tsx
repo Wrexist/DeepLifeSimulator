@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { isIPad } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -129,6 +129,9 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowInfo(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
               >
                 <X size={24} color="#FFFFFF" />
               </TouchableOpacity>

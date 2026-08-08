@@ -26,6 +26,7 @@ import {
   appreciateLuxuryHoldings,
   getTotalLuxuryHappiness,
   getTotalLuxuryPrestige,
+  getCollectionReputationBonus,
   getTotalLuxuryUpkeep,
   getTotalLuxuryYield,
   getLoanIncome,
@@ -33,6 +34,7 @@ import {
 } from '@/lib/luxury';
 import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+import { chargeOrDefer } from './chargeOrDefer';
 
 export interface LuxuryWeekResult {
   /** Total upkeep deducted (the deduction already happened). */
@@ -79,8 +81,11 @@ export function applyLuxuryItemsForWeek(
 
   const upkeep = getTotalLuxuryUpkeep(ids);
   if (upkeep > 0) {
-    const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
-    ctx.newStats.money = Math.max(0, before - upkeep);
+    // Upkeep is MANDATORY, so an unaffordable week must book arrears rather
+    // than vanish. This was the single largest forgiven cost in the game: a
+    // full collection owes $556,820/wk, and a broke owner kept the collection
+    // AND its $301,200/wk of yields while booking nothing.
+    chargeOrDefer(ctx, upkeep);
   }
 
   // (b) Happiness — small sustained weekly bonus, self-clamped to 100.
@@ -93,7 +98,12 @@ export function applyLuxuryItemsForWeek(
   // (c) Prestige → reputation SOFT TARGET. Only nudge up while below the
   // collection's prestige total (capped), so it can never rail past what the
   // owned collection justifies, and never fights other reputation writers down.
-  const prestige = getTotalLuxuryPrestige(ids);
+  // Completed COLLECTIONS lift the same soft target rather than granting
+  // reputation outright — finishing a set changes the ceiling you drift toward,
+  // one LUXURY_REPUTATION_STEP a week, exactly like the per-item path. Both are
+  // clamped by LUXURY_REPUTATION_CAP, so no combination of sets can rail past
+  // the ceiling that already existed.
+  const prestige = getTotalLuxuryPrestige(ids) + getCollectionReputationBonus(ids);
   if (prestige > 0) {
     const target = Math.min(LUXURY_REPUTATION_CAP, prestige);
     const rep = typeof ctx.newStats.reputation === 'number' && isFinite(ctx.newStats.reputation) ? ctx.newStats.reputation : 0;
@@ -113,8 +123,8 @@ export function applyLuxuryItemsForWeek(
   // vehicle accidents use, so an incident is part of the deterministic week.
   const risk = applyLuxuryRiskForWeek(ids, appreciated, ctx.preRolls?.luxuryIncident);
   if (risk.cashOwed > 0) {
-    const before = typeof ctx.newStats.money === 'number' && isFinite(ctx.newStats.money) ? ctx.newStats.money : 0;
-    ctx.newStats.money = Math.max(0, before - risk.cashOwed);
+    // Premiums and deductibles are mandatory too — defer, don't forgive.
+    chargeOrDefer(ctx, risk.cashOwed);
   }
   for (const incident of risk.incidents) {
     ctx.notifications.push({

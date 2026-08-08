@@ -30,7 +30,33 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { colors, spacing, typography, radii, shadows } from '@/lib/config/theme';
+import { colors, typography, radii, shadows } from '@/lib/config/theme';
+import { responsiveSpacing, scale } from '@/utils/scaling';
+
+/**
+ * Spacing, mapped off the theme scale BY VALUE.
+ *
+ * `lib/config/theme.ts`'s `spacing` was a second, raw scale used by exactly one
+ * file — this one. Raw means it never ran through `scale()`, so BaseModal was
+ * the only shared chassis in the app whose padding did not grow with the
+ * device: 16pt of padding inside chrome scaled to 1.8x on a tablet, roughly 45%
+ * too tight, and worse the larger the screen.
+ *
+ * Mapped by VALUE, never by key — the two scales are offset by one step
+ * (theme `lg` 16 === responsive `md` 16), so a key-for-key swap would have
+ * inflated every value. Three of the five steps in use (2, 12, 20) have no
+ * equivalent in the target scale and become explicit `scale()` calls rather
+ * than being rounded onto the nearest token, which would have moved the layout
+ * for no reason.
+ */
+const sp = {
+  xxs: scale(2),                 // was raw 2
+  sm: responsiveSpacing.sm,      // scale(8)  — was raw 8
+  md: scale(12),                 // was raw 12, no token at this step
+  lg: responsiveSpacing.md,      // scale(16) — was raw 16
+  xl: scale(20),                 // was raw 20, no token at this step
+} as const;
+import { useTheme } from '@/hooks/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -72,6 +98,22 @@ export default function BaseModal({
   testID,
 }: BaseModalProps) {
   const insets = useSafeAreaInsets();
+  // The colour half of the stylesheet is resolved per-render from the active
+  // theme. It used to be baked into StyleSheet.create against `colors.dark.*`,
+  // so every consumer (all six HUD breakdown modals) rendered slate-900 chrome
+  // over a white app in light mode.
+  const { theme, isDark } = useTheme();
+  const themed = {
+    overlay: { backgroundColor: isDark ? colors.dark.overlay : colors.light.overlay },
+    container: { backgroundColor: theme.surface, borderColor: theme.border },
+    header: { borderBottomColor: theme.border },
+    title: { color: theme.text },
+    subtitle: { color: theme.textSecondary },
+    footer: { borderTopColor: theme.border },
+    closeButton: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)',
+    },
+  };
 
   const isFullscreen = variant === 'fullscreen';
   const isBottom = variant === 'bottom';
@@ -97,6 +139,7 @@ export default function BaseModal({
           activeOpacity={1}
           style={[
             styles.overlay,
+            themed.overlay,
             isBottom && styles.overlayBottom,
             isFullscreen && styles.overlayFullscreen,
           ]}
@@ -107,15 +150,16 @@ export default function BaseModal({
             activeOpacity={1}
             style={[
               styles.container,
+              themed.container,
               isBottom && [
                 styles.containerBottom,
-                { paddingBottom: insets.bottom + spacing.lg },
+                { paddingBottom: insets.bottom + sp.lg },
               ],
               isFullscreen && [
                 styles.containerFullscreen,
                 {
-                  paddingTop: insets.top + spacing.sm,
-                  paddingBottom: insets.bottom + spacing.sm,
+                  paddingTop: insets.top + sp.sm,
+                  paddingBottom: insets.bottom + sp.sm,
                 },
               ],
               !isFullscreen && { maxHeight: containerMaxHeight },
@@ -125,15 +169,15 @@ export default function BaseModal({
           >
             {/* Header */}
             {(title || !hideCloseButton) && (
-              <View style={styles.header}>
+              <View style={[styles.header, themed.header]}>
                 <View style={styles.headerText}>
                   {title && (
-                    <Text style={styles.title} numberOfLines={1}>
+                    <Text style={[styles.title, themed.title]} numberOfLines={1}>
                       {title}
                     </Text>
                   )}
                   {subtitle && (
-                    <Text style={styles.subtitle} numberOfLines={1}>
+                    <Text style={[styles.subtitle, themed.subtitle]} numberOfLines={1}>
                       {subtitle}
                     </Text>
                   )}
@@ -141,13 +185,13 @@ export default function BaseModal({
                 {!hideCloseButton && (
                   <TouchableOpacity
                     onPress={onClose}
-                    style={styles.closeButton}
+                    style={[styles.closeButton, themed.closeButton]}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                     accessibilityHint="Closes this dialog"
                   >
-                    <X size={20} color={colors.dark.textSecondary} />
+                    <X size={20} color={theme.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -168,7 +212,7 @@ export default function BaseModal({
             )}
 
             {/* Footer */}
-            {footer && <View style={styles.footer}>{footer}</View>}
+            {footer && <View style={[styles.footer, themed.footer]}>{footer}</View>}
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>
@@ -182,12 +226,14 @@ const styles = StyleSheet.create({
   },
 
   // Overlay
+  // NOTE: every colour below is supplied at render time by `themed` in the
+  // component body. Do not reintroduce `colors.dark.*` here — a static value
+  // wins over nothing and silently breaks light mode again.
   overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.dark.overlay,
-    padding: spacing.lg,
+    padding: sp.lg,
   },
   overlayBottom: {
     justifyContent: 'flex-end',
@@ -201,10 +247,8 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 460,
-    backgroundColor: colors.palette.dark800,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.dark.border,
     overflow: 'hidden',
     ...shadows.xl,
   },
@@ -226,31 +270,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingHorizontal: sp.xl,
+    paddingTop: sp.lg,
+    paddingBottom: sp.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.dark.border,
   },
   headerText: {
     flex: 1,
-    marginRight: spacing.md,
+    marginRight: sp.md,
   },
   title: {
     fontSize: typography.size.xl,
     fontWeight: typography.weight.bold,
-    color: colors.dark.text,
   },
   subtitle: {
     fontSize: typography.size.sm,
-    color: colors.dark.textSecondary,
-    marginTop: spacing.xxs,
+    marginTop: sp.xxs,
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: radii.round,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -260,14 +300,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   bodyContent: {
-    padding: spacing.xl,
+    padding: sp.xl,
   },
 
   // Footer
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: sp.xl,
+    paddingVertical: sp.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.dark.border,
   },
 });

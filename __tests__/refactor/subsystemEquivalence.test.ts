@@ -4796,7 +4796,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: existing, showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 100,
-      newShowDeathPopup: false,
     });
     expect(result.partial.checkpoints).toBe(existing);
   });
@@ -4807,7 +4806,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: undefined, showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 100,
-      newShowDeathPopup: false,
     });
     expect(result.partial.checkpoints).toEqual([]);
   });
@@ -4821,7 +4819,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [], showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 52,
-      newShowDeathPopup: false,
     });
     expect(cpMod.createCheckpoint).toHaveBeenCalledWith(
       expect.objectContaining({ weeksLived: 52 }),
@@ -4830,26 +4827,29 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('death edge fires: snapshots prevState UNMODIFIED with `Before Death` label', () => {
+  // These three used to pin the OPPOSITE behaviour: a "Before Death" snapshot
+  // taken on the tick that killed you. It is gone, and they now guard against
+  // it coming back — a 500-gem rewind to it returned a living character one
+  // week older, which is what Revive charges thousands for and what the $2.99
+  // Revival Pack sells.
+  it('takes NO checkpoint on the tick that kills the player', () => {
     cpMod.shouldAutoCheckpoint.mockReturnValue(false);
-    cpMod.createCheckpoint.mockReturnValue({ id: 'cp_death', label: 'Before Death' });
     const prevState = {
       checkpoints: [],
       showDeathPopup: false,
       weeksLived: 99,
       stats: { health: 100 },
     } as any;
-    applyAutoCheckpoint({
+    const result = applyAutoCheckpoint({
       prevState,
       newStats: cpStubStats(), // would have triggered death decay
       nextWeeksLived: 100,
-      newShowDeathPopup: true,
     });
-    // CRUCIAL: receives `prevState`, NOT the synthetic post-tick view.
-    expect(cpMod.createCheckpoint).toHaveBeenCalledWith(prevState, 'Before Death');
+    expect(cpMod.createCheckpoint).not.toHaveBeenCalled();
+    expect(result.partial.checkpoints).toEqual([]);
   });
 
-  it('both gates fire: year-boundary added FIRST, then before-death', () => {
+  it('creates ONLY the year checkpoint when a year boundary lands on the death tick', () => {
     cpMod.shouldAutoCheckpoint.mockReturnValue(true);
     cpMod.createCheckpoint
       .mockReturnValueOnce({ id: 'cp_year', label: 'Age 20' })
@@ -4858,21 +4858,18 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [], showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 52,
-      newShowDeathPopup: true,
     });
-    expect(result.partial.checkpoints).toEqual([
-      { id: 'cp_year', label: 'Age 20' },
-      { id: 'cp_death', label: 'Before Death' },
-    ]);
+    // The second mock return is never consumed — one call, one checkpoint.
+    expect(cpMod.createCheckpoint).toHaveBeenCalledTimes(1);
+    expect(result.partial.checkpoints).toEqual([{ id: 'cp_year', label: 'Age 20' }]);
   });
 
-  it('death edge: NOT fired when prevState.showDeathPopup already true', () => {
+  it('takes no checkpoint when the player was already dead either (the control)', () => {
     cpMod.shouldAutoCheckpoint.mockReturnValue(false);
     const result = applyAutoCheckpoint({
       prevState: { checkpoints: [], showDeathPopup: true } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 100,
-      newShowDeathPopup: true,
     });
     expect(cpMod.createCheckpoint).not.toHaveBeenCalled();
     expect(result.partial.checkpoints).toEqual([]);
@@ -4885,7 +4882,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [] } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 52,
-      newShowDeathPopup: false,
     });
     expect(result.partial).toEqual({});
   });
@@ -4898,7 +4894,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [] } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 52,
-      newShowDeathPopup: false,
     });
     expect(result.partial).toEqual({});
   });
@@ -4911,7 +4906,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [], showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 0,
-      newShowDeathPopup: false,
     });
     expect(cpMod.shouldAutoCheckpoint).toHaveBeenCalledWith(0);
   });
@@ -4928,7 +4922,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 100,
-      newShowDeathPopup: false,
     });
     // Focus area (career) intact; the three neglected axes decay by 1 — this is
     // what makes the ActivityCommitmentModal bars move once per tick.
@@ -4943,7 +4936,6 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       prevState: { checkpoints: [], showDeathPopup: false } as any,
       newStats: cpStubStats(),
       nextWeeksLived: 100,
-      newShowDeathPopup: false,
     });
     expect('activityCommitments' in result.partial).toBe(false);
   });

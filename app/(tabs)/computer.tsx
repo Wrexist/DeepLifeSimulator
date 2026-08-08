@@ -10,7 +10,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
   Monitor,
@@ -31,6 +31,7 @@ import {
   BarChart3,
   Car,
   Video,
+  Mail,
   Crown, Lock } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -54,6 +55,7 @@ import GamingApp from '@/components/computer/GamingApp';
 import GamingStreamingApp from '@/components/computer/GamingStreamingApp';
 import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
+import MailApp from '@/components/mobile/Mail/MailApp';
 import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
 import CompanyApp from '@/components/mobile/Hustle/HustleApp';
@@ -80,24 +82,28 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useIsFocused } from '@react-navigation/native';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
-import SegmentedControl from '@/components/ui/SegmentedControl';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
 
 /**
- * Apps that live under the launcher's "Mobile Apps" toggle rather than the
- * desktop grid. Named here because the deep link needs the same split to pick
- * which category to leave showing behind an app it opened.
+ * Apps that belong to the PHONE half of the launcher.
+ *
+ * This was the membership list for a segmented toggle that hid one half at a
+ * time. The toggle is gone — both halves now render as labelled sections, so
+ * buying a computer no longer costs a tap on Bank, Stocks, Pulse, Spark,
+ * Contacts and Pet. The list survives because the phone/computer distinction
+ * is still worth showing; it just no longer hides anything.
  */
-const MOBILE_APP_IDS = ['tinder', 'contacts', 'social', 'stocks', 'bank', 'paw'];
+const MOBILE_APP_IDS = ['tinder', 'contacts', 'mail', 'social', 'stocks', 'bank', 'paw'];
 
 function ComputerScreen() {
   return (
@@ -121,16 +127,17 @@ export function ComputerScreenContent({
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
-  const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
 
   // Deep link: another screen asked for a specific app (e.g. the Family tab's
-  // "Open the dating app"). Open it, switch the grid behind it to the matching
-  // category so BACK lands somewhere sensible, then tell the parent to clear
-  // the param — otherwise returning to this tab would re-open the app forever.
+  // "Open the dating app"). Open it, then tell the parent to clear the param —
+  // otherwise returning to this tab would re-open the app forever.
+  //
+  // This used to also switch the grid's category so BACK landed somewhere
+  // sensible. The grid no longer has categories (see `appSections` below), so
+  // every app is already on screen behind whatever was opened.
   useEffect(() => {
     if (!initialApp) return;
     setActiveApp(initialApp);
-    setAppCategory(MOBILE_APP_IDS.includes(initialApp) ? 'mobile' : 'desktop');
     onInitialAppConsumed?.();
   }, [initialApp, onInitialAppConsumed]);
 
@@ -183,6 +190,20 @@ export function ComputerScreenContent({
     buttonPress();
     setActiveApp(null);
   }, [buttonPress]);
+
+  // Android hardware back must exit the SUB-APP, not the tab stack.
+  // Opening an app calls setFullscreenApp(true), which hides both the
+  // TopStatsBar and the tab bar — so the app's own back chevron was the only
+  // way out, and the system gesture instead popped the navigator, dumping the
+  // player on Home (or out of the app) while `activeApp` stayed set.
+  // Returning true consumes the press only while an app is open.
+  useHardwareBack(
+    useCallback(() => {
+      if (!activeApp) return false;
+      handleCloseApp();
+      return true;
+    }, [activeApp, handleCloseApp])
+  );
 
   // Reset to apps grid when the Computer tab is pressed
   useEffect(() => {
@@ -237,6 +258,15 @@ export function ComputerScreenContent({
       icon: Users,
       gradient: ['#00D2D3', '#54A0FF'], // Teal-blue gradient to match contacts icon
       iconGradient: ['#00D2D3', '#54A0FF'],
+      available: true,
+    },
+    {
+      id: 'mail',
+      name: 'DeepMail',
+      description: 'Statements & receipts',
+      icon: Mail,
+      gradient: ['#EA4335', '#FBBC04'],
+      iconGradient: ['#EA4335', '#FBBC04'],
       available: true,
     },
     {
@@ -380,16 +410,39 @@ export function ComputerScreenContent({
    * `available: false` still removes an app outright — that flag means "does
    * not exist for this save", which is a different thing from "not yet".
    */
-  const displayedApps = useMemo(() => {
-    const apps = appCategory === 'desktop' ? desktopApps : mobileApps;
-    return apps
-      .filter(app => app.available !== false)
-      .map(app => ({
-        ...app,
-        locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
-        lockReason: unlockRequirement(gameState, `app:${app.id}`),
-      }));
-  }, [appCategory, desktopApps, mobileApps, gameState]);
+  const decorate = useCallback(
+    (apps: typeof appsList) =>
+      apps
+        .filter(app => app.available !== false)
+        .map(app => ({
+          ...app,
+          locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
+          lockReason: unlockRequirement(gameState, `app:${app.id}`),
+        })),
+    [gameState]
+  );
+
+  /**
+   * Every app, in two labelled sections — NOT behind a segmented toggle.
+   *
+   * Buying a computer used to make the launcher default to "Desktop Apps",
+   * which pushed Bank, Stocks, Pulse, Spark, Contacts and Pet behind an extra
+   * tap. So a $5,000 purchase ADDED a tap to six apps, two of which (Bank and
+   * Stocks) are among the most-used in the game, and relocated them with no
+   * explanation — the player's answer to "where did my bank go?" was to
+   * rediscover a toggle.
+   *
+   * Sections keep the phone/computer mental model, which is worth keeping,
+   * while costing nothing to read past. Phone comes first because those are
+   * the everyday apps; the computer half is the specialist half.
+   */
+  const appSections = useMemo(
+    () => [
+      { key: 'phone', title: 'Phone', apps: decorate(mobileApps) },
+      { key: 'computer', title: 'Computer', apps: decorate(desktopApps) },
+    ].filter(section => section.apps.length > 0),
+    [decorate, desktopApps, mobileApps]
+  );
 
   // Per-app "needs attention" badge counts — computed before any early return.
   const appBadges = useMemo(
@@ -425,12 +478,18 @@ export function ComputerScreenContent({
       onion: OnionApp,
       tinder: DatingApp,
       contacts: ContactsApp,
+      mail: MailApp,
       social: PulseApp,
       stocks: StocksApp,
       bank: AdvancedBankApp,
       education: EducationApp,
       company: CompanyApp,
+      // The pet app is 'paw' on this grid and 'pet' on the phone grid — an
+      // inconsistency the badge layer already has to paper over by setting
+      // both. Accept either id in BOTH launchers so a `?app=` deep link can
+      // never resolve to undefined and silently bounce back to the grid.
       paw: PetApp,
+      pet: PetApp,
       gaming: GamingApp,
       streaming: GamingStreamingApp,
       travel: TravelApp,
@@ -471,18 +530,6 @@ export function ComputerScreenContent({
       colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
-      {/* Category segmented control */}
-      <View style={styles.categoryTabsWrapper}>
-        <SegmentedControl
-          segments={[
-            { key: 'desktop', label: 'Desktop Apps' },
-            { key: 'mobile', label: 'Mobile Apps' },
-          ]}
-          value={appCategory}
-          onChange={setAppCategory}
-        />
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
@@ -490,89 +537,96 @@ export function ComputerScreenContent({
       >
         {/* Macro economy strip — visible where the money apps live; null in normal times. */}
         <EconomyEventBanner context="generic" />
-        <View style={styles.appsGrid}>
-          {displayedApps.map((app) => {
-            const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
-            return (
-              <TouchableOpacity
-                key={app.id}
-                style={[
-                  styles.appCardGlass,
-                  { width: cardWidth },
-                  isHighlighted && styles.highlightedCardGlass,
-                  // Dim rather than hide — the card still teaches what exists.
-                  app.locked && { opacity: 0.45 },
-                ]}
-                onPress={() => {
-                  buttonPress();
-                  if (app.locked) {
-                    // Tapping a locked app explains itself rather than doing
-                    // nothing — a dead tap reads as a bug, not a gate.
-                    Alert.alert(app.name, app.lockReason || 'Not available yet.');
-                    return;
+        {appSections.map((section) => (
+          <View key={section.key} style={styles.appSection}>
+            <Text style={[styles.appSectionTitle, settings.darkMode && styles.appSectionTitleDark]}>
+              {section.title}
+            </Text>
+            <View style={styles.appsGrid}>
+              {section.apps.map((app) => {
+              const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
+              return (
+                <TouchableOpacity
+                  key={app.id}
+                  style={[
+                    styles.appCardGlass,
+                    { width: cardWidth },
+                    isHighlighted && styles.highlightedCardGlass,
+                    // Dim rather than hide — the card still teaches what exists.
+                    app.locked && { opacity: 0.45 },
+                  ]}
+                  onPress={() => {
+                    buttonPress();
+                    if (app.locked) {
+                      // Tapping a locked app explains itself rather than doing
+                      // nothing — a dead tap reads as a bug, not a gate.
+                      Alert.alert(app.name, app.lockReason || 'Not available yet.');
+                      return;
+                    }
+                    setActiveApp(app.id);
+                  }}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={app.locked ? `${app.name}, locked` : `Open ${app.name}`}
+                  accessibilityHint={
+                    app.locked
+                      ? app.lockReason || 'Not available yet'
+                      : (app.description ?? `Launch the ${app.name} app`)
                   }
-                  setActiveApp(app.id);
-                }}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={app.locked ? `${app.name}, locked` : `Open ${app.name}`}
-                accessibilityHint={
-                  app.locked
-                    ? app.lockReason || 'Not available yet'
-                    : (app.description ?? `Launch the ${app.name} app`)
-                }
-                accessibilityState={{ disabled: !!app.locked }}
-              >
-                <View style={[
-                  styles.appCardGlassInner,
-                  settings.darkMode && styles.appCardGlassInnerDark
-                ]}>
-                  <View style={styles.appIconGlassContainer}>
-                    {/* Padlock badge — reads as locked before the card is
-                        tapped, so the dim alone is not carrying the meaning
-                        (dim also reads as "disabled" or just low contrast). */}
-                    {app.locked && (
-                      <View style={styles.appLockBadge}>
-                        <Lock size={scale(12)} color="#FFFFFF" />
-                      </View>
-                    )}
-                    {getAppIconAsset(app.id) ? (
-                      // Custom designed icon (full-bleed PNG, gradient baked in).
-                      <Image
-                        source={getAppIconAsset(app.id)!}
-                        style={styles.appIconImage}
-                        resizeMode="cover"
-                        accessibilityIgnoresInvertColors
-                      />
-                    ) : (
-                      // Fallback: Lucide glyph on a gradient circle (unchanged).
-                      <View style={[
-                        styles.appIconGlass,
-                        settings.darkMode && styles.appIconGlassDark
-                      ]}>
-                        <LinearGradient
-                          colors={app.iconGradient as [string, string]}
-                          style={styles.appIconGradientGlass}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                        >
-                          <app.icon size={responsiveIconSize.md} color="#FFFFFF" />
-                        </LinearGradient>
-                      </View>
-                    )}
+                  accessibilityState={{ disabled: !!app.locked }}
+                >
+                  <View style={[
+                    styles.appCardGlassInner,
+                    settings.darkMode && styles.appCardGlassInnerDark
+                  ]}>
+                    <View style={styles.appIconGlassContainer}>
+                      {/* Padlock badge — reads as locked before the card is
+                          tapped, so the dim alone is not carrying the meaning
+                          (dim also reads as "disabled" or just low contrast). */}
+                      {app.locked && (
+                        <View style={styles.appLockBadge}>
+                          <Lock size={scale(12)} color="#FFFFFF" />
+                        </View>
+                      )}
+                      {getAppIconAsset(app.id) ? (
+                        // Custom designed icon (full-bleed PNG, gradient baked in).
+                        <Image
+                          source={getAppIconAsset(app.id)!}
+                          style={styles.appIconImage}
+                          resizeMode="cover"
+                          accessibilityIgnoresInvertColors
+                        />
+                      ) : (
+                        // Fallback: Lucide glyph on a gradient circle (unchanged).
+                        <View style={[
+                          styles.appIconGlass,
+                          settings.darkMode && styles.appIconGlassDark
+                        ]}>
+                          <LinearGradient
+                            colors={app.iconGradient as [string, string]}
+                            style={styles.appIconGradientGlass}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                          >
+                            <app.icon size={responsiveIconSize.md} color="#FFFFFF" />
+                          </LinearGradient>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
+                      {app.name}
+                    </Text>
+                    <Text style={[styles.appDescription, settings.darkMode && styles.appDescriptionDark]} numberOfLines={2}>
+                      {app.description}
+                    </Text>
                   </View>
-                  <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
-                    {app.name}
-                  </Text>
-                  <Text style={[styles.appDescription, settings.darkMode && styles.appDescriptionDark]} numberOfLines={2}>
-                    {app.description}
-                  </Text>
-                </View>
-                <ClaimableBadge count={appBadges[app.id] ?? 0} />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <ClaimableBadge count={appBadges[app.id] ?? 0} />
+                </TouchableOpacity>
+              );
+            })}
+            </View>
+          </View>
+        ))}
       </ScrollView>
     </LinearGradient>
   );
@@ -605,6 +659,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: responsivePadding.horizontal,
     paddingBottom: responsiveSpacing.xl,
+  },
+  appSection: {
+    gap: responsiveSpacing.sm,
+  },
+  appSectionTitle: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: '#64748B',
+    paddingHorizontal: responsiveSpacing.xs,
+  },
+  appSectionTitleDark: {
+    color: '#94A3B8',
   },
   appsGrid: {
     flexDirection: 'row',

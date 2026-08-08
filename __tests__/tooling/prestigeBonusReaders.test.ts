@@ -32,8 +32,28 @@
  * to skim it, which is how a real finding gets missed. That is why this guard
  * stays narrow instead of becoming a generic "unread catalogue id" ratchet.
  */
-import { PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
+import { PRESTIGE_BONUSES, INERT_BONUS_IDS as UNSOLD_BONUS_IDS } from '@/lib/prestige/prestigeBonuses';
 import { INERT_BONUS_IDS } from '@/lib/prestige/inertBonuses';
+
+/**
+ * There are TWO registries called `INERT_BONUS_IDS`, and they mean different
+ * things. Both count as "declared inert" for this guard:
+ *
+ *   `lib/prestige/inertBonuses.ts`   — bonuses still SOLD but verified to do
+ *                                      nothing, so the shop can warn the player
+ *                                      before they pay. Currently empty.
+ *   `lib/prestige/prestigeBonuses.ts` — bonuses withheld from the shop entirely
+ *                                      (the five automation entries). Kept in
+ *                                      the catalogue only so an already-bought
+ *                                      one still renders.
+ *
+ * The distinction matters here: when `lib/automation/` was deleted on
+ * 2026-08-06, the five automation ids stopped appearing as literals anywhere in
+ * source — `automationGuards.ts` had been the only reader — and this guard
+ * flagged them. They are not a regression; they are the withheld set, and the
+ * deletion is exactly what the withholding anticipated.
+ */
+const DECLARED_INERT = new Set<string>([...INERT_BONUS_IDS, ...UNSOLD_BONUS_IDS]);
 import fs from 'fs';
 import path from 'path';
 
@@ -85,7 +105,7 @@ describe('no prestige bonus is sold without being wired', () => {
     const unread = PRESTIGE_BONUSES
       .map((b) => b.id)
       .filter((id) => !blob.includes(`'${id}'`) && !blob.includes(`"${id}"`) && !blob.includes(`\`${id}\``))
-      .filter((id) => !INERT_BONUS_IDS.includes(id));
+      .filter((id) => !DECLARED_INERT.has(id));
 
     expect(unread).toEqual([]);
   });

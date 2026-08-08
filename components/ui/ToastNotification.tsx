@@ -6,15 +6,21 @@ import {
   Animated,
   TouchableOpacity,
   Easing,
+  Platform,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
-import { DesignSystem } from '@/utils/designSystem';
+import { accent, shadows, typography } from '@/lib/config/theme';
+import {
+  responsiveSpacing,
+  responsiveFontSize,
+  responsiveBorderRadius,
+} from '@/utils/scaling';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ToastNotificationProps {
   id: string;
@@ -49,36 +55,41 @@ export default function ToastNotification({
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
+  // The toast paints its OWN surface — a saturated accent gradient with white
+  // content on top — so it reads identically in light and dark mode and takes
+  // no `darkMode` dependency. The second stop of each gradient is the darker
+  // shade of the same hue; the theme has no token for those, so they stay as
+  // literals here rather than inventing one.
   const getTypeStyles = () => {
     switch (type) {
       case 'success':
         return {
-          gradient: [DesignSystem.colors.accent.success, '#059669'],
+          gradient: [accent.success, '#059669'],
           icon: CheckCircle,
           iconColor: '#FFFFFF',
         };
       case 'error':
         return {
-          gradient: [DesignSystem.colors.accent.error, '#DC2626'],
+          gradient: [accent.danger, '#DC2626'],
           icon: AlertCircle,
           iconColor: '#FFFFFF',
         };
       case 'warning':
         return {
-          gradient: [DesignSystem.colors.accent.warning, '#D97706'],
+          gradient: [accent.warning, '#D97706'],
           // Friendly rounded icon instead of the alarming warning triangle.
           icon: AlertCircle,
           iconColor: '#FFFFFF',
         };
       case 'info':
         return {
-          gradient: [DesignSystem.colors.accent.info, '#1D4ED8'],
+          gradient: [accent.info, '#1D4ED8'],
           icon: Info,
           iconColor: '#FFFFFF',
         };
       default:
         return {
-          gradient: [DesignSystem.colors.primary[500], '#1D4ED8'],
+          gradient: [accent.info, '#1D4ED8'],
           icon: Info,
           iconColor: '#FFFFFF',
         };
@@ -255,45 +266,46 @@ export default function ToastNotification({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: DesignSystem.spacing.md,
-    right: DesignSystem.spacing.md,
+    left: responsiveSpacing.md,
+    right: responsiveSpacing.md,
     zIndex: Z_INDEX.TOAST,
   },
   toast: {
-    borderRadius: DesignSystem.borderRadius.lg,
-    ...DesignSystem.shadows.lg,
+    borderRadius: responsiveBorderRadius.lg,
+    ...shadows.lg,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: DesignSystem.spacing.md,
+    padding: responsiveSpacing.md,
   },
   iconContainer: {
-    marginRight: DesignSystem.spacing.sm,
+    marginRight: responsiveSpacing.sm,
   },
   message: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: DesignSystem.typography.fontSize.sm,
-    fontFamily: DesignSystem.typography.fontFamily.medium,
-    fontWeight: DesignSystem.typography.fontWeight.medium,
-    lineHeight: DesignSystem.typography.lineHeight.normal * DesignSystem.typography.fontSize.sm,
+    fontSize: responsiveFontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+    fontWeight: typography.weight.medium,
+    // 1.5x the font size — kept as a ratio so it tracks the scaled font size.
+    lineHeight: Math.round(responsiveFontSize.base * 1.5),
   },
   actionButton: {
-    marginLeft: DesignSystem.spacing.sm,
-    paddingHorizontal: DesignSystem.spacing.sm,
-    paddingVertical: DesignSystem.spacing.xs,
+    marginLeft: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.xs,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: DesignSystem.borderRadius.sm,
+    borderRadius: responsiveBorderRadius.sm,
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: DesignSystem.typography.fontSize.xs,
-    fontWeight: DesignSystem.typography.fontWeight.semibold,
+    fontSize: responsiveFontSize.sm,
+    fontWeight: typography.weight.semibold,
   },
   dismissButton: {
-    marginLeft: DesignSystem.spacing.sm,
-    padding: DesignSystem.spacing.xs,
+    marginLeft: responsiveSpacing.sm,
+    padding: responsiveSpacing.xs,
   },
 });
 

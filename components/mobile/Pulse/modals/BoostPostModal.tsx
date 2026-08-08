@@ -7,7 +7,7 @@
 import React, { useCallback } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Zap, Gem } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -16,7 +16,7 @@ import { boostPostWithGems } from '@/contexts/game/actions/PulseActions';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const GEM_COST = 200;
 
 interface BoostPostModalProps {

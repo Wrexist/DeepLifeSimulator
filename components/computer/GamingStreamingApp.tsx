@@ -76,7 +76,7 @@ import {
   getGlassCategoryTabsContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ProgressRing from '@/components/ui/ProgressRing';
 import {
   responsiveFontSize as fs,
@@ -87,7 +87,7 @@ import {
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Identity accent — fuchsia. Solid (FUCHSIA / FUCHSIA_PAIR) only on small
 // CTAs, badges and glyphs; everywhere else the translucent tints below.

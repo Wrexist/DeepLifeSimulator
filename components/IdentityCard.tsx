@@ -5,7 +5,7 @@ import { View,
   TouchableOpacity,
   Modal,
   ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import DailyGemClaim from '@/components/DailyGemClaim';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
@@ -37,7 +37,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
 import type { Loan } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Type guard helpers for Loan properties
 function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {
@@ -413,8 +413,8 @@ function IdentityCard() {
             : 'info';
       const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
       const fix = (d.treatmentRequired || hasDeathCountdown)
-        ? 'See a doctor or hospital in the Health tab to treat it.'
-        : 'Rest and eat well — it should pass, or treat it in the Health tab.';
+        ? 'See a doctor or hospital under Life → Health to treat it.'
+        : 'Rest and eat well — it should pass, or treat it under Life → Health.';
       issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
     });
 
@@ -424,14 +424,14 @@ function IdentityCard() {
       issues.push({
         id: 'health-zero',
         title: `Health critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
-        fix: "Eat, rest and start a diet plan in the Health tab before it's too late.",
+        fix: "Eat, rest and start a diet plan under Life → Health before it's too late.",
         level: 'critical',
       });
     } else if (health <= 30) {
       issues.push({
         id: 'health-low',
         title: 'Low health',
-        fix: 'Improve your diet, rest, and exercise in the Health tab.',
+        fix: 'Improve your diet, rest, and exercise under Life → Health.',
         level: 'warning',
       });
     }

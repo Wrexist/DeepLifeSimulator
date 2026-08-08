@@ -18,7 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Play, Gift, DollarSign, Heart, Smile, Zap, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game';
@@ -30,12 +30,13 @@ import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
 import { noFillOnCooldown, stampNoFillGrant } from '@/lib/ads/noFillCourtesy';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
 const VITALITY_GRADIENT = ['#E11D48', '#FB7185'] as const;
 
@@ -56,8 +57,12 @@ const REWARD_PCT = 0.015;
 const REWARD_MIN = 1_000;
 const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
-const FIRST_DELAY: [number, number] = [22000, 48000];
-const REPEAT_DELAY: [number, number] = [110000, 210000];
+// The repeat window was [110s, 210s], which put a pulsing orb over the middle
+// of whatever the player was reading 6-8 times in a 15-minute session — the
+// single most frequent interruption in the app. Widened to 6-10 minutes: the
+// offer is still there for anyone who wants it, at roughly a third the rate.
+const FIRST_DELAY: [number, number] = [45000, 75000];
+const REPEAT_DELAY: [number, number] = [360000, 600000];
 const VISIBLE_MS = 22000; // orb auto-hides if ignored
 
 function rand([lo, hi]: [number, number]) {
@@ -90,7 +95,7 @@ function computeReward(state: GameState): number {
   return Math.max(REWARD_MIN, Math.round(clamped / 10) * 10);
 }
 
-export default function AdRewardOrb() {
+function AdRewardOrb() {
   /**
    * PERF-7: this component is mounted in the tab-tree root for the entire
    * session, and it used `useGame()` — a full-state subscription — so every
@@ -112,6 +117,15 @@ export default function AdRewardOrb() {
   // be) on screen. The component stays mounted so the Modal can animate out and
   // report its native dismissal, but nothing of ours is visible or tappable.
   const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
+  // Lowest priority in the shared queue. The orb only claims a slot while the
+  // ORB is showing — once the player taps through to the ad it is their own
+  // deliberate action and no longer an interruption, so it doesn't hold the
+  // queue against anything else.
+  const orbSlot = useInterruptionSlot(
+    'orb:ad-reward',
+    INTERRUPTION_PRIORITY.AD_ORB,
+    phase === 'orb'
+  );
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
@@ -226,7 +240,9 @@ export default function AdRewardOrb() {
       scheduleNext(30000);
       return;
     }
-    haptic.light();
+    // No haptic on APPEARANCE. An unprompted offer buzzing the phone teaches
+    // the player that a vibration means nothing actionable. The tap itself
+    // still gives feedback (see openAd) — that one is player-initiated.
     slideX.setValue(-160);
     Animated.spring(slideX, { toValue: 0, useNativeDriver: true, damping: 14, stiffness: 140 }).start();
     pulseLoop.current = Animated.loop(
@@ -278,6 +294,33 @@ export default function AdRewardOrb() {
 
   const grant = useCallback(() => {
     if (kind === 'cash') {
+      // GAME-WEEK gate. The orb's reward is 1.5% of net worth and its only
+      // limiter was a wall-clock respawn timer — decoupled from `weeksLived`,
+      // so tapping every orb compounded net worth ~1.5% each time and doubled
+      // it roughly every 2.2 hours of REAL time, invisible to the tax brackets
+      // and the net-worth soft cap. One cash grant per game week turns it from
+      // a faucet into a top-up.
+      //
+      // Stamp-and-reserve: the updater that records the week IS the gate. It
+      // returns `prev` unchanged when the week is already claimed, and the
+      // `allowed` flag is captured INSIDE it — the established pattern here for
+      // pairing a guard with the module-form `updateMoney` (§4.4). Vitality
+      // orbs are deliberately ungated: they cannot be banked or compounded.
+      let allowed = false;
+      setGameState(prev => {
+        const week = prev.weeksLived ?? 0;
+        if (prev.settings?.lastAdCashGrantWeek === week) return prev;
+        allowed = true;
+        return {
+          ...prev,
+          settings: { ...prev.settings, lastAdCashGrantWeek: week },
+        };
+      });
+      if (!allowed) {
+        setGranted(true);
+        haptic.success();
+        return;
+      }
       updateMoney(setGameState, reward, 'Rewarded ad bonus');
     } else {
       // +100 to each caps Health/Happiness/Energy at 100 — a full vitality refill.
@@ -312,7 +355,6 @@ export default function AdRewardOrb() {
       // component is gone. 600ms covers the slide-down animation with margin.
       addTimer(finish, 600);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleWatch = useCallback(async () => {
@@ -406,7 +448,7 @@ export default function AdRewardOrb() {
   return (
     <>
       {/* ── The left-edge orb ─────────────────────────────────── */}
-      {phase === 'orb' ? (
+      {phase === 'orb' && orbSlot ? (
         <Animated.View
           pointerEvents="box-none"
           style={[styles.orbWrap, { top: '42%', transform: [{ translateX: slideX }] }]}
@@ -514,7 +556,11 @@ const styles = StyleSheet.create({
   orbWrap: {
     position: 'absolute',
     left: scale(10),
-    zIndex: Z_INDEX.TOAST,
+    // DROPDOWN, not TOAST. At TOAST (400) the orb sat ABOVE the MODAL layer
+    // (300), so it floated over the weekly result sheet, the death screen and
+    // every other dialog. An optional ad offer must never cover a dialog the
+    // player has to act on.
+    zIndex: Z_INDEX.DROPDOWN,
   },
   orb: {
     flexDirection: 'row',
@@ -669,3 +715,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+
+/**
+ * `React.memo` is load-bearing here, not decoration.
+ *
+ * This is rendered INLINE in a layout root (app/(tabs)/_layout.tsx), which itself
+ * subscribes to game state. A selector inside a component cannot stop a
+ * re-render driven by its parent — so narrowing this component's own
+ * subscription achieved nothing on its own. Taking no props, `React.memo` is a
+ * total barrier against that cascade, which is what makes the narrowing pay.
+ */
+export default React.memo(AdRewardOrb);
