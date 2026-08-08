@@ -38,6 +38,11 @@ they're left as boxes for you.
 
 ## ☐ Do in Google Play Console (Android)
 
+> Full step-by-step runbook (with the exact console answers, the product table,
+> the tester-recruitment playbook and the production-access application):
+> [`GOOGLE_PLAY_RELEASE_PLAN.md`](./GOOGLE_PLAY_RELEASE_PLAN.md). The list below
+> is the short status view.
+
 - [ ] **First `.aab` uploaded manually** — Google requires the very first upload
       by hand; the workflow's auto-submit only works afterward.
 - [ ] **14-day closed testing** — if this is a **personal** developer account
