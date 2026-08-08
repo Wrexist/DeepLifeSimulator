@@ -635,9 +635,18 @@ Owner supplied a mockup. Differences from what ships today, top to bottom:
       it from the restore carve-out in `services/IAPService.ts`. Not done —
       changing a live product's type is a store decision with billing
       consequences.
-- [ ] **OWNER ACTION — the hero image is still not generated.** The image tool
-      refused: free plan, 1.68 credits. Prompt is ready in
-      `docs/DEATH_SCREEN_ASSETS.md`; wiring it is one prop.
+- [x] **The hero image — DONE (2026-08-08), by the owner, not the image tool.**
+      The tool route stalled twice: first on model cost (`nano_banana_pro` at
+      2.00 credits against a 1.68 balance), then on the network policy denying
+      the CDN that served the four `z_image` candidates, so none of them were
+      ever seen. The owner supplied artwork directly instead. Shipped as
+      `assets/images/death/gravestone.webp` — 1024 × 683, quality 90, **98 KB
+      from a 2.18 MB PNG (−96%)**, alpha intact. Wiring was the one prop the
+      note promised. The source PNG is not committed; nothing reads it.
+      - Same commit collapsed a `Death/` vs `death/` case collision. Git treats
+        them as two paths, macOS and Windows as one — so the bug could only
+        have appeared on a clone, never on the Linux box that made it. Worth
+        remembering the next time a directory is created by hand.
 
 ---
 
