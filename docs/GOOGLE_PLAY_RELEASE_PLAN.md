@@ -47,13 +47,13 @@ whether launch is ~1 week or ~3–4 weeks away. See §9.
 
 ## 1. Hard deadlines — read this first ⚠️
 
-Three Google gates. Two of them land **23 days from today**.
+Three Google gates. Two of them land **23 days from today**; the third is 2027.
 
 | Deadline | Requirement | This app | Action |
 |---|---|---|---|
 | **Aug 31, 2026** | New apps + updates must **target Android 16 (API 36)**. Extension to Nov 1, 2026 on request. | ✅ Expo SDK 54 already targets 36 | Verify once (§4.4), then nothing |
 | **Aug 31, 2026** | New apps + updates must use **Play Billing Library 8+**. Extension to Nov 1, 2026 on request. | ⚠️ RevenueCat 10.4.4 ships Billing **8.3.0**; `expo-iap` 4.3.5 pulls billing through the `openiap-google` wrapper — version **unverified** | **Verify before first upload** (§4.4). Gradle resolves to the highest requested version, so RC 8.3.0 should win — but confirm, don't assume |
-| **Nov 1, 2025** (already in force) | Apps targeting Android 15+ must support **16 KB memory page sizes** | ✅ RN 0.81 / AGP in SDK 54 build 16 KB-aligned | Play Console flags it on upload if wrong |
+| **Feb 1, 2027** | Apps targeting Android 15+ (API 35+) must support **16 KB memory page sizes** on 64-bit devices | Expected fine (RN 0.81 / AGP in SDK 54 align natively) — but **dependency versions do not prove alignment** | Verify the **artifact**, not the deps: Play Console reports it on upload, and `alignment` / `zipalign -c -P 16` over the `.so` files in the `.aab` checks it locally |
 
 **Why this matters for sequencing:** the closed test (§9) takes a **minimum of 14
 days**, and both gates above are publishing gates on *every* upload. If a build you
@@ -143,7 +143,7 @@ GitHub → **Settings → Secrets and variables → Actions**:
 | Secret | Required? | What it is | Consequence if missing |
 |---|---|---|---|
 | `EXPO_TOKEN` | **Yes** | Expo access token (expo.dev → Account → Access tokens) | Workflow fails at the first gate |
-| `EXPO_PUBLIC_SAVE_HMAC_KEY` | **Yes** | Save-signing key | Preflight fails closed — saves ship unsigned |
+| `EXPO_PUBLIC_SAVE_HMAC_KEY` | **Yes** | Save-signing key | Build is blocked, so unsigned saves cannot ship — preflight fails closed |
 | `EXPO_PUBLIC_IAP_VERIFY_URL` | **Yes** | `https://<project>.vercel.app/verify` | Preflight §9 fails the build; without it production grants nothing |
 | `EXPO_PUBLIC_IAP_VERIFY_TOKEN` | **Yes** | Bearer token matching the server's `IAP_SHARED_SECRET` | Verification calls rejected |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | For auto-upload | Full JSON of a Play service-account key | Only needed when you tick **Submit**; upload by hand otherwise |
@@ -203,9 +203,18 @@ cd android && ./gradlew :app:dependencies --configuration releaseRuntimeClasspat
 ```
 - [ ] 👤/🤖 Confirm the resolved `com.android.billingclient:billing` is **8.x**.
       Gradle resolves conflicts to the highest requested version, so RevenueCat's
-      8.3.0 should win over anything `expo-iap`'s `openiap-google` requests. If it
-      resolves lower, force it in `android/app/build.gradle` via a resolution
-      strategy, or bump `expo-iap`.
+      8.3.0 should win over anything `expo-iap`'s `openiap-google` requests.
+- [ ] If it resolves **below 8**, fix it in a way that survives the build. ⚠️
+      **Do not edit `android/app/build.gradle` to force it** — `.easignore`
+      excludes `/android`, so EAS regenerates the whole folder via prebuild and
+      your edit is discarded before compilation. It would appear to work locally
+      and silently vanish in CI. Use one of these instead, in preference order:
+      1. **Bump `expo-iap`** to a version whose `openiap-google` pulls Billing 8 —
+         no native plumbing at all.
+      2. **A config plugin** (`withAppBuildGradle`) writing the resolution
+         strategy at prebuild time. The repo already has a `plugins/` directory
+         for exactly this, so it is source-controlled and reruns on every build.
+      Then re-verify against the **final `.aab`**, not the local tree.
 - [ ] Confirm `targetSdkVersion 36` in the generated `android/build.gradle` ext block.
 - [ ] **Put the folder back afterward — both commands, in this order:**
       ```bash
@@ -243,7 +252,20 @@ IAP_SHARED_SECRET          = <same value as EXPO_PUBLIC_IAP_VERIFY_TOKEN>
 ```
 
 - [ ] 👤 Deploy (`cd server/iap-verify && vercel --prod`) and set those env vars.
-- [ ] 👤 `curl` the endpoint once to confirm it answers before you build.
+- [ ] 👤 **Exercise the contract, not just the hostname.** `api/verify.js` expects a
+      POST with `receipt`, `productId`, and `transactionId`, so a bare `curl` proves
+      only that DNS resolves — it misses body parsing, auth, and Google
+      verification. Post a deliberately bogus payload and confirm you get a
+      structured `verified: false` rather than a 404/500:
+      ```bash
+      curl -sS -X POST "$VERIFY_URL" \
+        -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer $VERIFY_TOKEN" \
+        -d '{"platform":"android","receipt":"REDACTED","productId":"deeplife_gems_100","transactionId":"test-000"}'
+      ```
+      A well-formed rejection means the endpoint is wired end to end. A 500 means
+      the Google service-account env vars are wrong — find that out now, not on
+      a paying customer.
 
 ### 4.7 Phase B checklist
 - [ ] All required secrets set
@@ -266,10 +288,16 @@ IAP_SHARED_SECRET          = <same value as EXPO_PUBLIC_IAP_VERIFY_TOKEN>
 3. **Do not** create the app under a different package name to "test" — the package
    name is permanent and `com.deeplife.simulator` must match `app.config.js` exactly.
 
-### 5.1 The first upload must be manual
-Google requires the very first `.aab` for a new app to be uploaded through the
-Console UI. The workflow's auto-submit only works from the second upload on. This is
-why §8 has you build with **Submit off** the first time.
+### 5.1 Upload the first `.aab` by hand
+This repo's workflow treats the first upload as manual, and its own comments say
+Google requires it. Expo's current docs disagree: `eas submit --platform android`
+can create the first release directly (it lands on the internal track as a draft),
+provided the app record and service-account key already exist.
+
+Either way, **do the first one by hand** — not because the API forbids it, but
+because the first upload is where you accept Play App Signing (§5.2) and where a
+package-name or signing mismatch is cheapest to catch. That is why §9.1 has you
+build with **Submit off** the first time. Every upload after that can auto-submit.
 
 ### 5.2 Play App Signing
 On the first release Play Console asks you to configure app signing. **Accept
@@ -293,9 +321,9 @@ Answers for this app, derived from what it actually ships:
 |---|---|---|---|
 | 1 | **Privacy policy** | `https://wrexist.github.io/deeplife-sim-support/privacy.html` | Must cover AdMob, Firebase Analytics, Sentry, Play Billing, cloud saves. Confirm the live page does before pasting |
 | 2 | **App access** | "All functionality is available without special access" | Cloud sync uses an app-generated ID; there is no login |
-| 3 | **Ads** | **Yes, my app contains ads** | The AdMob SDK ships and initializes. Android serves no ads at launch, but you will enable them (§13) and a "No" that later becomes "Yes" is the risky direction. The `AD_ID` permission is in the manifest either way |
+| 3 | **Ads** | **Yes, my app contains ads** | Answer for the build you are actually uploading, and revise it whenever that changes. For this build "Yes" is the accurate answer even though no ad units serve yet: the AdMob SDK ships and initializes, and Play auto-detects ad SDKs and may apply the "Contains ads" label regardless of what you declare. The `AD_ID` permission is in the manifest either way. If you ever ship a genuinely AdMob-free Android build, flip this to No — and flip it back before re-enabling ads (§13) |
 | 4 | **Content rating** | Complete the IARC questionnaire (see §6.1) | Until this is done the app has "no rating" and **cannot be distributed to testers** |
-| 5 | **Target audience and content** | Target age **18+** (or 16+). Answer **No** to "appeals to children" | Keeps the app out of Families policy, which would ban the ad/IAP setup you have |
+| 5 | **Target audience and content** | Target age **18+ only** — tick no younger bracket. Answer **No** to "appeals to children" | One answer, not a range: the dark-web/crime content and the ad + IAP setup make 18+ the defensible call, and it keeps the app clear of Families policy |
 | 6 | **Data safety** | Enter the table in `docs/DATA_SAFETY.md` verbatim, after confirming each row | You are attesting to accuracy; mismatches get apps suspended |
 | 7 | **Financial features** | "My app doesn't provide any financial features" | The loans/stocks/crypto are simulated gameplay with no real money |
 | 8 | **Government apps / Health / News** | No to all | — |
@@ -316,11 +344,14 @@ The questionnaire is a legal declaration. This game contains:
 - **No** user-to-user communication, **no** user-generated content sharing, **no**
   location sharing, **no** unrestricted internet browser.
 
-Expected outcome: **PEGI 12–16 / ESRB Teen**, possibly Mature depending on how the
-crime questions are answered. That is fine — it matches the app's 17+ posture in
-`UPDATED_PRIVACY_POLICY.md`. **Do not soften answers to chase a lower rating**; a
-misdeclared rating is a suspension risk, and a Teen/Mature rating costs you nothing
-here because you are targeting 18+ anyway.
+**You do not choose the rating — IARC derives it from the answers above**, so the
+only decision you actually make is to answer honestly. Given the crime content,
+expect it to land at the mature end (ESRB Teen or Mature; PEGI 12–16), which is
+consistent with the 18+ target audience and the 17+ posture in
+`UPDATED_PRIVACY_POLICY.md`. **Do not soften answers to chase a lower rating** — a
+misdeclared rating is a suspension risk, and a higher rating costs you nothing when
+you are targeting 18+ anyway. If the questionnaire returns something that looks
+wrong, re-read your answers rather than re-running it until you like the result.
 
 - [ ] 👤 All 10 App content items show **Complete** (green) on the dashboard
 
@@ -349,8 +380,8 @@ matches.
 |---|---|---|
 | **App icon** | 512 × 512 px, 32-bit PNG with alpha, sRGB, ≤1 MB. Google adds rounded corners + shadow — **do not bake them in** | Yes |
 | **Feature graphic** | 1024 × 500 px, JPEG or 24-bit PNG, **no alpha channel** | Yes — the listing cannot publish without it |
-| **Phone screenshots** | Min **2**, max **8**. 16:9 or 9:16, min 320 px, max 3840 px on the long side, ≤8 MB each, JPEG or 24-bit PNG | Yes — upload **at least 4**; below 4 you lose eligibility for Play promotional surfaces |
-| **7" + 10" tablet screenshots** | Min **4** each, same format rules | Only if you declare tablet support — the app does (`supportsTablet` on iOS; Android is portrait-locked but installable) |
+| **Phone screenshots** | Min **2**, max **8**. 16:9 or 9:16, min 320 px, max 3840 px on the long side, ≤8 MB each, JPEG or 24-bit PNG | Yes. For Play's promotional surfaces a **game** needs **3+ in one orientation at ≥1080 px** (apps need 4) — so 3 portrait shots clear the bar; 4–6 is still the better listing |
+| **7" + 10" tablet screenshots** | Min **4** each, same format rules | **Optional.** The Android manifest declares no tablet support (the app is portrait-locked; `supportsTablet` is an iOS-only key), so skip these unless you add Android tablet support deliberately |
 | **Promo video** | YouTube URL | Optional. Skip for v1 |
 
 You already have a screenshot library under `screenshots/` and a
@@ -370,8 +401,8 @@ listing's language selector and paste it. Costs 10 minutes, and Sweden is your
 home market and first tester pool.
 
 - [ ] 👤 Listing text (EN) entered
-- [ ] 👤 Icon + feature graphic + ≥4 phone screenshots uploaded
-- [ ] 👤 Tablet screenshots uploaded (or tablet support disclaimed)
+- [ ] 👤 Icon + feature graphic + ≥3 phone screenshots (4–6 recommended) uploaded
+- [ ] 👤 Tablet screenshots — skip unless Android tablet support is added
 - [ ] 👤 Category + contact details set
 - [ ] 👤 SV localization added
 
@@ -484,6 +515,22 @@ One service account, three consumers — create it once:
    - Vercel env `GOOGLE_SERVICE_ACCOUNT_JSON` (receipt verification, §4.6)
 5. **Never commit it.** `.gitignore` already blocks `play-service-account.json`.
 
+> **The one-key shortcut has a real cost — know what you're accepting.** Copying a
+> single key into GitHub, RevenueCat, and Vercel means any one of those three being
+> compromised hands an attacker *all* its rights, including release upload and
+> financial data, and a rotation forces you to update all three at once. The
+> hardened alternative is **three service accounts**, each with only what it needs:
+>
+> | Consumer | Needs | Doesn't need |
+> |---|---|---|
+> | CI auto-upload | Release to testing tracks (+ production, if used) | Financial data |
+> | RevenueCat | View financial data, view app information | Any release right |
+> | Receipt verification | View financial data (`androidpublisher` read) | Any release right |
+>
+> For a solo developer, one key is a defensible tradeoff for the reduced admin —
+> just make it a *decision* rather than an accident, and split them the moment
+> anyone else gets access to any of the three systems.
+
 ### 8.5 License testers (free test purchases)
 Play Console → **Setup → License testing** → add the Google account emails of
 everyone who will test purchases. License testers:
@@ -563,8 +610,12 @@ you so, and "Production" stays locked.
 - The clock starts when a build is **live on a closed track** *and* the testers are
   opted in — not when you create the track.
 - **Internal testing does not count.** It must be a **closed** track.
-- If a tester drops and you briefly fall below 12, the 14-day timer does not reset —
-  but don't rely on that; keep 15–18 opted in for headroom.
+- **Treat a drop below 12 as breaking the streak.** Google's wording is 12 testers
+  opted in "for the last 14 days continuously", and a tester who opts out does not
+  carry their earlier days into a later stretch. Community reports differ on whether
+  a brief dip merely pauses the count or resets it — which is exactly why you should
+  not find out. Keep **15–18** opted in, and re-check the live count in the Console
+  immediately before you apply.
 - Google looks at whether testing was *real*. Opted-in accounts that never open the
   app are the most common reason production access gets denied.
 
@@ -610,8 +661,10 @@ testing group if you're short. Aim for **15–18** so a dropout never puts you u
 > phone and 10 minutes, you'd genuinely unblock the launch.
 >
 > **What you need to do:**
-> 1. Reply here (or DM me) with the **Google account email** you use on your phone —
->    it has to be the exact account signed into the Play Store.
+> 1. **DM me** (please don't post it in the channel) with the **Google account
+>    email** you use on your phone — it has to be the exact account signed into the
+>    Play Store. I'll only use it to add you as a tester, and I delete it when the
+>    test ends.
 > 2. I'll add you, then send you a link. Tap **"Become a tester"**, then install.
 > 3. Play for a bit whenever you feel like it over the next two weeks. Please don't
 >    uninstall or leave the tester program before **[DATE = start + 15 days]** — that
@@ -644,8 +697,9 @@ testing group if you're short. Aim for **15–18** so a dropout never puts you u
 > the last step, and I need 12 testers for Google's 14-day requirement.
 >
 > Free, no ads on Android right now, and everything is unlocked for testers.
-> Comment your Google account email or DM it and I'll add you. **I'll opt into your
-> test too** — just link it.
+> **DM me your Google account email** (don't post it publicly — comment "in" and
+> I'll message you) and I'll add you. Used only to add you as a tester, deleted
+> when the test ends. **I'll opt into your test too** — just link it.
 
 **D. The instructions you send after adding someone** (this is the message that
 actually determines whether they succeed — be this explicit):
@@ -688,6 +742,12 @@ actually determines whether they succeed — be this explicit):
 
 ### 10.5 Track your testers
 
+These are real people's account identifiers, so treat the sheet accordingly:
+**collect only the email Play needs** (never phone numbers or addresses), keep it
+in a **private, access-restricted** doc rather than a shared channel, and **delete
+the emails once the test ends** or a tester asks to be removed. Collect them by DM
+or a private form — never in a public Discord or Reddit thread.
+
 Keep a simple sheet — you will need these facts for the production-access
 application in §11:
 
@@ -695,9 +755,12 @@ application in §11:
 |---|---|---|---|---|---|---|
 
 ### 10.6 During the 14 days
-- [ ] 👤 Ship at least one update to the closed track that **fixes something a tester
-      reported**. Google's application asks what you changed; having a real answer is
-      the difference between approval and "more testing required".
+- [ ] 👤 **Recommended, not required:** ship at least one update to the closed track
+      that fixes something a tester reported. Eligibility is only the 12 testers ×
+      14 continuous days — but the production-access form asks what feedback you got
+      and what you changed, and a real answer there is often the difference between
+      approval and "more testing required". Pushing updates does **not** restart the
+      14-day clock, as long as the tester count holds.
 - [ ] 👤 Reply to every tester who reports something. Retention of testers is the
       whole game here.
 - [ ] 👤 Watch **Play Console → Quality → Android vitals** for crashes and ANRs.
@@ -836,7 +899,7 @@ Android launches **ad-free** because no Android ad units exist. When you want ad
 **Repo** — [ ] secrets set · [ ] keystore created + backed up · [ ] Billing 8 verified · [ ] targetSdk 36 verified · [ ] gates green · [ ] verify server live
 **Console setup** — [ ] app created · [ ] Play App Signing accepted
 **Declarations** — [ ] all 10 App content items green
-**Listing** — [ ] copy · [ ] icon · [ ] feature graphic · [ ] ≥4 screenshots · [ ] category · [ ] SV
+**Listing** — [ ] copy · [ ] icon · [ ] feature graphic · [ ] ≥3 portrait screenshots at ≥1080 px · [ ] category · [ ] SV
 **Monetization** — [ ] 26 products Active · [ ] 2 subscriptions with base plans · [ ] RevenueCat Play credentials · [ ] license testers
 **Internal test** — [ ] build uploaded · [ ] smoke test passed on a real device
 **Closed test** — [ ] Google Group · [ ] track live · [ ] countries set · [ ] 12+ testers opted in · [ ] day-7 nudge sent · [ ] a tester-driven fix shipped · [ ] 14 days elapsed
