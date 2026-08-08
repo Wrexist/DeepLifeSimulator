@@ -207,8 +207,16 @@ cd android && ./gradlew :app:dependencies --configuration releaseRuntimeClasspat
       resolves lower, force it in `android/app/build.gradle` via a resolution
       strategy, or bump `expo-iap`.
 - [ ] Confirm `targetSdkVersion 36` in the generated `android/build.gradle` ext block.
-- [ ] Delete the regenerated folder afterward (`git clean -fd android` — the
-      committed one is what the repo tracks) so you don't accidentally commit it.
+- [ ] **Put the folder back afterward — both commands, in this order:**
+      ```bash
+      git restore android && git clean -fd android
+      ```
+      `android/` has **44 tracked files**, and prebuild *rewrites* them (Gradle
+      files, the manifest, `MainApplication.kt`, resources). `git clean` only
+      deletes **untracked** files, so on its own it leaves every one of those
+      rewrites staged in your working tree — exactly the accidental commit this
+      step exists to prevent. `git restore` reverts the tracked edits; `git clean`
+      removes the newly generated extras.
 
 ### 4.5 Green gates before you build
 
@@ -458,8 +466,17 @@ One service account, three consumers — create it once:
 1. Google Cloud Console → IAM & Admin → **Service Accounts → Create**.
 2. Play Console → **Setup → API access** → link the Cloud project → **Grant access**
    to that service account. Permissions needed:
-   - *Release apps to testing tracks* (for the workflow's auto-upload)
+   - *Release apps to testing tracks* (for the workflow's auto-upload to
+     internal/closed)
    - *View app information* and *View financial data* (for RevenueCat + verification)
+   - *Release apps to production, exclude devices, and use Play App Signing* —
+     **only if you intend to publish to production through the workflow.** Play
+     treats this as a **separate** right from the testing-tracks one, so a service
+     account holding only "release to testing tracks" builds the `.aab` fine and
+     then **fails at the upload step** when §12.1 is run with `track: production`.
+     Grant it up front, or deliberately withhold it and promote to production from
+     the Console instead (§12.2) — withholding is the safer default, since it makes
+     an accidental production push impossible.
 3. Cloud Console → the service account → **Keys → Add key → JSON** → download.
 4. Use that one JSON for:
    - GitHub secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (auto-upload)
@@ -727,8 +744,11 @@ so build engagement in from day 1 rather than hoping.
 - [ ] 🤖 Bump `package.json` version (e.g. `2.7.0`)
 - [ ] 🤖 `npm run preflight:android` green
 - [ ] 🤖 Release notes written (≤500 chars) — update `RELEASE_NOTES.md` / `WHATS_NEW.md`
-- [ ] 👤 Run the workflow with **Submit on**, track `production`, `force_banner` **off**
-      — or upload the artifact by hand and promote
+- [ ] 👤 Run the workflow with **Submit on**, track `production`, `force_banner`
+      **off** — this requires the *Release apps to production…* permission on the
+      service account (§8.4); without it the build succeeds and the upload fails.
+      **Safer alternative:** run it with track `internal` (or download the artifact)
+      and **promote to production from the Console**, which needs no extra API right
 
 ### 12.2 Configure the release
 Play Console → **Production → Create new release**:
@@ -802,6 +822,8 @@ Android launches **ad-free** because no Android ad units exist. When you want ad
 | Upload rejected: 16 KB page size | A native dep not rebuilt for 16 KB | Update the dep; RN 0.81 itself is fine |
 | Release blocked: "declaration required" | An App content item is incomplete | §6 — all 10 must be green |
 | Production access denied | Testers looked unengaged | More genuine testers, real feedback loop, honest answers (§11) |
+| Build succeeds, then the **production** upload fails with a permission error | The service account has *Release to testing tracks* but not *Release apps to production…* — Play treats them as separate rights | §8.4, or promote from the Console instead |
+| Regenerated native files show up in `git status` after a prebuild check | `git clean` only removes untracked files; prebuild **rewrites** the 44 tracked ones | `git restore android && git clean -fd android` (§4.4) |
 | Workflow fails at "Require EXPO_TOKEN" | Secret missing | §4.1 |
 | Workflow refuses to submit | `force_banner` + `submit` both ticked | Untick one — the guard is intentional |
 | App suspended after launch | Data safety mismatch, or a declaration that doesn't match shipped behavior | Re-audit §6 against the actual build |
