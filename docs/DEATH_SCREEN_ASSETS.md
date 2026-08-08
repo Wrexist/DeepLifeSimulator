@@ -1,19 +1,27 @@
 # Death screen — asset generation prompts
 
-Everything on the death screen renders **today** without any of these files.
-The hero is drawn from views (`components/death/DeathHero.tsx`) precisely so the
-layout could ship before the art existed — Metro resolves `require()` at build
-time, so a component reaching for a missing file does not degrade gracefully, it
-fails to bundle.
+**Asset 1 is done and shipped** — see the status block below. Everything else on
+this list is optional, and the screen renders fully without any of it: the hero
+falls back to a drawing from views (`components/death/DeathHero.tsx`), which is
+why the layout could ship before the art existed. Metro resolves `require()` at
+build time, so a component reaching for a missing file does not degrade
+gracefully, it fails to bundle — hence the fallback rather than an empty slot.
 
-So these are upgrades, not blockers. Generate what you want, drop it in, wire it.
-
-> **Status — 2026-08-07: four candidates for asset 1 exist, and they are not in
-> this repo.**
+> **Status — 2026-08-08: asset 1 has shipped.** The product owner supplied the
+> artwork directly (a 1536 × 1024 RGBA PNG, 2.18 MB) rather than any of the
+> generations below. It is in the repo as
+> `assets/images/death/gravestone.webp` — resized to 1024 × 683 and encoded at
+> quality 90, **98 KB, a 96% reduction**, with the alpha channel intact (76% of
+> the canvas is fully transparent). Wired into `components/DeathPopup.tsx` and
+> verified on the running app: no carved text, no clipped mound, the wisp reads
+> against the near-black panel.
 >
-> Generated on Higgsfield with `z_image`, 16:9, 2048 × 1152, 0.15 credits each
-> (0.60 total; `nano_banana_pro` wanted 2.00 against a 1.68 balance, which is
-> why the first attempt failed outright). Job ids:
+> The source PNG is deliberately **not** committed. It is 22× the size of the
+> file the app ships and nothing reads it; the `.webp` is the artefact.
+>
+> Historical note on the four Higgsfield candidates that preceded it — generated
+> with `z_image`, 16:9, 2048 × 1152, 0.15 credits each (`nano_banana_pro` wanted
+> 2.00 against a 1.68 balance, which is why the first attempt failed outright):
 >
 > ```
 > c3ba8e11-6b9e-435a-814f-e44f943f89f9
@@ -22,39 +30,39 @@ So these are upgrades, not blockers. Generate what you want, drop it in, wire it
 > fa5df7ab-f425-4b93-9cc4-42999e41ad91
 > ```
 >
-> They could not be pulled into the container: this environment's network
-> policy denies `d8j0ntlcm91z4.cloudfront.net` (403 on CONNECT, for both curl
-> and headless Chromium), so nobody has inspected them — **check the no-text
-> constraint before using one**, since a carved epitaph is the failure this
-> prompt guards against hardest and the one models most like to add anyway.
->
-> Until one is dropped in, the drawn hero stands: inset stone face, crack,
-> tapering three-layer wisp, moss tufts, the white flower. It is a stand-in for
-> the prompt below, not a substitute for it.
+> None were ever inspected: this environment's network policy denies
+> `d8j0ntlcm91z4.cloudfront.net` (403 on CONNECT, for both curl and headless
+> Chromium). They are recorded only so the credits spent are accounted for. The
+> prompt that produced them is still below and is still the spec for a
+> replacement.
 
 ---
 
-## How to wire one once it is generated
+## How to wire one
 
-Put the file in `assets/images/Death/`, then pass it to the hero in
+Put the file in `assets/images/death/` (**lowercase** — a `Death/` variant
+briefly existed alongside it, and git tracks the two as distinct paths while
+macOS and Windows do not, so a clone on either collapses them and leaves one
+`require` resolving to the wrong file). Then pass it to the hero in
 `components/DeathPopup.tsx`:
 
 ```tsx
-// before
+// without art — the drawn fallback
 <DeathHero height={heroHeight} mood={quality.mood} />
 
-// after
+// with art — what ships today
 <DeathHero
   height={heroHeight}
   mood={quality.mood}
-  source={require('@/assets/images/Death/gravestone.webp')}
+  source={require('@/assets/images/death/gravestone.webp')}
 />
 ```
 
 That is the whole change. `DeathHero` swaps its drawing for the image and keeps
-the same band height, so nothing below it moves.
+the same band height, so nothing below it moves. Replacing the art means
+overwriting the file at that path — no code change at all.
 
-**Do not** add the `require` before the file exists — the app will not bundle.
+**Do not** add a `require` before its file exists — the app will not bundle.
 
 ---
 
@@ -81,7 +89,7 @@ The illustration at the top of the screen. This is the only asset the design
 truly depends on; everything else is polish.
 
 **Size:** 1024 × 640 (approx 8:5), transparent background.
-**File:** `assets/images/Death/gravestone.webp`
+**File:** `assets/images/death/gravestone.webp`
 
 > [shared style direction]
 >
@@ -114,7 +122,7 @@ is tuned for a sad ending. If you want a second hero for that case, generate:
 > rising wisp is warm gold instead of violet, soft and slow. Peaceful, the end
 > of a long good day rather than a loss.
 
-**File:** `assets/images/Death/gravestone-longlife.webp`. Wiring it means
+**File:** `assets/images/death/gravestone-longlife.webp`. Wiring it means
 branching on `deathReason` where `source` is passed — three lines.
 
 ---
@@ -127,7 +135,7 @@ with the rest of the app's iconography and honestly look fine. Replace them only
 if you want the gauge to feel more characterful than the rest of the UI.
 
 **Size:** 256 × 256 each, transparent.
-**Files:** `assets/images/Death/mood-{bleak,poor,fair,good,great}.webp`
+**Files:** `assets/images/death/mood-{bleak,poor,fair,good,great}.webp`
 
 Generate as **one sheet** so the five faces match each other — five separate
 generations will drift in proportion and shading:

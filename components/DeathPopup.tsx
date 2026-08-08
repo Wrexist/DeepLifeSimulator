@@ -630,7 +630,11 @@ function DeathPopup() {
                 `DeathHero` draws the gravestone today and accepts the painted
                 asset via `source` the moment one exists — see
                 `docs/DEATH_SCREEN_ASSETS.md`. */}
-            <DeathHero height={heroHeight} mood={quality.mood} />
+            <DeathHero
+              height={heroHeight}
+              mood={quality.mood}
+              source={require('@/assets/images/death/gravestone.webp')}
+            />
 
             <View style={styles.hero}>
               <Text style={styles.heroTitle} numberOfLines={1} adjustsFontSizeToFit>
