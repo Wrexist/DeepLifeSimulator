@@ -45,7 +45,7 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
-import type { YearDigest } from '@/lib/gameMode/mode';
+import { summarizeYear, type YearDigest } from '@/lib/gameMode/mode';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
 
@@ -148,8 +148,20 @@ function fingerprint(s: GameState) {
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
+/** The "after" half of a summary, read from committed state. */
+function afterOf(s: GameState) {
+  return {
+    weeksLived: s.weeksLived ?? 0,
+    age: s.date?.age ?? 0,
+    money: s.stats?.money ?? 0,
+    netWorth: 0, // not asserted here; the money/age axes are the ones that matter
+    died: !!s.showDeathPopup,
+    pendingDecisions: (s.pendingEvents ?? []).length,
+  };
+}
+
 describe('Story mode batches the interaction, not the simulation', () => {
-  jest.setTimeout(600_000);
+  jest.setTimeout(900_000);
   let mounted: { root: any } | null = null;
 
   beforeAll(() => {
@@ -171,40 +183,29 @@ describe('Story mode batches the interaction, not the simulation', () => {
     if (AsyncStorageMock?.clear) await AsyncStorageMock.clear();
   });
 
-  // SKIPPED — and this skip is the honest record of an unfinished mechanic, not
-  // a flaky test being silenced.
-  //
-  // `liveYear` currently drives the real `nextWeek` in a loop, so it depends on
-  // React running each tick's updater before the next iteration reads the
-  // result. Under `act()` React defers every queued updater to the act()
-  // boundary, so the loop observes its own progress two or more iterations late
-  // and stops early — it reports one week after simulating three. That is a
-  // property of the harness, but it also means THIS INVARIANT CANNOT BE
-  // VERIFIED, and an unverifiable batch must not be wired to a button.
-  //
-  // Un-skip this the moment the tick extraction lands (see the note on
-  // `liveYear` in GameActionsContext.tsx): once a year is one pure state
-  // transition inside a single updater, there is no commit to race and this
-  // test becomes both runnable and the thing that guards the whole feature.
-  it.skip('one liveYear() equals the same number of individual nextWeek() calls', async () => {
+  /**
+   * THE INVARIANT. If this fails, story mode has started producing a different
+   * economy from classic mode — the one outcome the design forbids. Do not
+   * relax the assertions; find what the batch changed.
+   */
+  it('one liveYear() equals the same number of individual nextWeek() calls', async () => {
     // ── Pass 1: story mode, one batched tap ────────────────────────────────
     seedWorld();
     mounted = mountGame();
-    let digest: YearDigest | null = null;
     await act(async () => {
-      digest = await captured!.liveYear();
+      await captured!.liveYear();
       await Promise.resolve();
     });
+    // Read AFTER the act() block: that is when React has committed, and the
+    // committed state is the only thing either mode can be judged on.
     const storyFingerprint = fingerprint(captured!.state);
-    const weeksAdvanced = digest!.weeksAdvanced;
+    const weeksAdvanced = captured!.state.weeksLived ?? 0;
 
     act(() => mounted!.root.unmount());
     mounted = null;
     if (AsyncStorageMock?.clear) await AsyncStorageMock.clear();
 
-    // The batch must actually have done something, or the comparison below is
-    // vacuously true — a broken liveYear that advances 0 weeks would otherwise
-    // "pass" against 0 classic ticks.
+    // A batch that advanced nothing would make the comparison vacuously true.
     expect(weeksAdvanced).toBeGreaterThan(0);
 
     // ── Pass 2: classic mode, the same span one tap at a time ──────────────
@@ -213,21 +214,16 @@ describe('Story mode batches the interaction, not the simulation', () => {
     for (let i = 0; i < weeksAdvanced; i++) await tickOnce();
     const classicFingerprint = fingerprint(captured!.state);
 
-    process.stdout.write(
-      `\n[batch-equivalence] weeksAdvanced=${weeksAdvanced} stopReason=${digest!.stopReason}\n`
-    );
-
+    process.stdout.write(`\n[batch-equivalence] weeks=${weeksAdvanced}\n`);
     expect(storyFingerprint).toEqual(classicFingerprint);
   });
 
-  // SKIPPED for the same reason as above: the digest's closing numbers are read
-  // from state the loop cannot observe in time under act().
-  it.skip('reports a digest consistent with the state it produced', async () => {
+  it('summarizes the year against live state', async () => {
     seedWorld();
     mounted = mountGame();
     const before = captured!.state;
     const moneyBefore = before.stats.money;
-    const ageBefore = before.date.age;
+    const weeksBefore = before.weeksLived ?? 0;
 
     let digest: YearDigest | null = null;
     await act(async () => {
@@ -236,73 +232,69 @@ describe('Story mode batches the interaction, not the simulation', () => {
     });
 
     const after = captured!.state;
-    expect(digest!.moneyBefore).toBeCloseTo(moneyBefore, 4);
-    expect(digest!.ageBefore).toBeCloseTo(ageBefore, 6);
-    expect(digest!.moneyAfter).toBeCloseTo(after.stats.money, 4);
-    expect(digest!.ageAfter).toBeCloseTo(after.date.age, 6);
-    expect(after.weeksLived).toBe(before.weeksLived + digest!.weeksAdvanced);
+    const summary = summarizeYear(digest!, afterOf(after));
+
+    expect(digest!.before.money).toBeCloseTo(moneyBefore, 4);
+    expect(digest!.before.weeksLived).toBe(weeksBefore);
+    expect(summary.weeksAdvanced).toBe((after.weeksLived ?? 0) - weeksBefore);
+    expect(summary.moneyAfter).toBeCloseTo(after.stats.money, 4);
+    expect(summary.moneyDelta).toBeCloseTo(after.stats.money - moneyBefore, 4);
+    expect(summary.ageAfter).toBeCloseTo(after.date.age, 6);
   });
 
-  it('never advances more than the requested span', async () => {
+  it('never advances more weeks than it was asked for', async () => {
     seedWorld();
     mounted = mountGame();
-    let digest: YearDigest | null = null;
     await act(async () => {
-      digest = await captured!.liveYear(10);
+      await captured!.liveYear(10);
       await Promise.resolve();
     });
-    expect(digest!.weeksAdvanced).toBeLessThanOrEqual(10);
     expect(captured!.state.weeksLived).toBeLessThanOrEqual(10);
+    expect(captured!.state.weeksLived).toBeGreaterThan(0);
   });
 
-  it('stops the batch instead of auto-resolving a queued decision', async () => {
+  it('refuses to tick a dead character', async () => {
     seedWorld();
     mounted = mountGame();
 
-    // Drive several years. Any batch that ended for 'decision' must have left
-    // the decision on the board — the whole point is that the player answers it.
-    for (let year = 0; year < 6; year++) {
-      let digest: YearDigest | null = null;
-      await act(async () => {
-        digest = await captured!.liveYear();
-        await Promise.resolve();
-      });
-      if (digest!.stopReason === 'decision') {
-        expect((captured!.state.pendingEvents ?? []).length).toBeGreaterThan(0);
-        return; // Behaviour observed — that is what this test is for.
-      }
-      if (digest!.stopReason === 'death') return;
-    }
-    // Never hitting a decision across six years is not a failure of the batch,
-    // it is the event rate being low (see the content audit). Nothing to assert.
-  });
-
-  // SKIPPED, same root cause: reaching a natural death needs ~60 batched years,
-  // and a batch that stalls after a couple of weeks never gets there.
-  it.skip('refuses to tick a dead character', async () => {
-    seedWorld();
-    mounted = mountGame();
-
-    // Run until the character dies, then confirm a further batch is a no-op.
+    // Batch years until the character dies, then confirm a further tap is inert.
     for (let year = 0; year < 90; year++) {
-      let digest: YearDigest | null = null;
       await act(async () => {
-        digest = await captured!.liveYear();
+        await captured!.liveYear();
         await Promise.resolve();
       });
-      if (digest!.stopReason === 'death' || captured!.state.showDeathPopup) {
+      if (captured!.state.showDeathPopup) {
         const weeksAtDeath = captured!.state.weeksLived;
-        let post: YearDigest | null = null;
         await act(async () => {
-          post = await captured!.liveYear();
+          await captured!.liveYear();
           await Promise.resolve();
         });
-        expect(post!.weeksAdvanced).toBe(0);
-        expect(post!.stopReason).toBe('death');
         expect(captured!.state.weeksLived).toBe(weeksAtDeath);
         return;
       }
     }
     throw new Error('Character never died across 90 batched years — check the death path');
+  });
+
+  it('leaves queued decisions for the player rather than resolving them', async () => {
+    seedWorld();
+    mounted = mountGame();
+
+    for (let year = 0; year < 8; year++) {
+      let digest: YearDigest | null = null;
+      await act(async () => {
+        digest = await captured!.liveYear();
+        await Promise.resolve();
+      });
+      const summary = summarizeYear(digest!, afterOf(captured!.state));
+      if (summary.outcome === 'decision') {
+        // The events are still on the board, unanswered — nothing auto-resolved.
+        expect((captured!.state.pendingEvents ?? []).length).toBeGreaterThan(0);
+        return;
+      }
+      if (summary.outcome === 'death') return;
+    }
+    // Never queueing a decision across eight years is the low event rate the
+    // content audit measured, not a batch failure. Nothing to assert.
   });
 });

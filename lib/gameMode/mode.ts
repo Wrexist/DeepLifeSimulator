@@ -46,30 +46,99 @@ export function isStoryMode(mode: GameMode | undefined | null): boolean {
   return resolveGameMode(mode) === 'story';
 }
 
-/** Why a story-mode batch stopped. Surfaced in the digest and in logs. */
-export type BatchStopReason =
-  /** Ran the full year without interruption. */
-  | 'year-complete'
-  /** The character died partway through. */
-  | 'death'
-  /** An event needs an answer before the year can continue. */
-  | 'decision'
-  /** The tick refused to advance (guard, error, or a state that can't tick). */
-  | 'blocked';
-
-/** What one story-mode tap did, for the Year in Review surface. */
+/**
+ * What one story-mode tap did, for the Year in Review surface.
+ *
+ * ONLY "before" values and things the batch itself knows. There is deliberately
+ * no `moneyAfter` / `ageAfter` / `stopReason` here, and that absence is a design
+ * decision rather than an omission:
+ *
+ * A batch runs inside one React callback, so anything it reports about the state
+ * it PRODUCED has to be read before React has necessarily committed — and every
+ * way of asking (the state ref, the tick's own published state, a no-op probe
+ * updater) was measured returning stale values inside a loop. Reporting an
+ * "after" number from in there means reporting one that can be a week wrong.
+ *
+ * The component rendering the Year in Review is already subscribed to the live
+ * state and re-renders when it commits, so it has the real "after" for free.
+ * This carries the half the batch actually owns; `summarizeYear` joins them.
+ */
 export interface YearDigest {
-  /** Weeks actually advanced — less than 52 when something stopped it. */
-  weeksAdvanced: number;
-  stopReason: BatchStopReason;
-  /** Age at the start of the batch, for the "Age 34 → 35" header. */
-  ageBefore: number;
-  ageAfter: number;
-  /** Cash at start and end. The delta is the headline number. */
-  moneyBefore: number;
-  moneyAfter: number;
-  netWorthBefore: number;
-  netWorthAfter: number;
+  /** Weeks the batch asked for. What was DELIVERED is `after - before`. */
+  weeksRequested: number;
+  /** Snapshot taken before the first tick — the only side the batch can trust. */
+  before: {
+    weeksLived: number;
+    age: number;
+    money: number;
+    netWorth: number;
+  };
   /** Subsystem messages collected across the batch, deduped, in order. */
   notes: string[];
+}
+
+/** Why the year ended where it did. Derived from live state, never reported. */
+export type YearOutcome =
+  /** Ran the full span requested. */
+  | 'year-complete'
+  /** The character died during it. */
+  | 'death'
+  /** Events queued up and are waiting on the player. */
+  | 'decision'
+  /** Nothing advanced at all. */
+  | 'blocked';
+
+/** The Year in Review, computed by joining the digest to the live state. */
+export interface YearSummary {
+  weeksAdvanced: number;
+  outcome: YearOutcome;
+  ageBefore: number;
+  ageAfter: number;
+  moneyBefore: number;
+  moneyAfter: number;
+  moneyDelta: number;
+  netWorthBefore: number;
+  netWorthAfter: number;
+  netWorthDelta: number;
+  notes: string[];
+}
+
+/** The "after" half, read from whatever the caller currently has committed. */
+export interface YearAfter {
+  weeksLived: number;
+  age: number;
+  money: number;
+  netWorth: number;
+  died: boolean;
+  pendingDecisions: number;
+}
+
+/**
+ * Join the batch's "before" to the live "after".
+ *
+ * `weeksAdvanced` is the movement of the game clock — not a counter the loop
+ * kept — so it is right regardless of when any updater ran. That is the whole
+ * reason the split exists.
+ */
+export function summarizeYear(digest: YearDigest, after: YearAfter): YearSummary {
+  const weeksAdvanced = Math.max(0, after.weeksLived - digest.before.weeksLived);
+  let outcome: YearOutcome;
+  if (after.died) outcome = 'death';
+  else if (weeksAdvanced <= 0) outcome = 'blocked';
+  else if (after.pendingDecisions > 0) outcome = 'decision';
+  else outcome = 'year-complete';
+
+  return {
+    weeksAdvanced,
+    outcome,
+    ageBefore: digest.before.age,
+    ageAfter: after.age,
+    moneyBefore: digest.before.money,
+    moneyAfter: after.money,
+    moneyDelta: after.money - digest.before.money,
+    netWorthBefore: digest.before.netWorth,
+    netWorthAfter: after.netWorth,
+    netWorthDelta: after.netWorth - digest.before.netWorth,
+    notes: digest.notes,
+  };
 }
