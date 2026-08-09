@@ -1387,3 +1387,79 @@ non-scrolling column at `maxHeight: '80%'` with its Skip/Next buttons last. It
 is safe only because its copy is fixed, short, and authored — not because the
 shape is sound. If those strings ever become dynamic or localized, it breaks
 exactly like the others.
+
+## 2026-08-09 (same day) — a growth plan written without reading the code asked us to break the App Store rules
+
+A viral-growth plan arrived for review. Read end to end it is a good document,
+and several pillars are genuinely unbuilt. But the item it ranked as a
+this-week must-do — §4.1, the rating prompt — was the one item that would have
+made the app **worse and rejectable**, and it is worth writing down exactly why
+that item was the dangerous one.
+
+**The recommendation.** "Soft-gate it: your own 'Enjoying DeepLife?' modal
+first; only fire the native prompt on 'Yes!', route 'No' to Discord/feedback."
+
+**Why it is wrong.** That is *review gating* — pre-screening players and
+sending only the happy ones to the store. Apple's Ratings and Reviews guideline
+prohibits selectively soliciting reviews from a subset of users, and
+`utils/reviewMoments.ts:28-32` already carries a comment saying so and
+instructing that it must not be added. So the plan proposed, as a headline
+action item, precisely the thing a prior session had thought about and
+deliberately refused. *(The guideline number in that comment reads 1.1.7 —
+worth a 60-second check against the current guidelines text before anyone cites
+it externally; the substance is not in doubt, the numbering is.)*
+
+**Why it is wrong twice over.** The plan's premise — that the prompt fires at
+naive moments and needs moving to peak-positive ones — was already false. The
+prompt is a three-file system that does more than the plan asks for:
+
+- `utils/reviewMoments.ts` — scores every candidate beat 0..1 and drops
+  anything under `MIN_REVIEW_INTENSITY`, so a level-2 promotion never spends an
+  ask; cancels on sour beats (death, bankruptcy, jail, a health or net-worth
+  collapse); and delays into the *afterglow* so the sheet does not land on top
+  of the celebration the player is still reading.
+- `utils/ratingPrompt.ts` — wall-clock cooldown as the primary guard,
+  specifically because a game-week cooldown would burn all three of iOS's
+  yearly asks in one long session.
+- `components/ReviewPromptHandler.tsx` — a headless store subscriber rather
+  than a call inside a reducer, because React can invoke an updater twice and
+  one beat would fire two asks.
+
+Adopting §4.1 would have replaced that with a worse system and a rejection
+risk.
+
+**The rules.**
+
+1. **A plan that describes our own product is a claim, not a brief.** Check
+   every "currently we do X" against the code before actioning it. Four of this
+   plan's premises were already false: the death screen *does* have a share
+   button (`components/DeathPopup.tsx:569` → `lib/legacy/obituaryGenerator.ts:123`),
+   `marketing/app-store-localizations/` already holds 39 locales including the
+   pt-BR the plan says to do first, and a `ShareLifeCard` already exists. Only
+   fast-forward was correctly reported as missing.
+2. **Domain-plausible advice is the most dangerous kind.** "Soft-gate the
+   rating prompt" is real, widely-repeated growth advice. It is also against
+   the rules on this platform. Advice being standard practice somewhere is not
+   evidence it is permitted here — and the more routine it sounds, the less
+   likely anyone stops to check it.
+3. **When a comment says "do not add this", it is load-bearing.** The
+   `reviewMoments.ts` header is the only reason this was caught in minutes
+   rather than shipped. Write the refusal down *next to the code*, with the
+   reason, or the next plan re-proposes it.
+
+**What the audit did surface, which the plan missed.** The share loop's real
+defect is not that it is absent — it is that it cannot convert:
+
+- `lib/legacy/obituaryGenerator.ts:123` builds the share text with a
+  `#DeepLifeSim` hashtag and **no App Store link**. Every shared death is a
+  dead end for attribution and for installs.
+- `components/ShareLifeCard.tsx` (417 lines, added in PR #67) is **imported by
+  nothing** — dead code. It is also text-only, and `require`s
+  `@react-native-clipboard/clipboard`, which is not in `package.json`; the call
+  sits in a try/catch, so wiring the component up would silently lose the Copy
+  button rather than crash.
+
+A feature that exists but is unreachable reads, in any audit that greps for
+capability, as a feature that ships. Both this and the linkless share text were
+invisible to a plan written from the outside — and are worth more than the
+plan's top three items combined.
