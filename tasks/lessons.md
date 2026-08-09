@@ -1463,3 +1463,65 @@ A feature that exists but is unreachable reads, in any audit that greps for
 capability, as a feature that ships. Both this and the linkless share text were
 invisible to a plan written from the outside — and are worth more than the
 plan's top three items combined.
+
+## 2026-08-09 (same day) — a batch loop cannot watch itself tick
+
+Story mode (one tap = a year) was built the cheap way first: leave the ~2,700
+line weekly tick completely alone and just call `nextWeek()` 52 times in a loop,
+suppressing the per-tap presentation (haptic, loading overlay, banners, autosave)
+behind a `batchTickRef`. That part works and is the right shape. What does not
+work is the loop **observing its own progress**, and the failure was invisible
+until the equivalence test went looking for it.
+
+**The bug.** `nextWeek` reads `gameStateRef.current` at the top to build its
+pre-roll and decay inputs. That ref is refreshed only by a post-commit
+`useEffect`. Seconds apart, fine. In a tight await-loop, React has not committed,
+so every batched week computed its inputs from the SAME base state — damage never
+accumulated and the character quietly stopped ageing. A batched life sailed past
+the week-15 death that a classic life hits from identical inputs. Publishing the
+post-tick state into the ref from inside the updater fixes that specific read.
+
+**The bug under the bug.** Every later attempt to have the loop ask "did that
+week advance / did they die / is a decision waiting" failed the same way, and no
+amount of `await setTimeout(0)` helped:
+
+- reading `gameStateRef` → lags, that's the original bug;
+- reading the tick's own `postTickState` → published after `setGameState`
+  returns, ordering against the commit not guaranteed;
+- a no-op functional `setGameState(prev => {seen = prev; return prev})` probe →
+  the read React *does* guarantee, and it still returned pre-tick state;
+- publishing from **inside** the updater → provably the right value, still read
+  one-to-three iterations late.
+
+**Under `act()` React defers every queued updater to the act() boundary.** Not
+"eventually flushes" — does not run them at all while the loop is executing. So a
+loop that awaits inside a single act() block can never see its own effects, no
+matter how it asks. Three yields, a probe updater and an inside-the-updater
+publish all produced the same answer because they were all asking the same
+impossible question.
+
+**The rules.**
+
+1. **A loop that calls a React state-updating action cannot read the result of
+   iteration N before iteration N+1.** If a batch needs to branch on what it just
+   did, the batch does not belong outside the updater. Batch the state
+   transition, not the action.
+2. **Derive counters from monotonic state, not from loop bookkeeping.**
+   `weeksAdvanced` became `after.weeksLived - before.weeksLived`, which is right
+   regardless of when any updater ran. The version that incremented inside the
+   loop reported 52 for a life that had advanced 15 weeks.
+3. **`act()` is not a slow version of production, it is a different scheduler.**
+   A mechanic verified only outside it is not verified. This one is now three
+   `it.skip`s in `__tests__/gameMode/batchEquivalence.test.ts` that say exactly
+   why, rather than a green suite implying it works.
+4. **Ship the unverifiable part unwired.** `liveYear` is committed, typed and
+   documented, and nothing calls it. Classic mode is untouched — the 500-tick
+   `realProviderLoop` stress test and all 6,454 tests still pass. A button on it
+   would have been the actual mistake.
+
+**What unblocks it:** lift the updater body into
+`runWeeklyTick(prevState, perWeekRolls) => nextState` and run the year in a plain
+loop inside ONE `setGameState`. Then a year is a pure state transition, there is
+no commit to race, and the equivalence test can run. `buildPreRolls()` must stay
+outside the updater for StrictMode determinism, so the batch pre-rolls an array
+of 52 up front; `computeDecayInputs` is pure and moves inside the loop.
