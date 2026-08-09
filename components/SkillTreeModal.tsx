@@ -733,7 +733,22 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           )}
         </LinearGradient>
 
-        <View style={styles.detailsBody}>
+        {/*
+          The body scrolls and the action does NOT.
+
+          This was one `<View style={detailsBody}>` holding description, effect,
+          requirements and — last — the Unlock button, inside a panel capped at
+          a flat `maxHeight: scale(200)`. At the base scale the content measures
+          ~218px for a one-line description and ~235px for two, so the cap ate
+          the bottom of the button; the panel has no scroll and the modal shell
+          is `overflow: 'hidden'`, so the primary action on this screen was
+          clipped, and on the tighter cases unreachable — you could open a skill
+          you could afford and have no way to buy it.
+
+          Splitting it means the prose can grow without ever pushing the button
+          out: the text shrinks and scrolls, the button is pinned below it.
+        */}
+        <ScrollView style={styles.detailsScroll} contentContainerStyle={styles.detailsBody}>
           <Text style={[styles.detailsDescription, settings.darkMode && styles.textMuted]}>
             {selectedNode.description}
           </Text>
@@ -766,7 +781,17 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
             </View>
           </View>
 
-          {status === 'available' && (
+          {status === 'locked' && selectedNode.requires && (
+            <Text style={styles.requiresText}>
+              Requires: {selectedNode.requires.map(r =>
+                currentCategory.nodes.find(n => n.id === r)?.name
+              ).join(', ')}
+            </Text>
+          )}
+        </ScrollView>
+
+        {status === 'available' && (
+          <View style={styles.detailsFooter}>
             <TouchableOpacity
               style={styles.unlockButton}
               onPress={() => handleUnlockNode(selectedNode)}
@@ -779,16 +804,8 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 <Text style={styles.unlockButtonText}>Unlock Skill</Text>
               </LinearGradient>
             </TouchableOpacity>
-          )}
-
-          {status === 'locked' && selectedNode.requires && (
-            <Text style={styles.requiresText}>
-              Requires: {selectedNode.requires.map(r => 
-                currentCategory.nodes.find(n => n.id === r)?.name
-              ).join(', ')}
-            </Text>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -1049,7 +1066,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    maxHeight: scale(200),
+    // Was `maxHeight: scale(200)` — a flat cap on a column ending in the Unlock
+    // button, which is the shape `__tests__/render/modalListsShrink.test.ts`
+    // exists to keep out: a fixed cap cannot give space back, so the overflow
+    // (the button) simply left the panel. A share of the shell instead, which
+    // the panel only reaches if the prose needs it — the shell has a definite
+    // height (`container`), so the percentage resolves.
+    maxHeight: '45%',
+  },
+  detailsScroll: {
+    // The other half of the pair — RN defaults flexShrink to 0. Without this
+    // the text keeps its full height and pushes the footer out again.
+    flexShrink: 1,
+  },
+  detailsFooter: {
+    paddingHorizontal: scale(12),
+    paddingBottom: scale(12),
   },
   detailsPanelDark: {
     backgroundColor: '#1E293B',

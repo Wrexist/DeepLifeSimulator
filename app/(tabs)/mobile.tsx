@@ -29,6 +29,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'expo-router';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 
 // REVERTED R6 lazy-loading: see comment in computer.tsx — same regression.
 import DatingApp from '@/components/mobile/Spark/SparkApp';
@@ -90,6 +91,11 @@ export function MobileScreenContent({
   const { t } = useTranslation();
   const { gameState } = useGame();
   const router = useRouter();
+  // Redirects that run on this screen's first commit throw "Attempted to
+  // navigate before mounting the Root Layout component" when this screen IS
+  // the entry route (restored URL / deep link), which surfaces as the crash
+  // screen. See hooks/useNavigationReady.ts.
+  const navReady = useNavigationReady();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
@@ -118,11 +124,11 @@ export function MobileScreenContent({
   // Prevent staying on mobile screen when in prison - redirect to work tab.
   // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, gameState.jailWeeks, router]);
+  }, [embedded, navReady, gameState.jailWeeks, router]);
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
@@ -131,12 +137,12 @@ export function MobileScreenContent({
   // Embedded, the Apps tab chooses Computer-vs-Mobile by ownership, so this
   // stranding can't happen — skip the redirect to avoid fighting the parent.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (ownsComputer) {
       router.replace('/(tabs)/home');
     }
-  }, [embedded, gameState.items, router]);
+  }, [embedded, navReady, gameState.items, router]);
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();

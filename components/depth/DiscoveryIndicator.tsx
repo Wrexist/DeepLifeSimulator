@@ -240,7 +240,7 @@ function DiscoveryModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
             {/* Discovered Systems */}
             <View style={styles.modalSection}>
               <View style={styles.modalSectionHeader}>

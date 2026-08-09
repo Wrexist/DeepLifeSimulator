@@ -791,6 +791,11 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: scale(16),
+    // Pairs with `modalContent`'s `maxHeight: '80%'`. RN defaults flexShrink to
+    // 0, so without this a long entry's details keep their full height, overflow
+    // the sheet, and get clipped by its `overflow: 'hidden'` with no way to
+    // scroll to the rest. See __tests__/render/modalListsShrink.test.ts.
+    flexShrink: 1,
   },
   modalDetails: {
     fontSize: fontScale(15),

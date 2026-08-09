@@ -71,7 +71,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
             <Text style={[styles.energyText, { color: theme.textSecondary }]}>{Math.round(energy)} energy available</Text>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: responsiveSpacing.md, gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: responsiveSpacing.md, gap: responsiveSpacing.md }}>
             {PURSUITS.map((p) => {
               const pursuit = getPlayerPursuit(gameState, p.id);
               const practicedThisWeek = gameState.weeklyPursuitPractice?.[p.id] ?? 0;

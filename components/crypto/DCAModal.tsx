@@ -66,7 +66,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
               Auto-buys debit from a bank account on a schedule. Stops once the source account runs dry.
             </Text>

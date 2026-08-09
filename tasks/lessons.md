@@ -1285,3 +1285,105 @@ fields, `expiredMailEvents` itself, `yearOf`, `SenderKey`).
 **The rule:** when a feature is finished, read it once more asking only "what
 happens the SECOND time?" — second tap, second week, second application, second
 read of the same accessor. That question found five of these six.
+
+## 2026-08-09 — `flex: 1` inside a `maxHeight`-only sheet is zero, and a broken modal is a soft lock
+
+Player report: "game soft locked on the life skills tab", with a screenshot of
+the Activity Commitments modal drawn as a ~60px sliver under the status bar —
+header and footer touching, the entire body gone, the game visible but dead
+behind it.
+
+Two defects stacked, and neither is interesting on its own:
+
+```ts
+modal:   { width: '90%', maxHeight: '90%' },   // no definite height
+content: { flex: 1 },                          // → flexBasis: 0
+blurOverlay: { ...StyleSheet.absoluteFillObject },  // no justify/align
+```
+
+`flex: 1` is `flexGrow: 1, flexShrink: 1, flexBasis: 0`. In a column whose own
+height is **content-driven** (`maxHeight` is a clamp, not a height), a
+zero-basis child contributes nothing to the measurement, so the column measures
+`header + 0 + footer` — and there is then no free space left for `flexGrow` to
+hand back. The list resolves to zero. `maxHeight` looks like a bound and reads
+like one; it is not one. The pair that works is the one the banking sheets
+already use: `flexShrink: 1` on the list, a real bound on the sheet.
+
+The second half is why it looked so broken: the sheet's wrapper was
+`absoluteFillObject`, so the parent's `justifyContent: 'center'` never applied
+and the overlay's safe-area padding did not reach an absolutely-positioned
+child. The sliver was pinned to the top of the window with its close button
+under the status bar.
+
+**What made it a soft lock rather than an ugly screen:** a transparent RN
+`Modal` owns every touch in its window. Nothing behind it is reachable, however
+visible it looks. So a sheet that mislays its own controls takes the entire game
+with it — there is no tapping past it, and no back gesture on iOS. Every
+transparent modal needs a dismiss affordance that does not depend on the sheet
+laying out correctly: a backdrop `Pressable` **behind** the sheet (a wrapper
+would steal the ScrollView's gestures), which is what `WhatsNewModal` already
+documents.
+
+**The rule:** `maxHeight` alone does not make a parent bounded — pair it with
+`flexShrink: 1`, never `flex: 1`. And every transparent modal gets a
+tap-outside-to-close backdrop, because the cost of a layout mistake in one is
+not a bad screen, it is a lost session.
+
+Footnote on the guard: `__tests__/render/modalListsShrink.test.ts` already
+existed for exactly this class and did not catch it, because its sweep matches
+inline `style={{ ... }}` and this one hid behind a named StyleSheet entry. A
+regex-shaped guard only covers the spelling it was written against.
+
+## 2026-08-09 (same day) — the same defect, eighteen more times, in three spellings
+
+Fixing the Commitments soft lock above raised the obvious question: how many
+more sheets have it? `__tests__/render/modalListsShrink.test.ts` already
+guarded the class and reported clean, so the honest answer had to come from a
+sweep that did not trust the existing one.
+
+It found **eighteen** more sites. Not one of them was a new mistake — they were
+the same defect wearing spellings the guard's regex did not match:
+
+| Spelling | Why the guard missed it |
+|---|---|
+| `<ScrollView style={styles.modalBody}>` | the cap hid inside a named StyleSheet entry |
+| `<ScrollView contentContainerStyle={…}>` | no `style` prop at all to match against |
+| a `<View>` capped at `scale(200)`, no scroller | not a ScrollView, so nothing to sweep for |
+
+The third is the one worth remembering. The Life Skills detail panel was a plain
+`View` capped at `maxHeight: scale(200)` holding description → effect →
+requirements → **Unlock button**. Measured at base scale that column is ~218px,
+~235px with a two-line description. A `View` does not scroll and the modal shell
+is `overflow: 'hidden'`, so the button was clipped — the primary action of the
+screen, on a skill the player could afford, with no way to buy it. The guard was
+written about lists, so a capped column that was not a list never came up.
+
+The bounded surface and the shrinking child are two different jobs and belong on
+two different elements. What broke everywhere was collapsing them into one: a
+cap on the thing that should shrink (`scale(200)`, `maxHeight: '90%'` on the
+list itself), or nothing on either. The shape that works, every time:
+
+```tsx
+<View style={{ maxHeight: '90%' }}>        {/* bound */}
+  <Header />                                {/* fixed */}
+  <ScrollView style={{ flexShrink: 1 }}>    {/* shrinks */}
+  <ConfirmButton />                         {/* fixed — NEVER inside the scroller */}
+```
+
+**The rule, restated because the old one was too narrow:** the bound goes on the
+sheet, `flexShrink: 1` goes on the body, and the action goes *below* the body,
+never inside it and never last in an unscrolled column. This holds for any
+capped column, not only ones containing a `ScrollView`.
+
+**And the meta-rule:** a guard written as a regex over one spelling reports clean
+on the other two. When a guard exists for a class and you find a new instance of
+that class, the instance is the smaller problem — re-derive the sweep from the
+SHAPE (parse the styles, resolve containment) and re-run it against the whole
+tree before believing any count. The rewritten sweep is in the same file; it
+resolves which sheet a scroller actually sits in rather than matching a line.
+
+One known instance is deliberately left: `SimpleTutorialModal` caps a
+non-scrolling column at `maxHeight: '80%'` with its Skip/Next buttons last. It
+is safe only because its copy is fixed, short, and authored — not because the
+shape is sound. If those strings ever become dynamic or localized, it breaks
+exactly like the others.
