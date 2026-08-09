@@ -26,6 +26,48 @@ The route-conflict guard (`npm run check:routes`) runs first and needs no secret
 | `EXPO_PUBLIC_ADMOB_BANNER_IOS` / `_INTERSTITIAL_IOS` / `_REWARDED_IOS` (+ android) | Real ad unit IDs | Google **test** unit IDs → zero ad revenue |
 | Save-signing / HMAC key (see `evaluateSaveSigningEnv`) | Tamper-evident saves | Unsigned saves / weakened integrity |
 
+## The two that block preflight today — exact commands
+
+A fresh clone fails `npm run preflight` on §9 and §8 with these two absent. Both
+are environment, not code: `eas.json`'s production profile already sets
+`EXPO_PUBLIC_USE_REVENUECAT=true`, and neither key may be committed.
+
+```bash
+# 1. RevenueCat iOS public SDK key — satisfies preflight §9 (receipt verification).
+#    This is RevenueCat's *public* app key (starts `appl_`), not the secret API
+#    key. Copy it from RevenueCat → Project → API keys → App-specific.
+eas env:create --scope project \
+  --name EXPO_PUBLIC_RC_IOS_KEY --value appl_XXXXXXXXXXXX \
+  --environment production --visibility sensitive
+
+# 2. Save-signing HMAC key — satisfies preflight §8 (signed saves).
+#    Generate a fresh one; never reuse a key that has been in a repo or a chat.
+#    openssl rand -hex 32
+eas env:create --scope project \
+  --name EXPO_PUBLIC_SAVE_HMAC_KEY --value <64-hex-chars> \
+  --environment production --visibility sensitive
+```
+
+**Verify locally without storing anything** — supply them for one command only,
+so nothing lands in a shell profile or a `.env`:
+
+```bash
+EXPO_PUBLIC_USE_REVENUECAT=true \
+EXPO_PUBLIC_RC_IOS_KEY=appl_placeholder \
+EXPO_PUBLIC_SAVE_HMAC_KEY=placeholder_not_a_real_key \
+  npm run preflight
+```
+
+That run is a check of the *gate logic*, not of the real keys — it proves
+preflight passes once the environment is populated. The build itself must use
+the real values from EAS.
+
+> **Rotating `EXPO_PUBLIC_SAVE_HMAC_KEY` invalidates the signature on every save
+> already in the field.** Confirm the load path's behaviour for an
+> unverifiable-but-uncorrupted save before rotating on a live app; see
+> `utils/saveSigningConfig.ts` and `tasks/leaked-key-rotation-runbook.md`.
+
+
 ## Must be UNSET (or false) for production
 | Variable | Why |
 |---|---|

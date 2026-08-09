@@ -9,19 +9,19 @@ Deep Life Simulator
 ## subtitle
 
 ```text
-Real Economics. Real Choices.
+Rags to riches money life sim
 ```
 
 ## promotional_text
 
 ```text
-You're 18 with empty pockets and unlimited potential. Take out loans, play the market, buy property, bend the rules, then pass it all on. Build a dynasty or go bankrupt trying. Your move.
+One tap, one year. Story Mode lets you live a whole life in a sitting — the same economy, every week still simulated. Start at 18 with $0. Die a billionaire, or don't.
 ```
 
 ## keywords
 
 ```text
-life simulator,career,investing,tycoon,business,choices,bankruptcy,strategy,money,simulation
+career,tycoon,billionaire,dynasty,crime,mafia,stocks,crypto,invest,business,idle,text,story,empire
 ```
 
 ## description
@@ -99,19 +99,18 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-v2.5.8 - Stability & Polish
+Story Mode — live a whole life in one sitting.
 
-Thank you for playing Deep Life Simulator. This release is all about making the game smoother and more reliable:
+• Choose your pace when you start a new life. Classic is one tap, one week. Story Mode is one tap, one year.
+• The simulation is identical in both. Story Mode skips nothing — every week still runs in full, so the same bills land, the same interest accrues and the same market moves. It just stops asking you to tap for each one.
+• Every year ends with a Year in Review: what your money did, what your net worth did, and everything that happened while it ran.
+• Nothing is decided for you. Choices still wait for you to make them.
+• Sharing a life now links to the game, so the friend you send it to can install it.
 
-• Bug fixes across saves, the economy, and the in-app store
-• Performance and stability improvements throughout
-• General polish based on the issues you've reported
+Also in this update:
 
-Every update aims to make your choices matter more and your saves safer.
-
-Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
-
-No forced ads. No pay-to-win. Just a fair, strategic life sim.
+• Two stories that promised drama and then quietly took it away now follow through, with choices that lead somewhere genuinely different.
+• Fixed a bug where advancing several weeks quickly could use out-of-date numbers — your stats wore down against a stale snapshot, and a character could keep ageing after they had already died.
 ```
 
 ## gp_short_description

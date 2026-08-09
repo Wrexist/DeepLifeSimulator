@@ -15,7 +15,7 @@ Money, Choices, Consequences
 ## promotional_text
 
 ```text
-You're 18 with nothing but potential. Borrow, invest, buy real estate, bend the rules, build a dynasty that outlives you or go bankrupt trying. Every single choice compounds.
+One tap, one year. Story Mode lets you live a whole life in a sitting — the same economy, every week still simulated. Start at 18 with $0. Die a billionaire, or don't.
 ```
 
 ## keywords
