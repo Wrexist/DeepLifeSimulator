@@ -56,6 +56,36 @@ Recorded here because each cost a capture round trip:
    Declining**, all sectors Neutral and flat sparklines — a dead board under a
    "living market" caption.
 
+---
+
+## Phase 2 — YouTube Shorts (done)
+
+Same rig, retargeted. `npm run shorts` produces three finished 1080×1920
+Shorts in `marketing/videos/shorts/` (18.7s / 19.6s / 18.0s).
+
+Four things had to be solved that were not obvious:
+
+1. **Playwright records at CSS-pixel size.** `deviceScaleFactor` does not raise
+   recording resolution, so a 540×960 viewport produced a 540×960 image sitting
+   in the top-left of a 1080×1920 canvas. A plain 1080×1920 viewport is not the
+   fix either — `utils/scaling.ts` treats `min(w,h) >= 768` as a tablet and
+   switches the clamp from 1.3× to 1.8×. Solution (`installHiDpi`): real
+   1080×1920 viewport, report `innerWidth/innerHeight` as 540×960 so the app
+   stays on the phone clamp, and `zoom: 2` the document.
+2. **Wall-clock trimming does not work.** The recorder is variable-rate and
+   drops frames while the app boots, so video time and wall time diverge by
+   seconds. The spec now brackets each Short with a pure-black cover and the
+   encoder finds the boundaries with ffmpeg `blackdetect`.
+3. **`setpts` speed correction fights `-t`.** Normalising the ~8% slow-motion
+   in the screencast timeline made `-t` (an output-side limit) disagree about
+   where the clip ends and pulled the closing black cover back into the file.
+   Dropped it; length is controlled by the beat holds instead.
+4. **No ffmpeg in the container** — `ffmpeg-static` / `ffprobe-static` as
+   devDependencies.
+
+Verified: 30 sampled frames across the three cuts, zero black; every sampled
+frame carries a caption or the end card; type-check and eslint clean.
+
 ## Still to do (owner)
 
 - [ ] Trim the locked cut to 15–20s and burn in captions (autoplay is muted).

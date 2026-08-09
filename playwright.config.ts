@@ -18,6 +18,14 @@ import { defineConfig, devices } from '@playwright/test';
 const PHONE = { width: 430, height: 932 }; // iPhone 15 Pro Max, CSS px
 const VIDEO = { width: 860, height: 1864 }; // 2x
 
+// YouTube Shorts is a hard 1080x1920 (9:16), and the recorder captures at the
+// page's CSS-pixel size — deviceScaleFactor does NOT raise recording
+// resolution. So the viewport is a real 1080x1920 and `installHiDpi` in
+// e2e/support/shortsOverlay.ts makes the app lay out as a 540x960 phone inside
+// it via a document zoom. That yields true 2x pixels with a phone layout.
+const SHORTS_VIEWPORT = { width: 1080, height: 1920 };
+const SHORTS_VIDEO = { width: 1080, height: 1920 };
+
 export default defineConfig({
   testDir: './e2e',
   outputDir: './e2e/.artifacts',
@@ -45,6 +53,18 @@ export default defineConfig({
     {
       name: 'preview-capture',
       use: { ...devices['Desktop Chrome'], viewport: PHONE, deviceScaleFactor: 2, hasTouch: true },
+      testMatch: /appPreview\.capture\.spec\.ts/,
+    },
+    {
+      name: 'shorts',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: SHORTS_VIEWPORT,
+        deviceScaleFactor: 1,
+        hasTouch: true,
+        video: { mode: 'on', size: SHORTS_VIDEO },
+      },
+      testMatch: /shorts\.capture\.spec\.ts/,
     },
   ],
 });
