@@ -18,20 +18,65 @@
  * screen; stacking a recap on top of it would bury the obituary. The caller
  * checks `outcome === 'death'` and skips.
  *
+ * ── THE OFFER, AND WHY IT IS HERE ─────────────────────────────────────────
+ * Roughly half of all paid conversions in subscription apps happen on DAY 0, so
+ * where the offer sits matters more than what it says. Until v2.7.0 there was no
+ * good day-0 moment to put one: a life took 3,224 taps, so a new player had
+ * experienced almost nothing by the time the first session ended, and an offer
+ * shown then is asking someone to pay for a product they have not seen.
+ *
+ * Story Mode changed that. A first session now contains a whole year — income,
+ * market, career, the lot — and the Year in Review is the moment the player
+ * looks at what it produced. That is the first honest peak in the game's
+ * history, which is why the offer is here and nowhere earlier.
+ *
+ * Three rules keep it an offer rather than nagging, and they mirror the ones
+ * `utils/reviewMoments.ts` already applies to the rating prompt:
+ *   1. Only after a year that went WELL. Pitching a subscription to someone
+ *      who just lost money is how you earn a one-star review.
+ *   2. Once per app session, latched at module scope so a cold start is the
+ *      only thing that re-arms it.
+ *   3. Inline in a sheet the player opened, never a popup over the game — it
+ *      can be ignored by reading past it.
+ *
  * Layout follows the sheet rule from tasks/lessons.md: the bound (`maxHeight`)
  * is on the sheet, `flexShrink: 1` is on the scrolling body, and the dismiss
  * button is a SIBLING below the body — never inside the scroller, or it becomes
  * unreachable on a long year.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { TrendingUp, TrendingDown, Minus, CalendarCheck, Bell } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, CalendarCheck, Bell, Crown } from 'lucide-react-native';
+import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
+import SubscriptionModal from '@/components/SubscriptionModal';
+import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus';
 import type { YearSummary } from '@/lib/gameMode/mode';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+
+/**
+ * Once-per-app-session latch for the offer. Module scope, so it resets on cold
+ * start — exactly the lifetime wanted. A player who dismisses it should not see
+ * it again while they keep playing.
+ */
+let offerShownThisSession = false;
+
+/**
+ * A year worth celebrating: net worth up, and up by enough to notice.
+ *
+ * Exported for the test suite — the thresholds here decide when a player is
+ * asked for money, so they are worth pinning rather than eyeballing.
+ */
+export function wasAGoodYear(summary: YearSummary): boolean {
+  if (summary.outcome !== 'year-complete') return false;
+  if (summary.weeksAdvanced < 26) return false;
+  // Relative, not absolute: +$500 is a triumph at week 10 and noise at week 900.
+  const base = Math.max(1000, Math.abs(summary.netWorthBefore));
+  return summary.netWorthDelta > 0 && summary.netWorthDelta / base >= 0.15;
+}
 
 interface YearInReviewModalProps {
   visible: boolean;
@@ -79,6 +124,29 @@ export function YearInReviewModal({
   darkMode = true,
 }: YearInReviewModalProps) {
   const c = getThemeColors(darkMode);
+  const { active: isMember, present: openPlus, open: plusOpen, close: closePlus } =
+    useDeepLifePlusUpsell('year_in_review');
+
+  // Re-evaluated whenever a NEW year is presented — not once on mount. This
+  // component is rendered persistently by the HUD with `summary` null between
+  // taps, so a mount-time decision would be made against no summary and the
+  // offer would never appear.
+  const [showOffer, setShowOffer] = useState(false);
+  useEffect(() => {
+    if (!visible || !summary || isMember || offerShownThisSession) {
+      setShowOffer(false);
+      return;
+    }
+    if (!wasAGoodYear(summary)) {
+      setShowOffer(false);
+      return;
+    }
+    // Latch only when it is actually going to be shown, so a bad year does not
+    // silently consume the one offer this session gets.
+    offerShownThisSession = true;
+    setShowOffer(true);
+  }, [visible, summary, isMember]);
+
   if (!summary) return null;
 
   const ageFrom = Math.floor(summary.ageBefore);
@@ -133,6 +201,32 @@ export function YearInReviewModal({
               <Text style={[styles.quiet, { color: c.textSecondary }]}>A quiet year.</Text>
             )}
 
+            {showOffer && !isMember ? (
+              <TouchableOpacity
+                onPress={openPlus}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0
+                    ? `DeepLife Plus, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial`
+                    : 'DeepLife Plus'
+                }
+                style={[styles.offer, { borderColor: accent.gold }]}
+              >
+                <Crown size={scale(16)} color={accent.gold} />
+                <View style={styles.offerText}>
+                  <Text style={[styles.offerTitle, { color: c.text }]}>
+                    Good year. Make the next one count.
+                  </Text>
+                  <Text style={[styles.offerSub, { color: c.textSecondary }]}>
+                    {DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0
+                      ? `DeepLife+ — ad-free, weekly gems. ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS} days free.`
+                      : 'DeepLife+ — ad-free, weekly gems.'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+
             {summary.outcome === 'decision' ? (
               <View style={[styles.pending, { borderColor: accent.warning }]}>
                 <Bell size={scale(14)} color={accent.warning} />
@@ -155,6 +249,7 @@ export function YearInReviewModal({
           </TouchableOpacity>
         </View>
       </View>
+      <SubscriptionModal visible={plusOpen} onClose={closePlus} />
     </Modal>
   );
 }
@@ -218,6 +313,17 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.sm,
   },
   pendingText: { fontSize: fontScale(13), fontWeight: '600', flex: 1 },
+  offer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    borderWidth: 1,
+    borderRadius: scale(10),
+    padding: responsiveSpacing.sm,
+  },
+  offerText: { flex: 1, gap: scale(2) },
+  offerTitle: { fontSize: fontScale(13.5), fontWeight: '700' },
+  offerSub: { fontSize: fontScale(12) },
   button: {
     borderRadius: scale(12),
     paddingVertical: responsiveSpacing.sm,
