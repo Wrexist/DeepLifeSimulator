@@ -1,6 +1,6 @@
 # YouTube Shorts — batch 01
 
-Three finished Shorts, **2160×3840 (4K) H.264 High, 30fps**, built by
+Five finished Shorts, **2160×3840 (4K) H.264 High, 30fps**, built by
 `npm run shorts`.
 
 Captured at 4K on purpose. YouTube serves Shorts at 1080p regardless, but it
@@ -17,8 +17,23 @@ Strategy and the reasoning behind the format live in
 | `01-the-climb.mp4` | 19.1s | 1 — the number climb | `$250` on screen, then it runs to $17.76M |
 | `02-real-economics.mp4` | 20.7s | 4 — real economics | "Most life sims fake the economy." |
 | `03-the-dynasty.mp4` | 16.4s | 6 — the dynasty | "You die. They don't." |
+| `04-the-weekly-loop.mp4` | 21.8s | **gameplay** — the core loop | "This is the whole game. One button. One week." |
+| `05-every-choice.mp4` | 21.2s | **gameplay** — a real decision | "Every week, a decision." |
 
-All three are **real captured gameplay** from the seeded demo save, with the
+**04 and 05 are played, not toured.** The first three move a camera over
+screens; these two press the week button and let the game answer — the weekly
+tick pays salary, charges bills, floats "+$2,068 / +29 Energy / +90 Gems"
+deltas, and opens the Week Summary with real income and expense lines. 05 goes
+further and films a **Life Moment**: a mid-week decision with its price printed
+on each option ("Drop $5 in the hat · −$5 · +8 Happiness"), held long enough to
+read, then answered on camera.
+
+That makes them the most honest footage in the set, and the closest thing to
+proof of the listing's central claim. Which Life Moment fires is up to the
+game, so the exact decision differs between takes — the spec plays forward
+under the cover until one appears, then starts the clip on it.
+
+All five are **real captured gameplay** from the seeded demo save, with the
 caption layer and a live 3D scene composited in the page. Nothing is
 AI-generated footage — which is what keeps them clear of YouTube's
 inauthentic-content policy and means they can be reused as App Store material.
@@ -44,6 +59,16 @@ Studio. Each Short says the app name on screen so branded search works.
 - **Title:** Most life sims fake the economy. This one does the math.
 - **Description:** A live stock market with sector rotation, real loans, real interest, and a credit score that actually drops. Deep Life Simulator.
 - **Tags:** #lifesim #simulationgame #stockmarket #mobilegame #indiegame
+
+### 04 — the weekly loop
+- **Title:** The entire game is one button
+- **Description:** Advance the week: salary lands, bills clear, interest accrues, and the whole economy ticks. Deep Life Simulator.
+- **Tags:** #lifesim #simulationgame #gameplay #mobilegame #indiegame
+
+### 05 — every choice has a price
+- **Title:** Every choice in this life sim has a price tag
+- **Description:** A Life Moment mid-week: three options, each with its real cost in cash and happiness. Deep Life Simulator.
+- **Tags:** #lifesim #simulationgame #gameplay #choices #indiegame
 
 ### 03 — the dynasty
 - **Title:** Your kids inherit everything — including your mistakes

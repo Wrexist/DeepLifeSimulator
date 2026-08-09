@@ -44,7 +44,10 @@ const TARGET = { w: 2160, h: 3840 };
  *
  * The spec holds a pure-black cover over boot and setup, drops it for the
  * Short, then puts it back. So the clip is the gap between the first and last
- * black runs. This is measured in VIDEO time, which is the whole point:
+ * black runs. The minimum run length is deliberately short (0.12s): at 4K the
+ * recorder finishes behind the wall clock and truncates most of the closing
+ * hold, so a tail marker can survive as only a few frames. This is measured in
+ * VIDEO time, which is the whole point:
  * Playwright records variable-rate and drops frames while the app is booting,
  * so wall-clock timestamps from the spec can be seconds out.
  *
@@ -56,7 +59,7 @@ function findMarkers(src) {
   // result has to be read from the stderr pipe rather than a thrown error.
   const res = spawnSync(
     ffmpegPath,
-    ['-hide_banner', '-i', src, '-vf', 'blackdetect=d=0.35:pix_th=0.04', '-an', '-f', 'null', '-'],
+    ['-hide_banner', '-i', src, '-vf', 'blackdetect=d=0.12:pix_th=0.04', '-an', '-f', 'null', '-'],
     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }
   );
   const out = `${res.stdout ?? ''}${res.stderr ?? ''}`;
@@ -65,14 +68,34 @@ function findMarkers(src) {
     start: parseFloat(m[1]),
     end: parseFloat(m[2]),
   }));
-  if (runs.length < 2) return null;
+  if (!runs.length) return null;
 
-  const head = runs[0];
-  const tail = runs[runs.length - 1];
   // The head run must actually be the leader, not a dark beat mid-clip.
-  if (head.start > 2) return null;
-  if (tail.start <= head.end) return null;
-  return { start: head.end, end: tail.start };
+  const head = runs[0].start <= 2 ? runs[0] : null;
+  if (!head) return null;
+
+  // The tail is optional and reported separately. The head is a ~25s black run
+  // and is always found; the tail is whatever survives of the closing hold
+  // after the recorder truncates, and sometimes that is nothing. Treating a
+  // missing tail as "no markers at all" threw away a perfectly good start mark
+  // and fell back to a wall-clock trim that opened Short 04 on black frames.
+  const last = runs[runs.length - 1];
+  const tail = last !== head && last.start > head.end ? last : null;
+  return { start: head.end, end: tail ? tail.start : null };
+}
+
+/** Container duration in seconds, or 0 if it cannot be read. */
+function sourceDuration(src) {
+  try {
+    const out = execFileSync(
+      ffprobeStatic.path,
+      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src],
+      { encoding: 'utf8' }
+    );
+    return parseFloat(out.trim()) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** Newest .webm under a Playwright test output directory. */
@@ -119,16 +142,27 @@ function main() {
     const marks = findMarkers(src);
     if (!marks) {
       console.warn(
-        `  ${meta.id}: black markers not found — falling back to wall-clock trim, CHECK THE RESULT`
+        `  ${meta.id}: no head marker — falling back to a wall-clock trim, CHECK THE RESULT`
       );
+    } else if (marks.end === null) {
+      console.warn(`  ${meta.id}: no tail marker — using the wall-clock duration`);
     }
+
     const start = marks
       ? marks.start + HEAD_SAFETY_SEC
       : Math.max(0, meta.startSec + HEAD_SAFETY_SEC);
-    // Source seconds we actually want, before any speed change.
-    const srcSpan = marks
-      ? Math.max(1, marks.end - marks.start - HEAD_SAFETY_SEC - TAIL_SAFETY_SEC)
-      : Math.max(1, meta.durSec - HEAD_SAFETY_SEC - TAIL_SAFETY_SEC);
+    // With a tail marker the span is exact. Without one, run to the end of the
+    // source rather than trusting the wall clock: video time drifts behind wall
+    // time during the busy week-tick animations, so a wall-clock duration cut
+    // Short 04 off before its end card. If blackdetect could not see a tail
+    // run, whatever black remains is shorter than 0.12s anyway.
+    const span =
+      marks && marks.end !== null
+        ? marks.end - marks.start
+        : marks
+          ? sourceDuration(src) - marks.start
+          : meta.durSec;
+    const srcSpan = Math.max(1, span - HEAD_SAFETY_SEC - TAIL_SAFETY_SEC);
 
     // No speed correction here on purpose. Chromium's screencast timeline runs
     // a few percent slow against the wall clock, and a `setpts` rescale does

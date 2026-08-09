@@ -223,6 +223,34 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
         return null;
       };
 
+      /**
+       * The tappable rows of a Life Moment.
+       *
+       * The options are not exposed as role=button, so they cannot be found by
+       * role. React Native Web does put `cursor: pointer` on every pressable,
+       * which is a reliable structural signal — take the modal card (the
+       * nearest ancestor of the title that holds the whole dialog) and collect
+       * its pointer-cursor descendants, outermost first.
+       */
+      const momentChoices = (): HTMLElement[] => {
+        const title = Array.from(document.querySelectorAll<HTMLElement>('div,span')).find(
+          (e) => e.children.length === 0 && (e.textContent ?? '').trim() === 'Life Moment'
+        );
+        if (!title) return [];
+        let card: HTMLElement | null = title;
+        for (let i = 0; i < 6 && card; i++, card = card.parentElement) {
+          if (card.querySelectorAll('*').length > 8) break;
+        }
+        if (!card) return [];
+        const rows = Array.from(card.querySelectorAll<HTMLElement>('*')).filter((e) => {
+          if (getComputedStyle(e).cursor !== 'pointer') return false;
+          const r = e.getBoundingClientRect();
+          return r.width > 40 && r.height > 20;
+        });
+        // Drop rows nested inside an already-collected row, so each option counts once.
+        return rows.filter((e) => !rows.some((o) => o !== e && o.contains(e)));
+      };
+
       /** Every top-level element the app owns — `#root` plus any portalled modal. */
       const appLayers = (): HTMLElement[] =>
         Array.from(document.body.children).filter(
@@ -377,6 +405,42 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
           el.dispatchEvent(new MouseEvent('mouseup', { ...base, buttons: 0 }));
           el.dispatchEvent(new MouseEvent('click', { ...base, detail: 1 }));
         },
+        /**
+         * Is a Life Moment decision on screen?
+         *
+         * These fire from the weekly tick and block everything until answered,
+         * so the capture has to know about them — and they are also the single
+         * best thing to film, being the game's "every choice costs something"
+         * pitch rendered as an actual modal with prices on it.
+         */
+        hasMoment() {
+          const t = Array.from(document.querySelectorAll<HTMLElement>('div,span')).find(
+            (e) => e.children.length === 0 && (e.textContent ?? '').trim() === 'Life Moment'
+          );
+          return !!(t && t.offsetParent !== null);
+        },
+        /** Text of the Life Moment's options, in order. */
+        momentOptions() {
+          return momentChoices().map((e) => (e.textContent ?? '').trim().slice(0, 60));
+        },
+        /** Answer the Life Moment by choosing option `index`. */
+        pickMoment(index: number) {
+          const choices = momentChoices();
+          const el = choices[index];
+          if (!el) throw new Error(`[shorts] Life Moment has no option ${index} (found ${choices.length})`);
+          const r = el.getBoundingClientRect();
+          const base = {
+            bubbles: true, cancelable: true, composed: true,
+            clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+            button: 0, view: window,
+          };
+          const ptr = { ...base, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+          el.dispatchEvent(new PointerEvent('pointerdown', { ...ptr, buttons: 1 }));
+          el.dispatchEvent(new MouseEvent('mousedown', { ...base, buttons: 1 }));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...ptr, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('mouseup', { ...base, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('click', { ...base, detail: 1 }));
+        },
         /** Is a label actually the topmost thing at its own centre? */
         onScreen(label: string) {
           return findOnScreen(label, false) !== null;
@@ -452,6 +516,9 @@ export interface ShortsApi {
   scroll(dy: number, ms: number): void;
   tapText(label: string, mode?: 'pointer' | 'native'): void;
   onScreen(label: string): boolean;
+  hasMoment(): boolean;
+  momentOptions(): string[];
+  pickMoment(index: number): void;
 }
 
 /** Call an overlay method inside the page. */

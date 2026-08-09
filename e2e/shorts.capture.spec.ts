@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import { seedDemoSaves } from './support/demoSave';
-import { installShortsOverlay, installHiDpi, sx } from './support/shortsOverlay';
+import { installShortsOverlay, installHiDpi, sx, sxQuery } from './support/shortsOverlay';
 
 /**
  * YouTube Shorts capture.
@@ -110,6 +110,10 @@ async function boot(page: Page, slot: number): Promise<void> {
   await expect(page.getByRole('tab', { name: 'Home', exact: true })).toBeVisible({ timeout: 60_000 });
   await page.waitForTimeout(8_000);
   await sx(page, 'bottomScrim', true);
+  // Settle. The overlay re-creates itself if the app replaces the body's
+  // children late in boot, and anything armed before that is lost with the old
+  // layer — which repeatedly cost a Short its opening caption.
+  await page.waitForTimeout(1_500);
 }
 
 interface Sidecar {
@@ -132,11 +136,13 @@ interface Sidecar {
  */
 async function seal(page: Page): Promise<void> {
   await sx(page, 'cover', true);
-  // Generous on purpose: at 4K the recorder finishes behind the wall clock, and
-  // a 1.2s hold could end up as less than the 0.35s of black that blackdetect
-  // needs to report a tail marker — which silently drops the encoder onto its
-  // wall-clock fallback.
-  await hold(page, 3_000);
+  // Very generous on purpose. At 4K the recorder finishes seconds behind the
+  // wall clock, and whatever it has not flushed when the context closes is
+  // simply absent from the file — which silently ate the end card off the two
+  // gameplay Shorts even though the DOM assertion for it passed. This pad is
+  // all black, so the encoder trims it away; it exists only to give the
+  // recorder room to catch up on the frames that matter.
+  await hold(page, 7_000);
 }
 
 const REPO_ROOT = resolve(__dirname, '..');
@@ -148,6 +154,53 @@ function writeSidecar(s: Sidecar): void {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(resolve(OUT, `${s.id}.json`), JSON.stringify(s, null, 2) + '\n', 'utf8');
   console.log(`  ${s.id}: start ${s.startSec.toFixed(2)}s  dur ${s.durSec.toFixed(2)}s`);
+}
+
+
+// --- gameplay helpers -------------------------------------------------------
+
+/**
+ * Press the week button — the actual core loop.
+ *
+ * Advancing runs the weekly tick, which pays salary, charges bills and pops
+ * floating "+$2068 / +29 Energy / +35 Gems" toasts. It can also raise a Life
+ * Moment, a modal decision that blocks everything until answered, so the
+ * caller says whether to answer it and with which option.
+ */
+async function advanceWeek(page: Page, opts: { answerMoment?: number | false } = {}): Promise<void> {
+  // The Week Summary panel stays up after a tick and covers the HUD button, but
+  // it carries its own "Next Week" control. Prefer that when it is showing —
+  // otherwise the HUD click is intercepted and the run fails intermittently.
+  const nextWeek = page.getByText('Next Week', { exact: true }).filter({ visible: true }).first();
+  const adv = page.getByRole('button', { name: 'Advance to next week' });
+
+  if (await nextWeek.isVisible().catch(() => false)) {
+    await nextWeek.click({ timeout: 15_000 });
+  } else {
+    await expect(adv, 'the week button should be on screen').toBeVisible({ timeout: 20_000 });
+    await adv.click({ timeout: 15_000 });
+  }
+  await page.waitForTimeout(1_600);
+
+  const answer = opts.answerMoment;
+  if (answer === false) return;
+  if (await sxQuery<boolean>(page, 'hasMoment')) {
+    await page.waitForTimeout(600);
+    await sx(page, 'pickMoment', answer ?? 0);
+    await page.waitForTimeout(1_200);
+  }
+}
+
+/** Advance under cover until a Life Moment is on screen, so the clip can open on one. */
+async function advanceUntilMoment(page: Page, maxTries = 8): Promise<string[]> {
+  for (let i = 0; i < maxTries; i++) {
+    if (await sxQuery<boolean>(page, 'hasMoment')) break;
+    await advanceWeek(page, { answerMoment: false });
+    await page.waitForTimeout(900);
+  }
+  const opts = await sxQuery<string[]>(page, 'momentOptions');
+  expect(opts.length, 'a Life Moment with options should be on screen').toBeGreaterThan(1);
+  return opts;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +391,120 @@ test('short 03 — the dynasty', async ({ page }, testInfo) => {
     title: 'Your kids inherit everything — including your mistakes',
     description:
       'Thirteen genetic traits, nurture stats and a family tree that outlives you. Deep Life Simulator.',
+    startSec: (t0 - pageBorn) / 1000,
+    durSec: (t1 - t0) / 1000,
+    video: testInfo.outputDir,
+  });
+});
+
+test('short 04 — the weekly loop', async ({ page }, testInfo) => {
+  test.setTimeout(400_000);
+  const pageBorn = Date.now();
+  await boot(page, 2); // The Climb: numbers small enough to read a week's change
+
+  await sx(page, 'caption', 'This is the whole game.', { eyebrow: 'DEEP LIFE SIMULATOR', sub: 'One button. One week.' });
+  const t0 = Date.now();
+  await sx(page, 'cover', false);
+  // Re-assert after the reveal; the overlay can re-create itself during boot
+  // and drop a caption armed before that happened.
+  await sx(page, 'caption', 'This is the whole game.', { eyebrow: 'DEEP LIFE SIMULATOR', sub: 'One button. One week.' });
+
+  await at(page, t0, 2_600);
+  await sx(page, 'clearCaption');
+  await advanceWeek(page); // salary, bills, and the floating deltas
+
+  await at(page, t0, 5_800);
+  await sx(page, 'caption', 'Salary in. Bills out.', { sub: 'Every single week.' });
+
+  await at(page, t0, 8_200);
+  await sx(page, 'clearCaption');
+  await advanceWeek(page);
+
+  await at(page, t0, 11_400);
+  await sx(page, 'caption', 'Miss one and it compounds.', { scrim: true });
+
+  await at(page, t0, 13_800);
+  await sx(page, 'clearCaption');
+  await advanceWeek(page);
+
+  await at(page, t0, 16_400);
+  await sx(page, 'camera', { scale: 0.76, rotY: -14, rotX: 6, y: 58, ms: 1_600 });
+  await sx(page, 'caption', 'Now do that for 22 years.', { eyebrow: 'AGE 24 → 40', scrim: false });
+
+  await at(page, t0, 18_800);
+  await sx(page, 'clearCaption');
+  await sx(page, 'endCard', 'Deep Life Simulator', 'One week at a time. Free on the App Store.');
+
+  await expect(page.locator('.sx-end.on'), 'end card should be showing').toBeVisible();
+  // Longer than the other Shorts hold it. The end-card transition animates
+  // opacity and a transform across every layer at 4K, and the compositor drops
+  // most frames while it runs — with a 1.8s hold the card rendered, passed the
+  // assertion above, and still never reached the file.
+  await at(page, t0, 22_600);
+  const t1 = Date.now();
+  await seal(page);
+
+  writeSidecar({
+    id: '04-the-weekly-loop',
+    title: 'The entire game is one button',
+    description:
+      'Advance the week: salary lands, bills clear, interest accrues, and the whole economy ticks. Deep Life Simulator.',
+    startSec: (t0 - pageBorn) / 1000,
+    durSec: (t1 - t0) / 1000,
+    video: testInfo.outputDir,
+  });
+});
+
+test('short 05 — every choice has a price', async ({ page }, testInfo) => {
+  test.setTimeout(400_000);
+  const pageBorn = Date.now();
+  await boot(page, 2);
+
+  // Play forward under the cover until the game raises a decision, so the clip
+  // opens on one instead of waiting for the dice.
+  const options = await advanceUntilMoment(page);
+  console.log(`    life moment options: ${JSON.stringify(options)}`);
+
+  const t0 = Date.now();
+  await sx(page, 'cover', false);
+  await sx(page, 'caption', 'Every week, a decision.', { eyebrow: 'DEEP LIFE SIMULATOR' });
+
+  // Hold long enough to actually read the options and their prices.
+  await at(page, t0, 3_000);
+  await sx(page, 'caption', 'And every one has a price.', { scrim: true });
+
+  await at(page, t0, 6_000);
+  await sx(page, 'clearCaption');
+  await sx(page, 'pickMoment', 0);
+
+  await at(page, t0, 8_200);
+  await sx(page, 'caption', 'Paid in full.', { sub: 'Watch the stats move.' });
+
+  await at(page, t0, 10_800);
+  await sx(page, 'clearCaption');
+  await advanceWeek(page);
+
+  await at(page, t0, 14_000);
+  await sx(page, 'caption', 'Nothing here is free.', { scrim: true });
+
+  await at(page, t0, 16_400);
+  await sx(page, 'camera', { scale: 0.76, rotY: 13, rotX: 5, y: 58, ms: 1_600 });
+  await sx(page, 'caption', 'Choices compound.', { eyebrow: 'DEEP LIFE SIMULATOR', scrim: false });
+
+  await at(page, t0, 18_800);
+  await sx(page, 'clearCaption');
+  await sx(page, 'endCard', 'Deep Life Simulator', 'Every choice costs something.');
+
+  await expect(page.locator('.sx-end.on'), 'end card should be showing').toBeVisible();
+  await at(page, t0, 20_800);
+  const t1 = Date.now();
+  await seal(page);
+
+  writeSidecar({
+    id: '05-every-choice',
+    title: 'Every choice in this life sim has a price tag',
+    description:
+      'A Life Moment mid-week: three options, each with its real cost in cash and happiness. Deep Life Simulator.',
     startSec: (t0 - pageBorn) / 1000,
     durSec: (t1 - t0) / 1000,
     video: testInfo.outputDir,
