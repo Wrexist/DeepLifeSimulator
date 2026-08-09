@@ -204,7 +204,12 @@ function unshrinkableScrollers(): { sites: Site[]; sheetsSeen: number } {
         let s: RegExpExecArray | null;
         while ((s = scroller.exec(inner)) !== null) {
           const tag = inner.slice(s.index, tagEnd(inner, s.index) + 1);
-          if (tag.includes('horizontal')) continue; // a horizontal list has no vertical overflow
+          // A horizontal list has no vertical overflow, so it is exempt — but
+          // ONLY when it is actually horizontal. `tag.includes('horizontal')`
+          // would also swallow `horizontal={false}`, which is a VERTICAL
+          // scroller spelled explicitly, and exempting those would let the
+          // sweep report clean on exactly the defect it exists to find.
+          if (/\bhorizontal(?!\s*=)|\bhorizontal=\{true\}/.test(tag)) continue;
           const named = /\bstyle=\{\[?styles\.(\w+)/.exec(tag)?.[1];
           const inline = /\bstyle=\{(?:\[[^\]]*)?\{([^}]*)\}/.exec(tag)?.[1] ?? '';
           const declared = (named ? (blocks[named] ?? []).join(' ') : '') + ' ' + inline;
