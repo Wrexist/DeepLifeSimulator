@@ -24,13 +24,14 @@ import {
  Platform,
 } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { Heart, Share2, Copy, Check } from 'lucide-react-native';
+import { Heart, Share2 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
+import { APP_STORE_URL } from '@/lib/config/appConfig';
 const BlurView = BlurViewFallback;
 
 interface ShareLifeCardProps {
@@ -113,7 +114,6 @@ function formatAge(stats: any): string {
 }
 
 export default function ShareLifeCard({ gameState, onClose }: ShareLifeCardProps) {
- const [copied, setCopied] = useState(false);
  const [isSharing, setIsSharing] = useState(false);
 
  const isDarkMode = gameState.settings?.darkMode ?? true;
@@ -143,6 +143,9 @@ ${childrenCount > 0 ? ` ${childrenCount} children` : ''}
  Generation ${prestigeLevel}
 ${tagline}
 
+Live your own life in Deep Life Simulator:
+${APP_STORE_URL}
+
 #DeepLifeSim`;
 
  const handleShare = async () => {
@@ -157,26 +160,6 @@ ${tagline}
  logger.error('[ShareLifeCard] Share failed', error);
  } finally {
  setIsSharing(false);
- }
- };
-
- const handleCopy = async () => {
- try {
- // Note: React Native clipboard is available via @react-native-clipboard/clipboard
- // Fallback to basic text copy if not available
- const Clipboard = require('@react-native-clipboard/clipboard');
- if (Clipboard?.setString) {
- Clipboard.setString(shareText);
- } else {
- // Fallback: try native AsyncStorage approach (won't work for clipboard, but prevents crash)
- logger.warn('[ShareLifeCard] Clipboard not available');
- return;
- }
-
- setCopied(true);
- setTimeout(() => setCopied(false), 2000);
- } catch (error) {
- logger.warn('[ShareLifeCard] Copy failed', { error });
  }
  };
 
@@ -386,23 +369,6 @@ ${tagline}
  )}
  </TouchableOpacity>
 
- <TouchableOpacity
- style={[styles.button, styles.buttonSecondary]}
- onPress={handleCopy}
- activeOpacity={0.7}
- >
- {copied ? (
- <>
- <Check size={16} color="#6366F1" />
- <Text style={[styles.buttonText, styles.buttonTextSecondary]}>Copied</Text>
- </>
- ) : (
- <>
- <Copy size={16} color={themeColors.text} />
- <Text style={[styles.buttonText, styles.buttonTextSecondary]}>Copy</Text>
- </>
- )}
- </TouchableOpacity>
  </View>
 
  {/* Loading overlay */}
