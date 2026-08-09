@@ -6,7 +6,7 @@
  * carries the whole boot sequence and the setup navigation in front of the
  * actual Short. Each spec writes a sidecar JSON recording when its first real
  * frame happened relative to page creation; this trims to that window and
- * encodes to the published spec: 1080x1920, 30fps, H.264 High, yuv420p,
+ * encodes to the published spec: 2160x3840, 30fps, H.264 High, yuv420p,
  * faststart.
  *
  * yuv420p is not optional — 4:2:0 is what every player and the YouTube
@@ -31,10 +31,13 @@ const SHORTS_DIR = resolve(HERE, '../../marketing/videos/shorts');
  * worst possible opening for a Short — the first second decides distribution —
  * and the cover means anything before the mark is flat black anyway.
  */
-const HEAD_SAFETY_SEC = 0.12;
+const HEAD_SAFETY_SEC = 0.26;
 
 /** Drop the tail a little early so the closing cover never shows as a black frame. */
 const TAIL_SAFETY_SEC = 0.35;
+
+/** Output geometry. 9:16; 2160x3840 is the max YouTube accepts for Shorts. */
+const TARGET = { w: 2160, h: 3840 };
 
 /**
  * Locate the clip inside the raw recording.
@@ -134,7 +137,11 @@ function main() {
     // closing black cover gets dragged back into the file. The artefact it
     // corrects is ~8% on mostly-static screens, i.e. invisible; a black tail is
     // not. Length is controlled in the capture spec instead.
-    const filters = ['scale=1080:1920:flags=lanczos', 'fps=30', 'format=yuv420p'];
+    // Keep the 4K capture at 4K. YouTube serves Shorts at 1080p either way, but
+    // it gives a >1080p upload a much better transcode — and this app is
+    // wall-to-wall dark gradients, which are the first thing to band when the
+    // transcoder is mean. Downscaling here would throw that advantage away.
+    const filters = [`scale=${TARGET.w}:${TARGET.h}:flags=lanczos`, 'fps=30', 'format=yuv420p'];
     const dur = srcSpan;
 
     // -ss AFTER -i is the accurate (decode-and-discard) seek. These clips are
@@ -148,8 +155,12 @@ function main() {
         '-t', dur.toFixed(3),
         '-an',
         '-vf', filters.join(','),
-        '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
-        '-preset', 'slow', '-crf', '18',
+        '-c:v', 'libx264', '-profile:v', 'high', '-level', '5.2',
+        '-preset', 'slow', '-crf', '15',
+        // Dark gradients band before they look soft, so hold a bitrate floor
+        // rather than letting CRF alone decide on very flat frames.
+        '-maxrate', '40M', '-bufsize', '80M',
+        '-x264-params', 'aq-mode=3:aq-strength=1.1',
         '-movflags', '+faststart',
         out,
       ],

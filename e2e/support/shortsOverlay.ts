@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
+import { SCENE_SOURCE } from './shortsScene';
 
 /**
  * The caption / motion layer that turns raw gameplay into a finished Short.
@@ -41,16 +42,16 @@ function b64(file: string): string {
  *
  * Must be installed before app code runs.
  */
-export async function installHiDpi(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+export async function installHiDpi(page: Page, zoom = 2): Promise<void> {
+  await page.addInitScript((z: number) => {
     Object.defineProperty(window, 'innerWidth', { get: () => 540, configurable: true });
     Object.defineProperty(window, 'innerHeight', { get: () => 960, configurable: true });
-    const apply = () => document.documentElement.style.setProperty('zoom', '2');
+    const apply = () => document.documentElement.style.setProperty('zoom', String(z));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
     else apply();
     // The app can replace the root element during boot; keep re-asserting.
     setInterval(apply, 400);
-  });
+  }, zoom);
 }
 
 /** Safe-zone geometry in CSS px, in the 540x960 layout space (see installHiDpi). */
@@ -75,6 +76,9 @@ const DEFAULT_THEME: OverlayTheme = { accent: '#4F8EF7' };
  * fall back to Arial metrics halfway through a capture.
  */
 export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEFAULT_THEME): Promise<void> {
+  // The 3D scene has to mount underneath `#root`, so it goes in first.
+  await page.addInitScript({ content: SCENE_SOURCE });
+
   const payload = {
     font800: b64('inter-latin-800-normal.woff2'),
     font600: b64('inter-latin-600-normal.woff2'),
@@ -107,17 +111,34 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
 .sx-count.on{opacity:1;transform:translateY(-50%) scale(1)}
 .sx-count-v{font-weight:800;font-size:86px;letter-spacing:-.035em;color:#fff;text-shadow:0 6px 40px rgba(0,0,0,.9)}
 .sx-count-l{margin-top:2px;font-weight:600;font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:${p.accent}}
-.sx-end{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 38%,#16233b 0%,#080c14 62%,#05070c 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .42s ease;padding-bottom:${p.safe.bottom - 40}px}
+/* The end card is TRANSPARENT: the app fades out beneath it and the live 3D
+   scene (shortsScene.ts) becomes the backdrop. Painting a flat gradient here
+   would just hide the thing that makes the ending feel like a place. */
+.sx-end{position:absolute;inset:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .5s ease;padding-bottom:${p.safe.bottom - 40}px}
 .sx-end.on{opacity:1}
-.sx-end img{width:104px;height:104px;border-radius:23px;box-shadow:0 18px 50px rgba(0,0,0,.65);margin-bottom:22px}
-.sx-end-t{font-weight:800;font-size:33px;letter-spacing:-.02em;color:#fff;text-align:center;line-height:1.1}
-.sx-end-r{width:44px;height:3px;border-radius:2px;background:${p.accent};margin:16px 0}
-.sx-end-s{font-weight:600;font-size:17px;color:#AFBBCE;text-align:center}
+/* Real 3D: the icon sits on its own perspective plane and rocks slowly, with a
+   cast shadow and a specular sweep, so it reads as an object in the scene
+   rather than a PNG pasted on top. */
+.sx-end-stage{perspective:900px;perspective-origin:50% 42%;margin-bottom:26px}
+.sx-end-obj{position:relative;width:112px;height:112px;transform-style:preserve-3d;animation:sxfloat 7s ease-in-out infinite alternate}
+@keyframes sxfloat{
+  0%{transform:rotateY(-13deg) rotateX(7deg) translateY(4px)}
+  100%{transform:rotateY(13deg) rotateX(-3deg) translateY(-6px)}
+}
+.sx-end-obj img{width:112px;height:112px;border-radius:25px;display:block;
+  box-shadow:0 26px 60px rgba(0,0,0,.72),0 6px 18px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.09) inset}
+.sx-end-gloss{position:absolute;inset:0;border-radius:25px;pointer-events:none;
+  background:linear-gradient(128deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.06) 32%,rgba(255,255,255,0) 55%)}
+.sx-end-halo{position:absolute;left:50%;top:56%;width:230px;height:230px;transform:translate(-50%,-50%) translateZ(-60px);
+  background:radial-gradient(circle,rgba(79,142,247,.30) 0%,rgba(79,142,247,0) 68%);filter:blur(2px)}
+.sx-end-t{font-weight:800;font-size:34px;letter-spacing:-.022em;color:#fff;text-align:center;line-height:1.1;text-shadow:0 4px 26px rgba(0,0,0,.7)}
+.sx-end-r{width:46px;height:3px;border-radius:2px;background:${p.accent};margin:16px 0;box-shadow:0 0 18px ${p.accent}}
+.sx-end-s{font-weight:600;font-size:17px;color:#C2CCDC;text-align:center;text-shadow:0 2px 16px rgba(0,0,0,.7)}
 .sx-flash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity .09s linear}
 /* Pure black, not near-black: the encoder finds the head and tail of the clip
    with ffmpeg blackdetect, and the app's very dark navy has to stay above the
    detection threshold. */
-.sx-cover{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .18s linear}
+.sx-cover{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .12s linear}
 .sx-cover.on{opacity:1}
 `;
       document.head.appendChild(style);
@@ -129,10 +150,21 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
 <div class="sx-scrim-bot"></div>
 <div class="sx-cap"><div class="sx-eyebrow"></div><div class="sx-line"></div><div class="sx-sub"></div></div>
 <div class="sx-count"><div class="sx-count-v"></div><div class="sx-count-l"></div></div>
-<div class="sx-end"><img alt=""/><div class="sx-end-t"></div><div class="sx-end-r"></div><div class="sx-end-s"></div></div>
+<div class="sx-end">
+  <div class="sx-end-stage"><div class="sx-end-obj"><div class="sx-end-halo"></div><img alt=""/><div class="sx-end-gloss"></div></div></div>
+  <div class="sx-end-t"></div><div class="sx-end-r"></div><div class="sx-end-s"></div>
+</div>
 <div class="sx-flash"></div>
 <div class="sx-cover on"></div>`;
       (document.body || document.documentElement).appendChild(layer);
+
+      // A React Native Modal portals to the end of <body>, so a sheet opened
+      // mid-capture lands after the overlay and covers the captions. Keep the
+      // overlay pinned last.
+      setInterval(() => {
+        const b = document.body;
+        if (b && b.lastElementChild !== layer) b.appendChild(layer);
+      }, 250);
 
       const q = <T extends Element>(s: string) => layer.querySelector(s) as T;
       const cap = q<HTMLElement>('.sx-cap');
@@ -141,6 +173,62 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
       (q<HTMLImageElement>('.sx-end img')).src = `data:image/png;base64,${p.icon}`;
 
       let countTimer: number | undefined;
+
+      /**
+       * Find a text element that is genuinely ON SCREEN.
+       *
+       * `offsetParent !== null` is not enough and neither is Playwright's
+       * visibility check: React Navigation keeps inactive screens mounted, so
+       * several copies of a label can pass both while sitting behind the screen
+       * the viewer is looking at. Tapping one of those is how Short 03 kept
+       * filming the Health tab while the script talked about the family tree.
+       *
+       * elementFromPoint at the label's own centre is the honest test: it
+       * answers "is this the thing a finger would actually hit".
+       */
+      const findOnScreen = (label: string, exact = true): HTMLElement | null => {
+        const nodes = Array.from(document.querySelectorAll<HTMLElement>('div,span,a,button'));
+        for (const el of nodes) {
+          if (el.children.length !== 0) continue;
+          const text = (el.textContent ?? '').trim();
+          // Taps match exactly (clicking the wrong control is expensive);
+          // assertions match on substring, because on-screen copy is usually a
+          // fragment of a longer line.
+          if (exact ? text !== label : !text.includes(label)) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 || r.height <= 0) continue;
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          // NOT window.innerWidth: installHiDpi fakes that to 540x960 to keep the
+          // app on its phone layout. Measured under `zoom: 4`,
+          // documentElement.clientWidth is the FULL 2160 and
+          // getBoundingClientRect/elementFromPoint both report in that same
+          // 2160-wide space, so they agree with each other and with this bound.
+          const vw = document.documentElement.clientWidth;
+          const vh = document.documentElement.clientHeight;
+          if (cx < 0 || cy < 0 || cx > vw || cy > vh) continue;
+          const top = document.elementFromPoint(cx, cy);
+          if (!top) continue;
+          // Not a strict identity test: React Native Web's pressables render an
+          // absolutely-positioned press-state overlay as a SIBLING of the
+          // label, so the topmost node at the label's centre is often neither
+          // the label nor one of its ancestors. Accept anything sharing a close
+          // ancestor — still proves the label is the thing on top here, without
+          // rejecting every tile in the app launcher.
+          let anc: HTMLElement | null = el;
+          for (let up = 0; up < 4 && anc; up++, anc = anc.parentElement) {
+            if (anc === top || anc.contains(top) || top.contains(anc)) return el;
+          }
+        }
+        return null;
+      };
+
+      /** Every top-level element the app owns — `#root` plus any portalled modal. */
+      const appLayers = (): HTMLElement[] =>
+        Array.from(document.body.children).filter(
+          (el): el is HTMLElement =>
+            el instanceof HTMLElement && el.id !== '__shorts_bg' && el.id !== '__shorts_layer'
+        );
 
       const api = {
         /** Show a caption. `eyebrow` and `sub` are optional. */
@@ -185,15 +273,143 @@ export async function installShortsOverlay(page: Page, theme: OverlayTheme = DEF
         hideCounter() {
           count.classList.remove('on');
         },
+        /**
+         * Camera move on the app itself.
+         *
+         * Transforms `#root`, so the running app becomes an object inside the
+         * 3D scene rather than the whole frame. Pulling back reveals the scene
+         * behind it and rounds/shadows the edge so it reads as a device.
+         */
+        camera(o: { scale?: number; rotY?: number; rotX?: number; y?: number; ms?: number }) {
+          const scale = o.scale ?? 1;
+          const pulled = scale < 0.995;
+          const transform =
+            `perspective(1500px) translateY(${o.y ?? 0}px) rotateY(${o.rotY ?? 0}deg) rotateX(${o.rotX ?? 0}deg) scale(${scale})`;
+          // Every app-owned top-level layer, not just #root: React Native
+          // Modals (the Family sheet, for one) portal to <body> as siblings, so
+          // transforming #root alone left them full-bleed and unmoved while the
+          // rest of the app receded.
+          appLayers().forEach((el) => {
+            el.style.transformOrigin = '50% 46%';
+            el.style.willChange = 'transform, opacity';
+            el.style.transition = `transform ${o.ms ?? 1200}ms cubic-bezier(.22,.7,.2,1), opacity 420ms ease, border-radius 600ms ease, box-shadow 600ms ease`;
+            el.style.transform = transform;
+            el.style.borderRadius = pulled ? '30px' : '0px';
+            el.style.boxShadow = pulled
+              ? '0 70px 130px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.07)'
+              : 'none';
+            el.style.overflow = pulled ? 'hidden' : '';
+          });
+        },
+        /**
+         * End card: dissolve the app away so the 3D scene is the backdrop, then
+         * bring the card up over it.
+         */
         endCard(title: string, sub: string) {
           q<HTMLElement>('.sx-end-t').textContent = title;
           q<HTMLElement>('.sx-end-s').textContent = sub;
+          appLayers().forEach((el) => {
+            el.style.transition = 'transform 900ms cubic-bezier(.22,.7,.2,1), opacity 620ms ease';
+            el.style.transform = 'perspective(1500px) scale(0.86) translateY(-12px)';
+            el.style.opacity = '0';
+          });
           end.classList.add('on');
         },
         flash() {
           const f = q<HTMLElement>('.sx-flash');
           f.style.opacity = '0.85';
           setTimeout(() => (f.style.opacity = '0'), 90);
+        },
+        /**
+         * Click by label from inside the page.
+         *
+         * Playwright clicks by viewport coordinate, and with `zoom: 4` on the
+         * document those coordinates and the element's real position diverge.
+         * Full-width targets like the tab bar survive the error; a 64x22 CSS
+         * sub-tab does not — which is how Short 03 spent a take filming the
+         * Health tab. Dispatching the pointer sequence directly at the node
+         * removes coordinates from the problem entirely.
+         */
+        tapText(label: string, mode: 'pointer' | 'native' = 'pointer') {
+          const hit = findOnScreen(label);
+          if (!hit) throw new Error(`[shorts] no on-screen element with text "${label}"`);
+
+          const rect = hit.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+
+          // React Native Web's responder system ignores a pointer event that is
+          // not primary, so pointerId/isPrimary/buttons are required — a bare
+          // `new PointerEvent('pointerdown')` defaults to isPrimary:false and
+          // gets dropped on the floor.
+          const base = {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            clientX: cx,
+            clientY: cy,
+            button: 0,
+            view: window,
+          };
+          const ptr = { ...base, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+
+          // Dispatch on the text node's clickable ancestors too: the pressable
+          // is usually a wrapper, and some handlers are attached there rather
+          // than relying on the event bubbling.
+          const targets: HTMLElement[] = [hit];
+          let cur: HTMLElement | null = hit.parentElement;
+          for (let i = 0; i < 3 && cur; i++, cur = cur.parentElement) targets.push(cur);
+
+          const el = targets[0];
+          // Exactly ONE activation path per call. Firing both a synthetic
+          // pointer sequence and a native click counts as two presses: it
+          // opened the Family sheet and toggled it straight back shut. But the
+          // two paths are not interchangeable either — the in-app launcher
+          // icons only respond to the native click. So the caller picks, and
+          // `tap()` in the spec falls back from one to the other.
+          if (mode === 'native') {
+            el.click();
+            return;
+          }
+          el.dispatchEvent(new PointerEvent('pointerdown', { ...ptr, buttons: 1 }));
+          el.dispatchEvent(new MouseEvent('mousedown', { ...base, buttons: 1 }));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...ptr, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('mouseup', { ...base, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('click', { ...base, detail: 1 }));
+        },
+        /** Is a label actually the topmost thing at its own centre? */
+        onScreen(label: string) {
+          return findOnScreen(label, false) !== null;
+        },
+        /**
+         * Scroll inside the page rather than from the test.
+         *
+         * `page.mouse.wheel` is one round-trip per step, and at a 2160x3840
+         * viewport twenty of them cost several seconds of wall clock — which
+         * lands in the recording as an unplanned pause. This dispatches the
+         * same wheel events from a rAF loop, so it costs one round-trip and
+         * runs at the page's own frame rate.
+         */
+        scroll(dy: number, ms: number) {
+          const target = document.elementFromPoint(window.innerWidth / 2, window.innerHeight * 0.6);
+          if (!target) return;
+          const t0 = performance.now();
+          let sent = 0;
+          const step = (now: number) => {
+            const t = Math.min(1, (now - t0) / ms);
+            // ease-in-out, so the scroll starts and stops softly
+            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            const want = dy * eased;
+            const delta = want - sent;
+            if (Math.abs(delta) >= 0.5) {
+              target.dispatchEvent(
+                new WheelEvent('wheel', { deltaY: delta, bubbles: true, cancelable: true })
+              );
+              sent = want;
+            }
+            if (t < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
         },
         /**
          * Opaque cover, on by default.
@@ -232,6 +448,10 @@ export interface ShortsApi {
   endCard(title: string, sub: string): void;
   flash(): void;
   cover(on: boolean): void;
+  camera(o: { scale?: number; rotY?: number; rotX?: number; y?: number; ms?: number }): void;
+  scroll(dy: number, ms: number): void;
+  tapText(label: string, mode?: 'pointer' | 'native'): void;
+  onScreen(label: string): boolean;
 }
 
 /** Call an overlay method inside the page. */
@@ -240,11 +460,28 @@ export async function sx<K extends keyof ShortsApi>(
   method: K,
   ...args: Parameters<ShortsApi[K]>
 ): Promise<void> {
+  // Throws rather than no-ops. A silently dropped overlay call is invisible
+  // until you are staring at a finished clip wondering where the end card went.
   await page.evaluate(
     ({ m, a }) => {
       const api = (window as unknown as { __shorts?: Record<string, (...x: unknown[]) => void> }).__shorts;
-      if (api && typeof api[m] === 'function') api[m](...a);
+      if (!api) throw new Error(`[shorts] overlay not installed when calling ${m}`);
+      if (typeof api[m] !== 'function') throw new Error(`[shorts] no overlay method ${m}`);
+      api[m](...a);
     },
     { m: method as string, a: args as unknown[] }
   );
+}
+
+/** Like `sx`, but returns the overlay method's result. */
+export async function sxQuery<T>(page: Page, method: string, ...args: unknown[]): Promise<T> {
+  return page.evaluate(
+    ({ m, a }) => {
+      const api = (window as unknown as { __shorts?: Record<string, (...x: unknown[]) => unknown> }).__shorts;
+      if (!api) throw new Error(`[shorts] overlay not installed when calling ${m}`);
+      if (typeof api[m] !== 'function') throw new Error(`[shorts] no overlay method ${m}`);
+      return api[m](...a);
+    },
+    { m: method, a: args }
+  ) as Promise<T>;
 }

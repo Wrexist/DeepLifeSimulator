@@ -1,20 +1,33 @@
 # YouTube Shorts — batch 01
 
-Three finished Shorts, 1080×1920 H.264 MP4, built by `npm run shorts`.
+Three finished Shorts, **2160×3840 (4K) H.264 High, 30fps**, built by
+`npm run shorts`.
+
+Captured at 4K on purpose. YouTube serves Shorts at 1080p regardless, but it
+gives a >1080p upload a markedly better transcode — and this app is
+wall-to-wall dark gradients, which are the first thing to band when the
+transcoder is stingy. Upload the 4K files as they are.
+
 Strategy and the reasoning behind the format live in
 `marketing/youtube-shorts-playbook.md`; the rig is documented in
 `scripts/demo/README.md`.
 
 | File | Length | Format (playbook §4) | Hook |
 |---|---|---|---|
-| `01-the-climb.mp4` | 18.7s | 1 — the number climb | `$250` on screen, then it runs to $17.76M |
-| `02-real-economics.mp4` | 19.6s | 4 — real economics | "Most life sims fake the economy." |
-| `03-the-dynasty.mp4` | 18.0s | 6 — the dynasty | "You die. They don't." |
+| `01-the-climb.mp4` | 19.1s | 1 — the number climb | `$250` on screen, then it runs to $17.76M |
+| `02-real-economics.mp4` | 20.7s | 4 — real economics | "Most life sims fake the economy." |
+| `03-the-dynasty.mp4` | 16.4s | 6 — the dynasty | "You die. They don't." |
 
 All three are **real captured gameplay** from the seeded demo save, with the
-caption layer composited live in the page. Nothing is AI-generated footage —
-which is what keeps them clear of YouTube's inauthentic-content policy and
-means they can be reused as App Store material.
+caption layer and a live 3D scene composited in the page. Nothing is
+AI-generated footage — which is what keeps them clear of YouTube's
+inauthentic-content policy and means they can be reused as App Store material.
+
+The 3D is rendered in-engine, not sourced: a seeded, perspective-projected
+dust field with volumetric light (`e2e/support/shortsScene.ts`) sits behind
+the app, and each Short pulls the running game back onto a tilted plane inside
+it before the end card. Free, deterministic, and it re-renders with the
+footage instead of going stale beside it.
 
 ## Publish sheet
 
@@ -35,6 +48,9 @@ Studio. Each Short says the app name on screen so branded search works.
 ### 03 — the dynasty
 - **Title:** Your kids inherit everything — including your mistakes
 - **Description:** Thirteen genetic traits, nurture stats, and a family tree that outlives you. Raise them well and they inherit it all. Deep Life Simulator.
+- Films the **Contacts** app rather than the Life ▸ Family sheet. That sheet is
+  a modal that would not stay open under automation, and Contacts shows the
+  same cast — spouse, both children, bond scores — through the reliable route.
 - **Tags:** #lifesim #simulationgame #legacy #mobilegame #indiegame
 
 ## Posting
