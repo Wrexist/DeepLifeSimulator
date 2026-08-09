@@ -1333,3 +1333,57 @@ Footnote on the guard: `__tests__/render/modalListsShrink.test.ts` already
 existed for exactly this class and did not catch it, because its sweep matches
 inline `style={{ ... }}` and this one hid behind a named StyleSheet entry. A
 regex-shaped guard only covers the spelling it was written against.
+
+## 2026-08-09 (same day) — the same defect, eighteen more times, in three spellings
+
+Fixing the Commitments soft lock above raised the obvious question: how many
+more sheets have it? `__tests__/render/modalListsShrink.test.ts` already
+guarded the class and reported clean, so the honest answer had to come from a
+sweep that did not trust the existing one.
+
+It found **eighteen** more sites. Not one of them was a new mistake — they were
+the same defect wearing spellings the guard's regex did not match:
+
+| Spelling | Why the guard missed it |
+|---|---|
+| `<ScrollView style={styles.modalBody}>` | the cap hid inside a named StyleSheet entry |
+| `<ScrollView contentContainerStyle={…}>` | no `style` prop at all to match against |
+| a `<View>` capped at `scale(200)`, no scroller | not a ScrollView, so nothing to sweep for |
+
+The third is the one worth remembering. The Life Skills detail panel was a plain
+`View` capped at `maxHeight: scale(200)` holding description → effect →
+requirements → **Unlock button**. Measured at base scale that column is ~218px,
+~235px with a two-line description. A `View` does not scroll and the modal shell
+is `overflow: 'hidden'`, so the button was clipped — the primary action of the
+screen, on a skill the player could afford, with no way to buy it. The guard was
+written about lists, so a capped column that was not a list never came up.
+
+The bounded surface and the shrinking child are two different jobs and belong on
+two different elements. What broke everywhere was collapsing them into one: a
+cap on the thing that should shrink (`scale(200)`, `maxHeight: '90%'` on the
+list itself), or nothing on either. The shape that works, every time:
+
+```tsx
+<View style={{ maxHeight: '90%' }}>        {/* bound */}
+  <Header />                                {/* fixed */}
+  <ScrollView style={{ flexShrink: 1 }}>    {/* shrinks */}
+  <ConfirmButton />                         {/* fixed — NEVER inside the scroller */}
+```
+
+**The rule, restated because the old one was too narrow:** the bound goes on the
+sheet, `flexShrink: 1` goes on the body, and the action goes *below* the body,
+never inside it and never last in an unscrolled column. This holds for any
+capped column, not only ones containing a `ScrollView`.
+
+**And the meta-rule:** a guard written as a regex over one spelling reports clean
+on the other two. When a guard exists for a class and you find a new instance of
+that class, the instance is the smaller problem — re-derive the sweep from the
+SHAPE (parse the styles, resolve containment) and re-run it against the whole
+tree before believing any count. The rewritten sweep is in the same file; it
+resolves which sheet a scroller actually sits in rather than matching a line.
+
+One known instance is deliberately left: `SimpleTutorialModal` caps a
+non-scrolling column at `maxHeight: '80%'` with its Skip/Next buttons last. It
+is safe only because its copy is fixed, short, and authored — not because the
+shape is sound. If those strings ever become dynamic or localized, it breaks
+exactly like the others.

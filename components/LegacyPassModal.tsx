@@ -284,7 +284,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
             </TouchableOpacity>
           </View>
 
-          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+          <ScrollView ref={scrollRef} style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
             {/* Progress card with a "View rewards" jump */}
             <View style={[styles.progressBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={styles.progressTopRow}>

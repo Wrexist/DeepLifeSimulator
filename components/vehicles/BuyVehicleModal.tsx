@@ -88,7 +88,7 @@ export default function BuyVehicleModal({ visible, template, gameState, weeklyIn
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             {template.description && (
               <Text style={[styles.body, { color: theme.textSecondary }]}>{template.description}</Text>
             )}

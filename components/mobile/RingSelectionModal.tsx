@@ -79,7 +79,7 @@ export default function RingSelectionModal({
             Proposing to {partnerName} — the ring affects your chances of a “yes”.
           </Text>
 
-          <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          <ScrollView style={[styles.list, { flexShrink: 1 }]} showsVerticalScrollIndicator={false}>
             {rings.map(({ ring, affordable, successRate }) => {
               const isSelected = ring.id === selectedRingId;
               return (
