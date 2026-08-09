@@ -6,6 +6,7 @@
  */
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import type { GameMode } from '@/contexts/game/types';
 import type { MindsetId } from '@/lib/mindset/config';
 import { avatarSexFromId } from '@/utils/facePool';
 import { perks as perksCatalog } from './perksData';
@@ -50,6 +51,11 @@ export interface BuildGameStateParams {
   selectedMindset: MindsetId | null;
   /** Chosen Life Ambition id (lib/ambitions). Optional — undefined = freeform life. */
   ambitionId?: string;
+  /**
+   * Pace for this life. Optional, and an omitted value is written as an ABSENT
+   * key rather than `'classic'` — see the note where it is applied.
+   */
+  gameMode?: GameMode;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +165,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     selectedMindset,
     avatarId,
     ambitionId,
+    gameMode,
   } = params;
 
   // A picked avatar's sex wins over "random" so appearance and gameplay agree.
@@ -272,6 +279,13 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     // Life Ambition — the chosen lifelong goal (or undefined for a freeform life).
     // Milestone tracking + payoff flag start clean so progress accrues over the life.
     ambitionId: ambitionId || undefined,
+    // Pace for this life. `'story'` is written; anything else is written as
+    // `undefined`, i.e. an ABSENT key, because that is what every save made
+    // before v38 looks like and `resolveGameMode` already reads absence as
+    // classic. Writing `'classic'` explicitly would work but would make new
+    // saves structurally different from old ones for no gain — and the carve-out
+    // migration exists precisely so those two are the same thing.
+    gameMode: gameMode === 'story' ? 'story' : undefined,
     ambitionCompletedMilestones: [],
     ambitionRewardClaimed: false,
     activeTraits: scenario.start.traits || [],

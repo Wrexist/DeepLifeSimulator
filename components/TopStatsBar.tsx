@@ -17,6 +17,7 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import { isStoryMode, STORY_MODE_WEEKS_PER_TAP } from '@/lib/gameMode/mode';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -990,7 +991,10 @@ function TopStatsBarComponent() {
 const RightSide = React.memo(function RightSide({ date }: { date?: { week?: number; year?: number; month?: string | number; age?: number } }) {
  // RightSide needs nextWeek action, so use both hooks
  // Hooks must be called unconditionally - if provider isn't ready, the error will be caught by ErrorBoundary
- const { nextWeek } = useGameActions();
+ const { nextWeek, liveYear } = useGameActions();
+ // Pace for this life. Absent (every pre-v38 save) resolves to classic.
+ const gameMode = useGameSelector((s) => s?.gameMode);
+ const storyMode = isStoryMode(gameMode);
  const { width } = useWindowDimensions();
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
@@ -1254,7 +1258,10 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  timeoutRef.current = setTimeout(() => {
  setIsAdvancingWeek(false);
  timeoutRef.current = null;
- }, 5000);
+ // Story mode runs up to 52 ticks behind one tap, so it needs a longer
+ // safety cap than a single week does. Measured at ~184ms for a full year,
+ // but the cap exists for the case where something hangs, not the normal one.
+ }, storyMode ? 30000 : 5000);
  // Defer the heavy synchronous nextWeek() work to the next frame so React
  // commits the greyed/spinner (disabled) state and PAINTS it before the tick
  // blocks the JS thread — the press registers instantly instead of feeling
@@ -1263,12 +1270,18 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  const rafId = requestAnimationFrame(() => {
  void (async () => {
  try {
+ // One tap advances a week in classic and up to a year in story. Both run
+ // the identical weekly simulation — story just runs 52 of them.
+ if (storyMode) {
+ await liveYear();
+ } else {
  await nextWeek();
+ }
  // Natural breakpoint: if an in-game year just turned over, maybe show an
  // interstitial. Self-gated — a no-op when ads are removed, off, not
  // loaded, or within the frequency cap. `blocked` is read AFTER the tick so
  // a death/wedding/jail modal this tick raised suppresses the ad.
- void maybeShowInterstitialForWeek(weeksBefore + 1, {
+ void maybeShowInterstitialForWeek(weeksBefore + (storyMode ? STORY_MODE_WEEKS_PER_TAP : 1), {
  adsRemoved,
  blocked: blockedRef.current,
  });
@@ -1293,7 +1306,11 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  onPressOut={onPressOut}
  activeOpacity={0.7}
  disabled={isAdvancingWeek}
- accessibilityLabel={isAdvancingWeek ? "Advancing to next week": "Advance to next week"}
+ accessibilityLabel={
+ isAdvancingWeek
+ ? (storyMode ? 'Living the next year' : 'Advancing to next week')
+ : (storyMode ? 'Live the next year' : 'Advance to next week')
+ }
  accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
  >
  <LinearGradient colors={isAdvancingWeek ? ['#6B7280','#9CA3AF'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
