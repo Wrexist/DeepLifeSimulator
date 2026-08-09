@@ -1285,3 +1285,51 @@ fields, `expiredMailEvents` itself, `yearOf`, `SenderKey`).
 **The rule:** when a feature is finished, read it once more asking only "what
 happens the SECOND time?" — second tap, second week, second application, second
 read of the same accessor. That question found five of these six.
+
+## 2026-08-09 — `flex: 1` inside a `maxHeight`-only sheet is zero, and a broken modal is a soft lock
+
+Player report: "game soft locked on the life skills tab", with a screenshot of
+the Activity Commitments modal drawn as a ~60px sliver under the status bar —
+header and footer touching, the entire body gone, the game visible but dead
+behind it.
+
+Two defects stacked, and neither is interesting on its own:
+
+```ts
+modal:   { width: '90%', maxHeight: '90%' },   // no definite height
+content: { flex: 1 },                          // → flexBasis: 0
+blurOverlay: { ...StyleSheet.absoluteFillObject },  // no justify/align
+```
+
+`flex: 1` is `flexGrow: 1, flexShrink: 1, flexBasis: 0`. In a column whose own
+height is **content-driven** (`maxHeight` is a clamp, not a height), a
+zero-basis child contributes nothing to the measurement, so the column measures
+`header + 0 + footer` — and there is then no free space left for `flexGrow` to
+hand back. The list resolves to zero. `maxHeight` looks like a bound and reads
+like one; it is not one. The pair that works is the one the banking sheets
+already use: `flexShrink: 1` on the list, a real bound on the sheet.
+
+The second half is why it looked so broken: the sheet's wrapper was
+`absoluteFillObject`, so the parent's `justifyContent: 'center'` never applied
+and the overlay's safe-area padding did not reach an absolutely-positioned
+child. The sliver was pinned to the top of the window with its close button
+under the status bar.
+
+**What made it a soft lock rather than an ugly screen:** a transparent RN
+`Modal` owns every touch in its window. Nothing behind it is reachable, however
+visible it looks. So a sheet that mislays its own controls takes the entire game
+with it — there is no tapping past it, and no back gesture on iOS. Every
+transparent modal needs a dismiss affordance that does not depend on the sheet
+laying out correctly: a backdrop `Pressable` **behind** the sheet (a wrapper
+would steal the ScrollView's gestures), which is what `WhatsNewModal` already
+documents.
+
+**The rule:** `maxHeight` alone does not make a parent bounded — pair it with
+`flexShrink: 1`, never `flex: 1`. And every transparent modal gets a
+tap-outside-to-close backdrop, because the cost of a layout mistake in one is
+not a bad screen, it is a lost session.
+
+Footnote on the guard: `__tests__/render/modalListsShrink.test.ts` already
+existed for exactly this class and did not catch it, because its sweep matches
+inline `style={{ ... }}` and this one hid behind a named StyleSheet entry. A
+regex-shaped guard only covers the spelling it was written against.
