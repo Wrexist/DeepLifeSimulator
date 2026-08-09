@@ -17,8 +17,33 @@ import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isTrackingAllowed } from '@/utils/trackingTransparency';
 import { track } from '@/lib/analytics';
+import { revenueCatService } from '@/services/RevenueCatService';
+import {
+  RC_MEDIATOR_ADMOB,
+  buildAdRevenuePayload,
+  newImpressionId,
+  type AdMobPaidEvent,
+  type RcAdFormat,
+} from '@/lib/ads/adRevenueTracking';
 
 const log = logger.scope('AdMob');
+
+/** Narrow an unknown thrown value to a log-friendly message. */
+function errMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The only surface of an AdMob ad object the revenue listener needs. Structural
+ * rather than `any` so a rename in the ad SDK fails the type-check here instead
+ * of silently detaching revenue reporting.
+ */
+type PaidCapableAd = {
+  addAdEventListener?: (
+    type: string,
+    listener: (event: AdMobPaidEvent) => void,
+  ) => (() => void) | void;
+};
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded native modules — never require at module load time
@@ -31,6 +56,9 @@ let NativeRewardedAdEventType: any = null;
 let NativeBannerAd: any = null;
 let NativeBannerAdSize: any = null;
 let NativeTestIds: any = null;
+// AdMob's numeric precision enum, forwarded to the RevenueCat precision mapper
+// so it never has to hardcode an ordinal the SDK could renumber.
+let NativeRevenuePrecisions: any = null;
 
 let moduleLoaded = false;
 let moduleLoadAttempted = false;
@@ -53,6 +81,7 @@ function loadModule(): boolean {
     NativeBannerAd = mod.BannerAd;
     NativeBannerAdSize = mod.BannerAdSize;
     NativeTestIds = mod.TestIds;
+    NativeRevenuePrecisions = mod.RevenuePrecisions ?? null;
     moduleLoaded = true;
     return true;
   } catch (error: any) {
@@ -200,9 +229,137 @@ class AdMobServiceImpl {
   // tracking status resolves after init.
   private trackingAllowed = false;
 
+  // RevenueCat correlates an impression's events by a single id, so one is
+  // minted per ad REQUEST and reused across that ad's loaded → displayed →
+  // paid lifecycle. Banners are the exception (see trackBannerRevenue).
+  private interstitialImpressionId = '';
+  private rewardedImpressionId = '';
+  // The unit the currently-loaded ad was requested against — `AD_UNITS` alone
+  // isn't enough, since __DEV__ swaps in Google's TEST ids at request time.
+  private interstitialAdUnitId = '';
+  private rewardedAdUnitId = '';
+  // Detach handles for the PAID listeners. Each load builds a fresh ad object,
+  // so without these the previous object's native listener outlives it.
+  private detachInterstitialRevenue: (() => void) | null = null;
+  private detachRewardedRevenue: (() => void) | null = null;
+
+  /** Drop a previously attached PAID listener. Never throws. */
+  private detach(unsub: (() => void) | null): null {
+    try {
+      unsub?.();
+    } catch {
+      // A detach that fails must not block the next ad load.
+    }
+    return null;
+  }
+
   /** P0-5: request options — non-personalized ads unless ATT/consent is granted. */
   adRequestOptions(): { requestNonPersonalizedAds: boolean } {
     return { requestNonPersonalizedAds: !this.trackingAllowed };
+  }
+
+  // --- RevenueCat ad revenue reporting -------------------------------------
+  // Every method here is fire-and-forget and fully swallowed. These run inside
+  // the ad SDK's own callbacks during playback, so a throw or an unhandled
+  // rejection would cost a reward or wedge an ad — no analytics event is worth
+  // that. They also no-op entirely unless the `revenueCat` flag is on.
+
+  /**
+   * Subscribe an ad object to AdMob's impression-level revenue event and
+   * forward it to RevenueCat. Returns an unsubscribe function (a no-op when the
+   * PAID event isn't supported by this SDK build).
+   *
+   * Impression-level ad revenue must ALSO be enabled in the AdMob dashboard —
+   * it is off by default and account-gated. Without it this listener simply
+   * never fires, which is why a silent no-op here is the correct behavior
+   * rather than a warning on every ad.
+   */
+  private attachRevenueListener(
+    ad: PaidCapableAd | null,
+    adFormat: RcAdFormat,
+    adUnitId: string,
+    impressionId: string,
+  ): () => void {
+    const paidEvent = NativeAdEventType?.PAID;
+    if (!paidEvent || typeof ad?.addAdEventListener !== 'function') return () => {};
+    try {
+      const unsub = ad.addAdEventListener(paidEvent, (event: AdMobPaidEvent) => {
+        this.reportRevenue(event, adFormat, adUnitId, impressionId);
+      });
+      return typeof unsub === 'function' ? unsub : () => {};
+    } catch (error) {
+      log.warn('PAID listener attach failed', { error: errMessage(error) });
+      return () => {};
+    }
+  }
+
+  /** Map an AdMob paid event onto RevenueCat and send it. Never throws. */
+  private reportRevenue(
+    event: AdMobPaidEvent,
+    adFormat: RcAdFormat,
+    adUnitId: string,
+    impressionId: string,
+  ): void {
+    try {
+      const payload = buildAdRevenuePayload(
+        event,
+        { adFormat, adUnitId, impressionId },
+        NativeRevenuePrecisions,
+      );
+      // Null means the event could not be represented honestly (unusable
+      // amount, missing unit/impression) — drop it rather than post a figure
+      // that would be wrong on a revenue dashboard.
+      if (!payload) return;
+      void revenueCatService.trackAdRevenue(payload);
+    } catch (error) {
+      log.warn('Ad revenue report failed', { error: errMessage(error) });
+    }
+  }
+
+  /** Report an ad lifecycle event (fill / display) to RevenueCat. Never throws. */
+  private reportLifecycle(
+    kind: 'loaded' | 'displayed',
+    adFormat: RcAdFormat,
+    adUnitId: string,
+    impressionId: string,
+  ): void {
+    if (!adUnitId || !impressionId) return;
+    try {
+      const payload = { mediatorName: RC_MEDIATOR_ADMOB, adFormat, adUnitId, impressionId };
+      void (kind === 'loaded'
+        ? revenueCatService.trackAdLoaded(payload)
+        : revenueCatService.trackAdDisplayed(payload));
+    } catch (error) {
+      log.warn('Ad lifecycle report failed', { error: errMessage(error) });
+    }
+  }
+
+  /** Report a failed ad load (no-fill / error) to RevenueCat. Never throws. */
+  private reportFailedToLoad(adFormat: RcAdFormat, adUnitId: string, error: unknown): void {
+    if (!adUnitId) return;
+    try {
+      const source = (error ?? {}) as { code?: unknown; mediatorErrorCode?: unknown };
+      const raw = source.code ?? source.mediatorErrorCode;
+      void revenueCatService.trackAdFailedToLoad({
+        mediatorName: RC_MEDIATOR_ADMOB,
+        adFormat,
+        adUnitId,
+        mediatorErrorCode: typeof raw === 'number' ? raw : null,
+      });
+    } catch (err) {
+      log.warn('Ad failure report failed', { error: errMessage(err) });
+    }
+  }
+
+  /**
+   * Report banner revenue. Unlike fullscreen formats the banner mints a FRESH
+   * impression id per paid event: AdMob auto-refreshes banners in place with no
+   * event we can observe, so there is no request boundary to anchor an id to —
+   * and one paid event is exactly one impression, which is the thing the id
+   * identifies. Called by `components/BannerAd.tsx` via its `onPaid` prop.
+   */
+  trackBannerRevenue(adUnitId: string, event: AdMobPaidEvent): void {
+    this.reportRevenue(event, 'banner', adUnitId, newImpressionId());
   }
 
   // --- Listener management ---
@@ -277,6 +434,17 @@ class AdMobServiceImpl {
         return;
       }
       this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
+      // One impression id per request, carried through loaded → displayed → paid.
+      const impressionId = newImpressionId();
+      this.interstitialImpressionId = impressionId;
+      this.interstitialAdUnitId = adUnitId;
+      this.detachInterstitialRevenue = this.detach(this.detachInterstitialRevenue);
+      this.detachInterstitialRevenue = this.attachRevenueListener(
+        this.interstitial,
+        'interstitial',
+        adUnitId,
+        impressionId,
+      );
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
@@ -287,6 +455,7 @@ class AdMobServiceImpl {
           unsubError();
           this.setState({ isInterstitialLoaded: true });
           recordSuccess();
+          this.reportLifecycle('loaded', 'interstitial', adUnitId, impressionId);
           resolve();
         });
 
@@ -294,6 +463,7 @@ class AdMobServiceImpl {
           clearTimeout(timeout);
           unsubLoaded();
           unsubError();
+          this.reportFailedToLoad('interstitial', adUnitId, err);
           reject(err);
         });
 
@@ -312,6 +482,12 @@ class AdMobServiceImpl {
     try {
       await this.interstitial.show();
       track('ad_shown', { kind: 'interstitial' });
+      this.reportLifecycle(
+        'displayed',
+        'interstitial',
+        this.interstitialAdUnitId,
+        this.interstitialImpressionId,
+      );
       this.setState({ isInterstitialLoaded: false });
       recordSuccess();
       // Pre-load next one
@@ -337,6 +513,17 @@ class AdMobServiceImpl {
         return;
       }
       this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId, this.adRequestOptions());
+      // One impression id per request, carried through loaded → displayed → paid.
+      const impressionId = newImpressionId();
+      this.rewardedImpressionId = impressionId;
+      this.rewardedAdUnitId = adUnitId;
+      this.detachRewardedRevenue = this.detach(this.detachRewardedRevenue);
+      this.detachRewardedRevenue = this.attachRevenueListener(
+        this.rewarded,
+        'rewarded',
+        adUnitId,
+        impressionId,
+      );
 
       // Determine the correct event type constants — RewardedAd may use its own enum
       const loadedEvent = NativeRewardedAdEventType?.LOADED || NativeAdEventType?.LOADED;
@@ -356,6 +543,7 @@ class AdMobServiceImpl {
           unsubError();
           this.setState({ isRewardedLoaded: true });
           recordSuccess();
+          this.reportLifecycle('loaded', 'rewarded', adUnitId, impressionId);
           resolve();
         });
 
@@ -363,6 +551,7 @@ class AdMobServiceImpl {
           clearTimeout(timeout);
           unsubLoaded();
           unsubError();
+          this.reportFailedToLoad('rewarded', adUnitId, err);
           reject(err);
         });
 
@@ -408,6 +597,7 @@ class AdMobServiceImpl {
 
       await ad.show();
       track('ad_shown', { kind: 'rewarded' });
+      this.reportLifecycle('displayed', 'rewarded', this.rewardedAdUnitId, this.rewardedImpressionId);
       await closed;
 
       this.setState({ isRewardedLoaded: false });
@@ -460,8 +650,16 @@ class AdMobServiceImpl {
 
   cleanup(): void {
     try {
+      this.detachInterstitialRevenue = this.detach(this.detachInterstitialRevenue);
+      this.detachRewardedRevenue = this.detach(this.detachRewardedRevenue);
       this.interstitial = null;
       this.rewarded = null;
+      // Drop the impression ids with the ads they belonged to, so a later event
+      // can never be attributed to a torn-down impression.
+      this.interstitialImpressionId = '';
+      this.rewardedImpressionId = '';
+      this.interstitialAdUnitId = '';
+      this.rewardedAdUnitId = '';
       this.setState({ isInterstitialLoaded: false, isRewardedLoaded: false });
     } catch (_) {
       // Never crash on cleanup
