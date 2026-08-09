@@ -1520,3 +1520,46 @@ commits. Assert on committed state *after* the block instead — which is what
 `__tests__/gameMode/batchEquivalence.test.ts` does, and why it can now prove the
 thing that matters: 15 batched weeks and 15 individual classic taps from the
 same seed produce an identical state fingerprint.
+
+## 2026-08-09 (same day) — I counted registrations and called it a tab bar
+
+An audit of this repo reported "9 tabs, 8 of them visible to a brand-new
+player" and made navigation one of four launch blockers. It was wrong, and the
+way it was wrong is worth more than the finding was.
+
+The number came from counting `<Tabs.Screen>` entries in
+`app/(tabs)/_layout.tsx`. That counts *route registrations*, not tab buttons.
+Five of the nine carry `href: null` — deliberately, with a comment three lines
+above them explaining that mobile and computer were folded into Apps, and
+market, health and progression into Life, with the routes left registered so
+deep links and `router.push()` still resolve. **The real bar is four tabs**, and
+the merge the audit "recommended" had shipped before the audit ran. The comment
+was right there in the file being counted.
+
+The same audit called five breakdown modals "the same component with different
+data". Normalising the stat name and diffing put them at ~60% similar with real
+per-stat contributors and advice in the rest — a modest-benefit refactor, not
+the duplication that was claimed.
+
+**The rules.**
+
+1. **Count what renders, not what is registered.** A static count of
+   declarations is not a measurement of a user-facing surface. Anything gated by
+   a prop (`href: null`, a feature flag, a conditional render) is invisible to
+   `grep -c` and decisive to the user.
+2. **Read the comment next to the thing you are grading.** Both errors were
+   pre-refuted in the source. The repo's own rule — *don't trust an audit claim
+   that "file:line is broken" without re-reading the source* — applies to audits
+   I write, not just ones I receive.
+3. **A finding that says "this obvious thing was never done" deserves more
+   suspicion, not less.** Competent codebases have usually already solved their
+   loudest problem. When an audit reports otherwise, the first hypothesis should
+   be that the measurement is wrong.
+
+**What was actually missing, and is now there:** a guard.
+`__tests__/startup/tabBarSurface.test.ts` pins the four-tab bar, requires every
+file in `app/(tabs)/` to be explicitly declared, and fails if a folded route
+loses its `href: null`. That matters because expo-router surfaces every file in
+a group as a tab BY DEFAULT — so a new screen silently joins the bar and a
+deleted `href: null` silently un-folds one, and neither shows up as a failure
+anywhere. The merge was real work with nothing stopping it eroding.

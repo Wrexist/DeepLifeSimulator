@@ -86,25 +86,43 @@ risk-aversion that dropped the event rate from 45% to 8% "for calm" — and calm
 is the one thing a life sim cannot afford, because its entire distribution
 mechanism is *"you won't believe what happened to me."*
 
-### Audit 5 — Navigation & information architecture · **BLOCKER**
+### Audit 5 — Navigation & information architecture · **CORRECTED: mostly already done**
 
-| Surface | Count |
+**This audit was wrong when first written, and the correction matters more than
+the original finding.** It reported "9 tabs, 8 of them visible to a new player"
+by counting `<Tabs.Screen>` registrations in `app/(tabs)/_layout.tsx`. That is
+not the tab bar. Five of those nine are registered with `href: null` —
+deliberately, with a comment saying so — which keeps deep links and
+`router.push()` resolving while rendering no tab button.
+
+**The real bar is four tabs: `home`, `work`, `apps`, `life`.** `mobile` and
+`computer` were already folded into Apps; `market`, `health` and `progression`
+into Life. The merge this plan recommended had already shipped, and the shipped
+result (4) is tighter than what the plan asked for (5).
+
+The second W3 item was over-graded too. The five "near-identical" breakdown
+modals (`Bank`, `Energy`, `Happiness`, `Health`, `Gems`) are ~60% structurally
+similar after normalising the stat name, not "the same component with different
+data" — each carries real per-stat contributors and advice. Merging them is a
+modest-benefit refactor with real regression risk, and the plan's own rule says
+not to refactor beyond what the work needs.
+
+| Surface | Actual |
 |---|---|
-| Tabs | **9** (`home, work, apps, life, mobile, computer, progression, market, health`) |
-| Tabs visible to a brand-new player | **8 of 9 are tier 0** |
-| Sub-apps (computer 11 + mobile 11) | **~22** |
-| Files containing `<Modal` | **96** |
-| Components | **239** |
-| Largest screen | `work.tsx` at 1,618 lines |
+| **Visible bottom tabs** | **4** |
+| Registered-but-folded routes | 5 (`href: null`) |
+| Sub-apps (computer 11 + mobile 11) | ~22, behind the Apps grid |
+| Components | 239 |
 
-**BitLife runs on one screen** — a scrolling life timeline — plus a bottom bar
-of ~5 icons. DeepLife has **~31 top-level destinations and 96 modals.**
+**What was genuinely missing: a guard.** expo-router surfaces every file in a
+group as a tab by default, so a new screen added to `app/(tabs)/` silently joins
+the bar and a removed `href: null` silently un-folds one of the five — neither
+shows up as a failure anywhere. `__tests__/startup/tabBarSurface.test.ts` now
+pins the four-tab bar, requires every route file to be explicitly declared, and
+fails if a folded route loses its `href: null`.
 
-`featureUnlocks.ts` already identified this ("a brand-new player used to land on
-NINE tabs and twenty-six apps") and gated the *apps* — but **left 8 of 9 tabs at
-tier 0**, so the tab bar problem is essentially unsolved. Three of those tabs
-(`apps`, `mobile`, `computer`) are all app launchers, which is redundant
-navigation for the same job.
+**Lesson recorded:** count what renders, not what is registered. A static count
+of declarations is not a measurement of the user-facing surface.
 
 ### Audit 6 — Market & funnel · **DEMAND CONFIRMED, CONVERSION BROKEN**
 
@@ -122,10 +140,10 @@ Everything above collapses to four things, in dependency order:
 |---|---|---|
 | **1** | **TIME** — 3,224 taps to live one life | W1 Year Mode |
 | **2** | **STAKES** — events are too rare, too small, too safe | W2 Content overhaul |
-| **3** | **NAVIGATION** — 9 tabs, 22 apps, 96 modals | W3 IA collapse |
+| ~~3~~ | ~~NAVIGATION~~ — **withdrawn**, the bar is already 4 tabs (see Audit 5) | guard added |
 | **4** | **CONVERSION** — product page loses 60% of taps | W5 Store page |
 
-W1 and W2 are the product. W3 makes it legible. W4–W8 distribute it.
+W1 and W2 are the product. W4–W8 distribute it. W3 turned out to be already done.
 
 **Critical ordering note:** W1 without W2 is a trap. Year Mode makes players see
 ~3.5 events per tap instead of one per fifteen — which, if those events are
