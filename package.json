@@ -42,7 +42,10 @@
     "e2e:install": "playwright install --with-deps",
     "postinstall": "node scripts/fix-podspec.js",
     "android": "expo run:android",
-    "lint:ratchet": "node scripts/check-lint.js"
+    "lint:ratchet": "node scripts/check-lint.js",
+    "demo:save": "tsx --tsconfig scripts/demo/tsconfig.json scripts/demo/run.ts",
+    "demo:capture": "npm run demo:save && playwright test e2e/appPreview.capture.spec.ts --project=preview-capture",
+    "demo:type-check": "tsc --noEmit -p scripts/demo/tsconfig.typecheck.json"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -98,6 +101,7 @@
     "jest": "~29.7.0",
     "react-test-renderer": "^19.1.0",
     "ts-jest": "^29.1.1",
+    "tsx": "4.23.11",
     "typescript": "~5.9.2"
   },
   "overrides": {

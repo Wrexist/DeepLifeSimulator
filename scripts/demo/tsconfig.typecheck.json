@@ -1,0 +1,23 @@
+{
+  // Type-check pass for the demo-save generator.
+  //
+  // Extends the repo's own type-check config (not `./tsconfig.json`) so it
+  // inherits the same compiler settings the app is held to — notably
+  // noUnusedLocals/Parameters off, which are relaxed repo-wide.
+  //
+  // Deliberately does NOT extend `./tsconfig.json` in this directory: that one
+  // swaps real React Native for the runtime stubs, which is right for tsx and
+  // wrong for type-checking (every app file it pulls in would be checked
+  // against the stub's much smaller surface).
+  //
+  // `scripts/` is excluded from the root type-check, so without this the
+  // generator would ship unchecked.
+  "extends": "../../tsconfig.typecheck.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  // The inherited `exclude` lists `scripts`, which would exclude this very
+  // directory — so it is replaced rather than extended.
+  "exclude": ["../../node_modules", "stubs"],
+  "include": ["demoSave.ts", "run.ts"]
+}

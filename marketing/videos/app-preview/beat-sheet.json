@@ -1,0 +1,56 @@
+{
+  "character": "Ava Moreno",
+  "slot": 3,
+  "netWorth": 17762790,
+  "totalMs": 38251,
+  "beats": [
+    {
+      "beat": "01-identity",
+      "caption": "Age 40. Net worth $17.8M. Started with $250.",
+      "startMs": 0,
+      "endMs": 3538
+    },
+    {
+      "beat": "02-networth",
+      "caption": "Every number is simulated, not scripted.",
+      "startMs": 3538,
+      "endMs": 7907
+    },
+    {
+      "beat": "03-work",
+      "caption": "CEO. Two companies on the payroll.",
+      "startMs": 7907,
+      "endMs": 12625
+    },
+    {
+      "beat": "04-apps",
+      "caption": "A whole phone inside the game.",
+      "startMs": 12625,
+      "endMs": 16638
+    },
+    {
+      "beat": "05-stocks",
+      "caption": "A market that moves whether you watch it or not.",
+      "startMs": 16638,
+      "endMs": 21653
+    },
+    {
+      "beat": "06-portfolio",
+      "caption": "Buy. Hold. Compound.",
+      "startMs": 21653,
+      "endMs": 25878
+    },
+    {
+      "beat": "07-life",
+      "caption": "A family that outlives you.",
+      "startMs": 25878,
+      "endMs": 33356
+    },
+    {
+      "beat": "08-dynasty",
+      "caption": "Two kids. One heir. Thirteen inherited traits.",
+      "startMs": 33356,
+      "endMs": 38250
+    }
+  ]
+}

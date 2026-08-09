@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "types": ["node"],
+    "paths": {
+      "@/*": ["*"],
+      "react-native": ["scripts/demo/stubs/react-native.ts"],
+      "@react-native-async-storage/async-storage": ["scripts/demo/stubs/async-storage.ts"]
+    }
+  },
+  // Runtime-resolution config for tsx only — the `paths` overrides above swap
+  // real React Native for the stubs, so this must NOT be used for a type-check
+  // pass (every app file would be checked against the stub's types and light
+  // up). Type-checking uses `tsconfig.typecheck.json` next to this file.
+  "include": ["**/*.ts"]
+}
