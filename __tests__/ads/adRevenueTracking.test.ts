@@ -126,13 +126,20 @@ describe('buildAdRevenuePayload', () => {
     expect(buildAdRevenuePayload(paid, { ...context, impressionId: '' }, PRECISIONS)).toBeNull();
   });
 
-  it('defaults a missing currency instead of emitting a malformed event', () => {
+  it('drops the event when the currency is missing or blank', () => {
+    // An amount without its unit is meaningless, and stamping a default would
+    // relabel non-USD earnings as USD — a wrong number reported confidently.
+    expect(buildAdRevenuePayload({ value: 0.01, currency: '', precision: 1 }, context, PRECISIONS)).toBeNull();
+    expect(buildAdRevenuePayload({ value: 0.01, currency: '   ', precision: 1 }, context, PRECISIONS)).toBeNull();
+  });
+
+  it('keeps a non-USD currency exactly as AdMob reported it', () => {
     const payload = buildAdRevenuePayload(
-      { value: 0.01, precision: 1 } as any,
+      { value: 0.01, currency: 'EUR', precision: 1 },
       context,
       PRECISIONS,
     );
-    expect(payload?.currency).toBe('USD');
+    expect(payload?.currency).toBe('EUR');
     expect(payload?.precision).toBe('estimated');
   });
 });

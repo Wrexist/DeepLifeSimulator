@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { adMobService } from '@/services/AdMobService';
+import type { AdMobPaidEvent } from '@/lib/ads/adRevenueTracking';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
@@ -42,7 +43,7 @@ export default function BannerAd({ style }: BannerAdProps) {
   // the banner in place, so this fires repeatedly for one mounted component;
   // the service mints an impression id per event because each paid event is
   // exactly one impression. Fully swallowed inside the service.
-  const handlePaid = useCallback((event: { value: number; currency: string; precision: unknown }) => {
+  const handlePaid = useCallback((event: AdMobPaidEvent) => {
     adMobService.trackBannerRevenue(adMobService.getBannerAdUnitId(), event);
   }, []);
 

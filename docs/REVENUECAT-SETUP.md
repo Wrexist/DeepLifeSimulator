@@ -334,22 +334,27 @@ Three things worth knowing before debugging it:
   rewarded ads but never opens the paywall would otherwise hit an unconfigured
   instance mid-impression. `RevenueCatService.track()` configures first.
 - **Impression ids are minted by us.** AdMob has no such concept; RevenueCat
-  requires one on every event and uses it to stitch loaded → displayed → paid
-  into a single impression. Fullscreen formats mint one per ad *request*;
-  banners mint one per paid event, because AdMob refreshes them in place with no
-  observable request boundary.
+  requires one on the loaded / displayed / paid events and uses it to stitch
+  them into a single impression. Failed-to-load carries none — no impression
+  exists yet — which is why `RcAdFailedPayload` has no `impressionId` field.
+  Fullscreen formats mint one per ad *request*; banners mint one per paid event,
+  because AdMob refreshes them in place with no observable request boundary.
 - **Every path is swallowed.** These run inside the ad SDK's own callbacks during
   playback, where an unhandled rejection costs a reward or wedges the ad.
 
 ### 8.2 Dashboard steps (owner — not doable from the repo)
 
-1. **AdMob → enable impression-level ad revenue.** AdMob → *Account → Settings →
-   Account settings → Impression-level ad revenue* → **On**. It is **off by
+1. **AdMob → enable impression-level ad revenue.** *Settings* (sidebar) →
+   *Account* → the **Account controls** section → *Impression-level ad revenue*
+   → toggle **On** → Save. (Google's own steps: support.google.com/admob/answer/11322405
+   — check there if the console has been relabelled since.) It is **off by
    default and account-gated**. Until it is on, AdMob never emits the `PAID`
    event, so the code above is correct and the RevenueCat Ads page stays empty.
-2. **RevenueCat → Ads.** The Ads section is in beta; enable it for the project.
-   Card 3 ("Connect your account") is an optional AdMob OAuth link that pulls in
-   ad-unit names — analytics work without it.
+2. **RevenueCat → Ads.** Ad Monetization is in public beta and is opt-in per
+   project: the **project owner** opts in from the *Ads* page in the RevenueCat
+   dashboard. Granting access also switches the project to Charts v3 if it isn't
+   already. Card 3 ("Connect your account") is an optional AdMob OAuth link that
+   pulls in ad-unit names — analytics work without it.
 3. **Ship a build with both flags on.** Ad revenue only reports when *both*
    `EXPO_PUBLIC_ENABLE_ADMOB=true` and `EXPO_PUBLIC_USE_REVENUECAT=true`, and
    neither survives `BORING_BUILD_MODE` — i.e. production/preview builds only,

@@ -36,6 +36,31 @@ dropped on the floor.
 - [x] `docs/REVENUECAT-SETUP.md` Part 8 — including the two dashboard steps only
       the owner can do
 
+### Review round (PR #112)
+
+- [x] **Blank currency no longer defaults to USD.** The mapper stamped `'USD'`
+      on a currencyless event, which contradicted the module's own rule — an
+      amount without its unit relabels EUR earnings as USD, a wrong number
+      reported confidently. Now dropped like any other unusable field.
+- [x] **Fullscreen loads settle exactly once.** A load TIMEOUT rejected while
+      leaving both listeners attached, so a late LOADED still marked the service
+      ready for an abandoned ad — and, once the ad object was replaced,
+      attributed that state and its tracking event to a stale impression. All
+      three outcomes now share one `settle()` that clears the timer and detaches
+      both listeners. The timeout is also reported as a failed load, closing a
+      hole in the fill data exactly where inventory is worst. Pre-existing, but
+      the tracking calls widened it. `__tests__/ads/adLoadSettle.test.ts` (7) —
+      verified to FAIL against the pre-fix code.
+- [x] Docs: impression ids are required on loaded/displayed/paid, not on every
+      event (failed-to-load has none); corrected the AdMob console path to
+      *Settings → Account → Account controls*; named the project owner as who
+      opts into the Ads beta.
+- [x] Shared `AdMobPaidEvent` in `BannerAd`; `PaidCapableAd` as an interface.
+- [ ] SKIPPED — explicit return type on the test-only `mockPurchases` helper.
+      Mis-anchored (it lives in `revenueCatAdTracking.test.ts`, not the ads
+      test), and the inferred type is already precise; annotating it would mean
+      restating jest.Mock generics, which obscures more than it protects.
+
 **Deliberately NOT done:** Ads → **Rewards** (server-side verified rewarded ads).
 Needs `generateRewardVerificationToken` / `pollRewardVerification`, absent from
 the pinned `10.4.4` — that's an SDK bump + a native rebuild + AdMob SSV config.

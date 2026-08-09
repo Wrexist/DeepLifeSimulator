@@ -38,12 +38,12 @@ function errMessage(error: unknown): string {
  * rather than `any` so a rename in the ad SDK fails the type-check here instead
  * of silently detaching revenue reporting.
  */
-type PaidCapableAd = {
+interface PaidCapableAd {
   addAdEventListener?: (
     type: string,
     listener: (event: AdMobPaidEvent) => void,
   ) => (() => void) | void;
-};
+}
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded native modules — never require at module load time
@@ -447,25 +447,52 @@ class AdMobServiceImpl {
       );
 
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
+        // ONE exit path for all three outcomes. A load TIMEOUT used to reject
+        // while leaving both listeners attached, so a late LOADED still ran its
+        // handler — marking the service ready for an ad that had been abandoned,
+        // and (once this ad object was replaced by the next load) attributing
+        // that state and its tracking event to a stale impression.
+        let settled = false;
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        let unsubLoaded: (() => void) | undefined;
+        let unsubError: (() => void) | undefined;
 
-        const unsubLoaded = this.interstitial.addAdEventListener(NativeAdEventType.LOADED, () => {
-          clearTimeout(timeout);
-          unsubLoaded();
-          unsubError();
-          this.setState({ isInterstitialLoaded: true });
-          recordSuccess();
-          this.reportLifecycle('loaded', 'interstitial', adUnitId, impressionId);
-          resolve();
-        });
+        const settle = (outcome: () => void): void => {
+          if (settled) return;
+          settled = true;
+          if (timeout) clearTimeout(timeout);
+          unsubLoaded?.();
+          unsubError?.();
+          outcome();
+        };
 
-        const unsubError = this.interstitial.addAdEventListener(NativeAdEventType.ERROR, (err: any) => {
-          clearTimeout(timeout);
-          unsubLoaded();
-          unsubError();
-          this.reportFailedToLoad('interstitial', adUnitId, err);
-          reject(err);
-        });
+        timeout = setTimeout(
+          () =>
+            settle(() => {
+              const err = new Error('Load timeout');
+              // A timeout IS a failed load — report it as one rather than
+              // leaving a silent gap in the fill data.
+              this.reportFailedToLoad('interstitial', adUnitId, err);
+              reject(err);
+            }),
+          15000,
+        );
+
+        unsubLoaded = this.interstitial.addAdEventListener(NativeAdEventType.LOADED, () =>
+          settle(() => {
+            this.setState({ isInterstitialLoaded: true });
+            recordSuccess();
+            this.reportLifecycle('loaded', 'interstitial', adUnitId, impressionId);
+            resolve();
+          }),
+        );
+
+        unsubError = this.interstitial.addAdEventListener(NativeAdEventType.ERROR, (err: any) =>
+          settle(() => {
+            this.reportFailedToLoad('interstitial', adUnitId, err);
+            reject(err);
+          }),
+        );
 
         this.interstitial.load();
       });
@@ -535,25 +562,46 @@ class AdMobServiceImpl {
       }
 
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
+        // Same single-settle contract as the interstitial load above.
+        let settled = false;
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        let unsubLoaded: (() => void) | undefined;
+        let unsubError: (() => void) | undefined;
 
-        const unsubLoaded = this.rewarded.addAdEventListener(loadedEvent, () => {
-          clearTimeout(timeout);
-          unsubLoaded();
-          unsubError();
-          this.setState({ isRewardedLoaded: true });
-          recordSuccess();
-          this.reportLifecycle('loaded', 'rewarded', adUnitId, impressionId);
-          resolve();
-        });
+        const settle = (outcome: () => void): void => {
+          if (settled) return;
+          settled = true;
+          if (timeout) clearTimeout(timeout);
+          unsubLoaded?.();
+          unsubError?.();
+          outcome();
+        };
 
-        const unsubError = this.rewarded.addAdEventListener(errorEvent, (err: any) => {
-          clearTimeout(timeout);
-          unsubLoaded();
-          unsubError();
-          this.reportFailedToLoad('rewarded', adUnitId, err);
-          reject(err);
-        });
+        timeout = setTimeout(
+          () =>
+            settle(() => {
+              const err = new Error('Load timeout');
+              this.reportFailedToLoad('rewarded', adUnitId, err);
+              reject(err);
+            }),
+          15000,
+        );
+
+        unsubLoaded = this.rewarded.addAdEventListener(loadedEvent, () =>
+          settle(() => {
+            this.setState({ isRewardedLoaded: true });
+            recordSuccess();
+            this.reportLifecycle('loaded', 'rewarded', adUnitId, impressionId);
+            resolve();
+          }),
+        );
+
+        unsubError = this.rewarded.addAdEventListener(errorEvent, (err: any) =>
+          settle(() => {
+            this.reportFailedToLoad('rewarded', adUnitId, err);
+            reject(err);
+          }),
+        );
 
         this.rewarded.load();
       });

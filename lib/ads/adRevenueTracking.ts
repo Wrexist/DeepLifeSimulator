@@ -145,9 +145,15 @@ export function mapAdMobPrecision(
 /**
  * Build the `trackAdRevenue` payload from an AdMob paid event.
  *
- * Returns null when the event cannot be represented honestly — an unusable
- * amount, or a missing ad unit / impression id (both are required fields, and
- * an empty one would land in the dashboard as an un-attributable impression).
+ * Returns null when the event cannot be represented honestly:
+ *  - an unusable amount;
+ *  - a missing ad unit / impression id, which would land in the dashboard as an
+ *    un-attributable impression;
+ *  - a missing or blank currency. An amount is meaningless without its unit, and
+ *    stamping a default would silently relabel (say) EUR earnings as USD — a
+ *    wrong number reported confidently, which is the exact failure this module
+ *    exists to prevent. AdMob always sends a currency with a paid event, so this
+ *    should be unreachable; if it ever fires, dropping is the honest answer.
  */
 export function buildAdRevenuePayload(
   event: AdMobPaidEvent,
@@ -158,15 +164,16 @@ export function buildAdRevenuePayload(
   if (revenueMicros === null) return null;
   if (!context.adUnitId || !context.impressionId) return null;
 
+  const currency = typeof event?.currency === 'string' ? event.currency.trim() : '';
+  if (!currency) return null;
+
   return {
     mediatorName: RC_MEDIATOR_ADMOB,
     adFormat: context.adFormat,
     adUnitId: context.adUnitId,
     impressionId: context.impressionId,
     revenueMicros,
-    // AdMob always reports a currency alongside a paid event; default only so a
-    // malformed payload still produces a well-formed RevenueCat event.
-    currency: typeof event?.currency === 'string' && event.currency ? event.currency : 'USD',
+    currency,
     precision: mapAdMobPrecision(event?.precision, precisionEnum),
   };
 }
