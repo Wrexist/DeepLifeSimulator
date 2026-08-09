@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -64,17 +65,22 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const router = useRouter();
+  // Redirects that run on this screen's first commit throw "Attempted to
+  // navigate before mounting the Root Layout component" when this screen IS
+  // the entry route (restored URL / deep link), which surfaces as the crash
+  // screen. See hooks/useNavigationReady.ts.
+  const navReady = useNavigationReady();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym' | 'housing'>('items');
   const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, gameState.jailWeeks, router]);
+  }, [embedded, navReady, gameState.jailWeeks, router]);
   const { highlightedItem, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
 import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
@@ -26,6 +27,11 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Redirects that run on this screen's first commit throw "Attempted to
+  // navigate before mounting the Root Layout component" when this screen IS
+  // the entry route (restored URL / deep link), which surfaces as the crash
+  // screen. See hooks/useNavigationReady.ts.
+  const navReady = useNavigationReady();
   const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
@@ -80,11 +86,11 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // Block staying on the health tab while in prison. Embedded (inside the Life
   // tab) the layout owns the jail redirect, so skip it here.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, gameState.jailWeeks, router]);
+  }, [embedded, navReady, gameState.jailWeeks, router]);
 
   // P1-6: every other tab guards stats with optional chaining; health was the
   // outlier and would throw if `stats` is briefly undefined on degraded state.

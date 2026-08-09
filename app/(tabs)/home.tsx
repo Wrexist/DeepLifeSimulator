@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { reconcileRedeemClaim, applyRedeemReward } from '@/utils/redeemCodes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGameActions, useItemActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
@@ -212,13 +213,19 @@ function HomeScreenContent() {
   const { activeTip, dismissTip } = useContextualTip(gameState);
 
   const router = useRouter();
+  // Redirects that run on this screen's first commit throw "Attempted to
+  // navigate before mounting the Root Layout component" when this screen IS
+  // the entry route (restored URL / deep link), which surfaces as the crash
+  // screen. See hooks/useNavigationReady.ts.
+  const navReady = useNavigationReady();
 
   // Prevent staying on home screen when in prison - redirect to work tab
   useEffect(() => {
+    if (!navReady) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [gameState.jailWeeks, router]);
+  }, [navReady, gameState.jailWeeks, router]);
 
   // REMOVED: the linear goal system (`utils/goalSystem.ts` +
   // `GoalCompletionPopup`). `checkGoalCompletion` ran here every week and could
