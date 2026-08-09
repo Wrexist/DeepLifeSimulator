@@ -45,6 +45,65 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.7.0',
+    date: 'August 2026',
+    headline: 'Story Mode',
+    summary: 'Live a whole life in one sitting — same game, one tap a year.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Choose your pace when you start a life',
+        bullets: [
+          'Classic is the game you know: one tap, one week.',
+          'Story Mode is one tap, one year — a full life in about 62 taps.',
+          'You pick when you create a character, and it stays for that life.',
+          'Lives you are already playing keep the pace they have.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Story Mode skips nothing',
+        bullets: [
+          'Every week still runs in full — the same bills, interest and market.',
+          'It just stops asking you to tap for each one.',
+          'Choices still wait for you. Nothing is decided on your behalf.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Year in Review',
+        bullets: [
+          'Every year ends with what your money and net worth did.',
+          'Plus everything that happened while the year ran.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Sharing a life now links to the game',
+        bullets: [
+          'Send someone your obituary and they can actually install it.',
+          'Share your life at any point from the Progress tab.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Two stories that promised drama now follow through',
+        bullets: [
+          'A partner acting distant, and a suspicious message on their phone.',
+          'Both used to resolve into nothing. Now the choices lead somewhere.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Advancing quickly could use out-of-date numbers',
+        bullets: [
+          'Tapping fast meant your stats wore down against a stale snapshot.',
+          'A character could also keep ageing after they had already died.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.6.0',
     date: 'August 2026',
     headline: 'The Economy Update',
