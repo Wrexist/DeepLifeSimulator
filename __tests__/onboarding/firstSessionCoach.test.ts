@@ -16,6 +16,8 @@
  * they already have.
  */
 
+import { resolveCoachStep, MAX_COACH_WEEKS } from '@/src/features/onboarding/coachStep';
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -31,9 +33,14 @@ const homeSrc = fs.readFileSync(
 );
 
 /**
- * The step decision, transcribed from the component. Kept as a local mirror so
- * the ORDER can be exercised directly — the component's own copy is inside a
- * `useMemo` and cannot be imported without a renderer.
+ * Thin adapter over the PRODUCTION selector, supplying the defaults each case
+ * does not care about.
+ *
+ * The first version of this file transcribed the decision into a local copy,
+ * because the logic lived inside the component's `useMemo` and could not be
+ * imported without a renderer. That is a test that pins a copy: the component
+ * was free to drift while every assertion here stayed green. The logic now
+ * lives in `coachStep.ts` and the component calls the same function.
  */
 function step(o: {
   dismissed: boolean;
@@ -41,15 +48,16 @@ function step(o: {
   baseline?: number | null;
   incomeEarned: number;
   hasJob: boolean;
-  maxWeeks?: number;
+  establishedLife?: boolean;
 }): string | null {
-  const max = o.maxWeeks ?? 8;
-  const baseline = o.baseline === undefined ? o.weeksLived : o.baseline;
-  if (o.dismissed) return null;
-  if (baseline !== null && o.weeksLived - baseline > max) return null;
-  if (o.incomeEarned > 0) return 'paid';
-  if (!o.hasJob) return 'find-work';
-  return 'advance';
+  return resolveCoachStep({
+    dismissed: o.dismissed,
+    establishedLife: o.establishedLife ?? false,
+    baseline: o.baseline === undefined ? o.weeksLived : o.baseline,
+    weeksLived: o.weeksLived,
+    incomeEarned: o.incomeEarned,
+    hasJob: o.hasJob,
+  });
 }
 
 describe('the coach always asks for the RIGHT next thing', () => {
@@ -126,6 +134,41 @@ describe('the coach knows when to leave', () => {
     // — same failure direction as the dismissal flag.
     expect(step({ ...base, baseline: null, weeksLived: 104 })).toBe('find-work');
   });
+
+  it('uses the same cap the component imports', () => {
+    // Pins the constant to the shared module rather than to a literal 8, so the
+    // window cannot be changed in one place and asserted in another.
+    expect(step({ ...base, baseline: 0, weeksLived: MAX_COACH_WEEKS })).not.toBeNull();
+    expect(step({ ...base, baseline: 0, weeksLived: MAX_COACH_WEEKS + 1 })).toBeNull();
+  });
+});
+
+describe('the coach never greets an established player', () => {
+  const base = { dismissed: false, weeksLived: 0, incomeEarned: 0, hasJob: false };
+
+  it('stays silent for a life that has already worked', () => {
+    // THE UPGRADE BUG. An existing save carries NEITHER coach key, so the
+    // dismissal flag is false and the baseline anchors on the current week —
+    // which handed eight weeks of first-session guidance to every established
+    // player who merely updated the app.
+    expect(step({ ...base, establishedLife: true, weeksLived: 400 })).toBeNull();
+  });
+
+  it('stays silent even when that player is between jobs', () => {
+    // The worst version of it: a retired millionaire told to find their first
+    // job. `hasJob: false` is true of a brand-new life AND of a long career
+    // that ended, so employment alone cannot tell them apart.
+    expect(step({ ...base, establishedLife: true, hasJob: false })).toBeNull();
+    expect(step({ ...base, establishedLife: true, hasJob: true, incomeEarned: 5000 })).toBeNull();
+  });
+
+  it('still pays off a NEW player the week they are first paid', () => {
+    // Why the flag is snapshotted at mount instead of read live: the signal is
+    // `totalWeeksWorked`, which flips from 0 the instant the first wage lands.
+    // Reading it live would delete the reward for reaching the goal — the one
+    // moment the whole card exists to deliver.
+    expect(step({ ...base, establishedLife: false, hasJob: true, incomeEarned: 110 })).toBe('paid');
+  });
 });
 
 describe('it is mounted where it can actually run', () => {
@@ -165,5 +208,25 @@ describe('animation stays on the native driver', () => {
 
   it('stops the pulse loop on unmount so it cannot leak', () => {
     expect(src).toMatch(/return \(\) => loop\.stop\(\)/);
+  });
+});
+
+describe('the component wires the shared selector, not a second copy', () => {
+  it('imports the production selector', () => {
+    expect(src).toMatch(/resolveCoachStep/);
+    expect(src).toMatch(/from '@\/src\/features\/onboarding\/coachStep'/);
+  });
+
+  it('snapshots the established-life flag at MOUNT', () => {
+    // A lazy `useState` initializer, not a live read — see the payoff test
+    // above for why the difference is load-bearing rather than stylistic.
+    expect(src).toMatch(/useState\(\(\) => weeksWorked > 0\)/);
+  });
+
+  it('logs storage failures instead of swallowing them', () => {
+    // Empty catches made "the coach came back" undiagnosable. The fail-OPEN
+    // behaviour is deliberate and unchanged; only the silence is gone.
+    expect(src).not.toMatch(/\.catch\(\(\) => \{\}\)/);
+    expect(src).toMatch(/log\.warn\(/);
   });
 });

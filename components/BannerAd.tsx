@@ -85,7 +85,15 @@ export default function BannerAd({ style }: BannerAdProps) {
 
   // Read AFTER the other hooks so hook order stays fixed; the early returns
   // below are all after every hook in this component.
-  const weeksLived = useGameSelector((st) => st?.weeksLived ?? 0);
+  //
+  // `?? 0` alone would let NaN and -Infinity through, and `NaN < GRACE` is
+  // FALSE — so a corrupt counter would fail toward showing an ad to a brand-new
+  // player, the exact thing the grace exists to prevent. Anything not finite is
+  // treated as week zero, which errs toward the quieter first session.
+  const weeksLived = useGameSelector((st) => {
+    const raw = st?.weeksLived;
+    return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, raw) : 0;
+  });
 
   if (adError || !isReady || adsRemoved) return null;
   // New players get a clean first year. See BANNER_GRACE_WEEKS.

@@ -50,31 +50,13 @@ import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { logger } from '@/utils/logger';
+import { resolveCoachStep, type CoachStep } from '@/src/features/onboarding/coachStep';
 
 const COACH_DONE_KEY = '@deep_life_first_session_coach_done';
 const COACH_BASELINE_KEY = '@deep_life_first_session_coach_baseline';
 
-/**
- * How many weeks the coach stays available, counted FROM WHEN IT FIRST APPEARED
- * — not from `weeksLived`.
- *
- * ── The bug this constant caused, and the trap behind it ─────────────────
- * The first version compared `weeksLived > 8` directly. `weeksLived` is the
- * ABSOLUTE life counter (CLAUDE.md §4.2), and a character created at age 20
- * starts at **104**. So the cap was already exceeded before the first frame and
- * the coach retired without ever rendering — invisible in the running app while
- * every unit test passed, because the tests fed it the small numbers I assumed.
- *
- * `FirstWeekGuide` carries a comment saying precisely this ("`currentWeek` is
- * the absolute weeksLived, which is 0 for age-18 starts and 100+ for older
- * starts"). It was read during this work and not applied.
- *
- * Storing a baseline makes the window mean "eight weeks after we started
- * helping", which is what was intended and is correct for any starting age.
- */
-const MAX_COACH_WEEKS = 8;
-
-type CoachStep = 'find-work' | 'advance' | 'paid' | null;
+const log = logger.scope('FirstSessionCoach');
 
 export default function FirstSessionCoach() {
   const router = useRouter();
@@ -84,6 +66,21 @@ export default function FirstSessionCoach() {
   const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
   const incomeEarned = useGameSelector((s) => s?.weekResult?.incomeEarned ?? 0);
   const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
+  const weeksWorked = useGameSelector((s) => s?.lifetimeStatistics?.totalWeeksWorked ?? 0);
+
+  /**
+   * Was this life already established when the coach first mounted?
+   *
+   * An existing save carries NEITHER coach key, so without this gate every
+   * established player who simply updates the app is handed first-session
+   * guidance — "Find your first job" to someone with a career, for eight weeks.
+   *
+   * Snapshotted at mount via a lazy initializer rather than read live, because
+   * `totalWeeksWorked` flips from 0 the instant a new player receives their
+   * first wage — and that is precisely the moment the `paid` payoff has to
+   * render. Reading it live would delete the reward for reaching the goal.
+   */
+  const [establishedLife] = useState(() => weeksWorked > 0);
 
   /**
    * Starts VISIBLE and is only ever hidden by an explicit stored 'true'.
@@ -110,8 +107,10 @@ export default function FirstSessionCoach() {
     AsyncStorage.getItem(COACH_DONE_KEY)
       .then((v) => { if (alive && v === 'true') setDismissed(true); })
       // A storage failure must not hide the one thing telling a new player what
-      // to do, so this deliberately does NOT hide on error.
-      .catch(() => {});
+      // to do, so this deliberately does NOT hide on error — but it is logged
+      // rather than swallowed, because a coach that silently reappears every
+      // launch is otherwise indistinguishable from one that was never dismissed.
+      .catch((error) => log.warn('Could not read the dismissal flag; showing the coach', { error }));
     return () => { alive = false; };
   }, []);
 
@@ -124,33 +123,44 @@ export default function FirstSessionCoach() {
         const stored = v === null ? NaN : Number(v);
         if (Number.isFinite(stored)) { setBaseline(stored); return; }
         setBaseline(weeksLived);
-        AsyncStorage.setItem(COACH_BASELINE_KEY, String(weeksLived)).catch(() => {});
+        AsyncStorage.setItem(COACH_BASELINE_KEY, String(weeksLived)).catch((error) =>
+          // Worth a line: an unwritten baseline re-anchors next launch, which
+          // silently extends the eight-week window.
+          log.warn('Could not persist the coach baseline; the window will re-anchor', { error })
+        );
       })
       // Unreadable baseline → treat now as the start. Erring toward showing.
-      .catch(() => { if (alive) setBaseline(weeksLived); });
+      .catch((error) => {
+        log.warn('Could not read the coach baseline; anchoring on this week', { error });
+        if (alive) setBaseline(weeksLived);
+      });
     return () => { alive = false; };
     // Intentionally mount-only: the baseline is a one-time anchor, and
     // depending on `weeksLived` would re-anchor it every single week.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const step: CoachStep = useMemo(() => {
-    if (dismissed) return null;
-    // Counted from first sight, never from the absolute clock — see
-    // MAX_COACH_WEEKS. A null baseline means "not anchored yet", which must not
-    // hide the card.
-    if (baseline !== null && weeksLived - baseline > MAX_COACH_WEEKS) return null;
-    if (incomeEarned > 0) return 'paid';
-    if (!currentJob) return 'find-work';
-    return 'advance';
-  }, [dismissed, baseline, weeksLived, incomeEarned, currentJob]);
+  const step: CoachStep = useMemo(
+    () =>
+      resolveCoachStep({
+        dismissed,
+        establishedLife,
+        baseline,
+        weeksLived,
+        incomeEarned,
+        hasJob: Boolean(currentJob),
+      }),
+    [dismissed, establishedLife, baseline, weeksLived, incomeEarned, currentJob]
+  );
 
   const retire = useCallback(() => {
     setDismissed(true);
-    AsyncStorage.setItem(COACH_DONE_KEY, 'true').catch(() => {
+    AsyncStorage.setItem(COACH_DONE_KEY, 'true').catch((error) =>
       // Non-critical: it reappears next launch, which is far better than a
-      // storage error blocking the UI.
-    });
+      // storage error blocking the UI. Logged so "the coach came back" is
+      // diagnosable rather than a mystery.
+      log.warn('Could not persist the dismissal; the coach may reappear', { error })
+    );
   }, []);
 
   // ── Entrance: slide up + fade, once per step ────────────────────────────

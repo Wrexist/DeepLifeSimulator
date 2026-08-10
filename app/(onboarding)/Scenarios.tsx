@@ -561,13 +561,20 @@ export default function Scenarios() {
         ))}
 
         {/* Clears the pinned "Continue" bar. */}
-        <View style={{ height: 140 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </OnboardingScreenShellV2>
   );
 }
 
 const styles = StyleSheet.create({
+  /**
+   * Clearance for the pinned "Continue" bar. Scaled, not raw pixels — on a
+   * small device a fixed 140 leaves the last card partly under the bar.
+   */
+  bottomSpacer: {
+    height: scale(140),
+  },
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: responsivePadding.large,

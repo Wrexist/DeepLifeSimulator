@@ -1,8 +1,13 @@
 /**
  * Compose upload-ready App Store screenshots from REAL app captures.
  *
- *   in   screenshots/story-mode/*.png   (1179 × 2556, from capture-story-mode-shots.mjs)
+ *   in   screenshots/story-mode/*.png   (1179 × 2556, untracked working files)
  *   out  screenshots/app-store/*.png    (1290 × 2796, the iPhone 6.7" slot)
+ *
+ * The input directory keeps its name for the captures already sitting in it.
+ * The script that produced them, `capture-story-mode-shots.mjs`, was removed
+ * along with story mode — see the re-capture note next to the skip report at
+ * the bottom of this file before reaching for it.
  *
  * Run:  node scripts/compose-store-screenshots.mjs
  *
@@ -216,6 +221,12 @@ if (missing.length) {
   console.log(
     `\n  Available captures: ${available.filter((f) => f.endsWith('.png')).join(', ') || '(none)'}`
   );
-  console.log('  Produce them with: node scripts/capture-story-mode-shots.mjs');
-  console.log('  (read its header first — it needs a production export, not the dev server)');
+  console.log(`  Expected in: ${IN}`);
+  console.log('  These were captured by scripts/capture-story-mode-shots.mjs, which was');
+  console.log('  removed with story mode. The COMPOSED outputs are committed under');
+  console.log('  screenshots/app-store/, so nothing is lost unless you deleted the inputs.');
+  console.log('  To re-capture: scripts/capture-real-screenshots.mjs drives the same');
+  console.log('  surfaces but writes screenshots/iphone-real/ under different names —');
+  console.log('  copy the four you need in, or point IN at its output. It needs a');
+  console.log('  production export, not the dev server.');
 }

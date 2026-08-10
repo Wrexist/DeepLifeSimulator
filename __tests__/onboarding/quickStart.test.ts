@@ -50,8 +50,11 @@ describe('Quick Start fills in what the long flow would have', () => {
     // grows a side effect, the shortcut inherits it rather than diverging.
     expect(menuSrc).toMatch(/applyLifePathSelectionToOnboardingState\(prev, recommended\)/);
     const recommended = scenarios.find((s) => s.id === 'food_courier')!;
+    // Deliberately NOT cast: the helper is generic over its state shape, so an
+    // honestly-typed fixture makes this test fail if that contract changes,
+    // which is the whole reason to call the real helper instead of mimicking it.
     const applied = applyLifePathSelectionToOnboardingState(
-      { scenario: undefined, challengeScenarioId: 'stale' } as any,
+      { scenario: undefined, challengeScenarioId: 'stale' },
       recommended
     );
     expect(applied.scenario).toBe(recommended);
@@ -63,6 +66,28 @@ describe('Quick Start fills in what the long flow would have', () => {
   it('leaves ambition and perks unset rather than inventing them', () => {
     expect(menuSrc).toMatch(/ambitionId: undefined/);
     expect(menuSrc).toMatch(/perks: \[\]/);
+  });
+
+  it('clears the field the onboarding state actually stores', () => {
+    // Raised in review as a bug — "this should be `selectedPerks: []`" — and it
+    // is the wrong way round, so it is pinned here rather than re-argued.
+    //
+    // `selectedPerks` is the PARAMETER NAME of `gameStateBuilder`. The
+    // onboarding state's own field is `perks`, which is what the Perks screen
+    // seeds its selection from. Writing `selectedPerks` into the draft would add
+    // a key nothing reads and leave a stale `perks` array intact — precisely the
+    // "old perks survive Quick Start" failure the suggestion aimed to prevent.
+    const ctxSrc = fs.readFileSync(
+      path.join(process.cwd(), 'src', 'features', 'onboarding', 'OnboardingContext.tsx'),
+      'utf8'
+    );
+    const perksSrc = fs.readFileSync(
+      path.join(process.cwd(), 'app', '(onboarding)', 'Perks.tsx'),
+      'utf8'
+    );
+    expect(ctxSrc).toMatch(/^\s*perks: string\[\];/m);
+    expect(ctxSrc).not.toMatch(/^\s*selectedPerks[?]?:/m);
+    expect(perksSrc).toMatch(/useState<string\[\]>\(state\.perks\)/);
   });
 });
 

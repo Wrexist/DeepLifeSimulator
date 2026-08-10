@@ -42,6 +42,32 @@ describe('the banner leaves a new player alone', () => {
     expect(bannerSrc).toMatch(/const BANNER_GRACE_WEEKS = WEEKS_PER_YEAR/);
   });
 
+  it('treats a non-finite week counter as week zero', () => {
+    // `?? 0` alone lets NaN through, and `NaN < GRACE` is FALSE — so a corrupt
+    // counter failed toward SHOWING an ad to a brand-new player, the exact
+    // thing the grace exists to prevent. CLAUDE.md §7 records the same class of
+    // hazard on `overdueBalance` (an absent key made `cash - undefined` = NaN).
+    //
+    // Exercised as the selector's own arithmetic rather than through a render,
+    // because the component needs the AdMob native module to mount.
+    const clamp = (raw: unknown): number =>
+      typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, raw) : 0;
+
+    for (const bad of [NaN, Infinity, -Infinity, undefined, null, '52', {}]) {
+      expect(clamp(bad)).toBe(0);
+      expect(clamp(bad) < WEEKS_PER_YEAR).toBe(true); // → banner hidden
+    }
+    expect(clamp(-5)).toBe(0);
+    expect(clamp(0)).toBe(0);
+    expect(clamp(WEEKS_PER_YEAR - 1) < WEEKS_PER_YEAR).toBe(true);
+    expect(clamp(WEEKS_PER_YEAR) < WEEKS_PER_YEAR).toBe(false); // → banner allowed
+  });
+
+  it('keeps that clamp in the component, not just in this test', () => {
+    expect(bannerSrc).toMatch(/Number\.isFinite\(raw\)/);
+    expect(bannerSrc).toMatch(/Math\.max\(0, raw\)/);
+  });
+
   it('checks the grace AFTER every hook, so hook order stays fixed', () => {
     // The gate is an early return. Putting it above a hook would make the hook
     // count vary between renders and crash React — a real hazard when adding an

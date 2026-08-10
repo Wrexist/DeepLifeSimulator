@@ -97,12 +97,22 @@ composites real app captures into upload-ready 1290×2796 PNGs in
 `screenshots/app-store/`. It uses screenshots the app actually produced rather
 than recreations, so what the store shows is by construction what ships.
 
+The four composed PNGs are committed, so nothing below needs re-running to
+ship. It is only for re-capturing after the screens change:
+
 ```bash
 npx expo export --platform web --clear --output-dir /tmp/webexport   # --clear matters, see below
 npx serve -s -l 8099 /tmp/webexport
-CAPTURE_URL=http://localhost:8099 node scripts/capture-story-mode-shots.mjs
+CAPTURE_URL=http://localhost:8099 node scripts/capture-real-screenshots.mjs
 node scripts/compose-store-screenshots.mjs
 ```
+
+The capture step used to be `capture-story-mode-shots.mjs`, which was removed
+with story mode. `capture-real-screenshots.mjs` drives the same surfaces but
+writes `screenshots/iphone-real/` under different names, so the compositor's
+four inputs have to be copied into `screenshots/story-mode/` (or `IN` repointed)
+before the second command finds them. It reports exactly which files it wanted
+and skips rather than substituting, so a mismatch is loud.
 
 | # | Screen | Caption | Status |
 |---|---|---|---|
