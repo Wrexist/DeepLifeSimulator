@@ -40,14 +40,26 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 1 235 over the whole repo on 2026-08-04.
+ * Warning ceiling. Measured 1 188 over the whole repo on 2026-08-10
+ * (was 1 235 on 2026-08-04, ceiling 1 240).
  *
  * A small margin above the measurement so the gate does not trip on noise from
  * an unrelated file landing — the same reasoning as the coverage floors. A gate
  * that fails on nothing is one people learn to re-run until it passes; a gate
  * with a 100-warning cushion is one that catches nothing.
+ *
+ * ── How the count FELL by 47 while features were being added ──────────────
+ * Almost all of it was one line. `AUTO_REST_TARGET_ENERGY` sat between two
+ * `import` statements in `contexts/game/GameActionsContext.tsx`, which makes
+ * every import after it "in body of module" to `import/first` — 103 warnings,
+ * 8% of the repo's total, from one constant in the wrong place. Two test files
+ * had a smaller version of the same thing (a `require` between imports).
+ *
+ * Worth knowing because it cuts both ways: a single misplaced statement can
+ * blow a 50-warning hole in this budget, so a sudden jump is worth reading
+ * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 1240;
+const MAX_WARNINGS = 1193;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

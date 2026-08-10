@@ -1563,3 +1563,113 @@ loses its `href: null`. That matters because expo-router surfaces every file in
 a group as a tab BY DEFAULT — so a new screen silently joins the bar and a
 deleted `href: null` silently un-folds one, and neither shows up as a failure
 anywhere. The merge was real work with nothing stopping it eroding.
+
+---
+
+## 2026-08-10 — Two content-quality goals set, both wrong. Check a goal is reachable before you ship it.
+
+`scripts/lib/contentQualityRatchet.js` has now had a target retired twice in two
+days, by me, in consecutive commits. The floors were fine both times — the
+regression protection was never the problem. The *ambitions* were fiction.
+
+**Goal 1: `medianAbsHappiness` → 15.** Retired within hours. It measured
+happiness numbers in isolation, but 78% of outcomes that touch happiness also
+move money, relationship or health. Chasing 15 would have inflated happiness on
+events that already land hard through other mechanics, and the metric would have
+reported that as progress.
+
+**Goal 2: `soloHappinessMedian` → 10.** Its replacement, set the same day, and
+wrong in two independent ways:
+
+- **Unreachable by the work it implied.** Simulating a perfect pass — every
+  trivial happiness-only outcome raised to 10, excluding the file that documents
+  itself as deliberate flavour — lands the median at **8**, because the
+  distribution's mass sits at exactly 5 and 8. The last two points could only be
+  bought by retuning the flavour file too. A goal reachable only by overruling a
+  documented authoring decision is not a goal.
+- **Aimed at a population that was already correct.** Of the 46 trivial
+  happiness-only outcomes, **24 are the decline branch of a choice set**
+  ("Skip the sales", "Politely decline", "Just spectate") and 16 more are the
+  flavour file. Declining an offer *should* do almost nothing — that is what
+  makes the other branch a decision. The metric was reading good choice
+  architecture as weak content, and "fixing" it would have made every decline
+  branch competitive with the thing it declines.
+
+**What settled it** was asking a question about the EVENT instead of the
+outcome: how many multi-choice events have *no* branch that does anything?
+**Two, out of 235** — and both are in the flavour file. The corpus never had the
+problem either goal was chasing. That check shipped as `inertEventShare`, the
+first metric here to ratchet DOWN (a ceiling, not a floor).
+
+**The rules.**
+
+1. **Simulate the perfect pass before you set the target.** "What does this
+   metric read if I do all the work it implies?" is a five-minute script. Both
+   goals would have died before landing. The simulation is now a test, so the
+   claim can't decay into a remembered number.
+2. **A goal you can't reach is worse than no goal.** It is a permanent red mark,
+   and a gate nobody can satisfy trains people to skim it — the same failure as
+   the unreachable 70% coverage threshold this file's ratchet replaced. Setting
+   one is the same mistake wearing an aspirational hat.
+3. **Check what the metric's population actually is before targeting it.** Half
+   of goal 2's targets were correct as written. An aggregate can be bad-looking
+   and right, and the only way to know is to print the members and read them.
+4. **Prefer a question about the unit the player experiences.** "Is this outcome
+   big?" invited inflation. "Does this event offer a real decision?" cannot be
+   gamed by raising numbers, needs no word list, and names its offenders.
+5. **Retiring your own goal is not moving the goalposts, provided the floor
+   stays.** The distinction that makes it honest: floors unchanged, the reason
+   written down, and the arithmetic shipped as a test. Lowering the floor to get
+   green would have been the other thing entirely.
+
+**Also disproved, and recorded so nobody re-tests it:** karma was excluded from
+the "does this outcome do anything" check, which looked like a measurement bug
+since karma gates careers and modifies drift. Only **6 of 113** happiness-only
+outcomes carry karma, and correcting for it moves the median not at all. Left
+alone — a change that alters no number is churn, and it would have looked like
+fiddling with a metric to pass it.
+
+---
+
+## 2026-08-10 — "Preflight green" was read off a banner, not an exit code
+
+I reported `npm run preflight` as **✅ ALL PASSED** while the command was
+exiting non-zero. Both statements were about the same run.
+
+`scripts/preflight-check.js` prints its own `PREFLIGHT CHECK SUMMARY` banner —
+and that script is only the *second* of five steps in the npm script:
+
+```
+check:routes && preflight-check.js && lint:errors && lint:ratchet && check:content
+```
+
+I read the banner, saw ALL PASSED, and stopped. `lint:ratchet` was failing
+underneath it, and had been failing since **before this session started**
+(1 255 warnings against a 1 240 ceiling at the session's base commit). So the
+claim was wrong in the worst available way: not a mistake about a number, but a
+green report over a red build, repeated across several commits.
+
+**The rules.**
+
+1. **A gate's verdict is its exit code.** Any sub-step can print a cheerful
+   banner. `echo "EXIT: $?"`, or read the last line of the chain — never a
+   summary printed by one link in it.
+2. **Know what a composite command actually runs.** `preflight` is five
+   commands; `preflight-check.js` is one of them. Reading the npm script takes
+   ten seconds and would have caught this immediately.
+3. **A pre-existing failure is still a failure you are now reporting on.**
+   "It was already broken" explains the cause and excuses nothing about the
+   claim. Inheriting a red gate means saying so.
+
+**What the failure turned out to be** is worth its own note, because it is the
+opposite of what a 1 270-warning count suggests. One line —
+`const AUTO_REST_TARGET_ENERGY = 70;` sitting between two `import` statements in
+`GameActionsContext.tsx` — made all 103 imports below it "in body of module" to
+`import/first`. That single misplaced constant was **8% of the repository's
+entire warning count**. Two test files had a smaller version (a `require`
+between imports, 11 more). Moving four lines took the repo from 1 270 to 1 188,
+under the ceiling, and the ceiling is now locked at 1 193.
+
+So: **before assuming a warning spike means sloppy code, look at whether one
+statement is in the wrong place.** Warning counts are not linear in effort —
+`import/first` and friends multiply one mistake by the size of the file.

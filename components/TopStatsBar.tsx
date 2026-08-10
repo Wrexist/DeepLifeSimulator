@@ -18,7 +18,7 @@ import {
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual, GameStoreContext } from '@/contexts/game/useGameSelector';
 import { isStoryMode, STORY_MODE_WEEKS_PER_TAP, summarizeYear, type YearSummary } from '@/lib/gameMode/mode';
-import YearInReviewModal from '@/components/YearInReviewModal';
+import { YearInReviewModal } from '@/components/YearInReviewModal';
 import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';

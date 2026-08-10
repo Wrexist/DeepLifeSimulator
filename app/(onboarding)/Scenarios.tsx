@@ -39,7 +39,7 @@ import {
   getInitialScenarioTab,
 } from '@/src/features/onboarding/scenariosFlow';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import GameModePicker from '@/components/onboarding/GameModePicker';
+import { GameModePicker } from '@/components/onboarding/GameModePicker';
 import type { GameMode } from '@/contexts/game/types';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';

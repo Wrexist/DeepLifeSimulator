@@ -16,6 +16,10 @@
  * fail, or warn. It would just quietly stop measuring the business again.
  */
 
+import { analytics } from '@/lib/analytics/AnalyticsService';
+
+// Safe below the import because ts-jest hoists `jest.mock` above it, and the
+// factory only CLOSES OVER `mockLogEvent` — it never reads it at hoist time.
 const mockLogEvent = jest.fn();
 
 jest.mock('@/services/FirebaseAnalyticsService', () => ({
@@ -29,8 +33,6 @@ jest.mock('@/services/FirebaseAnalyticsService', () => ({
 jest.mock('@/lib/config/featureFlags', () => ({
   FEATURE_FLAGS: { firebaseAnalytics: true, telemetry: false },
 }));
-
-import { analytics } from '@/lib/analytics/AnalyticsService';
 
 describe('analytics fan-out', () => {
   beforeEach(() => {

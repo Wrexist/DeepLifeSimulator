@@ -30,12 +30,14 @@ jest.mock('@/utils/saveQueue', () => ({
 }));
 
 import React from 'react';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const TestRenderer = require('react-test-renderer');
 import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
+
+// Below the imports on purpose — see the note in batchEquivalence.test.ts.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TestRenderer = require('react-test-renderer');
 
 const { act } = TestRenderer;
 const h = React.createElement;

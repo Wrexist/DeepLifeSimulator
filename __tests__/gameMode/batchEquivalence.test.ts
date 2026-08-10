@@ -39,13 +39,17 @@ jest.mock('@/utils/saveQueue', () => ({
 }));
 
 import React from 'react';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const TestRenderer = require('react-test-renderer');
 import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
 import { summarizeYear, type YearDigest } from '@/lib/gameMode/mode';
+
+// Below the imports on purpose: a `require` between two `import` statements
+// makes every import after it "in body of module" to eslint, which is 6
+// warnings for one misplaced line.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TestRenderer = require('react-test-renderer');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
 

@@ -61,19 +61,6 @@ import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
 import { hasImmortality } from '@/lib/prestige/applyBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 
-/**
- * Energy the Auto-Rest prestige bonus tops a depleted week up to.
- *
- * Must sit ABOVE `baseEnergyRegen` (40) or the top-up is unreachable: an
- * exhausted player at energy 5 already regens to 45, so a target of 40 made
- * `Math.max(45, 40)` a no-op and the 3,000-point bonus stayed inert for anyone
- * without a regen penalty — the second inert version of this fix. 70 is a
- * bounded benefit: +25 at the floor, +11 at the `< 20` threshold, and still
- * below what a well-rested player reaches on their own, so it tops up a bad
- * week rather than replacing normal play. The manual quick-action Rest gives
- * +14 and costs 5 happiness plus the week's one action slot.
- */
-const AUTO_REST_TARGET_ENERGY = 70;
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
@@ -177,6 +164,24 @@ import { applyLifetimeStatistics } from './actions/weekly/applyLifetimeStatistic
 import { applyCliffhangerRoll } from './actions/weekly/applyCliffhangerRoll';
 import type { WeekContext } from './actions/weekly/weekContext';
 import { STORY_MODE_WEEKS_PER_TAP, type YearDigest } from '@/lib/gameMode/mode';
+
+/**
+ * Energy the Auto-Rest prestige bonus tops a depleted week up to.
+ *
+ * Must sit ABOVE `baseEnergyRegen` (40) or the top-up is unreachable: an
+ * exhausted player at energy 5 already regens to 45, so a target of 40 made
+ * `Math.max(45, 40)` a no-op and the 3,000-point bonus stayed inert for anyone
+ * without a regen penalty — the second inert version of this fix. 70 is a
+ * bounded benefit: +25 at the floor, +11 at the `< 20` threshold, and still
+ * below what a well-rested player reaches on their own, so it tops up a bad
+ * week rather than replacing normal play. The manual quick-action Rest gives
+ * +14 and costs 5 happiness plus the week's one action slot.
+ *
+ * Kept BELOW every import on purpose: sitting between two `import` statements,
+ * this one line made all 103 imports after it "in body of module" to eslint —
+ * 8% of the repo's entire warning count, from one constant in the wrong place.
+ */
+const AUTO_REST_TARGET_ENERGY = 70;
 
 interface GameActionsContextType {
  // Core Game Progression
@@ -453,8 +458,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    baseDecayRate: 4,
    prestigeMultiplier,
  });
- // `safeNetWorth` is referenced below in the lifetimeStatistics block.
- const { netWorth, safeNetWorth, effectiveDecayRate, graceFactor } = decayInputs;
+ // No `safeNetWorth` here any more: the lifetimeStatistics block below reads
+ // the one re-derived from `prevState` INSIDE the updater, which is the whole
+ // point of that re-derivation. Destructuring it here again would only make a
+ // stale value available to be picked up by accident.
+ const { netWorth, effectiveDecayRate, graceFactor } = decayInputs;
 
  logger.info(`[WEEK PROGRESSION] Net worth: $${netWorth}, Decay rate: ${effectiveDecayRate}, Grace factor: ${graceFactor.toFixed(2)}, Prestige multiplier: ${prestigeMultiplier}`);
 
@@ -571,7 +579,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // removes the dependency entirely. The names shadow the outer ones on
  // purpose: every consumer below this line gets the fresh values.
  const prestigeMultiplier = getStatDecayMultiplier(prevState.prestige?.unlockedBonuses || []);
- const { netWorth, safeNetWorth, effectiveDecayRate, graceFactor } = computeDecayInputs(prevState, {
+ // `graceFactor` is deliberately not taken: only the outer logger uses it, and
+ // pulling it in here would shadow that with an identically-named unused value.
+ const { netWorth, safeNetWorth, effectiveDecayRate } = computeDecayInputs(prevState, {
    baseDecayRate: 4,
    prestigeMultiplier,
  });
