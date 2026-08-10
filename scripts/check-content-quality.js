@@ -21,10 +21,20 @@ const pct = (n) => `${(n * 100).toFixed(2)}%`;
 /** One row per tracked metric. `format` keeps the report readable. */
 const METRICS = [
   {
-    key: 'medianAbsHappiness',
-    label: 'Median |Δhappiness| per outcome',
+    key: 'soloHappinessMedian',
+    label: 'Median |Δ| where happiness is the ONLY effect',
     format: (v) => String(v),
-    describe: 'how much a typical event actually changes the life',
+    describe:
+      'the honest "does this event matter" number — an outcome that moves ' +
+      'nothing but happiness, by a few points, is an outcome that does nothing',
+  },
+  {
+    key: 'medianAbsHappiness',
+    label: 'Median |Δhappiness| (all outcomes)',
+    format: (v) => String(v),
+    describe:
+      'tracked for regression only — 78% of these outcomes also move money, ' +
+      'relationship or health, so this alone understates what an event does',
   },
   {
     key: 'bigStakesShare',
@@ -45,7 +55,8 @@ function main() {
 
   console.log('\nContent quality — event corpus');
   console.log(
-    `  ${actual.fileCount} content files · ${actual.effectCount} authored happiness effects\n`
+    `  ${actual.fileCount} content files · ${actual.effectCount} authored happiness effects · ` +
+      `${actual.soloHappinessCount} of them happiness-only\n`
   );
 
   let failed = false;
@@ -57,12 +68,15 @@ function main() {
     const goal = GOALS[metric.key];
     const ok = value >= floor;
     if (!ok) failed = true;
-    if (value >= goal) reachedGoal.push(metric);
+    // A null goal means "tracked for regression only" — see the ratchet header.
+    const hasGoal = goal !== null && goal !== undefined;
+    if (hasGoal && value >= goal) reachedGoal.push(metric);
 
-    const status = !ok ? 'FAIL' : value >= goal ? 'GOAL' : 'ok  ';
+    const status = !ok ? 'FAIL' : hasGoal && value >= goal ? 'GOAL' : 'ok  ';
     console.log(
       `  [${status}] ${metric.label}: ${metric.format(value)} ` +
-        `(floor ${metric.format(floor)}, goal ${metric.format(goal)})`
+        `(floor ${metric.format(floor)}, ` +
+        `${hasGoal ? `goal ${metric.format(goal)}` : 'no target — regression only'})`
     );
     if (!ok) {
       console.log(

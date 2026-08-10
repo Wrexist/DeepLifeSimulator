@@ -22,6 +22,7 @@ describe('content-quality ratchet', () => {
   });
 
   it('every metric is at or above its floor', () => {
+    expect(actual.soloHappinessMedian).toBeGreaterThanOrEqual(FLOORS.soloHappinessMedian);
     expect(actual.medianAbsHappiness).toBeGreaterThanOrEqual(FLOORS.medianAbsHappiness);
     expect(actual.bigStakesShare).toBeGreaterThanOrEqual(FLOORS.bigStakesShare);
     expect(actual.cliffhangerBadShare).toBeGreaterThanOrEqual(FLOORS.cliffhangerBadShare);
@@ -40,9 +41,22 @@ describe('content-quality ratchet', () => {
   });
 
   it('keeps every goal above its floor — a goal at the floor is not a goal', () => {
-    expect(GOALS.medianAbsHappiness).toBeGreaterThan(FLOORS.medianAbsHappiness);
+    expect(GOALS.soloHappinessMedian).toBeGreaterThan(FLOORS.soloHappinessMedian);
     expect(GOALS.bigStakesShare).toBeGreaterThan(FLOORS.bigStakesShare);
     expect(GOALS.cliffhangerBadShare).toBeGreaterThanOrEqual(FLOORS.cliffhangerBadShare);
+  });
+
+  it('states NO target for the all-outcomes median, rather than a fake one', () => {
+    // It was 15, and 15 was wrong: 78% of these outcomes also move money,
+    // relationship or health, so driving happiness up would have inflated
+    // events that already land hard. A metric kept only to catch regressions
+    // must not carry an ambition it cannot justify.
+    expect(GOALS.medianAbsHappiness).toBeNull();
+  });
+
+  it('measures the happiness-only subset separately, and it is the smaller set', () => {
+    expect(actual.soloHappinessCount).toBeGreaterThan(0);
+    expect(actual.soloHappinessCount).toBeLessThan(actual.effectCount);
   });
 
   it('counts a "big" outcome as one a player could still feel a year later', () => {

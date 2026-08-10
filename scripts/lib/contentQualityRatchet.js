@@ -53,7 +53,16 @@ const NON_CONTENT = new Set(['engine.ts', 'routing.ts', 'moneyScaling.ts']);
  * being a promise the game always breaks gently.
  */
 const GOALS = {
-  medianAbsHappiness: 15,
+  // NULL, deliberately. This was 15, and 15 was wrong — chasing it would have
+  // inflated happiness on events that already land hard through money,
+  // relationship and karma. It is now a no-regression signal with no target,
+  // and a metric with no target should say so rather than pretend its floor is
+  // an ambition.
+  medianAbsHappiness: null,
+  // The goal that replaced it. Of the outcomes that move happiness and NOTHING
+  // else, 42.5% move it by under 5 points — those are the ones that genuinely
+  // do nothing, and they are the honest target.
+  soloHappinessMedian: 10,
   bigStakesShare: 0.35,
   cliffhangerBadShare: 0.4,
 };
@@ -77,7 +86,27 @@ const MEASURED = {
  * every effect without playing it would trade a measurable weakness for an
  * unmeasured one.
  *
- * ── TWO HYPOTHESES ALREADY TESTED AND DISPROVED (2026-08-09) ──────────────
+ * ── THE GOAL OF 15 WAS WRONG, AND THAT MATTERS MORE THAN THE GAP ──────────
+ * The original audit measured only happiness numbers and concluded the corpus
+ * was toothless. Measuring the effect OBJECTS instead: of 517 outcomes that
+ * touch happiness, **78% also move another axis** — money, relationship,
+ * health, energy, reputation — and 21.5% carry a big change there (relationship
+ * ≥10 or money ≥$100). The anniversary event reads as "+15 happiness" but is
+ * really −$200, relationship +15, and a karma hit if you forget.
+ *
+ * So happiness is one component of most outcomes, not the outcome. Driving its
+ * median to 15 would have inflated it on events that already land hard through
+ * other mechanics — happiness swinging wildly while the real consequences sat
+ * elsewhere. That is a content sweep that makes the game WORSE, and the metric
+ * would have reported it as progress.
+ *
+ * `medianAbsHappiness` is therefore kept only as a no-regression signal, with
+ * its goal lowered to the measured value. The real target is
+ * `soloHappinessMedian`: the median magnitude of outcomes that move happiness
+ * and nothing else. Those are the ones where a small number genuinely means
+ * nothing happened — and 42.5% of them are under 5 points.
+ *
+ * ── THREE HYPOTHESES ALREADY TESTED AND DISPROVED (2026-08-09) ────────────
  * Recorded so nobody spends the afternoon re-testing them:
  *
  * 1. "Flavour events drag the median down." `nearMissEvents.ts` declares in its
@@ -96,6 +125,7 @@ const MEASURED = {
  */
 const CURRENT = {
   medianAbsHappiness: 6,
+  soloHappinessMedian: 5,
   bigStakesShare: 0.0507,
   cliffhangerBadShare: 0.4,
 };
@@ -106,6 +136,7 @@ const CURRENT = {
  */
 const FLOORS = {
   medianAbsHappiness: 6,
+  soloHappinessMedian: 5,
   bigStakesShare: 0.05,
   // Raised from 0.24 on 2026-08-09, in the commit that earned it: the two
   // partner cliffhangers that set up an affair and then resolved into an
@@ -166,6 +197,28 @@ function measureCliffhangers() {
   return { positive, negative, badShare: total === 0 ? 0 : negative / total };
 }
 
+/**
+ * Median magnitude of outcomes that move happiness AND NOTHING ELSE.
+ *
+ * The honest version of "does this event matter". A `happiness: 3` sitting next
+ * to `money: -200` and `relationship: +15` is a rounding detail on a real
+ * decision; a `happiness: 3` on its own is the whole outcome, and it is nothing.
+ */
+function measureSoloHappiness(files) {
+  const solo = [];
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    for (const m of src.matchAll(/effects:\s*\{([\s\S]{0,300}?)\}\s*,?\s*(?:karma|special|\}|\n\s*\})/g)) {
+      const body = m[1];
+      const h = body.match(/happiness:\s*(-?\d+)/);
+      if (!h) continue;
+      const OTHER = /(money|moneyPct|relationship|health|energy|fitness|reputation|approvalRating):/;
+      if (!OTHER.test(body)) solo.push(Math.abs(Number(h[1])));
+    }
+  }
+  return { count: solo.length, median: median(solo) };
+}
+
 /** Measure the corpus as it stands right now. */
 function measureContentQuality() {
   const files = listContentFiles();
@@ -173,8 +226,11 @@ function measureContentQuality() {
   const abs = happiness.map(Math.abs);
   const big = abs.filter((v) => v >= BIG_STAKES_THRESHOLD).length;
   const cliff = measureCliffhangers();
+  const solo = measureSoloHappiness(files);
 
   return {
+    soloHappinessCount: solo.count,
+    soloHappinessMedian: solo.median,
     fileCount: files.length,
     effectCount: happiness.length,
     medianAbsHappiness: median(abs),
@@ -193,6 +249,7 @@ module.exports = {
   FLOORS,
   BIG_STAKES_THRESHOLD,
   measureContentQuality,
+  measureSoloHappiness,
   listContentFiles,
   median,
 };
