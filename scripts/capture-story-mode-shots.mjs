@@ -228,6 +228,29 @@ try {
   await sleep(2500);
   await shot('03-hud');
 
+  // The rest of the store set (marketing/aso-v2.7.0-paste-ready.md §6 wants six
+  // shots, and three of them are ordinary in-game screens). Taken BEFORE the
+  // year loop on purpose: that loop runs 52 real weekly ticks and can time out,
+  // and there is no reason for a slow, failure-prone step to take three easy
+  // screenshots down with it.
+  console.log('→ tab screens');
+  for (const [tab, name] of [
+    ['Work', '07-careers'],
+    ['Apps', '08-apps'],
+    ['Life', '09-life'],
+  ]) {
+    if (!(await tap(tab))) {
+      console.log(`   ${tab}: not found — skipped`);
+      continue;
+    }
+    await sleep(2600);
+    await shot(name);
+  }
+  // Back to Home, or the year loop starts on whatever tab we left behind and
+  // the advance control may not be mounted.
+  await tap('Home');
+  await sleep(2000);
+
   console.log('→ living years');
   let gotReview = false;
   let gotOffer = false;

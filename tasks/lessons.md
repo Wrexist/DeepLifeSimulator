@@ -1673,3 +1673,45 @@ under the ceiling, and the ceiling is now locked at 1 193.
 So: **before assuming a warning spike means sloppy code, look at whether one
 statement is in the wrong place.** Warning counts are not linear in effort —
 `import/first` and friends multiply one mistake by the size of the file.
+
+---
+
+## 2026-08-10 — `pgrep -f` / `pkill -f` match the watcher, not just the watched
+
+Twice in one session, on the same script name, in two different disguises.
+
+**First:** `pkill -f "capture-story-mode-shots"` killed my own shell (exit 144),
+because the shell's command line *contains that string* — it is the command
+being run. Fixed with the bracket trick, `pkill -f "[c]apture-story-mode-shots"`,
+which matches the running process but not the pattern itself.
+
+**Second, and much more expensive:** a "wait for the current run, then start the
+next one" wrapper:
+
+```bash
+nohup bash -c 'while pgrep -f "capture-story-mode-shots" >/dev/null; do sleep 10; done; \
+               node scripts/capture-story-mode-shots.mjs > capture2.log' &
+```
+
+The wrapper's own command line contains `capture-story-mode-shots` — twice. So
+`pgrep` matched **the wrapper itself**, the condition was permanently true, and
+it waited on itself forever. The failure is silent and, worse, it is
+*indistinguishable from success*: `pgrep -f capture-story-mode-shots` kept
+answering "yes, running", so every progress check I made said the capture was
+running normally. I lost roughly 20 minutes believing a job was underway that
+had never started, and only caught it because the log file it was supposed to
+be writing did not exist.
+
+**The rules.**
+
+1. **Never match a process by a string your own command line contains.** Use
+   the bracket trick for both `pgrep` and `pkill`, or match on a PID captured
+   with `$!` when you started the job yourself.
+2. **"Is it running?" is not a health check — "is it producing output?" is.**
+   A process can exist and be doing nothing. Check for the artifact: the log
+   file, the growing byte count, the new screenshot. I had the evidence
+   (`ls: capture2.log: No such file`) fifteen minutes before I acted on it,
+   because I kept asking the question that returned the comfortable answer.
+3. **Prefer the harness's own backgrounding to hand-rolled `nohup` chains.**
+   It tracks the job and notifies on exit, so there is no self-match to get
+   wrong and no polling to misread.
