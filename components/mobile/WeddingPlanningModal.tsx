@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
@@ -11,7 +11,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface WeddingPlanningModalProps {
   visible: boolean;

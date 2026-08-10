@@ -35,7 +35,7 @@ import {
   View,
 } from 'react-native';
 import { Crown, TrendingUp } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
@@ -45,7 +45,7 @@ import { fontScale, scale } from '@/utils/scaling';
 import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 import type { PromotionDetails } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const { width: SCREEN_W } = Dimensions.get('window');
 
 /** Gold leaf → deep amber. The "premium" read comes from this ramp + the hairline border. */

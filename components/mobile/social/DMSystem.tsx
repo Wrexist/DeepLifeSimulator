@@ -20,7 +20,7 @@ import {
  Modal,
  TextInput,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { MS_PER_HOUR, MS_PER_DAY, MS_PER_WEEK } from '@/lib/config/gameConstants';
 import {
  ArrowLeft,
@@ -45,7 +45,7 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import type { DMConversation, DMMessage } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // DMConversation & DMMessage are shared with game state and imported from
 // contexts/game/types so the persisted inbox + threads share one definition.

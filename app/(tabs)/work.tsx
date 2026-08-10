@@ -9,7 +9,7 @@ import { View,
     Modal,
     StyleSheet,
     Animated } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import PromotionCelebrationModal from '@/components/work/PromotionCelebrationModal';
@@ -70,7 +70,7 @@ import { styles } from '@/components/work/workScreenStyles';
 import { CareerPathCard } from '@/components/CareerPathCard';
 import type { AdvancedCareer } from '@/lib/careers/advancedCareers';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 
 // Creative/hobby ids that can leak into streetJobs but must not render as street

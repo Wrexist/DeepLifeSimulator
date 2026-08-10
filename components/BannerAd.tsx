@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { adMobService } from '@/services/AdMobService';
+import type { AdMobPaidEvent } from '@/lib/ads/adRevenueTracking';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
@@ -38,6 +39,14 @@ export default function BannerAd({ style }: BannerAdProps) {
   // every render of this always-mounted leaf).
   const handleRemoveAdsPress = useCallback(() => openStore('store'), [openStore]);
 
+  // Impression-level ad revenue → RevenueCat's Ads dashboard. AdMob refreshes
+  // the banner in place, so this fires repeatedly for one mounted component;
+  // the service mints an impression id per event because each paid event is
+  // exactly one impression. Fully swallowed inside the service.
+  const handlePaid = useCallback((event: AdMobPaidEvent) => {
+    adMobService.trackBannerRevenue(adMobService.getBannerAdUnitId(), event);
+  }, []);
+
   // Hide ads if the user purchased Remove Ads or Lifetime Premium. The
   // in-memory service check is empty on a cold start until restorePurchases()
   // completes, so also honor the persisted entitlement saved into game settings
@@ -71,6 +80,7 @@ export default function BannerAd({ style }: BannerAdProps) {
         // P0-5: non-personalized ads unless ATT/consent is granted.
         requestOptions={adMobService.adRequestOptions()}
         onAdFailedToLoad={() => setAdError(true)}
+        onPaid={handlePaid}
       />
       {/* Quiet opt-out: a small muted text link (not a button) sitting BELOW the
           banner — never overlapping it, and only ever rendered while ads are

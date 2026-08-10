@@ -7,7 +7,13 @@ the owner.
 **Legend:** 🤖 = a Claude coworker can do this in the repo / draft it ·
 👤 = owner-only (console, device, legal, payments)
 
+> **For Android, use [`GOOGLE_PLAY_RELEASE_PLAN.md`](./GOOGLE_PLAY_RELEASE_PLAN.md)
+> instead of this file.** It is the full step-by-step Play runbook (account →
+> declarations → products → testers → production) and supersedes the Google Play
+> rows below. This document stays as the cross-platform overview and the iOS track.
+
 Companion docs:
+- [`GOOGLE_PLAY_RELEASE_PLAN.md`](./GOOGLE_PLAY_RELEASE_PLAN.md) — the complete Android/Play runbook.
 - [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md) — quick code-vs-console status.
 - [`DATA_SAFETY.md`](./DATA_SAFETY.md) — ready-to-enter Play Data safety + iOS App Privacy answers.
 - [`STORE_LISTING.md`](./STORE_LISTING.md) — listing copy + release notes (EN + SV).

@@ -52,6 +52,24 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 800, // ~15 years
         description: 'Elder statesman of the corporation',
       },
+      {
+        // ── Capstones ──────────────────────────────────────────────────────
+        // Careers used to top out around 13-16 years of tenure and then never
+        // move again, so the thing a life sim is ABOUT had no tail. These two
+        // rungs use the existing `experienceRequired` gate — already enforced
+        // by promotionGating — so they are pure data: a 20-year and a 30-year
+        // tenure in the SAME career, which no player reaches by accident.
+        name: 'Board Seat',
+        salary: 31000,
+        experienceRequired: 1040, // 20 years
+        description: 'A seat at the table you spent a career reaching',
+      },
+      {
+        name: 'Chairman Emeritus',
+        salary: 38000,
+        experienceRequired: 1560, // 30 years
+        description: 'They name things after you now',
+      },
     ],
     level: 0,
     applied: false,
@@ -108,6 +126,24 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 800, // ~15 years
         description: 'Set the scientific direction of the institution',
       },
+      {
+        // ── Capstones ──────────────────────────────────────────────────────
+        // Careers used to top out around 13-16 years of tenure and then never
+        // move again, so the thing a life sim is ABOUT had no tail. These two
+        // rungs use the existing `experienceRequired` gate — already enforced
+        // by promotionGating — so they are pure data: a 20-year and a 30-year
+        // tenure in the SAME career, which no player reaches by accident.
+        name: 'Board Seat',
+        salary: 8100,
+        experienceRequired: 1040, // 20 years
+        description: 'A seat at the table you spent a career reaching',
+      },
+      {
+        name: 'Professor Emeritus',
+        salary: 10000,
+        experienceRequired: 1560, // 30 years
+        description: 'They name things after you now',
+      },
     ],
     level: 0,
     applied: false,
@@ -162,6 +198,24 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         salary: 5500, // ~$286k/yr
         experienceRequired: 728, // 14 years
         description: 'Own the creative vision company-wide',
+      },
+      {
+        // ── Capstones ──────────────────────────────────────────────────────
+        // Careers used to top out around 13-16 years of tenure and then never
+        // move again, so the thing a life sim is ABOUT had no tail. These two
+        // rungs use the existing `experienceRequired` gate — already enforced
+        // by promotionGating — so they are pure data: a 20-year and a 30-year
+        // tenure in the SAME career, which no player reaches by accident.
+        name: 'Board Seat',
+        salary: 7200,
+        experienceRequired: 1040, // 20 years
+        description: 'A seat at the table you spent a career reaching',
+      },
+      {
+        name: 'Creative Emeritus',
+        salary: 8800,
+        experienceRequired: 1560, // 30 years
+        description: 'They name things after you now',
       },
     ],
     level: 0,
@@ -219,6 +273,24 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         experienceRequired: 832, // 16 years
         description: 'Run the entire banking division',
       },
+      {
+        // ── Capstones ──────────────────────────────────────────────────────
+        // Careers used to top out around 13-16 years of tenure and then never
+        // move again, so the thing a life sim is ABOUT had no tail. These two
+        // rungs use the existing `experienceRequired` gate — already enforced
+        // by promotionGating — so they are pure data: a 20-year and a 30-year
+        // tenure in the SAME career, which no player reaches by accident.
+        name: 'Board Seat',
+        salary: 21500,
+        experienceRequired: 1040, // 20 years
+        description: 'A seat at the table you spent a career reaching',
+      },
+      {
+        name: 'Senior Advisor Emeritus',
+        salary: 26500,
+        experienceRequired: 1560, // 30 years
+        description: 'They name things after you now',
+      },
     ],
     level: 0,
     applied: false,
@@ -273,6 +345,24 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         salary: 16500, // ~$860k/yr
         experienceRequired: 832, // 16 years
         description: 'Top clinical leadership of the institution',
+      },
+      {
+        // ── Capstones ──────────────────────────────────────────────────────
+        // Careers used to top out around 13-16 years of tenure and then never
+        // move again, so the thing a life sim is ABOUT had no tail. These two
+        // rungs use the existing `experienceRequired` gate — already enforced
+        // by promotionGating — so they are pure data: a 20-year and a 30-year
+        // tenure in the SAME career, which no player reaches by accident.
+        name: 'Board Seat',
+        salary: 21500,
+        experienceRequired: 1040, // 20 years
+        description: 'A seat at the table you spent a career reaching',
+      },
+      {
+        name: 'Surgeon Emeritus',
+        salary: 26500,
+        experienceRequired: 1560, // 30 years
+        description: 'They name things after you now',
       },
     ],
     level: 0,

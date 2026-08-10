@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView, Platform } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { Trophy, Star, X, Medal } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { fetchLeaderboard, uploadLeaderboardScore, LeaderboardEntry } from '@/lib/progress/cloud';
@@ -8,7 +8,7 @@ import { netWorth } from '@/lib/progress/achievements';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { logger } from '@/utils/logger';
 import { calculateChecksum, calculateHmacSignature } from '@/utils/saveValidation';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface Props {
  visible: boolean;

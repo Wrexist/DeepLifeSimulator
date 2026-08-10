@@ -73,7 +73,7 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Field label="Label" theme={theme}>
               <TextInput
                 value={label}

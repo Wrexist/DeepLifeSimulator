@@ -488,36 +488,33 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
  * Get bonus by ID
  */
 /**
- * R4-X2. Bonuses that unlock a system the player cannot reach.
+ * R4-X2. Bonuses that unlock a system that no longer exists.
  *
- * The five automation entries below sell the automation system for 16,500
+ * The five automation entries below sold the automation system for 16,500
  * points, plus up to 10,000 more for the five stackable slot levels. The
- * capability checks are real — `automationGuards.ts` reads every one of these
- * ids — but nothing downstream of them exists:
+ * capability checks were real, but nothing downstream of them ever was:
+ * `automation` was never a field in `initialState.ts`, so `state.automation`
+ * was `undefined` for every player on every save, and the engine returned an
+ * empty list on its first property read. No rule-builder UI, no action, no
+ * default rule set ever shipped.
  *
- *   - `automation` is not a field in `initialState.ts`, so `state.automation`
- *     is `undefined` for every player, and the tick's execution block opens
- *     with `if (!prevState.automation) return prevState;`
- *   - nothing anywhere writes an automation RULE. There is no rule-builder UI,
- *     no action, no default rule set. `components/` and `app/` contain no
- *     automation screen at all (BitcoinMiningApp's "automation" is an
- *     unrelated mining upgrade).
+ * 2026-08-06: `lib/automation/` was DELETED (1,445 unreachable lines). The
+ * decision that had been deferred here — build it or drop it — resolved to
+ * drop, because all four capabilities it would have provided are already
+ * shipped by wired, tested, reachable systems: pay by `banking.billPayRules`
+ * plus `applyLoanAutopay`, save by `applySavingsGoals`, renew by
+ * `applySubscriptions`, invest by `applyAutoReinvest`. Building the UI would
+ * have shipped a SECOND debit path for money the first one already moves —
+ * the most repeated bug class in this repo (CLAUDE.md §4.4).
  *
- * So the engine runs every week over an empty list, on a slice that does not
- * exist, gated by unlocks the player paid for.
- *
- * Hidden rather than deleted, and hidden rather than implemented — the same
- * call R4-X7 made for `INERT_POLICY_KEYS`. Building a rule builder is a
- * feature, not an audit fix; deleting the rows would erase the record of what
- * they were meant to do, and would strand the ids in the saves of anyone who
- * already bought one.
- *
- * They stay in `PRESTIGE_BONUSES` and stay resolvable through `getBonusById`
- * precisely so an already-purchased bonus still renders in the info modal.
- * They are removed from the SHOP and from the "unlock everything" achievement
+ * These rows outlive the engine on purpose. They stay in `PRESTIGE_BONUSES`
+ * and stay resolvable through `getBonusById` so that a bonus someone bought
+ * before 2026-08-01 still renders in the info modal instead of a blank card.
+ * They remain out of the SHOP and out of the "unlock everything" achievement
  * target — see `PURCHASABLE_PRESTIGE_BONUSES`.
  *
- * When the automation UI lands, delete this list. 2026-08-01 audit round 4.
+ * Do NOT delete this list to "clean up": that would strand those ids. It is
+ * now permanent. 2026-08-01 audit round 4; engine removed 2026-08-06.
  */
 export const INERT_BONUS_IDS = [
   'automation_auto_invest',

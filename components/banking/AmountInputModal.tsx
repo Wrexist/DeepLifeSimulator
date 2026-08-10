@@ -6,9 +6,9 @@ import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface Props {
   visible: boolean;

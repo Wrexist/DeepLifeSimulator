@@ -114,9 +114,19 @@ export const buyItem = (
       dailySummary,
       // Special case for phone
       hasPhone: itemId === 'smartphone' ? true : prev.hasPhone,
+      // Sticky "has owned a computer at some point" flag.
+      //
+      // `lib/depth/discoverySystem.ts:431` reads this to keep a computer-gated
+      // discovery unlocked for a player who bought one and later sold it — but
+      // NOTHING had ever written it, so that branch always saw `undefined` and
+      // behaved exactly as if the special case were absent. Set on purchase and
+      // deliberately NEVER cleared on sale: "previously owned" is the whole
+      // point, and clearing it would re-lock knowledge the player already has.
+      computerPreviouslyOwned:
+        itemId === 'computer' ? true : prev.computerPreviouslyOwned,
     };
   });
-  
+
   return { success: true, message: `Purchased ${item.name}` };
 };
 
@@ -268,9 +278,16 @@ export const sellItem = (
       dailySummary,
       // Special case for phone
       hasPhone: itemId === 'smartphone' ? false : prev.hasPhone,
+      // Stamp on SALE as well as purchase, so the flag self-heals on saves made
+      // before it had a writer: a player who bought a computer back then and
+      // sells it now still keeps their computer-gated discoveries. Selling is
+      // precisely the moment the flag starts to matter, so recording it here
+      // needs no migration and covers every existing save.
+      computerPreviouslyOwned:
+        itemId === 'computer' ? true : prev.computerPreviouslyOwned,
     };
   });
-  
+
   return { success: true, message: `Sold ${item.name}` };
 };
 

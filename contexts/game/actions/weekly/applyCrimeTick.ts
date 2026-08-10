@@ -24,6 +24,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { chargeOrDefer } from './chargeOrDefer';
 import type { WeekContext } from './weekContext';
 
 export interface CrimeTickInput {
@@ -101,7 +102,8 @@ export function applyCrimeTick(input: CrimeTickInput, ctx: WeekContext): CrimeTi
       // player whose wealth is illiquid — the charge is still bounded by cash on
       // hand, so it can never drive the balance negative.
       const fine = computePoliceFine(ctx.newStats.money, input.netWorth, newWantedLevel);
-      ctx.newStats.money = Math.max(0, ctx.newStats.money - fine);
+      // A fine you cannot pay is still owed — see chargeOrDefer.
+      chargeOrDefer(ctx, fine);
       logger.info(`[POLICE] Random encounter! Wanted ${newWantedLevel}, jailed ${policeEncounterJailWeeks} weeks, fined $${fine}`);
       ctx.notifications.push({
         id: 'police-encounter',

@@ -4,6 +4,139 @@
 
 ## Patterns to Watch For
 
+### 2026-08-05 - Feature round: a test that pins a version number is a tripwire, and three caps that had to be proven to bind
+
+- **A test that hard-pins `STATE_VERSION` fails on every correct future bump.**
+  `luxuryHoldingsMigration` asserted `STATE_VERSION === 32`, so shipping v33
+  broke a test in an unrelated file that had nothing wrong with it. The C-11
+  suite had ALREADY been fixed for this exact reason and left a comment saying
+  so — which is the tell that this is a pattern, not an accident. What a
+  migration test should assert is that `STATE_VERSION === CURRENT_STATE_VERSION`
+  and that no version in the chain is unregistered; today's number is not the
+  invariant. Same shape as the career test that pinned `levels.length === 6`
+  while its own name said "no longer short" — a floor written as an equality
+  becomes a ceiling.
+- **A bound that never binds proves nothing.** Three separate caps landed this
+  round (luxury hosting multiplier, event money fraction, grandchildren per
+  child), and in each case the useful test is not "the result is ≤ cap" — that
+  passes when the cap is unreachable — but "the uncapped value EXCEEDS the cap,
+  and the capped one equals it". The grandchildren test runs 6,000 weeks and
+  asserts both that the bound holds and that births actually happened.
+- **Check a threshold against the curve before choosing it.** I set the new top
+  dynasty rank at 5,000 because it was a round number; the test I wrote first
+  showed a deep-but-plausible 60-generation family scores ~2,700, so the rank
+  was decoration. Derive thresholds FROM the growth function, then sanity-check
+  with a realistic worst case.
+- **A per-source income cap can turn a "risky" feature into a safe one.**
+  Conglomerate read as the highest-risk item on the roadmap until
+  `PER_SOURCE_CAPS.companies` turned out to be a hard $200k/wk ceiling that the
+  five maxed originals already exceed. Every subsidiary therefore adds cost and
+  no income. Rule: before assuming a feature moves the economy, find the cap
+  that already governs it — the answer changes the design, not just the risk.
+- **Derived progress beats stored progress whenever the metric only increases.**
+  Legacy Contracts store only claimed ids; progress is read from lifetime
+  counters. That removes an entire class of bug (drift, double-credit on a
+  re-run tick) and has a real player benefit: an existing save loads with its
+  contracts already part-complete instead of starting from zero.
+- **An optional parameter is how you extend a hot path without touching its
+  callers.** `applyChildAging(rel, weeksLived?)` rolls grandchild births only
+  when a clock is supplied, so every existing caller and test kept working and
+  the conservative default (no births) is the safe one.
+
+
+### 2026-08-05 - Follow-up: the legacy shop had no buy button, and three navigation gates that disagreed with themselves
+
+- **A shipped, tested, context-exposed system with no call site is not shipped.**
+  `purchaseLegacyUpgrade` lived in `MoneyActionsContext`, was exported on the
+  context value, and had 20+ passing tests. `PrestigeShopModal` displayed the
+  Legacy Points balance. **No screen anywhere called the action**, so the entire
+  currency was unspendable in the app — a readout next to a locked door. This is
+  the SAME session's `feedbackSystem` bug in a different costume, and the third
+  time this file has recorded it (`applyBenefit` 2026-06-30,
+  `applyWeeklyInflation` 2026-08-04). The pattern is now unmistakable: a leaf
+  with green tests, a context that exposes it, and nothing that calls it. Rule:
+  when a feature's whole value is that a PLAYER can reach it, one test must
+  assert a screen reaches it. A grep for the symbol across `components/` and
+  `app/` is a one-line assertion. Sibling offenders still open:
+  `lib/automation/` (7 files, ticked weekly, zero UI) and `getDynastyTier`
+  (6 tiers, zero consumers).
+- **Two surfaces enforcing the same gate must read the same state.** `home.tsx`
+  pushed `/(tabs)/progression` with no unlock check while `life.tsx` locked the
+  identical destination behind `tab:progression` — so the padlock read as
+  broken. Fixing it exposed a second, subtler bug: `home.tsx` subscribes through
+  a NARROW selector, and `unlockTier()` reads `completedChapters` and
+  `generationNumber`, neither of which the selector carried. Calling the helper
+  with a partial state would have scored the chapter path 0 and left only the
+  money/weeks fallback — showing a lock the other screen doesn't. Rule: before
+  calling a helper with a selector slice, check every field the helper actually
+  reads. A narrow selector silently returns wrong answers rather than throwing.
+- **An id that differs between two screens is a dead link waiting to happen.**
+  The pet app was `paw` on one grid and `pet` on the other. Badges set both,
+  `featureUnlocks` registered both — the only layer that did NOT was the `?app=`
+  deep link, which resolved `undefined` and bounced silently. Nothing shipped
+  that link yet, which is exactly why it was worth fixing: it was a trap for the
+  next notification tap anyone added.
+- **My own mistakes this round, both caught by tests I wrote first:** a
+  source-scanning test anchored on `const apps`, which also matched
+  `const appsList` (the descriptor ARRAY) and scooped up its `id`/`name`/`icon`
+  keys — so it passed on noise, and two of its three assertions were vacuous.
+  And a "every branch has exactly one root" assertion that failed correctly:
+  parallel chains within a branch are a real tree shape, so the rationale was
+  wrong, not the data. Rule: when a test parses source, assert the PARSE first —
+  a regex that matches nothing makes every later assertion vacuous.
+
+### 2026-08-05 - Whole-game audit: three feedback channels that rendered nothing, and a suppression that outlived its reason
+
+- **A message bus with a gate on it is not a message bus.**
+  `feedbackSystem.{success,error,warning,info}(message)` routed every message to
+  `showAchievementToast(message, category, **0**)`. That helper gates on
+  `reward > 0` — correctly, so tips and warnings can't hijack the branded
+  "ACHIEVEMENT UNLOCKED!" popup — and the reward was hard-coded 0 at all four
+  call sites. So for as long as the code has shipped, **every message handed to
+  `useFeedback()` was silently discarded**: the phone buzzed and nothing
+  rendered. A refused action ("Already done that this week", "Need $12 to grab a
+  healthy meal") was indistinguishable from a successful one, which is the most
+  likely single source of "I tapped something and don't know what happened."
+  Both halves were individually correct — the gate, and the helpers. Only the
+  wiring between them was wrong, and nothing asserted the wiring. This is the
+  `applyWeeklyInflation` post-mortem (2026-08-04) and the `applyBenefit` one
+  (2026-06-30) for the third time: **"is it called?" is a different question
+  from "does it work?", and only one of them had a test.** Rule: when a helper's
+  entire value is that it *reaches a renderer*, one test must assert the route,
+  not the leaf.
+- **Deleting a severity tier to fix a position bug throws away the one message
+  type that must never be optional.** `warning` toasts were dropped at the
+  provider with the comment "they were noise that overlapped the status bar."
+  The overlap was real; the remedy silenced every rejection on the Work screen —
+  job application, promotion, raise, retirement, failed street job. Worse, a
+  later fix was written *against* that dead channel: `work.tsx` carries a comment
+  saying "a rejection used to be silent… UX-2", so the bug it claims to fix was
+  still shipping. The toast component already supported `position: 'bottom'`
+  with safe-area offsets. Rule: fix a layout problem in the layout. If a whole
+  category of feedback is being suppressed, the suppression is the bug.
+- **A dismissal that resets is worse than no dismiss button.** Contextual tips
+  cleared their dismissed set on every `weeksLived` change, so a player under $50
+  dismissed "Running low on cash?" and it returned on the very next Next Week,
+  forever. An X that does nothing teaches the player that the app ignores them.
+- **`Math.max(x, 1)` inside a grant undoes the guard outside it.** The
+  welcome-back bonus stamped `lastLogin = now` inside its updater (correct), but
+  `computeWelcomeBackBonus` floors `daysAway` at 1 — so a second `onClose` in the
+  same React batch saw `daysAway = 0`, clamped it back to 1, and paid another
+  half-week of salary. The gate→grant rule (§4.4) is not satisfied by stamping
+  state; the updater must also **return `prev` unchanged** on the rejected path.
+- **An optional offer must never outrank a required dialog.** The ad orb sat at
+  `Z_INDEX.TOAST` (400), above the `MODAL` layer (300), so it floated over the
+  weekly result sheet and the death screen. The premium promo respected no
+  blocking guard at all and could land on top of a death. Rule: anything the
+  player can ignore belongs *below* anything they must act on, and a deferred
+  popup must re-check its guard **at fire time**, not when its effect ran.
+- **My own mistake this session:** the first version of the stale-tab-copy guard
+  used an allowlist of valid tab names and flagged "the Jobs tab of the Onion
+  Browser" and "the Miners tab" — legitimate sub-tabs *inside* an app. A
+  denylist of the specific removed tabs was the correct shape. Rule: when the
+  rule is "these specific things are wrong", encode that, not "everything except
+  these is wrong."
+
 ### 2026-08-04 - Critical review: a zero-drift random walk, a system with no callers, and three of my own mistakes
 
 - **A zero-mean ARITHMETIC return is a negative GEOMETRIC one.** `simulateWeek`
@@ -902,6 +1035,113 @@ belongs on the cheapest runner that can hold the connection — and any job that
 waits on an external service needs a `timeout-minutes`, or the failure mode is
 six hours of billing.
 
+---
+
+## 2026-08-06 — "carried across prestige" is a list somebody has to remember
+
+Building prestige tiers 2–5 meant persisting four small things (Vault,
+Endowment, Trials, Seat) and making them survive a life boundary. That is not a
+save-format problem — the save carries them fine. It is a `prestigeExecution`
+problem: `createResetGameState` and `createChildGameState` both rebuild the
+state from `initialGameState` and then **hand-copy** each field that is lineage
+data rather than character data.
+
+Every one of those copies is a line somebody has to remember to add, and the
+cost of forgetting is silent. Found while adding to that list:
+`legacyContracts.claimedIds` was **never copied**. So `initialGameState`'s empty
+board came back on every single prestige, the whole contract ladder was
+re-claimable, and it printed the full board's worth of Legacy Points per cycle.
+Nobody reported it because a feature that quietly resets looks like a feature
+that was never finished.
+
+Same shape as the entitlement wipe (MON-1/2/3) and the ambition wipe: a
+hand-maintained copy list where an omission reads as "not implemented yet".
+
+**The rule:** anything that must outlive a character goes through ONE hook that
+both paths call — here `applyDynastyTransition` (`lib/dynasty/transition.ts`) —
+and the test asserts the hook appears on **both** paths, by count. The death →
+heir flow (`continueAsChild`) reaches `createChildGameState` without going
+through `executePrestige`, so a hook wired to only one path silently skips
+everything on the other.
+
+Second rule, from the same change: **make the transition hook derive every
+number from the OLD state, never accumulate onto the new one.** `newLegacyPoints
+= oldPoints + reward` is idempotent — re-running the transition on the same save
+gives the same answer. `newState.legacyPoints += reward` is not, and a
+transition that runs twice is not a hypothetical in a React codebase.
+
+---
+
+## 2026-08-06 — A test suite that HANGS tells you almost nothing, so instrument the process, not the source
+
+`__tests__/render/screens.render.test.tsx` stopped completing. What CI reported
+was a worker killed by SIGTERM with no message and no failing assertion.
+
+The first useful observation was a negative one: `--testTimeout=25000` never
+fired. Jest cannot time out a test whose spin blocks the event loop, so "the
+timeout did not fire" is not a missing signal — it is the signal. It rules out
+everything asynchronous and says the loop is synchronous, in-process, and inside
+React.
+
+I then spent four rounds bisecting by reverting source. That located the FILE
+and named the wrong cause, because the change in it was a pure deletion —
+reverting it fixed the symptom while proving nothing about the mechanism. Two of
+my intermediate conclusions from that bisect were wrong, and I nearly shipped a
+comment crediting an unrelated optimisation (`Gradient`'s flat-fill
+short-circuit) with the fix.
+
+What actually worked, in order, and each step took minutes:
+
+1. **Run it under `node --inspect` and interrupt it.** Node 22 has a global
+   `WebSocket`, so a ~30-line script can attach to the inspector, send
+   `Debugger.pause`, and print `callFrames`. V8 can interrupt a spinning script.
+   Launch `node --inspect node_modules/jest/bin/jest.js …` directly — putting
+   `--inspect` in `NODE_OPTIONS` with `npx` attaches to the npx launcher and the
+   real process then fails with "address already in use".
+2. **CPU-profile it** (`Profiler.start` / `stop` over the same socket). The
+   hottest frames were `propagateParentContextChanges`, `lazyInitializer` and
+   `throwException`, with **no application frames at all** — which says React is
+   spinning in its own reconciler without calling a single component.
+3. **Count what React is doing.** Patching `scheduleUpdateOnFiber` to throw
+   after 600 calls proved it was NOT a re-render loop (it never tripped).
+   Patching `beginWork` to print every 200,000 calls showed a perfectly periodic
+   ~1.4M-call cycle through the same fibers. That combination — millions of
+   `beginWork`, almost no `scheduleUpdateOnFiber` — is React restarting a render
+   from the shell, not re-rendering.
+4. **Name the suspender.** Patching `lazyInitializer` to print its payload's
+   source gave three `import()` calls, each stuck Pending after ~950k retries.
+
+The bug: `app/(tabs)/home.tsx` mounted three `React.lazy` popups
+unconditionally with `visible={false}`. Under ts-jest an `import()` compiles to
+`Promise.resolve().then(() => require(…))`, so it can only settle on a
+microtask — and the render harness renders inside a **synchronous** `act()`,
+which never yields one. React retried forever.
+
+**Rules:**
+
+- A lazy component must be MOUNTED behind a condition, never mounted always with
+  `visible={false}`. That defeats the point of `lazy()` — it defers the paint by
+  a tick and still pays for the graph on every mount of the host screen — and
+  under a synchronous `act()` it livelocks. Guarded app-wide by
+  `__tests__/render/lazyMountGating.render.test.tsx`.
+- **Never guard a hang with a test that renders.** It reproduces the hang
+  instead of reporting it, and the hang is precisely the unreadable signal. Read
+  the source and fail in milliseconds with a message naming the file.
+- **Verify a guard by breaking the code**, not by watching it pass. The first
+  version of that guard brace-matched backwards from the tag to find the
+  enclosing JSX expression; with no gate present the walk escapes past every
+  balanced sibling and lands on the component function's own opening brace,
+  whose body is full of `&&`. It passed on deliberately broken input. A guard
+  that has never failed has not been tested.
+- **Count before declaring something a blocker.** In the same session, "settle
+  the design-token collision" had sat open as a 156-file migration. Counted: the
+  contested ladder had zero importers. Two other premises from earlier in the
+  session (four objective systems, a repo-wide design-token collision) were also
+  wrong in the same direction — estimated scope, never measured.
+- Restore any `node_modules` you patch, and `diff` to prove it.
+
+---
+
 ## 2026-08-06 — an anti-exploit invariant left a second door open
 
 Weekly audit. Static layer + all dynamic backstops green; the deep economy pass
@@ -927,6 +1167,226 @@ reaches the same state, not just the one in front of you.** A counter stored on
 a record is only as durable as the record — any code that rebuilds or discards
 that record is a second copy of the exploit. Grep every writer/deleter of the
 field the invariant depends on before calling it closed.
+
+## 2026-08-07 — A defensive accessor that ENUMERATES fields is a trap
+
+`lib/mail/state.ts`'s `getMailState` is the safe read layer every consumer goes
+through — it repairs a missing or malformed slice into a valid empty one rather
+than letting the week loop throw. It was written as an enumeration:
+
+```ts
+return { messages: …, lastGeneratedWeek: …, address: … };
+```
+
+Correct on the day, and a landmine afterwards. Two fields added later
+(`shieldUntilWeek`, `reportsMade`) were written by their actions, read back
+through this function, and came out `undefined` — so paying to rotate
+credentials charged the player and did nothing, and reporting phishing counted
+to zero forever. **The write worked and the read silently dropped it**, which is
+the worst shape a bug can have: nothing throws, nothing type-errors, and the
+feature is simply inert.
+
+Five tests caught it at once only because they were written against the
+BEHAVIOUR ("does the risk actually go down?") rather than against the accessor.
+A test asserting `getMailState(x).shieldUntilWeek === 12` would have been written
+from the same wrong mental model and passed nothing.
+
+**The rule:** a defensive reader spreads first and overrides only what it
+normalises.
+
+```ts
+return { ...mail, messages: normalise(mail.messages), … };
+```
+
+That is what "repair what you understand, preserve what you do not" actually
+means. Enumeration turns every future field into a silent drop.
+
+## The same day — `patchMessage` compares by reference, so a no-op patch is not a no-op
+
+`reportMailPhishing` built a fresh message object every call:
+
+```ts
+patchMessage(prev, id, (m) => ({ ...m, folder: 'spam', read: true }))
+```
+
+`patchMessage` skips the write when `updated === original`, which is a REFERENCE
+check — and a spread always produces a new reference. So re-reporting a message
+already in Spam patched again and incremented the vigilance counter again. The
+discount that reduces fraud risk could be farmed by tapping one message
+repeatedly.
+
+Found by a test whose premise was that this already worked ("never counts the
+same message twice"), written to document the behaviour rather than to hunt a
+bug. Worth noting: the test was RIGHT about what should happen and WRONG about
+what did, and that gap is where the finding was.
+
+**The rule:** when a helper's skip condition is reference equality, the patch
+callback must return `null` for the no-op case explicitly. Do not rely on
+"the values are the same" — the helper cannot see that.
+
+Same family as the gate→grant bugs in §4.4: a guard that looks like it holds,
+against a comparison that cannot see what you assumed it could.
+
+## The same day — a test written from the same wrong model as the fix guards nothing
+
+Having fixed the enumerating accessor above, I wrote the test for it:
+
+```ts
+state.mail = { messages: [], shieldUntilWeek: 140, reportsMade: 3 };
+expect(getMailState(state).shieldUntilWeek).toBe(140);
+```
+
+Then deleted the `...mail` spread to check the guard bit. **It still passed.**
+
+Of course it did. The two fields are also named in the override list, so they
+survive either way. The test pins the two SYMPTOMS the bug happened to produce,
+not the PROPERTY that prevents it — and the property is the whole point, because
+the failure mode is specifically "the next field nobody has written yet". A
+future `MailState` field would have vanished exactly as those two did, with a
+green suite.
+
+The fix is to assert the invariant directly:
+
+```ts
+state.mail = { messages: [], futureField: 'kept' } as never;
+expect(getMailState(state).futureField).toBe('kept');
+```
+
+That one fails the moment the spread goes.
+
+**The rule:** after fixing a bug, break the fix and watch the new test fail. A
+test written immediately after a fix inherits the author's model of the fix, and
+if that model is "these two fields matter" rather than "unknown fields survive",
+it encodes the narrower thing and reads as coverage.
+
+Also worth stating plainly: five of the six guards written this session DID fail
+correctly when reverted. The one that did not was the one where I already
+believed I understood the bug best.
+
+## The same day — an audit finds the bugs the tests were never asked about
+
+Six defects in the mail app, all found by re-reading finished, green, shipped
+code rather than by a failing test. Every one is silent:
+
+| Defect | Shape |
+|---|---|
+| `getMailState` enumerated | write works, read drops it |
+| `reportMailPhishing` no-op patched | reference equality can't see "same values" |
+| lapse pass driven by the letter | deleting the letter stranded the event in BOTH channels |
+| welcome gated on "inbox empty" | `emptyMailBin` re-armed a once-per-life message |
+| offer id keyed on the career | a second application produced an id that already existed, so the letter was deduped away |
+| `MailAttachment.kind: 'receipt'` | a renderer branch with no producer that could ever select it |
+
+Three of them are the same bug in different clothes: **something looked at once
+and assumed to be once.** And two are this repo's oldest pattern — built,
+type-checked, context-exposed, and read by nothing (`lossCap`, seven `MailFacts`
+fields, `expiredMailEvents` itself, `yearOf`, `SenderKey`).
+
+**The rule:** when a feature is finished, read it once more asking only "what
+happens the SECOND time?" — second tap, second week, second application, second
+read of the same accessor. That question found five of these six.
+
+## 2026-08-09 — `flex: 1` inside a `maxHeight`-only sheet is zero, and a broken modal is a soft lock
+
+Player report: "game soft locked on the life skills tab", with a screenshot of
+the Activity Commitments modal drawn as a ~60px sliver under the status bar —
+header and footer touching, the entire body gone, the game visible but dead
+behind it.
+
+Two defects stacked, and neither is interesting on its own:
+
+```ts
+modal:   { width: '90%', maxHeight: '90%' },   // no definite height
+content: { flex: 1 },                          // → flexBasis: 0
+blurOverlay: { ...StyleSheet.absoluteFillObject },  // no justify/align
+```
+
+`flex: 1` is `flexGrow: 1, flexShrink: 1, flexBasis: 0`. In a column whose own
+height is **content-driven** (`maxHeight` is a clamp, not a height), a
+zero-basis child contributes nothing to the measurement, so the column measures
+`header + 0 + footer` — and there is then no free space left for `flexGrow` to
+hand back. The list resolves to zero. `maxHeight` looks like a bound and reads
+like one; it is not one. The pair that works is the one the banking sheets
+already use: `flexShrink: 1` on the list, a real bound on the sheet.
+
+The second half is why it looked so broken: the sheet's wrapper was
+`absoluteFillObject`, so the parent's `justifyContent: 'center'` never applied
+and the overlay's safe-area padding did not reach an absolutely-positioned
+child. The sliver was pinned to the top of the window with its close button
+under the status bar.
+
+**What made it a soft lock rather than an ugly screen:** a transparent RN
+`Modal` owns every touch in its window. Nothing behind it is reachable, however
+visible it looks. So a sheet that mislays its own controls takes the entire game
+with it — there is no tapping past it, and no back gesture on iOS. Every
+transparent modal needs a dismiss affordance that does not depend on the sheet
+laying out correctly: a backdrop `Pressable` **behind** the sheet (a wrapper
+would steal the ScrollView's gestures), which is what `WhatsNewModal` already
+documents.
+
+**The rule:** `maxHeight` alone does not make a parent bounded — pair it with
+`flexShrink: 1`, never `flex: 1`. And every transparent modal gets a
+tap-outside-to-close backdrop, because the cost of a layout mistake in one is
+not a bad screen, it is a lost session.
+
+Footnote on the guard: `__tests__/render/modalListsShrink.test.ts` already
+existed for exactly this class and did not catch it, because its sweep matches
+inline `style={{ ... }}` and this one hid behind a named StyleSheet entry. A
+regex-shaped guard only covers the spelling it was written against.
+
+## 2026-08-09 (same day) — the same defect, eighteen more times, in three spellings
+
+Fixing the Commitments soft lock above raised the obvious question: how many
+more sheets have it? `__tests__/render/modalListsShrink.test.ts` already
+guarded the class and reported clean, so the honest answer had to come from a
+sweep that did not trust the existing one.
+
+It found **eighteen** more sites. Not one of them was a new mistake — they were
+the same defect wearing spellings the guard's regex did not match:
+
+| Spelling | Why the guard missed it |
+|---|---|
+| `<ScrollView style={styles.modalBody}>` | the cap hid inside a named StyleSheet entry |
+| `<ScrollView contentContainerStyle={…}>` | no `style` prop at all to match against |
+| a `<View>` capped at `scale(200)`, no scroller | not a ScrollView, so nothing to sweep for |
+
+The third is the one worth remembering. The Life Skills detail panel was a plain
+`View` capped at `maxHeight: scale(200)` holding description → effect →
+requirements → **Unlock button**. Measured at base scale that column is ~218px,
+~235px with a two-line description. A `View` does not scroll and the modal shell
+is `overflow: 'hidden'`, so the button was clipped — the primary action of the
+screen, on a skill the player could afford, with no way to buy it. The guard was
+written about lists, so a capped column that was not a list never came up.
+
+The bounded surface and the shrinking child are two different jobs and belong on
+two different elements. What broke everywhere was collapsing them into one: a
+cap on the thing that should shrink (`scale(200)`, `maxHeight: '90%'` on the
+list itself), or nothing on either. The shape that works, every time:
+
+```tsx
+<View style={{ maxHeight: '90%' }}>        {/* bound */}
+  <Header />                                {/* fixed */}
+  <ScrollView style={{ flexShrink: 1 }}>    {/* shrinks */}
+  <ConfirmButton />                         {/* fixed — NEVER inside the scroller */}
+```
+
+**The rule, restated because the old one was too narrow:** the bound goes on the
+sheet, `flexShrink: 1` goes on the body, and the action goes *below* the body,
+never inside it and never last in an unscrolled column. This holds for any
+capped column, not only ones containing a `ScrollView`.
+
+**And the meta-rule:** a guard written as a regex over one spelling reports clean
+on the other two. When a guard exists for a class and you find a new instance of
+that class, the instance is the smaller problem — re-derive the sweep from the
+SHAPE (parse the styles, resolve containment) and re-run it against the whole
+tree before believing any count. The rewritten sweep is in the same file; it
+resolves which sheet a scroller actually sits in rather than matching a line.
+
+One known instance is deliberately left: `SimpleTutorialModal` caps a
+non-scrolling column at `maxHeight: '80%'` with its Skip/Next buttons last. It
+is safe only because its copy is fixed, short, and authored — not because the
+shape is sound. If those strings ever become dynamic or localized, it breaks
+exactly like the others.
 
 ## 2026-08-07 — a new weekly subsystem landed outside the guard, again
 

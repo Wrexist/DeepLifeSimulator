@@ -310,6 +310,77 @@ Then cut a new build: `eas build --profile production --platform ios`.
 
 ---
 
+## Part 8 — Ad revenue → RevenueCat "Ads"
+
+Puts AdMob earnings on the same dashboard as subscription revenue, so LTV counts
+both. **There is no adapter package to install for React Native** — the tracker
+ships inside `react-native-purchases` itself as `Purchases.adTracker`, and the
+pinned `10.4.4` already has it (the `loadAndTrack` helpers in RevenueCat's docs
+are the native iOS/Android/Flutter adapters; RN calls the tracker directly).
+
+### 8.1 What the app already does
+
+| Piece | Where |
+|---|---|
+| AdMob → RevenueCat payload mapping (micros, precision, impression ids) | `lib/ads/adRevenueTracking.ts` |
+| Fail-soft `trackAd*` wrappers | `services/RevenueCatService.ts` |
+| `PAID` listeners on interstitial + rewarded; loaded/displayed/failed events | `services/AdMobService.ts` |
+| Banner revenue via the `onPaid` prop | `components/BannerAd.tsx` |
+
+Three things worth knowing before debugging it:
+
+- **RevenueCat is configured on demand from the ad path.** Every `adTracker`
+  method calls `throwIfNotConfigured()` inside the SDK, and a player who watches
+  rewarded ads but never opens the paywall would otherwise hit an unconfigured
+  instance mid-impression. `RevenueCatService.track()` configures first.
+- **Impression ids are minted by us.** AdMob has no such concept; RevenueCat
+  requires one on the loaded / displayed / paid events and uses it to stitch
+  them into a single impression. Failed-to-load carries none — no impression
+  exists yet — which is why `RcAdFailedPayload` has no `impressionId` field.
+  Fullscreen formats mint one per ad *request*; banners mint one per paid event,
+  because AdMob refreshes them in place with no observable request boundary.
+- **Every path is swallowed.** These run inside the ad SDK's own callbacks during
+  playback, where an unhandled rejection costs a reward or wedges the ad.
+
+### 8.2 Dashboard steps (owner — not doable from the repo)
+
+1. **AdMob → enable impression-level ad revenue.** *Settings* (sidebar) →
+   *Account* → the **Account controls** section → *Impression-level ad revenue*
+   → toggle **On** → Save. (Google's own steps: support.google.com/admob/answer/11322405
+   — check there if the console has been relabelled since.) It is **off by
+   default and account-gated**. Until it is on, AdMob never emits the `PAID`
+   event, so the code above is correct and the RevenueCat Ads page stays empty.
+2. **RevenueCat → Ads.** Ad Monetization is in public beta and is opt-in per
+   project: the **project owner** opts in from the *Ads* page in the RevenueCat
+   dashboard. Granting access also switches the project to Charts v3 if it isn't
+   already. Card 3 ("Connect your account") is an optional AdMob OAuth link that
+   pulls in ad-unit names — analytics work without it.
+3. **Ship a build with both flags on.** Ad revenue only reports when *both*
+   `EXPO_PUBLIC_ENABLE_ADMOB=true` and `EXPO_PUBLIC_USE_REVENUECAT=true`, and
+   neither survives `BORING_BUILD_MODE` — i.e. production/preview builds only,
+   never a `__DEV__` run.
+
+### 8.3 Verifying
+
+Ad events land under the customer in RevenueCat, so the fastest check is a
+TestFlight build: watch a rewarded ad, then open **Customers → your app user ID**
+and look for the ad events on the timeline. Revenue figures lag AdMob's own
+reporting, and test ads report $0 — a zero-value impression still proves the
+wiring, so confirm the *event* first and the *amount* later.
+
+### 8.4 Ads → Rewards is NOT wired (needs an SDK bump)
+
+The second nav item under Ads is server-side-verified rewarded ads, where
+RevenueCat verifies the impression with AdMob SSV and grants the reward itself —
+which would close the client-side reward-fraud hole in `showRewardedAd()`. It
+needs `Purchases.generateRewardVerificationToken()` and
+`Purchases.pollRewardVerification()`, **neither of which exists in the pinned
+`react-native-purchases@10.4.4`**; they arrive later in 10.x. Shipping it means
+bumping the SDK (a native rebuild) *and* configuring SSV in AdMob, so it is
+deliberately left out of the revenue-tracking change.
+
+---
+
 ## Appendix A — Product reference
 
 Source of truth: `utils/iapConfig.ts`. Create each with the matching **type**.

@@ -22,7 +22,7 @@ import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
@@ -69,7 +69,7 @@ import { useFeedback } from '@/utils/feedbackSystem';
 import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
 import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {
@@ -798,6 +798,17 @@ function TopStatsBarComponent() {
  </View>
  <View style={styles.vitalRingLabelRow}>
  <Text style={styles.vitalRingValue}>{Math.round(value)}</Text>
+ {/* Visible long-press affordance. The quick actions (Rest / Eat /
+ Exercise / Socialize) are the fastest way to fix a low vital — the
+ exact thing the contextual tips nag about — but the only place the
+ gesture was ever announced was `accessibilityHint`, i.e. VoiceOver
+ users were told and sighted users were not. Tap opens the breakdown
+ modal, so that is what everyone discovered instead. This dot is the
+ smallest honest hint that there is more here; it hides while the
+ row is open so it never reads as a state indicator. */}
+ {quickActions && showQuickActions !== key && (
+ <View style={styles.vitalRingMoreDot} />
+ )}
  {showStatArrows && netChange!== undefined && netChange!== 0 && (
  netChange > 0 ? (
  <ArrowUp size={scale(10)} color="#10B981"/>

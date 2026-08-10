@@ -12,13 +12,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { AlertTriangle, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
 // a gentle 0.94→1 scale reveal on an ease-out curve, kept under the 300ms UI
@@ -47,8 +47,8 @@ interface ConfirmDialogProps {
   icon?: React.ReactNode;
 }
 
-// LinearGradientFallback paints the FIRST color as a solid fill, so the
-// saturated shade leads each pair. Values mirror the semantic palette.
+// The saturated shade leads each pair, so the gradient reads darkest at its
+// start. Values mirror the semantic palette.
 const TYPE_ACCENT: Record<DialogType, readonly [string, string]> = {
   default: ['#3B82F6', '#60A5FA'],
   warning: ['#F59E0B', '#FBBF24'],

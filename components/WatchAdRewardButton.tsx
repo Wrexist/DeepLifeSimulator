@@ -13,13 +13,13 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Play } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const DEFAULT_COLORS = ['#6366F1', '#4338CA'] as const;
 
 // Matches the lucide-react-native icon call signature we rely on here.

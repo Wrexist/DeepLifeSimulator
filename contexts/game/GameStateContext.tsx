@@ -176,9 +176,10 @@ export function GameStateProvider({
        * second saw `prev.gems` still above the cost (30,000 -> 15,000 -> 0) and
        * charged again.
        *
-       * REVIVE_GEM_COST is 15,000 and the 15,000-gem pack retails at $49.99, so
-       * a double tap cost a player real money for one revive, with nothing in
-       * state marking the second charge as anomalous. CLAUDE.md §4.4.
+       * At the time this shipped the cost was 15,000 — the exact contents of
+       * the $49.99 gem pack — so a double tap cost a player real money for one
+       * revive, with nothing in state marking the second charge as anomalous.
+       * CLAUDE.md §4.4.
        */
       if (!prev.showDeathPopup) {
         logger.warn('[reviveCharacter] Ignored: character is not currently dead');

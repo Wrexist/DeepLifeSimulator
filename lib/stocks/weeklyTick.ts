@@ -15,6 +15,7 @@ import { SectorSnapshot, sectorTiltFor } from './sectors';
 import { computePayouts, DIVIDEND_INTERVAL_WEEKS, isDividendWeek, sumPayouts } from './dividends';
 import { initialSectorSnapshots, processOpenOrders, tickSectors } from './operations';
 import { StockOrder } from './orderBook';
+import { clampTaxMult } from '@/lib/economy/taxLedger';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -78,6 +79,13 @@ export interface StocksTickInput {
    * teeth on equities.
    */
   economyState?: 'normal' | 'recession' | 'boom' | 'crash';
+  /**
+   * Tax Strategy life-skill multiplier (`lifeSkillMods.taxMult`, 0.75–1).
+   * Previously the skill moved the weekly income tax and nothing else, so it was
+   * worth zero to a player living off investments. Defaults to 1 — an omitted
+   * value reproduces the old numbers exactly.
+   */
+  taxMult?: number;
   rollFor: (key: string) => number;
 }
 
@@ -123,6 +131,17 @@ export interface StocksTickResult {
    * tick's 25% capital-gains charge.
    */
   capitalGainsTaxUSD: number;
+  /**
+   * The part of this tick's investment tax the player could NOT cover.
+   *
+   * It used to be forgiven outright — `Math.min(tax, availableCash)` and no
+   * record of the difference — which made "sell into a gain while broke" the
+   * only tax-free realization in the game, and left three different answers to
+   * "you cannot pay": income tax defers into `overdueBalance`, crypto carries
+   * the untaxed gain into next year, and stocks simply wrote it off. The caller
+   * folds this into the same arrears bucket the income tax uses.
+   */
+  capitalGainsTaxUnpaid: number;
   /**
    * Per-symbol multiplicative factor (tiltedPrice / baseModulePrice) that the
    * caller applies via adjustStockPrice() BEFORE snapshotting module prices, so
@@ -279,18 +298,33 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   //    (cashDelta → stats.money — never the banking.accounts mirrors), clamped to
   //    what the player can afford THIS tick, losses never generate a refund, and a
   //    notification is emitted. Deterministic (no RNG in this block).
+  //
+  //    UNAFFORDABLE TAX IS NO LONGER FORGIVEN (2026-08-06). The clamp below
+  //    still keeps cash non-negative — that invariant has ~40 dependants — but
+  //    the shortfall is now REPORTED as `capitalGainsTaxUnpaid` and folded into
+  //    the same `overdueBalance` arrears bucket the weekly income tax uses.
+  //    Writing it off made selling into a gain while broke the one tax-free
+  //    realization in the game.
   let capitalGainsTaxUSD = 0;
+  let capitalGainsTaxUnpaid = 0;
   const taxableThisTick = Math.max(0, realizedGains) + Math.max(0, dividendsUSD);
   if (taxableThisTick > 0) {
-    const tax = taxableThisTick * STOCK_CAPITAL_GAINS_TAX_RATE;
+    const effectiveRate = STOCK_CAPITAL_GAINS_TAX_RATE * clampTaxMult(input.taxMult);
+    const tax = taxableThisTick * effectiveRate;
     const availableCash = safe(input.cashIn, 0) + cashDelta;
     capitalGainsTaxUSD = Math.max(0, Math.min(tax, availableCash));
+    capitalGainsTaxUnpaid = Math.max(0, tax - capitalGainsTaxUSD);
     if (capitalGainsTaxUSD > 0) {
       cashDelta -= capitalGainsTaxUSD;
       notifications.push({
         id: `stk-tax-${input.currentWeek}`,
         title: '🧾 Investment Tax',
-        message: `Withheld $${Math.round(capitalGainsTaxUSD).toLocaleString()} (25% of $${Math.round(taxableThisTick).toLocaleString()} realized stock gains + dividends).`,
+        message:
+          `Withheld $${Math.round(capitalGainsTaxUSD).toLocaleString()} (${Math.round(effectiveRate * 100)}% of ` +
+          `$${Math.round(taxableThisTick).toLocaleString()} realized stock gains + dividends).` +
+          (capitalGainsTaxUnpaid > 0
+            ? ` $${Math.round(capitalGainsTaxUnpaid).toLocaleString()} carried over as unpaid.`
+            : ''),
       });
     }
   }
@@ -304,6 +338,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     dividendsUSD,
     realizedGains,
     capitalGainsTaxUSD,
+    capitalGainsTaxUnpaid,
     priceFactors,
     notifications,
   };

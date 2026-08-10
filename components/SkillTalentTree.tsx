@@ -12,9 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 import {
   AlertCircle,
   Brain,

@@ -168,7 +168,22 @@ export const DAILY_LOGIN_REWARDS = [25, 50, 75, 100, 150, 200, 500]; // 7-day ge
 export const LOGIN_STREAK_GRACE_HOURS = 48; // Forgiving: miss 1 day, keep streak
 
 // ── Prestige & Gems ───────────────────────────────────────
-export const REVIVE_GEM_COST = 15_000;
+/**
+ * Gems to revive in place after death.
+ *
+ * Was 15,000, which was wrong against the game's own price list rather than
+ * merely expensive. The 15,000-gem pack retails at $49.99, and the Revival Pack
+ * IAP — which does the IDENTICAL thing, by its own feature list ("Instant
+ * revival on death · Restore health/happiness/energy to 100 · Continue your
+ * progress") — is $2.99. So the gem path charged roughly sixteen times the
+ * real-money path for the same outcome, and the only players who took it were
+ * the ones who had not seen the store.
+ *
+ * 5,000 keeps revive a serious sink (250 days of daily-login gems) and well
+ * clear of a rewind, while leaving the $2.99 pack the honest best deal — which
+ * the death screen now says out loud instead of hiding.
+ */
+export const REVIVE_GEM_COST = 5_000;
 export const DISCORD_JOIN_REWARD_GEMS = 500;
 // One-time cash reward FLOOR for joining the Discord community. Granted from
 // either the in-game CommunityRewardPopup or the Settings "Join Our Discord"

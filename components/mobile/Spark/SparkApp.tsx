@@ -17,7 +17,7 @@ import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, Crown, Flame, Heart, MessageCircle, Pencil, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -37,7 +37,7 @@ import { type DatingProfile, getDatingProfileImage } from '@/lib/dating/datingPr
 import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
 import { getAvatarPortrait } from '@/utils/facePool';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type SparkTab = 'swipe' | 'matches' | 'likes' | 'profile';
 

@@ -17,12 +17,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Crown, Sparkles, X, ChevronRight } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { scale, fontScale } from '@/utils/scaling';
+import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import {
   ensureCurrentSeason,
   getTierForXp,
@@ -34,13 +35,29 @@ const MIN_LOCKED = 3;
 const COOLDOWN_WEEKS = 8;
 const LAST_WEEK_KEY = 'premium_promo_last_week';
 
-export default function PremiumPassPromo() {
+function PremiumPassPromo() {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
   const { haptic } = useFeedback();
   const legacyPassRaw = useGameSelector((s) => s.legacyPass);
   const weeksLived = useGameSelector((s) => s.weeksLived) ?? 0;
   const hapticEnabled = useGameSelector((s) => s.settings?.hapticFeedback) ?? false;
+
+  // Don't intrude during blocking moments. This popup previously respected NO
+  // guard at all, so a gold subscription modal could land on top of the death
+  // screen, a wedding, or a life moment — a paywall covering the one dialog the
+  // player actually has to act on. Same predicate the ad orb uses.
+  const blocked = useGameSelector((s) => !!(
+    s?.showDeathPopup ||
+    s?.showWeddingPopup ||
+    (s?.jailWeeks ?? 0) > 0 ||
+    s?.lifeMoments?.pendingMoment
+  ));
+
+  // Mirrored into a ref so the deferred fire (1.8s later) reads the CURRENT
+  // blocking state rather than the value captured when the effect ran.
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
 
   const [visible, setVisible] = useState(false);
   const shownThisSession = useRef(false);
@@ -82,6 +99,7 @@ export default function PremiumPassPromo() {
     if (weeksLived <= prevWeek.current) { prevWeek.current = weeksLived; return; }
     prevWeek.current = weeksLived;
     if (shownThisSession.current || pass.premiumOwned || stats.locked < MIN_LOCKED) return;
+    if (blocked) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -89,6 +107,9 @@ export default function PremiumPassPromo() {
         const last = parseInt((await safeGetItem(LAST_WEEK_KEY)) || '0', 10) || 0;
         if (weeksLived - last < COOLDOWN_WEEKS) return;
         if (cancelled) return;
+        // Re-check at fire time: the 1.8s delay is long enough for the weekly
+        // tick to raise a death/wedding/life-moment after the effect ran.
+        if (blockedRef.current) return;
         shownThisSession.current = true;
         setVisible(true);
         if (hapticEnabled) haptic('success');
@@ -96,9 +117,15 @@ export default function PremiumPassPromo() {
       } catch { /* never break the loop */ }
     }, 1800);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [weeksLived, pass.premiumOwned, stats.locked, hapticEnabled, haptic]);
+  }, [weeksLived, pass.premiumOwned, stats.locked, hapticEnabled, haptic, blocked]);
 
-  if (!visible) return null;
+  // Lowest-but-one priority in the shared queue: an upsell must lose to every
+  // reward, every celebration and the weekly sheet. `blocked` above still
+  // short-circuits death/wedding independently, since those are root-level
+  // modals that gate their own dismissal.
+  const slot = useInterruptionSlot('promo:premium-pass', INTERRUPTION_PRIORITY.PROMO, visible);
+
+  if (!slot) return null;
 
   const close = () => setVisible(false);
   const goToPass = () => { setVisible(false); router.push('/(tabs)/progression?openPass=1' as never); };
@@ -107,7 +134,7 @@ export default function PremiumPassPromo() {
     <Modal visible transparent animationType="fade" onRequestClose={close}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.card, { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }], opacity: pop }]}>
-          <LinearGradientFallback colors={['#FBBF24', '#F5C542', '#B8860B', '#B8860B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.inner}>
+          <Gradient colors={['#FBBF24', '#F5C542', '#B8860B', '#B8860B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.inner}>
             <Animated.View pointerEvents="none" style={[styles.shimmer, { transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-scale(160), scale(320)] }) }, { rotate: '18deg' }] }]} />
             <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Dismiss premium offer" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <X size={scale(18)} color="#3B2F00" />
@@ -133,7 +160,7 @@ export default function PremiumPassPromo() {
             <TouchableOpacity onPress={close} style={styles.ctaSecondary} accessibilityRole="button" accessibilityLabel="Maybe later">
               <Text style={styles.ctaSecondaryText}>Maybe later</Text>
             </TouchableOpacity>
-          </LinearGradientFallback>
+          </Gradient>
         </Animated.View>
       </View>
     </Modal>
@@ -157,3 +184,13 @@ const styles = StyleSheet.create({
   ctaSecondary: { paddingVertical: scale(10), marginTop: scale(4) },
   ctaSecondaryText: { fontSize: fontScale(12.5), fontWeight: '700', color: '#3B2F00', opacity: 0.8 },
 });
+
+/**
+ * `React.memo` is load-bearing here, not decoration.
+ *
+ * Rendered INLINE in `app/(tabs)/_layout.tsx`, which subscribes to game state.
+ * A selector inside a component cannot stop a re-render driven by its parent,
+ * so this component's own narrowing was worth nothing without a barrier. It
+ * takes no props, which makes `React.memo` a total one.
+ */
+export default React.memo(PremiumPassPromo);

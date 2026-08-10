@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
   Smartphone,
@@ -22,16 +22,19 @@ import {
   GraduationCap,
   Building,
   PawPrint,
+  Mail,
   Lock,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'expo-router';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 
 // REVERTED R6 lazy-loading: see comment in computer.tsx — same regression.
 import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
+import MailApp from '@/components/mobile/Mail/MailApp';
 import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
 import BankApp from '@/components/mobile/BankApp';
@@ -52,6 +55,7 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useIsFocused } from '@react-navigation/native';
@@ -62,7 +66,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -87,6 +91,11 @@ export function MobileScreenContent({
   const { t } = useTranslation();
   const { gameState } = useGame();
   const router = useRouter();
+  // Redirects that run on this screen's first commit throw "Attempted to
+  // navigate before mounting the Root Layout component" when this screen IS
+  // the entry route (restored URL / deep link), which surfaces as the crash
+  // screen. See hooks/useNavigationReady.ts.
+  const navReady = useNavigationReady();
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
@@ -115,11 +124,11 @@ export function MobileScreenContent({
   // Prevent staying on mobile screen when in prison - redirect to work tab.
   // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, gameState.jailWeeks, router]);
+  }, [embedded, navReady, gameState.jailWeeks, router]);
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
@@ -128,17 +137,28 @@ export function MobileScreenContent({
   // Embedded, the Apps tab chooses Computer-vs-Mobile by ownership, so this
   // stranding can't happen — skip the redirect to avoid fighting the parent.
   useEffect(() => {
-    if (embedded) return;
+    if (embedded || !navReady) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (ownsComputer) {
       router.replace('/(tabs)/home');
     }
-  }, [embedded, gameState.items, router]);
+  }, [embedded, navReady, gameState.items, router]);
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();
   const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
   const { logRender } = usePerformanceMonitor();
+
+  // Android hardware back exits the open sub-app rather than popping the tab
+  // stack — see the matching comment in computer.tsx. Consumes the press only
+  // while an app is open, so the grid keeps default navigator behaviour.
+  useHardwareBack(
+    useCallback(() => {
+      if (!activeApp) return false;
+      setActiveApp(null);
+      return true;
+    }, [activeApp])
+  );
 
   // Reset to apps grid when the Mobile tab is pressed
   useEffect(() => {
@@ -167,6 +187,15 @@ export function MobileScreenContent({
       icon: Users,
       gradient: ['#00D2D3', '#54A0FF'], // Teal-blue gradient to match contacts icon
       iconGradient: ['#00D2D3', '#54A0FF'],
+      available: true,
+    },
+    {
+      id: 'mail',
+      name: 'DeepMail',
+      description: 'Statements & receipts',
+      icon: Mail,
+      gradient: ['#EA4335', '#FBBC04'],
+      iconGradient: ['#EA4335', '#FBBC04'],
       available: true,
     },
     {
@@ -257,12 +286,16 @@ export function MobileScreenContent({
     const apps = {
       tinder: DatingApp,
       contacts: ContactsApp,
+      mail: MailApp,
       social: PulseApp,
       stocks: StocksApp,
       bank: BankApp,
       education: EducationApp,
       company: CompanyApp,
+      // Alias — see the matching comment in computer.tsx. `paw` is the id the
+      // desktop grid and MOBILE_APP_IDS use; both must resolve here too.
       pet: PetApp,
+      paw: PetApp,
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];

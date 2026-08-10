@@ -4,6 +4,18 @@
 import React from 'react';
 import { GameState, Company } from '../types';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from '../companyUpgradeCatalog';
+import {
+  isPrestigeFeatureUnlocked,
+  prestigeUnlockRequirement,
+} from '@/lib/progress/featureUnlocks';
+import {
+  countCompaniesOfType,
+  nextCompanyId,
+  subsidiaryCost,
+  subsidiaryName,
+  canFoundAnother,
+  MAX_PER_COMPANY_TYPE,
+} from '@/lib/business/subsidiaries';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -46,7 +58,13 @@ export const createCompany = (
 
   // CRITICAL: Validate priceIndex before calculation
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
-  const cost = getInflatedPrice(baseCost, priceIndex);
+  // Conglomerate: a subsidiary of a type already owned costs 2.5x the last.
+  // This cannot inflate income — PER_SOURCE_CAPS.companies is a hard $200k/wk
+  // ceiling on total company income that the five maxed originals already
+  // exceed — so every company past that point is pure SINK, which is what the
+  // late-game economy lacks.
+  const ownedOfType = countCompaniesOfType(gameState.companies, companyType);
+  const cost = getInflatedPrice(subsidiaryCost(baseCost, ownedOfType), priceIndex);
   
   // CRITICAL: Validate cost before comparison
   if (!isFinite(cost) || cost < 0) {
@@ -65,8 +83,22 @@ export const createCompany = (
     };
   }
 
-  if ((gameState.companies || []).find(c => c.id === companyType)) {
-    return { success: false, message: 'You already own this company type' };
+  // Prestige gate: a SECOND company of a type is conglomerate play, and is the
+  // first concrete answer this game has ever had to "why prestige again?".
+  // Only bites on subsidiaries — the first of each type is untouched, so
+  // nothing an existing player can already do is taken away.
+  if (ownedOfType > 0 && !isPrestigeFeatureUnlocked(gameState, 'feature:conglomerate')) {
+    return {
+      success: false,
+      message: prestigeUnlockRequirement(gameState, 'feature:conglomerate'),
+    };
+  }
+
+  if (!canFoundAnother(gameState.companies, companyType)) {
+    return {
+      success: false,
+      message: `You already run ${MAX_PER_COMPANY_TYPE} of these. That is the limit.`,
+    };
   }
 
   const hasEntrepreneurshipEducation = (gameState.educations || []).find(
@@ -102,8 +134,11 @@ export const createCompany = (
   const startingIncome = COMPANY_STARTING_INCOME[companyType] ?? 2000;
 
   const newCompany: Company = {
-    id: companyType,
-    name: `My ${capitalizedType}`,
+    // First of a type keeps the bare type id, exactly as before, so every
+    // existing save's companies/upgrades/overlays keep resolving and no
+    // migration is needed. Only the second onward are suffixed.
+    id: nextCompanyId(gameState.companies, companyType),
+    name: subsidiaryName(`My ${capitalizedType}`, ownedOfType),
     type: companyType as Company['type'],
     weeklyIncome: startingIncome,
     baseWeeklyIncome: startingIncome,
@@ -123,6 +158,13 @@ export const createCompany = (
     // Re-check ownership against FRESH state so a double-tap can't found (and
     // charge) twice — and so we never double-increment totalCompaniesFounded.
     if ((prev.companies || []).some(c => c && c.id === newCompany.id)) return prev;
+    // And re-check the PER-TYPE CAP against `prev`, not the stale outer read.
+    // `ownedOfType`, the id and the escalating price were all computed outside
+    // this updater; if another founding landed in the same batch the count has
+    // moved, and without this a third bank could be founded at the second's
+    // price. §4.4: re-check the gate against `prev` and return it unchanged to
+    // reject.
+    if (!canFoundAnother(prev.companies, companyType)) return prev;
 
     // Seed a Hustle overlay for the new company + increment the "Founded"
     // milestone. Without this the weekly tick skips overlay-less companies

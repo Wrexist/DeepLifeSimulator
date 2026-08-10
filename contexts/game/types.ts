@@ -15,7 +15,6 @@ import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
-import type { AutomationState } from '@/lib/automation/automationTypes';
 
 import type { CareerRequirements } from '@/lib/types/requirements';
 
@@ -53,6 +52,14 @@ export interface ChildParentingState {
   totalActions: number;
 }
 
+export interface GrandchildInfo {
+  id: string;
+  name: string;
+  /** Absolute week (`weeksLived`) at which they were born. */
+  birthWeeksLived: number;
+  geneticTraits?: string[];
+}
+
 export interface ChildInfo extends Relationship {
   birthWeeksLived?: number;
   educationLevel?: 'none' | 'highSchool' | 'university' | 'specialized';
@@ -79,6 +86,15 @@ export interface ChildInfo extends Relationship {
   discipline?: number;
   /** Weekly-cap + cooldown bookkeeping for the parenting action loop. */
   parenting?: ChildParentingState;
+  /**
+   * Grandchildren (v34) — lightweight records, one generation deep.
+   *
+   * Default `undefined`, so this is a CARVE-OUT: version bumped, no backfill
+   * and no `repairGameState` mirror. An absent key already means "no
+   * grandchildren", and writing an empty array everywhere would churn every
+   * child on every existing save for no behavioural gain.
+   */
+  grandchildren?: GrandchildInfo[];
 }
 
 export interface FamilyState {
@@ -518,6 +534,195 @@ export interface DarkWebState {
   skills: Record<DarkWebSkillId, DarkWebSkill>;
   /** Forum / news events (recent only). */
   recentEvents: { id: string; week: number; text: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// Mail (STATE_VERSION 37)
+// ---------------------------------------------------------------------------
+
+/** Where a message currently lives. Exactly one folder per message. */
+export type MailFolder = 'inbox' | 'archive' | 'spam' | 'trash';
+
+/**
+ * The tab a message lands under. Mirrors the split Gmail made standard, which
+ * is worth copying because players already know it: money things together,
+ * marketing out of the way, people separate from machines.
+ */
+export type MailCategory = 'primary' | 'finance' | 'promotions' | 'social';
+
+/**
+ * A rendered document attached to a message — a payslip, an invoice, a receipt.
+ *
+ * Deliberately a list of label/value rows rather than free text: the detail view
+ * lays them out as a real document (right-aligned figures, a ruled total), and
+ * every value is formatted from a number the save already holds, so nothing here
+ * can disagree with the player's balance.
+ */
+export interface MailAttachment {
+  kind: 'payslip' | 'invoice' | 'receipt' | 'statement' | 'notice' | 'contract';
+  /** Shown on the document header, e.g. "Payslip — Week 312". */
+  title: string;
+  /** Issuer line under the title, e.g. "Northwind Logistics · Payroll". */
+  issuer: string;
+  /** Human reference the player can pretend to quote, e.g. "INV-4417-22". */
+  reference: string;
+  rows: { label: string; value: string; muted?: boolean; negative?: boolean }[];
+  /** The ruled bottom line. Omitted for documents that do not total. */
+  total?: { label: string; value: string };
+  /** Optional footer note — payment terms, a due date, a disclaimer. */
+  note?: string;
+}
+
+/**
+ * A button the message offers.
+ *
+ * `kind` drives BOTH the styling and the consequence: `danger` is the only kind
+ * that can cost the player anything, and only a scam message ever carries one.
+ */
+export interface MailAction {
+  id: string;
+  label: string;
+  kind: 'safe' | 'danger';
+}
+
+/** One option in a decision the message is asking the player to make. */
+export interface MailChoice {
+  id: string;
+  label: string;
+  /** One line under the label — the cost, the catch, or what it means. */
+  detail?: string;
+  kind?: 'primary' | 'neutral' | 'danger';
+}
+
+/**
+ * Who applies the outcome when a choice is taken.
+ *
+ * A tagged union rather than a bag of optional fields, so each handler reads
+ * only what it declares and adding a fifth kind cannot silently do nothing.
+ * Accessed through `'kind' in x` guards (Hard Rule #2).
+ *
+ * `event` is the important one: it DELEGATES to `resolveEvent(eventId,
+ * choiceId)`, the existing ~200-line resolver that already knows about
+ * affordability, karma, follow-up events, chains and memories. Copying that
+ * into mail would have created a second set of rules about what a choice can
+ * do, and the two would have drifted the first time either changed.
+ */
+export type MailResolver =
+  | { kind: 'event'; eventId: string }
+  | { kind: 'careerOffer'; careerId: string }
+  | { kind: 'payArrears' }
+  /** Take an outside offer to your manager. Spends the raise window. */
+  | { kind: 'recruiterLeverage'; careerId: string }
+  /** Rotate credentials after a breach notice — buys a window of lower risk. */
+  | { kind: 'securityShield'; cost: number; weeks: number }
+  /** Pay off, or refuse, someone who has something on you. */
+  | { kind: 'extortion'; demand: number };
+
+/**
+ * A decision the player can take their time over.
+ *
+ * This is what mail adds that no other channel in the game can: every other
+ * decision surface (`WeeklyEventModal`, `LifeMomentModal`) covers the screen
+ * and demands an answer now. An offer that sits in the inbox until it expires
+ * is a different verb — you can weigh it, sleep on it, or let it lapse.
+ */
+export interface MailDecision {
+  choices: MailChoice[];
+  /** Absolute `weeksLived` after which the offer lapses. */
+  expiresAtWeek: number;
+  /** Which choice happens on its own if the player never answers. */
+  lapseChoiceId: string;
+  resolver: MailResolver;
+  /** Set once resolved — the id chosen, or the lapse choice. */
+  chosenId?: string;
+  resolvedAs?: 'chosen' | 'lapsed';
+  /** What happened, in words, once resolved. */
+  outcome?: string;
+}
+
+/**
+ * Fraud metadata. Present ONLY on messages that are actually scams.
+ *
+ * `tells` is the teaching half of the mechanic — the specific things that gave
+ * it away, revealed once the message is resolved either way, so a player who
+ * fell for it learns what to look for instead of just losing money.
+ */
+export interface MailScam {
+  /**
+   * Fraction of liquid cash at risk if the player acts on it, 0..1.
+   *
+   * The CEILING is not stored alongside it, deliberately. A `lossCap` field
+   * shipped here and `scamLossFor` never read it — it clamps against
+   * `SCAM_LOSS_CAP_FRACTION` computed from the balance at the moment of the
+   * tap, which is the behaviour that matters (a scam banked while rich must not
+   * pay out at the old figure). A stored cap could only ever be the stale one,
+   * so it was a field with no reader and one wrong answer.
+   */
+  lossFraction: number;
+  /** What should have given it away. Shown after resolution. */
+  tells: string[];
+}
+
+export interface MailMessage {
+  id: string;
+  /**
+   * Groups a message with its replies and follow-ups.
+   *
+   * Absent means a standalone message, which is most of them. A thread exists
+   * only where the game genuinely has more to say after the player acts — a
+   * recruiter answering, a security team confirming a report — so the feature
+   * is conversation where conversation is real, not a chat system bolted on.
+   */
+  threadId?: string;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  /** One-line snippet for the list row. */
+  preview: string;
+  /** Full body. Blank lines separate paragraphs. */
+  body: string;
+  /** Absolute week (`weeksLived`) the message arrived. */
+  atWeek: number;
+  read: boolean;
+  starred: boolean;
+  folder: MailFolder;
+  category: MailCategory;
+  /**
+   * True for senders the game vouches for — the player's own bank, employer,
+   * government. A scam can never set this, which is what makes its ABSENCE a
+   * usable tell rather than decoration.
+   */
+  verified?: boolean;
+  attachment?: MailAttachment;
+  action?: MailAction;
+  /** A decision with a deadline. Mutually exclusive with `action` in practice. */
+  decision?: MailDecision;
+  /** Set once the player resolves the action. Makes every action one-shot. */
+  actionTaken?: 'accepted' | 'reported';
+  /** How much a scam actually took, stamped when it is paid. Enables disputes. */
+  lostAmount?: number;
+  /** Set when a loss has been disputed, so a dispute cannot be run twice. */
+  disputed?: boolean;
+  scam?: MailScam;
+}
+
+export interface MailState {
+  messages: MailMessage[];
+  /**
+   * Absolute week until which rotated credentials suppress fraud attempts.
+   *
+   * The one lever the player has over their own exposure. Everything else that
+   * feeds `scamRisk` only ever pushes it UP — dark-web trading, heat, wealth —
+   * so without this the risk panel reports a number the player can read and
+   * never act on.
+   */
+  shieldUntilWeek?: number;
+  /** How many phishing reports the player has filed. Earns a standing discount. */
+  reportsMade?: number;
+  /** Last `weeksLived` the generator ran, so a replayed tick cannot double-send. */
+  lastGeneratedWeek?: number;
+  /** The player's own address, derived once from their name. */
+  address?: string;
 }
 
 export interface Food {
@@ -1643,6 +1848,20 @@ export interface GameSettings {
    * clock — a real-time key is farmable by moving the device clock.
    */
   lastNoFillGrantWeek?: number;
+  /**
+   * Game-week marker capping rewarded-ad CASH grants (v35).
+   *
+   * The orb's only limiter was a wall-clock respawn timer (now 6-10 min), which
+   * is decoupled from `weeksLived` entirely — so a player who sat and tapped
+   * every orb compounded net worth by 1.5% each time, doubling roughly every
+   * 2.2 hours of real time, invisibly to the tax brackets and the net-worth
+   * soft cap. Gating on the GAME week is the one clock a scrubber cannot touch,
+   * exactly as v28's `lastNoFillGrantWeek` and v31's `lastLoginRewardWeek` do.
+   *
+   * Default `undefined` — a carve-out. Stamping a week would deny an existing
+   * player their next legitimate claim.
+   */
+  lastAdCashGrantWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle
@@ -1944,7 +2163,19 @@ export interface BankingState {
   totalLateFeesPaid: number;
   totalInterestEarned: number;
   totalInterestPaid: number;
-  /** Capital-gains/tax accrual — debited yearly. */
+  /**
+   * Tax PAID so far this game year — income tax plus stock/crypto capital
+   * gains, reset at the 52-week boundary. Written by the week loop via
+   * `accrueYearlyTax` (`lib/economy/taxLedger.ts`) and read by the Bank app's
+   * Tax tab.
+   *
+   * The old comment here promised "capital-gains/tax accrual — debited yearly",
+   * which never happened: nothing in the repo wrote this field, so both UI rows
+   * reading it sat behind a `> 0` gate that could never open. Since tax in this
+   * game is withheld weekly at source and never "due", the honest meaning is
+   * year-to-date paid. Repurposed rather than renamed — 0 is the correct value
+   * for every existing save either way, so no migration is needed.
+   */
   taxDueThisYear: number;
   /** Last observed economy state — used to surface "rates changed" notifications. */
   lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';
@@ -2663,6 +2894,20 @@ export interface GameState {
   diseaseImmunities?: string[]; // Diseases player has immunity to (from previous infections)
   vaccinations?: string[]; // Vaccinations player has received
   goals: Goal[];
+  /**
+   * VESTIGIAL, and deliberately kept. The linear goal system that wrote this
+   * (`utils/goalSystem.ts` + `GoalCompletionPopup`) was deleted once it was
+   * shown to be unreachable — each goal's `shouldShow` predicate was the exact
+   * negation of its completion predicate, so nothing could ever be appended
+   * here. It is therefore `[]` on every save ever written, and nothing reads it.
+   *
+   * Removing it would be a STATE_VERSION bump and a migration that deletes a key
+   * whose only possible value is the empty array — a schema change for no
+   * behavioural difference, and a migration is the riskiest kind of no-op. Same
+   * carve-out reasoning as the `undefined`-default fields in CLAUDE.md §7
+   * (`ambitionId` et al): when the stored value already equals the only value it
+   * can have, leave it alone. Do not write to it; do not add readers.
+   */
   completedGoals: string[];
   // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
   // socialGroups, socialInteractions, lastEventTimes) and the old
@@ -2676,7 +2921,11 @@ export interface GameState {
     lastSeason: string;
     completedEvents: string[];
   };
-  automation?: AutomationState;
+  // `automation` (the lib/automation rule engine) was deleted 2026-08-06: the
+  // key was never in initialState, never migrated, and never written by
+  // anything, so it was `undefined` in every save that has ever existed. The
+  // four capabilities it described all ship elsewhere (banking.billPayRules +
+  // applyLoanAutopay, applySavingsGoals, applySubscriptions, applyAutoReinvest).
   socialMedia?: {
     // ── Legacy v10-v12 fields (preserved verbatim for save compat) ──
     followers: number;
@@ -2822,6 +3071,47 @@ export interface GameState {
    * Carried into the heir — what you bought is what your heir starts with.
    */
   legacyUpgrades?: string[];
+  /**
+   * Legacy Contracts (v33) — multi-life goals that pay Legacy Points.
+   *
+   * Only the CLAIMED ids are stored. Progress itself is derived from metrics
+   * the save already tracks and that only ever increase (prestige count,
+   * generations, lifetime weeks), so nothing can drift out of sync and a
+   * contract cannot be double-credited by a tick that runs twice.
+   */
+  legacyContracts?: { claimedIds: string[] };
+  /**
+   * The Dynasty — bookkeeping for the four prestige-tier systems (v36).
+   *
+   * ONE optional object rather than four top-level keys, so the whole feature
+   * set is one carve-out instead of four. Default `undefined`: version bumped,
+   * NO backfill and NO `repairGameState` mirror, because an absent key already
+   * means exactly the right thing for every save written before this — empty
+   * vault, nothing endowed, no Trial running, no wings built.
+   *
+   * Read through `lib/dynasty/state.ts`, never directly, so a partial or
+   * hand-edited save degrades to the empty answer instead of throwing.
+   */
+  dynasty?: DynastyState;
+  /**
+   * Mail (v37) — the game's paper trail.
+   *
+   * Every number the game moves already exists somewhere in this save; mail is
+   * where it becomes a DOCUMENT the player can look back at — a payslip with
+   * its deductions, an invoice with its due date, a receipt with an order id.
+   * It is also the only channel in the game the player must JUDGE rather than
+   * read, because a scam arrives looking like the rest of it.
+   *
+   * Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+   * and no `repairGameState` mirror. An absent key already means "no mail yet",
+   * and seeding an inbox onto an existing save would fabricate receipts for
+   * purchases that never happened and payslips for weeks already lived.
+   *
+   * Read through `lib/mail/state.ts`, never directly, so a partial or
+   * hand-edited save degrades to an empty inbox instead of throwing in the
+   * week loop.
+   */
+  mail?: MailState;
   /** Active legacy buffs purchased with legacy points */
   legacyBuffs?: {
     luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks
@@ -3191,6 +3481,29 @@ export interface LifetimeStatistics {
 // ============================================
 // Legacy & Dynasty System Interfaces
 // ============================================
+
+/**
+ * Persisted state for the four prestige-tier systems (STATE_VERSION 36).
+ *
+ * Every field is optional and absent-means-empty, which is what lets the whole
+ * object be a documented carve-out (CLAUDE.md §7) rather than four backfills.
+ * The logic lives in `lib/dynasty/`; this is only the shape.
+ */
+export interface DynastyState {
+  /** Tier 2 — luxury catalog ids preserved across death and prestige. */
+  vaultItemIds?: string[];
+  /** Tier 3 — endowment tranche ids taken. Once per id, forever. */
+  endowments?: string[];
+  /** Tier 4 — handicaps sworn for the next life, and borne by this one. */
+  trials?: {
+    /** Sworn, not yet started. Promoted to `active` at the next transition. */
+    pending?: string[];
+    /** Being lived under right now. Settled for Legacy Points at the next one. */
+    active?: string[];
+  };
+  /** Tier 5 — Dynasty Seat wings built. Permanent; never lost. */
+  seatWings?: string[];
+}
 
 export interface Heirloom {
   id: string;

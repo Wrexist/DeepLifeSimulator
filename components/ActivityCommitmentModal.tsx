@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { Platform, View, Text, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
@@ -9,7 +9,7 @@ import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 interface ActivityCommitmentModalProps {
@@ -222,10 +222,37 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
       visible={visible}
       transparent={true}
       animationType="fade"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <BlurView intensity={20} style={styles.blurOverlay}>
+      <View style={styles.overlay}>
+        {/* Dismiss backdrop — sits BEHIND the sheet, so a tap anywhere outside
+            closes the modal. A transparent RN Modal owns every touch in its
+            window, so without this the ONLY way out is the sheet's own buttons;
+            when the sheet mislaid itself (it used to render as a clipped sliver
+            under the status bar) that left the whole game unreachable. Same
+            pattern, and the same reason, as WhatsNewModal: the Pressable is a
+            sibling BEHIND the sheet rather than a wrapper, because a ScrollView
+            inside a Touchable loses its gestures to the press responder. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close Activity Commitments"
+        >
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+        </Pressable>
+
+        {/* Centering layer. Absolute + `box-none` so it can carry the safe-area
+            padding (which the sheet's `maxHeight: '100%'` then resolves
+            against) without masking the backdrop behind it. */}
+        <View
+          style={[
+            styles.centering,
+            { paddingTop: insets.top + scale(12), paddingBottom: insets.bottom + scale(12) },
+          ]}
+          pointerEvents="box-none"
+        >
           <LinearGradient
             colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
             style={styles.modal}
@@ -255,7 +282,11 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentInner}
+              showsVerticalScrollIndicator={true}
+            >
               {/* Cooldown Warning */}
               {!canChange && (
                 <View style={[styles.warningCard, settings.darkMode && styles.warningCardDark]}>
@@ -317,7 +348,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               </TouchableOpacity>
             </View>
           </LinearGradient>
-        </BlurView>
+        </View>
       </View>
     </Modal>
   );
@@ -326,16 +357,23 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    // A real dim. The blur fallback resolves to ~8% alpha, which read as "the
+    // game screen, but frozen" rather than "a modal is open".
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  centering: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  blurOverlay: {
-    ...StyleSheet.absoluteFillObject,
   },
   modal: {
     width: '90%',
     maxWidth: 600,
-    maxHeight: '90%',
+    // `maxHeight` is the ONLY height bound here, so the sheet is content-sized
+    // and `flexShrink` is what lets it clamp — see `content` below, which must
+    // NOT be `flex: 1` for the same reason.
+    maxHeight: '100%',
+    flexShrink: 1,
     borderRadius: 20,
     overflow: 'hidden',
     ...Platform.select({
@@ -386,7 +424,19 @@ const styles = StyleSheet.create({
     padding: scale(8),
   },
   content: {
-    flex: 1,
+    // NOT `flex: 1`. The sheet above is bounded by `maxHeight` only, so its own
+    // height is content-driven — and `flex: 1` means `flexBasis: 0`, which in a
+    // content-sized column contributes nothing to that measurement and then has
+    // no free space to grow back into. The list resolved to ZERO height and the
+    // modal shipped as a header-and-footer sliver with the whole body missing.
+    // `flexShrink: 1` keeps the list's measured height and lets it give space
+    // back when the column exceeds the sheet's bound. Same pair as the banking
+    // sheets — see __tests__/render/modalListsShrink.test.ts.
+    flexShrink: 1,
+  },
+  contentInner: {
+    // Padding belongs on the content container, not the scroll frame, so it
+    // scrolls with the content instead of shrinking the visible viewport.
     padding: responsivePadding.horizontal,
   },
   warningCard: {

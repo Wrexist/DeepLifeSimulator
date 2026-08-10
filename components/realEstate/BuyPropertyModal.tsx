@@ -93,7 +93,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Down payment</Text>
               <View style={styles.chipRow}>

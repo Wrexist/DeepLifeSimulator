@@ -11,7 +11,7 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { MapPin, Briefcase, GraduationCap, AlertCircle } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
@@ -19,7 +19,7 @@ import { SPARK_COLORS, SPARK_GRADIENT } from '../styles/sparkTheme';
 import type { DatingProfile } from '@/lib/dating/datingProfiles';
 import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Scrim fade steps, top→bottom. Alphas stay small where the step edge crosses
 // the photo's midsection and only grow near the identity text, so the stacked

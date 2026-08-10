@@ -7,7 +7,7 @@
  */
 import React, { useCallback, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -19,7 +19,7 @@ import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/spa
 import { formatRelativeRealTime } from '@/components/mobile/Pulse/utils/formatRelativeTime';
 import type { SparkMatch } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface MatchesScreenProps {
   onOpenChat: (matchId: string) => void;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { computeBailCost } from '@/lib/config/gameConstants';
@@ -26,7 +26,7 @@ import {
   Flower2,
   Smile
 } from 'lucide-react-native';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface JailScreenProps {
   onClose?: () => void;
@@ -290,7 +290,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
             <Text style={styles.headerTitle}>PRISON</Text>
           </View>
           {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
               <X size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}

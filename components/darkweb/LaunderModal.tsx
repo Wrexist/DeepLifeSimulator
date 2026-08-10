@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, ScrollView, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Droplets } from 'lucide-react-native';
 import { DarkWebMixerTier } from '@/contexts/game/types';
 import { MIXER_TIERS, effectiveMixerParams, frontDiscount } from '@/lib/darkweb/laundering';
@@ -72,6 +72,24 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
             </TouchableOpacity>
           </View>
 
+          {/*
+            The body scrolls; "Submit to Mixer" below it does not.
+
+            This sheet had no scroller at all — header, tiers, amount field, a
+            summary block that grows to four lines once fronts are owned, and
+            the submit button, all in one column capped at `maxHeight: '90%'`.
+            RN does not shrink children by default, so past that cap the
+            overflow simply left the sheet, and the thing at the bottom of the
+            column is the only control that does anything. The R4-A note on the
+            amount input records this already happening once, via the Samsung
+            autocorrect bar. Bounding the body instead of the whole column means
+            neither a long summary nor a keyboard can take the button away.
+          */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ gap: responsiveSpacing.md }}
+            keyboardShouldPersistTaps="handled"
+          >
           <Text style={[styles.subtitle, { color: theme.textMuted }]}>
             Dirty wallet: <Text style={{ color: theme.text, fontWeight: '700' }}>{dirtyBtc.toFixed(4)} â‚¿</Text>
           </Text>
@@ -153,6 +171,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
               </Text>
             </View>
           )}
+          </ScrollView>
 
           <TouchableOpacity
             disabled={!canSubmit}

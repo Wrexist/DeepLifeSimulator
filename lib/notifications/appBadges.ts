@@ -36,6 +36,15 @@ export function getAppBadgeCounts(gameState: GameState | undefined | null): Reco
     );
     if (critical > 0) { counts.pet = critical; counts.paw = critical; }
 
+    // DeepMail — unread inbox. This is the badge that makes mail a CHANNEL
+    // rather than a screen: a payslip the player never opens is not a feature.
+    const messages: any[] = g.mail?.messages ?? [];
+    const mailUnread = messages.reduce(
+      (n, m) => n + (m && (m.folder ?? 'inbox') === 'inbox' && !m.read ? 1 : 0),
+      0,
+    );
+    if (mailUnread > 0) counts.mail = mailUnread;
+
     // Hustle / companies — unread company notifications (scandals, offers).
     const companies: any[] = g.companies ?? [];
     const companyUnread = companies.reduce((n, c) => {

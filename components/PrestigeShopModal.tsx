@@ -10,9 +10,10 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check } from 'lucide-react-native';
+import Gradient from '@/components/ui/Gradient';
+import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check, Lock, Users } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
 import {
   getBonusesByCategory,
   getBonusLevel,
@@ -20,10 +21,22 @@ import {
   getBonusPurchaseCost,
   PrestigeBonusCategory,
 } from '@/lib/prestige/prestigeBonuses';
-import { legacyPointsAvailable } from '@/lib/legacy/legacyShop';
+import {
+  legacyPointsAvailable,
+  LEGACY_BRANCHES,
+  upgradesForBranch,
+  isUpgradeUnlocked,
+  getLegacyUpgrade,
+} from '@/lib/legacy/legacyShop';
+import { getAllContractProgress, getClaimableContracts } from '@/lib/legacy/contracts';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import DynastyBoard from '@/components/prestige/DynastyBoard';
 import { scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
+
+/** The shop's tab set: the prestige-point categories, plus the Legacy tree. */
+type ShopTab = PrestigeBonusCategory | 'dynasty';
 
 interface PrestigeShopModalProps {
   visible: boolean;
@@ -32,7 +45,11 @@ interface PrestigeShopModalProps {
 
 export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModalProps) {
   const { gameState, purchasePrestigeBonus } = useGame();
-  const [selectedCategory, setSelectedCategory] = useState<PrestigeBonusCategory>('starting');
+  const { purchaseLegacyUpgrade: buyLegacyUpgrade, claimLegacyContract } = useMoneyActions();
+  // 'dynasty' is the Legacy Points tree. It rides the same tab chrome as the
+  // prestige-point categories because it is the same question — "what do I
+  // spend my meta-currency on?" — just a different currency.
+  const [selectedCategory, setSelectedCategory] = useState<ShopTab>('starting');
   const [searchQuery, _setSearchQuery] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -47,11 +64,34 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const incomeHeadroom = incomeMultiplierHeadroom(unlockedBonuses);
   const isDarkMode = gameState?.settings?.darkMode ?? false;
 
-  const categories: PrestigeBonusCategory[] = ['starting', 'multiplier', 'unlock', 'qol', 'special'];
+  const categories: ShopTab[] = ['starting', 'multiplier', 'unlock', 'qol', 'special', 'dynasty'];
+
+  // Legacy Contracts sit on the SIXTH of six horizontally-scrolling tabs, below
+  // the Dynasty board — two or three taps and a scroll from anywhere the player
+  // normally is. `getClaimableContracts` had no non-test caller at all, so a
+  // completed contract announced itself nowhere in the app. It now drives a
+  // count badge on the tab, matching how the Legacy Pass badges on Progress.
+  const claimableContracts = useMemo(
+    () => getClaimableContracts(gameState).length,
+    [gameState]
+  );
+
+  const showDynasty = selectedCategory === 'dynasty';
+
+  // Open ON the Dynasty tab when something is waiting there, so the badge that
+  // brought the player here does not then ask them to go hunting for it. Keyed
+  // on `visible` so it only steers a fresh open, never a tab the player picked.
+  useEffect(() => {
+    if (visible && claimableContracts > 0) setSelectedCategory('dynasty');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- steer on open only
+  }, [visible]);
 
   const filteredBonuses = useMemo(() => {
+    // The Dynasty tab spends Legacy Points, not prestige points, so it has no
+    // prestige bonuses to list.
+    if (selectedCategory === 'dynasty') return [];
     let bonuses = getBonusesByCategory(selectedCategory);
-    
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       bonuses = bonuses.filter(
@@ -84,8 +124,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
     }
   };
 
-  const getCategoryIcon = (category: PrestigeBonusCategory) => {
+  const getCategoryIcon = (category: ShopTab) => {
     switch (category) {
+      case 'dynasty':
+        return Users;
       case 'starting':
         return Sparkles;
       case 'multiplier':
@@ -101,8 +143,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
     }
   };
 
-  const getCategoryColor = (category: PrestigeBonusCategory) => {
+  const getCategoryColor = (category: ShopTab) => {
     switch (category) {
+      case 'dynasty':
+        return ['#D97706', '#B45309'];
       case 'starting':
         return ['#3B82F6', '#2563EB'];
       case 'multiplier':
@@ -240,6 +284,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
                       </LinearGradient>
+                      {category === 'dynasty' && <ClaimableBadge count={claimableContracts} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -252,7 +297,158 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.bonusesListContent}
             >
-              {filteredBonuses.length === 0 ? (
+              {showDynasty ? (
+                <View>
+                  {/* The Dynasty Tree. Legacy Points previously had a READOUT
+                      here and nowhere to spend them: `purchaseLegacyUpgrade`
+                      shipped in MoneyActionsContext with no screen calling it,
+                      so the entire shop was unreachable in the app. */}
+                  <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', marginBottom: scale(10) }]}>
+                    {legacyAvailable > 0
+                      ? `${legacyAvailable.toLocaleString()} legacy points to spend on your heir's starting position.`
+                      : 'Legacy points accrue as you live. Spend them here on the next generation.'}
+                  </Text>
+
+                  {/* Prestige tiers 2-5 — the Vault, the Endowment, Trials and
+                      the Dynasty Seat. Rendered first because they are the
+                      answer to "why prestige again?", and because two of them
+                      (the Endowment, and Trials) are SOURCES of the legacy
+                      points the contracts and the tree below deal in. Locked
+                      tiers render padlocked rather than hidden, so the shape of
+                      the late game is legible before it is earned. */}
+                  <DynastyBoard gameState={gameState} />
+
+                  {/* Contracts — the multi-life goals that PAY the points the
+                      tree below spends. Rendered first so the board reads as
+                      "earn, then spend" rather than two unrelated lists. */}
+                  <Text style={[styles.categoryTabText, isDarkMode && styles.categoryTabTextDark, { marginBottom: scale(6) }]}>
+                    CONTRACTS · Long-haul goals that pay legacy points
+                  </Text>
+                  {getAllContractProgress(gameState).map((p) => (
+                    <TouchableOpacity
+                      key={p.contract.id}
+                      activeOpacity={p.claimable ? 0.8 : 1}
+                      onPress={() => {
+                        if (!p.claimable) return;
+                        claimLegacyContract(p.contract.id);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !p.claimable }}
+                      accessibilityLabel={`${p.contract.name}: ${p.current.toLocaleString()} of ${p.target.toLocaleString()}`}
+                      style={{
+                        padding: scale(10),
+                        marginBottom: scale(6),
+                        borderRadius: scale(12),
+                        // Full border all round — Hard Rule #7.
+                        borderWidth: 1,
+                        borderColor: p.claimable
+                          ? 'rgba(16, 185, 129, 0.55)'
+                          : isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+                        backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.6)' : 'rgba(243, 244, 246, 0.7)',
+                        opacity: p.claimed ? 0.6 : 1,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(8) }}>
+                        {p.claimed ? (
+                          <Check size={16} color="#10B981" />
+                        ) : (
+                          <Sparkles size={16} color={p.claimable ? '#10B981' : '#94A3B8'} />
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontWeight: '700' }]}>
+                            {p.contract.name}
+                          </Text>
+                          <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontSize: fontScale(11) }]}>
+                            {p.claimed
+                              ? p.contract.description
+                              : `${p.contract.description}  ·  ${p.current.toLocaleString()} / ${p.target.toLocaleString()}`}
+                          </Text>
+                        </View>
+                        <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { fontWeight: '800', color: p.claimable ? '#10B981' : undefined }]}>
+                          {p.claimed ? 'Claimed' : p.claimable ? 'Claim' : `+${p.contract.reward.toLocaleString()}`}
+                        </Text>
+                      </View>
+                      <View style={{ height: scale(6), borderRadius: scale(3), overflow: 'hidden', marginTop: scale(8), backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                        <View style={{ height: '100%', borderRadius: scale(3), width: `${Math.max(2, p.progress * 100)}%`, backgroundColor: p.complete ? '#10B981' : '#D97706' }} />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+
+                  {LEGACY_BRANCHES.map((branch) => (
+                    <View key={branch.id} style={{ marginBottom: scale(14) }}>
+                      <Text style={[styles.categoryTabText, isDarkMode && styles.categoryTabTextDark, { marginBottom: scale(6) }]}>
+                        {branch.name.toUpperCase()} · {branch.blurb}
+                      </Text>
+
+                      {upgradesForBranch(branch.id).map((node) => {
+                        const owned = (gameState?.legacyUpgrades ?? []).includes(node.id);
+                        const unlocked = isUpgradeUnlocked(node.id, gameState?.legacyUpgrades);
+                        const affordable = legacyAvailable >= node.cost;
+                        const parent = node.requires ? getLegacyUpgrade(node.requires) : undefined;
+
+                        return (
+                          <TouchableOpacity
+                            key={node.id}
+                            activeOpacity={owned || !unlocked || !affordable ? 1 : 0.8}
+                            onPress={() => {
+                              if (owned || !unlocked || !affordable) return;
+                              buyLegacyUpgrade(node.id);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: owned || !unlocked || !affordable }}
+                            accessibilityLabel={`${node.name}, ${node.cost} legacy points`}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: scale(10),
+                              padding: scale(10),
+                              marginBottom: scale(6),
+                              borderRadius: scale(12),
+                              // Full border on all four sides — a one-sided
+                              // coloured stripe is banned app-wide (Hard Rule #7).
+                              borderWidth: 1,
+                              borderColor: owned
+                                ? 'rgba(16, 185, 129, 0.5)'
+                                : isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+                              backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.6)' : 'rgba(243, 244, 246, 0.7)',
+                              opacity: unlocked ? 1 : 0.55,
+                            }}
+                          >
+                            {owned ? (
+                              <Check size={16} color="#10B981" />
+                            ) : unlocked ? (
+                              <Sparkles size={16} color="#D97706" />
+                            ) : (
+                              <Lock size={16} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontWeight: '700' }]}>
+                                {node.name}
+                              </Text>
+                              <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontSize: fontScale(11) }]}>
+                                {owned
+                                  ? node.description
+                                  : unlocked
+                                    ? node.description
+                                    : `Needs ${parent?.name ?? 'an earlier upgrade'} first.`}
+                              </Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.emptyText,
+                                isDarkMode && styles.emptyTextDark,
+                                { fontWeight: '800', color: owned ? '#10B981' : affordable && unlocked ? '#D97706' : undefined },
+                              ]}
+                            >
+                              {owned ? 'Owned' : node.cost.toLocaleString()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              ) : filteredBonuses.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark]}>
                     No bonuses found

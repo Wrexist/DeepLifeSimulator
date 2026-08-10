@@ -31,8 +31,14 @@
  *
  * 2026-08-01, product decision taken by the owner.
  */
+import fs from 'fs';
+import path from 'path';
 import {
   LEGACY_UPGRADES,
+  LEGACY_BRANCHES,
+  upgradesForBranch,
+  isUpgradeUnlocked,
+  totalLegacyTreeCost,
   getLegacyUpgrade,
   legacyPointsAvailable,
   legacyPointsSpent,
@@ -136,12 +142,26 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
     }
   });
 
-  it('owning everything is affordable within one long life', () => {
-    // The tick grants floor(weeksLived/10) + prestigeLevel*2 every ten weeks,
-    // so a 500-week life yields hundreds. If the catalogue ever prices past
-    // that, the shop is empty for everyone and this is the warning.
-    const total = LEGACY_UPGRADES.reduce((s, u) => s + u.cost, 0);
-    expect(total).toBeLessThan(1000);
+  it('the first rung of every branch is affordable inside one early life', () => {
+    // REPLACES "owning everything is affordable within one long life"
+    // (total < 1000), which pinned the exact design the 2026-08-05 audit found
+    // broken: accrual is QUADRATIC (~1,275 points by week 500, ~5,050 by week
+    // 1,000) against a 340-point catalogue, so the shop was bought out by week
+    // ~260 and every heir from generation 2 on started with all of it. The
+    // currency was dead for three quarters of a long life.
+    //
+    // What must stay true is that the tree OPENS cheaply — a player who has
+    // just met legacy points can afford a root. Depth beyond that is the point.
+    for (const branch of LEGACY_BRANCHES) {
+      const root = upgradesForBranch(branch.id).find((u) => !u.requires);
+      expect(`${branch.id}:${root ? root.cost <= 150 : 'missing root'}`).toBe(`${branch.id}:true`);
+    }
+  });
+
+  it('the whole tree costs more than one long life can earn', () => {
+    // The other half of the same intent: buying out the tree must NOT be the
+    // default outcome. ~5,050 points is the yield of a 1,000-week life.
+    expect(totalLegacyTreeCost()).toBeGreaterThan(5_050);
   });
 
   it('the bonuses sum correctly across owned ids', () => {
@@ -159,6 +179,143 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
       expect(`${JSON.stringify(bad)}: ${b.money} ${b.reputation} ${Object.keys(b.stats).length}`)
         .toBe(`${JSON.stringify(bad)}: 0 0 0`);
     }
+  });
+});
+
+describe('the Dynasty Tree — branches and prerequisites', () => {
+  it('every node sits on a declared branch', () => {
+    const branchIds = LEGACY_BRANCHES.map((b) => b.id);
+    for (const u of LEGACY_UPGRADES) {
+      expect(`${u.id}:${branchIds.includes(u.branch)}`).toBe(`${u.id}:true`);
+    }
+  });
+
+  it('every branch is enterable — at least one root, and no empty branch', () => {
+    // Originally asserted EXACTLY one root, on the reasoning that multiple
+    // roots make "the branch you invested in" meaningless. That reasoning was
+    // wrong: Blood carries parallel health and fitness lines, and Craft carries
+    // intelligence and happiness, which is a real tree shape and gives the
+    // player a choice WITHIN a branch. The invariant that actually matters is
+    // that no branch is unreachable (zero roots) or empty — reachability of the
+    // deeper nodes is covered by the cycle test below.
+    for (const branch of LEGACY_BRANCHES) {
+      const nodes = upgradesForBranch(branch.id);
+      const roots = nodes.filter((u) => !u.requires);
+      expect(`${branch.id}:nodes=${nodes.length > 0}`).toBe(`${branch.id}:nodes=true`);
+      expect(`${branch.id}:roots=${roots.length > 0}`).toBe(`${branch.id}:roots=true`);
+    }
+  });
+
+  it('every prerequisite exists and sits on the same branch', () => {
+    for (const u of LEGACY_UPGRADES) {
+      if (!u.requires) continue;
+      const parent = getLegacyUpgrade(u.requires);
+      expect(`${u.id}:parent=${parent?.id}`).toBe(`${u.id}:parent=${u.requires}`);
+      expect(`${u.id}:branch=${parent?.branch}`).toBe(`${u.id}:branch=${u.branch}`);
+    }
+  });
+
+  it('has no prerequisite cycles — every node reaches a root', () => {
+    for (const u of LEGACY_UPGRADES) {
+      const seen = new Set<string>();
+      let cursor: string | undefined = u.id;
+      while (cursor) {
+        expect(`${u.id}:cycle-at-${cursor}`).toBe(`${u.id}:cycle-at-${cursor}`);
+        if (seen.has(cursor)) throw new Error(`prerequisite cycle through ${cursor}`);
+        seen.add(cursor);
+        cursor = getLegacyUpgrade(cursor)?.requires;
+      }
+      // A chain that terminates has visited at most the whole catalogue.
+      expect(seen.size).toBeLessThanOrEqual(LEGACY_UPGRADES.length);
+    }
+  });
+
+  it('costs increase with depth along a branch', () => {
+    // A deeper node that cost LESS would make the prerequisite a formality.
+    for (const branch of LEGACY_BRANCHES) {
+      const nodes = upgradesForBranch(branch.id);
+      for (const node of nodes) {
+        if (!node.requires) continue;
+        const parent = getLegacyUpgrade(node.requires)!;
+        expect(`${node.id}:${node.cost > parent.cost}`).toBe(`${node.id}:true`);
+      }
+    }
+  });
+
+  it('refuses a leaf whose prerequisite is not owned, however rich the player', () => {
+    const leaf = LEGACY_UPGRADES.find((u) => u.requires)!;
+    const r = purchaseLegacyUpgrade(1_000_000, [], leaf.id);
+
+    expect(r.success).toBe(false);
+    expect(r.message).toMatch(/needs/i);
+    expect(r.owned).toBeUndefined();
+  });
+
+  it('allows it once the prerequisite is owned', () => {
+    const leaf = LEGACY_UPGRADES.find((u) => u.requires)!;
+    const r = purchaseLegacyUpgrade(1_000_000, [leaf.requires!], leaf.id);
+
+    expect(r.success).toBe(true);
+    expect(r.owned).toContain(leaf.id);
+  });
+
+  it('isUpgradeUnlocked agrees with what the reducer will accept', () => {
+    for (const u of LEGACY_UPGRADES) {
+      const owned = u.requires ? [u.requires] : [];
+      expect(`${u.id}:${isUpgradeUnlocked(u.id, owned)}`).toBe(`${u.id}:true`);
+      if (u.requires) {
+        expect(`${u.id}:${isUpgradeUnlocked(u.id, [])}`).toBe(`${u.id}:false`);
+      }
+      // And the reducer must not refuse for a PREREQUISITE reason when unlocked.
+      const r = purchaseLegacyUpgrade(1_000_000, owned, u.id);
+      expect(`${u.id}:${r.success}`).toBe(`${u.id}:true`);
+    }
+  });
+
+  it('an unknown id is not unlocked (the control)', () => {
+    expect(isUpgradeUnlocked('not_a_real_upgrade', [])).toBe(false);
+  });
+
+  it('keeps every original id, so no existing save loses a purchase', () => {
+    // The six pre-tree upgrades. Renaming or dropping one would silently strip
+    // it from `legacyUpgrades` on load and refund nothing.
+    for (const id of [
+      'legacy_inheritance_small',
+      'legacy_inheritance_large',
+      'legacy_education',
+      'legacy_health',
+      'legacy_fitness',
+      'legacy_name',
+    ]) {
+      expect(`${id}:${!!getLegacyUpgrade(id)}`).toBe(`${id}:true`);
+    }
+  });
+});
+
+describe('the shop is REACHABLE from the app, not just from tests', () => {
+  // `tasks/lessons.md` records this failure mode three times now: "is it
+  // called?" is a different question from "does it work?". `legacyShop` shipped
+  // fully tested, wired into MoneyActionsContext — and NO screen called
+  // `purchaseLegacyUpgrade`, so the whole system was unreachable in the app.
+  // The modal showed the point balance and offered nowhere to spend it.
+  const shopModal = fs.readFileSync(
+    path.join(__dirname, '../../components/PrestigeShopModal.tsx'),
+    'utf8'
+  );
+
+  it('a screen calls the purchase action', () => {
+    expect(shopModal).toMatch(/purchaseLegacyUpgrade/);
+  });
+
+  it('the tree is rendered, not just the balance', () => {
+    expect(shopModal).toMatch(/LEGACY_BRANCHES/);
+    expect(shopModal).toMatch(/upgradesForBranch/);
+  });
+
+  it('locked nodes are distinguishable from unaffordable ones', () => {
+    // Two different kinds of no. Collapsing them tells a player to save up for
+    // something they cannot buy at any price.
+    expect(shopModal).toMatch(/isUpgradeUnlocked/);
   });
 });
 

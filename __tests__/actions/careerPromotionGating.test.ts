@@ -79,15 +79,21 @@ describe('career ladder integrity', () => {
     }
   });
 
-  it('extends every previously-short ladder to 6 levels', () => {
+  it('leaves no previously-short ladder short', () => {
+    // Was `toBe(6)`. The intent of this test is that a ladder which used to
+    // have 3 or 4 rungs is no longer stunted — 6 was the number that fix
+    // happened to land on, not a ceiling. The five advanced ladders now carry
+    // two capstone rungs each (Board Seat at 20 years of tenure, Emeritus at
+    // 30), so they sit at 8. Pinning the exact length made the floor read as a
+    // maximum and blocked adding a career tail at all.
     const extended = [
       'legal', 'bank', 'accountant', 'politician', 'celebrity', 'athlete', // basic 3 -> 6
-      'ceo', 'research_scientist', 'creative_director', 'investment_banker', 'surgeon', // advanced 4 -> 6
+      'ceo', 'research_scientist', 'creative_director', 'investment_banker', 'surgeon', // advanced 4 -> 6 -> 8
     ];
     for (const id of extended) {
       const career = allCareers.find((c) => c.id === id);
       expect(career).toBeDefined();
-      expect(career!.levels.length).toBe(6);
+      expect(`${id}:${career!.levels.length >= 6}`).toBe(`${id}:true`);
     }
   });
 

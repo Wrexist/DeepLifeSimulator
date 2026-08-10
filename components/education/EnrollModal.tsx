@@ -117,7 +117,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.body, { color: theme.textSecondary }]}>{template.description}</Text>
 
             {quote && (

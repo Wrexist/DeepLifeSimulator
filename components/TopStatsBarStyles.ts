@@ -470,6 +470,13 @@ export const styles = StyleSheet.create({
  gap: scale(2),
  marginTop: scale(3),
  },
+ /** Long-press affordance on vitals that carry quick actions — see TopStatsBar. */
+ vitalRingMoreDot: {
+ width: scale(3),
+ height: scale(3),
+ borderRadius: scale(1.5),
+ backgroundColor: 'rgba(148, 163, 184, 0.75)',
+ },
  vitalRingValue: {
  color: '#E2E8F0',
  fontSize: responsiveFontSize.sm,

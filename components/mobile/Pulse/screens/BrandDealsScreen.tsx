@@ -11,14 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, getAppScreenBottomPadding } from '@/utils/scaling';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
 import { Alert } from 'react-native';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type BrandTab = 'inbox' | 'active' | 'history';
 

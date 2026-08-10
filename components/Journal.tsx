@@ -15,7 +15,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   BookOpen,
   Search,
@@ -39,7 +39,7 @@ import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type JournalCategory = 'all' | 'career' | 'relationship' | 'achievement' | 'travel' | 'family' | 'crime' | 'health' | 'other';
 
@@ -791,6 +791,11 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: scale(16),
+    // Pairs with `modalContent`'s `maxHeight: '80%'`. RN defaults flexShrink to
+    // 0, so without this a long entry's details keep their full height, overflow
+    // the sheet, and get clipped by its `overflow: 'hidden'` with no way to
+    // scroll to the rest. See __tests__/render/modalListsShrink.test.ts.
+    flexShrink: 1,
   },
   modalDetails: {
     fontSize: fontScale(15),

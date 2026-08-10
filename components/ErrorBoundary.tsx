@@ -1,14 +1,14 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
 // CRITICAL: Use fallback instead of direct expo-linear-gradient import to prevent crashes
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { remoteLogger } from '@/services/RemoteLoggingService';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
 import { validateGameState } from '@/utils/saveValidation';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
 // This creates a proxy that loads the real module on first use

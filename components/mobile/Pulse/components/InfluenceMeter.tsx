@@ -6,14 +6,14 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_MOTION } from '../styles/pulseTheme';
 import type { PulseInfluenceLevel } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const TIER_ORDER: PulseInfluenceLevel[] = ['novice', 'rising', 'popular', 'influencer', 'celebrity'];
 const TIER_THRESHOLDS: Record<PulseInfluenceLevel, number> = {

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, CheckCircle, Check } from 'lucide-react-native';
 import { useGame } from '@/contexts/game';
 import { safeSettings } from '@/utils/safeGameState';
@@ -9,7 +9,7 @@ import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Success accent — the whole card means "cured", so it's always green.
 const ACCENT = '#34D399';

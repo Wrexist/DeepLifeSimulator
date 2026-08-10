@@ -8,6 +8,9 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type Holiday = 'valentines' | 'easter' | 'independence' | 'halloween' | 'thanksgiving' | 'blackfriday' | 'christmas' | 'newyear' | null;
 
+/** A season is 13 weeks; four of them make the 52-week game year. */
+const WEEKS_PER_SEASON = 13;
+
 export interface SeasonalEventData {
   season: Season;
   holiday: Holiday;
@@ -22,12 +25,12 @@ export interface SeasonalEventData {
  */
 export function getCurrentSeason(weeksLived: number): SeasonalEventData {
   const weekInYear = weeksLived % WEEKS_PER_YEAR;
-  const weekInSeason = weekInYear % 13;
+  const weekInSeason = weekInYear % WEEKS_PER_SEASON;
   
   let season: Season;
   let holiday: Holiday = null;
   
-  if (weekInYear < 13) {
+  if (weekInYear < WEEKS_PER_SEASON) {
     season = 'spring';
     // Easter around week 4-5 of spring
     if (weekInSeason >= 3 && weekInSeason <= 5) {
@@ -37,13 +40,13 @@ export function getCurrentSeason(weeksLived: number): SeasonalEventData {
     if (weekInSeason >= 6 && weekInSeason <= 8) {
       holiday = 'valentines';
     }
-  } else if (weekInYear < 26) {
+  } else if (weekInYear < WEEKS_PER_SEASON * 2) {
     season = 'summer';
     // Independence Day around week 1-2 of summer
     if (weekInSeason >= 0 && weekInSeason <= 2) {
       holiday = 'independence';
     }
-  } else if (weekInYear < 39) {
+  } else if (weekInYear < WEEKS_PER_SEASON * 3) {
     season = 'fall';
     // Halloween around week 9-10 of fall
     if (weekInSeason >= 8 && weekInSeason <= 10) {
@@ -73,48 +76,102 @@ export function getCurrentSeason(weeksLived: number): SeasonalEventData {
 }
 
 /**
- * Check if a seasonal event should occur this week
- * Seasonal events occur 1-2 times per season (every 13 weeks)
+ * Should a seasonal event fire this week?
+ *
+ * ## What was wrong
+ *
+ * This used to consult `state.seasonalEvents` — `{ lastSeason, completedEvents }`
+ * — which is initialised to `{ lastSeason: '', completedEvents: [] }` and is
+ * **never written by anything in the repo**. Two consequences, both shipped:
+ *
+ *   1. `completedEvents.includes(eventId)` was always false, so the
+ *      "already happened this season" guard never fired and one event could
+ *      repeat week after week.
+ *   2. `lastSeason` was permanently `''`, so `lastSeason !== currentSeason`
+ *      was always true and the function ALWAYS returned from the
+ *      "season just changed" branch at a flat 4%. Everything below it — the
+ *      0.4% base chance and the `weekInSeason` rarity curve — was unreachable
+ *      code that had never executed once.
+ *
+ * ## Why this derives instead of storing
+ *
+ * The obvious repair is to start writing `seasonalEvents`. That needs the event
+ * engine to report back which template was shown, threaded through the weekly
+ * tick, and it leaves a record that can drift from reality if a tick runs twice
+ * (React 19 StrictMode can double-invoke an updater — the `R10-2` dedupe on the
+ * notification flush exists for exactly that reason).
+ *
+ * So this follows the Legacy Contracts (v33) precedent instead: derive the
+ * answer from values the save already has and that only ever move forward.
+ * `weeksLived` alone identifies the season AND the week within it, so for each
+ * (event, season) pair we can deterministically decide *whether* the event
+ * happens at all and, if so, *which single week* of the thirteen it lands on.
+ *
+ * That gives the property the stored version was reaching for and never
+ * achieved — at most one firing per event per season — with no state, no
+ * migration, no double-fire under a replayed tick, and correct behaviour on
+ * every existing save from the first week it loads.
  */
+
+/**
+ * Chance that a given event happens AT ALL during a given season.
+ *
+ * The old code's stated intent was "1-2 times per season" across the whole
+ * seasonal pool. Per-event this is deliberately low: with several templates per
+ * season, a 22% per-event chance lands the pool near that intent without any
+ * single event feeling scripted.
+ */
+const CHANCE_PER_SEASON = 0.22;
+
+/** Deterministic [0,1) from an integer seed. Same primitive the old code used. */
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+/**
+ * Stable integer identity for a string, so an event id can seed a roll without
+ * a lookup table. Small and deterministic; collisions only mean two events
+ * share a schedule, which is harmless.
+ */
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    h = (h * 31 + id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/** Absolute season index since birth — the unit a "once per season" rule needs. */
+function seasonIndex(weeksLived: number): number {
+  return Math.floor(Math.max(0, weeksLived) / WEEKS_PER_SEASON);
+}
+
 export function shouldTriggerSeasonalEvent(
   state: GameState,
   eventId: string
 ): boolean {
-  const seasonalData = state.seasonalEvents || { lastSeason: '', completedEvents: [] };
-  // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
-  const currentSeason = getCurrentSeason(state.weeksLived || 0);
-  
-  // Don't trigger if already completed this season
-  if (seasonalData.completedEvents.includes(eventId)) {
-    return false;
-  }
-  
-  // Check if season changed (reset completed events)
-  if (seasonalData.lastSeason !== currentSeason.season) {
-    // New season - give a low chance (not guaranteed)
-    // Use deterministic random for consistency
-    const seededRandom = (seed: number) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-    const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
-    const newSeasonChance = 0.04; // 4% chance at start of new season (reduced from 10%)
-    return seededRandom(weekSeed + 2000) < newSeasonChance;
-  }
+  const weeksLived = Math.max(0, Math.floor(state.weeksLived || 0));
+  const current = getCurrentSeason(weeksLived);
+  const index = seasonIndex(weeksLived);
+  const key = hashId(eventId);
 
-  // Random chance for seasonal events (higher chance early in season)
-  const baseChance = 0.004; // 0.4% base chance (was 1%) — seasonal events should be rare
-  const weekModifier = 1 - (currentSeason.weekInSeason / 13); // Higher chance early season
-  const chance = baseChance * (1 + weekModifier);
-  
-  // Use deterministic random for consistency
-  const seededRandom = (seed: number) => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  };
-  const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
-  
-  return seededRandom(weekSeed + 3000) < chance;
+  // 1) Does this event happen at all this season? One roll per (event, season),
+  //    so the answer is identical on every week of that season.
+  const occurs = seededRandom(index * 7919 + key) < CHANCE_PER_SEASON;
+  if (!occurs) return false;
+
+  // 2) If it does, which single week does it land on? Biased toward the start
+  //    of the season, preserving the "higher chance early in season" intent the
+  //    unreachable branch used to express. Squaring pulls the distribution
+  //    forward without ever excluding the later weeks.
+  const roll = seededRandom(index * 104729 + key + 1);
+  const targetWeek = Math.min(
+    WEEKS_PER_SEASON - 1,
+    Math.floor(roll * roll * WEEKS_PER_SEASON)
+  );
+
+  return current.weekInSeason === targetWeek;
 }
 
 // Spring Events

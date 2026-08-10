@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Eye, DollarSign, Square, X, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -17,7 +17,7 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 import { startLiveStream, tickLiveStream, endLiveStream } from '@/contexts/game/actions/PulseActions';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type Phase = 'setup' | 'live' | 'summary';
 

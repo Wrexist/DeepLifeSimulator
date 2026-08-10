@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Briefcase, RefreshCw, X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -17,7 +17,7 @@ import { evaluateOffer } from '@/lib/business/hustleLogic';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface HireEmployeeModalProps {
   visible: boolean;

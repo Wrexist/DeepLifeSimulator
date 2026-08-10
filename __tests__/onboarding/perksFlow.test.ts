@@ -28,10 +28,9 @@ const lockedPerk = makePerk({ id: 'locked', rarity: 'Epic', unlock: { type: 'ach
 const permanentPerk = makePerk({ id: 'perm', rarity: 'Legendary', unlock: { type: 'achievement', achievementId: 'ach_2' } });
 const completedPerk = makePerk({ id: 'done', rarity: 'Rare', unlock: { type: 'achievement', achievementId: 'ach_3' } });
 
-const achievements = [
-  { id: 'ach_3', completed: true },
-  { id: 'ach_1', completed: false },
-];
+// The gate now takes the ids the player has actually EARNED, from
+// `getSatisfiedAchievementIds`. `ach_1` is deliberately absent: unearned.
+const earned = ['ach_3'];
 
 // ---------------------------------------------------------------------------
 // sortPerksByUnlockStatus
@@ -39,7 +38,7 @@ const achievements = [
 
 describe('sortPerksByUnlockStatus', () => {
   it('puts unlocked perks before locked perks', () => {
-    const sorted = sortPerksByUnlockStatus([lockedPerk, unlockedPerk], [], achievements);
+    const sorted = sortPerksByUnlockStatus([lockedPerk, unlockedPerk], [], earned);
     expect(sorted[0].id).toBe('free');
     expect(sorted[1].id).toBe('locked');
   });
@@ -53,12 +52,12 @@ describe('sortPerksByUnlockStatus', () => {
   });
 
   it('treats permanent perks as unlocked', () => {
-    const sorted = sortPerksByUnlockStatus([lockedPerk, permanentPerk], ['perm'], achievements);
+    const sorted = sortPerksByUnlockStatus([lockedPerk, permanentPerk], ['perm'], earned);
     expect(sorted[0].id).toBe('perm');
   });
 
   it('treats completed achievements as unlocked', () => {
-    const sorted = sortPerksByUnlockStatus([lockedPerk, completedPerk], [], achievements);
+    const sorted = sortPerksByUnlockStatus([lockedPerk, completedPerk], [], earned);
     expect(sorted[0].id).toBe('done');
   });
 });
@@ -77,18 +76,18 @@ describe('isPerkUnlocked', () => {
   });
 
   it('returns true when achievement is completed', () => {
-    expect(isPerkUnlocked(completedPerk, [], achievements)).toBe(true);
+    expect(isPerkUnlocked(completedPerk, [], earned)).toBe(true);
   });
 
   it('returns false when achievement is incomplete', () => {
-    expect(isPerkUnlocked(lockedPerk, [], achievements)).toBe(false);
+    expect(isPerkUnlocked(lockedPerk, [], earned)).toBe(false);
   });
 });
 
 describe('isPerkLocked', () => {
   it('is the inverse of isPerkUnlocked', () => {
     expect(isPerkLocked(unlockedPerk, [], [])).toBe(false);
-    expect(isPerkLocked(lockedPerk, [], achievements)).toBe(true);
+    expect(isPerkLocked(lockedPerk, [], earned)).toBe(true);
   });
 });
 
