@@ -1,4 +1,77 @@
-# Active plan — whole-game audit: noise, UX polish, and the late-game roadmap
+# Active plan — RevenueCat Ads: report AdMob revenue to RevenueCat
+
+Owner ask: "how do we integrate ads into RevenueCat?" → wire it up.
+
+Finding that shaped the work: **no adapter package exists for React Native.**
+The tracker ships inside `react-native-purchases` as `Purchases.adTracker`, and
+the pinned `10.4.4` already has it plus both native bridges. The `loadAndTrack`
+helpers in RevenueCat's docs are the native iOS/Android/Flutter adapters. So the
+job was wiring, not installing: AdMob's impression-level `PAID` event was being
+dropped on the floor.
+
+- [x] `lib/ads/adRevenueTracking.ts` — pure mapping layer. Absorbs the three
+      mismatches that all fail *silently* (wrong number on a dashboard, no
+      crash): currency-units → micros; AdMob's numeric `PrecisionType` →
+      RevenueCat's strings, where `PRECISE` is `'exact'`; and the `impressionId`
+      RevenueCat requires but AdMob has no concept of.
+- [x] `services/RevenueCatService.ts` — fail-soft `trackAdRevenue/Loaded/
+      Displayed/FailedToLoad` + `supportsAdTracking()`. **Configures RC first**:
+      every SDK tracker method calls `throwIfNotConfigured()`, and the ad path
+      may never have touched RevenueCat (a player who watches rewarded ads but
+      never opens the paywall), so an unguarded call would reject inside an ad
+      callback.
+- [x] `services/AdMobService.ts` — `PAID` listeners on interstitial + rewarded,
+      impression id minted per ad *request* and carried through loaded →
+      displayed → paid, cleared in `cleanup()` so a late event can't attach to a
+      torn-down impression. Failure reporting on the no-fill/error path.
+- [x] `components/BannerAd.tsx` — `onPaid`. Banners mint an id per *event*:
+      AdMob refreshes them in place with no observable request boundary, and one
+      paid event is exactly one impression.
+- [x] Refuse rather than guess: an unusable amount or a missing unit/impression
+      id DROPS the event. A poisoned figure on a revenue dashboard is worse than
+      a missing one.
+- [x] `__tests__/ads/adRevenueTracking.test.ts` (19) — units, precision, refusal
+- [x] `__tests__/monetization/revenueCatAdTracking.test.ts` (7) — configure-first,
+      forwarding, never-rejects, no-ops when flagged off / on an SDK with no tracker
+- [x] `docs/REVENUECAT-SETUP.md` Part 8 — including the two dashboard steps only
+      the owner can do
+
+### Review round (PR #112)
+
+- [x] **Blank currency no longer defaults to USD.** The mapper stamped `'USD'`
+      on a currencyless event, which contradicted the module's own rule — an
+      amount without its unit relabels EUR earnings as USD, a wrong number
+      reported confidently. Now dropped like any other unusable field.
+- [x] **Fullscreen loads settle exactly once.** A load TIMEOUT rejected while
+      leaving both listeners attached, so a late LOADED still marked the service
+      ready for an abandoned ad — and, once the ad object was replaced,
+      attributed that state and its tracking event to a stale impression. All
+      three outcomes now share one `settle()` that clears the timer and detaches
+      both listeners. The timeout is also reported as a failed load, closing a
+      hole in the fill data exactly where inventory is worst. Pre-existing, but
+      the tracking calls widened it. `__tests__/ads/adLoadSettle.test.ts` (7) —
+      verified to FAIL against the pre-fix code.
+- [x] Docs: impression ids are required on loaded/displayed/paid, not on every
+      event (failed-to-load has none); corrected the AdMob console path to
+      *Settings → Account → Account controls*; named the project owner as who
+      opts into the Ads beta.
+- [x] Shared `AdMobPaidEvent` in `BannerAd`; `PaidCapableAd` as an interface.
+- [ ] SKIPPED — explicit return type on the test-only `mockPurchases` helper.
+      Mis-anchored (it lives in `revenueCatAdTracking.test.ts`, not the ads
+      test), and the inferred type is already precise; annotating it would mean
+      restating jest.Mock generics, which obscures more than it protects.
+
+**Deliberately NOT done:** Ads → **Rewards** (server-side verified rewarded ads).
+Needs `generateRewardVerificationToken` / `pollRewardVerification`, absent from
+the pinned `10.4.4` — that's an SDK bump + a native rebuild + AdMob SSV config.
+
+**Gates:** type-check clean · routes OK · test-tree ratchet 0 · lint 0 errors ·
+lint warnings 1255, unchanged by this diff (the ceiling of 1240 was **already
+breached on `main`** before this branch — pre-existing, not raised here).
+
+---
+
+# Previous plan — whole-game audit: noise, UX polish, and the late-game roadmap
 
 Owner ask: run several audits; make the game less noisy and confusing; add more
 gameplay and late-game content to grind toward; audit UI/navigation/UX/design for

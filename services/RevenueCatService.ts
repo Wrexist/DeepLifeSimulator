@@ -24,6 +24,11 @@ import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
 import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
 import { isSubscriptionProduct } from '@/utils/iapConfig';
+import type {
+  RcAdEventPayload,
+  RcAdFailedPayload,
+  RcAdRevenuePayload,
+} from '@/lib/ads/adRevenueTracking';
 
 const log = logger.scope('RevenueCat');
 
@@ -35,6 +40,10 @@ export const RC_ENTITLEMENT_ADS_REMOVED = 'ads_removed';
 // override with EXPO_PUBLIC_RC_ENTITLEMENT_PRO only if the dashboard uses a
 // different name.
 export const RC_ENTITLEMENT_PRO = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_PRO || 'premium';
+
+/** The `Purchases.adTracker` methods this service forwards to. */
+type RcAdTrackMethod = 'trackAdRevenue' | 'trackAdLoaded' | 'trackAdDisplayed' | 'trackAdFailedToLoad';
+type RcAdTrackFn = (payload: unknown) => Promise<void> | void;
 
 export interface RcEntitlements {
   /** Player owns Remove Ads / any premium tier → drive settings.adsRemoved. */
@@ -439,6 +448,69 @@ class RevenueCatService {
       log.warn('addEntitlementsListener failed', { error });
       return () => {};
     }
+  }
+
+  // ── Ad revenue tracking (RevenueCat "Ads") ─────────────────────────────────
+  // Feeds the Ads dashboard. The tracker lives on the core SDK — there is no
+  // separate adapter package for React Native — and every one of its methods
+  // calls `throwIfNotConfigured()` internally, so a track call on an
+  // unconfigured SDK REJECTS. That matters here because these are invoked from
+  // AdMob event listeners, a path that (unlike purchases) may never have
+  // touched RevenueCat before: `configure()` below is what stops an ad
+  // impression from throwing inside the ad SDK's callback.
+
+  /** The SDK's ad tracker, or null when unavailable (old SDK / web / not linked). */
+  private adTracker(): Partial<Record<RcAdTrackMethod, RcAdTrackFn>> | null {
+    try {
+      return loadPurchases()?.adTracker ?? null;
+    } catch {
+      // `adTracker` is a static getter; a throwing accessor must not reach the caller.
+      return null;
+    }
+  }
+
+  /** True when this build can report ad events to RevenueCat. */
+  supportsAdTracking(): boolean {
+    return this.isEnabled() && typeof this.adTracker()?.trackAdRevenue === 'function';
+  }
+
+  /**
+   * Run one tracker call, swallowing everything. Ad callbacks fire on the ad
+   * SDK's own thread during playback; an unhandled rejection there is a lost
+   * reward or a frozen ad, and no analytics event is worth that.
+   */
+  private async track(method: RcAdTrackMethod, payload: unknown): Promise<boolean> {
+    if (!(await this.configure())) return false;
+    try {
+      const tracker = this.adTracker();
+      const fn = tracker?.[method];
+      if (typeof fn !== 'function') return false;
+      await fn.call(tracker, payload);
+      return true;
+    } catch (error) {
+      log.warn(`${method} failed`, { error });
+      return false;
+    }
+  }
+
+  /** Report impression-level ad revenue. Resolves false if it could not be sent. */
+  trackAdRevenue(payload: RcAdRevenuePayload): Promise<boolean> {
+    return this.track('trackAdRevenue', payload);
+  }
+
+  /** Report that an ad finished loading (fill). */
+  trackAdLoaded(payload: RcAdEventPayload): Promise<boolean> {
+    return this.track('trackAdLoaded', payload);
+  }
+
+  /** Report that an ad was shown to the player. */
+  trackAdDisplayed(payload: RcAdEventPayload): Promise<boolean> {
+    return this.track('trackAdDisplayed', payload);
+  }
+
+  /** Report a failed ad load (no-fill / error) — carries no impression id. */
+  trackAdFailedToLoad(payload: RcAdFailedPayload): Promise<boolean> {
+    return this.track('trackAdFailedToLoad', payload);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
