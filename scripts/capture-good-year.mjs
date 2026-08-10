@@ -174,8 +174,22 @@ try {
   await tap('Market'); await sleep(2200);
   await tap('Housing'); await sleep(2400);
   const rented = await tapAria('[aria-label^="Shared Room"]');
-  console.log('   shared room tapped:', rented);
   await sleep(2200);
+  // VERIFY, do not assume. "tapped: true" only means an element was found and
+  // events were dispatched — it says nothing about whether `rentHome` applied.
+  // That distinction matters more here than anywhere else in this script:
+  // HOMELESS_PENALTY (lib/realEstate/rentals.ts) is -4 happiness EVERY WEEK,
+  // which is the difference between a year that runs and one that does not, and
+  // a silently-failed tap would look exactly like a balance problem.
+  const tenancy = await page.evaluate(() => {
+    const el = document.querySelector('[aria-label^="Shared Room"]');
+    if (!el) return 'card not found';
+    return el.getAttribute('aria-selected') === 'true' ? 'ACTIVE' : 'NOT ACTIVE';
+  });
+  console.log(`   shared room tapped: ${rented} · tenancy: ${tenancy}`);
+  if (tenancy !== 'ACTIVE') {
+    console.log('   !! NOT HOUSED — the run below carries -4 happiness/week from HOMELESS_PENALTY');
+  }
   for (const l of ['Got it', 'Continue', 'Close']) if ((await text()).includes(l) && (await tap(l))) break;
 
   console.log('→ live the year');
