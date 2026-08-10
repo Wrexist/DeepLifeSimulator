@@ -27,19 +27,26 @@
  * pointerdown → pointerup → click straight onto the node, which is what RN-web
  * Pressable listens for and which cannot block.
  *
- * ── KNOWN LIMIT: the Year in Review is not reliably capturable this way ───
- * Screens 04-06 need a full 52-tick batch to complete between taps. The dev web
- * bundle is unminified with DevTools hooks live, so a batch that costs ~184ms in
- * Node takes long enough here that a tap lands while the previous batch is still
- * running and `isAdvancingWeek` correctly rejects it. Raising the wait and
- * disabling rAF throttling both help and neither is sufficient.
+ * ── KNOWN LIMIT: screens 04-06 are NOT capturable from the dev server ─────
+ * Measured, not assumed. Each weekly tick costs roughly 20 SECONDS in the
+ * unminified dev bundle under headless Chromium — a full 52-week year is about
+ * 17 minutes, and the HUD's own 30s stuck-button guard re-arms long before the
+ * batch finishes, so the next tap starts a year that `liveYearInProgressRef`
+ * then correctly rejects. Three taps advance ~11 weeks. Raising the per-tap
+ * wait to 90s and disabling requestAnimationFrame throttling both help and
+ * neither is close to sufficient.
  *
- * This is a harness limit, not a product defect — story mode is verified by
- * `__tests__/gameMode/batchEquivalence.test.ts` (52 batched ticks equal 52
- * individual ones from the same seed) and by the live HUD exposing the
+ * A production web export is the right fix for the speed, but it introduces a
+ * second blocker: `resolveSaveSigningRuntimeConfig` needs EXPO_PUBLIC_* values
+ * that Metro only inlines for direct `process.env.X` member reads, so an
+ * exported build refuses to write a save and onboarding cannot complete.
+ * Setting the key or EXPO_PUBLIC_REQUIRE_SIGNED_SAVES=false at export time does
+ * not reach that module. Capturing 04-06 needs a real device or simulator.
+ *
+ * None of this is a product defect. Story mode is verified two other ways:
+ * `__tests__/gameMode/batchEquivalence.test.ts` proves 52 batched ticks equal
+ * 52 individual ones from the same seed, and the live HUD exposes the
  * "Live the next year" control, which only renders when gameMode is 'story'.
- * To capture 04-06, run against a PRODUCTION web export
- * (`npx expo export -p web` + serve) rather than the dev server.
  *
  * ── AND WHY IT GOES THROUGH SAVE SLOTS ────────────────────────────────────
  * `slotSafety.ts` leaves the target slot at NEW_LIFE_SLOT_UNSET until the
@@ -133,7 +140,7 @@ try {
 
   console.log('→ boot');
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await sleep(16000);
+  await sleep(18000);
   console.log('   ', await line1());
 
   console.log('→ save slots:', await tap('Save Slots'));
@@ -190,7 +197,7 @@ try {
   console.log('→ living years');
   let gotReview = false;
   let gotOffer = false;
-  for (let year = 1; year <= 4; year++) {
+  for (let year = 1; year <= 3; year++) {
     const advanced = await page.evaluate(() => {
       const el =
         document.querySelector('[aria-label="Live the next year"]') ||
@@ -211,7 +218,7 @@ try {
     // 52 ticks. Measured at ~184ms in Node, but this is an UNMINIFIED dev web
     // bundle with React DevTools hooks live — an order of magnitude slower. Six
     // seconds silently screenshotted a year that had not finished running.
-    await sleep(35000);
+    await sleep(90000);
 
     const t = await text();
     const inReview = /weeks? lived/.test(t);
