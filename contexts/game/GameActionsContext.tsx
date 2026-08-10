@@ -1034,10 +1034,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
  const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
- const arrears = applyArrears({
-   availableCash: currentMoney + totalIncome + housingRentalIncome,
+ const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome;
+ // Fallback inputs, normalized to the same finite/non-negative contract
+ // applyArrears enforces on its OWN inputs (`safe()`). The fallback only runs if
+ // the guard catches a throw — the case where inputs are least trustworthy — so
+ // it must not itself emit NaN/Infinity into `cashBeforeLoans` or the
+ // `overdueBalance` write. Without this, a non-finite input would round to NaN
+ // and poison the rest of the tick's cash math.
+ const fbCash = Number.isFinite(arrearsAvailableCash) ? Math.max(0, arrearsAvailableCash) : 0;
+ const fbBills = Number.isFinite(weeklyBillsDue) ? Math.max(0, weeklyBillsDue) : 0;
+ const fbOverdue =
+   typeof prevState.overdueBalance === 'number' && Number.isFinite(prevState.overdueBalance)
+     ? Math.max(0, prevState.overdueBalance)
+     : 0;
+ // Guarded like every other weekly subsystem (§4.3). It routes all inputs
+ // through `safe()` and only touches Math.min/max/round, so it cannot throw
+ // today — but this loop's outer catch returns `prevState`, so an unguarded
+ // throw here would cost the whole week rather than one subsystem. The fallback
+ // is the honest "arrears did nothing this week": pay what cash allows and
+ // forgive the rest (the pre-arrears cash line), carrying the prior balance
+ // unchanged rather than inventing new debt or clearing standing debt.
+ const arrears = guardTick('arrears', () => applyArrears({
+   availableCash: arrearsAvailableCash,
    billsDue: weeklyBillsDue,
    previousOverdue: prevState.overdueBalance,
+ }), {
+   cashAfter: Math.max(0, Math.round(fbCash - fbBills)),
+   overdueBalance: Math.round(fbOverdue),
+   paidTowardOverdue: 0,
+   newShortfall: 0,
+   surcharge: 0,
+   creditScoreDelta: 0,
  });
  const cashBeforeLoans = arrears.cashAfter;
  // Post-writeback mandatory costs (luxury upkeep + insurance, crime fines,

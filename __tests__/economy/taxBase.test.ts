@@ -50,8 +50,17 @@ describe('the tick taxes the right base', () => {
 
   it('leaves the arrears settlement reading real cash, not the taxable figure', () => {
     // availableCash is what the player can actually pay bills with — it must
-    // keep using the real credited streams.
-    expect(TICK).toMatch(/availableCash: currentMoney \+ totalIncome \+ housingRentalIncome/);
+    // keep using the real credited streams. The sum is bound to a named const
+    // because `guardTick('arrears', …)` needs the same figure for its fallback,
+    // so pin the binding and the hand-off separately rather than one literal.
+    expect(TICK).toMatch(
+      /const arrearsAvailableCash = currentMoney \+ totalIncome \+ housingRentalIncome;/
+    );
+    expect(TICK).toMatch(/availableCash: arrearsAvailableCash/);
+    // The failure this guards against is the taxable figure leaking into the
+    // settlement — taxableIncome adds luxury yield that has not been credited
+    // yet, so paying bills from it would spend money the player does not hold.
+    expect(TICK).not.toMatch(/availableCash: [^,\n]*taxableIncome/);
   });
 });
 
