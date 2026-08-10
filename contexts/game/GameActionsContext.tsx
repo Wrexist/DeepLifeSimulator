@@ -163,7 +163,7 @@ import { applyAutoCheckpoint } from './actions/weekly/applyAutoCheckpoint';
 import { applyLifetimeStatistics } from './actions/weekly/applyLifetimeStatistics';
 import { applyCliffhangerRoll } from './actions/weekly/applyCliffhangerRoll';
 import type { WeekContext } from './actions/weekly/weekContext';
-import { STORY_MODE_WEEKS_PER_TAP, type YearDigest } from '@/lib/gameMode/mode';
+import { STORY_MODE_WEEKS_PER_TAP, isInDanger, shouldStopBatch, type YearDigest } from '@/lib/gameMode/mode';
 
 /**
  * Energy the Auto-Rest prestige bonus tops a depleted week up to.
@@ -417,13 +417,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   * be written at some point whose ordering against React's commit is not
   * guaranteed inside a batch. Strings have no such hazard.
   */
- const lastTickOutcomeRef = useRef<{ notes: string[]; state: GameState | null }>({ notes: [], state: null });
+ /**
+  * What the last tick did, for `liveYear` to read between iterations.
+  *
+  * `advanced` is the one the batch steers on. Two places in `nextWeek` already
+  * REASONED about it in comments — "`advanced` stays false, so `liveYear` must
+  * stop the batch here" — but the field did not exist and nothing read it, so
+  * after a failed state update or an unrepairable save the batch went right on
+  * running its remaining 51 ticks over exactly the state those comments say it
+  * must not touch. It is a real field now.
+  */
+ const lastTickOutcomeRef = useRef<{ notes: string[]; state: GameState | null; advanced: boolean }>({ notes: [], state: null, advanced: false });
 
  // Core Game Progression Actions
  const nextWeek = useCallback(async () => {
  const gameState = gameStateRef.current;
  // Fresh buffer per tick; `liveYear` drains it after each iteration.
- lastTickOutcomeRef.current = { notes: [], state: null };
+ lastTickOutcomeRef.current = { notes: [], state: null, advanced: false };
  if (!gameState) return;
  // M-2 (R8): never advance a week while the death popup is up. The DeathPopup
  // modal normally blocks taps, but a programmatic call, automation, or an
@@ -3368,6 +3378,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
+ // The week is now committed and the state is sound: every path that could
+ // bail has already returned with `advanced` false. Set it BEFORE the death
+ // branch, because a week that killed the character still advanced — the batch
+ // stops on the NEXT iteration, where the `showDeathPopup` guard at the top
+ // returns without setting this.
+ lastTickOutcomeRef.current.advanced = true;
+
  // If death was triggered, stop loading immediately so death popup can show
  // CRITICAL: Stop loading synchronously to prevent blocking the death popup
  if (deathTriggered) {
@@ -3491,6 +3508,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ("Rent paid") should read once in the digest, not forty times.
  const seenNotes = new Set<string>();
 
+ // Only warn about danger the batch WALKS INTO. A player who ended last year
+ // at 12 happiness and tapped again without fixing it has already been told;
+ // stopping them after one week every time would be a nag loop they cannot
+ // escape, since the fix costs weeks they are not being allowed to run.
+ const startedInDanger = isInDanger(before.stats);
+
  try {
  for (let i = 0; i < maxWeeks; i++) {
  await nextWeek();
@@ -3499,6 +3522,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (!seenNotes.has(note)) { seenNotes.add(note); digest.notes.push(note); }
  }
  setLoadingProgress(Math.round(((i + 1) / maxWeeks) * 100));
+
+ // Stop on a tick that did not advance (death, failed update, corruption)
+ // or on a life that has just crossed into danger. The judgement is in
+ // `shouldStopBatch` so it can be tested directly — driving it through
+ // this loop under `act()` proves nothing, because React defers every
+ // updater queued inside one `act()` block until the block exits.
+ //
+ // Both vitals sources are post-tick and both are kept fresh DURING the
+ // batch by the publish-immediately fix in `nextWeek`; the fallback
+ // matters when the updater has not run yet.
+ const stop = shouldStopBatch({
+ advanced: lastTickOutcomeRef.current.advanced,
+ startedInDanger,
+ vitals: lastTickOutcomeRef.current.state?.stats ?? gameStateRef.current?.stats,
+ });
+ if (stop) {
+ digest.stoppedEarly = stop;
+ break;
+ }
  }
  } catch (err) {
  logger.error('[STORY MODE] liveYear failed mid-batch', err);

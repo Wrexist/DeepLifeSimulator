@@ -58,7 +58,14 @@ const H = 2796;
 const SHOTS = [
   {
     out: '01-a-whole-life-one-sitting',
-    source: '04-year-in-review.png',
+    // NOT `04-year-in-review.png`, which the capture script does produce.
+    // That one is a SEVEN-week year that stopped early with "Your life is in
+    // trouble" across it — a true screenshot of the feature working, and a
+    // dishonest one under this caption. The hero shot needs a year that went
+    // well, which needs a character who worked and rested, which the automated
+    // run does not do. Left missing on purpose: the compositor reports a skip,
+    // and a reported gap is cheaper than a store page that oversells.
+    source: '04-year-in-review-good.png',
     caption: 'A whole life,\none sitting',
     sub: 'One tap. One year. Every week still simulated.',
     bg: ['#1a0533', '#0d1b2a'],

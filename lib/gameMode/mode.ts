@@ -19,9 +19,21 @@
  * is the one thing this game is differentiated on.
  * `__tests__/gameMode/batchEquivalence.test.ts` pins the equivalence.
  *
- * The batch stops early on two conditions, both of which preserve agency:
+ * The batch stops early on three conditions, all of which preserve agency:
  *   - death, so a dead character never ticks past their own funeral;
- *   - a pending decision, so no choice is ever auto-resolved.
+ *   - a tick that did not advance (a failed update, or state that could not be
+ *     repaired), so the batch never spends 51 more ticks on broken state;
+ *   - the character crossing INTO danger — see `DANGER_THRESHOLD`.
+ *
+ * ── WHAT IT DELIBERATELY DOES NOT STOP ON, AND WHY THE DOC USED TO ──────────
+ * This comment used to promise a stop on "a pending decision, so no choice is
+ * ever auto-resolved". Half of that is true and half was never implemented:
+ * nothing is auto-resolved — queued events sit on the board untouched — but the
+ * batch does NOT stop for them, and should not. Measured on the test seed: SIX
+ * events queue in fifteen weeks. Stopping at the first would turn "1 tap = 52
+ * weeks" into "1 tap = 2 weeks" and delete the reason story mode exists.
+ * Decisions accumulate through the year and are handed back afterwards, which
+ * is what a year-at-a-time pace means.
  */
 
 import type { GameMode } from '@/contexts/game/types';
@@ -44,6 +56,86 @@ export function resolveGameMode(mode: GameMode | undefined | null): GameMode {
 /** True when one tap should advance a year rather than a week. */
 export function isStoryMode(mode: GameMode | undefined | null): boolean {
   return resolveGameMode(mode) === 'story';
+}
+
+/**
+ * Below this on health or happiness, a batch hands the year back early.
+ *
+ * ── WHY THIS EXISTS: THE FIRST TAP USED TO KILL YOU ──────────────────────
+ * A story-mode player takes no actions DURING a year — that is the whole
+ * premise. Running a fresh character 52 weeks with no input, happiness decays
+ * to 0 and the death rule ("happiness at 0 for 4 consecutive weeks") fires.
+ * Measured twice, independently: the jest seed dies at week 15, and a real
+ * browser session driving the shipped web bundle died at week ~11. So the
+ * headline feature's FIRST TAP ended in a funeral, before the player had ever
+ * seen a Year in Review.
+ *
+ * That is not the simulation being wrong — an idle life should decay, and
+ * classic mode does exactly the same over the same 52 taps. The difference is
+ * that classic shows you fifteen weekly screens on the way down, each an
+ * invitation to act. Batching the interaction removed every one of those
+ * invitations, so the batch has to reproduce the one that matters.
+ *
+ * 20 is chosen to land well before the 4-week grace period the death rule
+ * gives: there is room to take a job, rest, or spend, rather than a jump-scare
+ * one week from the end.
+ */
+export const DANGER_THRESHOLD = 20;
+
+/** Vitals a batch checks against `DANGER_THRESHOLD`. */
+export interface DangerVitals {
+  health?: number;
+  happiness?: number;
+}
+
+/**
+ * True when a life is close enough to failing that the player should get the
+ * wheel back. Missing stats read as safe — an absent number is not evidence of
+ * danger, and treating it as danger would stop every batch on a partial save.
+ */
+export function isInDanger(vitals: DangerVitals | null | undefined): boolean {
+  if (!vitals) return false;
+  const { health, happiness } = vitals;
+  if (typeof health === 'number' && health <= DANGER_THRESHOLD) return true;
+  if (typeof happiness === 'number' && happiness <= DANGER_THRESHOLD) return true;
+  return false;
+}
+
+/**
+ * Why a batch ended before its requested span.
+ *
+ * `'halted'` is the failure case — a tick that did not advance. `'danger'` is
+ * the deliberate one.
+ */
+export type YearStopReason = 'danger' | 'halted';
+
+/** What one iteration of a batch observed, for `shouldStopBatch` to judge. */
+export interface BatchTickObservation {
+  /** Did the tick actually advance a week? False on death, failure, corruption. */
+  advanced: boolean;
+  /** Was the life ALREADY in danger when the batch started? */
+  startedInDanger: boolean;
+  /** Vitals after the tick, or null/undefined if they could not be read. */
+  vitals: DangerVitals | null | undefined;
+}
+
+/**
+ * Whether a batch should stop after this tick, and why. `null` means continue.
+ *
+ * Pure on purpose. The loop that calls this cannot be tested through `act()` —
+ * React defers every updater queued inside one `act()` block until the block
+ * exits, so a test driving `liveYear` sees the post-tick state as null for the
+ * whole batch and could never observe a danger stop firing. That is a property
+ * of the harness, not of the code, but it means testing this logic THROUGH the
+ * loop would prove nothing. So the judgement lives here, where it can be
+ * exercised directly, and the loop is reduced to one call.
+ */
+export function shouldStopBatch(obs: BatchTickObservation): YearStopReason | null {
+  // Order matters: a tick that did not advance is a failure, and reporting it
+  // as `danger` would tell the player to go fix a life that is fine.
+  if (!obs.advanced) return 'halted';
+  if (!obs.startedInDanger && isInDanger(obs.vitals)) return 'danger';
+  return null;
 }
 
 /**
@@ -75,6 +167,15 @@ export interface YearDigest {
   };
   /** Subsystem messages collected across the batch, deduped, in order. */
   notes: string[];
+  /**
+   * Set when the batch ended before `weeksRequested`.
+   *
+   * This is the ONE "what happened" field the batch may report, and it is
+   * exempt from the no-after-values rule above for a specific reason: it is not
+   * read from state at all. The loop knows why it broke because it is the thing
+   * that broke. Nothing here can be a week stale.
+   */
+  stoppedEarly?: YearStopReason;
 }
 
 /** Why the year ended where it did. Derived from live state, never reported. */
@@ -83,6 +184,8 @@ export type YearOutcome =
   | 'year-complete'
   /** The character died during it. */
   | 'death'
+  /** Handed back early because health or happiness crossed into danger. */
+  | 'danger'
   /** Events queued up and are waiting on the player. */
   | 'decision'
   /** Nothing advanced at all. */
@@ -122,9 +225,15 @@ export interface YearAfter {
  */
 export function summarizeYear(digest: YearDigest, after: YearAfter): YearSummary {
   const weeksAdvanced = Math.max(0, after.weeksLived - digest.before.weeksLived);
+  // Order is the priority of what the player most needs to know. `danger`
+  // outranks `decision` because a queued event can wait a week and a life at
+  // 12 happiness cannot — and because a batch that stopped for danger almost
+  // always ALSO has events queued, so checking decisions first would hide the
+  // reason the year actually ended.
   let outcome: YearOutcome;
   if (after.died) outcome = 'death';
   else if (weeksAdvanced <= 0) outcome = 'blocked';
+  else if (digest.stoppedEarly === 'danger') outcome = 'danger';
   else if (after.pendingDecisions > 0) outcome = 'decision';
   else outcome = 'year-complete';
 

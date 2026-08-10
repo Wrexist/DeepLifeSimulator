@@ -227,6 +227,22 @@ export function YearInReviewModal({
               </TouchableOpacity>
             ) : null}
 
+            {/*
+              The danger notice is the reason the year ended, so it says what to
+              DO — a player handed back the wheel at 14 happiness needs an
+              action, not a diagnosis. It outranks the decision notice in
+              `summarizeYear`, so the two never stack.
+            */}
+            {summary.outcome === 'danger' ? (
+              <View style={[styles.pending, { borderColor: accent.danger }]}>
+                <Bell size={scale(14)} color={accent.danger} />
+                <Text style={[styles.pendingText, { color: c.text }]}>
+                  Your life is in trouble — the year stopped early. Rest, earn, or
+                  see friends before living another.
+                </Text>
+              </View>
+            ) : null}
+
             {summary.outcome === 'decision' ? (
               <View style={[styles.pending, { borderColor: accent.warning }]}>
                 <Bell size={scale(14)} color={accent.warning} />

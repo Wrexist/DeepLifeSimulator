@@ -1715,3 +1715,65 @@ be writing did not exist.
 3. **Prefer the harness's own backgrounding to hand-rolled `nohup` chains.**
    It tracks the job and notifies on exit, so there is no self-match to get
    wrong and no polling to misread.
+
+---
+
+## 2026-08-10 — Story mode's first tap ended in a funeral, and only running it showed that
+
+Story mode shipped with a passing equivalence test, a passing suite, and a
+green preflight. Then I drove the actual app and one tap of "Live the next
+year" killed the character before the year finished. Twice, independently: the
+jest seed dies at week 15, a real browser session on the shipped web bundle
+died at week ~11 with `[DEATH] Character died from happiness reaching 0 for 4
+weeks`.
+
+Nothing was wrong with the simulation. An idle life SHOULD decay, and classic
+mode decays identically over the same 52 weeks. The difference is that classic
+shows you fifteen weekly screens on the way down, each one an invitation to
+act. **Batching the interaction silently removed every one of those
+invitations** — and the feature's whole premise is that the player takes no
+actions during a year. So the premise and the death rule were in direct
+conflict, and nothing in the test suite could see it, because every test asked
+"does the batch equal the same number of individual ticks?" — which it does,
+perfectly, all the way into the grave.
+
+**The rules.**
+
+1. **An equivalence test proves two things are the same, not that either is
+   good.** `52 batched == 52 individual` was true before and after this fix.
+   It was never going to fail on "the outcome is a dead character", because
+   both sides produce the same dead character. Pair "is it consistent?" with
+   "is the result one a player would want?"
+2. **When a feature removes a player's touchpoints, enumerate what those
+   touchpoints were doing.** Weekly taps were not just pacing — they were
+   fifteen chances to notice a stat sliding and react. Batching kept the
+   simulation and dropped the feedback loop, and only the feedback loop was
+   load-bearing for survival.
+3. **Run the thing.** Three defects in this feature came from running it and
+   zero from reading it: a heading clipped under a sticky row, the stale-Metro
+   `void 0` key, and this. The suite was green for all three.
+
+**Two related bugs found while fixing it, both documentation that had drifted
+from code:**
+
+- `lastTickOutcomeRef` had no `advanced` field, yet TWO comments inside
+  `nextWeek` reasoned about it — "`advanced` stays false, so `liveYear` must
+  stop the batch here rather than spend its remaining 51 iterations on a broken
+  tick". The flag was designed, argued for in prose, and never implemented, so
+  after an unrepairable save the batch did exactly what those comments said it
+  must not. Comments describing a mechanism are not evidence the mechanism
+  exists — grep for the field.
+- `mode.ts` promised the batch "stops early on ... a pending decision". It does
+  not, and it should not: SIX events queue in fifteen weeks, so stopping at the
+  first would turn "1 tap = 52 weeks" into "1 tap = 2 weeks". The doc was
+  describing an intention nobody had costed. Fixed the doc, not the code.
+
+**And one testing constraint worth knowing:** the fix could not be verified
+through `liveYear` at all. React defers every updater queued inside a single
+`act()` block until the block exits, so a test driving the batch sees the
+post-tick state as null for all 52 iterations and can never observe a stop
+firing. The first attempt checked state inside the loop, the integration test
+still reported the week-15 death, and the cause was the harness. The judgement
+was extracted into a pure `shouldStopBatch()` that can be tested directly, with
+the loop reduced to one call — and the end-to-end behaviour verified in a real
+browser, which is the only place it is observable.
