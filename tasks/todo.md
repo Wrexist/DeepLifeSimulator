@@ -774,21 +774,52 @@ the wealthy HOUSED unemployed run the formula predicts happiness decay of
 in 16. Health does not explain it either: starting at 70 with decay
 `rate × 0.6 ≈ 1.2/week` gives ~40 weeks to reach 20.
 
-So **roughly 4 points per week of stat drain are not explained by
-`effectiveDecayRate`, and the homeless penalty is ruled out** — this character
-was housed. Three hypotheses are now disproved (danger-threshold tuning, job
-`weeklyToll`, and `HOMELESS_PENALTY`), which is why the next step is
-measurement rather than a fourth guess:
+### FOUND IT: untreated disease, and story mode structurally prevents treatment
 
-1. **Which stat crosses the danger line first?** The run only reports "in
-   trouble"; it does not say whether happiness, health or energy tripped it.
-2. **Per-subsystem attribution.** Instrument the weekly tick to log every
-   happiness and health delta by source for ~20 ticks. The ~37 `apply*`
-   subsystems are the search space, and several of them (`applyPets`,
-   `applyRelationshipHealth`, `applyEducationStress`, `applyCrimeTick`) carry
-   double-digit penalties that would not show up in any formula I have read.
+The per-week attribution was run rather than guessed. A wealthy, housed,
+unemployed character shows this:
 
-Do that before touching a single balance number.
+```
+w10  hap=89.4(-0.6)  hea=62.0(-1.2)  dis=[]
+w11  hap=86.8(-2.6)  hea=58.8(-3.2)  dis=["allergies"]   ← contracted
+...   six weeks at 4x the baseline drain ...
+w16  hap=73.8(-2.6)  hea=42.8(-3.2)  dis=[]              ← recovered
+w17  hap=73.2(-0.6)  hea=41.6(-1.2)  dis=[]              ← back to baseline
+```
+
+Baseline decay is what the formula predicts — **-0.6 happiness and -1.2 health
+a week**, i.e. essentially sustainable. The excess is entirely a **disease**:
+`allergies` adds **-2.0 happiness, -2.0 health and -3 energy every week for its
+full six-week course**, and allergies is one of the MILD ones.
+
+**Why this is a story-mode problem specifically.** In classic mode the player
+sees they are ill and treats it — that is what the weekly turn is for. A batch
+never offers that turn, so every disease runs its entire course untreated, and
+a 52-week year collects several. This is not a decay-tuning problem at all; it
+is a structural consequence of batching the interaction.
+
+**The options, and none of them is free:**
+
+1. **Stop the batch when a disease is contracted**, exactly as the danger stop
+   works. Preserves the equivalence invariant perfectly (the tick is unchanged;
+   only the moment control returns differs). But it makes years SHORTER, which
+   is the opposite of the complaint.
+2. **Auto-treat during a batch when the player can afford it.** Fixes the year
+   length directly. But it contradicts a promise made in the picker, the
+   changelog and WHATS_NEW: *"Nothing is decided for you."* Spending a player's
+   money without asking is exactly what that line rules out.
+3. **Accept it.** Years are short early and lengthen as the player buys health
+   upgrades. Defensible — the app already tells players a year can hand back
+   early — but "1 tap = 52 weeks" stays aspirational for a while.
+
+My recommendation is **1 for correctness, and it should be worded as a feature**
+("You've fallen ill — take it from here"), because it is the only option that
+keeps both the simulation-identical guarantee and the nothing-decided-for-you
+promise. But it is a product call about what story mode is FOR, so it is yours.
+
+Whichever is chosen, note that raising decay thresholds, the wealthMultiplier
+floor, the grace period, or job tolls would all have been the wrong fix. Four
+hypotheses were tested and disproved before this one was measured.
 
 **This is a design call, not a bug, so it is not being changed unilaterally.**
 Three options, with what each costs:
