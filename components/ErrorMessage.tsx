@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { MotiView } from '@/components/anim/MotiStub';
 import { X, RefreshCw, Info, AlertCircle, AlertOctagon, XCircle, FileText } from 'lucide-react-native';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ErrorMessageProps {
  visible: boolean;

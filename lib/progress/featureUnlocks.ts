@@ -90,6 +90,14 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'tab:apps', tier: 0, requirement: '' },
   { id: 'tab:mobile', tier: 0, requirement: '' },
   { id: 'tab:computer', tier: 0, requirement: '' },
+  // DeepMail is tier 0 on purpose, alongside the tabs rather than with the
+  // other apps. It is where the game explains itself in documents — the first
+  // payslip, the first statement, the first rent invoice — and gating it behind
+  // Chapter 1 would withhold the paperwork for exactly the weeks a new player
+  // most needs to see where their money went. It also has to be reachable
+  // before the first phishing attempt can arrive, or the mechanic would fire at
+  // a player with no way to look at it.
+  { id: 'app:mail', tier: 0, requirement: '' },
 
   // ── Tier 1 — Fresh Start done: earned $500, got hired, survived 4 weeks ──
   // Life → Stats: achievements, prestige and legacy. Dense, and none of it is
@@ -198,4 +206,133 @@ export function unlockRequirement(state: GameState | undefined | null, id: strin
 /** Everything at a given tier — used to tell the player what they just earned. */
 export function featuresUnlockedAtTier(tier: UnlockTier): FeatureUnlock[] {
   return FEATURE_UNLOCKS.filter((f) => f.tier === tier);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prestige tiers — the ladder ABOVE the chapter spine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Why this is a separate axis rather than tiers 6–10 on `UnlockTier`.
+ *
+ * The chapter spine hard-stops: `unlockTier` returns 5 for anyone who has
+ * prestiged at all, or simply reached `weeksLived >= 120`. That escape hatch is
+ * correct — a veteran should not be re-taught the game — but it means the
+ * chapter scale is *saturated* long before the late game, and extending it to
+ * 10 would make the veteran shortcut skip five tiers at once.
+ *
+ * So progression past the chapter arc keys on `prestige.totalPrestiges`
+ * instead, which is already persisted and only ever increases.
+ *
+ * **The gap this closes:** before this, a repo-wide grep for `prestigeLevel >=`
+ * found only cosmetic UI checks. NOTHING in the game was gated on having
+ * prestiged more than once, so prestige #5 was mechanically identical to
+ * prestige #2 and the question "why prestige again?" had no answer.
+ *
+ * **Rule for anything added here: NEW content only.** Moving a feature players
+ * already have behind a prestige wall is a takeaway, not a reward.
+ */
+export type PrestigeTier = 0 | 1 | 2 | 3 | 4 | 5;
+
+export interface PrestigeUnlock {
+  /** `feature:<name>` — a capability, not a route. */
+  id: string;
+  /** Completed prestiges required. */
+  tier: PrestigeTier;
+  /** Shown on the padlock. Written for a player. */
+  requirement: string;
+}
+
+/**
+ * ── Tiers 2–5 ─────────────────────────────────────────────────────────────
+ *
+ * For a long time this table had exactly one row, which meant tiers 2–5 did
+ * nothing and the gap documented above was only half closed: prestige #5 was
+ * still mechanically identical to prestige #2.
+ *
+ * The four capabilities below all obey the NEW-content rule at the top of this
+ * block, and it is worth spelling out how, because "is this new?" is the only
+ * question that matters when adding a row here:
+ *
+ *   Vault      — no material object had EVER survived a life. Prestige rebuilds
+ *                the save from `initialGameState`; the luxury collection was
+ *                simply deleted. Preserving one is a thing nobody could do.
+ *   Endowment  — money had no cross-life use at all. Legacy Points were earned
+ *                by TIME alone, so a 900-week pauper funded the Dynasty Tree at
+ *                the same rate as a 900-week trillionaire.
+ *   Trials     — nothing anywhere let a player make a life HARDER. Every meta
+ *                system in the game moved in one direction: more head start.
+ *   Seat       — money could not outlive the character. There was no permanent,
+ *                cross-life structure to spend a late-game fortune on.
+ *
+ * None of them takes anything away from a player who never prestiges again.
+ * They also compose deliberately: each Seat wing deepens one of the three tiers
+ * beneath it, which is what makes tier 5 a capstone rather than a fifth menu.
+ */
+export const PRESTIGE_UNLOCKS: PrestigeUnlock[] = [
+  {
+    // Founding a SECOND company of a type. New in the same change that added
+    // this table, so nothing is being taken away from anyone.
+    id: 'feature:conglomerate',
+    tier: 1,
+    requirement: 'Prestige once to start building a conglomerate',
+  },
+  {
+    // The Vault — carry a luxury piece across death. `lib/dynasty/vault.ts`.
+    id: 'feature:vault',
+    tier: 2,
+    requirement: 'Prestige twice to open the Vault',
+  },
+  {
+    // The Endowment — turn money into Legacy Points. `lib/dynasty/endowment.ts`.
+    id: 'feature:endowment',
+    tier: 3,
+    requirement: 'Prestige three times to endow your family',
+  },
+  {
+    // Dynasty Trials — opt-in handicaps. `lib/dynasty/trials.ts`.
+    id: 'feature:trials',
+    tier: 4,
+    requirement: 'Prestige four times to swear a Trial',
+  },
+  {
+    // The Dynasty Seat — the capstone estate. `lib/dynasty/seat.ts`.
+    id: 'feature:dynasty_seat',
+    tier: 5,
+    requirement: 'Prestige five times to claim the Dynasty Seat',
+  },
+];
+
+const PRESTIGE_BY_ID = new Map(PRESTIGE_UNLOCKS.map((f) => [f.id, f]));
+
+/** Completed prestiges, clamped to the tier ceiling. */
+export function prestigeTier(state: GameState | undefined | null): PrestigeTier {
+  const total = state?.prestige?.totalPrestiges;
+  const n = typeof total === 'number' && Number.isFinite(total) && total > 0 ? Math.floor(total) : 0;
+  return Math.min(5, n) as PrestigeTier;
+}
+
+/**
+ * Is this prestige-gated capability available?
+ *
+ * Same default as `isFeatureUnlocked`: an unregistered id is UNLOCKED, so
+ * forgetting to register something makes it visible rather than invisible.
+ */
+export function isPrestigeFeatureUnlocked(
+  state: GameState | undefined | null,
+  id: string
+): boolean {
+  const feature = PRESTIGE_BY_ID.get(id);
+  if (!feature) return true;
+  return prestigeTier(state) >= feature.tier;
+}
+
+/** What the padlock should say. Empty string when already unlocked. */
+export function prestigeUnlockRequirement(
+  state: GameState | undefined | null,
+  id: string
+): string {
+  const feature = PRESTIGE_BY_ID.get(id);
+  if (!feature || isPrestigeFeatureUnlocked(state, id)) return '';
+  return feature.requirement;
 }

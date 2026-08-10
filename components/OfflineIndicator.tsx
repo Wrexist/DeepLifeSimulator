@@ -6,7 +6,7 @@ import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { responsiveFontSize } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
-export default function OfflineIndicator() {
+function OfflineIndicator() {
   const { isOnline, pendingActions } = useNetworkStatus();
   const isDarkMode = useGameSelector((s) => s?.settings?.darkMode ?? false);
 
@@ -80,3 +80,13 @@ const styles = StyleSheet.create({
   },
 });
 
+/**
+ * `React.memo` is load-bearing here, not decoration.
+ *
+ * This is rendered INLINE in a layout root (app/_layout.tsx), which itself
+ * subscribes to game state. A selector inside a component cannot stop a
+ * re-render driven by its parent — so narrowing this component's own
+ * subscription achieved nothing on its own. Taking no props, `React.memo` is a
+ * total barrier against that cascade, which is what makes the narrowing pay.
+ */
+export default React.memo(OfflineIndicator);

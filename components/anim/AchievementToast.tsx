@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { 
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { setAchievementToastRef } from '@/utils/achievementToast';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
 

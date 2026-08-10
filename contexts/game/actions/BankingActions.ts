@@ -435,15 +435,43 @@ export const toggleBill = (
 // Savings goals
 // ---------------------------------------------------------------------------
 
+/**
+ * Create a savings goal.
+ *
+ * `autoContribute` is accepted here because the weekly sweep that consumes it
+ * — `contexts/game/actions/weekly/applySavingsGoals.ts` — has shipped, is
+ * wired into the tick, and has its own test suite proving asset conservation
+ * and idempotent completion... while NOTHING could ever set the field. This
+ * signature omitted it and neither goal-creation modal collected it, so the
+ * sweep ran every week over a value that was always `undefined`.
+ *
+ * Same reader-without-writer shape as `banking.taxDueThisYear` and the journal.
+ * The field is optional on `SavingsGoal`, so an absent value still means "no
+ * auto-contribution" — no migration, no version bump.
+ */
 export const createSavingsGoal = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  goal: { name: string; targetAmount: number; category: SavingsGoalCategory; linkedAccountId?: string; targetWeek?: number }
+  goal: {
+    name: string;
+    targetAmount: number;
+    category: SavingsGoalCategory;
+    linkedAccountId?: string;
+    targetWeek?: number;
+    /** Dollars swept toward this goal each week. Omit or 0 for manual-only. */
+    autoContribute?: number;
+  }
 ) => {
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     const result = addSavingsGoal(state.banking, {
       ...goal,
+      // Clamp defensively: the sweep floors at 0 anyway, but a negative here
+      // would read as a withdrawal target in any future consumer.
+      autoContribute:
+        typeof goal.autoContribute === 'number' && Number.isFinite(goal.autoContribute)
+          ? Math.max(0, Math.round(goal.autoContribute))
+          : undefined,
       createdWeek: state.weeksLived,
     });
     return { ...state, banking: result.banking };

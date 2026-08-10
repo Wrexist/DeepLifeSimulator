@@ -5,11 +5,11 @@ import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Di
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 
@@ -101,7 +101,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}

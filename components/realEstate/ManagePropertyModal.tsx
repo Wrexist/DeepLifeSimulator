@@ -113,7 +113,7 @@ export default function ManagePropertyModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <View style={[styles.section, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
               <View style={styles.sectionHeader}>
                 <Users size={scale(14)} color={theme.text} />

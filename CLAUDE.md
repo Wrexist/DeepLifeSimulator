@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 32`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 37`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -161,7 +161,13 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
 ## 5. Conventions
 
 - **Theme:** `useTheme()` or `getThemeColors(darkMode)` from `lib/config/theme.ts`
-  (`colors`, `accent`, `spacing`, `typography`, `radii`, `shadows`, `animation`).
+  (`colors`, `accent`, `typography`, `radii`, `shadows`, `animation`). **Spacing is
+  not there** — it used to export a raw `spacing` ladder whose keys collided with
+  `responsiveSpacing` in `utils/scaling.ts` at different values (`md` was 12 vs
+  `scale(16)`), so `spacing.md` meant two things depending on the import line and
+  only one of the two scaled with the device. By the time it was measured the raw
+  ladder had zero importers; it is deleted, and `responsiveSpacing` / `scale()`
+  are the one spacing scale.
 - **Scaling:** always `scale()` / `fontScale()` from `utils/scaling.ts` — never raw pixels.
 - **Z-index:** `Z_INDEX` in `utils/zIndexConstants.ts` —
   `CONTENT 1 → DROPDOWN 100 → TOOLTIP 200 → MODAL 300 → TOAST 400 → LOADING 500 → DEBUG 999`.
@@ -240,7 +246,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 32`** — single source of truth in
+- **Canonical `STATE_VERSION = 37`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -313,6 +319,55 @@ including the crash screen.
   `undefined`, so it is a carve-out: version bumped, NO backfill and no
   `repairGameState` mirror — writing a tenancy would start charging rent to a
   player who never signed for anything.
+- **v34 adds `grandchildren`** on `ChildInfo` — lightweight records one
+  generation below the player's children, so the 13 genetic traits and the
+  nurture stats stop terminating at the heir. Default `undefined`, so it is a
+  CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror. An
+  absent key already means "no grandchildren", and writing an empty array onto
+  every child of every save would churn the whole family tree for nothing.
+  Births are rolled deterministically from `weeksLived` inside the pass the tick
+  already makes over children (`applyChildAging`), so no nested loop is added —
+  the perf audit tracks nested-loop density in the weekly path.
+- **v33 adds `legacyContracts`** — the claimed-id record for Legacy Contracts,
+  the multi-life goals that pay Legacy Points into the Dynasty Tree. Concrete
+  stored default (`{ claimedIds: [] }`), so a REAL backfill **and** a
+  `repairGameState` mirror. An absent key genuinely means "nothing claimed",
+  which is also the only safe repair: inventing a claim would deny the player
+  the points for a contract they had already earned. Note what is deliberately
+  NOT stored — progress. Every contract metric is read from a value the save
+  already tracks and that only ever increases (prestige count, generations,
+  lifetime weeks), so nothing can drift out of sync, a tick that runs twice
+  cannot double-credit, and an existing save loads with its contracts already
+  part-complete rather than reset to zero.
+- **v36 adds `dynasty`** — one object holding the bookkeeping for prestige
+  tiers 2–5 (the Vault, the Endowment, Dynasty Trials, the Dynasty Seat). ONE
+  optional field rather than four top-level keys, so four new systems cost one
+  carve-out instead of four backfills and four repair mirrors. Default
+  `undefined`, so it is a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror. Absence already means empty vault / nothing endowed
+  / no Trial / no wings, and nothing here can be invented safely — stamping a
+  vaulted item, a taken tranche or an active Trial would hand out or charge for
+  something the player never chose. Every read goes through
+  `lib/dynasty/state.ts`, which degrades a missing or malformed shape to the
+  empty answer rather than throwing inside the week loop. Shipped alongside a
+  fix in the same area: `legacyContracts.claimedIds` was **never carried across
+  a prestige**, so `initialGameState`'s empty board was restored every cycle and
+  the whole contract ladder was re-claimable. Both paths now run one hook,
+  `applyDynastyTransition` (`lib/dynasty/transition.ts`).
+- **v37 adds `mail`** — the paper trail (payslips, statements, invoices,
+  receipts) and the phishing channel that rides on it. Default `undefined`, so
+  another CARVE-OUT: version bumped, NO backfill and no `repairGameState`
+  mirror. Absence is the only honest state here — seeding an inbox would have to
+  invent the documents to fill it, and every one would be a number the player
+  could check and find wrong (payslips for weeks already lived, statements for
+  balances that have since moved). A scam message is worse still: it is an
+  unresolved decision, and writing one onto an existing save would present a
+  choice about money earned before the feature existed. Reads go through
+  `lib/mail/state.ts`. Generation is deterministic in `weeksLived` and
+  double-guarded (a `lastGeneratedWeek` marker plus week-encoded ids), so a
+  double-invoked updater cannot deliver twice — which matters because one of the
+  messages can take money. Losses are only ever charged when the player taps the
+  fraudulent action, inside the same updater that marks it resolved (§4.4).
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

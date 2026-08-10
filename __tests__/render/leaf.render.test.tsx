@@ -4,7 +4,7 @@ import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloating
 
 /**
  * Leaf-component render test — proves a real app component (with its real
- * transitive deps: usePressableScale + haptics + LinearGradientFallback + icons)
+ * transitive deps: usePressableScale + haptics + ui/Gradient (SVG) + icons)
  * mounts without throwing. Establishes the component-level mock surface that the
  * full-screen render tests build on.
  */

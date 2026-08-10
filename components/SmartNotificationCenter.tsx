@@ -7,7 +7,7 @@ import { Platform, View,
   Animated,
   Modal,
   Dimensions } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   Bell,
@@ -27,7 +27,7 @@ import { useGame } from '@/contexts/GameContext';
 import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface SmartNotificationCenterProps {
   visible: boolean;

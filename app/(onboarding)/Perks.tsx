@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useRouter, useNavigation } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
@@ -18,8 +18,9 @@ import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle from the barrel's eager `export * from './game'`).
-import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
@@ -34,6 +35,7 @@ import {
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
+import ImageScrim from '@/components/ui/ImageScrim';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 
@@ -44,6 +46,7 @@ import {
   isPerkLocked,
   isPerkPermanent,
   getPerkBenefits,
+  getPerkUnlockRequirementText,
   getStatColor,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
@@ -74,7 +77,7 @@ import { forceSave } from '@/utils/saveQueue';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 type TabType = 'perks' | 'mindset';
@@ -164,11 +167,14 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent && styles.permanentPerkCard,
           ]}
         >
-          {/* Hero artwork — the perk's own painting, full-bleed with a scrim so
-              the title and rarity read cleanly over any illustration. */}
+          {/* Hero artwork — the perk's own painting, full-bleed under a bottom
+              FADE so the title and rarity read cleanly without hiding the art.
+              This used to be one flat 90%-opaque band across the bottom 55%,
+              which blacked out over half of every illustration behind a hard
+              horizontal edge. */}
           <View style={styles.heroWrap}>
             <Image source={perk.icon} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroScrim} />
+            <ImageScrim height={0.42} strength={0.72} />
             {isPermanent ? (
               <View style={styles.permanentPill}>
                 <Text style={styles.permanentPillText}>PERMANENT</Text>
@@ -209,7 +215,7 @@ const PerkCard = React.memo(function PerkCard({
             </Text>
             {perk.unlock && isLocked && (
               <Text style={styles.requirementText}>
-                Requires achievement: {perk.unlock.achievementId}
+                {getPerkUnlockRequirementText(perk)}
               </Text>
             )}
 
@@ -293,7 +299,7 @@ const MindsetCard = React.memo(function MindsetCard({
               to match the perk cards; the purple accent marks the category. */}
           <View style={styles.heroWrap}>
             <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroScrim} />
+            <ImageScrim height={0.42} strength={0.72} />
             {isRecommended ? (
               <View style={[styles.recommendedPill, styles.recommendedPillPurple]}>
                 <Star size={11} color="#A78BFA" />
@@ -350,9 +356,19 @@ const MindsetCard = React.memo(function MindsetCard({
 
 export default function Perks() {
   const { state, clearDraft } = useOnboarding();
-  // R-perf: subscribe only to `achievements` (used for perk unlock state) instead
-  // of the whole game state, so settings/theme changes don't re-render this screen.
-  const achievements = useGameSelector((s) => s.achievements);
+  // Perk unlock state comes from the LIVE achievement system. This used to select
+  // `s.achievements` — the deprecated catalogue whose `completed` flag has no
+  // writer — so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
+  // derives completion from each achievement's own progressSpec plus anything
+  // already claimed, so it can only ever return MORE ids than the all-false array
+  // it replaces: no perk a player could previously select becomes locked.
+  //
+  // R-perf: the selector derives a new array each call, so `shallowEqual` keeps
+  // this screen from re-rendering on unrelated state changes (see useGameSelector).
+  const earnedAchievementIds = useGameSelector(
+    (s) => getSatisfiedAchievementIds(s),
+    shallowEqual
+  );
   const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
@@ -398,8 +414,8 @@ export default function Perks() {
 
   // Sorted perks using extracted logic
   const sortedPerks = useMemo(
-    () => sortPerksByUnlockStatus(perks, permanentPerks, achievements || []),
-    [achievements, permanentPerks]
+    () => sortPerksByUnlockStatus(perks, permanentPerks, earnedAchievementIds),
+    [earnedAchievementIds, permanentPerks]
   );
 
   // Backdrop, entrance animation, and floating particles are all owned by
@@ -669,7 +685,7 @@ export default function Perks() {
                     perk={perk}
                     isSelected={selected.includes(perk.id)}
                     isPermanent={isPerkPermanent(perk.id, permanentPerks)}
-                    isLocked={isPerkLocked(perk, permanentPerks, achievements || [])}
+                    isLocked={isPerkLocked(perk, permanentPerks, earnedAchievementIds)}
                     onToggle={toggle}
                   />
                 ))}
@@ -782,16 +798,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  heroScrim: {
-    // One flat band over the bottom of the hero so the title/rarity read
-    // cleanly — never a gradient (the fallback would render a hard-edged block).
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '55%',
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-  },
+  // (the flat `heroScrim` band is gone — see ImageScrim in the heroes above)
   heroTitleRow: {
     position: 'absolute',
     left: 0,

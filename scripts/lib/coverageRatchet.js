@@ -56,14 +56,22 @@ const COVERAGE_GOAL = 70;
  *    That is the only legitimate reason to lower a floor — the measured surface
  *    changed. Never to get a build unstuck.
  *
- * 3. Raised to the current values after PR #105, whose rental work shipped with
- *    tests and moved every metric up ~3 points. See `MEASURED_COVERAGE`.
+ * 3. Raised to 49.8 / 32.8 / 41.0 / 51.0 after PR #105, whose rental work
+ *    shipped with tests and moved every metric up ~3 points.
+ *
+ * 4. Raised again to the current values on 2026-08-06, at the end of the audit
+ *    round: new suites (seasonal events, savings auto-contribute, system routes,
+ *    app-launcher sections, lazy mount gating, the dynasty tiers) plus ~2 300
+ *    lines of provably unreachable code deleted — `lib/automation/`,
+ *    `utils/goalSystem.ts`, the dead design tokens and `LinearGradientFallback`.
+ *    Both effects push the same way: the deleted code was uncovered, and
+ *    deleting uncovered code is a real coverage gain, not an accounting one.
  */
 const COVERAGE_FLOORS = {
-  statements: 49.8,
-  branches: 32.8,
-  functions: 41.0,
-  lines: 51.0,
+  statements: 50.7,
+  branches: 33.2,
+  functions: 42.3,
+  lines: 52.0,
 };
 
 /**
@@ -88,10 +96,10 @@ const COVERAGE_FLOORS = {
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 50.20,
-  branches: 33.21,
-  functions: 41.42,
-  lines: 51.43,
+  statements: 51.12,
+  branches: 33.68,
+  functions: 42.76,
+  lines: 52.38,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

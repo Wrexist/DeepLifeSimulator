@@ -33,6 +33,11 @@ import {
   bidAskSpreadForRegime,
 } from './orderBook';
 import { processOpenOrders, recordPriceTick, recordDCAExecution } from './operations';
+import {
+  CAPITAL_GAINS_TAX_RATE,
+  TAX_YEAR_WEEKS,
+  clampTaxMult,
+} from '@/lib/economy/taxLedger';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -47,6 +52,15 @@ export interface CryptoWeeklyTickInput {
   currentWeek: number;
   /** Optional economy state — forces a regime override for the week. */
   economyState?: 'normal' | 'recession' | 'boom' | 'crash';
+  /**
+   * Tax Strategy life-skill multiplier (`lifeSkillMods.taxMult`, 0.75–1).
+   *
+   * It used to scale the weekly income tax and NOTHING else, so the one
+   * tax-related thing the player can invest in was worth exactly zero to a
+   * player whose income is capital gains. Defaults to 1, so an omitted value
+   * reproduces the old numbers exactly.
+   */
+  taxMult?: number;
   /**
    * Deterministic roll source. Given a key, returns a stable u in [0, 1).
    * Pass `(key) => Math.random()` for non-deterministic flows (e.g. in tests
@@ -64,6 +78,12 @@ export interface CryptoWeeklyTickResult {
   /** Delta to apply to stats.money (sells, refunds, etc.). DCA debits are
    *  charged to bank accounts via `banking`, not cash, so this is usually 0. */
   cashDelta: number;
+  /**
+   * Capital-gains tax actually collected this tick (0 except on the year
+   * boundary). Reported so the caller can fold it into the year-to-date tax
+   * ledger the Bank app reads — the same field name the stocks tick returns.
+   */
+  capitalGainsTaxUSD: number;
   /** Notifications for the UI (regime changes, DCA fills, stop-loss triggers). */
   notifications: { id: string; title: string; message: string }[];
 }
@@ -276,23 +296,31 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   }
   if (dcaFillCount > 0) {
     notifications.push({
-      id: 'crypto-dca-tick',
+      // Week-keyed. An id that repeats week after week is deduped by the
+      // journal writer (`lib/lifeMoments/journalWriter.ts` keys entries by
+      // notification id), so a fixed id would record the FIRST occurrence and
+      // silently drop every one after it.
+      id: `crypto-dca-${input.currentWeek}`,
       title: '🔁 DCA Buys Executed',
       message: `${dcaFillCount} scheduled crypto purchase${dcaFillCount === 1 ? '' : 's'} completed.`,
     });
   }
 
   // --- 4) Yearly capital-gains tax — debit from checking on the year boundary.
-  // 52-week game year. Tax rate: 25% of realized gains. Losses don't generate a refund here.
-  if (input.currentWeek > 0 && input.currentWeek % 52 === 0 && market.realizedGainsThisYear > 0) {
+  // 52-week game year. Tax rate: 25% of realized gains, scaled by the Tax
+  // Strategy life skill. Losses don't generate a refund here.
+  let capitalGainsTaxUSD = 0;
+  if (input.currentWeek > 0 && input.currentWeek % TAX_YEAR_WEEKS === 0 && market.realizedGainsThisYear > 0) {
     const gains = market.realizedGainsThisYear;
-    const tax = gains * 0.25;
+    const effectiveRate = CAPITAL_GAINS_TAX_RATE * clampTaxMult(input.taxMult);
+    const tax = gains * effectiveRate;
     // Debit from the authoritative cash pool (stats.money via cashDelta), not a
     // mirror account whose balance is overwritten every tick (which dodged the
     // tax entirely). Collect only what the player can afford this tick and carry
     // the untaxed portion of gains forward rather than zeroing them unpaid.
     const availableCashForTax = safe(input.cashIn, 0) + cashDelta;
     const collected = Math.max(0, Math.min(tax, availableCashForTax));
+    capitalGainsTaxUSD = collected;
     if (collected > 0) {
       cashDelta -= collected;
       // Mirror the checking balance too so the same-tick UI matches.
@@ -306,13 +334,19 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
         }
       }
       notifications.push({
-        id: 'crypto-tax-paid',
+        // Week-keyed for the same reason as the DCA note above: a fixed id is
+        // recorded once and then deduped forever, so every year after the first
+        // would vanish from the journal.
+        id: `crypto-tax-${input.currentWeek}`,
         title: '🧾 Capital Gains Tax',
-        message: `Debited $${Math.round(collected).toLocaleString()} (25% of $${Math.round(gains).toLocaleString()} realized gains).`,
+        message: `Debited $${Math.round(collected).toLocaleString()} (${Math.round(effectiveRate * 100)}% of $${Math.round(gains).toLocaleString()} realized gains).`,
       });
     }
     // Reduce YTD realized gains only by the fraction actually taxed this year.
-    const taxedGains = collected / 0.25;
+    // Divide by the EFFECTIVE rate, not the headline 25% — otherwise a player
+    // with Tax Strategy clears less gain than they actually paid tax on and the
+    // remainder is taxed a second time next year.
+    const taxedGains = effectiveRate > 0 ? collected / effectiveRate : 0;
     market = { ...market, realizedGainsThisYear: Math.max(0, gains - taxedGains) };
   }
 
@@ -336,5 +370,5 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     }
   }
 
-  return { market, cryptos, banking, cashDelta, notifications };
+  return { market, cryptos, banking, cashDelta, capitalGainsTaxUSD, notifications };
 }

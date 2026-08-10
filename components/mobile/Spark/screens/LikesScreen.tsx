@@ -10,7 +10,7 @@
 import React, { useCallback } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Heart, Star, X, Crown } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -21,7 +21,7 @@ import EmptyState from '../components/EmptyState';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface LikesScreenProps {
   onOpenChat: (matchId: string) => void;

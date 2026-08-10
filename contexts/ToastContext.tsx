@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect, ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import ToastNotification from '@/components/ui/ToastNotification';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
+import { setToastHandler } from '@/utils/toastBridge';
 
 /**
  * Turn a raw error into something actionable: one tap on an error toast's
@@ -61,16 +62,19 @@ export function ToastProvider({ children }: ToastProviderProps) {
       message: string,
       type: Toast['type'] = 'info',
       duration: number = 3000,
-      position: Toast['position'] = 'top',
+      position?: Toast['position'],
       action?: Toast['action'],
       persistent?: boolean
     ) => {
-      // Players never see raw yellow "warning" toasts — they were noise that
-      // overlapped the status bar. Log for diagnostics and render nothing.
-      if (type === 'warning') {
-        if (__DEV__) console.warn('[toast suppressed]', message);
-        return;
-      }
+      // Warnings used to be dropped entirely: they "overlapped the status bar".
+      // That silenced the whole rejection channel — a refused job application, a
+      // denied promotion, a blocked retirement and a failed street job all
+      // buzzed and rendered nothing, so a rejected tap was indistinguishable
+      // from a successful one. The overlap was a POSITION problem, not a reason
+      // to delete the tier, so warnings now default to the bottom slot (which
+      // already offsets by `insets.bottom`) and are shown.
+      const resolvedPosition: Toast['position'] =
+        position ?? (type === 'warning' ? 'bottom' : 'top');
 
       // Drop blank toasts — an empty message renders as a bare icon-only
       // blue pill (a call site passed an optional result?.message that was
@@ -86,7 +90,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         message,
         type,
         duration,
-        position,
+        position: resolvedPosition,
         // Errors get a one-tap Report that emails the debug info to the dev,
         // unless the caller already supplied its own action.
         action: action ?? (type === 'error' ? { label: 'Report', onPress: () => reportErrorToast(message) } : undefined),
@@ -139,6 +143,26 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
 
+  // Expose the real toast channel to non-React callers (feedbackSystem).
+  useEffect(() => {
+    setToastHandler(showToast);
+    return () => setToastHandler(null);
+  }, [showToast]);
+
+  // Stacking offsets must be counted WITHIN a position group. The index in the
+  // flat array was used before, so a bottom toast sitting behind one top toast
+  // was pushed 72pt up off its own anchor for no reason.
+  const stackIndexById = useMemo(() => {
+    const counters: Record<string, number> = { top: 0, bottom: 0 };
+    const map: Record<string, number> = {};
+    for (const toast of toasts) {
+      const key = toast.position ?? 'top';
+      map[toast.id] = counters[key];
+      counters[key] += 1;
+    }
+    return map;
+  }, [toasts]);
+
   // Memoize the context value so consumers of useToast() don't re-render on
   // every ToastProvider render (this provider sits high in the tree).
   const contextValue = useMemo(
@@ -150,7 +174,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     <ToastContext.Provider value={contextValue}>
       {children}
       <View style={styles.toastContainer} pointerEvents="box-none">
-        {toasts.map((toast, index) => (
+        {toasts.map((toast) => (
           <ToastNotification
             key={toast.id}
             id={toast.id}
@@ -165,7 +189,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
             hapticEnabled={toast.type === 'error' || toast.type === 'warning'}
             action={toast.action}
             persistent={toast.persistent}
-            stackIndex={index}
+            stackIndex={stackIndexById[toast.id] ?? 0}
           />
         ))}
       </View>

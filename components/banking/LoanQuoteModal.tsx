@@ -79,7 +79,7 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Type</Text>
               <View style={styles.chipRow}>

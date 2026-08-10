@@ -12,13 +12,13 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import Svg, { Rect, Polyline } from 'react-native-svg';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { HUSTLE_COLORS, HUSTLE_GRADIENT_SOFT } from '../styles/hustleTheme';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface KPICardProps {
   icon: any;

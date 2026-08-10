@@ -16,13 +16,13 @@ import {
   Share,
 } from 'react-native';
 import { X, BookOpen, Share2, ChevronRight } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { generateLifeStory, generateShareableStory, type LifeStory, type StoryChapter } from '@/lib/lifeMoments/storyGenerator';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { haptic } from '@/utils/haptics';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface Props {
   visible: boolean;
@@ -85,10 +85,10 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
               </View>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
+              <TouchableOpacity onPress={handleShare} style={styles.shareButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Share life story">
                 <Share2 size={20} color="#FFFFFF" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
                 <X size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>

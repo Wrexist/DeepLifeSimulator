@@ -20,12 +20,21 @@ export const PULSE_GRADIENT_SOFT = ['rgba(236, 72, 153, 0.18)', 'rgba(99, 102, 2
 export const PULSE_SCANDAL_HIGH = ['#7F1D1D', '#EF4444'] as const;
 export const PULSE_SCANDAL_MID = ['#92400E', '#F59E0B'] as const;
 
-/** Pulse density / spacing presets — generous breathing room. */
+/**
+ * Pulse density / spacing presets — generous breathing room.
+ *
+ * The base values below are pre-`scale()`. `cardPadding`/`cardGap` carried
+ * `// 12` against `responsiveSpacing.md`, which is 16 — the author was reading
+ * the OTHER `spacing.md` (the raw ladder that used to live in
+ * `lib/config/theme.ts`, since deleted, where `md` was 12). The rendered value
+ * has always been 16; only the comments were wrong, and they are corrected
+ * rather than the numbers, because 16 is what these screens were reviewed at.
+ */
 export const PULSE_DENSITY = {
   pagePadding: responsiveSpacing.md,        // 16
   pagePaddingHero: responsiveSpacing.lg,    // 24
-  cardPadding: responsiveSpacing.md,        // 12
-  cardGap: responsiveSpacing.md,            // 12
+  cardPadding: responsiveSpacing.md,        // 16
+  cardGap: responsiveSpacing.md,            // 16
   sectionGap: scale(20),
   rowGap: responsiveSpacing.sm,             // 8
 } as const;

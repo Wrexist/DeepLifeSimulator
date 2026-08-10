@@ -25,14 +25,14 @@ import {
   View,
 } from 'react-native';
 import { Clock, History, RotateCcw, ShieldCheck, X } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { listBackups, restoreFromBackup, type BackupMetadata } from '@/utils/saveBackup';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { fontScale, scale, verticalScale } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const log = logger.scope('RestoreBackupSheet');
 
 interface Props {
@@ -282,7 +282,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.22)',
   },
   reassuranceText: { flex: 1, color: '#A7F3D0', fontSize: fontScale(11), lineHeight: fontScale(15) },
-  list: { marginTop: verticalScale(12) },
+  // `flexShrink: 1` pairs with the sheet's `maxHeight: '78%'` — RN defaults
+  // flexShrink to 0, so without it a player with many backups scrolls nothing
+  // and the entries past the cut are unreachable.
+  list: { marginTop: verticalScale(12), flexShrink: 1 },
   listContent: { gap: verticalScale(8), paddingBottom: verticalScale(4) },
   entry: {
     flexDirection: 'row',

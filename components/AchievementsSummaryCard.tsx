@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
 
   body: { flexDirection: 'row', alignItems: 'center', gap: scale(14), marginTop: scale(13) },
   ringNum: { color: '#F8FAFC', fontSize: fontScale(16), fontWeight: '800', lineHeight: fontScale(18) },
-  ringOf: { color: '#94A3B8', fontSize: fontScale(8), fontWeight: '600' },
+  ringOf: { color: '#94A3B8', fontSize: fontScale(10), fontWeight: '600' },
 
   list: { flex: 1, gap: scale(9) },
   empty: { color: '#94A3B8', fontSize: fontScale(11), fontStyle: 'italic' },

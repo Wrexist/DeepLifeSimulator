@@ -4,15 +4,21 @@
 // resolved to `undefined` in the production Hermes bundle ("Element type is
 // invalid" the moment the first translated screen — MainMenu — mounted). This
 // hook only needs gameState.settings.language, so the leaf state context is enough.
-import { useGameState } from '@/contexts/game/GameStateContext';
+//
+// It now uses the SELECTOR channel rather than the whole state context: this is
+// called by 10 files, and taking the full subscription to read one string meant
+// every one of them re-rendered on every state commit. `language` is a string,
+// so `Object.is` holds it stable and the subscription only fires when the
+// player actually changes language. Same leaf-module rule as above.
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { t, type Language } from '@/utils/translations';
 import { logger } from '@/utils/logger';
 
 export function useTranslation() {
-  const { gameState } = useGameState();
-  
-  // Ensure the language is properly typed and has a fallback
-  const language = (gameState.settings.language as Language) || 'English';
+  // Ensure the language is properly typed and has a fallback.
+  const language = useGameSelector(
+    (s) => (s.settings?.language as Language) || 'English'
+  );
 
   const translate = (key: string): string => {
     try {

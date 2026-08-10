@@ -848,6 +848,108 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 32;
     return state;
   },
+
+  // Version 33: `legacyContracts` — the claimed-id record for Legacy Contracts,
+  // the multi-life goals that pay Legacy Points into the Dynasty Tree.
+  //
+  // Concrete stored default (`{ claimedIds: [] }`), so unlike the v26/v27/v28
+  // and v32 carve-outs this takes a REAL backfill and a `repairGameState`
+  // mirror. An absent key genuinely means "nothing claimed yet", which is the
+  // correct answer for every save written before contracts existed — and the
+  // only safe one, since inventing a claim would silently deny the player the
+  // points for a contract they have already earned.
+  //
+  // Note what is NOT stored: progress. Every contract metric is read from
+  // values the save already tracks and that only ever increase, so an existing
+  // save loads with its contracts already part-complete — a 12-generation
+  // dynasty gets credit for the work it did before this shipped.
+  33: (state) => {
+    const existing = state.legacyContracts as { claimedIds?: unknown } | undefined;
+    if (!existing || typeof existing !== 'object' || !Array.isArray(existing.claimedIds)) {
+      state.legacyContracts = { claimedIds: [] };
+    }
+    state.version = 33;
+    return state;
+  },
+
+  // Version 34: `grandchildren` on ChildInfo — lightweight records one
+  // generation below the player's children.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32 mould:
+  // version bumped, NO backfill and no `repairGameState` mirror. An absent key
+  // already means "no grandchildren", and writing an empty array onto every
+  // child of every existing save would churn the whole family tree for no
+  // behavioural gain. Births are derived by the weekly tick from that point on.
+  34: (state) => {
+    state.version = 34;
+    return state;
+  },
+
+  // Version 35: `settings.lastAdCashGrantWeek` — the game-week marker capping
+  // rewarded-ad CASH grants to one per game week.
+  //
+  // The orb's only limiter was a wall-clock respawn timer, decoupled from
+  // `weeksLived` entirely, so the 1.5%-of-net-worth reward compounded on REAL
+  // time — doubling net worth roughly every 2.2 hours of play, invisibly to the
+  // tax brackets and the net-worth soft cap.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+  // and no `repairGameState` mirror. Same reasoning as v28's
+  // `lastNoFillGrantWeek` and v31's `lastLoginRewardWeek` — stamping a week
+  // would deny an existing player their next legitimate claim.
+  35: (state) => {
+    state.version = 35;
+    return state;
+  },
+
+  // Version 36: `dynasty` — the bookkeeping behind prestige tiers 2–5 (the
+  // Vault, the Endowment, Dynasty Trials, the Dynasty Seat).
+  //
+  // ONE optional object rather than four top-level keys, so four new systems
+  // cost one carve-out instead of four backfills and four repair mirrors.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32/v34/v35
+  // mould: version bumped, NO backfill and no `repairGameState` mirror. An
+  // absent key already means precisely the right thing for every save written
+  // before this — empty vault, nothing endowed, no Trial sworn or running, no
+  // Seat wings — and writing `{}` onto every save would churn every slot to say
+  // what absence already says. Each sub-field is read through
+  // `lib/dynasty/state.ts`, which degrades a missing or malformed shape to the
+  // empty answer rather than throwing.
+  //
+  // Nothing here can be invented safely either: stamping a vault item, a taken
+  // tranche or an active Trial onto an existing save would hand out (or charge
+  // for) something the player never chose.
+  36: (state) => {
+    state.version = 36;
+    return state;
+  },
+
+  // Version 37: `mail` — the game's paper trail (payslips, statements,
+  // invoices, receipts) and the phishing channel that rides on it.
+  //
+  // Default `undefined`, so this is a CARVE-OUT in the v26/v27/v28/v32/v34/v36
+  // mould: version bumped, NO backfill and no `repairGameState` mirror.
+  //
+  // The absence is not just harmless here, it is the only honest state. An
+  // empty inbox is exactly what a save that has never had mail should show, and
+  // the alternative — seeding one — would have to invent the documents to put
+  // in it: payslips for weeks already lived, statements for balances that have
+  // since moved, receipts for purchases that never happened. Every one of those
+  // would be a number the player could check and find wrong, which is worse
+  // than an empty mailbox that fills from the next tick onward.
+  //
+  // Nor can the fraud half be backfilled: a scam message is an unresolved
+  // decision, and writing one onto an existing save would present the player
+  // with a choice about money they earned before the feature existed.
+  //
+  // Every read goes through `lib/mail/state.ts`, which degrades a missing or
+  // malformed shape to the empty inbox rather than throwing inside the week
+  // loop.
+  37: (state) => {
+    state.version = 37;
+    return state;
+  },
 };
 
 /**

@@ -10,6 +10,8 @@
  * 3. ToastProvider - Toast notifications
  * 4. OnboardingProvider - Onboarding flow state
  * 5. TutorialHighlightProvider - Tutorial highlight state
+ * 6. GemStoreProvider - IAP store, reachable inside full-screen phone apps
+ * 7. InterruptionProvider - single priority queue for interrupting surfaces
  */
 
 import React, { ReactNode } from 'react';
@@ -21,6 +23,7 @@ import { TutorialHighlightProvider } from './TutorialHighlightContext';
 import { SettingsProvider } from './SettingsContext';
 import { StatChangeProvider } from './StatChangeContext';
 import { GemStoreProvider } from './GemStoreContext';
+import { InterruptionProvider } from './InterruptionContext';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -47,7 +50,12 @@ export function AppProviders({ children }: AppProvidersProps) {
                       mounted app-wide so the IAP store stays reachable inside
                       full-screen phone apps where TopStatsBar unmounts. */}
                   <GemStoreProvider>
-                    {children}
+                    {/* One queue for every interrupting surface. Must sit above
+                        both the tabs layer and the root-level popups, since the
+                        whole point is that they can finally see each other. */}
+                    <InterruptionProvider>
+                      {children}
+                    </InterruptionProvider>
                   </GemStoreProvider>
                 </TutorialHighlightProvider>
               </OnboardingProvider>

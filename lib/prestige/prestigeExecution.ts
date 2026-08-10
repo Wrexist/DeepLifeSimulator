@@ -13,6 +13,7 @@ import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
+import { applyDynastyTransition } from '@/lib/dynasty/transition';
 
 
 /**
@@ -437,7 +438,12 @@ function createResetGameState(
   // Note: previousNetWorth is already calculated above on line 183
   finalState = applyLegacyBonuses(finalState, unlockedBonuses, previousNetWorth, oldState);
 
-  return finalState;
+  // LAST. Carries the lineage state both paths share (Legacy Contract claims,
+  // the Dynasty), settles the Trials this life was lived under and starts the
+  // ones sworn for the next. It runs after every bonus above on purpose: a
+  // Trial's handicap is a floor on the new life, and a starting bonus applied
+  // afterwards would quietly undo it.
+  return applyDynastyTransition(oldState, finalState);
 }
 
 /**
@@ -847,6 +853,9 @@ function createChildGameState(
   // Note: currentNetWorth is already calculated above on line 344
   finalState = applyLegacyBonuses(finalState, unlockedBonuses, currentNetWorth, oldState);
 
-  return finalState;
+  // Same hook, same reason, as the reset path — so the death → heir flow
+  // (`continueAsChild`, which lands here without going through
+  // `executePrestige`) cannot skip a settlement the prestige path pays.
+  return applyDynastyTransition(oldState, finalState);
 }
 

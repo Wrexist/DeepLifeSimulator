@@ -34,7 +34,7 @@ import {
 } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import StockRow, { Sparkline, ChangeChip, SECTOR_COLOR, SECTOR_LABEL } from '@/components/stocks/StockRow';
 import StockTradeModal from '@/components/stocks/StockTradeModal';
@@ -49,7 +49,7 @@ import {
   toggleStockWatchlist,
 } from '@/contexts/game/actions/StockActions';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type Theme = ReturnType<typeof getThemeColors>;
 

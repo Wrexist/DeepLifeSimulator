@@ -5,7 +5,7 @@ import { Platform, View,
   ScrollView,
   TouchableOpacity,
   TextInput } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { MotiView } from '@/components/anim/MotiStub';
 import {
   Trophy,
@@ -31,7 +31,7 @@ import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Achievement } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ProgressOverviewProps {
   compact?: boolean;

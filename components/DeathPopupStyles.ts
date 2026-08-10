@@ -15,7 +15,6 @@ import {
   getGlassCard,
   getGlassContainer,
   getGlassButton,
-  getGlassIconContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 
@@ -79,37 +78,85 @@ export function createStyles(darkMode: boolean) {
       padding: scale(20),
       paddingBottom: scale(16),
     },
-    // Compact identity strip — persistent across both pages.
-    identityHeader: {
+    // ── Hero: the verdict, centred under the illustration ──────────────────
+    // Centred rather than left-aligned because this is the one screen in the
+    // game that is not a dashboard. It is an ending, and an ending reads down
+    // the middle.
+    hero: {
+      alignItems: 'center',
+      paddingHorizontal: scale(24),
+      // Pulled up into the illustration so the title sits ON the artwork's
+      // lower edge, the way the design has it, rather than in a band below it.
+      marginTop: -scale(18),
+      marginBottom: scale(14),
+    },
+    heroTitle: {
+      fontSize: fontScale(40),
+      lineHeight: fontScale(46),
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: -1,
+      textAlign: 'center',
+    },
+    heroSubtitle: {
+      fontSize: fontScale(14.5),
+      fontWeight: '600',
+      color: darkMode ? '#A78BFA' : '#6D28D9',
+      textAlign: 'center',
+      marginTop: scale(6),
+    },
+    heroCause: {
+      fontSize: fontScale(13),
+      color: c.textSecondary,
+      textAlign: 'center',
+      marginTop: scale(3),
+    },
+    // ── Identity card — portrait, name, age ────────────────────────────────
+    identityCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: scale(20),
-      paddingTop: scale(20),
-      paddingBottom: scale(14),
+      gap: scale(14),
+      marginHorizontal: scale(16),
+      padding: scale(12),
+      borderRadius: scale(16),
+      backgroundColor: darkMode ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.03)',
+      // Full four-sided border. Hard Rule #7 bans the one-sided decorative
+      // kind; an outlined card is the sanctioned form.
+      borderWidth: 1,
+      borderColor: c.border,
     },
-    identityIcon: {
-      ...getGlassIconContainer(darkMode, 48),
-      marginRight: scale(14),
+    identityAvatarRing: {
+      width: scale(58),
+      height: scale(58),
+      borderRadius: scale(29),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: scale(2),
+      borderColor: darkMode ? '#7C4DFF' : '#7C3AED',
+      overflow: 'hidden',
+    },
+    identityAvatar: {
+      width: '100%',
+      height: '100%',
+      borderRadius: scale(29),
     },
     identityText: {
       flex: 1,
     },
-    identityTitle: {
-      fontSize: fontScale(22),
+    identityName: {
+      fontSize: fontScale(21),
       fontWeight: '800',
       color: c.text,
-      letterSpacing: -0.5,
-    },
-    identityName: {
-      fontSize: fontScale(15),
-      fontWeight: '700',
-      color: c.text,
-      marginTop: scale(2),
+      letterSpacing: -0.4,
     },
     identityDetails: {
-      fontSize: fontScale(12),
+      fontSize: fontScale(13),
       color: c.textSecondary,
-      marginTop: scale(1),
+      marginTop: scale(2),
+    },
+    identityAge: {
+      color: darkMode ? '#A78BFA' : '#6D28D9',
+      fontWeight: '700',
     },
     // TOP MENU BAR — segmented control switching between pages.
     topBar: {
@@ -143,29 +190,47 @@ export function createStyles(darkMode: boolean) {
       color: '#FFFFFF',
       fontWeight: '700',
     },
-    // Cause-of-death banner at the top of the Summary page.
-    causeCard: {
-      ...getGlassContainer(darkMode, darkMode ? 0.3 : 0.5),
-      borderRadius: scale(14),
+    // ── Verdict: the earned ribbon and the Life Quality arc, side by side ──
+    // One card, because they are two readings of the same life. Split apart,
+    // a LEGENDARY ribbon can sit above a 30% gauge with nothing reconciling
+    // them and the player is right to call that broken.
+    verdictCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(14),
       padding: scale(14),
-      marginBottom: scale(16),
+      borderRadius: scale(16),
+      backgroundColor: darkMode ? 'rgba(124,77,255,0.07)' : 'rgba(124,58,237,0.05)',
+      borderWidth: 1,
+      borderColor: darkMode ? 'rgba(124,77,255,0.22)' : 'rgba(124,58,237,0.18)',
     },
-    causeSubtitle: {
-      fontSize: fontScale(15),
-      fontWeight: '600',
-      color: c.text,
-      fontStyle: 'italic',
+    verdictText: { flex: 1, gap: scale(4) },
+    verdictName: {
+      fontSize: fontScale(17),
+      fontWeight: '800',
+      letterSpacing: 0.3,
+      color: darkMode ? '#A78BFA' : '#6D28D9',
     },
-    causeMessage: {
-      fontSize: fontScale(13),
+    verdictDesc: {
+      fontSize: fontScale(12.5),
+      lineHeight: fontScale(17),
       color: c.textSecondary,
-      marginTop: scale(4),
     },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: scale(8),
+      gap: scale(10),
       marginBottom: scale(12),
+    },
+    sectionIcon: {
+      width: scale(32),
+      height: scale(32),
+      borderRadius: scale(10),
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: darkMode ? 'rgba(124,77,255,0.16)' : 'rgba(124,58,237,0.10)',
+      borderWidth: 1,
+      borderColor: darkMode ? 'rgba(124,77,255,0.3)' : 'rgba(124,58,237,0.2)',
     },
     summaryCard: {
       ...getGlassCard(darkMode),
@@ -371,13 +436,88 @@ export function createStyles(darkMode: boolean) {
     },
     buttonText: {
       color: '#FFFFFF',
-      fontSize: fontScale(16),
+      fontSize: fontScale(17),
       fontWeight: '700',
+    },
+    buttonSubtext: {
+      color: 'rgba(255,255,255,0.72)',
+      fontSize: fontScale(12),
+      marginTop: scale(1),
     },
     newLifeButton: {},
     disabledButton: {
       opacity: 0.5,
     },
+    // ── Option rows: revive / gems / rewind ────────────────────────────────
+    // A full-width row that states what it does and what it costs on one line,
+    // instead of a pill with the price crammed into its label.
+    //
+    // Full four-sided borders throughout (Rule #7). The colour still carries
+    // the meaning — pink is the paid second chance, amber is the cheaper
+    // rewind — it just carries it on all four sides instead of a stripe.
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(12),
+      padding: scale(12),
+      borderRadius: scale(16),
+      backgroundColor: darkMode ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.03)',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    optionRevive: {
+      backgroundColor: darkMode ? 'rgba(236,72,153,0.09)' : 'rgba(236,72,153,0.06)',
+      borderColor: darkMode ? 'rgba(236,72,153,0.28)' : 'rgba(236,72,153,0.22)',
+    },
+    optionRewind: {
+      backgroundColor: darkMode ? 'rgba(245,158,11,0.09)' : 'rgba(245,158,11,0.06)',
+      borderColor: darkMode ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.24)',
+    },
+    optionIcon: {
+      width: scale(42),
+      height: scale(42),
+      borderRadius: scale(12),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    optionIconRevive: { backgroundColor: darkMode ? 'rgba(236,72,153,0.14)' : 'rgba(236,72,153,0.10)' },
+    optionIconRewind: { backgroundColor: darkMode ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.10)' },
+    optionText: { flex: 1 },
+    optionTitle: {
+      fontSize: fontScale(15.5),
+      fontWeight: '700',
+      color: c.text,
+    },
+    optionTitleRewind: { color: accent.warning },
+    optionSubtitle: {
+      fontSize: fontScale(12),
+      color: c.textSecondary,
+      marginTop: scale(1),
+    },
+    optionSubtitleRewind: { color: darkMode ? 'rgba(245,158,11,0.75)' : '#92400E' },
+    optionPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(4),
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      borderRadius: scale(10),
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    optionPillRevive: { borderColor: darkMode ? 'rgba(236,72,153,0.4)' : 'rgba(236,72,153,0.3)' },
+    optionPillRewind: { borderColor: darkMode ? 'rgba(245,158,11,0.45)' : 'rgba(245,158,11,0.35)' },
+    // The row stays tappable when unaffordable — that tap is the only route
+    // into the store bridge — so only the PRICE dims. Nothing else about the
+    // row pretends to be unavailable, because it is not.
+    optionPillShort: { opacity: 0.45 },
+    optionPillText: {
+      fontSize: fontScale(13.5),
+      fontWeight: '700',
+      color: c.text,
+    },
+    optionPillTextRevive: { color: '#F472B6' },
+    optionPillTextRewind: { color: accent.warning },
     // Streamlined secondary actions (Read Story + Share)
     secondaryRow: {
       flexDirection: 'row',
@@ -758,63 +898,6 @@ export function createStyles(darkMode: boolean) {
       fontSize: fontScale(12),
       color: c.text,
       flex: 1,
-    },
-    ribbonBanner: {
-      ...getGlassContainer(darkMode),
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: scale(14),
-      borderRadius: scale(12),
-      // Plain full border (color set inline via borderColor), no side stripe
-      // (DEV.md Hard Rule 7).
-      borderWidth: scale(1),
-    },
-    ribbonEmoji: {
-      fontSize: fontScale(36),
-      marginRight: scale(12),
-    },
-    ribbonTextContainer: {
-      flex: 1,
-    },
-    ribbonName: {
-      fontSize: fontScale(18),
-      fontWeight: '800',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
-    ribbonDesc: {
-      fontSize: fontScale(12),
-      color: c.textSecondary,
-      marginTop: scale(2),
-    },
-    rewindSection: {
-      ...getGlassContainer(darkMode, darkMode ? 0.12 : 0.08),
-      backgroundColor: darkMode ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
-      marginTop: scale(8),
-      padding: scale(12),
-      borderRadius: scale(10),
-    },
-    rewindTitle: {
-      fontSize: fontScale(13),
-      fontWeight: '700',
-      color: accent.warning,
-      textAlign: 'center',
-      marginBottom: scale(8),
-    },
-    rewindChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: scale(6),
-      paddingVertical: scale(8),
-      paddingHorizontal: scale(12),
-      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-      borderRadius: scale(8),
-      marginBottom: scale(4),
-    },
-    rewindChipText: {
-      fontSize: fontScale(13),
-      fontWeight: '600',
-      color: accent.warning,
     },
   });
 }

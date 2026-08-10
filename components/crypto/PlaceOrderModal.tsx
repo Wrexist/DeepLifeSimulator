@@ -89,7 +89,7 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
               Mid {formatPrice(midPrice)} Â· You own {owned.toFixed(4)} {coin?.symbol} Â· Cash {formatPrice(cash)}
             </Text>

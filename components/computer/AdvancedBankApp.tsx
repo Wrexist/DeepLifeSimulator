@@ -60,7 +60,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
 
@@ -98,10 +98,13 @@ import {
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
+import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import TaxStatement from '@/components/banking/TaxStatement';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
-type Tab = 'overview' | 'accounts' | 'borrow' | 'budget';
+type Tab = 'overview' | 'accounts' | 'borrow' | 'budget' | 'tax';
 
 /** Local list→detail routing (presentational only — reads existing state). */
 type SubView = { kind: 'account'; id: string } | { kind: 'credit' } | null;
@@ -115,6 +118,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
   { id: 'accounts', label: 'Accounts', icon: Wallet },
   { id: 'borrow', label: 'Borrow', icon: CardIcon },
   { id: 'budget', label: 'Budget', icon: Receipt },
+  { id: 'tax', label: 'Tax', icon: Percent },
 ];
 
 function formatMoney(n: number): string {
@@ -171,6 +175,16 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
+  // Second step of goal creation: the weekly auto-contribution.
+  //
+  // `applySavingsGoals` has swept `goal.autoContribute` every week since it
+  // shipped — with a test suite proving asset conservation and idempotent
+  // completion — but nothing could ever SET the field, so the sweep ran over
+  // `undefined` forever. Collecting it is the whole fix; the machinery behind
+  // it already works.
+  const [autoGoalPick, setAutoGoalPick] = useState<
+    { name: string; category: SavingsGoalCategory; targetAmount: number } | null
+  >(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
@@ -236,6 +250,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     }
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies, gameState.relationships]);
+
+  // Tax Strategy discount. Same source the week loop reads, so the Tax tab
+  // cannot claim a rate the tick does not charge.
+  const taxMult = useMemo(
+    () => clampTaxMult(getLifeSkillModifiers(gameState).taxMult),
+    [gameState]
+  );
 
   // Blended deposit APY (weighted by balance) — a fact the flat account list hid.
   const blendedAPY = totalBank > 0
@@ -386,9 +407,17 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       { icon: TrendingDown, tintHex: accent.danger, tintRGB: '239, 68, 68', label: 'Interest paid', value: `-${formatMoney(banking.totalInterestPaid)}`, valueColor: accent.danger },
       { icon: Receipt, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Late fees paid', value: `-${formatMoney(banking.totalLateFeesPaid)}`, valueColor: banking.totalLateFeesPaid > 0 ? accent.warning : theme.text },
     ];
+    // Live at last: `taxDueThisYear` now has a writer (the week loop's tax
+    // ledger), so this row is no longer permanently hidden behind its `> 0`
+    // gate. Relabelled to what the number actually is — tax already PAID, not
+    // a bill waiting to be settled.
     if (banking.taxDueThisYear > 0) {
-      activityRows.push({ icon: Percent, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Tax accrued this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
+      activityRows.push({ icon: Percent, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Tax paid this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
     }
+    // The Tax tab is the fifth of five — the one furthest from the thumb and
+    // the easiest to never notice. The statement row that summarises it links
+    // straight there, the same way the credit gauge links to the full report.
+    const hasTaxToShow = banking.taxDueThisYear > 0;
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
@@ -492,6 +521,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             />
           ))}
         </StatementSection>
+        {hasTaxToShow && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setActiveTab('tax')}
+            accessibilityRole="button"
+            accessibilityLabel="View tax breakdown"
+            style={[styles.reportCta, { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}
+          >
+            <Percent size={scale(14)} color={accent.warning} />
+            <Text style={[styles.reportCtaText, { color: accent.warning }]}>See where your tax goes</Text>
+            <ChevronRight size={scale(15)} color={accent.warning} />
+          </TouchableOpacity>
+        )}
 
         {/* Credit standing — gauge stays; full report is one tap away. */}
         <SectionTitle theme={theme}>Credit standing</SectionTitle>
@@ -847,6 +889,29 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     );
   };
 
+  // ────────────────────────────────── Tax ────────────────────────────────────
+  //
+  // There was no tax surface at all. Income tax is withheld weekly inside the
+  // week loop and shown as one `Tax -$N` line in the weekly summary; the
+  // brackets, the year-to-date total, the four OTHER taxes and the Tax Strategy
+  // skill were entirely invisible. Players reasonably asked where to file — the
+  // answer is "you never do", and nothing in the app said so.
+  //
+  // Read-only by design: this is a statement, not a mechanic. Everything here
+  // comes from state the tick already writes.
+  const renderTax = () => (
+    <View style={{ gap: responsiveSpacing.md }}>
+      <SectionTitle theme={theme}>Tax year {taxYearOf(gameState.weeksLived)}</SectionTitle>
+      <TaxStatement
+        banking={banking}
+        weeksLived={gameState.weeksLived}
+        weeklyIncome={weeklyIncome}
+        taxMult={taxMult}
+        darkMode={darkMode}
+      />
+    </View>
+  );
+
   // ─────────────────────────── Account statement page ────────────────────────
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
@@ -1137,8 +1202,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               accessibilityLabel={t.label}
               style={[styles.tab, active && { borderBottomColor: accent.info }]}
             >
-              <Icon size={scale(16)} color={active ? accent.info : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(17)} color={active ? accent.info : theme.textMuted} />
+              <Text
+                style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}
+                numberOfLines={1}
+              >
+                {t.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -1152,6 +1222,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         {activeTab === 'accounts' && renderAccounts()}
         {activeTab === 'borrow' && renderBorrow()}
         {activeTab === 'budget' && renderBudget()}
+        {activeTab === 'tax' && renderTax()}
       </ScrollView>
     </>
   );
@@ -1288,15 +1359,59 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         darkMode={darkMode}
         onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
+          // Hand off to the auto-contribute step rather than creating here, so
+          // the goal is written once with its final shape.
           if (addGoalPick) {
+            setAutoGoalPick({ ...addGoalPick, targetAmount: amt });
+          }
+          setAddGoalPick(null);
+        }}
+      />
+
+      {/* Auto-contribute step. Closing without confirming creates the goal with
+          no sweep — manual-only is a legitimate choice, so it must not require
+          entering 0. */}
+      <AmountInputModal
+        visible={!!autoGoalPick}
+        title="Save automatically?"
+        subtitle={
+          autoGoalPick
+            ? `Move money toward "${autoGoalPick.name}" every week. Close to skip.`
+            : ''
+        }
+        confirmLabel="Set weekly amount"
+        presets={
+          autoGoalPick
+            ? [
+                Math.max(10, Math.round(autoGoalPick.targetAmount / 52)),
+                Math.max(25, Math.round(autoGoalPick.targetAmount / 26)),
+                Math.max(50, Math.round(autoGoalPick.targetAmount / 12)),
+              ]
+            : [50, 100, 250]
+        }
+        darkMode={darkMode}
+        onClose={() => {
+          if (autoGoalPick) {
             createSavingsGoal(setGameState, {
-              name: addGoalPick.name,
-              targetAmount: amt,
-              category: addGoalPick.category,
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
             });
             queueSave();
           }
-          setAddGoalPick(null);
+          setAutoGoalPick(null);
+        }}
+        onConfirm={(weekly) => {
+          if (autoGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
+              autoContribute: weekly,
+            });
+            queueSave();
+          }
+          setAutoGoalPick(null);
         }}
       />
 
@@ -1778,17 +1893,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
   },
+  // Icon STACKED over the label, not beside it.
+  //
+  // The row layout needed ~80pt per tab ("Statement" at 12pt bold, plus a 16pt
+  // icon and its gap). Four tabs on a 375pt screen gave 94pt each and it just
+  // fit; the fifth (Tax) cut that to 75pt and the longest label started
+  // squeezing. Stacking drops the requirement to the label width alone, so all
+  // five sit on an even grid with room to spare — and an even grid is most of
+  // what "premium" means in a tab bar.
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: scale(3),
     paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: scale(2),
+    minHeight: touchTargets.minimum,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  tabText: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.2 },
 
   // ── Statement masthead (Recipe B): shadow on outer, tints clipped inside ──
   mastheadInner: {
@@ -1949,6 +2073,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
   },
+
   transferBtn: {
     flexDirection: 'row',
     alignItems: 'center',

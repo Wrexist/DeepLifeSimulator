@@ -40,7 +40,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
 
@@ -55,6 +55,9 @@ import OpenAccountModal from '@/components/banking/OpenAccountModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import ApplyCardModal from '@/components/banking/ApplyCardModal';
 import AddBillModal from '@/components/banking/AddBillModal';
+import TaxStatement from '@/components/banking/TaxStatement';
+import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
 import {
@@ -79,14 +82,14 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import WatchAdRewardButton from '@/components/WatchAdRewardButton';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface BankAppProps {
   onBack: () => void;
 }
 
 /** Local list→detail routing (presentational only — reads existing state). */
-type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | null;
+type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind: 'tax' } | null;
 
 function formatMoney(n: number): string {
   if (!isFinite(n)) return '$0';
@@ -140,6 +143,13 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
+  // Second step of goal creation: the weekly auto-contribution. `applySavingsGoals`
+  // has swept `goal.autoContribute` every week since it shipped, with tests
+  // proving asset conservation — but nothing could ever SET it, so the sweep ran
+  // over `undefined` forever. Mirrors the desktop Bank Pro flow.
+  const [autoGoalPick, setAutoGoalPick] = useState<
+    { name: string; category: SavingsGoalCategory; targetAmount: number } | null
+  >(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
@@ -177,6 +187,13 @@ function BankAppInner({ onBack }: BankAppProps) {
     for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies]);
+
+  // Tax Strategy discount, read from the same source the week loop charges from
+  // so the Tax page cannot quote a rate the tick does not apply.
+  const taxMult = useMemo(
+    () => clampTaxMult(getLifeSkillModifiers(gameState).taxMult),
+    [gameState]
+  );
 
   const queueSave = useCallback(() => {
     saveGame().catch(() => {});
@@ -306,7 +323,11 @@ function BankAppInner({ onBack }: BankAppProps) {
                 style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
               >
                 <View style={styles.ctaInner}>
-                  <LinearGradient pointerEvents="none" colors={[pal.hex, pal.hex]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                  {/* A two-identical-stop "gradient" is a flat fill. It only
+                      existed because the old fallback painted colors[0]; now
+                      that Gradient renders a real SVG there is no reason to
+                      mount one per account card to paint a single colour. */}
+                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: pal.hex }]} />
                   <Coins size={scale(16)} color="#fff" />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
@@ -387,6 +408,41 @@ function BankAppInner({ onBack }: BankAppProps) {
   };
 
   // ───────────────────────────── Credit report page ────────────────────────
+  // ─────────────────────────────── Tax page ──────────────────────────────────
+  //
+  // The tax surface shipped on the DESKTOP bank app only, so the whole system —
+  // brackets, the year-to-date total, the four other taxes, the Tax Strategy
+  // discount — was behind a $5,000 computer. A player crosses their first
+  // bracket around week 10, long before they can buy one. Same trap renting was
+  // in, same fix: put it where the early player already is.
+  //
+  // Renders the SAME `TaxStatement` the desktop tab does, so the two cannot
+  // disagree about what the game charges.
+  const renderTaxDetail = () => (
+    <>
+      {renderHeader(`Tax · Year ${taxYearOf(gameState.weeksLived)}`, {
+        back: () => setSubView(null),
+        right: (
+          <View style={[styles.typeDot, { backgroundColor: 'rgba(245, 158, 11, 0.16)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}>
+            <Percent size={scale(14)} color={accent.warning} />
+          </View>
+        ),
+      })}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
+      >
+        <TaxStatement
+          banking={banking}
+          weeksLived={gameState.weeksLived}
+          weeklyIncome={weeklyIncome}
+          taxMult={taxMult}
+          darkMode={darkMode}
+        />
+      </ScrollView>
+    </>
+  );
+
   const renderCreditDetail = () => {
     const cs = banking.creditScore;
     const history = cs.history ?? [];
@@ -567,12 +623,33 @@ function BankAppInner({ onBack }: BankAppProps) {
               <LedgerChip theme={theme} icon={TrendingUp} label="Earned" value={formatMoney(banking.totalInterestEarned)} color={accent.success} />
               <LedgerChip theme={theme} icon={TrendingDown} label="Paid" value={formatMoney(banking.totalInterestPaid)} color={accent.danger} />
               <LedgerChip theme={theme} icon={Receipt} label="Late fees" value={formatMoney(banking.totalLateFeesPaid)} color={accent.warning} />
+              {/* `taxDueThisYear` finally has a writer (the week loop's tax
+                  ledger), so this chip is no longer permanently hidden behind
+                  its `> 0` gate. Relabelled: the number is tax already PAID
+                  this game year, not a bill waiting to be settled. */}
               {banking.taxDueThisYear > 0 && (
-                <LedgerChip theme={theme} icon={Calendar} label="Tax due" value={formatMoney(banking.taxDueThisYear)} color={accent.warning} />
+                <LedgerChip theme={theme} icon={Percent} label="Tax paid" value={formatMoney(banking.taxDueThisYear)} color={accent.warning} />
               )}
             </View>
           </View>
         </View>
+
+        {/* Tax breakdown — always offered, not gated on having paid any yet.
+            A week-1 player who has paid nothing is exactly the one who benefits
+            from seeing the bands before they cross one. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setSubView({ kind: 'tax' })}
+          accessibilityRole="button"
+          accessibilityLabel="View tax breakdown"
+          style={[styles.reportCta, { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}
+        >
+          <Percent size={scale(14)} color={accent.warning} />
+          <Text style={[styles.reportCtaText, { color: accent.warning }]}>
+            {banking.taxDueThisYear > 0 ? 'See where your tax goes' : 'How tax works'}
+          </Text>
+          <ChevronRight size={scale(15)} color={accent.warning} />
+        </TouchableOpacity>
 
         {/* Credit summary — whole block taps to the report (visible affordance) */}
         <TouchableOpacity
@@ -713,9 +790,11 @@ function BankAppInner({ onBack }: BankAppProps) {
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
       {subView?.kind === 'credit'
         ? renderCreditDetail()
-        : detailAccount
-          ? renderAccountDetail(detailAccount)
-          : renderMainList()}
+        : subView?.kind === 'tax'
+          ? renderTaxDetail()
+          : detailAccount
+            ? renderAccountDetail(detailAccount)
+            : renderMainList()}
 
       <AmountInputModal
         visible={!!depositTarget}
@@ -828,15 +907,59 @@ function BankAppInner({ onBack }: BankAppProps) {
         darkMode={darkMode}
         onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
+          // Hand off to the auto-contribute step so the goal is written once
+          // with its final shape.
           if (addGoalPick) {
+            setAutoGoalPick({ ...addGoalPick, targetAmount: amt });
+          }
+          setAddGoalPick(null);
+        }}
+      />
+
+      {/* Auto-contribute step. Closing without confirming creates the goal with
+          no sweep — manual-only is a legitimate choice, so it must not require
+          typing 0. */}
+      <AmountInputModal
+        visible={!!autoGoalPick}
+        title="Save automatically?"
+        subtitle={
+          autoGoalPick
+            ? `Move money toward "${autoGoalPick.name}" every week. Close to skip.`
+            : ''
+        }
+        confirmLabel="Set weekly amount"
+        presets={
+          autoGoalPick
+            ? [
+                Math.max(10, Math.round(autoGoalPick.targetAmount / 52)),
+                Math.max(25, Math.round(autoGoalPick.targetAmount / 26)),
+                Math.max(50, Math.round(autoGoalPick.targetAmount / 12)),
+              ]
+            : [50, 100, 250]
+        }
+        darkMode={darkMode}
+        onClose={() => {
+          if (autoGoalPick) {
             createSavingsGoal(setGameState, {
-              name: addGoalPick.name,
-              targetAmount: amt,
-              category: addGoalPick.category,
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
             });
             queueSave();
           }
-          setAddGoalPick(null);
+          setAutoGoalPick(null);
+        }}
+        onConfirm={(weekly) => {
+          if (autoGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: autoGoalPick.name,
+              targetAmount: autoGoalPick.targetAmount,
+              category: autoGoalPick.category,
+              autoContribute: weekly,
+            });
+            queueSave();
+          }
+          setAutoGoalPick(null);
         }}
       />
 

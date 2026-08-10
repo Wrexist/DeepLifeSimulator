@@ -11,7 +11,7 @@
 import React, { useCallback } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Check, Crown } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -25,7 +25,7 @@ import { subscribeVerifiedPro, cancelVerifiedPro } from '@/contexts/game/actions
 import { PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 /**
  * F7. "No ads in feed — Cleaner browsing experience" used to sit in this list.

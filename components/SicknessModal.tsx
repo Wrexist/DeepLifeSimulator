@@ -9,7 +9,7 @@ import {
   Alert,
   Animated,
 } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { X, Heart, Zap, Smile, Dumbbell, AlertTriangle, Stethoscope, Pill, Activity, Clock, Info, Sparkles } from 'lucide-react-native';
 import { useGame, useItemActions } from '@/contexts/game';
@@ -19,7 +19,7 @@ import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS, isManageableDisease } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 function SicknessModal() {

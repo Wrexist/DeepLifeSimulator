@@ -254,7 +254,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   list: {
-    maxHeight: '90%',
+    // Was `maxHeight: '90%'`. A cap on the LIST is the same defect as the fixed
+    // `scale(360)` caps the banking sheets shipped: it cannot give space back,
+    // so with the header and the sheet's own padding the column still exceeded
+    // the 80% sheet and the overflow — including the bottom policy's Enact
+    // button — landed outside it, unscrollable. The bound belongs on the sheet;
+    // the list shrinks within it. See __tests__/render/modalListsShrink.test.ts.
+    flexShrink: 1,
   },
   row: {
     borderRadius: responsiveBorderRadius.lg,

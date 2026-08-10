@@ -6,15 +6,24 @@
 import React from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, Platform, type ViewStyle } from 'react-native';
 import { Target, Sparkles } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 export default function LifeGoalsPanel() {
-  const achievements = useGameSelector((s) => s.achievements);
+  // The LIVE achievement system, not `s.achievements` — that array's `completed`
+  // flag has no writer (`evaluateAchievements` is a no-op stub), so this panel
+  // rendered every life goal at 0% forever. `getSatisfiedAchievementIds` returns
+  // a superset of that all-false array, so a goal can only go from incomplete to
+  // complete here, never the reverse.
+  const earnedAchievementIds = useGameSelector(
+    (s) => getSatisfiedAchievementIds(s),
+    shallowEqual
+  );
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
 
   return (
@@ -39,9 +48,7 @@ export default function LifeGoalsPanel() {
         showsVerticalScrollIndicator={false}
       >
         {perks.map(perk => {
-          const isCompleted = achievements?.some(
-            a => a.id === perk.unlock?.achievementId && a.completed
-          ) ?? false;
+          const isCompleted = !!perk.unlock && earnedAchievementIds.includes(perk.unlock.achievementId);
           const current = isCompleted ? 1 : 0;
           const goalValue = 1;
           const progress = Math.min(1, current / goalValue);

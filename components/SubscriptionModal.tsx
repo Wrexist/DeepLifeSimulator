@@ -642,7 +642,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   riskSealLabel: {
-    fontSize: fontScale(7.5),
+    // Legibility floor: nothing ships below 10pt. This label sits on the
+    // paywall, so sub-10 fine print here is both unreadable and a review risk.
+    fontSize: fontScale(10),
     fontWeight: '900',
     color: GOLD_SOFT,
     letterSpacing: 0.3,

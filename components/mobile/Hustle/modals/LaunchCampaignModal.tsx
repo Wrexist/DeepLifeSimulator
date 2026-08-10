@@ -7,7 +7,7 @@
 import React, { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Megaphone, Radio, Smartphone, Sparkles, X, Zap } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -18,7 +18,7 @@ import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleCampaignKind } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const KINDS: { id: HustleCampaignKind; name: string; icon: any; blurb: string }[] = [
   { id: 'social', name: 'Social Media', icon: Smartphone, blurb: 'Highest ROI per dollar, fast feedback' },

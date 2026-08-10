@@ -36,7 +36,16 @@ const COMPANY_ID = 'co-1';
 const TYPE = (Object.keys(COMPANY_UPGRADES) as string[]).find(
   (t) => (COMPANY_UPGRADES as Record<string, unknown[]>)[t]?.length,
 )!;
-const UPGRADE = (COMPANY_UPGRADES as Record<string, { id: string; maxLevel: number; cost: number }[]>)[TYPE][0];
+// Pick an INCOME-bearing upgrade explicitly rather than trusting index 0.
+// The catalogue now also carries `ops_management`, which pays no weekly income
+// by design (its value is reducing Operating Overhead), so "the first entry
+// raises income" is no longer a safe assumption about ordering.
+const UPGRADE = (
+  COMPANY_UPGRADES as Record<
+    string,
+    { id: string; maxLevel: number; cost: number; weeklyIncomeBonus: number }[]
+  >
+)[TYPE].find((u) => u.weeklyIncomeBonus > 0)!;
 
 function withCompany(money: number, upgrades: unknown[] = []): GameState {
   const base = createTestGameState();

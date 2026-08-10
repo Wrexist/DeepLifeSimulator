@@ -29,7 +29,7 @@ import {
   Trophy,
   type LucideIcon,
 } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
@@ -51,7 +51,7 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 /** Sentinel for the "no ambition" (freeform) choice. */

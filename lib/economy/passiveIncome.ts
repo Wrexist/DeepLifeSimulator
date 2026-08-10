@@ -589,22 +589,17 @@ export function calcWeeklyPassiveIncome(
   const softCapThreshold = 10_000_000; // $10M threshold
   
   if (safeNetWorth > softCapThreshold && total > 0) {
-    // Calculate how many $10M increments above threshold
-    const incrementsAboveThreshold = Math.floor((safeNetWorth - softCapThreshold) / 10_000_000);
-    if (isFinite(incrementsAboveThreshold) && incrementsAboveThreshold >= 0) {
-      // Apply diminishing returns: 90% efficiency per $10M above threshold
-      // At $20M: 90% efficiency, at $30M: 81% efficiency, at $40M: 72.9% efficiency, etc.
-      const efficiencyMultiplier = Math.pow(0.9, incrementsAboveThreshold);
-      if (isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0) {
-        // ANTI-EXPLOIT: Reduced minimum efficiency from 50% to 25%
-        // Ultra-wealthy players still earn, but can't dominate with pure passive income
-        const finalEfficiency = Math.max(0.25, efficiencyMultiplier);
-        if (isFinite(finalEfficiency) && finalEfficiency > 0) {
-          const cappedTotal = Math.round(total * finalEfficiency);
-          if (isFinite(cappedTotal) && cappedTotal >= 0) {
-            total = cappedTotal;
-          }
-        }
+    // Diminishing returns: 90% efficiency per $10M above the threshold, floored
+    // at 25%. At $20M: 90%, at $30M: 81%, at $40M: 72.9%, and so on.
+    //
+    // Derived from the SAME helper a readout uses (`passiveIncomeEfficiency`),
+    // so the number shown to the player and the number charged can never drift
+    // apart — the advertised-vs-actual class these audits keep finding.
+    const finalEfficiency = passiveIncomeEfficiency(safeNetWorth, managementLevels(state.companies));
+    if (isFinite(finalEfficiency) && finalEfficiency > 0) {
+      const cappedTotal = Math.round(total * finalEfficiency);
+      if (isFinite(cappedTotal) && cappedTotal >= 0) {
+        total = cappedTotal;
       }
     }
   }
@@ -660,3 +655,109 @@ export function calcWeeklyPassiveIncome(
 }
 
 export type { PassiveIncomeBreakdown };
+
+/**
+ * Operating overhead — the passive-income soft cap, made legible.
+ *
+ * Above $10M net worth, total passive income is silently multiplied by
+ * `0.9^floor((netWorth - 10M) / 10M)`, floored at 25%. The mechanic is
+ * defensible; being INVISIBLE is not. $10M is also the prestige threshold, so
+ * the economy starts throttling at exactly the number where the game
+ * congratulates the player — and nothing anywhere tells them.
+ *
+ * These two exports change no math. They let a readout state the drag as a
+ * weekly cost the player can see and reason about, which is the prerequisite
+ * for turning it into a decision (buying management to reduce it) rather than
+ * a tax.
+ */
+export const PASSIVE_SOFT_CAP_THRESHOLD = 10_000_000;
+export const PASSIVE_SOFT_CAP_FLOOR = 0.25;
+
+/**
+ * Operating-management levels owned across every company.
+ *
+ * Read from the EXISTING `company.upgrades` array (id + level), so the
+ * management ladder needed no new stored field and no migration. The
+ * `ops_management` line pays no weekly income — its entire value is here.
+ */
+export function managementLevels(
+  companies: readonly { upgrades?: { id?: string; level?: number }[] }[] | undefined | null
+): number {
+  if (!Array.isArray(companies)) return 0;
+  let total = 0;
+  for (const company of companies) {
+    for (const upgrade of company?.upgrades ?? []) {
+      if (upgrade?.id !== 'ops_management') continue;
+      const level = upgrade.level;
+      if (typeof level === 'number' && Number.isFinite(level) && level > 0) total += level;
+    }
+  }
+  return total;
+}
+
+/** Percentage points of efficiency floor bought per management level. */
+export const MANAGEMENT_FLOOR_PER_LEVEL = 0.02;
+/** Most the floor can be raised, however much management is bought. */
+export const MAX_MANAGEMENT_FLOOR_GAIN = 0.20;
+
+/**
+ * The efficiency multiplier applied to passive income at this net worth.
+ *
+ * `managers` raises the FLOOR the decay bottoms out at — from 0.25 up to a
+ * hard 0.45. Deliberately a floor and not a multiplier: management should make
+ * a large empire survivable, never remove the cap. A wealthy player with full
+ * management still loses more than half their passive income to overhead.
+ */
+export function passiveIncomeEfficiency(
+  netWorthValue: number | undefined | null,
+  managers: number = 0
+): number {
+  const worth =
+    typeof netWorthValue === 'number' && isFinite(netWorthValue) && netWorthValue >= 0
+      ? netWorthValue
+      : 0;
+  const levels =
+    typeof managers === 'number' && Number.isFinite(managers) && managers > 0 ? managers : 0;
+  const floor =
+    PASSIVE_SOFT_CAP_FLOOR +
+    Math.min(MAX_MANAGEMENT_FLOOR_GAIN, levels * MANAGEMENT_FLOOR_PER_LEVEL);
+
+  if (worth <= PASSIVE_SOFT_CAP_THRESHOLD) return 1;
+  const increments = Math.floor((worth - PASSIVE_SOFT_CAP_THRESHOLD) / 10_000_000);
+  if (!isFinite(increments) || increments < 0) return 1;
+  const raw = Math.pow(0.9, increments);
+  if (!isFinite(raw) || raw <= 0) return floor;
+  return Math.max(floor, raw);
+}
+
+export interface OperatingOverhead {
+  /** 0..1 — what fraction of gross passive income survives. */
+  efficiency: number;
+  /** Weekly dollars lost to overhead. */
+  weeklyCost: number;
+  /** True once the drag is doing anything at all. */
+  active: boolean;
+}
+
+/**
+ * Describe the drag for a given gross weekly passive income.
+ *
+ * Takes the gross rather than reading state so a caller can report on any
+ * figure it already has, and so this stays a pure function.
+ */
+export function getOperatingOverhead(
+  grossWeeklyPassive: number | undefined | null,
+  netWorthValue: number | undefined | null,
+  managers: number = 0
+): OperatingOverhead {
+  const gross =
+    typeof grossWeeklyPassive === 'number' && isFinite(grossWeeklyPassive) && grossWeeklyPassive > 0
+      ? grossWeeklyPassive
+      : 0;
+  const efficiency = passiveIncomeEfficiency(netWorthValue, managers);
+  return {
+    efficiency,
+    weeklyCost: Math.round(gross * (1 - efficiency)),
+    active: efficiency < 1 && gross > 0,
+  };
+}

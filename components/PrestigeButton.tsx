@@ -1,12 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { Crown, Sparkles } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface PrestigeButtonProps {
   onPress: () => void;

@@ -7,7 +7,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, Gem, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
@@ -20,7 +20,7 @@ import {
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface RingSelectionModalProps {
   visible: boolean;
@@ -79,7 +79,7 @@ export default function RingSelectionModal({
             Proposing to {partnerName} — the ring affects your chances of a “yes”.
           </Text>
 
-          <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          <ScrollView style={[styles.list, { flexShrink: 1 }]} showsVerticalScrollIndicator={false}>
             {rings.map(({ ring, affordable, successRate }) => {
               const isSelected = ring.id === selectedRingId;
               return (

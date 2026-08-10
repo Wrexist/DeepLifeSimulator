@@ -15,7 +15,7 @@ import { Platform, Modal,
   Dimensions,
   Animated } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   X,
   BookOpen,
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react-native';
 import { Memory } from '@/lib/legacy/memories';
 import { scale, fontScale } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
 
@@ -265,7 +265,12 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
     const MemoryIcon = memoryStyle.icon;
 
     return (
-      <Modal visible={!!selectedMemory} transparent animationType="fade">
+      <Modal
+        visible={!!selectedMemory}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMemory(null)}
+      >
         <View style={styles.detailOverlay}>
           <View style={[styles.detailContainer, settings.darkMode && styles.detailContainerDark]}>
             <LinearGradient
@@ -342,7 +347,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <LinearGradient
           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}

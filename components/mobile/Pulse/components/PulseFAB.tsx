@@ -7,13 +7,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { scale, responsiveIconSize, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { PULSE_GRADIENT } from '../styles/pulseTheme';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface PulseFABProps {
   onPress: () => void;

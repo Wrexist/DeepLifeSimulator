@@ -12,7 +12,7 @@ import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, BarChart3, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
@@ -39,7 +39,7 @@ import RewardedAdModal from './modals/RewardedAdModal';
 import NpcProfileSheet, { type NpcStoryTarget } from './modals/NpcProfileSheet';
 import { formatPulseNumber } from './utils/formatPulseNumber';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 type PulseTab = 'home' | 'trending' | 'alerts' | 'dms';
 /** Overlay routes — full-screen pushed above the tab bar. */

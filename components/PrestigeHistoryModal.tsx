@@ -7,12 +7,12 @@ import { Platform, Modal,
   Animated,
   ScrollView,
   Dimensions } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { X, Crown, Calendar, DollarSign, TrendingUp, Users, RotateCcw } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
 

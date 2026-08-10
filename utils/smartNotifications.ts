@@ -638,18 +638,25 @@ class SmartNotificationSystem {
   }
 
   private triggerFeedback(notification: SmartNotification): void {
-    // Haptics + sound ONLY. Do NOT forward `notification.message` — the
-    // feedbackSystem.{error,warning,info}(message) helpers render any message
-    // through the same "ACHIEVEMENT UNLOCKED!" popup, which was a second path by
-    // which tips/warnings/celebrations mis-fired as achievements. The copy is
-    // shown by the notification center (and, for genuine rewarded achievements, by
-    // displayNotification above).
+    // The message used to be withheld here on purpose: the
+    // feedbackSystem.{error,warning,info}(message) helpers rendered through the
+    // "ACHIEVEMENT UNLOCKED!" popup, so forwarding copy made tips and warnings
+    // mis-fire as achievements. Those helpers now route to the toast channel
+    // instead, so the copy can travel with the buzz.
+    //
+    // That matters because the ticker fires once a week: a haptic and an error
+    // SOUND with nothing on screen reads as a bug and teaches the player to
+    // distrust the feedback. Only critical/high reach this path (the ticker
+    // filters to those two), and both deserve to be readable.
+    //
+    // medium/low stay silent-with-no-copy: they are surfaced by the
+    // notification center (the Bell) and are not worth an interruption.
     switch (notification.priority) {
       case 'critical':
-        this.feedbackSystem.error();
+        this.feedbackSystem.error(notification.message);
         break;
       case 'high':
-        this.feedbackSystem.warning();
+        this.feedbackSystem.warning(notification.message);
         break;
       case 'medium':
       case 'low':

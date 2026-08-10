@@ -11,7 +11,7 @@ import { Platform, View,
   Image,
   TouchableOpacity,
   ScrollView } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
@@ -45,7 +45,7 @@ import {
   verticalScale,
   fontScale,
 } from '@/utils/scaling';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
 type AchievementCategory = 'all' | 'career' | 'wealth' | 'social' | 'travel' | 'family' | 'health' | 'crime' | 'special';

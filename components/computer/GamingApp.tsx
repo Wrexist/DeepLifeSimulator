@@ -12,7 +12,7 @@
  *   • Studio tab    — a gear score ring + an owned/next-tier upgrade GRID using
  *                     the YouVideo/Upgrades art.
  *
- * Still Slate Glass: LinearGradientFallback only (colors[0] flat), elevation via
+ * Still Slate Glass: gradients via the SVG-backed `Gradient`, elevation via
  * getGlass* / getPlatformShadows, no expo-blur, no raw boxShadow, no `as any`.
  * ZERO REMOVAL — every prior action/stat is re-homed and still reachable.
  *
@@ -100,10 +100,11 @@ import {
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import ImageScrim from '@/components/ui/ImageScrim';
+import Gradient from '@/components/ui/Gradient';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Slate Glass identity accent for the Gaming app: violet #8B5CF6.
 const IDENTITY = '#8B5CF6';
@@ -956,7 +957,7 @@ function VideoThumb({
   const durStr = typeof v.duration === 'string' && v.duration.trim() ? v.duration.trim() : null;
   return (
     <ImageBackground source={videoThumb(v)} style={[styles.thumbBase, style]} imageStyle={styles.thumbImg} resizeMode="cover">
-      {scrim ? <View pointerEvents="none" style={styles.thumbScrim} /> : null}
+      {scrim ? <ImageScrim height={0.55} strength={0.5} color="#000000" /> : null}
       {badge ? (
         <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: tint(0.92) }]}>
           <Text style={styles.thumbBadgeText}>{badge}</Text>
@@ -1351,7 +1352,7 @@ const styles = StyleSheet.create({
   // Thumbnail primitive.
   thumbBase: { backgroundColor: '#0B1220', justifyContent: 'flex-end' },
   thumbImg: { borderRadius: 0 },
-  thumbScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%', backgroundColor: 'rgba(0,0,0,0.35)' },
+  // (the flat `thumbScrim` band is gone — VideoThumb renders ImageScrim)
   thumbPlayWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   thumbPlayBtn: {
     width: scale(44), height: scale(44), borderRadius: scale(22),

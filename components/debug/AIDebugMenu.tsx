@@ -19,7 +19,7 @@ import { Platform, View,
   Alert,
   ActivityIndicator,
   TextInput } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
   X,
   Play,
@@ -58,7 +58,7 @@ import {
 } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import SimulationRunner from '@/components/simulation/SimulationRunner';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface AIDebugMenuProps {
   visible: boolean;

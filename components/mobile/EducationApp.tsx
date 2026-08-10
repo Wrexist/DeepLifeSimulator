@@ -36,7 +36,7 @@ import { Education, GameState, Loan } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
 import EnrollModal, { EnrollTemplate } from '@/components/education/EnrollModal';
@@ -58,7 +58,7 @@ import {
 import { highestGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
 import { meritRate } from '@/lib/education/scholarships';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 // Education identity accent — cyan. Solid only on small CTAs/badges (≤44pt);
 // everywhere else it appears as translucent tints per the Slate Glass system.

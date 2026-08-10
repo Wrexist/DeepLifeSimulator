@@ -29,7 +29,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import {
  Users,
  Heart,
@@ -91,7 +91,7 @@ import {
  type NurtureStatKey,
 } from '@/lib/parenting';
 import type { ChildInfo, Relationship } from '@/contexts/game/types';
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 const c = colors.dark;
 
@@ -1497,6 +1497,12 @@ const styles = StyleSheet.create({
  },
  modalScroll: {
  flexGrow: 0,
+ // `flexShrink: 1` is the half that makes the sheet's `maxHeight` bite. RN
+ // defaults flexShrink to 0, so without it this list keeps its full content
+ // height and overflows the sheet — which is `overflow: 'hidden'`, so the
+ // tail of a long child's parenting actions is clipped with nothing to
+ // scroll. See __tests__/render/modalListsShrink.test.ts.
+ flexShrink: 1,
  },
  modalScrollContent: {
  padding: scale(16),

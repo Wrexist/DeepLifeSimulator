@@ -200,7 +200,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
               lands on the dark center. Text shadows on the title/subtitle keep
               them legible no matter how the art crops across screen widths.
               (No scrim overlay: this component's LinearGradient is the flat
-              LinearGradientFallback, which can't render a directional scrim, and
+              the flat gradient stub, which could not render a directional scrim, and
               a flat tint would dim the crown the design depends on.) */}
           <View style={styles.bannerCrownSpacer} pointerEvents="none" />
 

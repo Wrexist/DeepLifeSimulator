@@ -74,4 +74,23 @@ export interface WeekContext {
    * omit it keep working — consumers fall back to the neutral (all-1) set.
    */
   lifeSkillMods?: LifeSkillModifiers;
+  /**
+   * Mandatory costs a reducer could not fully cover this week.
+   *
+   * The v31 arrears system only ever covered the SIX bill lines computed before
+   * the money writeback (tax, rent, housing wellbeing/upkeep, diet, education).
+   * Everything charged after it — luxury upkeep, insurance, crime fines,
+   * student-loan payments — did `money = Math.max(0, money - cost)`, so a cost
+   * the player could not afford was silently FORGIVEN. A player owning the full
+   * luxury collection owes $556,820/wk; if they could not pay, the shortfall
+   * vanished and they kept both the collection and its $301,200/wk of yields.
+   *
+   * Reducers now call `chargeOrDefer` instead, which pays what it can and adds
+   * the remainder here. The caller folds this into `overdueBalance` alongside
+   * the arrears result, so the money axis has one failure state instead of two
+   * different answers depending on which side of the writeback a cost sits.
+   *
+   * Optional so existing fixtures and callers that omit it keep working.
+   */
+  deferredCharges?: number;
 }

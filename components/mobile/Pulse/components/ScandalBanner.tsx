@@ -11,14 +11,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import Gradient from '@/components/ui/Gradient';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { PULSE_SCANDAL_HIGH, PULSE_SCANDAL_MID } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseActiveScandal } from '@/contexts/game/types';
 
-const LinearGradient = LinearGradientFallback;
+const LinearGradient = Gradient;
 
 interface ScandalBannerProps {
   scandal: PulseActiveScandal;
