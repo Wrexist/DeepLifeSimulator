@@ -143,16 +143,31 @@ try {
   await sleep(2500);
 
   // ── The two things a player does first ──────────────────────────────────
-  console.log('→ take the entry-level job');
-  await tap('Work'); await sleep(2200);
-  await tap('Career'); await sleep(2400);
-  const applied = await tap('Apply');
-  console.log('   apply tapped:', applied);
-  await sleep(2600);
-  for (const l of ['Accept', 'Confirm', 'Take the job', 'Got it', 'Continue', 'Close']) {
-    if ((await text()).includes(l) && (await tap(l))) break;
+  // ── The job is OPTIONAL, and that is the experiment ─────────────────────
+  // Every job carries a `weeklyToll` (lib/careers/jobMarket.ts) that is
+  // NEGATIVE on happiness and energy — Line Cook is -14 energy, and the career
+  // cards show -3 happiness / -2 health a week. In classic mode a player
+  // absorbs that by resting and spending between weeks. Story mode removes
+  // exactly those weeks, so the toll compounds unopposed for the whole batch.
+  //
+  // Set NO_JOB=1 to skip employment and isolate the toll's contribution. With
+  // a Lottery Winner's $500,000 there is no reason to work at all, which makes
+  // the unemployed wealthy run both the cleanest experiment and the most
+  // plausible route to a year that actually completes.
+  if (process.env.NO_JOB) {
+    console.log('→ skipping the job (NO_JOB set) — isolating the weekly toll');
+  } else {
+    console.log('→ take the entry-level job');
+    await tap('Work'); await sleep(2200);
+    await tap('Career'); await sleep(2400);
+    const applied = await tap('Apply');
+    console.log('   apply tapped:', applied);
+    await sleep(2600);
+    for (const l of ['Accept', 'Confirm', 'Take the job', 'Got it', 'Continue', 'Close']) {
+      if ((await text()).includes(l) && (await tap(l))) break;
+    }
+    await sleep(1500);
   }
-  await sleep(1500);
 
   console.log('→ rent the cheapest room');
   await tap('Life'); await sleep(2200);
