@@ -10,9 +10,12 @@ they're left as boxes for you.
 
 ## 🚀 Releasing v2.7.0 (Story Mode) — the exact remaining steps
 
-Everything in the repo is done: preflight passes, the suite is green, the weekly
-audit is clean, and the store copy is written with verified character counts.
-What is left needs credentials or hardware that do not live in the repository.
+Everything in the repo is done: the suite is green (6 511 tests), the weekly
+audit is clean, the store copy is written with verified character counts, and
+the full preflight chain exits 0 — **once the two secrets in step 1 exist**.
+Without them preflight fails on save signing and receipt verification, by
+design: those two checks are the reason a build cannot ship unconfigured. What
+is left needs credentials or hardware that do not live in the repository.
 In order:
 
 **1. Set the two EAS secrets** (~2 min) — without these the build refuses every
@@ -33,12 +36,19 @@ eas env:create --scope project --name EXPO_PUBLIC_SAVE_HMAC_KEY \
 **2. Confirm preflight passes with the real environment** (~3 min)
 
 ```bash
-npm run preflight
+npm run preflight; echo "EXIT: $?"
 ```
 
-Expect `✅ ALL PREFLIGHT CHECKS PASSED`. §9b now checks the analytics pipeline —
-`EXPO_PUBLIC_ENABLE_FIREBASE=true` is already in `eas.json` production, so this
-release ships with a working funnel and no server to run.
+**Check the exit code, not the banner.** `npm run preflight` is five commands —
+`check:routes && preflight-check.js && lint:errors && lint:ratchet &&
+check:content` — and the cheerful `✅ ALL PREFLIGHT CHECKS PASSED` box belongs
+to the *second* of them. A later step can fail underneath a green banner; that
+happened during v2.7.0 development and went unnoticed for several commits. Only
+`EXIT: 0` means the whole chain passed.
+
+§9b now checks the analytics pipeline — `EXPO_PUBLIC_ENABLE_FIREBASE=true` is
+already in `eas.json` production, so this release ships with a working funnel
+and no server to run.
 
 **3. Build and submit** (~40 min, mostly waiting) — trigger the EAS production
 build. `package.json` is already at `2.7.0`; the iOS build number comes from
