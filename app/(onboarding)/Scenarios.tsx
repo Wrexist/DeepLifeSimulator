@@ -576,7 +576,12 @@ export default function Scenarios() {
           onChange={onSelectGameMode}
         />
 
-        <View style={{ height: 140 }} />
+        {/* Clears the pinned "Continue" bar, AND leaves enough travel that the
+            last section can be scrolled fully clear of the sticky tab row above.
+            At 140 the pace picker was the final block, so max scroll still left
+            its heading cut in half under the tabs — the section could never be
+            read in full. */}
+        <View style={{ height: 260 }} />
       </ScrollView>
     </OnboardingScreenShellV2>
   );

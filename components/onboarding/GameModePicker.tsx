@@ -11,13 +11,24 @@
  * Classic is listed first and is what an unset value resolves to, because it is
  * the original game and the pace every existing save is already playing at.
  *
+ * ── Layout ────────────────────────────────────────────────────────────────
+ * Each card reads left-to-right as: what it is (icon badge) → what it does
+ * (title + tempo chip) → what that feels like (blurb) → whether it is chosen
+ * (radio). The radio matters: two cards where selection is signalled only by a
+ * border colour is a state a colourblind player has to infer, so the chosen one
+ * carries an explicit filled check as well as the border and tint.
+ *
+ * The tempo — "1 tap = 1 week" vs "1 tap = 52 weeks" — is set as a chip rather
+ * than body text because it is the single fact that decides the choice, and it
+ * should survive someone skimming the screen without reading a word of prose.
+ *
  * Styling note: full `borderWidth` on all four sides, never a one-sided colored
  * stripe — see Hard Rule #7 in CLAUDE.md.
  */
 
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CalendarDays, FastForward, Check } from 'lucide-react-native';
+import { CalendarDays, FastForward, Check, Compass } from 'lucide-react-native';
 import type { GameMode } from '@/contexts/game/types';
 import { resolveGameMode, STORY_MODE_WEEKS_PER_TAP } from '@/lib/gameMode/mode';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -61,17 +72,28 @@ export function GameModePicker({ value, onChange, darkMode = true }: GameModePic
   const c = getThemeColors(darkMode);
   // `getThemeColors` carries surfaces and text only; the selection colour comes
   // from the semantic accent palette, per CLAUDE.md §5.
-  const selectedColor = accent.info;
+  const hi = accent.info;
   const active = resolveGameMode(value);
 
   const handlePress = useCallback((mode: GameMode) => () => onChange(mode), [onChange]);
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.heading, { color: c.text }]}>Choose your pace</Text>
-      <Text style={[styles.sub, { color: c.textSecondary }]}>
-        You can&apos;t change this later, so pick the one you want to live in.
-      </Text>
+      {/* Separates the pace choice from the scenario list above it — they are
+          two different decisions and were reading as one long column. */}
+      <View style={[styles.divider, { backgroundColor: c.border }]} />
+
+      <View style={styles.headerRow}>
+        <View style={[styles.headerBadge, { backgroundColor: hi + '1F', borderColor: hi + '4D' }]}>
+          <Compass size={scale(18)} color={hi} />
+        </View>
+        <View style={styles.headerText}>
+          <Text style={[styles.heading, { color: c.text }]}>Choose your pace</Text>
+          <Text style={[styles.sub, { color: c.textSecondary }]}>
+            You can&apos;t change this later, so pick the one you want to live in.
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.options}>
         {MODES.map((mode) => {
@@ -84,24 +106,48 @@ export function GameModePicker({ value, onChange, darkMode = true }: GameModePic
               activeOpacity={0.85}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`${mode.title} mode, ${mode.tempo}`}
+              accessibilityLabel={`${mode.title} mode, ${mode.tempo}. ${mode.blurb}`}
               style={[
                 styles.card,
                 {
-                  backgroundColor: selected ? selectedColor + '1A' : c.surface,
-                  borderColor: selected ? selectedColor : c.border,
+                  backgroundColor: selected ? hi + '14' : c.surface,
+                  borderColor: selected ? hi : c.border,
                 },
               ]}
             >
-              <View style={styles.cardHead}>
-                <Icon size={scale(18)} color={selected ? selectedColor : c.textSecondary} />
-                <Text style={[styles.cardTitle, { color: c.text }]}>{mode.title}</Text>
-                {selected ? <Check size={scale(16)} color={selectedColor} /> : null}
+              <View
+                style={[
+                  styles.iconBadge,
+                  {
+                    backgroundColor: selected ? hi + '26' : c.surfaceElevated,
+                    borderColor: selected ? hi + '59' : c.border,
+                  },
+                ]}
+              >
+                <Icon size={scale(22)} color={selected ? hi : c.textSecondary} />
               </View>
-              <Text style={[styles.tempo, { color: selected ? selectedColor : c.textSecondary }]}>
-                {mode.tempo}
-              </Text>
-              <Text style={[styles.blurb, { color: c.textSecondary }]}>{mode.blurb}</Text>
+
+              <View style={styles.cardBody}>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.cardTitle, { color: c.text }]}>{mode.title}</Text>
+                  <View
+                    style={[
+                      styles.radio,
+                      selected
+                        ? { backgroundColor: hi, borderColor: hi }
+                        : { borderColor: c.borderStrong },
+                    ]}
+                  >
+                    {selected ? <Check size={scale(13)} color="#FFFFFF" strokeWidth={3} /> : null}
+                  </View>
+                </View>
+
+                <View style={[styles.tempoChip, { backgroundColor: hi + '1F' }]}>
+                  <Text style={[styles.tempoText, { color: hi }]}>{mode.tempo}</Text>
+                </View>
+
+                <Text style={[styles.blurb, { color: c.textSecondary }]}>{mode.blurb}</Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -115,42 +161,86 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingTop: responsiveSpacing.sm,
     paddingBottom: responsiveSpacing.md,
-    gap: responsiveSpacing.xs,
+    gap: responsiveSpacing.md,
   },
+  divider: {
+    height: 1,
+    width: '100%',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
+  },
+  headerBadge: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: { flex: 1, gap: scale(3) },
   heading: {
-    fontSize: fontScale(17),
+    fontSize: fontScale(18),
     fontWeight: '700',
   },
   sub: {
     fontSize: fontScale(12.5),
-    marginBottom: responsiveSpacing.xs,
+    lineHeight: fontScale(17),
   },
   options: {
     gap: responsiveSpacing.sm,
   },
   card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: scale(14),
     borderWidth: 1,
-    borderRadius: scale(12),
+    borderRadius: scale(16),
     padding: responsiveSpacing.md,
-    gap: scale(4),
   },
-  cardHead: {
+  iconBadge: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: { flex: 1, gap: scale(7) },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: scale(8),
   },
   cardTitle: {
-    fontSize: fontScale(15.5),
+    fontSize: fontScale(18),
     fontWeight: '700',
-    flex: 1,
+    flexShrink: 1,
   },
-  tempo: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
+  radio: {
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tempoChip: {
+    alignSelf: 'flex-start',
+    borderRadius: scale(8),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+  },
+  tempoText: {
+    fontSize: fontScale(12.5),
+    fontWeight: '700',
   },
   blurb: {
     fontSize: fontScale(12.5),
-    lineHeight: fontScale(17),
+    lineHeight: fontScale(18),
   },
 });
 
