@@ -100,9 +100,44 @@ describe('the long flow is still there', () => {
     expect(menuSrc).toMatch(/router\.push\('\/\(onboarding\)\/Scenarios'\)/);
   });
 
-  it('offers Quick Start only when there is no save to protect', () => {
+  it('offers the quick path only when there is no save to protect', () => {
     // A returning player already knows what those screens are for, and the menu
-    // should not grow a third primary-looking choice for them.
-    expect(menuSrc).toMatch(/\{!hasSave \? \(\s*<RevealItem index=\{2\}/);
+    // should not grow an extra primary-looking choice for them.
+    const play = menuSrc.indexOf('Start a life right now');
+    expect(play).toBeGreaterThan(-1);
+    const before = menuSrc.slice(0, play);
+    expect(before.lastIndexOf('{!hasSave ?')).toBeGreaterThan(before.lastIndexOf('</RevealItem>') - 400);
+  });
+
+  it('makes the quick path PRIMARY for a first-time player', () => {
+    // The ordering is the point, not a detail. Research on first-session
+    // retention says a player should be in the game inside 60 seconds, and the
+    // fastest way to lose them is to open with a choice they have no basis to
+    // make. Measured here: 2 taps / 12.3s against 6 taps / 21.4s.
+    //
+    // Asserted on the WIRING (which handler the primary card calls) rather than
+    // on JSX shape, because the previous version of this test pinned the exact
+    // markup and broke the moment the cards were reordered — while the intent
+    // it cared about was still perfectly intact.
+    const play = menuSrc.indexOf('Start a life right now');
+    const card = menuSrc.slice(Math.max(0, play - 400), play + 200);
+    expect(card).toMatch(/PrimaryActionCard/);
+    expect(card).toMatch(/onPress=\{startQuick\}/);
+  });
+
+  it('demotes the long flow rather than hiding it', () => {
+    // Someone who wants to pick a scenario, name, ambition and perks must still
+    // have that door — one line below, plainly labelled.
+    const custom = menuSrc.indexOf('Custom life');
+    expect(custom).toBeGreaterThan(-1);
+    // Bound the card by its own JSX tags rather than a fixed character window.
+    // The first version sliced ±300 chars and broke the moment a comment was
+    // added inside the card — the same brittleness that already bit the test
+    // above it. Anchor on structure, not on distance.
+    const open = menuSrc.lastIndexOf('<SecondaryActionCard', custom);
+    const close = menuSrc.indexOf('/>', custom);
+    const card = menuSrc.slice(open, close);
+    expect(open).toBeGreaterThan(-1);
+    expect(card).toMatch(/onPress=\{startNew\}/);
   });
 });

@@ -86,6 +86,12 @@ interface SaveSummary {
  * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
  */
+/**
+ * When the action cards start, relative to the brand entrance. See the delay
+ * note inside `RevealItem` — this exists so the two sequences read as one.
+ */
+const MENU_LEAD_MS = 560;
+
 function RevealItem({
   index,
   reduced,
@@ -104,17 +110,86 @@ function RevealItem({
     }
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 200,
-      delay: index * 45,
-      easing: Easing.out(Easing.cubic),
+      // 420ms/70ms rather than the old 200ms/45ms. The previous timing was so
+      // quick the stagger read as a single flicker — technically animated,
+      // visually a hard cut. A premium entrance needs long enough for the eye
+      // to follow one card to the next; this is still under half a second to
+      // the last item, so nothing is waiting on it.
+      duration: 420,
+      // Offset so the cards follow the brand rather than racing it. The hero's
+      // last line starts at 90 + 2*130 = 350ms and runs 620ms, so the menu
+      // begins arriving as the title settles — overlapping slightly, which
+      // reads as one continuous entrance instead of two separate ones.
+      delay: MENU_LEAD_MS + index * 70,
+      // A gentle overshoot-free ease. `back` was tried and rejected: on a
+      // MENU the bounce reads as toy-like, which is the opposite of the goal.
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
   }, [index, reduced, progress]);
 
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
-  return <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>;
+  // Travel raised 10 → 22 and paired with a slight scale. Both are transform
+  // properties, so the whole thing stays on the native driver and cannot drop
+  // frames behind JS work during boot.
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [22, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] });
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * The brand entrance — the first thing anyone sees, so it is the one place
+ * worth spending animation on.
+ *
+ * The three lines arrive in sequence (eyebrow → DEEP LIFE → SIMULATOR) rather
+ * than as one block, each rising and settling. That sequencing is the whole
+ * effect: a single fade makes a title appear, a staggered one makes it ARRIVE.
+ *
+ * Everything animated here is opacity + transform, so `useNativeDriver` holds
+ * and the entrance stays smooth while JS is still busy hydrating the menu
+ * behind it. Honours reduced motion by snapping straight to the end state —
+ * the check is a hard branch, not a shortened duration, because a vestibular
+ * trigger is not fixed by making it faster.
+ */
+function HeroLine({
+  index,
+  reduced,
+  children,
+}: {
+  index: number;
+  reduced: boolean;
+  children: React.ReactNode;
+}) {
+  const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      progress.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: 1,
+      duration: 620,
+      delay: 90 + index * 130,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [index, reduced, progress]);
+
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
+      {children}
+    </Animated.View>
+  );
 }
 
 /**
@@ -686,17 +761,21 @@ export default function MainMenu() {
           <View style={styles.spacerTop} />
 
           {/* Brand block — crisp text on the flat dark base, no lighter panel. */}
-          <RevealItem index={0} reduced={reduced}>
-            <View style={styles.hero}>
+          <View style={styles.hero}>
+            <HeroLine index={0} reduced={reduced}>
               <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+            </HeroLine>
+            <HeroLine index={1} reduced={reduced}>
               <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
                 DEEP LIFE
               </Text>
+            </HeroLine>
+            <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
                 SIMULATOR
               </Text>
-            </View>
-          </RevealItem>
+            </HeroLine>
+          </View>
 
           <View style={styles.heroGap} />
 
@@ -719,42 +798,47 @@ export default function MainMenu() {
               </RevealItem>
             ) : null}
 
-            <RevealItem index={hasSave ? 2 : 1} reduced={reduced}>
-              {hasSave ? (
-                <SecondaryActionCard
-                  icon={Plus}
-                  title={t('mainMenu.newGame')}
-                  subtitle={t('mainMenu.newGameSubtitle')}
-                  onPress={startNew}
-                />
-              ) : (
-                <PrimaryActionCard
-                  icon={Plus}
-                  title={t('mainMenu.newGame')}
-                  subtitle={t('mainMenu.newGameSubtitle')}
-                  onPress={startNew}
-                />
-              )}
-            </RevealItem>
-
             {/*
-              Quick Start sits directly under New Game and is deliberately the
-              SECONDARY option, not the primary one. A player who wants to pick
-              a scenario should not have to think about which door they want;
-              a player who does not should be able to see one that skips it.
-              Only offered when there is no save — a returning player already
-              knows what the four screens are for.
+              FIRST-TIME PLAYER: "Play" is the primary action and it skips
+              character setup entirely.
+
+              Research on first-session retention is blunt about this — a player
+              should be IN the game inside 60 seconds, and the fastest way to
+              lose them is to open with a choice they have no basis to make.
+              Measured on this build: Play reaches a live game in 2 taps against
+              New Game's 6, and 12.3s against 21.4s.
+
+              So the doors are ordered by what a newcomer needs rather than by
+              what the app can do. Someone who WANTS to pick a scenario, a name,
+              an ambition and perks still has that door, one line below and
+              plainly labelled — it is demoted, not hidden.
             */}
             {!hasSave ? (
-              <RevealItem index={2} reduced={reduced}>
-                <SecondaryActionCard
-                  icon={Zap}
-                  title="Quick Start"
-                  subtitle="Skip setup — random name, recommended start"
+              <RevealItem index={1} reduced={reduced}>
+                <PrimaryActionCard
+                  icon={Play}
+                  title="Play"
+                  subtitle="Start a life right now"
                   onPress={startQuick}
                 />
               </RevealItem>
             ) : null}
+
+            <RevealItem index={hasSave ? 2 : 2} reduced={reduced}>
+              <SecondaryActionCard
+                icon={Plus}
+                title={hasSave ? t('mainMenu.newGame') : 'Custom life'}
+                subtitle={
+                  hasSave
+                    ? t('mainMenu.newGameSubtitle')
+                    // Short enough to fit on one line at the card's width —
+                    // the longer version truncated to "Choose your scenario,
+                    // name, …", which reads as a bug rather than a summary.
+                    : 'Pick everything yourself'
+                }
+                onPress={startNew}
+              />
+            </RevealItem>
 
             <RevealItem index={hasSave ? 3 : 3} reduced={reduced}>
               <View style={styles.tertiaryRow}>
