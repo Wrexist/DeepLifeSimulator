@@ -28,13 +28,14 @@
  * Pressable listens for and which cannot block.
  *
  * ── KNOWN LIMIT: screens 04-06 are NOT capturable from the dev server ─────
- * Measured, not assumed. Each weekly tick costs roughly 20 SECONDS in the
- * unminified dev bundle under headless Chromium — a full 52-week year is about
- * 17 minutes, and the HUD's own 30s stuck-button guard re-arms long before the
- * batch finishes, so the next tap starts a year that `liveYearInProgressRef`
- * then correctly rejects. Three taps advance ~11 weeks. Raising the per-tap
- * wait to 90s and disabling requestAnimationFrame throttling both help and
- * neither is close to sufficient.
+ * Measured, not assumed, and the final number is worse than the first estimate.
+ * A single tap was polled for a full 25 MINUTES and advanced roughly 11 of its
+ * 52 weeks — about 136 seconds per weekly tick in the unminified dev bundle
+ * under headless Chromium. A complete year is over an hour, so the Year in
+ * Review (which only mounts once `liveYear` RESOLVES) never appears. Raising
+ * the per-tap wait, polling instead of sleeping, and disabling
+ * requestAnimationFrame throttling were all tried; none of them move a number
+ * that far.
  *
  * A production web export is the right fix for the speed, but it introduces a
  * second blocker: `resolveSaveSigningRuntimeConfig` needs EXPO_PUBLIC_* values
@@ -197,7 +198,7 @@ try {
   console.log('→ living years');
   let gotReview = false;
   let gotOffer = false;
-  for (let year = 1; year <= 3; year++) {
+  for (let year = 1; year <= 1; year++) {
     const advanced = await page.evaluate(() => {
       const el =
         document.querySelector('[aria-label="Live the next year"]') ||
@@ -218,9 +219,15 @@ try {
     // 52 ticks. Measured at ~184ms in Node, but this is an UNMINIFIED dev web
     // bundle with React DevTools hooks live — an order of magnitude slower. Six
     // seconds silently screenshotted a year that had not finished running.
-    await sleep(90000);
-
-    const t = await text();
+    // Poll for up to 25 minutes: the Year in Review only mounts once liveYear
+    // RESOLVES, and a full 52-tick batch is ~18 minutes in the dev bundle.
+    let t = '';
+    for (let waited = 0; waited < 1500; waited += 10) {
+      await sleep(10000);
+      t = await text();
+      if (/weeks? lived/.test(t)) { console.log(`   year landed after ~${waited}s`); break; }
+      if (waited % 120 === 0) console.log(`   ...${waited}s`);
+    }
     const inReview = /weeks? lived/.test(t);
     const hasOffer = t.includes('Make the next one count');
     console.log(`   year ${year}: review=${inReview} offer=${hasOffer}`);
