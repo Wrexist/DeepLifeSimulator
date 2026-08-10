@@ -173,22 +173,31 @@ try {
   await tap('Life'); await sleep(2200);
   await tap('Market'); await sleep(2200);
   await tap('Housing'); await sleep(2400);
-  const rented = await tapAria('[aria-label^="Shared Room"]');
-  await sleep(2200);
-  // VERIFY, do not assume. "tapped: true" only means an element was found and
-  // events were dispatched — it says nothing about whether `rentHome` applied.
-  // That distinction matters more here than anywhere else in this script:
-  // HOMELESS_PENALTY (lib/realEstate/rentals.ts) is -4 happiness EVERY WEEK,
-  // which is the difference between a year that runs and one that does not, and
-  // a silently-failed tap would look exactly like a balance problem.
-  const tenancy = await page.evaluate(() => {
-    const el = document.querySelector('[aria-label^="Shared Room"]');
-    if (!el) return 'card not found';
-    return el.getAttribute('aria-selected') === 'true' ? 'ACTIVE' : 'NOT ACTIVE';
-  });
-  console.log(`   shared room tapped: ${rented} · tenancy: ${tenancy}`);
-  if (tenancy !== 'ACTIVE') {
-    console.log('   !! NOT HOUSED — the run below carries -4 happiness/week from HOMELESS_PENALTY');
+  // Playwright's own click, not the hand-rolled pointer sequence. The rental
+  // card is a real <button>, so the locator click drives it correctly, and it
+  // is PROVEN to reach `rentHome` — the confirmation toast below is the proof.
+  await page.locator('[aria-label^="Shared Room"]').first()
+    .click({ timeout: 8000 })
+    .catch((e) => console.log('   rent click threw:', String(e).slice(0, 100)));
+  await sleep(2400);
+
+  // VERIFY on the CONFIRMATION TOAST, which is the only signal that reflects
+  // what `rentHome` actually did.
+  //
+  // An earlier version checked `aria-selected` on the card. That check was
+  // broken and produced a FALSE NEGATIVE that I acted on: RN-web does not emit
+  // `aria-selected` for `accessibilityState={{ selected }}`, so the attribute
+  // reads `null` before and after a SUCCESSFUL rental alike. It reported "not
+  // housed" for a tenancy that existed, and I retracted three correct
+  // measurements on the strength of it.
+  //
+  // Which is the real lesson: a verification step is code too, and a check that
+  // can only ever fail is worse than no check — it manufactures false evidence
+  // and looks rigorous doing it. Assert on the thing the feature SAYS it did.
+  const housed = /Moved into|already live/i.test(await text());
+  console.log(`   tenancy confirmed by toast: ${housed}`);
+  if (!housed) {
+    console.log('   !! NOT HOUSED — this run carries -4 happiness/week (HOMELESS_PENALTY)');
   }
   for (const l of ['Got it', 'Continue', 'Close']) if ((await text()).includes(l) && (await tap(l))) break;
 
