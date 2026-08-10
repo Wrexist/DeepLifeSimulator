@@ -76,6 +76,23 @@ const MEASURED = {
  * is a balance project needing playtesting, not a mechanical sweep. Doubling
  * every effect without playing it would trade a measurable weakness for an
  * unmeasured one.
+ *
+ * ── TWO HYPOTHESES ALREADY TESTED AND DISPROVED (2026-08-09) ──────────────
+ * Recorded so nobody spends the afternoon re-testing them:
+ *
+ * 1. "Flavour events drag the median down." `nearMissEvents.ts` declares in its
+ *    own header that it has "no major stat consequences; they exist purely for
+ *    psychological tension", so it looked like the culprit. Excluding all 41 of
+ *    its effects moves the median from 6 to... 6. The low stakes are systemic
+ *    across the corpus, not one file, so segmenting the metric would hide the
+ *    problem rather than measure it better.
+ *
+ * 2. "Non-divergent choices can be detected statically." A regex pass over
+ *    choice sets (same sign, spread < 10) reported 63% — and the first example
+ *    inspected was a false positive, a ternary that does branch on outcome.
+ *    Correcting for computed effects swung the answer to 0%. Two attempts, two
+ *    wrong numbers: choice divergence needs a real parser or a human, and a
+ *    gate built on that regex would have been worse than no gate.
  */
 const CURRENT = {
   medianAbsHappiness: 6,
