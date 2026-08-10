@@ -104,10 +104,33 @@ export function isInDanger(vitals: DangerVitals | null | undefined): boolean {
 /**
  * Why a batch ended before its requested span.
  *
- * `'halted'` is the failure case — a tick that did not advance. `'danger'` is
- * the deliberate one.
+ * `'halted'` is the failure case — a tick that did not advance. The rest are
+ * deliberate, and they are the POINT of the mode rather than exceptions to it.
+ *
+ * ── Why a batch stopping early is the feature, not a failure ──────────────
+ * This started as "one tap = 52 weeks", and measurement killed that promise:
+ * a default character reached 7 weeks, and a wealthy, housed, unemployed one
+ * reached 16. Per-week attribution found the cause, and it was not decay —
+ * baseline decay is -0.6 happiness a week, which is sustainable indefinitely.
+ * It was a DISEASE running its full six-week course untreated, because a batch
+ * never gives the player the turn in which they would have treated it.
+ *
+ * Four attempts to fix that by tuning numbers (danger threshold, wealth
+ * multiplier, grace period, job tolls) were tested and all four were wrong.
+ * The real problem was never the length of the year. It was that the batch
+ * was ALL-OR-NOTHING: run 52 weeks blind, or stop and say nothing useful.
+ *
+ * So the promise changed instead of the balance. Time advances until the life
+ * needs its player — illness, danger, a decision — and then hands back with
+ * the story of what happened. A quiet year runs the full 52; an eventful one
+ * stops in week 11 with "you've developed allergies". Both are correct, and
+ * the second is more interesting than either a silent 52 or a mystery collapse.
+ *
+ * That framing costs nothing this mode had promised: the simulation is still
+ * identical week for week (`__tests__/gameMode/batchEquivalence.test.ts`), and
+ * nothing is decided for the player — stopping is the opposite of deciding.
  */
-export type YearStopReason = 'danger' | 'halted';
+export type YearStopReason = 'danger' | 'halted' | 'illness';
 
 /** What one iteration of a batch observed, for `shouldStopBatch` to judge. */
 export interface BatchTickObservation {
@@ -117,6 +140,14 @@ export interface BatchTickObservation {
   startedInDanger: boolean;
   /** Vitals after the tick, or null/undefined if they could not be read. */
   vitals: DangerVitals | null | undefined;
+  /**
+   * Name of a disease contracted THIS tick, if any.
+   *
+   * Only a NEW one counts. An illness the player already had when they tapped
+   * is one they have chosen to live with, and stopping every week for it would
+   * be the same nag loop `startedInDanger` exists to prevent.
+   */
+  newIllness?: string | null;
 }
 
 /**
@@ -131,10 +162,15 @@ export interface BatchTickObservation {
  * exercised directly, and the loop is reduced to one call.
  */
 export function shouldStopBatch(obs: BatchTickObservation): YearStopReason | null {
-  // Order matters: a tick that did not advance is a failure, and reporting it
-  // as `danger` would tell the player to go fix a life that is fine.
+  // Order matters, and it is by severity of what the player must be told.
+  // A tick that did not advance is a failure, and reporting it as `danger`
+  // would tell the player to go fix a life that is fine.
   if (!obs.advanced) return 'halted';
   if (!obs.startedInDanger && isInDanger(obs.vitals)) return 'danger';
+  // Illness ranks BELOW danger deliberately: a batch that both made the player
+  // ill and drove them into danger should report the danger, which is the
+  // condition that ends lives. The illness is in the recap either way.
+  if (obs.newIllness) return 'illness';
   return null;
 }
 
@@ -176,6 +212,15 @@ export interface YearDigest {
    * that broke. Nothing here can be a week stale.
    */
   stoppedEarly?: YearStopReason;
+  /**
+   * Name of the illness that stopped the batch, when `stoppedEarly` is
+   * `'illness'`. Same exemption as above: the loop observed it as it happened.
+   *
+   * Carried so the recap can say "You've developed allergies" rather than
+   * "the year stopped early" — the difference between a moment in a life and
+   * an error message.
+   */
+  illnessName?: string;
 }
 
 /** Why the year ended where it did. Derived from live state, never reported. */
@@ -186,6 +231,8 @@ export type YearOutcome =
   | 'death'
   /** Handed back early because health or happiness crossed into danger. */
   | 'danger'
+  /** Handed back early because the player fell ill and can now treat it. */
+  | 'illness'
   /** Events queued up and are waiting on the player. */
   | 'decision'
   /** Nothing advanced at all. */
@@ -204,6 +251,14 @@ export interface YearSummary {
   netWorthAfter: number;
   netWorthDelta: number;
   notes: string[];
+  /**
+   * The illness that ended the year, when `outcome` is `'illness'`.
+   *
+   * Carried through from the digest so the recap can name it. "You've come
+   * down with the flu" is a moment in a life; "the year stopped early" is an
+   * error message about one.
+   */
+  illnessName?: string;
 }
 
 /** The "after" half, read from whatever the caller currently has committed. */
@@ -234,10 +289,12 @@ export function summarizeYear(digest: YearDigest, after: YearAfter): YearSummary
   if (after.died) outcome = 'death';
   else if (weeksAdvanced <= 0) outcome = 'blocked';
   else if (digest.stoppedEarly === 'danger') outcome = 'danger';
+  else if (digest.stoppedEarly === 'illness') outcome = 'illness';
   else if (after.pendingDecisions > 0) outcome = 'decision';
   else outcome = 'year-complete';
 
   return {
+    illnessName: digest.illnessName,
     weeksAdvanced,
     outcome,
     ageBefore: digest.before.age,

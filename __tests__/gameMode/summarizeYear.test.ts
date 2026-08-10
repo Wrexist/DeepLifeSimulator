@@ -8,6 +8,7 @@
  * `weeksAdvanced` from the clock rather than trusting anything the loop counted.
  */
 
+import { wasAGoodYear } from '@/components/YearInReviewModal';
 import {
   summarizeYear,
   resolveGameMode,
@@ -255,5 +256,96 @@ describe('shouldStopBatch', () => {
     // every batch after one week on any save the ref could not resolve.
     expect(shouldStopBatch({ advanced: true, startedInDanger: false, vitals: null })).toBeNull();
     expect(shouldStopBatch({ advanced: true, startedInDanger: false, vitals: undefined })).toBeNull();
+  });
+
+  // ── Illness: the stop that turned the feature around ────────────────────
+  // Measurement found the real reason story years ended early, and it was not
+  // decay. Baseline decay for a housed character is -0.6 happiness a week,
+  // which is sustainable forever. A single untreated disease costs -2.0
+  // happiness and -2.0 health a week for its whole course, and a batch is
+  // exactly the situation in which nobody treats it. Handing the wheel back at
+  // the moment of infection is what makes that survivable — and it is the mode
+  // working, not failing.
+  it('stops when a NEW illness is contracted', () => {
+    expect(
+      shouldStopBatch({ advanced: true, startedInDanger: false, vitals: healthy, newIllness: 'Allergies' })
+    ).toBe('illness');
+  });
+
+  it('does NOT stop for an illness the player already had when they tapped', () => {
+    // Same reasoning as `startedInDanger`: the loop only ever passes a disease
+    // it has not seen before, so an ongoing illness reads as `null` here and
+    // the batch runs on. Otherwise a chronic condition would stop every tap
+    // after one week, forever.
+    expect(
+      shouldStopBatch({ advanced: true, startedInDanger: false, vitals: healthy, newIllness: null })
+    ).toBeNull();
+    expect(
+      shouldStopBatch({ advanced: true, startedInDanger: false, vitals: healthy })
+    ).toBeNull();
+  });
+
+  it('reports DANGER, not illness, when a week does both', () => {
+    // Danger is the condition that ends lives; illness is the one that costs
+    // stats. A player handed back at 8 happiness needs to hear about the 8.
+    expect(
+      shouldStopBatch({
+        advanced: true,
+        startedInDanger: false,
+        vitals: { happiness: 8, health: 60 },
+        newIllness: 'Flu',
+      })
+    ).toBe('danger');
+  });
+
+  it('still reports HALTED above everything else', () => {
+    expect(
+      shouldStopBatch({
+        advanced: false,
+        startedInDanger: false,
+        vitals: { happiness: 4 },
+        newIllness: 'Flu',
+      })
+    ).toBe('halted');
+  });
+});
+
+describe('an illness stop reaches the player as a moment, not an error', () => {
+  it('names the illness in the summary so the recap can say what happened', () => {
+    const digest = {
+      weeksRequested: 52,
+      before: { weeksLived: 40, age: 20, money: 1000, netWorth: 1000 },
+      notes: [],
+      stoppedEarly: 'illness' as const,
+      illnessName: 'Allergies',
+    };
+    const after = {
+      weeksLived: 51,
+      age: 20.2,
+      money: 900,
+      netWorth: 900,
+      pendingDecisions: 0,
+      isDead: false,
+    };
+    const summary = summarizeYear(digest, after);
+    expect(summary.outcome).toBe('illness');
+    expect(summary.illnessName).toBe('Allergies');
+    expect(summary.weeksAdvanced).toBe(11);
+  });
+
+  it('is NOT counted as a good year for the upsell', () => {
+    // The DeepLife+ offer fires on a year that went well. A year cut short by
+    // illness is the opposite of the moment to ask for money.
+    const digest = {
+      weeksRequested: 52,
+      before: { weeksLived: 0, age: 20, money: 1000, netWorth: 1000 },
+      notes: [],
+      stoppedEarly: 'illness' as const,
+      illnessName: 'Flu',
+    };
+    const summary = summarizeYear(digest, {
+      weeksLived: 40, age: 20.8, money: 90000, netWorth: 90000, pendingDecisions: 0, isDead: false,
+    });
+    expect(wasAGoodYear(summary)).toBe(false);
   });
 });

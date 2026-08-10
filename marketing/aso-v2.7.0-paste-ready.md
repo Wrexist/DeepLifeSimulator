@@ -71,9 +71,13 @@ Rules this already obeys, each of which wastes the field if broken:
 The one field that updates **without a review cycle**. Use it for the release.
 
 ```
-New: Story Mode. Live a whole life in one sitting - one tap, one year. Same simulation, every week still runs in full.
+New: Story Mode. One tap runs your life on until it needs you - illness, trouble, a choice. Same simulation, every week still runs in full.
 ```
-`118/170`
+`139/170`
+
+Deliberately not "one tap, one year". A story year ends when something needs
+deciding, so it is often 11 weeks rather than 52 — promising the maximum and
+delivering the median is how a working feature reads as broken.
 
 ---
 

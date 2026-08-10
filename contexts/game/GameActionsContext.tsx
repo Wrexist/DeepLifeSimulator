@@ -3514,6 +3514,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // escape, since the fix costs weeks they are not being allowed to run.
  const startedInDanger = isInDanger(before.stats);
 
+ // Diseases the player already had when they tapped. Only something NEW is a
+ // reason to hand the wheel back — an illness they tapped WITH is one they
+ // have chosen to live with, and stopping on it every week would be a nag loop
+ // they could not escape, exactly like `startedInDanger`.
+ const knownIllnesses = new Set((before.diseases ?? []).map(d => d?.id).filter(Boolean));
+
  try {
  for (let i = 0; i < maxWeeks; i++) {
  await nextWeek();
@@ -3532,13 +3538,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Both vitals sources are post-tick and both are kept fresh DURING the
  // batch by the publish-immediately fix in `nextWeek`; the fallback
  // matters when the updater has not run yet.
+ // Same freshness rule as `vitals`: read the post-tick state the tick just
+ // published, falling back to the ref. A disease contracted this week is
+ // only visible here — by the next iteration it is "known" and no longer new.
+ const postTick = lastTickOutcomeRef.current.state ?? gameStateRef.current;
+ const contracted = (postTick?.diseases ?? []).find(
+ d => d?.id && !knownIllnesses.has(d.id)
+ );
+ if (contracted?.id) knownIllnesses.add(contracted.id);
+
  const stop = shouldStopBatch({
  advanced: lastTickOutcomeRef.current.advanced,
  startedInDanger,
- vitals: lastTickOutcomeRef.current.state?.stats ?? gameStateRef.current?.stats,
+ vitals: postTick?.stats,
+ newIllness: contracted?.name ?? null,
  });
  if (stop) {
  digest.stoppedEarly = stop;
+ if (stop === 'illness') digest.illnessName = contracted?.name;
  break;
  }
  }

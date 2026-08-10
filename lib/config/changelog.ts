@@ -55,7 +55,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: 'Choose your pace when you start a life',
         bullets: [
           'Classic is the game you know: one tap, one week.',
-          'Story Mode is one tap, one year — a full life in about 62 taps.',
+          'Story Mode runs time on until your life needs you.',
           'You pick when you create a character, and it stays for that life.',
           'Lives you are already playing keep the pace they have.',
         ],
@@ -75,8 +75,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           'Every year ends with what your money and net worth did.',
           'Plus everything that happened while the year ran.',
-          'If your health or happiness slides, the year hands back early.',
-          'You get the wheel back with time to fix it.',
+          'It hands back when you fall ill, hit trouble, or face a choice.',
+          'A quiet year runs the full 52 weeks. An eventful one stops sooner.',
         ],
       },
       {

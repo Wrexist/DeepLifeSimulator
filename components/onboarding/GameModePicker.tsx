@@ -18,9 +18,10 @@
  * border colour is a state a colourblind player has to infer, so the chosen one
  * carries an explicit filled check as well as the border and tint.
  *
- * The tempo — "1 tap = 1 week" vs "1 tap = 52 weeks" — is set as a chip rather
- * than body text because it is the single fact that decides the choice, and it
- * should survive someone skimming the screen without reading a word of prose.
+ * The tempo — "1 tap = 1 week" vs "1 tap = up to 52 weeks" — is set as a chip
+ * rather than body text because it is the single fact that decides the choice,
+ * and it should survive someone skimming without reading a word of prose. The
+ * "up to" is load-bearing: a story year ends when the life needs its player.
  *
  * Styling note: full `borderWidth` on all four sides, never a one-sided colored
  * stripe — see Hard Rule #7 in CLAUDE.md.
@@ -61,13 +62,19 @@ const MODES: ModeOption[] = [
   {
     id: 'story',
     title: 'Story',
-    tempo: `1 tap = ${STORY_MODE_WEEKS_PER_TAP} weeks`,
+    // NOT "1 tap = 52 weeks". That was the original promise and measurement
+    // disproved it: a year runs until the life needs its player — an illness,
+    // a danger line, a decision — so a quiet year is 52 weeks and an eventful
+    // one is eleven. Promising the maximum and delivering the median is how a
+    // working feature reads as broken.
+    tempo: `1 tap = up to ${STORY_MODE_WEEKS_PER_TAP} weeks`,
     blurb:
-      // The "hands the year back" clause is not padding. The batch stops early
-      // when health or happiness drops into danger, so a player promised
-      // "52 weeks" can get seven and reasonably conclude the game is broken.
-      // Cheaper to say it here than to have them find out and not know why.
-      'A year at a time, with a recap of everything that happened. The simulation is exactly the same — every week still runs in full. If your life starts going wrong, the year hands back early so you can act.',
+      // Leads with the REAL mechanic rather than the maximum span. Measured, a
+      // year runs 7-16 weeks far more often than 52, because it hands back the
+      // moment something needs deciding. Selling "52" and delivering 11 makes a
+      // working feature read as broken; selling "until your life needs you" and
+      // delivering 11 is the feature doing exactly what it said.
+      'Time runs on until your life needs you — an illness, a decision, a warning — then hands back with the story of what happened. The simulation is exactly the same; every week still runs in full.',
     Icon: FastForward,
   },
 ];

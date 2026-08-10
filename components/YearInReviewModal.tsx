@@ -243,6 +243,25 @@ export function YearInReviewModal({
               </View>
             ) : null}
 
+            {/*
+              Illness reads as a MOMENT, not a malfunction. The year handing
+              back here is the mode working: an untreated disease costs about
+              -2 happiness and -2 health every week for its whole course, and a
+              batch is exactly the situation where nobody is watching. Naming
+              the illness and the action turns the interruption into the reason
+              the player tapped.
+            */}
+            {summary.outcome === 'illness' ? (
+              <View style={[styles.pending, { borderColor: accent.warning }]}>
+                <Bell size={scale(14)} color={accent.warning} />
+                <Text style={[styles.pendingText, { color: c.text }]}>
+                  {summary.illnessName
+                    ? `You've come down with ${summary.illnessName.toLowerCase()}. Treat it in Health before it wears you down.`
+                    : "You've fallen ill. Treat it in Health before it wears you down."}
+                </Text>
+              </View>
+            ) : null}
+
             {summary.outcome === 'decision' ? (
               <View style={[styles.pending, { borderColor: accent.warning }]}>
                 <Bell size={scale(14)} color={accent.warning} />

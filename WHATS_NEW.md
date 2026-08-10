@@ -17,7 +17,8 @@ and adds one optional field, so nothing in a current life changes.
 Story Mode — live a whole life in one sitting.
 
 • Choose your pace when you start a new life. Classic is the game you know:
-  one tap, one week. Story Mode is one tap, one year.
+  one tap, one week. Story Mode runs time on until your life needs you —
+  up to a full year in a single tap.
 • The simulation is identical in both. Story Mode does not skip anything or
   simplify anything — every single week still runs in full, so the same bills
   land, the same interest accrues and the same market moves. It just stops
@@ -25,9 +26,10 @@ Story Mode — live a whole life in one sitting.
 • Every year ends with a Year in Review: what your money did, what your net
   worth did, and everything that happened while the year ran.
 • Nothing is decided for you. Choices still wait for you to make them.
-• If your health or happiness starts sliding, the year hands back early
-  rather than running your life into the ground while you watch. You get
-  the wheel back with time to fix it.
+• A year ends when something needs you: you fall ill, your health or
+  happiness slides, or a choice is waiting. The recap tells you which.
+  A quiet year runs all 52 weeks; an eventful one hands back sooner, with
+  the story of what happened.
 • Sharing a life now actually links to the game, so the friend you send it to
   can install it instead of going looking.
 
