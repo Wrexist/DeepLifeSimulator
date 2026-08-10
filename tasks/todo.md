@@ -689,3 +689,50 @@ Deep qualitative pass via subagents (economy exploits; stability + logic): done.
 - `economyIncomeMultiplier` has no upper clamp (not player-reachable) — defensive.
 - Eviction notice wording attributes arrears to rent even when the shortfall came
   from other bills — cosmetic.
+
+---
+
+## OPEN — a balance decision for the owner: story mode's first years are short
+
+**Measured, not estimated.** Three runs against the shipped production web
+bundle, story mode, one tap each:
+
+| Character | Weeks delivered | Outcome |
+|---|---|---|
+| Idle (before the danger stop) | ~11–15 | **died** — happiness at 0 for 4 weeks |
+| Idle (after the danger stop) | 7 | handed back, "your life is in trouble" |
+| **Employed + housed** (Line Cook $110/wk, Shared Room $45/wk) | **8** | handed back, still in danger |
+
+Taking the two obviously-correct opening actions bought **one extra week**.
+That is the finding: the danger stop is working exactly as designed, and it is
+revealing something underneath it.
+
+**Why.** Weekly stat decay is calibrated for a player who acts *every week* —
+rests, socialises, spends on wellbeing. Classic mode gives them 52 opportunities
+to do that per year. Story mode's whole premise is that they act *between*
+years, not during them, so nothing tops the stats back up while the batch runs.
+The decay rate and the batch pace are in direct tension, and no threshold tweak
+fixes it: at roughly −10 happiness/week net, moving the danger line from 20 down
+to 10 buys about two more weeks, not forty.
+
+**This is a design call, not a bug, so it is not being changed unilaterally.**
+Three options, with what each costs:
+
+1. **Accept it.** The loop becomes act → live → act, and the first years are
+   short by design. Cheapest, and already communicated: the pace picker, the
+   in-app changelog and `WHATS_NEW` all now say the year can hand back early.
+   Risk: the picker promises "1 tap = 52 weeks" and a new player gets 8.
+2. **Rebalance for the batch.** Reduce happiness/health decay, or make a job and
+   a home carry real weekly upkeep rather than +1. Delivers the headline
+   promise. Cost: it touches CLASSIC mode too, so it needs playtesting — this is
+   the game's core economy, not a story-mode knob.
+3. **Let the batch perform upkeep** (auto-rest when a stat is low). Delivers the
+   promise without touching classic. Cost: it breaks the rule the mode is built
+   on — "nothing is decided for you" — and that rule is why the batch is
+   trustworthy. Not recommended.
+
+**Knock-on:** the two hero App Store screenshots (`01-a-whole-life-one-sitting`
+and `04-make-the-next-one-count`) cannot be produced from a fresh character
+until this is settled — `scripts/capture-good-year.mjs` tries and correctly
+refuses to write a "good year" that went badly. They need a played save, or
+option 2.
