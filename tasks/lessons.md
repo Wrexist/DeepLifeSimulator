@@ -1417,3 +1417,48 @@ is guarded", the check must enumerate every X in the source, not a snapshot of
 the ones that existed the day the test was authored — otherwise the guard rots
 one new subsystem at a time, which is precisely how the original thirteen
 accumulated.
+
+## 2026-08-10 — weekly audit clean; three low-severity latent items, all defensive
+
+Weekly audit. Static layer fully green (5 domains, 53 ✅, no 🔴/🟠/🟡/⚪);
+type-check clean; 1,015 tests green across save/mail/prestige/economy/
+monetization/stress. Deep qualitative pass on the week's four new money systems
+— Mail (v37), Dynasty tiers 2–5 (v36), the revive economy, and arrears/eviction
+— via three parallel economy subagents plus direct reads. **No exploitable
+gate→grant, double-spend, farm, or NaN-poison path in any of them.** The new
+code is unusually disciplined: every money mutation charges from `prev` inside
+the same `setGameState` updater and re-checks its resolved/claimed flag to
+one-shot a double-tap (`MailActions.actOnScamMail`/`disputeMailCharge`/
+`chooseMailDecision`, `MoneyActionsContext` dynasty actions, `reviveWithPack`).
+
+Three low-severity latent items, none reachable today, filed for backlog:
+
+1. **`overdueBalance` migration↔repair parity gap** (`saveMigrations.ts` v31 vs
+   `saveValidation.ts:1055`). The migration resets only on non-number/non-finite;
+   the repair mirror ALSO rejects `< 0`. This is the exact "migration ↔ repair
+   parity" drift §7 warns about ("Add both, always") — but here it's harmless:
+   `repairGameState` and the runtime `applyArrears` `Math.max(0, …)` both
+   neutralize a negative on load, so a negative can never persist into play.
+   One-line fix: add `|| state.overdueBalance < 0` to the v31 condition. The
+   general lesson repeats: parity is invisible to the static audit, so the two
+   sides drift silently until a partial save exercises the difference.
+
+2. **Closure-read-after-`setGameState` in mail actions** (`MailActions.ts`
+   `actOnScamMail`/`disputeMailCharge`/`chooseMailDecision`): a `let lost = 0`
+   assigned INSIDE the updater and read AFTER it — the pattern §4.1 explicitly
+   forbids. The money charge itself is always correct (it happens inside the
+   updater); the only casualty if React ever defers the reducer is the reported
+   figure, or a skipped `delegateToEvent` on event-backed letters (player loses
+   their OWN choice's effect — never a gain). Low because mail taps aren't
+   batched with a tick, so eager evaluation fires in practice; note the tests
+   mock `setGameState` synchronously, so the deferred path is unverified.
+
+3. **`dynasty/transition.ts:73`** accumulates trial points onto `newState`
+   rather than deriving from `oldState`, contradicting the file's own
+   idempotency header. Not reachable — `applyDynastyTransition` runs once per
+   freshly-built `newState`.
+
+Lesson: when the deep pass comes back clean, the residue is almost always
+DEFENSIVE drift, not live bugs — parity mirrors that disagree, anti-patterns
+that survive only because their timing assumption holds today. Worth fixing at
+leisure precisely because "safe today" is the assumption the next edit breaks.
