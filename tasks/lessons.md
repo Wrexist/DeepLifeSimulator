@@ -1777,3 +1777,53 @@ still reported the week-15 death, and the cause was the harness. The judgement
 was extracted into a pure `shouldStopBatch()` that can be tested directly, with
 the loop reduced to one call — and the end-to-end behaviour verified in a real
 browser, which is the only place it is observable.
+
+---
+
+## 2026-08-10 — Three rounds of screenshots against a bundle I had already replaced
+
+Same session, same family as the `pgrep` self-match above, and it wasted more
+time than either: I re-exported the web bundle twice, re-ran the capture three
+times, and stared at screenshots wondering why my copy change was not in them —
+because **a `serve` process from an earlier export was still holding port 8099**
+and every capture had been driving the old bundle the whole time.
+
+What made it durable was a check that returned the answer I wanted:
+
+```
+$ ss -lntp | grep 8099
+(nothing)
+$ echo "8099 free"
+```
+
+`ss` printed nothing, I read that as "port free", and started a new server that
+could not bind. The old one kept answering on 8099, HTTP 200, serving stale
+JavaScript. Every downstream observation — the picker copy unchanged, the
+heading still sliced — was real, and every diagnosis I formed from it was wrong.
+I "fixed" the scroll logic twice against a bundle that could not contain the fix.
+
+The disproof took one command and I should have run it first:
+
+```bash
+SERVED=$(curl -s http://localhost:8099/ | grep -oE "entry-[a-f0-9]+\.js" | head -1)
+EXPECTED=$(ls "$OUTDIR/_expo/static/js/web/" | grep '^entry')
+[ "$SERVED" = "$EXPECTED" ] || echo "SERVING A STALE BUNDLE"
+```
+
+**The rules.**
+
+1. **Verify the ARTIFACT, not the port.** "Something is listening" and "the
+   thing I built is being served" are different claims. Content-hashed bundle
+   filenames make the second one a one-line check — use it before every capture
+   run, not after three of them.
+2. **A negative result from a diagnostic you cannot fully trust is not
+   evidence.** `ss -lntp` needs privileges to attribute sockets; empty output
+   can mean "no listener" OR "cannot see it". I treated an ambiguous silence as
+   a confirmation because it was the convenient reading.
+3. **Kill by PID from `ps`, and confirm the kill.** Every pattern-based kill
+   this session either missed its target or hit the wrong one. `ps -eo pid,cmd`,
+   read the list, kill the numbers, then re-check the list.
+4. **When a change does not appear in the output, suspect the pipeline before
+   the change.** Two "the fix did not work" conclusions here were really "the
+   fix was never loaded". The tell was available and cheap: the built file did
+   contain the new string.
