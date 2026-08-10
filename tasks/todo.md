@@ -707,13 +707,35 @@ Taking the two obviously-correct opening actions bought **one extra week**.
 That is the finding: the danger stop is working exactly as designed, and it is
 revealing something underneath it.
 
-**Why.** Weekly stat decay is calibrated for a player who acts *every week* —
-rests, socialises, spends on wellbeing. Classic mode gives them 52 opportunities
-to do that per year. Story mode's whole premise is that they act *between*
-years, not during them, so nothing tops the stats back up while the batch runs.
-The decay rate and the batch pace are in direct tension, and no threshold tweak
-fixes it: at roughly −10 happiness/week net, moving the danger line from 20 down
-to 10 buys about two more weeks, not forty.
+**Why — measured per week, then traced to the formula.** A default character's
+happiness runs 100 → 94.4 → 88.2 → 81.4 → 74.0 → 65.0 → 55.4 → 46.2 → 36.4 →
+26.0 → 15.6 → 3.2 → 0. The decay is not flat, it **accelerates**: −5.6/week at
+week 1, −12.4/week by week 11. Health does the same, −3.2 → −8.8. Fitness starts
+at **10**, not 100, and is gone by week 6.
+
+`computeDecayInputs` (`contexts/game/actions/weekly/preTick.ts`) explains both:
+
+```
+effectiveDecayRate = 4 × wealthMultiplier × prestigeMultiplier × (0.25 + 0.75 × graceFactor)
+wealthMultiplier   = clamp(100000 / max(1000, netWorth), 0.5, 2.0)
+graceFactor        = min(1, weeksLived / 8)
+```
+
+Two things fall out, and they compound:
+
+- **`wealthMultiplier` is INVERSE to net worth and clamps at 2.0 for anyone
+  under $50k.** Every new character starts at ~$1,500, so they sit on the
+  ceiling: a new player decays at exactly twice the rate of a rich one. That is
+  a deliberate "poverty is hard" choice in classic mode, where they can act
+  weekly. In story mode it means the poorest players — i.e. all new ones — get
+  the shortest years.
+- **The grace period is 8 weeks, and the first story year ends at 7–8 weeks.**
+  That is not a coincidence: the danger stop fires almost exactly when grace
+  expires and the decay rate finishes quadrupling (0.25× → 1.0×).
+
+So no threshold tweak fixes it — at −10/week near the end, moving the danger
+line from 20 to 10 buys about two weeks, not forty. The levers are in the
+formula above.
 
 **This is a design call, not a bug, so it is not being changed unilaterally.**
 Three options, with what each costs:
@@ -722,10 +744,14 @@ Three options, with what each costs:
    short by design. Cheapest, and already communicated: the pace picker, the
    in-app changelog and `WHATS_NEW` all now say the year can hand back early.
    Risk: the picker promises "1 tap = 52 weeks" and a new player gets 8.
-2. **Rebalance for the batch.** Reduce happiness/health decay, or make a job and
-   a home carry real weekly upkeep rather than +1. Delivers the headline
-   promise. Cost: it touches CLASSIC mode too, so it needs playtesting — this is
-   the game's core economy, not a story-mode knob.
+2. **Rebalance, with the formula as the map.** The candidates, cheapest first:
+   raise the `wealthMultiplier` floor or lower its 2.0 ceiling so a broke
+   character is not permanently at maximum decay; lengthen `gracePeriodWeeks`
+   past 8 so the first year is not cut exactly where grace ends; start fitness
+   above 10 or slow its decay so it does not reach zero by week 6; or give a job
+   and a home real weekly upkeep instead of +1 happiness. Delivers the headline
+   promise. Cost: every one of these touches CLASSIC mode as well, so it needs
+   playtesting — this is the game's core economy, not a story-mode knob.
 3. **Let the batch perform upkeep** (auto-rest when a stat is low). Delivers the
    promise without touching classic. Cost: it breaks the rule the mode is built
    on — "nothing is decided for you" — and that rule is why the batch is
