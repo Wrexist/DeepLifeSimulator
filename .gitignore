@@ -83,3 +83,11 @@ coverage/
 # against a running dev server — regenerable, and shipping it would add repo
 # weight for images nothing references (preflight §11 already flags that class).
 screenshots/story-mode/
+
+# One-off diagnostic probes. Playwright and the ratchet scripts have to be run
+# from the repo root to resolve node_modules (ESM ignores NODE_PATH), so a
+# throwaway lands here rather than in a scratch directory. `.tmp.` keeps it
+# obvious it is disposable and stops it being committed by reflex.
+*.tmp.mjs
+*.tmp.cjs
+*.tmp.js
