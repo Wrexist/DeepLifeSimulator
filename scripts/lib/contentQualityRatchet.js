@@ -59,12 +59,17 @@ const GOALS = {
   // and a metric with no target should say so rather than pretend its floor is
   // an ambition.
   medianAbsHappiness: null,
-  // The goal that replaced it. Of the outcomes that move happiness and NOTHING
-  // else, 42.5% move it by under 5 points — those are the ones that genuinely
-  // do nothing, and they are the honest target.
-  soloHappinessMedian: 10,
+  // ALSO NULL, and for a sharper reason than the one above. This carried a goal
+  // of 10 for exactly one day. Two measurements retired it — see hypothesis 3
+  // in the CURRENT block. The FLOOR is untouched at 5: the regression
+  // protection this metric actually provides is real and stays.
+  soloHappinessMedian: null,
   bigStakesShare: 0.35,
   cliffhangerBadShare: 0.4,
+  // The metric that replaced it, and the only one of the three attempts that
+  // survived scrutiny. A CEILING, not a floor — lower is better, so it ratchets
+  // downward. See `INERT_EVENT_CEILING`.
+  inertEventShare: 0,
 };
 
 /**
@@ -122,12 +127,44 @@ const MEASURED = {
  *    Correcting for computed effects swung the answer to 0%. Two attempts, two
  *    wrong numbers: choice divergence needs a real parser or a human, and a
  *    gate built on that regex would have been worse than no gate.
+ *
+ * 3. "Trivial happiness-only outcomes are a content weakness, and driving
+ *    `soloHappinessMedian` to 10 fixes it." (2026-08-10) This was MY OWN goal
+ *    from the day before, and two measurements retired it:
+ *
+ *    a. It is unreachable by the work it implies. Of 113 happiness-only
+ *       outcomes, 46 are under 5 points. Simulating the most thorough pass
+ *       anyone could honestly make — every non-flavour trivial outcome raised
+ *       to 10 — moves the median to 8, not 10, because the mass of the
+ *       distribution sits at exactly 5 (29 of them) and 8 (12). The last two
+ *       points can only be bought by retuning `nearMissEvents.ts` as well,
+ *       i.e. by overruling a documented authoring decision to move a
+ *       statistic. `contentQualityRatchet.test.ts` runs that simulation, so
+ *       this is a checked claim rather than a remembered one.
+ *
+ *    b. The population it targets is mostly correct as authored. Of those 46,
+ *       24 are the DECLINE branch of a choice set ("Skip the sales", "Politely
+ *       decline", "Just spectate") and 16 more are `nearMissEvents.ts`, which
+ *       documents itself as deliberate flavour. Declining an offer SHOULD do
+ *       almost nothing — that is what makes the other branch a decision. The
+ *       metric was reading good choice architecture as weak content.
+ *
+ *    The structural check settles it: of 235 multi-choice events, exactly TWO
+ *    have no branch that does anything, and both are in the flavour file. So
+ *    233 of 235 already offer at least one outcome that moves a life. The
+ *    corpus does not have the problem this goal was chasing.
+ *
+ *    That check became `inertEventShare`, below. Note what it does NOT depend
+ *    on: the decline-branch word list used to establish (b) is a heuristic of
+ *    exactly the kind that produced two wrong answers in hypothesis 2, so it
+ *    was used to UNDERSTAND the corpus and deliberately not shipped as a gate.
  */
 const CURRENT = {
   medianAbsHappiness: 6,
   soloHappinessMedian: 5,
   bigStakesShare: 0.0507,
   cliffhangerBadShare: 0.4,
+  inertEventShare: 0.0085,
 };
 
 /**
@@ -148,6 +185,24 @@ const FLOORS = {
 
 /** An outcome at or above this magnitude can plausibly change a life. */
 const BIG_STAKES_THRESHOLD = 20;
+
+/** Below this magnitude, a happiness-only outcome is not an outcome. */
+const TRIVIAL_THRESHOLD = 5;
+
+/**
+ * CEILING for `inertEventShare` — the one metric here where lower is better, so
+ * it ratchets DOWN rather than up. Measured at 2/235 = 0.85%; the ceiling sits
+ * a hair above at 1.5% so adding one flavour event does not trip the gate while
+ * a real slide (a run of events authored with nothing at stake) still does.
+ *
+ * The goal is 0, and unlike the median goal this one is honestly reachable:
+ * both current offenders are in `nearMissEvents.ts`, and giving either a single
+ * branch with real teeth would clear it. It is deliberately NOT done here —
+ * that file's header argues those events exist for tension rather than stakes,
+ * and overruling a documented authoring decision to move a number by 0.85
+ * points is the exact move this whole file exists to prevent.
+ */
+const INERT_EVENT_CEILING = 0.015;
 
 function listContentFiles() {
   return fs
@@ -219,6 +274,51 @@ function measureSoloHappiness(files) {
   return { count: solo.length, median: median(solo) };
 }
 
+/**
+ * Events where NO branch does anything — every choice moves happiness only, by
+ * less than `TRIVIAL_THRESHOLD`.
+ *
+ * This is the honest version of "the game did nothing", and the reason it
+ * replaced the `soloHappinessMedian` goal (hypothesis 3 above). It asks a
+ * question about the EVENT rather than the outcome, which is what makes it
+ * immune to the mistake the median made: a small number on the decline branch
+ * of a real decision is good authoring, and only becomes a problem when EVERY
+ * branch is like that. No word list, no guess about which branch is the
+ * "passive" one — if any single choice has teeth, the event is a decision.
+ *
+ * Single-choice events (`[{ id: 'skip', text: 'Continue' }]` acknowledgements,
+ * and the no-op guards event generators return when their preconditions fail)
+ * are excluded: they are not decisions, so they cannot be bad ones.
+ */
+function measureInertEvents(files) {
+  const OTHER = /(money|moneyPct|relationship|health|energy|fitness|reputation|approvalRating):/;
+  let events = 0;
+  const inert = [];
+
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    // Event blocks start at `id: 'x',` immediately followed by category/description.
+    const starts = [...src.matchAll(/id:\s*'([a-z0-9_]+)',\s*\n\s*(?:category|description)/g)];
+    for (let i = 0; i < starts.length; i++) {
+      const block = src.slice(starts[i].index, i + 1 < starts.length ? starts[i + 1].index : src.length);
+      if (!/choices:\s*\[/.test(block)) continue;
+      const bodies = [
+        ...block.matchAll(/effects:\s*\{([\s\S]{0,300}?)\}\s*,?\s*(?:karma|special|\}|\n\s*\})/g),
+      ].map((m) => m[1]);
+      if (bodies.length < 2) continue;
+      events++;
+      const allTrivial = bodies.every((b) => {
+        if (OTHER.test(b)) return false;
+        const h = b.match(/happiness:\s*(-?\d+)/);
+        return h ? Math.abs(Number(h[1])) < TRIVIAL_THRESHOLD : false;
+      });
+      if (allTrivial) inert.push(starts[i][1]);
+    }
+  }
+
+  return { events, inert, share: events === 0 ? 0 : inert.length / events };
+}
+
 /** Measure the corpus as it stands right now. */
 function measureContentQuality() {
   const files = listContentFiles();
@@ -227,8 +327,13 @@ function measureContentQuality() {
   const big = abs.filter((v) => v >= BIG_STAKES_THRESHOLD).length;
   const cliff = measureCliffhangers();
   const solo = measureSoloHappiness(files);
+  const inertEvents = measureInertEvents(files);
 
   return {
+    multiChoiceEventCount: inertEvents.events,
+    inertEventCount: inertEvents.inert.length,
+    inertEventIds: inertEvents.inert,
+    inertEventShare: inertEvents.share,
     soloHappinessCount: solo.count,
     soloHappinessMedian: solo.median,
     fileCount: files.length,
@@ -248,8 +353,11 @@ module.exports = {
   CURRENT,
   FLOORS,
   BIG_STAKES_THRESHOLD,
+  TRIVIAL_THRESHOLD,
+  INERT_EVENT_CEILING,
   measureContentQuality,
   measureSoloHappiness,
+  measureInertEvents,
   listContentFiles,
   median,
 };

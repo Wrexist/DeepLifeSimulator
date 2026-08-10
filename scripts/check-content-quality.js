@@ -13,20 +13,38 @@ const {
   FLOORS,
   MEASURED,
   BIG_STAKES_THRESHOLD,
+  INERT_EVENT_CEILING,
   measureContentQuality,
 } = require('./lib/contentQualityRatchet');
 
 const pct = (n) => `${(n * 100).toFixed(2)}%`;
 
-/** One row per tracked metric. `format` keeps the report readable. */
+/**
+ * One row per tracked metric. `format` keeps the report readable.
+ *
+ * `direction: 'down'` marks a CEILING — a metric where lower is better, which
+ * inverts both the pass test and the "raise the floor" advice. It is spelled
+ * out per-metric rather than inferred, because a gate that silently guesses
+ * which way a number should move is a gate that will one day pass a regression.
+ */
 const METRICS = [
+  {
+    key: 'inertEventShare',
+    label: 'Events where NO branch does anything',
+    format: pct,
+    direction: 'down',
+    limit: INERT_EVENT_CEILING,
+    describe:
+      'the honest "the game did nothing" number — an event whose every choice ' +
+      'moves happiness only, by a couple of points, is not a decision',
+  },
   {
     key: 'soloHappinessMedian',
     label: 'Median |Δ| where happiness is the ONLY effect',
     format: (v) => String(v),
     describe:
-      'the honest "does this event matter" number — an outcome that moves ' +
-      'nothing but happiness, by a few points, is an outcome that does nothing',
+      'regression signal only — half of these are the decline branch of a real ' +
+      'choice, where small is CORRECT. See hypothesis 3 in the ratchet',
   },
   {
     key: 'medianAbsHappiness',
@@ -64,24 +82,29 @@ function main() {
 
   for (const metric of METRICS) {
     const value = actual[metric.key];
-    const floor = FLOORS[metric.key];
+    const down = metric.direction === 'down';
+    const bound = down ? metric.limit : FLOORS[metric.key];
     const goal = GOALS[metric.key];
-    const ok = value >= floor;
+    const ok = down ? value <= bound : value >= bound;
     if (!ok) failed = true;
     // A null goal means "tracked for regression only" — see the ratchet header.
     const hasGoal = goal !== null && goal !== undefined;
-    if (hasGoal && value >= goal) reachedGoal.push(metric);
+    const met = hasGoal && (down ? value <= goal : value >= goal);
+    if (met) reachedGoal.push(metric);
 
-    const status = !ok ? 'FAIL' : hasGoal && value >= goal ? 'GOAL' : 'ok  ';
+    const status = !ok ? 'FAIL' : met ? 'GOAL' : 'ok  ';
     console.log(
       `  [${status}] ${metric.label}: ${metric.format(value)} ` +
-        `(floor ${metric.format(floor)}, ` +
+        `(${down ? 'ceiling' : 'floor'} ${metric.format(bound)}, ` +
         `${hasGoal ? `goal ${metric.format(goal)}` : 'no target — regression only'})`
     );
     if (!ok) {
       console.log(
-        `         ↳ dropped below the floor — ${metric.describe}. ` +
-          `Was ${metric.format(MEASURED[metric.key])} when the ratchet landed.`
+        `         ↳ ${down ? 'rose above the ceiling' : 'dropped below the floor'} — ` +
+          `${metric.describe}.` +
+          (MEASURED[metric.key] !== undefined
+            ? ` Was ${metric.format(MEASURED[metric.key])} when the ratchet landed.`
+            : '')
       );
     }
   }
@@ -90,12 +113,23 @@ function main() {
     `\n  Cliffhanger resolutions: ${actual.cliffhangerPositive} positive · ` +
       `${actual.cliffhangerNegative} negative`
   );
+  console.log(
+    `  Multi-choice events: ${actual.multiChoiceEventCount} · ` +
+      `${actual.inertEventCount} with nothing at stake` +
+      (actual.inertEventCount > 0 ? ` (${actual.inertEventIds.join(', ')})` : '')
+  );
 
   if (reachedGoal.length > 0) {
-    console.log('\n  🎉 Goal reached — raise the floor in this commit to lock it in:');
+    console.log('\n  🎉 Goal reached. Consider tightening the bound to lock it in:');
     for (const m of reachedGoal) {
-      console.log(`     FLOORS.${m.key} → ${actual[m.key]}`);
+      console.log(
+        `     ${m.direction === 'down' ? 'INERT_EVENT_CEILING' : `FLOORS.${m.key}`} → ${actual[m.key]}`
+      );
     }
+    console.log(
+      '     (bounds sit a hair off measured on purpose, so retuning one event\n' +
+        '      cannot trip the gate — a bound already within that hair is done.)'
+    );
   }
 
   if (failed) {

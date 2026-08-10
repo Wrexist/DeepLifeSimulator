@@ -11,7 +11,15 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ratchet = require('@/scripts/lib/contentQualityRatchet');
 
-const { FLOORS, GOALS, CURRENT, BIG_STAKES_THRESHOLD, measureContentQuality } = ratchet;
+const {
+  FLOORS,
+  GOALS,
+  CURRENT,
+  BIG_STAKES_THRESHOLD,
+  TRIVIAL_THRESHOLD,
+  INERT_EVENT_CEILING,
+  measureContentQuality,
+} = ratchet;
 
 describe('content-quality ratchet', () => {
   const actual = measureContentQuality();
@@ -41,7 +49,6 @@ describe('content-quality ratchet', () => {
   });
 
   it('keeps every goal above its floor — a goal at the floor is not a goal', () => {
-    expect(GOALS.soloHappinessMedian).toBeGreaterThan(FLOORS.soloHappinessMedian);
     expect(GOALS.bigStakesShare).toBeGreaterThan(FLOORS.bigStakesShare);
     expect(GOALS.cliffhangerBadShare).toBeGreaterThanOrEqual(FLOORS.cliffhangerBadShare);
   });
@@ -54,9 +61,93 @@ describe('content-quality ratchet', () => {
     expect(GOALS.medianAbsHappiness).toBeNull();
   });
 
+  it('states NO target for the happiness-only median either, for a sharper reason', () => {
+    // This one carried a goal of 10 for a single day. Retired because it was
+    // unreachable by the work it implied (see the next test) AND because the
+    // population it targeted is mostly correct as authored: half of the trivial
+    // happiness-only outcomes are the DECLINE branch of a real choice, where
+    // small is the right number. The FLOOR is untouched — the regression
+    // protection was never the problem.
+    expect(GOALS.soloHappinessMedian).toBeNull();
+    expect(FLOORS.soloHappinessMedian).toBe(CURRENT.soloHappinessMedian);
+  });
+
+  it('proves the retired goal of 10 was unreachable without overruling the flavour file', () => {
+    // The claim in the ratchet header, checked rather than asserted. Simulate
+    // the most thorough pass anyone could honestly make — every trivial
+    // happiness-only outcome raised to 10, EXCEPT the ones `nearMissEvents.ts`
+    // documents as deliberately consequence-free — and the median still lands
+    // at 8, because the distribution's mass sits at exactly 5 and 8.
+    //
+    // Reaching 10 needs the flavour file retuned too, which is the whole
+    // argument: the goal could only be met by overruling a documented authoring
+    // decision to move a statistic. That is not content work, it is scoreboard
+    // work, and it is what the ratchet exists to prevent.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    const files: string[] = ratchet.listContentFiles();
+    const OTHER = /(money|moneyPct|relationship|health|energy|fitness|reputation|approvalRating):/;
+    const perfect: number[] = [];
+    for (const file of files) {
+      const isFlavour = path.basename(file) === 'nearMissEvents.ts';
+      const src = fs.readFileSync(file, 'utf8');
+      for (const m of src.matchAll(
+        /effects:\s*\{([\s\S]{0,300}?)\}\s*,?\s*(?:karma|special|\}|\n\s*\})/g
+      )) {
+        const body = m[1];
+        const h = body.match(/happiness:\s*(-?\d+)/);
+        if (!h || OTHER.test(body)) continue;
+        const v = Math.abs(Number(h[1]));
+        perfect.push(!isFlavour && v < TRIVIAL_THRESHOLD ? 10 : v);
+      }
+    }
+    expect(ratchet.median(perfect)).toBe(8);
+  });
+
   it('measures the happiness-only subset separately, and it is the smaller set', () => {
     expect(actual.soloHappinessCount).toBeGreaterThan(0);
     expect(actual.soloHappinessCount).toBeLessThan(actual.effectCount);
+  });
+});
+
+describe('inert events — the metric that replaced the happiness-only goal', () => {
+  const actual = measureContentQuality();
+
+  it('scans a real population of multi-choice events', () => {
+    expect(actual.multiChoiceEventCount).toBeGreaterThan(100);
+  });
+
+  it('stays at or below the ceiling — this one ratchets DOWN', () => {
+    expect(actual.inertEventShare).toBeLessThanOrEqual(INERT_EVENT_CEILING);
+  });
+
+  it('keeps the ceiling close to measured, so it cannot go slack', () => {
+    // Symmetric to the floor-drift test above, inverted: a ceiling far ABOVE
+    // reality would pass while inert events accumulated underneath it.
+    expect(INERT_EVENT_CEILING - actual.inertEventShare).toBeLessThan(0.01);
+  });
+
+  it('names its offenders rather than reporting a bare percentage', () => {
+    // A share with no ids is a number nobody can act on. Every inert event must
+    // be nameable, which is also what makes the count auditable by hand.
+    expect(actual.inertEventIds).toHaveLength(actual.inertEventCount);
+  });
+
+  it('finds the corpus overwhelmingly made of real decisions', () => {
+    // The finding that retired the median goal: 233 of 235 multi-choice events
+    // already have at least one branch that moves something. If this ever drops
+    // sharply, the content genuinely regressed and the ceiling will say so.
+    const withStakes = actual.multiChoiceEventCount - actual.inertEventCount;
+    expect(withStakes / actual.multiChoiceEventCount).toBeGreaterThan(0.95);
+  });
+
+  it('targets zero, and zero is reachable — unlike the goal it replaced', () => {
+    expect(GOALS.inertEventShare).toBe(0);
+    // Both known offenders are in the file that documents itself as flavour, so
+    // clearing them is a content decision someone can actually make.
+    expect(actual.inertEventIds.every((id: string) => id.startsWith('near_miss_'))).toBe(true);
   });
 
   it('counts a "big" outcome as one a player could still feel a year later', () => {
