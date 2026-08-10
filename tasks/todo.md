@@ -734,8 +734,40 @@ Two things fall out, and they compound:
   expires and the decay rate finishes quadrupling (0.25× → 1.0×).
 
 So no threshold tweak fixes it — at −10/week near the end, moving the danger
-line from 20 to 10 buys about two weeks, not forty. The levers are in the
-formula above.
+line from 20 to 10 buys about two weeks, not forty.
+
+**Four measured runs bound the problem, and they rule out the obvious fixes:**
+
+| Configuration | Weeks of 52 |
+|---|---|
+| Idle, broke (~$1,500) | 7 |
+| Job + rented room, broke | 8 |
+| Job + room + **$500,000** (decay at its 0.5 FLOOR) | 13 |
+| Room + $500,000, **no job** | 16 |
+
+The best case in the game — maximum wealth advantage, housed, and free of any
+job's weekly toll — reaches **16 of 52 weeks**. So "one tap, one year" is not
+unreachable for *poor* characters; it is unreachable for **anyone**, which
+eliminates raising the `wealthMultiplier` floor or lengthening the grace period
+as sufficient fixes on their own. Quadrupling the decay advantage bought five
+weeks; removing employment bought three more.
+
+**A hypothesis that was tested and is WRONG, recorded so it is not re-run:**
+that `weeklyToll` in `lib/careers/jobMarket.ts` was the dominant drain. Every
+job is negative on happiness and energy (`{ energy: -14, happiness: -1 }`,
+`{ energy: -12, happiness: -3 }`) and story mode removes the weeks a player
+would use to absorb it, so it was a reasonable suspect. Removing the job
+entirely moved 13 → 16. Real, and nowhere near sufficient.
+
+**What is still unaccounted for, stated as a number rather than a guess.** For
+the wealthy unemployed run the formula predicts happiness decay of
+`4 × 0.5 × 1.0 × 0.8 ≈ 1.6/week` once grace expires, i.e. 90 → 20 in about 44
+weeks. It died in 16, an average of ~4.4/week. **Roughly 3 points per week of
+happiness drain is not explained by `effectiveDecayRate`,** and I did not
+identify its source. That attribution — instrumenting the tick to log which
+subsystem removes each point of happiness — is the next diagnostic step, and it
+should come before any rebalance, because two of my own guesses about this
+(threshold tuning, then job tolls) have already been wrong.
 
 **This is a design call, not a bug, so it is not being changed unilaterally.**
 Three options, with what each costs:
