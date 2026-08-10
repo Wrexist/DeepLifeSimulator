@@ -71,12 +71,14 @@ Rules this already obeys, each of which wastes the field if broken:
 The one field that updates **without a review cycle**. Use it for the release.
 
 ```
-New: Story Mode. One tap runs your life on until it needs you - illness, trouble, a choice. Same simulation, every week still runs in full.
+New: Story Mode. Watch your life play out, a year in seconds, and step in when it needs you. Same simulation - every week still runs in full.
 ```
-`139/170`
+`141/170`
 
-Deliberately not "one tap, one year". A story year ends when something needs
-deciding, so it is often 11 weeks rather than 52 — promising the maximum and
+Leads with WATCHING, because that is what changed: story mode plays the life
+in front of you at about nine weeks a second and pauses when something needs
+you. Deliberately not "one tap, one year" — a run ends when a decision is
+needed, so it is often 11 weeks rather than 52, and promising the maximum while
 delivering the median is how a working feature reads as broken.
 
 ---
@@ -112,21 +114,18 @@ node scripts/compose-store-screenshots.mjs
 
 | # | Screen | Caption | Status |
 |---|---|---|---|
-| 1 | Year in Review, a year that went WELL | **A whole life, one sitting** | ⚠️ needs a played save — see below |
-| 2 | The pace picker, Story selected | **Choose your pace** | ✅ generated |
-| 3 | The HUD | **Your whole life, on one screen** | ✅ generated |
-| 4 | Year in Review with the DeepLife+ offer | **Make the next one count** | ⚠️ needs a good year (the offer only fires after one) |
-| 5 | Work › Career tab | **20+ careers. Or a life of crime.** | ✅ generated |
-| 6 | Life › Market tab | **Every dollar is a decision** | ✅ generated |
-| 7 | Subscription paywall | **Go deeper** | ✅ generated |
+| 1 | The pace picker, Story selected | **Choose your pace** | ✅ generated |
+| 2 | The HUD | **Your whole life, on one screen** | ✅ generated |
+| 3 | Work › Career tab | **20+ careers. Or a life of crime.** | ✅ generated |
+| 4 | Life › Market tab | **Every dollar is a decision** | ✅ generated |
+| 5 | Subscription paywall | **Go deeper** | ✅ generated |
 
-**Why 1 and 4 need you.** The automated capture takes no actions during the
-year, so its character is unemployed and broke: the batch hands the year back
-after ~7 weeks with "Your life is in trouble" across the Year in Review. That
-is a true screenshot of the feature working correctly and a dishonest one under
-"A whole life, one sitting" — so the compositor deliberately leaves those two
-slots empty and reports the gap rather than shipping an oversell. Capture them
-from a save where a year actually went well.
+**All five are generated — the set is complete.** It used to be seven with two
+permanently blocked: both showed the Year in Review, and the automated capture
+could never produce a year good enough to photograph honestly under "A whole
+life, one sitting". That screen no longer exists. Story mode became a live run
+that plays in front of the player, so there is nothing to recap and nothing to
+photograph. Deleting the screen deleted the gap.
 
 > **`--clear` is load-bearing.** Metro caches the *transformed* module, env
 > inlining included, so an export can bake in a stale `EXPO_PUBLIC_SAVE_HMAC_KEY`

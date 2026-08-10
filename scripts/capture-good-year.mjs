@@ -145,10 +145,17 @@ try {
     return true;
   });
   await sleep(900);
-  const storyOn = await page.evaluate(() =>
-    document.querySelector('[aria-label^="Story mode"]')?.getAttribute('aria-checked') === 'true'
+  // INFORMATIONAL ONLY, and deliberately not a gate. RN-web does not emit
+  // `aria-checked` for `accessibilityState={{ selected }}` any more than it
+  // emits `aria-selected` — both read null on a control that IS selected. A
+  // previous version of this check gated on the equivalent attribute, reported
+  // a false negative, and three measurements were retracted on the strength of
+  // it. The run itself is the evidence: story mode advances many weeks per tap
+  // and raises a pause banner; classic advances one and does not.
+  const storyAttr = await page.evaluate(() =>
+    document.querySelector('[aria-label^="Story mode"]')?.getAttribute('aria-checked')
   );
-  console.log('   story mode selected:', storyOn);
+  console.log(`   story card aria-checked: ${storyAttr} (null is normal — see note)`);
   await sleep(700);
 
   for (let s = 0; s < 12; s++) {
@@ -237,20 +244,25 @@ try {
     el.dispatchEvent(new MouseEvent('click', o));
   });
 
+  // Detect the PAUSE BANNER, not the old Year in Review — that modal was
+  // deleted when story mode became a live run. Matching on text the app no
+  // longer renders is how a working feature gets reported as a failure, which
+  // is exactly what happened on the first run after the redesign.
   let body = '';
+  const PAUSED = /come down with|fallen ill|life is in trouble|quiet year|interrupted the run/i;
   for (let i = 0; i < 40; i++) {
-    await sleep(5000);
+    await sleep(4000);
     body = await text();
-    if (/weeks? lived/.test(body)) break;
+    if (PAUSED.test(body)) break;
   }
 
-  if (!/weeks? lived/.test(body)) {
-    console.log('\n✗ No Year in Review appeared. Writing nothing.');
+  if (!PAUSED.test(body)) {
+    console.log('\n✗ The run never paused. Writing nothing.');
     console.log('  page:', body.replace(/\n+/g, ' | ').slice(0, 260));
   } else {
-    const weeks = Number((body.match(/(\d+)\s+weeks? lived/) || [])[1] || 0);
-    const inTrouble = /in trouble/.test(body);
-    const hasOffer = /Make the next one count/.test(body);
+    const weeks = Number((body.match(/(\d+)\s+weeks/) || [])[1] || 0);
+    const inTrouble = /in trouble|come down with|fallen ill/i.test(body);
+    const hasOffer = /DeepLife\+/.test(body);
     console.log(`\n  weeks lived: ${weeks} · in danger: ${inTrouble} · offer: ${hasOffer}`);
 
     console.log(`  (52 weeks is a full year; this run reached ${weeks})`);

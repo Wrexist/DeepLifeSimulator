@@ -55,22 +55,20 @@ const H = 2796;
  * see, so they carry the pitch on their own. `source` is the capture filename;
  * anything absent is skipped rather than faked.
  */
+/*
+  Two slots were removed here, and their removal is the point rather than a
+  compromise. `01-a-whole-life-one-sitting` and `04-make-the-next-one-count`
+  both showed the Year in Review — a modal that no longer exists. Story mode
+  became a live run that plays in front of the player, so there is nothing to
+  recap and no recap screen to photograph.
+
+  They were also the two slots the compositor had been REPORTING AS MISSING for
+  weeks, because the automated capture could never produce a year that went
+  well enough to photograph honestly. Deleting the screen deleted the gap: the
+  set is now five real shots and complete, rather than seven with two
+  permanently blocked on a screenshot nobody could take.
+*/
 const SHOTS = [
-  {
-    out: '01-a-whole-life-one-sitting',
-    // NOT `04-year-in-review.png`, which the capture script does produce.
-    // That one is a SEVEN-week year that stopped early with "Your life is in
-    // trouble" across it — a true screenshot of the feature working, and a
-    // dishonest one under this caption. The hero shot needs a year that went
-    // well, which needs a character who worked and rested, which the automated
-    // run does not do. Left missing on purpose: the compositor reports a skip,
-    // and a reported gap is cheaper than a store page that oversells.
-    source: '04-year-in-review-good.png',
-    caption: 'A whole life,\none sitting',
-    sub: 'One tap. One year. Every week still simulated.',
-    bg: ['#1a0533', '#0d1b2a'],
-    accent: '#a78bfa',
-  },
   {
     out: '02-choose-your-pace',
     source: '02-picker-story.png',
@@ -89,14 +87,6 @@ const SHOTS = [
     sub: 'Money, health, career, family — all live.',
     bg: ['#0a1a0d', '#0a0a1a'],
     accent: '#34d399',
-  },
-  {
-    out: '04-make-the-next-one-count',
-    source: '05-year-in-review-offer.png',
-    caption: 'Make the\nnext one count',
-    sub: 'Every year ends with the story of what happened.',
-    bg: ['#2a1a00', '#1a0d00'],
-    accent: '#fbbf24',
   },
   {
     out: '05-careers-or-crime',
