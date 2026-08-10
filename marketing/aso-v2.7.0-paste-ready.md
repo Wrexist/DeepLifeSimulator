@@ -92,16 +92,44 @@ The first two are the only ones most people see. They must tell the story
 **without sound and without context**, so each carries a caption burned into the
 image rather than relying on the screenshot alone.
 
-| # | Screen | Caption |
-|---|---|---|
-| 1 | Year in Review, big net-worth gain | **A whole life, one sitting** |
-| 2 | Net worth curve going vertical | **Build generational wealth** |
-| 3 | The pace picker, Story selected | **Choose your pace** |
-| 4 | Careers grid | **20+ careers. Or a life of crime.** |
-| 5 | Market / portfolio | **Loans have interest. Bills don't forgive.** |
-| 6 | Death screen / obituary | **Your heir inherits your empire — and your mistakes** |
-
 Dark UI on a bold flat background, caption top-aligned, one idea per shot.
+
+**Most of these are already built.** `scripts/compose-store-screenshots.mjs`
+composites real app captures into upload-ready 1290×2796 PNGs in
+`screenshots/app-store/`. It uses screenshots the app actually produced rather
+than recreations, so what the store shows is by construction what ships.
+
+```bash
+npx expo export --platform web --clear --output-dir /tmp/webexport   # --clear matters, see below
+npx serve -s -l 8099 /tmp/webexport
+CAPTURE_URL=http://localhost:8099 node scripts/capture-story-mode-shots.mjs
+node scripts/compose-store-screenshots.mjs
+```
+
+| # | Screen | Caption | Status |
+|---|---|---|---|
+| 1 | Year in Review, a year that went WELL | **A whole life, one sitting** | ⚠️ needs a played save — see below |
+| 2 | The pace picker, Story selected | **Choose your pace** | ✅ generated |
+| 3 | The HUD | **Your whole life, on one screen** | ✅ generated |
+| 4 | Year in Review with the DeepLife+ offer | **Make the next one count** | ⚠️ needs a good year (the offer only fires after one) |
+| 5 | Careers / Work tab | **20+ careers. Or a life of crime.** | ✅ generated |
+| 6 | Life tab | **Loans have interest. Bills don't forgive.** | ✅ generated |
+| 7 | Subscription paywall | **Go deeper** | ✅ generated |
+
+**Why 1 and 4 need you.** The automated capture takes no actions during the
+year, so its character is unemployed and broke: the batch hands the year back
+after ~7 weeks with "Your life is in trouble" across the Year in Review. That
+is a true screenshot of the feature working correctly and a dishonest one under
+"A whole life, one sitting" — so the compositor deliberately leaves those two
+slots empty and reports the gap rather than shipping an oversell. Capture them
+from a save where a year actually went well.
+
+> **`--clear` is load-bearing.** Metro caches the *transformed* module, env
+> inlining included, so an export can bake in a stale `EXPO_PUBLIC_SAVE_HMAC_KEY`
+> and refuse every save. See the warning in `docs/LAUNCH_CHECKLIST.md` step 3.
+
+Caption typeface is Liberation Sans — there is no brand font in the repo or the
+build container. Restyle in `caption()` if you want Inter.
 
 ---
 

@@ -25,6 +25,9 @@ Story Mode — live a whole life in one sitting.
 • Every year ends with a Year in Review: what your money did, what your net
   worth did, and everything that happened while the year ran.
 • Nothing is decided for you. Choices still wait for you to make them.
+• If your health or happiness starts sliding, the year hands back early
+  rather than running your life into the ground while you watch. You get
+  the wheel back with time to fix it.
 • Sharing a life now actually links to the game, so the friend you send it to
   can install it instead of going looking.
 

@@ -75,6 +75,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           'Every year ends with what your money and net worth did.',
           'Plus everything that happened while the year ran.',
+          'If your health or happiness slides, the year hands back early so ' +
+            'you can act — rather than running your life into the ground.',
         ],
       },
       {

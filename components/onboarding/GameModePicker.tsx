@@ -63,7 +63,11 @@ const MODES: ModeOption[] = [
     title: 'Story',
     tempo: `1 tap = ${STORY_MODE_WEEKS_PER_TAP} weeks`,
     blurb:
-      'A year at a time, with a recap of everything that happened. The simulation is exactly the same — every week still runs in full.',
+      // The "hands the year back" clause is not padding. The batch stops early
+      // when health or happiness drops into danger, so a player promised
+      // "52 weeks" can get seven and reasonably conclude the game is broken.
+      // Cheaper to say it here than to have them find out and not know why.
+      'A year at a time, with a recap of everything that happened. The simulation is exactly the same — every week still runs in full. If your life starts going wrong, the year hands back early so you can act.',
     Icon: FastForward,
   },
 ];

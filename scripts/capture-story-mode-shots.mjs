@@ -182,24 +182,59 @@ try {
     throw new Error('picker not reached');
   }
 
-  // Park the heading clear of the STICKY tab row ("Life Paths / Challenges"),
-  // which floats above the scroller. Stopping as soon as the text merely exists
-  // in the DOM cut "Choose your pace" through the middle — fine for proving the
-  // screen was reached, useless as a store screenshot, which is what shot 3 in
-  // marketing/aso-v2.7.0-paste-ready.md is for. Measure the gap rather than
-  // guessing a scroll distance: the sticky row's height is not a constant.
-  for (let i = 0; i < 12; i++) {
-    const gap = await page.evaluate(() => {
+  // Park the two CARDS as the subject, with the section heading scrolled fully
+  // out of frame rather than sliced by the sticky "Life Paths / Challenges" row
+  // that floats above the scroller.
+  //
+  // A half-cut heading reads as a broken app; no heading reads as deliberate —
+  // and the composed store asset supplies its own "Choose your pace" caption
+  // anyway (scripts/compose-store-screenshots.mjs). Note this is a framing
+  // choice, NOT an app defect: on a real phone the heading scrolls clear
+  // normally, it is only bisected at this one offset.
+  //
+  // An earlier version measured the gap and scrolled up to widen it, and did
+  // nothing at all: when the heading element was not found it took `null` as a
+  // reason to BREAK, so the common case silently skipped the whole correction.
+  // A measurement that cannot be taken must not be read as "already fine".
+  for (let i = 0; i < 14; i++) {
+    const state = await page.evaluate(() => {
       const all = [...document.querySelectorAll('div,span')];
-      const h = all.filter((e) => (e.textContent || '').trim() === 'Choose your pace').pop();
-      if (!h) return null;
-      const tabs = all.filter((e) => (e.textContent || '').trim() === 'Challenges').pop();
-      const floor = tabs ? tabs.getBoundingClientRect().bottom : 0;
-      return h.getBoundingClientRect().top - floor;
+      // Match on CONTAINS and take the deepest node, not an exact-equality
+      // lookup. Two attempts at this failed silently because exact match found
+      // nothing and the loop read "no measurement" as "nothing to fix", so it
+      // broke on the first iteration and the heading stayed sliced. Report what
+      // is actually there when the anchor cannot be found, so the next failure
+      // is diagnosable instead of invisible.
+      const deepest = (t) => {
+        const pool = all.filter((e) => (e.textContent || '').includes(t));
+        const leaves = pool.filter((e) => !pool.some((o) => o !== e && e.contains(o)));
+        return leaves[leaves.length - 1] || null;
+      };
+      const heading = deepest('Choose your pace');
+      const anchor = deepest('1 tap = 1 week');
+      const tabs = deepest('Challenges');
+      return {
+        headingTop: heading ? heading.getBoundingClientRect().top : null,
+        anchorTop: anchor ? anchor.getBoundingClientRect().top : null,
+        floor: tabs ? tabs.getBoundingClientRect().bottom : null,
+        sample: heading ? null : all
+          .map((e) => (e.textContent || '').trim())
+          .filter((t) => t && t.length < 40 && /pace|Classic|Story/i.test(t))
+          .slice(0, 6),
+      };
     });
-    if (gap === null || gap > 24) break;
-    await page.mouse.wheel(0, -90);
-    await sleep(220);
+    if (state.sample) {
+      console.log('   !! heading anchor not found; nearby text:', JSON.stringify(state.sample));
+      break;
+    }
+    // Reveal the heading BELOW the sticky row rather than sliced by it. The row
+    // clips its overflow, so a heading scrolled under it is cut mid-glyph.
+    if (state.floor !== null && state.headingTop < state.floor + 12) {
+      await page.mouse.wheel(0, -70);
+      await sleep(220);
+      continue;
+    }
+    break;
   }
   await sleep(600);
   await shot('01-picker-classic');
@@ -234,16 +269,24 @@ try {
   // and there is no reason for a slow, failure-prone step to take three easy
   // screenshots down with it.
   console.log('→ tab screens');
-  for (const [tab, name] of [
-    ['Work', '07-careers'],
-    ['Apps', '08-apps'],
-    ['Life', '09-life'],
+  for (const [tab, name, subTab] of [
+    // Work opens on "Street Hustle" — scooter rentals and gig work. True to the
+    // game, wrong under a "20+ careers" caption, so step into the Career
+    // sub-tab before shooting. Caption and image have to agree or the store
+    // page is quietly overselling.
+    ['Work', '07-careers', 'Career'],
+    ['Apps', '08-apps', null],
+    ['Life', '09-life', null],
   ]) {
     if (!(await tap(tab))) {
       console.log(`   ${tab}: not found — skipped`);
       continue;
     }
-    await sleep(2600);
+    await sleep(2200);
+    if (subTab && !(await tap(subTab))) {
+      console.log(`   ${tab}/${subTab}: sub-tab not found — shooting the default view`);
+    }
+    await sleep(2400);
     await shot(name);
   }
   // Back to Home, or the year loop starts on whatever tab we left behind and
