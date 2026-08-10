@@ -112,8 +112,8 @@ node scripts/compose-store-screenshots.mjs
 | 2 | The pace picker, Story selected | **Choose your pace** | ✅ generated |
 | 3 | The HUD | **Your whole life, on one screen** | ✅ generated |
 | 4 | Year in Review with the DeepLife+ offer | **Make the next one count** | ⚠️ needs a good year (the offer only fires after one) |
-| 5 | Careers / Work tab | **20+ careers. Or a life of crime.** | ✅ generated |
-| 6 | Life tab | **Loans have interest. Bills don't forgive.** | ✅ generated |
+| 5 | Work › Career tab | **20+ careers. Or a life of crime.** | ✅ generated |
+| 6 | Life › Market tab | **Every dollar is a decision** | ✅ generated |
 | 7 | Subscription paywall | **Go deeper** | ✅ generated |
 
 **Why 1 and 4 need you.** The automated capture takes no actions during the
@@ -127,6 +127,11 @@ from a save where a year actually went well.
 > **`--clear` is load-bearing.** Metro caches the *transformed* module, env
 > inlining included, so an export can bake in a stale `EXPO_PUBLIC_SAVE_HMAC_KEY`
 > and refuse every save. See the warning in `docs/LAUNCH_CHECKLIST.md` step 3.
+
+Every caption was checked against the image beneath it. The Life shot's
+original caption — "Loans have interest. Bills don't forgive." — is true of
+the game but not visible in the Market screen, so it was rewritten rather
+than left as a claim a visitor cannot verify from the picture.
 
 Caption typeface is Liberation Sans — there is no brand font in the repo or the
 build container. Restyle in `caption()` if you want Inter.

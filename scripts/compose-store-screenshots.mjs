@@ -109,8 +109,12 @@ const SHOTS = [
   {
     out: '06-the-money-is-real',
     source: '09-life.png',
-    caption: "Loans have interest.\nBills don't forgive.",
-    sub: 'A real economy, not a number that goes up.',
+    // Caption rewritten to match the screen. It read "Loans have interest.
+    // Bills don't forgive." over the Market tab — true of the game, not shown
+    // in this shot, and a claim a store visitor cannot verify from the image is
+    // the same oversell as a missing capture filled with a stale file.
+    caption: 'Every dollar\nis a decision',
+    sub: 'Buy the gym, sell the bike — or go without.',
     bg: ['#0d1b2a', '#0a1628'],
     accent: '#22d3ee',
   },
