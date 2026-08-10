@@ -11,7 +11,8 @@
         "EXPO_PUBLIC_ENABLE_IAP": "true",
         "EXPO_PUBLIC_ENABLE_ATT": "true",
         "EXPO_PUBLIC_USE_REVENUECAT": "true",
-        "EXPO_PUBLIC_BORING_BUILD": "false"
+        "EXPO_PUBLIC_BORING_BUILD": "false",
+        "EXPO_PUBLIC_ENABLE_FIREBASE": "true"
       },
       "ios": {
         "image": "latest"
