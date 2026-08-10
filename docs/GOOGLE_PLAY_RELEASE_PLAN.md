@@ -11,8 +11,15 @@ values to type, the exact words to send testers, and the traps that cost a rebui
 
 > **How to read this:** Phases A–K are sequential *milestones*, but several run in
 > parallel — see the critical path in §2. If you only read one section before
-> starting, read **§1 (hard deadlines)** and **§9 (testers)**, because those are the
-> only two things in this document that a late start cannot fix.
+> starting, read **§2.1**: almost nothing blocks the closed test, so the ordering
+> the Play Console suggests is 3–4 days slower than the one that works. Then §1
+> (hard deadlines) and §10 (testers) — the only two things here that a late start
+> cannot fix.
+>
+> **Working the plan:** §2.2 is the day-by-day with time budgets (~12–16 h of
+> hands-on work total). §5.3 is every Console screen with its exact path and the
+> signal that it worked. §14 is what makes the launch *succeed* rather than merely
+> happen — read it before you build the assets, not after.
 
 ---
 
@@ -88,6 +95,82 @@ testers are opted in *and* a build is live on the closed track.
 
 **If the account is an organization account, delete Day 3–17 from the plan** — you
 can go straight to production once the listing and declarations are done.
+
+### 2.1 The single biggest optimization: start the clock on Day 0, not Day 3
+
+The schedule above is the *safe* ordering. The **fast** ordering exploits one fact:
+
+> **Almost nothing blocks the closed test.** The store listing, screenshots, the
+> feature graphic, all 26 products, the subscriptions, and the RevenueCat wiring
+> are required for **production**, not for a closed track. Only the **App content
+> declarations** (§6) gate tester installs.
+
+So do not build the launch in the order the Play Console presents it. Build it in
+dependency order:
+
+| Do on Day 0 (blocks the clock) | Do during Days 1–14 (the clock runs anyway) |
+|---|---|
+| Account + verification | Store listing copy + all assets |
+| App record created | 26 products + 2 subscriptions |
+| **App content declarations** | RevenueCat Play credentials |
+| First `.aab` built + uploaded | Purchase smoke-testing |
+| Closed track live, countries set | Fixing what testers report |
+| **Testers recruited and opted in** | Swedish localization |
+
+Every hour between "closed track live" and "12th tester opted in" is an hour of
+the 14-day clock you never get back — and it is the only cost in this project that
+cannot be bought back later with effort. Recruiting is therefore the **first**
+thing to start and the **last** thing to finish, not a Day-3 task.
+
+**Realistic saving: 3–4 days.** A Day-0 start puts production access around
+**Aug 22–25** instead of Aug 25–28.
+
+### 2.2 Day-by-day, with time budgets
+
+Total hands-on work is roughly **12–16 hours**, spread thin across two weeks. The
+waiting — verification, the 14 days, Google's review — dwarfs the working.
+
+**Day 0 — the only day that matters for the timeline (~4–5 h)**
+| # | Task | Time | §|
+|---|---|---|---|
+| 1 | Create the Play account, pay $25, submit identity verification | 30 m | §3 |
+| 2 | Start the payments profile (tax + bank) — it validates in the background | 20 m | §A.2 |
+| 3 | *In parallel:* set repo secrets, create + back up the EAS keystore | 45 m | §4.1–4.2 |
+| 4 | *In parallel:* verify Billing 8 + targetSdk 36 | 30 m | §4.4 |
+| 5 | Deploy the verify server with the Google env vars | 45 m | §4.6 |
+| 6 | Create the app record in Play Console | 10 m | §5 |
+| 7 | **All 10 App content declarations** — the real gate | 60–90 m | §6 |
+| 8 | Build the first `.aab` (mostly waiting — start it during step 7) | 25 m | §9.1 |
+| 9 | Upload by hand, accept Play App Signing, internal release | 15 m | §9.2 |
+| 10 | Create the Google Group + closed track, set countries, get the opt-in link | 30 m | §10.2 |
+| 11 | **Send every recruitment message you have** | 60 m | §10.4 |
+
+> Steps 3–5 need no Play account, so they can happen while verification is pending.
+> If verification stalls, everything except 6–11 still progresses.
+
+**Day 1–2 — reach 12 opted-in testers (~2–3 h)**
+Chase replies, add emails, send the install instructions (§10.4 D) individually.
+**The clock starts the moment the 12th tester is opted in with a live build.**
+Do the device smoke test (§9.3) here too — 60–90 m.
+
+**Day 2–5 — everything production needs, while the clock runs (~5–7 h)**
+Store listing copy (30 m) · icon + feature graphic + screenshots (2–3 h) ·
+26 products (90–130 m — the single most tedious block; do it in one sitting with
+the §8.1 table open) · 2 subscriptions with base plans (30 m) · RevenueCat Play
+credentials + products + offering (60 m) · license testers (5 m) · purchase
+smoke test (45 m) · Swedish localization (20 m).
+
+**Day 5–14 — keep testers engaged (~30 m/week)**
+Day-7 nudge (§10.4 E). Ship one tester-driven fix. Watch Android vitals.
+
+**Day 14–15 — apply (~45 m)**
+Re-check the live tester count *before* applying (§10.1), then answer the ~10
+questions with the specifics from your tracker (§11).
+
+**Day 15–20 — Google reviews the application ⏱️** Nothing to do.
+
+**Launch day (~40 m)** Production release, staged rollout at 20% (§12.2), verify
+on a clean device, announce.
 
 ---
 
@@ -306,6 +389,44 @@ Google-generated app signing key** (the default). Your EAS keystore becomes the
 
 - [ ] 👤 App created with the exact package name
 - [ ] 👤 Play App Signing accepted on first upload
+
+### 5.3 Every Console screen you need — exact paths and success signals
+
+The Play Console moves things around and its left nav is deep. These are the only
+screens this launch touches. **"Done when" is the signal to look for** — not the
+absence of an error, which the Console is bad at showing.
+
+Everything below assumes you already picked the app: `play.google.com/console` →
+**All apps** → *DeepLife Simulator*.
+
+| # | Goal | Exact path | Done when |
+|---|---|---|---|
+| 1 | Create the app | All apps → **Create app** (top right) | The app appears in All apps with your package name |
+| 2 | Payments profile | Left nav bottom → **Setup → Payments profile** (or Play Console home → Settings) | Status reads **Active**, not "pending verification" |
+| 3 | Declarations | **Policy and programs → App content** | All 10 rows show a green **Complete** — an amber "Action required" anywhere blocks tester installs |
+| 4 | Content rating | Policy and programs → App content → **Content rating → Start questionnaire** | A rating certificate is issued and the row goes green |
+| 5 | Data safety | Policy and programs → App content → **Data safety → Start** | Row green; the generated summary matches `docs/DATA_SAFETY.md` |
+| 6 | Store listing | **Grow users → Store presence → Main store listing** | **Save** succeeds with no red field; the "Publishing overview" shows changes ready |
+| 7 | One-time products | **Monetize → Products → In-app products** | Each product's status column reads **Active** (not "Draft"/"Inactive") |
+| 8 | Subscriptions | **Monetize → Products → Subscriptions** | Subscription **and** its base plan both read Active — a subscription with an inactive base plan returns nothing to the app |
+| 9 | License testers | **Setup → License testing** | Your test accounts are listed with "LICENSED" response |
+| 10 | API access / service account | **Setup → API access** | The service account is listed with the granted permissions under "Service accounts" |
+| 11 | Internal testing | **Test and release → Testing → Internal testing** | Release status **Available to internal testers**, and the opt-in URL is shown under Testers |
+| 12 | Closed testing | **Test and release → Testing → Closed testing** → your track | Same as above, plus your Google Group appears under Testers |
+| 13 | Country availability | Inside the track → **Countries / regions → Add countries** | Every tester's country is listed — a missing one silently yields "item not found" |
+| 14 | Production access | **Test and release → Dashboard** (or the testing-requirement card) | The **Apply for production access** button is enabled, not greyed |
+| 15 | Production release | **Test and release → Production → Create new release** | Rollout percentage shows on the track after "Start rollout" |
+| 16 | Vitals | **Quality → Android vitals → Overview** | Crash rate and ANR rate are below the bad-behavior thresholds (§13.1) |
+
+**Three Console behaviours that waste people's afternoons:**
+- **Changes are staged, not live.** Editing the listing or a declaration puts it in
+  a pending set; you must click **Send for review** / **Save** on the *Publishing
+  overview* page for it to take effect. Half of "I filled it in and nothing
+  happened" is this.
+- **Propagation lags ~15 minutes.** A fresh tester link, a new product, a new
+  release — none are instant. Do not debug for the first quarter hour.
+- **Draft apps hide products.** Until a build exists on some track, product setup
+  can appear incomplete. Upload the internal build first, then create products.
 
 ---
 
@@ -872,7 +993,120 @@ Android launches **ad-free** because no Android ad units exist. When you want ad
 
 ---
 
-## 14. Troubleshooting — the failures that actually happen
+## 14. Launching well, not just shipping
+
+Everything above gets the app *live*. This section is about it being *found* and
+*installed*. Play differs from the App Store in ways that change the work:
+
+- **Play indexes your full description.** Apple does not — it uses a hidden
+  keyword field. On Play, the words in your 4000-character description are a real
+  ranking input, so write for humans but make sure the terms people search for
+  actually appear.
+- **Play lets you A/B test the listing.** Apple's equivalent is far more limited.
+  This is free, measurable conversion improvement (§14.3) and almost nobody uses it.
+- **Play ranks partly on behaviour, not just relevance** — install velocity,
+  retention, uninstall rate, rating, and crash/ANR rates all feed it. A technically
+  perfect listing on a crashy build still sinks.
+
+### 14.1 The three assets that decide almost everything
+
+Install decisions are made in seconds, in this order:
+
+| Asset | Why it dominates | The rule |
+|---|---|---|
+| **Icon** | The only asset visible in every surface — search, charts, recommendations | Must read at 48 px. Test it shrunk. No text in it |
+| **Short description** (80 chars) | Shown above the fold, before anyone taps "read more". The highest-leverage 80 characters in the entire launch | Lead with the hook, not the genre. Yours already does: "Start at 18 with nothing…" |
+| **First 2 screenshots** | Most users never scroll past them | Caption each one — an uncaptioned screenshot of a UI communicates nothing at thumbnail size |
+
+The full description matters for *ranking*; the three above matter for
+*conversion*. Do not spend three hours on the description and twenty minutes on
+the screenshots — the leverage is exactly inverted.
+
+### 14.2 Screenshot captions that do the work
+
+Your existing captures under `screenshots/` are UI, not marketing. Add a short
+caption band to each, and order them so the first three carry the pitch:
+
+1. **The hook** — "Start at 18 with nothing"
+2. **The distinctive mechanic** — "A stock market that reacts to you"
+3. **The long game** — "Build a dynasty across generations"
+4. Careers · 5. The dark web · 6. Prestige
+
+Rules that hold regardless of design: portrait 9:16 at ≥1080 px wide; text large
+enough to read at thumbnail size (≈1/3 of your instinct); one idea per screenshot;
+never a bare screenshot with no caption.
+
+### 14.3 Store listing experiments — the free conversion lever
+
+**Grow users → Store presence → Store listing experiments.** Play splits real
+traffic between variants and reports statistically-tested install rate.
+
+Run them **one variable at a time**, in this order of expected payoff:
+1. **Icon** (biggest swing, usually 5–20%)
+2. **Short description** (test hook framing: money vs. choices vs. legacy)
+3. **First two screenshots** (caption wording)
+4. Feature graphic
+
+Start the first experiment once you have steady traffic — a few hundred store
+visits a week. Below that the test never reaches significance and you will fool
+yourself with noise. Let each run to Play's own confidence call, not to the first
+result you like.
+
+### 14.4 Keyword coverage without keyword stuffing
+
+Play ranks on the description's language, but stuffed copy reads badly and Play's
+policy prohibits it. The natural terms for this game: *life simulator, life sim,
+tycoon, business simulator, money, investing, stock market, career, real estate,
+crypto, family, legacy, choices, economy simulation*.
+
+The description in `docs/STORE_LISTING.md` already carries most of these in
+readable prose. Before publishing, read it once asking only: *if someone searched
+this phrase, would this page deserve to appear?* Add what's genuinely missing;
+delete anything that reads like a list.
+
+**Do not** put keywords in the app title beyond the name. "DeepLife Simulator" is
+the brand; "DeepLife Simulator: Life Sim Tycoon Money Game" is what a low-quality
+clone looks like, and it costs more in trust than it gains in ranking.
+
+### 14.5 The first 72 hours
+
+This window sets the trajectory, because early install velocity and the first
+handful of ratings weigh disproportionately.
+
+- **Ratings are fragile early.** Three 1-stars against six reviews is a 2.5 that
+  suppresses installs for weeks. Mitigate by prompting for review *after* a
+  positive moment (a prestige, a milestone) and never after a loss or a crash —
+  `expo-store-review` is already a dependency.
+- **Concentrate the launch, don't trickle it.** Announce to Discord, your iOS
+  players, and anywhere else you have reach on the *same day* the rollout hits
+  100%. Velocity is a ranking input; ten installs a day for ten days is worth
+  less than a hundred in one.
+- **Answer every review, especially the bad ones.** Response rate and updated
+  reviews measurably lift the average — an unhappy user who gets a reply often
+  revises upward. Reply within a day while it still matters.
+- **Watch vitals hourly on day one** (§13.1). A crash spike caught at 20% rollout
+  is a paused rollout; caught at 100% it is a 2-star average that takes months to
+  repair.
+
+### 14.6 Halt criteria — decide these before you need them
+
+Write the numbers down now, while you are calm:
+
+| Signal at 20% rollout | Action |
+|---|---|
+| Crash rate > 1% user-perceived | **Halt rollout**, fix, new release |
+| ANR rate > 0.5% | **Halt rollout**, profile the main thread |
+| Purchases failing for real users | **Halt** — this is revenue *and* refund risk |
+| Rating below 3.0 over ≥20 ratings | Hold at 20%, read every review before widening |
+| All clean for 24–48 h | Widen to 50%, then 100% |
+
+Halting a staged rollout is a normal, reversible operation — the whole reason to
+stage. It is not an admission of failure; shipping a known-bad build to 100%
+because you already announced it is.
+
+---
+
+## 15. Troubleshooting — the failures that actually happen
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -893,7 +1127,7 @@ Android launches **ad-free** because no Android ad units exist. When you want ad
 
 ---
 
-## 15. Master checklist (one screen)
+## 16. Master checklist (one screen)
 
 **Account** — [ ] created · [ ] verified · [ ] payments profile active · [ ] type known
 **Repo** — [ ] secrets set · [ ] keystore created + backed up · [ ] Billing 8 verified · [ ] targetSdk 36 verified · [ ] gates green · [ ] verify server live
@@ -904,12 +1138,13 @@ Android launches **ad-free** because no Android ad units exist. When you want ad
 **Internal test** — [ ] build uploaded · [ ] smoke test passed on a real device
 **Closed test** — [ ] Google Group · [ ] track live · [ ] countries set · [ ] 12+ testers opted in · [ ] day-7 nudge sent · [ ] a tester-driven fix shipped · [ ] 14 days elapsed
 **Production access** — [ ] applied with specific answers · [ ] approved
-**Launch** — [ ] release created · [ ] staged 20% → 50% → 100% · [ ] verified on a clean device · [ ] announced
-**After** — [ ] vitals watched · [ ] reviews answered · [ ] ads enabled (optional)
+**Conversion** — [ ] icon legible at 48 px · [ ] every screenshot captioned · [ ] first 3 carry the pitch · [ ] halt criteria written down
+**Launch** — [ ] release created · [ ] staged 20% → 50% → 100% · [ ] verified on a clean device · [ ] announced on one day, not trickled
+**After** — [ ] vitals watched hourly on day 1 · [ ] every review answered · [ ] icon experiment running · [ ] ads enabled (optional)
 
 ---
 
-## 16. Related docs
+## 17. Related docs
 
 | File | What it has |
 |---|---|
