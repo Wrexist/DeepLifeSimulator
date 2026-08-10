@@ -5,6 +5,8 @@ import type { AdMobPaidEvent } from '@/lib/ads/adRevenueTracking';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { getThemeColors } from '@/lib/config/theme';
 import { scale } from '@/utils/scaling';
@@ -14,11 +16,33 @@ interface BannerAdProps {
 }
 
 /**
+ * No banner until the player is this many in-game weeks in (one game year).
+ *
+ * ── Why a new player sees no ads at all ───────────────────────────────────
+ * Interstitials already had a 104-week grace (`lib/ads/interstitial.ts`), so a
+ * new player met none of those for two game years. The banner had NO grace and
+ * rendered on the home tab from week one — which made it the ONLY ad a new
+ * player ever saw, and they saw it immediately, in the session where they were
+ * still deciding whether to keep the app.
+ *
+ * A 3-star review named exactly that: "ads would surely ruin it already, so
+ * start without them to get more users." The interstitial policy already
+ * agreed with that reviewer; the banner had simply never been held to it.
+ *
+ * One year rather than the interstitial's two: a banner is far less intrusive
+ * than a full-screen takeover, so it can start earning sooner. What matters is
+ * that the FIRST session is clean, and a first session is nowhere near 52
+ * weeks of play.
+ */
+const BANNER_GRACE_WEEKS = WEEKS_PER_YEAR;
+
+/**
  * BannerAd — renders a Google AdMob banner when the ad SDK is available.
  * Returns null (invisible) when:
  *  - ads are not initialized / module not loaded
  *  - the circuit breaker has tripped
  *  - the ad fails to load
+ *  - the player is still inside `BANNER_GRACE_WEEKS`
  *
  * Never crashes — all failures result in hiding the banner.
  */
@@ -59,7 +83,13 @@ export default function BannerAd({ style }: BannerAdProps) {
     || iapService.hasPurchased(IAP_PRODUCTS.REMOVE_ADS)
     || iapService.hasPurchased(IAP_PRODUCTS.LIFETIME_PREMIUM);
 
+  // Read AFTER the other hooks so hook order stays fixed; the early returns
+  // below are all after every hook in this component.
+  const weeksLived = useGameSelector((st) => st?.weeksLived ?? 0);
+
   if (adError || !isReady || adsRemoved) return null;
+  // New players get a clean first year. See BANNER_GRACE_WEEKS.
+  if (weeksLived < BANNER_GRACE_WEEKS) return null;
 
   const NativeBanner = adMobService.getNativeBannerAd();
   const BannerSize = adMobService.getBannerAdSize();

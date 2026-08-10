@@ -46,17 +46,29 @@ const PLUMBING =
 /**
  * Known-dead fields. LOWER THIS LIST as they are deleted or wired; never add.
  *
- * EMPTY as of 2026-08-02 — all sixteen were deleted rather than wired. None had
- * a consumer waiting: seven tutorial flags no tutorial read, three counters
- * nothing counted, three save-metadata fields that verified nothing (`_checksum`
- * in particular read as though saves were checked through it; the real CRC32 and
- * HMAC primitives never touched it), and three the save pipeline backfilled and
- * repaired on every load for no reader at all.
+ * It was EMPTY from 2026-08-02 — all sixteen were deleted rather than wired.
+ * None had a consumer waiting: seven tutorial flags no tutorial read, three
+ * counters nothing counted, three save-metadata fields that verified nothing
+ * (`_checksum` in particular read as though saves were checked through it; the
+ * real CRC32 and HMAC primitives never touched it), and three the save pipeline
+ * backfilled and repaired on every load for no reader at all.
  *
- * An empty list makes this a plain gate: GameState carries no dead field. If you
- * are adding one, wire it in the same change or do not add it.
+ * ── The one entry, and why it is an exception rather than a slide ─────────
+ * `gameMode` is dead ON PURPOSE. Story mode was removed after playtesting, so
+ * nothing reads or writes it and no code path can set it.
+ *
+ * It is not deleted because a TestFlight build SHIPPED with story mode, so
+ * saves carrying `gameMode: 'story'` and `version: 38` exist on real devices.
+ * Deleting the field would make those saves parse into a shape these types call
+ * impossible, and dropping STATE_VERSION to 37 would send every one of them
+ * down the "save is newer than the app" branch in `runMigrations`.
+ *
+ * This is the ONLY justification that has ever earned an entry here: a field
+ * kept for saves already in the wild. "A consumer is coming later" is not one —
+ * that was the argument for all sixteen that got deleted instead. Delete this
+ * entry once no supported save can still carry the key.
  */
-const KNOWN_DEAD: string[] = [];
+const KNOWN_DEAD: string[] = ['gameMode'];
 
 const SCAN_DIRS = ['app', 'components', 'contexts', 'hooks', 'lib', 'services', 'src', 'utils'];
 const SKIP_DIR = /node_modules|\.git|\.expo|coverage|android|ios/;
