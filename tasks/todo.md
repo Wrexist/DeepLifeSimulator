@@ -759,15 +759,36 @@ job is negative on happiness and energy (`{ energy: -14, happiness: -1 }`,
 would use to absorb it, so it was a reasonable suspect. Removing the job
 entirely moved 13 → 16. Real, and nowhere near sufficient.
 
+**The 16-week figure is VERIFIED HOUSED.** An earlier check reported the
+tenancy as inactive and I briefly retracted these numbers; that check was
+broken, not the rental. RN-web does not emit `aria-selected` for
+`accessibilityState={{ selected }}`, so it read `null` before and after a
+successful rental alike. The run now asserts on the confirmation toast
+("Moved into the Shared Room. First week's rent of $45 paid.") and reproduces
+16 weeks with the tenancy confirmed. The table above stands.
+
 **What is still unaccounted for, stated as a number rather than a guess.** For
-the wealthy unemployed run the formula predicts happiness decay of
-`4 × 0.5 × 1.0 × 0.8 ≈ 1.6/week` once grace expires, i.e. 90 → 20 in about 44
-weeks. It died in 16, an average of ~4.4/week. **Roughly 3 points per week of
-happiness drain is not explained by `effectiveDecayRate`,** and I did not
-identify its source. That attribution — instrumenting the tick to log which
-subsystem removes each point of happiness — is the next diagnostic step, and it
-should come before any rebalance, because two of my own guesses about this
-(threshold tuning, then job tolls) have already been wrong.
+the wealthy HOUSED unemployed run the formula predicts happiness decay of
+`4 × 0.5 × 1.0 × 0.8 ≈ 1.6/week` once grace expires, less the Shared Room's
++1/week — call it well under 1/week net, i.e. 90 → 20 in **70+ weeks**. It died
+in 16. Health does not explain it either: starting at 70 with decay
+`rate × 0.6 ≈ 1.2/week` gives ~40 weeks to reach 20.
+
+So **roughly 4 points per week of stat drain are not explained by
+`effectiveDecayRate`, and the homeless penalty is ruled out** — this character
+was housed. Three hypotheses are now disproved (danger-threshold tuning, job
+`weeklyToll`, and `HOMELESS_PENALTY`), which is why the next step is
+measurement rather than a fourth guess:
+
+1. **Which stat crosses the danger line first?** The run only reports "in
+   trouble"; it does not say whether happiness, health or energy tripped it.
+2. **Per-subsystem attribution.** Instrument the weekly tick to log every
+   happiness and health delta by source for ~20 ticks. The ~37 `apply*`
+   subsystems are the search space, and several of them (`applyPets`,
+   `applyRelationshipHealth`, `applyEducationStress`, `applyCrimeTick`) carry
+   double-digit penalties that would not show up in any formula I have read.
+
+Do that before touching a single balance number.
 
 **This is a design call, not a bug, so it is not being changed unilaterally.**
 Three options, with what each costs:
