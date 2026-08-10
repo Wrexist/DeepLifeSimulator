@@ -76,6 +76,9 @@ const SHOTS = [
     source: '02-picker-story.png',
     caption: 'Choose\nyour pace',
     sub: 'Classic week-by-week, or a year at a time.',
+    // Trims the onboarding sticky tab row and the heading it slices. See the
+    // `crop` note in the stylesheet below.
+    crop: 0.168,
     bg: ['#0a1628', '#0d0d2b'],
     accent: '#60a5fa',
   },
@@ -161,15 +164,30 @@ function page(shot, dataUri) {
     border-radius:74px; padding:11px; background:#26262e;
     box-shadow:0 46px 130px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.09);
   }
-  .device img{
-    width:100%; height:100%; display:block;
-    border-radius:63px; object-fit:cover; object-position:top center;
+  .device{ overflow:hidden; }
+  .device .screen{ position:relative; width:100%; height:100%; border-radius:63px; overflow:hidden; }
+  /*
+    NOTE: no backticks in this comment — it lives inside a template literal.
+    The crop option trims the TOP of a capture. The pace-picker shot needs it: the
+    onboarding screen's sticky tab row clips the "Choose your pace" heading
+    mid-glyph at the scroll offset the capture lands on, which reads as a broken
+    app on a store page. Three attempts to scroll it clear failed (the DOM
+    anchor could not be located reliably), and cropping is deterministic where
+    scrolling was not. The composed page supplies its own "Choose your pace"
+    caption, so nothing is lost — and this is framing, not a defect: on a real
+    phone the heading scrolls clear normally.
+  */
+  .device .screen img{
+    position:absolute; left:0; width:100%; display:block;
+    top:${(-(shot.crop ?? 0) * 100).toFixed(2)}%;
+    height:${(100 + (shot.crop ?? 0) * 100).toFixed(2)}%;
+    object-fit:cover; object-position:top center;
   }
   </style></head><body>
     <div class="glow"></div>
     <div class="cap">${esc(shot.caption)}</div>
     <div class="sub">${esc(shot.sub)}</div>
-    <div class="device"><img src="${dataUri}"></div>
+    <div class="device"><div class="screen"><img src="${dataUri}"></div></div>
   </body></html>`;
 }
 

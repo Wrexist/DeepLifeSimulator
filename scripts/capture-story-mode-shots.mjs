@@ -276,7 +276,12 @@ try {
     // page is quietly overselling.
     ['Work', '07-careers', 'Career'],
     ['Apps', '08-apps', null],
-    ['Life', '09-life', null],
+    // Life opens on Health — vitals and "Walk in Park". Composed under
+    // "Loans have interest. Bills don't forgive." that is a caption describing
+    // a different screen, which is the same overselling the missing-capture
+    // rule exists to prevent. Market is the sub-tab that actually backs the
+    // claim.
+    ['Life', '09-life', 'Market'],
   ]) {
     if (!(await tap(tab))) {
       console.log(`   ${tab}: not found — skipped`);
