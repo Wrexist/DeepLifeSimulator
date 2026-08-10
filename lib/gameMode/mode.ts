@@ -175,136 +175,77 @@ export function shouldStopBatch(obs: BatchTickObservation): YearStopReason | nul
 }
 
 /**
- * What one story-mode tap did, for the Year in Review surface.
+ * Milliseconds between weeks while a story run is playing.
  *
- * ONLY "before" values and things the batch itself knows. There is deliberately
- * no `moneyAfter` / `ageAfter` / `stopReason` here, and that absence is a design
- * decision rather than an omission:
+ * ── Why story mode PLAYS instead of batching behind a spinner ─────────────
+ * The first design ran 52 ticks blocked behind a loading overlay and then
+ * explained them in a modal. That needed a digest to collect notes, a summary
+ * to join the digest to live state, suppression flags so 52 weeks of banners
+ * did not flood the screen, and a 370-line recap — roughly 680 lines whose
+ * whole job was to describe what the player had not been allowed to watch.
  *
- * A batch runs inside one React callback, so anything it reports about the state
- * it PRODUCED has to be read before React has necessarily committed — and every
- * way of asking (the state ref, the tick's own published state, a no-op probe
- * updater) was measured returning stale values inside a loop. Reporting an
- * "after" number from in there means reporting one that can be a week wrong.
+ * Letting it play deletes the reason all of that existed. The HUD updates as
+ * money climbs and age ticks, so nothing needs recapping; the run simply stops
+ * when the life needs its player, and a one-line banner says why. Visible
+ * progress is also the more enjoyable version — an interruption to motion
+ * lands harder than a modal appearing after silence.
  *
- * The component rendering the Year in Review is already subscribed to the live
- * state and re-renders when it commits, so it has the real "after" for free.
- * This carries the half the batch actually owns; `summarizeYear` joins them.
+ * 110ms is roughly nine weeks a second: fast enough that a full year is about
+ * six seconds, slow enough to read the numbers moving. It is a floor, not a
+ * budget — the tick itself measures ~3.5ms, so the delay is pacing rather than
+ * throughput.
  */
-export interface YearDigest {
-  /** Weeks the batch asked for. What was DELIVERED is `after - before`. */
-  weeksRequested: number;
-  /** Snapshot taken before the first tick — the only side the batch can trust. */
-  before: {
-    weeksLived: number;
-    age: number;
-    money: number;
-    netWorth: number;
-  };
-  /** Subsystem messages collected across the batch, deduped, in order. */
-  notes: string[];
-  /**
-   * Set when the batch ended before `weeksRequested`.
-   *
-   * This is the ONE "what happened" field the batch may report, and it is
-   * exempt from the no-after-values rule above for a specific reason: it is not
-   * read from state at all. The loop knows why it broke because it is the thing
-   * that broke. Nothing here can be a week stale.
-   */
-  stoppedEarly?: YearStopReason;
-  /**
-   * Name of the illness that stopped the batch, when `stoppedEarly` is
-   * `'illness'`. Same exemption as above: the loop observed it as it happened.
-   *
-   * Carried so the recap can say "You've developed allergies" rather than
-   * "the year stopped early" — the difference between a moment in a life and
-   * an error message.
-   */
-  illnessName?: string;
-}
+export const STORY_WEEK_MS = 110;
 
-/** Why the year ended where it did. Derived from live state, never reported. */
-export type YearOutcome =
-  /** Ran the full span requested. */
-  | 'year-complete'
-  /** The character died during it. */
-  | 'death'
-  /** Handed back early because health or happiness crossed into danger. */
-  | 'danger'
-  /** Handed back early because the player fell ill and can now treat it. */
-  | 'illness'
-  /** Events queued up and are waiting on the player. */
-  | 'decision'
-  /** Nothing advanced at all. */
-  | 'blocked';
-
-/** The Year in Review, computed by joining the digest to the live state. */
-export interface YearSummary {
+/** Why a story run stopped, and what to tell the player. */
+export interface StoryPause {
+  /** Weeks actually advanced this run. */
   weeksAdvanced: number;
-  outcome: YearOutcome;
-  ageBefore: number;
-  ageAfter: number;
-  moneyBefore: number;
-  moneyAfter: number;
-  moneyDelta: number;
+  /** `null` when the run completed its full span without interruption. */
+  reason: YearStopReason | null;
+  /** Named when `reason` is `'illness'`, so the banner can say which. */
+  illnessName?: string;
+  /** Net worth before and after, for the one number worth calling out. */
   netWorthBefore: number;
   netWorthAfter: number;
-  netWorthDelta: number;
-  notes: string[];
-  /**
-   * The illness that ended the year, when `outcome` is `'illness'`.
-   *
-   * Carried through from the digest so the recap can name it. "You've come
-   * down with the flu" is a moment in a life; "the year stopped early" is an
-   * error message about one.
-   */
-  illnessName?: string;
-}
-
-/** The "after" half, read from whatever the caller currently has committed. */
-export interface YearAfter {
-  weeksLived: number;
-  age: number;
-  money: number;
-  netWorth: number;
-  died: boolean;
-  pendingDecisions: number;
 }
 
 /**
- * Join the batch's "before" to the live "after".
- *
- * `weeksAdvanced` is the movement of the game clock — not a counter the loop
- * kept — so it is right regardless of when any updater ran. That is the whole
- * reason the split exists.
+ * The single line shown when a run stops. One sentence, and where possible an
+ * ACTION — a player handed the wheel back needs to know what to do, not to be
+ * told a state they can already see in the HUD.
  */
-export function summarizeYear(digest: YearDigest, after: YearAfter): YearSummary {
-  const weeksAdvanced = Math.max(0, after.weeksLived - digest.before.weeksLived);
-  // Order is the priority of what the player most needs to know. `danger`
-  // outranks `decision` because a queued event can wait a week and a life at
-  // 12 happiness cannot — and because a batch that stopped for danger almost
-  // always ALSO has events queued, so checking decisions first would hide the
-  // reason the year actually ended.
-  let outcome: YearOutcome;
-  if (after.died) outcome = 'death';
-  else if (weeksAdvanced <= 0) outcome = 'blocked';
-  else if (digest.stoppedEarly === 'danger') outcome = 'danger';
-  else if (digest.stoppedEarly === 'illness') outcome = 'illness';
-  else if (after.pendingDecisions > 0) outcome = 'decision';
-  else outcome = 'year-complete';
-
-  return {
-    illnessName: digest.illnessName,
-    weeksAdvanced,
-    outcome,
-    ageBefore: digest.before.age,
-    ageAfter: after.age,
-    moneyBefore: digest.before.money,
-    moneyAfter: after.money,
-    moneyDelta: after.money - digest.before.money,
-    netWorthBefore: digest.before.netWorth,
-    netWorthAfter: after.netWorth,
-    netWorthDelta: after.netWorth - digest.before.netWorth,
-    notes: digest.notes,
-  };
+export function describePause(pause: StoryPause): string {
+  switch (pause.reason) {
+    case 'illness':
+      return pause.illnessName
+        ? `You've come down with ${pause.illnessName.toLowerCase()}. Treat it in Health before it wears you down.`
+        : "You've fallen ill. Treat it in Health before it wears you down.";
+    case 'danger':
+      return 'Your life is in trouble. Rest, earn, or see friends before carrying on.';
+    case 'halted':
+      return 'Something interrupted the run.';
+    default:
+      return pause.weeksAdvanced > 0
+        ? `A quiet year — ${pause.weeksAdvanced} weeks passed.`
+        : 'No time passed.';
+  }
 }
+
+/**
+ * Whether a run went well enough to be worth an upsell.
+ *
+ * Deliberately strict, and the strictness is the point: this decides whether a
+ * player is asked for money, and asking at a bad moment is worse than not
+ * asking. It requires an uninterrupted run, a meaningful span, and real
+ * growth — a year that ended in illness or danger never qualifies.
+ */
+export function wasAGoodRun(pause: StoryPause): boolean {
+  if (pause.reason !== null) return false;
+  if (pause.weeksAdvanced < 26) return false;
+  const base = Math.max(1000, Math.abs(pause.netWorthBefore));
+  const delta = pause.netWorthAfter - pause.netWorthBefore;
+  return delta > 0 && delta / base >= 0.15;
+}
+
+

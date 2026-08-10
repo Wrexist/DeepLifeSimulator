@@ -238,7 +238,30 @@ try {
   }
   await sleep(600);
   await shot('01-picker-classic');
-  await tap('1 tap = 52 weeks');
+    // Select Story by its ROLE label, not its marketing copy. This used to match
+  // the tempo chip text "1 tap = 52 weeks"; the chip was later reworded to
+  // "1 tap = up to 52 weeks" and the substring stopped matching, so story mode
+  // was silently never selected and a whole capture run advanced zero weeks
+  // while reporting success. The card's accessibilityLabel starts with
+  // "Story mode," and is derived from the mode id, so it survives copy edits.
+  await page.evaluate(() => {
+    const el = document.querySelector('[aria-label^="Story mode"]');
+    if (!el) return false;
+    el.scrollIntoView({ block: 'center' });
+    const r = el.getBoundingClientRect();
+    const o = { bubbles: true, cancelable: true, clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true };
+    el.dispatchEvent(new PointerEvent('pointerdown', o));
+    el.dispatchEvent(new PointerEvent('pointerup', o));
+    el.dispatchEvent(new MouseEvent('click', o));
+    return true;
+  });
+  await sleep(900);
+  const storyOn = await page.evaluate(() =>
+    document.querySelector('[aria-label^="Story mode"]')?.getAttribute('aria-checked') === 'true'
+  );
+  console.log('   story mode selected:', storyOn);
+  await sleep(700);
   await sleep(800);
   await shot('02-picker-story');
 

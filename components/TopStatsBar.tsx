@@ -17,9 +17,8 @@ import {
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual, GameStoreContext } from '@/contexts/game/useGameSelector';
-import { isStoryMode, STORY_MODE_WEEKS_PER_TAP, summarizeYear, type YearSummary } from '@/lib/gameMode/mode';
-import { YearInReviewModal } from '@/components/YearInReviewModal';
-import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
+import { isStoryMode, STORY_MODE_WEEKS_PER_TAP, type StoryPause } from '@/lib/gameMode/mode';
+import { StoryPauseBanner } from '@/components/StoryPauseBanner';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -999,8 +998,10 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  const storyMode = isStoryMode(gameMode);
  // The Year in Review for the tap that just finished. Null in classic mode and
  // between taps.
- const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
- const storeForSummary = useContext(GameStoreContext);
+ const [storyPause, setStoryPause] = useState<StoryPause | null>(null);
+ // Only used to check whether the run ended in death — the obituary owns the
+ // screen and a banner stacked on it would bury the bigger moment.
+ const storeForDeathCheck = useContext(GameStoreContext);
  const { width } = useWindowDimensions();
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
@@ -1279,24 +1280,15 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // One tap advances a week in classic and up to a year in story. Both run
  // the identical weekly simulation — story just runs 52 of them.
  if (storyMode) {
- const digest = await liveYear();
- // Read the "after" half off the committed store — the batch cannot report
- // it honestly from inside its own React callback (see lib/gameMode/mode.ts).
- const after = storeForSummary?.getSnapshot?.() ?? null;
- if (after) {
- const summary = summarizeYear(digest, {
- weeksLived: after.weeksLived ?? 0,
- age: after.date?.age ?? 0,
- money: after.stats?.money ?? 0,
- netWorth: computeNetWorth(after),
- died: !!after.showDeathPopup,
- pendingDecisions: (after.pendingEvents ?? []).length,
- });
- // Death owns the screen — the obituary is the bigger moment and a recap
+ // The run reports its own outcome. Nothing is read back off the store to
+ // build a recap any more — the player watched the HUD move, so all that
+ // is left to say is why it stopped.
+ const pause = await liveYear();
+ const after = storeForDeathCheck?.getSnapshot?.() ?? null;
+ // Death owns the screen — the obituary is the bigger moment, and a banner
  // stacked on top of it would bury it.
- if (summary.outcome !== 'death' && summary.weeksAdvanced > 0) {
- setYearSummary(summary);
- }
+ if (!after?.showDeathPopup && pause.weeksAdvanced > 0) {
+ setStoryPause(pause);
  }
  } else {
  await nextWeek();
@@ -1362,11 +1354,11 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  </View>
  </View>
 
- {/* Story mode only: replaces the 52 per-week banners the batch suppressed. */}
- <YearInReviewModal
- visible={yearSummary !== null}
- summary={yearSummary}
- onClose={() => setYearSummary(null)}
+ {/* Story mode only: one line saying why the run stopped. */}
+ <StoryPauseBanner
+ pause={storyPause}
+ darkMode={settings?.darkMode !== false}
+ onDismiss={() => setStoryPause(null)}
  />
  </View>
  );

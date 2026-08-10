@@ -163,7 +163,7 @@ import { applyAutoCheckpoint } from './actions/weekly/applyAutoCheckpoint';
 import { applyLifetimeStatistics } from './actions/weekly/applyLifetimeStatistics';
 import { applyCliffhangerRoll } from './actions/weekly/applyCliffhangerRoll';
 import type { WeekContext } from './actions/weekly/weekContext';
-import { STORY_MODE_WEEKS_PER_TAP, isInDanger, shouldStopBatch, type YearDigest } from '@/lib/gameMode/mode';
+import { STORY_MODE_WEEKS_PER_TAP, STORY_WEEK_MS, isInDanger, shouldStopBatch, type StoryPause, type YearStopReason } from '@/lib/gameMode/mode';
 
 /**
  * Energy the Auto-Rest prestige bonus tops a depleted week up to.
@@ -191,7 +191,7 @@ interface GameActionsContextType {
   * real `nextWeek` in a loop. Stops early on death or a pending decision.
   * Classic mode never calls this. See `lib/gameMode/mode.ts`.
   */
- liveYear: (maxWeeks?: number) => Promise<YearDigest>;
+ liveYear: (maxWeeks?: number) => Promise<StoryPause>;
  resolveEvent: (eventId: string, choiceId: string) => void;
  checkAchievements: (state?: GameState) => void;
  claimProgressAchievement: (achievementId: string, goldReward: number) => void;
@@ -3476,37 +3476,49 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   * Nothing is auto-resolved either way: queued events are still the player's to
   * answer, they just surface at the end of the year rather than mid-batch.
   *
-  * Returns only what the batch can honestly know — see `YearDigest`. Join it to
-  * live state with `summarizeYear` to get the Year in Review.
+  * Returns a `StoryPause`: how far it got, why it stopped, and the net worth on
+  * either side. No digest, no summary, no recap modal — the player watched it.
   */
- const liveYear = useCallback(async (maxWeeks: number = STORY_MODE_WEEKS_PER_TAP): Promise<YearDigest> => {
+ /**
+  * Play the life forward, a week at a time, until it needs its player.
+  *
+  * ── This used to run blocked behind a spinner, and that was the problem ──
+  * The batched design ran 52 ticks with the UI frozen and then explained them
+  * in a modal, which required a digest, a summary, suppression flags and a
+  * 370-line recap. Letting the run PLAY deletes the need for all of it: the
+  * HUD updates as it goes, so there is nothing to recap, and the run stops
+  * with a one-line reason instead of a screen full of numbers.
+  *
+  * Still batches the INTERACTION and never the simulation — this is `nextWeek`
+  * in a loop, exactly as classic mode would run it, which is what makes the
+  * equivalence in `__tests__/gameMode/batchEquivalence.test.ts` trivially true
+  * rather than something to defend.
+  */
+ const liveYear = useCallback(async (maxWeeks: number = STORY_MODE_WEEKS_PER_TAP): Promise<StoryPause> => {
  const before = gameStateRef.current;
- const digest: YearDigest = {
- weeksRequested: maxWeeks,
- before: {
- weeksLived: before?.weeksLived ?? 0,
- age: before?.date?.age ?? 0,
- money: before?.stats?.money ?? 0,
- netWorth: before ? calculateNetWorth(before) : 0,
- },
- notes: [],
- };
- if (!before) return digest;
+ const startWeeks = before?.weeksLived ?? 0;
+ const netWorthBefore = before ? calculateNetWorth(before) : 0;
+ // Nothing ran, so nothing advanced. Reporting a span here would be reading
+ // state to describe work that did not happen.
+ const idle = (reason: YearStopReason | null = null): StoryPause => ({
+ weeksAdvanced: 0,
+ reason,
+ netWorthBefore,
+ netWorthAfter: netWorthBefore,
+ });
+ if (!before) return idle();
 
  // Already dead — nothing to run, and `nextWeek` would no-op 52 times anyway.
- if (before.showDeathPopup) return digest;
- if (liveYearInProgressRef.current) return digest;
+ if (before.showDeathPopup) return idle();
+ if (liveYearInProgressRef.current) return idle();
 
  liveYearInProgressRef.current = true;
+ // Suppresses the AUTOSAVE and the per-week haptic only. Banners stay
+ // suppressed too: at nine weeks a second, "Rent paid" forty times is noise,
+ // and the HUD already shows the money moving. The loading OVERLAY is
+ // deliberately not set — the player is meant to watch this.
  batchTickRef.current = true;
  haptic.medium(); // ONE buzz for the tap, not 52
- setIsLoading(true);
- setLoadingMessage('Living a year...');
- setLoadingProgress(0);
-
- // Deduped across the whole batch: a note that fires in 40 of 52 weeks
- // ("Rent paid") should read once in the digest, not forty times.
- const seenNotes = new Set<string>();
 
  // Only warn about danger the batch WALKS INTO. A player who ended last year
  // at 12 happiness and tapped again without fixing it has already been told;
@@ -3520,14 +3532,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // they could not escape, exactly like `startedInDanger`.
  const knownIllnesses = new Set((before.diseases ?? []).map(d => d?.id).filter(Boolean));
 
+ let stopped: YearStopReason | null = null;
+ let stoppedIllness: string | undefined;
+ // COUNTED, not read back off state. The loop knows how many weeks it ran
+ // because it is the thing running them — same principle as `stopped`. Reading
+ // `gameStateRef` afterwards gave 1 when the store had moved 15, because React
+ // defers updaters queued inside one `act()` block until the block exits, and
+ // the ref had only caught the first publish. A number the player is shown
+ // ("11 weeks passed") must not depend on commit timing.
+ let advancedWeeks = 0;
+
  try {
  for (let i = 0; i < maxWeeks; i++) {
  await nextWeek();
- // Notes are plain strings the tick collected — no commit to race.
- for (const note of lastTickOutcomeRef.current.notes) {
- if (!seenNotes.has(note)) { seenNotes.add(note); digest.notes.push(note); }
- }
- setLoadingProgress(Math.round(((i + 1) / maxWeeks) * 100));
+ // Let the frame paint before the next tick. This is the whole difference
+ // between "watch a life play" and "a spinner, then a wall of numbers",
+ // and it costs ~6 seconds for a full year.
+ await new Promise(resolve => setTimeout(resolve, STORY_WEEK_MS));
 
  // Stop on a tick that did not advance (death, failed update, corruption)
  // or on a life that has just crossed into danger. The judgement is in
@@ -3546,6 +3567,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  d => d?.id && !knownIllnesses.has(d.id)
  );
  if (contracted?.id) knownIllnesses.add(contracted.id);
+ if (lastTickOutcomeRef.current.advanced) advancedWeeks++;
 
  const stop = shouldStopBatch({
  advanced: lastTickOutcomeRef.current.advanced,
@@ -3554,8 +3576,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newIllness: contracted?.name ?? null,
  });
  if (stop) {
- digest.stoppedEarly = stop;
- if (stop === 'illness') digest.illnessName = contracted?.name;
+ stopped = stop;
+ if (stop === 'illness') stoppedIllness = contracted?.name;
  break;
  }
  }
@@ -3581,8 +3603,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  });
 
- return digest;
- }, [nextWeek, setIsLoading, setLoadingMessage, setLoadingProgress, showWarning, saveGame]);
+ // Same freshness rule as the loop: prefer the state the tick published over
+ // the ref, which may not have caught up yet.
+ const after = lastTickOutcomeRef.current.state ?? gameStateRef.current;
+ return {
+ weeksAdvanced: advancedWeeks,
+ reason: stopped,
+ illnessName: stoppedIllness,
+ netWorthBefore,
+ netWorthAfter: after ? calculateNetWorth(after) : netWorthBefore,
+ };
+ }, [nextWeek, showWarning, saveGame]);
 
  // Ref to track resolving events (prevent duplicates)
  const resolvingEventsRef = useRef<Set<string>>(new Set());
