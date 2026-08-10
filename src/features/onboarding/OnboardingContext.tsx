@@ -3,7 +3,6 @@ import { Scenario } from './scenarioData';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 import { NEW_LIFE_SLOT_UNSET } from './slotSafety';
-import type { GameMode } from '@/contexts/game/types';
 
 interface OnboardingState {
   /**
@@ -28,7 +27,6 @@ interface OnboardingState {
    * of onboarding without passing the picker cannot silently start someone on a
    * pace they did not choose.
    */
-  gameMode?: GameMode;
 }
 
 interface OnboardingContextType {

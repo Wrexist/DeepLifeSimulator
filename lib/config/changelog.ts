@@ -47,38 +47,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '2.7.0',
     date: 'August 2026',
-    headline: 'Story Mode',
-    summary: 'Live a whole life in one sitting — same game, one tap a year.',
+    headline: 'Polish & fixes',
+    summary: 'Sharper stories, a working share link, and a lot of small repairs.',
     changes: [
-      {
-        category: 'new',
-        title: 'Choose your pace when you start a life',
-        bullets: [
-          'Classic is the game you know: one tap, one week.',
-          'Story Mode runs time on until your life needs you.',
-          'You pick when you create a character, and it stays for that life.',
-          'Lives you are already playing keep the pace they have.',
-        ],
-      },
-      {
-        category: 'new',
-        title: 'Story Mode skips nothing',
-        bullets: [
-          'Every week still runs in full — the same bills, interest and market.',
-          'It just stops asking you to tap for each one.',
-          'Choices still wait for you. Nothing is decided on your behalf.',
-        ],
-      },
-      {
-        category: 'new',
-        title: 'Year in Review',
-        bullets: [
-          'Every year ends with what your money and net worth did.',
-          'Plus everything that happened while the year ran.',
-          'It hands back when you fall ill, hit trouble, or face a choice.',
-          'A quiet year runs the full 52 weeks. An eventful one stops sooner.',
-        ],
-      },
       {
         category: 'improved',
         title: 'Sharing a life now links to the game',

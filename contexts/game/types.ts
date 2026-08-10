@@ -38,17 +38,19 @@ export interface GameDate {
 export type LifeStage = 'child' | 'teen' | 'adult' | 'senior';
 
 /**
- * Pace of a life. See `GameState.gameMode` for the full contract.
+ * RETIRED. Kept only so saves written by the story-mode build still parse.
  *
- * Deliberately NOT a boolean: a third pace (a decade mode for the very late
- * game, say) should be an added member here rather than a second flag that can
- * contradict the first.
+ * Story mode was removed after playtesting. Nothing reads this type or the
+ * field below any more, and there is no code path that can set it — every life
+ * is the original one-week-per-tap game.
  *
- * The runtime helpers that go with it — `resolveGameMode`,
- * `STORY_MODE_WEEKS_PER_TAP` — live in `lib/gameMode/mode.ts`, NOT here. This
- * file is type-only by design (see the import note at the top): giving it a
- * runtime export would make every consumer import it for real and reopen the
- * require cycle that note exists to prevent.
+ * It is not deleted because a TestFlight build shipped with story mode, so
+ * saves carrying `gameMode: 'story'` and `version: 38` exist on real devices.
+ * Removing the field would make those saves parse into a shape the types say
+ * is impossible, and dropping STATE_VERSION back to 37 would make every one of
+ * them a "save is newer than the app" warning on load
+ * (`saveMigrations.ts` line ~1069). Leaving both in place costs one unread
+ * optional key and keeps those saves loading silently.
  */
 export type GameMode = 'classic' | 'story';
 
@@ -2733,25 +2735,8 @@ export interface GameState {
    */
   lastLoginRewardAt?: number;
   /**
-   * How fast this life is played. Chosen at character creation and fixed for
-   * the run — it is a property of the LIFE, not a user preference, which is
-   * why it lives here and not in `settings`.
-   *
-   * - `'classic'` — one tap advances one week. The original game, unchanged.
-   * - `'story'`   — one tap advances up to a year (52 weekly ticks batched),
-   *                 stopping early on death or on any decision the player owes
-   *                 an answer to.
-   *
-   * THE SIMULATION IS IDENTICAL IN BOTH MODES. Story mode changes only how
-   * many ticks one tap buys; every weekly subsystem still runs once per game
-   * week, so interest, arrears, bills and market movement are unaffected.
-   * `__tests__/gameMode/batchEquivalence.test.ts` pins that.
-   *
-   * Default `undefined`, which reads as `'classic'` everywhere via
-   * `resolveGameMode()`. So v38 is a CARVE-OUT: version bumped, NO backfill and
-   * no `repairGameState` mirror. An absent key already means "the game as it
-   * was", which is exactly right for every save that existed before this
-   * shipped — nobody's in-progress life changes pace underneath them.
+   * RETIRED — see the `GameMode` type. Never read, never written; present only
+   * so a save from the story-mode TestFlight build still matches these types.
    */
   gameMode?: GameMode;
   /**

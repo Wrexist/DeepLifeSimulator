@@ -951,25 +951,18 @@ const migrations: Record<number, (state: any) => any> = {
     return state;
   },
 
-  // Version 38: `gameMode` — the pace of a life, chosen at character creation.
-  // `'classic'` is the original one-week-per-tap game; `'story'` batches up to
-  // 52 weekly ticks into one tap and stops early on death or a pending
-  // decision.
+  // Version 38: `gameMode`. The field is RETIRED — story mode was removed after
+  // playtesting and nothing reads or writes it any more.
   //
-  // Default `undefined`, so another CARVE-OUT in the v26/v27/v28/v32/v34/v36/v37
-  // mould: version bumped, NO backfill and no `repairGameState` mirror.
+  // The bump stays, and that is deliberate. A TestFlight build shipped with
+  // story mode, so saves carrying `version: 38` exist on real devices. Dropping
+  // back to 37 would make every one of them take the "save is newer than the
+  // app" branch below on load. Keeping 38 as an intentional no-op costs nothing
+  // and keeps those saves loading silently.
   //
-  // Here the absence is load-bearing rather than merely harmless. Every save
-  // that exists when this ships is a classic-mode life, `resolveGameMode` reads
-  // a missing key as `'classic'`, and so an existing save keeps the exact pace
-  // it had. Writing `'classic'` explicitly would be a no-op today but would
-  // also freeze that answer into the file, which is the wrong shape for a field
-  // whose whole point is that the player picks it per life — and stamping
-  // `'story'` would be actively wrong, silently re-pacing a life already in
-  // progress.
-  //
-  // Nothing else in the save depends on the mode: the simulation is identical
-  // in both, so there is no derived state to migrate alongside it.
+  // It was a carve-out when it landed (default `undefined`, no backfill, no
+  // `repairGameState` mirror), which is why retiring it needs no unwind: there
+  // is no written value anywhere to clean up.
   38: (state) => {
     state.version = 38;
     return state;

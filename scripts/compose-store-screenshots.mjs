@@ -56,30 +56,19 @@ const H = 2796;
  * anything absent is skipped rather than faked.
  */
 /*
-  Two slots were removed here, and their removal is the point rather than a
-  compromise. `01-a-whole-life-one-sitting` and `04-make-the-next-one-count`
-  both showed the Year in Review — a modal that no longer exists. Story mode
-  became a live run that plays in front of the player, so there is nothing to
-  recap and no recap screen to photograph.
+  Three slots have been removed from this list over time, and each removal was
+  the honest answer rather than a compromise.
 
-  They were also the two slots the compositor had been REPORTING AS MISSING for
-  weeks, because the automated capture could never produce a year that went
-  well enough to photograph honestly. Deleting the screen deleted the gap: the
-  set is now five real shots and complete, rather than seven with two
-  permanently blocked on a screenshot nobody could take.
+  `01-a-whole-life-one-sitting` and `04-make-the-next-one-count` both showed the
+  Year in Review; `02-choose-your-pace` showed the pace picker. All three were
+  story-mode surfaces, and story mode was removed after playtesting — so those
+  screens no longer exist and cannot be photographed.
+
+  Do NOT re-add them from an older capture. A store screenshot of a feature that
+  is not in the build is the same oversell as filling a missing slot with a
+  stale file, which is what this script's skip-and-report rule exists to stop.
 */
 const SHOTS = [
-  {
-    out: '02-choose-your-pace',
-    source: '02-picker-story.png',
-    caption: 'Choose\nyour pace',
-    sub: 'Classic week-by-week, or a year at a time.',
-    // Trims the onboarding sticky tab row and the heading it slices. See the
-    // `crop` note in the stylesheet below.
-    crop: 0.168,
-    bg: ['#0a1628', '#0d0d2b'],
-    accent: '#60a5fa',
-  },
   {
     out: '03-your-life-at-a-glance',
     source: '03-hud.png',
