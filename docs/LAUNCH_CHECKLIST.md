@@ -54,6 +54,27 @@ and no server to run.
 build. `package.json` is already at `2.7.0`; the iOS build number comes from
 `BUILD_NUMBER` at build time, so no code change is needed.
 
+> ⚠️ **If you build LOCALLY (`eas build --local`), clear the Metro cache first.**
+> Metro caches the *transformed* module, `EXPO_PUBLIC_*` inlining included. A
+> build made after setting a secret can still bake in the value the variable had
+> on a previous run — the bundle ends up with
+> `EXPO_PUBLIC_SAVE_HMAC_KEY: void 0`, and the shipped app refuses **every save
+> and every purchase** while the environment looks perfectly configured.
+> Preflight cannot see this: it checks the environment, not the bundle.
+>
+> This bit us during v2.7.0 development and looked exactly like "Metro won't
+> inline this variable" — it is not, the inlining works. Cloud EAS builds run in
+> a fresh container and are not affected. To verify a local bundle actually
+> carries the key:
+>
+> ```bash
+> npx expo export --platform web --clear --output-dir /tmp/verify
+> grep -rl "$EXPO_PUBLIC_SAVE_HMAC_KEY" /tmp/verify/_expo/static/js/web/ | head -1
+> ```
+>
+> One matching file = inlined. No match = you are about to ship a build that
+> cannot save.
+
 **4. Paste the store metadata** (~10 min) — every field is final, with counts
 verified, in [`../marketing/aso-v2.7.0-paste-ready.md`](../marketing/aso-v2.7.0-paste-ready.md):
 subtitle, keyword field, promotional text, screenshot order with captions.

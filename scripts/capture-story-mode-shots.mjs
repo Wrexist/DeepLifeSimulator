@@ -27,24 +27,36 @@
  * pointerdown → pointerup → click straight onto the node, which is what RN-web
  * Pressable listens for and which cannot block.
  *
- * ── KNOWN LIMIT: screens 04-06 are NOT capturable from the dev server ─────
- * Measured, not assumed, and the final number is worse than the first estimate.
- * A single tap was polled for a full 25 MINUTES and advanced roughly 11 of its
- * 52 weeks — about 136 seconds per weekly tick in the unminified dev bundle
- * under headless Chromium. A complete year is over an hour, so the Year in
- * Review (which only mounts once `liveYear` RESOLVES) never appears. Raising
- * the per-tap wait, polling instead of sleeping, and disabling
- * requestAnimationFrame throttling were all tried; none of them move a number
- * that far.
+ * ── SCREENS 04-06 NEED A PRODUCTION EXPORT, NOT A DEV SERVER ──────────────
+ * Against `npx expo start --web` a single tap was polled for 25 MINUTES and
+ * advanced roughly 11 of its 52 weeks — about 136 seconds per weekly tick in
+ * the unminified dev bundle under headless Chromium. A full year is over an
+ * hour, so the Year in Review (which only mounts once `liveYear` RESOLVES)
+ * never appears. Raising the per-tap wait, polling instead of sleeping, and
+ * disabling requestAnimationFrame throttling were all tried; none move a
+ * number that far. Use an export:
  *
- * A production web export is the right fix for the speed, but it introduces a
- * second blocker: `resolveSaveSigningRuntimeConfig` needs EXPO_PUBLIC_* values
- * that Metro only inlines for direct `process.env.X` member reads, so an
- * exported build refuses to write a save and onboarding cannot complete.
- * Setting the key or EXPO_PUBLIC_REQUIRE_SIGNED_SAVES=false at export time does
- * not reach that module. Capturing 04-06 needs a real device or simulator.
+ *   npx expo export --platform web --clear --output-dir /tmp/webexport
+ *   npx serve -s -l 8099 /tmp/webexport
+ *   CAPTURE_URL=http://localhost:8099 node scripts/capture-story-mode-shots.mjs
  *
- * None of this is a product defect. Story mode is verified two other ways:
+ * `--clear` IS LOAD-BEARING, and this cost a full debugging round. Metro
+ * caches the *transformed* module, env inlining included, so an export made
+ * after setting EXPO_PUBLIC_SAVE_HMAC_KEY can still bake in the value the
+ * variable had on a PREVIOUS run. The bundle then contains
+ * `EXPO_PUBLIC_SAVE_HMAC_KEY:void 0`, every save is refused with
+ * SaveSigningConfigError, and onboarding cannot complete — which looks exactly
+ * like "Metro won't inline this variable" and is not. Verify rather than
+ * assume, by grepping the export for the value you set:
+ *
+ *   grep -rl "<your key>" /tmp/webexport/_expo/static/js/web/
+ *
+ * An earlier revision of this comment claimed the export path was blocked
+ * outright because the key "does not reach that module". That was wrong: the
+ * inlining works, and `utils/saveSigningConfig.ts` already handles the
+ * member-read requirement. The blocker was a stale cache.
+ *
+ * Story mode is independently verified regardless of screenshots:
  * `__tests__/gameMode/batchEquivalence.test.ts` proves 52 batched ticks equal
  * 52 individual ones from the same seed, and the live HUD exposes the
  * "Live the next year" control, which only renders when gameMode is 'story'.
@@ -169,6 +181,27 @@ try {
     console.log('   !! never reached the picker — aborting so no misleading shots are saved');
     throw new Error('picker not reached');
   }
+
+  // Park the heading clear of the STICKY tab row ("Life Paths / Challenges"),
+  // which floats above the scroller. Stopping as soon as the text merely exists
+  // in the DOM cut "Choose your pace" through the middle — fine for proving the
+  // screen was reached, useless as a store screenshot, which is what shot 3 in
+  // marketing/aso-v2.7.0-paste-ready.md is for. Measure the gap rather than
+  // guessing a scroll distance: the sticky row's height is not a constant.
+  for (let i = 0; i < 12; i++) {
+    const gap = await page.evaluate(() => {
+      const all = [...document.querySelectorAll('div,span')];
+      const h = all.filter((e) => (e.textContent || '').trim() === 'Choose your pace').pop();
+      if (!h) return null;
+      const tabs = all.filter((e) => (e.textContent || '').trim() === 'Challenges').pop();
+      const floor = tabs ? tabs.getBoundingClientRect().bottom : 0;
+      return h.getBoundingClientRect().top - floor;
+    });
+    if (gap === null || gap > 24) break;
+    await page.mouse.wheel(0, -90);
+    await sleep(220);
+  }
+  await sleep(600);
   await shot('01-picker-classic');
   await tap('1 tap = 52 weeks');
   await sleep(800);
