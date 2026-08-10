@@ -16,15 +16,24 @@
  * across the Year in Review — a true screenshot of the feature working, and a
  * dishonest one under "A whole life, one sitting".
  *
- * So this script does the two things a player would do first, and nothing else:
- * take the entry-level job and rent the cheapest room. Line Cook pays $110/wk
- * against a Shared Room's $45/wk, and the room removes the "sleeping rough is
- * wearing you down" happiness drain that was killing the idle character.
+ * So this script does what a player would do, in order of how much it should
+ * help, and reports how far each gets:
+ *
+ *   1. Take the entry-level job and rent the cheapest room. Line Cook pays
+ *      $110/wk against a Shared Room's $45/wk, and the room removes the
+ *      "sleeping rough is wearing you down" drain. MEASURED: this moved the
+ *      year from 7 weeks to 8. The two obvious player actions bought one week,
+ *      which is why the balance note in tasks/todo.md says this is the decay
+ *      curve rather than player skill.
+ *   2. Start from a scenario at the opposite end of the wealth multiplier —
+ *      see the comment at the scenario pick below.
  *
  * It is NOT guaranteed to produce a full 52 weeks, and it must not pretend to:
  * if the year still ends early or ends in danger, the script says so and writes
  * NOTHING, because a hero screenshot of a life going badly is exactly the
  * oversell the compositor's skip-and-report rule exists to prevent.
+ *
+ * Override the scenario with SCENARIO="Food Courier" to reproduce (1).
  */
 import { chromium } from 'playwright';
 import { mkdir } from 'fs/promises';
@@ -89,7 +98,29 @@ try {
   await tap('Save Slots'); await sleep(1500);
   await tap('Start a new life here', 0); await sleep(1200);
   await tap('Start New Game'); await sleep(2600);
-  await tap('Food Courier'); await sleep(1400);
+
+  // ── Why the Lottery Winner scenario and not the default start ───────────
+  // Decay scales with `wealthMultiplier = clamp(100000/netWorth, 0.5, 2.0)`.
+  // A default character starts at ~$1,500 and therefore sits permanently on
+  // the 2.0 CEILING — maximum decay. Lottery Winner starts at $500,000, which
+  // pins the multiplier to its 0.5 FLOOR: a 4x slower decay.
+  //
+  // This is run for the DATA as much as the screenshot. If even a character
+  // with every economic advantage cannot complete 52 weeks, story mode's
+  // headline promise is unreachable by anyone and the balance problem is not
+  // "poor characters struggle" but "nobody gets a year". That distinction
+  // changes which of the options in tasks/todo.md is the right one.
+  const scenario = process.env.SCENARIO || 'Lottery Winner';
+  if (scenario !== 'Food Courier') {
+    await tap('Challenges'); await sleep(1800);
+    for (let i = 0; i < 14; i++) {
+      if ((await text()).includes(scenario)) break;
+      await page.mouse.wheel(0, 500); await sleep(220);
+    }
+  }
+  const picked = await tap(scenario);
+  console.log(`   scenario "${scenario}" picked:`, picked);
+  await sleep(1600);
 
   console.log('→ story mode');
   for (let i = 0; i < 16; i++) { await page.mouse.wheel(0, 700); await sleep(150);
@@ -161,6 +192,7 @@ try {
     const hasOffer = /Make the next one count/.test(body);
     console.log(`\n  weeks lived: ${weeks} · in danger: ${inTrouble} · offer: ${hasOffer}`);
 
+    console.log(`  (52 weeks is a full year; this run reached ${weeks})`);
     if (inTrouble || weeks < 26) {
       // The whole point of this script is a year worth putting on a store page.
       // A short or troubled one is the DEFAULT capture's job, and writing it
