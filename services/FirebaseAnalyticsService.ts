@@ -66,6 +66,66 @@ class FirebaseAnalyticsServiceImpl {
       log.warn('setConsent failed:', err?.message);
     }
   }
+
+  /**
+   * Forward one product event to Firebase.
+   *
+   * WHY THIS EXISTS
+   * ---------------
+   * The app emits a complete funnel — session_start, week_advanced, death,
+   * paywall_viewed, paywall_cta_tapped, purchase_started/succeeded/failed —
+   * through `track()` in `lib/analytics`. That had exactly ONE sink: an HTTP
+   * queue that needs a self-hosted endpoint. Without one, every event was
+   * computed on every device and then dropped, so a shipped release produced no
+   * payer rate, no ARPDAU, no retention curve and no paywall funnel — and none
+   * of it can be backfilled afterwards.
+   *
+   * Firebase was already fully configured here (GoogleService files, config
+   * plugins, the SDK) and already initialized at boot, but it had no way to
+   * receive a custom event, so it only ever collected automatic screen and
+   * session metrics. This is the missing half: with it, turning on
+   * EXPO_PUBLIC_ENABLE_FIREBASE gives the whole funnel with no server to run.
+   *
+   * Fire-and-forget and never throws — analytics must not be able to break a
+   * purchase flow or a week tick.
+   */
+  logEvent(name: string, params?: Record<string, unknown>): void {
+    const analytics = loadModule();
+    if (!analytics) return;
+    try {
+      // Firebase rejects names outside [a-z_0-9] and over 40 chars, and drops
+      // the whole event when it does. Our names are already snake_case, but
+      // normalising here means a future event name cannot silently lose data.
+      const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+      void analytics()
+        .logEvent(safeName, sanitizeParams(params))
+        .catch((err: any) => log.debug('logEvent rejected:', err?.message));
+    } catch (err: any) {
+      log.debug('logEvent failed:', err?.message);
+    }
+  }
+}
+
+/**
+ * Firebase only accepts string/number/boolean parameter values, caps keys at 40
+ * chars and values at 100, and allows 25 params per event. Anything outside
+ * that makes it discard the parameter — or the event — without complaint, so
+ * the shape is enforced here rather than trusted at every call site.
+ */
+function sanitizeParams(params?: Record<string, unknown>): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  if (!params) return out;
+  let count = 0;
+  for (const [rawKey, value] of Object.entries(params)) {
+    if (count >= 25) break;
+    if (value === null || value === undefined) continue;
+    const key = rawKey.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+    else if (typeof value === 'boolean') out[key] = value;
+    else out[key] = String(value).slice(0, 100);
+    count++;
+  }
+  return out;
 }
 
 export const firebaseAnalyticsService = new FirebaseAnalyticsServiceImpl();

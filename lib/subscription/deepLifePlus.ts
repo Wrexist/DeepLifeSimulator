@@ -253,6 +253,28 @@ export function hasDeepLifePlusEntitlement(settings?: {
  * Console — StoreKit/Play present and enforce the actual trial at checkout; the
  * app only advertises it here. Set to 0 to hide all trial messaging (e.g. if the
  * store offer isn't live yet), so we never promise a trial the store won't honor.
+ *
+ * ── WHY 7 AND NOT 3 ───────────────────────────────────────────────────────
+ * Shortening this to 3 days was considered on 2026-08-09 and rejected on the
+ * data. Measured across subscription apps, 7-day trials convert in the 30-45%
+ * band against 20-30% for 3-day, and longer trials do better still (17-32 day
+ * trials median 42.5% vs 25.5% for anything under 4 days). 3-day trials only
+ * win in utility and photo categories, where the product proves itself in a
+ * single sitting.
+ *
+ * The rule the data actually supports is: match the trial to the TIME TO VALUE
+ * of the thing being sold. And what is sold here is not the game — the game is
+ * free. It is a SUBSCRIPTION whose value (ad-free play, weekly gems, perks)
+ * accrues across sessions. A player cannot feel the worth of a recurring charge
+ * in 72 hours, which is exactly the case where 3-day trials underperform.
+ *
+ * Note also that 84% of 3-day trial cancellations land on day 0-1, against 64%
+ * for 7-day. A shorter trial does not filter harder; it mostly compresses the
+ * same cancellations into the window before the player has formed a habit.
+ *
+ * If this is ever revisited, revisit it with OUR retention curve, not a
+ * benchmark: the honest test is whether D3 retention is high enough that a
+ * 3-day trial ends while the player is still engaged.
  */
 export const DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 7;
 

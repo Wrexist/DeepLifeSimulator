@@ -1417,3 +1417,486 @@ is guarded", the check must enumerate every X in the source, not a snapshot of
 the ones that existed the day the test was authored — otherwise the guard rots
 one new subsystem at a time, which is precisely how the original thirteen
 accumulated.
+
+---
+
+## 2026-08-09 (same day) — a growth plan written without reading the code asked us to break the App Store rules
+
+A viral-growth plan arrived for review. Read end to end it is a good document,
+and several pillars are genuinely unbuilt. But the item it ranked as a
+this-week must-do — §4.1, the rating prompt — was the one item that would have
+made the app **worse and rejectable**, and it is worth writing down exactly why
+that item was the dangerous one.
+
+**The recommendation.** "Soft-gate it: your own 'Enjoying DeepLife?' modal
+first; only fire the native prompt on 'Yes!', route 'No' to Discord/feedback."
+
+**Why it is wrong.** That is *review gating* — pre-screening players and
+sending only the happy ones to the store. Apple's Ratings and Reviews guideline
+prohibits selectively soliciting reviews from a subset of users, and
+`utils/reviewMoments.ts:28-32` already carries a comment saying so and
+instructing that it must not be added. So the plan proposed, as a headline
+action item, precisely the thing a prior session had thought about and
+deliberately refused. *(The guideline number in that comment reads 1.1.7 —
+worth a 60-second check against the current guidelines text before anyone cites
+it externally; the substance is not in doubt, the numbering is.)*
+
+**Why it is wrong twice over.** The plan's premise — that the prompt fires at
+naive moments and needs moving to peak-positive ones — was already false. The
+prompt is a three-file system that does more than the plan asks for:
+
+- `utils/reviewMoments.ts` — scores every candidate beat 0..1 and drops
+  anything under `MIN_REVIEW_INTENSITY`, so a level-2 promotion never spends an
+  ask; cancels on sour beats (death, bankruptcy, jail, a health or net-worth
+  collapse); and delays into the *afterglow* so the sheet does not land on top
+  of the celebration the player is still reading.
+- `utils/ratingPrompt.ts` — wall-clock cooldown as the primary guard,
+  specifically because a game-week cooldown would burn all three of iOS's
+  yearly asks in one long session.
+- `components/ReviewPromptHandler.tsx` — a headless store subscriber rather
+  than a call inside a reducer, because React can invoke an updater twice and
+  one beat would fire two asks.
+
+Adopting §4.1 would have replaced that with a worse system and a rejection
+risk.
+
+**The rules.**
+
+1. **A plan that describes our own product is a claim, not a brief.** Check
+   every "currently we do X" against the code before actioning it. Four of this
+   plan's premises were already false: the death screen *does* have a share
+   button (`components/DeathPopup.tsx:569` → `lib/legacy/obituaryGenerator.ts:123`),
+   `marketing/app-store-localizations/` already holds 39 locales including the
+   pt-BR the plan says to do first, and a `ShareLifeCard` already exists. Only
+   fast-forward was correctly reported as missing.
+2. **Domain-plausible advice is the most dangerous kind.** "Soft-gate the
+   rating prompt" is real, widely-repeated growth advice. It is also against
+   the rules on this platform. Advice being standard practice somewhere is not
+   evidence it is permitted here — and the more routine it sounds, the less
+   likely anyone stops to check it.
+3. **When a comment says "do not add this", it is load-bearing.** The
+   `reviewMoments.ts` header is the only reason this was caught in minutes
+   rather than shipped. Write the refusal down *next to the code*, with the
+   reason, or the next plan re-proposes it.
+
+**What the audit did surface, which the plan missed.** The share loop's real
+defect is not that it is absent — it is that it cannot convert:
+
+- `lib/legacy/obituaryGenerator.ts:123` builds the share text with a
+  `#DeepLifeSim` hashtag and **no App Store link**. Every shared death is a
+  dead end for attribution and for installs.
+- `components/ShareLifeCard.tsx` (417 lines, added in PR #67) is **imported by
+  nothing** — dead code. It is also text-only, and `require`s
+  `@react-native-clipboard/clipboard`, which is not in `package.json`; the call
+  sits in a try/catch, so wiring the component up would silently lose the Copy
+  button rather than crash.
+
+A feature that exists but is unreachable reads, in any audit that greps for
+capability, as a feature that ships. Both this and the linkless share text were
+invisible to a plan written from the outside — and are worth more than the
+plan's top three items combined.
+
+## 2026-08-09 (same day) — two stale-ref bugs that only a batch could expose
+
+Story mode (one tap = a year) is built the cheap way: leave the ~2,700-line
+weekly tick completely alone and call `nextWeek()` 52 times in a loop, with a
+`batchTickRef` suppressing only the per-tap presentation (haptic, loading
+overlay, banners, and the per-tick autosave, which would otherwise run the HMAC
+save pipeline over ~100KB fifty-two times for one tap). No tick logic changed.
+
+Building it surfaced **two real bugs in the existing tick**, both the same
+shape, both invisible at one-tap-per-second and both live in production for
+rapid taps — not batch-only artifacts:
+
+1. **The tick derived its decay inputs from `gameStateRef.current`.** That ref
+   is refreshed only by a post-commit `useEffect`, so in a loop it still
+   described an earlier week. Every batched week decayed the character against a
+   stale health/net-worth snapshot, damage never accumulated, and a batched life
+   sailed straight past the week-15 death a classic life reaches from identical
+   inputs. `computeDecayInputs` and `getStatDecayMultiplier` are both pure, so
+   the fix is to re-derive them from `prevState` INSIDE the updater and let the
+   names shadow the outer copies (which now serve only the log line).
+2. **The death guard read the same stale ref.** `nextWeek`'s early return on
+   `showDeathPopup` sat outside the updater, so mid-batch it kept answering
+   "alive" and the tick went on aging, earning and re-killing a corpse. Fixed by
+   putting the authoritative check inside the updater against `prevState` and
+   returning it unchanged; the outer check stays as a cheap fast path.
+
+**The rule: `prevState` is the only state React guarantees is current.** A ref
+mirroring state through an effect is a cache, and every read of it inside a loop
+is a cache read with no invalidation. If a value feeds the state transition,
+derive it from `prevState`.
+
+**And a design rule that fell out of it.** The first version of the batch also
+tried to check after each iteration whether the character had died or an event
+was waiting, so it could stop mid-year. That cannot be made to work: under
+`act()` React does not run a queued updater *at all* until the block exits, so
+the loop sees its own progress one to three iterations stale. A no-op probe
+updater, publishing from inside the updater, and extra macrotask yields all
+returned the same stale answer, because they were all asking the same impossible
+question.
+
+The fix was to stop asking. The loop now observes nothing and leans on two
+properties instead: death is self-guarding (fix 2 above, so post-death
+iterations are inert and the clock simply stops), and queued events never
+blocked classic ticks either, so letting them accumulate and be answered in the
+Year in Review is what classic mode already does. Everything the caller needs is
+then derived from committed state — `weeksAdvanced` is
+`after.weeksLived - before.weeksLived`, which is right regardless of when any
+updater ran. `YearDigest` deliberately carries only "before" values and the
+batch's own notes; `summarizeYear` joins it to live state for the "after" half.
+
+**Corollary for tests: `act()` is not a slow production, it is a different
+scheduler.** Anything that awaits inside a single act() block cannot see its own
+commits. Assert on committed state *after* the block instead — which is what
+`__tests__/gameMode/batchEquivalence.test.ts` does, and why it can now prove the
+thing that matters: 15 batched weeks and 15 individual classic taps from the
+same seed produce an identical state fingerprint.
+
+## 2026-08-09 (same day) — I counted registrations and called it a tab bar
+
+An audit of this repo reported "9 tabs, 8 of them visible to a brand-new
+player" and made navigation one of four launch blockers. It was wrong, and the
+way it was wrong is worth more than the finding was.
+
+The number came from counting `<Tabs.Screen>` entries in
+`app/(tabs)/_layout.tsx`. That counts *route registrations*, not tab buttons.
+Five of the nine carry `href: null` — deliberately, with a comment three lines
+above them explaining that mobile and computer were folded into Apps, and
+market, health and progression into Life, with the routes left registered so
+deep links and `router.push()` still resolve. **The real bar is four tabs**, and
+the merge the audit "recommended" had shipped before the audit ran. The comment
+was right there in the file being counted.
+
+The same audit called five breakdown modals "the same component with different
+data". Normalising the stat name and diffing put them at ~60% similar with real
+per-stat contributors and advice in the rest — a modest-benefit refactor, not
+the duplication that was claimed.
+
+**The rules.**
+
+1. **Count what renders, not what is registered.** A static count of
+   declarations is not a measurement of a user-facing surface. Anything gated by
+   a prop (`href: null`, a feature flag, a conditional render) is invisible to
+   `grep -c` and decisive to the user.
+2. **Read the comment next to the thing you are grading.** Both errors were
+   pre-refuted in the source. The repo's own rule — *don't trust an audit claim
+   that "file:line is broken" without re-reading the source* — applies to audits
+   I write, not just ones I receive.
+3. **A finding that says "this obvious thing was never done" deserves more
+   suspicion, not less.** Competent codebases have usually already solved their
+   loudest problem. When an audit reports otherwise, the first hypothesis should
+   be that the measurement is wrong.
+
+**What was actually missing, and is now there:** a guard.
+`__tests__/startup/tabBarSurface.test.ts` pins the four-tab bar, requires every
+file in `app/(tabs)/` to be explicitly declared, and fails if a folded route
+loses its `href: null`. That matters because expo-router surfaces every file in
+a group as a tab BY DEFAULT — so a new screen silently joins the bar and a
+deleted `href: null` silently un-folds one, and neither shows up as a failure
+anywhere. The merge was real work with nothing stopping it eroding.
+
+---
+
+## 2026-08-10 — Two content-quality goals set, both wrong. Check a goal is reachable before you ship it.
+
+`scripts/lib/contentQualityRatchet.js` has now had a target retired twice in two
+days, by me, in consecutive commits. The floors were fine both times — the
+regression protection was never the problem. The *ambitions* were fiction.
+
+**Goal 1: `medianAbsHappiness` → 15.** Retired within hours. It measured
+happiness numbers in isolation, but 78% of outcomes that touch happiness also
+move money, relationship or health. Chasing 15 would have inflated happiness on
+events that already land hard through other mechanics, and the metric would have
+reported that as progress.
+
+**Goal 2: `soloHappinessMedian` → 10.** Its replacement, set the same day, and
+wrong in two independent ways:
+
+- **Unreachable by the work it implied.** Simulating a perfect pass — every
+  trivial happiness-only outcome raised to 10, excluding the file that documents
+  itself as deliberate flavour — lands the median at **8**, because the
+  distribution's mass sits at exactly 5 and 8. The last two points could only be
+  bought by retuning the flavour file too. A goal reachable only by overruling a
+  documented authoring decision is not a goal.
+- **Aimed at a population that was already correct.** Of the 46 trivial
+  happiness-only outcomes, **24 are the decline branch of a choice set**
+  ("Skip the sales", "Politely decline", "Just spectate") and 16 more are the
+  flavour file. Declining an offer *should* do almost nothing — that is what
+  makes the other branch a decision. The metric was reading good choice
+  architecture as weak content, and "fixing" it would have made every decline
+  branch competitive with the thing it declines.
+
+**What settled it** was asking a question about the EVENT instead of the
+outcome: how many multi-choice events have *no* branch that does anything?
+**Two, out of 235** — and both are in the flavour file. The corpus never had the
+problem either goal was chasing. That check shipped as `inertEventShare`, the
+first metric here to ratchet DOWN (a ceiling, not a floor).
+
+**The rules.**
+
+1. **Simulate the perfect pass before you set the target.** "What does this
+   metric read if I do all the work it implies?" is a five-minute script. Both
+   goals would have died before landing. The simulation is now a test, so the
+   claim can't decay into a remembered number.
+2. **A goal you can't reach is worse than no goal.** It is a permanent red mark,
+   and a gate nobody can satisfy trains people to skim it — the same failure as
+   the unreachable 70% coverage threshold this file's ratchet replaced. Setting
+   one is the same mistake wearing an aspirational hat.
+3. **Check what the metric's population actually is before targeting it.** Half
+   of goal 2's targets were correct as written. An aggregate can be bad-looking
+   and right, and the only way to know is to print the members and read them.
+4. **Prefer a question about the unit the player experiences.** "Is this outcome
+   big?" invited inflation. "Does this event offer a real decision?" cannot be
+   gamed by raising numbers, needs no word list, and names its offenders.
+5. **Retiring your own goal is not moving the goalposts, provided the floor
+   stays.** The distinction that makes it honest: floors unchanged, the reason
+   written down, and the arithmetic shipped as a test. Lowering the floor to get
+   green would have been the other thing entirely.
+
+**Also disproved, and recorded so nobody re-tests it:** karma was excluded from
+the "does this outcome do anything" check, which looked like a measurement bug
+since karma gates careers and modifies drift. Only **6 of 113** happiness-only
+outcomes carry karma, and correcting for it moves the median not at all. Left
+alone — a change that alters no number is churn, and it would have looked like
+fiddling with a metric to pass it.
+
+---
+
+## 2026-08-10 — "Preflight green" was read off a banner, not an exit code
+
+I reported `npm run preflight` as **✅ ALL PASSED** while the command was
+exiting non-zero. Both statements were about the same run.
+
+`scripts/preflight-check.js` prints its own `PREFLIGHT CHECK SUMMARY` banner —
+and that script is only the *second* of five steps in the npm script:
+
+```
+check:routes && preflight-check.js && lint:errors && lint:ratchet && check:content
+```
+
+I read the banner, saw ALL PASSED, and stopped. `lint:ratchet` was failing
+underneath it, and had been failing since **before this session started**
+(1 255 warnings against a 1 240 ceiling at the session's base commit). So the
+claim was wrong in the worst available way: not a mistake about a number, but a
+green report over a red build, repeated across several commits.
+
+**The rules.**
+
+1. **A gate's verdict is its exit code.** Any sub-step can print a cheerful
+   banner. `echo "EXIT: $?"`, or read the last line of the chain — never a
+   summary printed by one link in it.
+2. **Know what a composite command actually runs.** `preflight` is five
+   commands; `preflight-check.js` is one of them. Reading the npm script takes
+   ten seconds and would have caught this immediately.
+3. **A pre-existing failure is still a failure you are now reporting on.**
+   "It was already broken" explains the cause and excuses nothing about the
+   claim. Inheriting a red gate means saying so.
+
+**What the failure turned out to be** is worth its own note, because it is the
+opposite of what a 1 270-warning count suggests. One line —
+`const AUTO_REST_TARGET_ENERGY = 70;` sitting between two `import` statements in
+`GameActionsContext.tsx` — made all 103 imports below it "in body of module" to
+`import/first`. That single misplaced constant was **8% of the repository's
+entire warning count**. Two test files had a smaller version (a `require`
+between imports, 11 more). Moving four lines took the repo from 1 270 to 1 188,
+under the ceiling, and the ceiling is now locked at 1 193.
+
+So: **before assuming a warning spike means sloppy code, look at whether one
+statement is in the wrong place.** Warning counts are not linear in effort —
+`import/first` and friends multiply one mistake by the size of the file.
+
+---
+
+## 2026-08-10 — `pgrep -f` / `pkill -f` match the watcher, not just the watched
+
+Twice in one session, on the same script name, in two different disguises.
+
+**First:** `pkill -f "capture-story-mode-shots"` killed my own shell (exit 144),
+because the shell's command line *contains that string* — it is the command
+being run. Fixed with the bracket trick, `pkill -f "[c]apture-story-mode-shots"`,
+which matches the running process but not the pattern itself.
+
+**Second, and much more expensive:** a "wait for the current run, then start the
+next one" wrapper:
+
+```bash
+nohup bash -c 'while pgrep -f "capture-story-mode-shots" >/dev/null; do sleep 10; done; \
+               node scripts/capture-story-mode-shots.mjs > capture2.log' &
+```
+
+The wrapper's own command line contains `capture-story-mode-shots` — twice. So
+`pgrep` matched **the wrapper itself**, the condition was permanently true, and
+it waited on itself forever. The failure is silent and, worse, it is
+*indistinguishable from success*: `pgrep -f capture-story-mode-shots` kept
+answering "yes, running", so every progress check I made said the capture was
+running normally. I lost roughly 20 minutes believing a job was underway that
+had never started, and only caught it because the log file it was supposed to
+be writing did not exist.
+
+**The rules.**
+
+1. **Never match a process by a string your own command line contains.** Use
+   the bracket trick for both `pgrep` and `pkill`, or match on a PID captured
+   with `$!` when you started the job yourself.
+2. **"Is it running?" is not a health check — "is it producing output?" is.**
+   A process can exist and be doing nothing. Check for the artifact: the log
+   file, the growing byte count, the new screenshot. I had the evidence
+   (`ls: capture2.log: No such file`) fifteen minutes before I acted on it,
+   because I kept asking the question that returned the comfortable answer.
+3. **Prefer the harness's own backgrounding to hand-rolled `nohup` chains.**
+   It tracks the job and notifies on exit, so there is no self-match to get
+   wrong and no polling to misread.
+
+---
+
+## 2026-08-10 — Story mode's first tap ended in a funeral, and only running it showed that
+
+Story mode shipped with a passing equivalence test, a passing suite, and a
+green preflight. Then I drove the actual app and one tap of "Live the next
+year" killed the character before the year finished. Twice, independently: the
+jest seed dies at week 15, a real browser session on the shipped web bundle
+died at week ~11 with `[DEATH] Character died from happiness reaching 0 for 4
+weeks`.
+
+Nothing was wrong with the simulation. An idle life SHOULD decay, and classic
+mode decays identically over the same 52 weeks. The difference is that classic
+shows you fifteen weekly screens on the way down, each one an invitation to
+act. **Batching the interaction silently removed every one of those
+invitations** — and the feature's whole premise is that the player takes no
+actions during a year. So the premise and the death rule were in direct
+conflict, and nothing in the test suite could see it, because every test asked
+"does the batch equal the same number of individual ticks?" — which it does,
+perfectly, all the way into the grave.
+
+**The rules.**
+
+1. **An equivalence test proves two things are the same, not that either is
+   good.** `52 batched == 52 individual` was true before and after this fix.
+   It was never going to fail on "the outcome is a dead character", because
+   both sides produce the same dead character. Pair "is it consistent?" with
+   "is the result one a player would want?"
+2. **When a feature removes a player's touchpoints, enumerate what those
+   touchpoints were doing.** Weekly taps were not just pacing — they were
+   fifteen chances to notice a stat sliding and react. Batching kept the
+   simulation and dropped the feedback loop, and only the feedback loop was
+   load-bearing for survival.
+3. **Run the thing.** Three defects in this feature came from running it and
+   zero from reading it: a heading clipped under a sticky row, the stale-Metro
+   `void 0` key, and this. The suite was green for all three.
+
+**Two related bugs found while fixing it, both documentation that had drifted
+from code:**
+
+- `lastTickOutcomeRef` had no `advanced` field, yet TWO comments inside
+  `nextWeek` reasoned about it — "`advanced` stays false, so `liveYear` must
+  stop the batch here rather than spend its remaining 51 iterations on a broken
+  tick". The flag was designed, argued for in prose, and never implemented, so
+  after an unrepairable save the batch did exactly what those comments said it
+  must not. Comments describing a mechanism are not evidence the mechanism
+  exists — grep for the field.
+- `mode.ts` promised the batch "stops early on ... a pending decision". It does
+  not, and it should not: SIX events queue in fifteen weeks, so stopping at the
+  first would turn "1 tap = 52 weeks" into "1 tap = 2 weeks". The doc was
+  describing an intention nobody had costed. Fixed the doc, not the code.
+
+**And one testing constraint worth knowing:** the fix could not be verified
+through `liveYear` at all. React defers every updater queued inside a single
+`act()` block until the block exits, so a test driving the batch sees the
+post-tick state as null for all 52 iterations and can never observe a stop
+firing. The first attempt checked state inside the loop, the integration test
+still reported the week-15 death, and the cause was the harness. The judgement
+was extracted into a pure `shouldStopBatch()` that can be tested directly, with
+the loop reduced to one call — and the end-to-end behaviour verified in a real
+browser, which is the only place it is observable.
+
+---
+
+## 2026-08-10 — Three rounds of screenshots against a bundle I had already replaced
+
+Same session, same family as the `pgrep` self-match above, and it wasted more
+time than either: I re-exported the web bundle twice, re-ran the capture three
+times, and stared at screenshots wondering why my copy change was not in them —
+because **a `serve` process from an earlier export was still holding port 8099**
+and every capture had been driving the old bundle the whole time.
+
+What made it durable was a check that returned the answer I wanted:
+
+```
+$ ss -lntp | grep 8099
+(nothing)
+$ echo "8099 free"
+```
+
+`ss` printed nothing, I read that as "port free", and started a new server that
+could not bind. The old one kept answering on 8099, HTTP 200, serving stale
+JavaScript. Every downstream observation — the picker copy unchanged, the
+heading still sliced — was real, and every diagnosis I formed from it was wrong.
+I "fixed" the scroll logic twice against a bundle that could not contain the fix.
+
+The disproof took one command and I should have run it first:
+
+```bash
+SERVED=$(curl -s http://localhost:8099/ | grep -oE "entry-[a-f0-9]+\.js" | head -1)
+EXPECTED=$(ls "$OUTDIR/_expo/static/js/web/" | grep '^entry')
+[ "$SERVED" = "$EXPECTED" ] || echo "SERVING A STALE BUNDLE"
+```
+
+**The rules.**
+
+1. **Verify the ARTIFACT, not the port.** "Something is listening" and "the
+   thing I built is being served" are different claims. Content-hashed bundle
+   filenames make the second one a one-line check — use it before every capture
+   run, not after three of them.
+2. **A negative result from a diagnostic you cannot fully trust is not
+   evidence.** `ss -lntp` needs privileges to attribute sockets; empty output
+   can mean "no listener" OR "cannot see it". I treated an ambiguous silence as
+   a confirmation because it was the convenient reading.
+3. **Kill by PID from `ps`, and confirm the kill.** Every pattern-based kill
+   this session either missed its target or hit the wrong one. `ps -eo pid,cmd`,
+   read the list, kill the numbers, then re-check the list.
+4. **When a change does not appear in the output, suspect the pipeline before
+   the change.** Two "the fix did not work" conclusions here were really "the
+   fix was never loaded". The tell was available and cheap: the built file did
+   contain the new string.
+
+---
+
+## 2026-08-10 — A verification step is code, and mine could only ever fail
+
+Chasing why a story-mode year ends early, I ran four experiments that each
+depended on the character renting a room, and logged `shared room tapped: true`
+as evidence one existed. That only means an element was found and pointer
+events were dispatched — the same "is it running?" mistake recorded twice above.
+
+So I added a check. It read `aria-selected` on the rental card, and reported
+**NOT ACTIVE**. On the strength of it I retracted three measurements and told
+the user the balance analysis was contaminated by a homeless penalty I had
+introduced myself.
+
+The check was wrong. RN-web does not emit `aria-selected` for
+`accessibilityState={{ selected }}`, so the attribute is `null` before and
+after a **successful** rental alike. A direct probe showed the app saying
+"Moved into the Shared Room. First week's rent of $45 paid." The rental had
+worked every time. My verification was asserting on the absence of an attribute
+that is never present — **a check with no passing branch.**
+
+The retraction was therefore worse than the original error. The first mistake
+left a claim unverified; the second manufactured false evidence *against* a
+correct result, and did it while looking more rigorous than before.
+
+**The rules.**
+
+1. **A check that cannot pass is worse than no check.** Before trusting a new
+   assertion, confirm it goes GREEN on a known-good case. I never saw this one
+   succeed even once — that alone should have disqualified it.
+2. **Assert on what the feature says it did, not on how you assume the
+   framework renders it.** The confirmation toast is generated by the code
+   under test; `aria-selected` is a guess about React Native Web's DOM mapping.
+   One is evidence, the other is a hypothesis wearing evidence's clothes.
+3. **A negative result that overturns earlier work deserves MORE scrutiny than
+   a positive one, not less.** I acted on a single unfalsifiable red signal and
+   retracted three consistent measurements. The cost of checking the checker
+   was one six-minute probe.
+4. **Fixing a verification gap is not the same as verifying.** Both attempts
+   here were reflexes toward rigour that produced none.

@@ -39,6 +39,8 @@ import {
   getInitialScenarioTab,
 } from '@/src/features/onboarding/scenariosFlow';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { GameModePicker } from '@/components/onboarding/GameModePicker';
+import type { GameMode } from '@/contexts/game/types';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { haptic } from '@/utils/haptics';
@@ -457,6 +459,11 @@ export default function Scenarios() {
     [setState]
   );
 
+  const onSelectGameMode = useCallback(
+    (mode: GameMode) => setState((prev) => ({ ...prev, gameMode: mode })),
+    [setState]
+  );
+
   const continueToCustomize = () => {
     if (!canContinueFromScenarioSelection(selectedScenario)) {
       haptic.error();
@@ -560,7 +567,21 @@ export default function Scenarios() {
           />
         ))}
 
-        <View style={{ height: 140 }} />
+        {/* Pace is orthogonal to which life you start, so it sits below the
+            scenarios rather than competing with them for the first choice. It
+            still has to be HERE, at the start of a run, because the mode is
+            fixed for the life. */}
+        <GameModePicker
+          value={state.gameMode}
+          onChange={onSelectGameMode}
+        />
+
+        {/* Clears the pinned "Continue" bar, AND leaves enough travel that the
+            last section can be scrolled fully clear of the sticky tab row above.
+            At 140 the pace picker was the final block, so max scroll still left
+            its heading cut in half under the tabs — the section could never be
+            read in full. */}
+        <View style={{ height: 260 }} />
       </ScrollView>
     </OnboardingScreenShellV2>
   );

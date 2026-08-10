@@ -3,6 +3,7 @@ import { Scenario } from './scenarioData';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 import { NEW_LIFE_SLOT_UNSET } from './slotSafety';
+import type { GameMode } from '@/contexts/game/types';
 
 interface OnboardingState {
   /**
@@ -21,6 +22,13 @@ interface OnboardingState {
   avatarId?: string; // Chosen starter face (utils/facePool listStarterAvatars id)
   perks: string[];
   ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional — skippable.
+  /**
+   * Pace for this life. Undefined until the player picks, and an unpicked mode
+   * resolves to 'classic' — the original game — so a route that reaches the end
+   * of onboarding without passing the picker cannot silently start someone on a
+   * pace they did not choose.
+   */
+  gameMode?: GameMode;
 }
 
 interface OnboardingContextType {

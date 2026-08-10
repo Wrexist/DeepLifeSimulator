@@ -762,3 +762,160 @@ Deep qualitative pass via subagents (economy exploits; stability + logic): done.
 - `economyIncomeMultiplier` has no upper clamp (not player-reachable) — defensive.
 - Eviction notice wording attributes arrears to rent even when the shortfall came
   from other bills — cosmetic.
+
+---
+
+## OPEN — a balance decision for the owner: story mode's first years are short
+
+**Measured, not estimated.** Three runs against the shipped production web
+bundle, story mode, one tap each:
+
+| Character | Weeks delivered | Outcome |
+|---|---|---|
+| Idle (before the danger stop) | ~11–15 | **died** — happiness at 0 for 4 weeks |
+| Idle (after the danger stop) | 7 | handed back, "your life is in trouble" |
+| **Employed + housed** (Line Cook $110/wk, Shared Room $45/wk) | **8** | handed back, still in danger |
+
+Taking the two obviously-correct opening actions bought **one extra week**.
+That is the finding: the danger stop is working exactly as designed, and it is
+revealing something underneath it.
+
+**Why — measured per week, then traced to the formula.** A default character's
+happiness runs 100 → 94.4 → 88.2 → 81.4 → 74.0 → 65.0 → 55.4 → 46.2 → 36.4 →
+26.0 → 15.6 → 3.2 → 0. The decay is not flat, it **accelerates**: −5.6/week at
+week 1, −12.4/week by week 11. Health does the same, −3.2 → −8.8. Fitness starts
+at **10**, not 100, and is gone by week 6.
+
+`computeDecayInputs` (`contexts/game/actions/weekly/preTick.ts`) explains both:
+
+```
+effectiveDecayRate = 4 × wealthMultiplier × prestigeMultiplier × (0.25 + 0.75 × graceFactor)
+wealthMultiplier   = clamp(100000 / max(1000, netWorth), 0.5, 2.0)
+graceFactor        = min(1, weeksLived / 8)
+```
+
+Two things fall out, and they compound:
+
+- **`wealthMultiplier` is INVERSE to net worth and clamps at 2.0 for anyone
+  under $50k.** Every new character starts at ~$1,500, so they sit on the
+  ceiling: a new player decays at exactly twice the rate of a rich one. That is
+  a deliberate "poverty is hard" choice in classic mode, where they can act
+  weekly. In story mode it means the poorest players — i.e. all new ones — get
+  the shortest years.
+- **The grace period is 8 weeks, and the first story year ends at 7–8 weeks.**
+  That is not a coincidence: the danger stop fires almost exactly when grace
+  expires and the decay rate finishes quadrupling (0.25× → 1.0×).
+
+So no threshold tweak fixes it — at −10/week near the end, moving the danger
+line from 20 to 10 buys about two weeks, not forty.
+
+**Four measured runs bound the problem, and they rule out the obvious fixes:**
+
+| Configuration | Weeks of 52 |
+|---|---|
+| Idle, broke (~$1,500) | 7 |
+| Job + rented room, broke | 8 |
+| Job + room + **$500,000** (decay at its 0.5 FLOOR) | 13 |
+| Room + $500,000, **no job** | 16 |
+
+The best case in the game — maximum wealth advantage, housed, and free of any
+job's weekly toll — reaches **16 of 52 weeks**. So "one tap, one year" is not
+unreachable for *poor* characters; it is unreachable for **anyone**, which
+eliminates raising the `wealthMultiplier` floor or lengthening the grace period
+as sufficient fixes on their own. Quadrupling the decay advantage bought five
+weeks; removing employment bought three more.
+
+**A hypothesis that was tested and is WRONG, recorded so it is not re-run:**
+that `weeklyToll` in `lib/careers/jobMarket.ts` was the dominant drain. Every
+job is negative on happiness and energy (`{ energy: -14, happiness: -1 }`,
+`{ energy: -12, happiness: -3 }`) and story mode removes the weeks a player
+would use to absorb it, so it was a reasonable suspect. Removing the job
+entirely moved 13 → 16. Real, and nowhere near sufficient.
+
+**The 16-week figure is VERIFIED HOUSED.** An earlier check reported the
+tenancy as inactive and I briefly retracted these numbers; that check was
+broken, not the rental. RN-web does not emit `aria-selected` for
+`accessibilityState={{ selected }}`, so it read `null` before and after a
+successful rental alike. The run now asserts on the confirmation toast
+("Moved into the Shared Room. First week's rent of $45 paid.") and reproduces
+16 weeks with the tenancy confirmed. The table above stands.
+
+**What is still unaccounted for, stated as a number rather than a guess.** For
+the wealthy HOUSED unemployed run the formula predicts happiness decay of
+`4 × 0.5 × 1.0 × 0.8 ≈ 1.6/week` once grace expires, less the Shared Room's
++1/week — call it well under 1/week net, i.e. 90 → 20 in **70+ weeks**. It died
+in 16. Health does not explain it either: starting at 70 with decay
+`rate × 0.6 ≈ 1.2/week` gives ~40 weeks to reach 20.
+
+### FOUND IT: untreated disease, and story mode structurally prevents treatment
+
+The per-week attribution was run rather than guessed. A wealthy, housed,
+unemployed character shows this:
+
+```
+w10  hap=89.4(-0.6)  hea=62.0(-1.2)  dis=[]
+w11  hap=86.8(-2.6)  hea=58.8(-3.2)  dis=["allergies"]   ← contracted
+...   six weeks at 4x the baseline drain ...
+w16  hap=73.8(-2.6)  hea=42.8(-3.2)  dis=[]              ← recovered
+w17  hap=73.2(-0.6)  hea=41.6(-1.2)  dis=[]              ← back to baseline
+```
+
+Baseline decay is what the formula predicts — **-0.6 happiness and -1.2 health
+a week**, i.e. essentially sustainable. The excess is entirely a **disease**:
+`allergies` adds **-2.0 happiness, -2.0 health and -3 energy every week for its
+full six-week course**, and allergies is one of the MILD ones.
+
+**Why this is a story-mode problem specifically.** In classic mode the player
+sees they are ill and treats it — that is what the weekly turn is for. A batch
+never offers that turn, so every disease runs its entire course untreated, and
+a 52-week year collects several. This is not a decay-tuning problem at all; it
+is a structural consequence of batching the interaction.
+
+**The options, and none of them is free:**
+
+1. **Stop the batch when a disease is contracted**, exactly as the danger stop
+   works. Preserves the equivalence invariant perfectly (the tick is unchanged;
+   only the moment control returns differs). But it makes years SHORTER, which
+   is the opposite of the complaint.
+2. **Auto-treat during a batch when the player can afford it.** Fixes the year
+   length directly. But it contradicts a promise made in the picker, the
+   changelog and WHATS_NEW: *"Nothing is decided for you."* Spending a player's
+   money without asking is exactly what that line rules out.
+3. **Accept it.** Years are short early and lengthen as the player buys health
+   upgrades. Defensible — the app already tells players a year can hand back
+   early — but "1 tap = 52 weeks" stays aspirational for a while.
+
+My recommendation is **1 for correctness, and it should be worded as a feature**
+("You've fallen ill — take it from here"), because it is the only option that
+keeps both the simulation-identical guarantee and the nothing-decided-for-you
+promise. But it is a product call about what story mode is FOR, so it is yours.
+
+Whichever is chosen, note that raising decay thresholds, the wealthMultiplier
+floor, the grace period, or job tolls would all have been the wrong fix. Four
+hypotheses were tested and disproved before this one was measured.
+
+**This is a design call, not a bug, so it is not being changed unilaterally.**
+Three options, with what each costs:
+
+1. **Accept it.** The loop becomes act → live → act, and the first years are
+   short by design. Cheapest, and already communicated: the pace picker, the
+   in-app changelog and `WHATS_NEW` all now say the year can hand back early.
+   Risk: the picker promises "1 tap = 52 weeks" and a new player gets 8.
+2. **Rebalance, with the formula as the map.** The candidates, cheapest first:
+   raise the `wealthMultiplier` floor or lower its 2.0 ceiling so a broke
+   character is not permanently at maximum decay; lengthen `gracePeriodWeeks`
+   past 8 so the first year is not cut exactly where grace ends; start fitness
+   above 10 or slow its decay so it does not reach zero by week 6; or give a job
+   and a home real weekly upkeep instead of +1 happiness. Delivers the headline
+   promise. Cost: every one of these touches CLASSIC mode as well, so it needs
+   playtesting — this is the game's core economy, not a story-mode knob.
+3. **Let the batch perform upkeep** (auto-rest when a stat is low). Delivers the
+   promise without touching classic. Cost: it breaks the rule the mode is built
+   on — "nothing is decided for you" — and that rule is why the batch is
+   trustworthy. Not recommended.
+
+**Knock-on:** the two hero App Store screenshots (`01-a-whole-life-one-sitting`
+and `04-make-the-next-one-count`) cannot be produced from a fresh character
+until this is settled — `scripts/capture-good-year.mjs` tries and correctly
+refuses to write a "good year" that went badly. They need a played save, or
+option 2.

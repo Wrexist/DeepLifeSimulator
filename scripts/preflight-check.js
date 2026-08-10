@@ -768,6 +768,54 @@ try {
 // checks the individual *ad unit* IDs (banner / interstitial / rewarded)
 // per platform. Without these, AdMobService falls back to Google's test
 // ad unit IDs even in release builds (ships with zero-revenue test ads).
+logSection('9b. Analytics pipeline (production)');
+try {
+  const isProductionBuild = process.argv.includes('--platform')
+    && (platform === 'ios' || platform === 'android')
+    && !process.argv.includes('--dev');
+
+  const telemetryOn = process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true';
+  const firebaseOn = process.env.EXPO_PUBLIC_ENABLE_FIREBASE === 'true';
+  const url = (process.env.EXPO_PUBLIC_ANALYTICS_URL || '').trim();
+
+  // WHY THIS CHECK EXISTS
+  // ---------------------
+  // The app emits a complete funnel — session_start, week_advanced, death,
+  // paywall_viewed, paywall_cta_tapped, purchase_started/succeeded/failed. All
+  // of it is computed on every device, every session. But `track()` is a hard
+  // no-op unless FEATURE_FLAGS.telemetry is on, and the flag is opt-in
+  // (=== 'true'), so a production build without the flag measures the entire
+  // business and throws it away. Nothing fails, nothing warns, and the loss is
+  // invisible until someone asks "what is our payer rate?" months later and
+  // finds there is no answer for any period already shipped.
+  //
+  // The endpoint is checked alongside it because the flag alone is worse than
+  // useless: events queue (capped at 200, oldest dropped) and are discarded.
+  if (!isProductionBuild) {
+    log('[SKIP] Non-production build — analytics pipeline not required', YELLOW);
+  } else if (!telemetryOn && !firebaseOn) {
+    log('[WARN] No analytics pipeline enabled for a production build.', YELLOW);
+    log('   Every event the app emits is computed and discarded, so this', YELLOW);
+    log('   release will produce NO payer rate, ARPDAU, retention or paywall', YELLOW);
+    log('   funnel data — and the gap cannot be backfilled later.', YELLOW);
+    log('   Set EXPO_PUBLIC_ENABLE_ANALYTICS=true (+ EXPO_PUBLIC_ANALYTICS_URL)', YELLOW);
+    log('   or EXPO_PUBLIC_ENABLE_FIREBASE=true in the production profile.', YELLOW);
+  } else if (telemetryOn && !url) {
+    log('[FAIL] EXPO_PUBLIC_ENABLE_ANALYTICS=true but no EXPO_PUBLIC_ANALYTICS_URL.', RED);
+    log('   Events queue to a 200-item cap and are dropped oldest-first —', RED);
+    log('   strictly worse than disabled, because it looks instrumented.', RED);
+    hasErrors = true;
+  } else if (url && !/^https:\/\//.test(url)) {
+    log(`[FAIL] EXPO_PUBLIC_ANALYTICS_URL must be https:// (got: ${url})`, RED);
+    hasErrors = true;
+  } else {
+    log('[PASS] Analytics pipeline configured for production', GREEN);
+  }
+} catch (error) {
+  log('[FAIL] Analytics pipeline check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 logSection('10. AdMob Ad Unit IDs (production)');
 try {
   const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_ADMOB !== 'false';

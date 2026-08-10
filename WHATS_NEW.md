@@ -1,5 +1,77 @@
 # What's New — DeepLife Simulator
 
+## v2.7.0 — Story Mode
+
+**Covers:** everything since **v2.6.0**.
+**Compatibility:** every existing save loads and keeps the exact pace it has
+today. Save format moves to v38; the migration runs automatically on first load
+and adds one optional field, so nothing in a current life changes.
+
+> Minor bump: this adds a way to play, it does not change the one you have.
+
+---
+
+## 📱 Store "What's New" (copy-paste ready)
+
+```
+Story Mode — live a whole life in one sitting.
+
+• Choose your pace when you start a new life. Classic is the game you know:
+  one tap, one week. Story Mode runs time on until your life needs you —
+  up to a full year in a single tap.
+• The simulation is identical in both. Story Mode does not skip anything or
+  simplify anything — every single week still runs in full, so the same bills
+  land, the same interest accrues and the same market moves. It just stops
+  asking you to tap for each one.
+• Every year ends with a Year in Review: what your money did, what your net
+  worth did, and everything that happened while the year ran.
+• Nothing is decided for you. Choices still wait for you to make them.
+• A year ends when something needs you: you fall ill, your health or
+  happiness slides, or a choice is waiting. The recap tells you which.
+  A quiet year runs all 52 weeks; an eventful one hands back sooner, with
+  the story of what happened.
+• Sharing a life now actually links to the game, so the friend you send it to
+  can install it instead of going looking.
+
+Also in this update:
+
+• Two story events that promised drama and then quietly took it away now
+  follow through, with choices that lead somewhere genuinely different.
+• Fixed a bug where advancing several weeks quickly could use stale values —
+  stats decayed against an out-of-date snapshot, and a character could keep
+  ageing after they had already died.
+```
+
+---
+
+## Why Story Mode exists
+
+A life from 18 to 80 is 3,224 taps at one week per tap. That is the game some
+players want, and it is not going anywhere — it is where the economy is most
+legible, because you can watch interest land and catch each bill as it arrives.
+
+But it also meant almost nobody reached the end of a life, and the end of a life
+is where the obituary, the prestige run and the dynasty systems live. Story Mode
+covers the same ground in about 62 taps.
+
+**What Story Mode is not:** a fast-forward that skips weeks, an easy mode, or a
+coarser simulation. All ~37 weekly subsystems run once per game week in both
+modes, in the same order. A test in the suite drives the same seed through both
+paths and asserts the resulting lives are identical, so the two cannot drift
+apart.
+
+## Two fixes that came out of building it
+
+Both were live for anyone tapping quickly, not just in the new mode:
+
+- Stat decay was computed from a cached snapshot that a post-render step
+  refreshed. Tapping fast enough meant several weeks decaying against the same
+  out-of-date numbers, so damage never accumulated.
+- The guard that stops a dead character advancing read the same cached
+  snapshot, so a fast sequence could keep ageing and earning past a death.
+
+---
+
 ## v2.6.0 — The Economy Update
 
 **Covers:** everything since **v2.5.13**.

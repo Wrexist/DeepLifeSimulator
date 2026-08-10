@@ -16,6 +16,7 @@
  */
 
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
+import { firebaseAnalyticsService } from '@/services/FirebaseAnalyticsService';
 import { logger } from '@/utils/logger';
 import {
   AnalyticsEvent,
@@ -182,11 +183,25 @@ class AnalyticsService {
    */
   track(name: AnalyticsEventName, props?: AnalyticsProps): void {
     try {
-      if (!this.active) return;
       if (!isKnownAnalyticsEvent(name)) {
         if (__DEV__) console.warn(`[analytics] dropped unknown event "${name}"`);
         return;
       }
+
+      // TWO INDEPENDENT SINKS, and the order matters.
+      //
+      // The queue below only runs when `active` — i.e. when the telemetry flag
+      // is on AND a self-hosted endpoint exists. Firebase needs neither: it is
+      // already configured and initialized in this app, so it can receive the
+      // funnel with no server to run. Forwarding BEFORE the `active` check is
+      // what makes the two sinks independent; putting it after would mean
+      // "no endpoint" silently disabled Firebase too, which is exactly the
+      // failure this is here to remove.
+      if (FEATURE_FLAGS.firebaseAnalytics && this.consent) {
+        firebaseAnalyticsService.logEvent(name, { ...props, session_id: this.sessionId });
+      }
+
+      if (!this.active) return;
       const event: AnalyticsEvent = {
         id: randomId(),
         name,

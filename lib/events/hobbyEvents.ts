@@ -96,7 +96,9 @@ const hobbyLocalShow: EventTemplate = {
         {
           id: 'keep',
           text: 'Keep it for yourself',
-          effects: { stats: { happiness: 4 } },
+          // Same trade as `hobby_marketplace_sale`'s "Not for sale": no money,
+          // no reputation, but the piece stays yours. Scaled for the same reason.
+          effects: { stats: { happiness: happyReward(level) + 2 } },
         },
       ],
     };
@@ -192,7 +194,11 @@ const hobbyMarketplaceSale: EventTemplate = {
         {
           id: 'pass',
           text: 'Not for sale',
-          effects: { stats: { happiness: 3 } },
+          // Keeping something you made is a real trade against cash, so it pays
+          // MORE happiness than selling — and scales with skill like every
+          // other reward in this file. It was a flat 3 next to level-scaled
+          // siblings, which read as an authoring oversight rather than a choice.
+          effects: { stats: { happiness: happyReward(level) + 2 } },
         },
       ],
     };

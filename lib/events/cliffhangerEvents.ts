@@ -36,17 +36,19 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_partner_secret_resolve',
       description:
-        "Your partner reveals they've been planning a surprise weekend getaway for the two of you!",
+        "They finally say it: they have been unhappy for a long time, and they have been working out how to tell you.",
       choices: [
         {
-          id: 'touched',
-          text: "I'm so touched!",
-          effects: { stats: { happiness: 15 }, relationship: 10 },
+          id: 'fight_for_it',
+          text: 'Ask them to work on it with you',
+          // Costs something real up front. Counselling, time, swallowing pride —
+          // and it does not guarantee anything, which is the point.
+          effects: { money: -1200, stats: { happiness: -8 }, relationship: 18 },
         },
         {
-          id: 'relieved',
-          text: 'What a relief!',
-          effects: { stats: { happiness: 10 } },
+          id: 'let_go',
+          text: 'Tell them to go, then',
+          effects: { stats: { happiness: -25 }, relationship: -40 },
         },
       ],
     }),
@@ -63,17 +65,20 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_partner_phone_resolve',
       description:
-        "Turns out your partner was texting a jewelry store about a gift for your anniversary. You feel guilty for snooping.",
+        "It is not a jewellery store. It is someone at their work, and it has been going on for months.",
       choices: [
         {
-          id: 'apologize',
-          text: 'Confess you were snooping',
-          effects: { stats: { happiness: 5 }, relationship: -5 },
+          id: 'confront',
+          text: 'Put the phone down in front of them',
+          // The honest option and the expensive one. Ends it either way.
+          effects: { stats: { happiness: -22 }, relationship: -45 },
         },
         {
-          id: 'quiet',
-          text: 'Keep quiet and act surprised later',
-          effects: { stats: { happiness: 8 } },
+          id: 'say_nothing',
+          text: 'Say nothing and carry it',
+          // Cheaper this week, worse every week after. Knowing and pretending
+          // not to is its own slow cost.
+          effects: { stats: { happiness: -16, health: -4 }, relationship: -8 },
         },
       ],
     }),

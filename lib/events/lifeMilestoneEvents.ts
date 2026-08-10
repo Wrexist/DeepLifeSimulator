@@ -155,9 +155,12 @@ const childSchoolTrouble: EventTemplate = {
       id: 'child_school_trouble',
       description: `${child.name}'s teacher calls — they've been in trouble at school.`,
       choices: [
-        { id: 'talk', text: 'Have a calm conversation', effects: { stats: { happiness: -5, energy: -5 }, karma: { dimension: 'loyalty', amount: 2, reason: 'Patient parenting' } } },
-        { id: 'strict', text: 'Ground them for a month', effects: { stats: { happiness: -3 } } },
-        { id: 'ignore', text: 'Brush it off', effects: { stats: { happiness: -2 }, karma: { dimension: 'loyalty', amount: -2, reason: 'Neglected parenting' } } },
+        // Three genuinely different months, not three ways to feel mildly bad.
+        // Before: -5 / -3 / -2, which made "ground them" and "brush it off"
+        // the same decision with different words.
+        { id: 'talk', text: 'Have a calm conversation', effects: { stats: { happiness: -6, energy: -12 }, karma: { dimension: 'loyalty', amount: 3, reason: 'Patient parenting' } } },
+        { id: 'strict', text: 'Ground them for a month', effects: { stats: { happiness: -15 }, karma: { dimension: 'loyalty', amount: -1, reason: 'Punished rather than listened' } } },
+        { id: 'ignore', text: 'Brush it off', effects: { stats: { happiness: -2 }, karma: { dimension: 'loyalty', amount: -5, reason: 'Neglected parenting' } } },
       ],
     };
   },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Sparkles,
   CalendarDays,
+  Share2,
 } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
@@ -30,6 +31,7 @@ import PrestigeModal from '@/components/PrestigeModal';
 import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
+import ShareLifeCard from '@/components/ShareLifeCard';
 import SkillTreeModal from '@/components/SkillTreeModal';
 import HobbiesModal from '@/components/HobbiesModal';
 import LegacyPassModal from '@/components/LegacyPassModal';
@@ -75,6 +77,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const [showPrestige, setShowPrestige] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
   const [showHobbies, setShowHobbies] = useState(false);
   const [showLegacyPass, setShowLegacyPass] = useState(false);
@@ -128,6 +131,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
     { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setShowSkillTree(true) },
     { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setShowHobbies(true) },
     { key: 'story', label: 'Life Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setShowLifeStory(true) },
+    { key: 'share', label: 'Share Life', icon: Share2, color: accent.info, onPress: () => setShowShareCard(true) },
     { key: 'commit', label: 'Commitments', icon: Target, color: accent.warning, onPress: () => setShowCommitments(true) },
     { key: 'notif', label: 'Notifications', icon: Bell, color: accent.info, onPress: () => setShowSmartNotifications(true) },
     { key: 'legacy', label: 'Legacy Pass', icon: Crown, color: accent.gold, onPress: () => setShowLegacyPass(true), badge: legacyClaimable },
@@ -273,6 +277,17 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
       <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
       <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
       <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+      {/* ShareLifeCard renders a full-bleed card rather than its own Modal, so it
+          gets wrapped here. It covers the gap the death-screen obituary does
+          not: sharing a life while it is still being lived. */}
+      <Modal
+        visible={showShareCard}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowShareCard(false)}
+      >
+        <ShareLifeCard gameState={gameState} onClose={() => setShowShareCard(false)} />
+      </Modal>
       <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
       <HobbiesModal visible={showHobbies} onClose={() => setShowHobbies(false)} />
       <LegacyPassModal

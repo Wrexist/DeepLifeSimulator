@@ -27,6 +27,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 | 1 | [`01-SETUP.md`](01-SETUP.md) | Account → campaigns → ad groups, every setting, click by click |
 | 2 | [`02-keywords.md`](02-keywords.md) | Every keyword, grouped by campaign/theme, with bids and rationale |
 | 3 | [`03-negative-keywords.md`](03-negative-keywords.md) | The block lists — the single biggest ROI lever in this account |
+| ⚑ | [`08-first-results-2026-08.md`](08-first-results-2026-08.md) | **The first 7 days of real data and what it decided.** Read before the playbook — it is why Competitor-Exact is dead and why the account is gated on page conversion. |
 | 4 | [`04-custom-product-pages.md`](04-custom-product-pages.md) | 6 CPP briefs mapped to ad groups (avg **+27% TTR** in search results — MobileAction's measurement, not an Apple figure) |
 | 5 | [`05-measurement-and-roi.md`](05-measurement-and-roi.md) | Attribution wiring, the LTV→max-CPA model, ROAS targets |
 | 6 | [`06-optimization-playbook.md`](06-optimization-playbook.md) | Daily/weekly/monthly rules — exact thresholds, no judgement calls |

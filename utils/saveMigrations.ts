@@ -950,6 +950,30 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 37;
     return state;
   },
+
+  // Version 38: `gameMode` — the pace of a life, chosen at character creation.
+  // `'classic'` is the original one-week-per-tap game; `'story'` batches up to
+  // 52 weekly ticks into one tap and stops early on death or a pending
+  // decision.
+  //
+  // Default `undefined`, so another CARVE-OUT in the v26/v27/v28/v32/v34/v36/v37
+  // mould: version bumped, NO backfill and no `repairGameState` mirror.
+  //
+  // Here the absence is load-bearing rather than merely harmless. Every save
+  // that exists when this ships is a classic-mode life, `resolveGameMode` reads
+  // a missing key as `'classic'`, and so an existing save keeps the exact pace
+  // it had. Writing `'classic'` explicitly would be a no-op today but would
+  // also freeze that answer into the file, which is the wrong shape for a field
+  // whose whole point is that the player picks it per life — and stamping
+  // `'story'` would be actively wrong, silently re-pacing a life already in
+  // progress.
+  //
+  // Nothing else in the save depends on the mode: the simulation is identical
+  // in both, so there is no derived state to migrate alongside it.
+  38: (state) => {
+    state.version = 38;
+    return state;
+  },
 };
 
 /**
