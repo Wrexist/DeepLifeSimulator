@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { ChevronRight, Megaphone, Play, Plus, Save, Settings } from 'lucide-react-native';
+import { ChevronRight, Megaphone, Play, Plus, Save, Settings, Zap } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
@@ -30,6 +30,9 @@ import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
+import { applyLifePathSelectionToOnboardingState } from '@/src/features/onboarding/scenariosFlow';
+import { scenarios } from '@/src/features/onboarding/scenarioData';
+import { generateRandomName } from '@/src/features/onboarding/nameData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
@@ -546,6 +549,72 @@ export default function MainMenu() {
     }
   };
 
+  /**
+   * Quick Start — one tap from the menu to a life, for players who have not
+   * yet earned an opinion about scenarios, ambitions or perks.
+   *
+   * ── Why this exists ───────────────────────────────────────────────────
+   * A 3-star review said "it's too much to read". Measured, the copy is not
+   * the problem: event descriptions run a median of 13 words and all of
+   * onboarding plus the main tabs is ~870 words. The problem is STRUCTURAL —
+   * "New Game" led to four consecutive screens (Scenarios, Customize,
+   * Ambitions, Perks), each asking a decision about a system the player has
+   * not seen yet. Perks in particular are mostly LOCKED on a first run, so the
+   * screen exists to be skipped and says so in its own guidance text.
+   *
+   * This fills in exactly what the full flow would have produced from its own
+   * defaults — the recommended beginner scenario, a random name, no ambition,
+   * no perks — and lands on the final step, where one clearly-labelled tap
+   * starts the life.
+   *
+   * It stops at Perks rather than starting the game directly ON PURPOSE.
+   * `Perks.start()` is ~100 lines of save-safety ceremony (slot validation,
+   * backup, forced save, load-back, entry validation, draft clearing) and
+   * duplicating it to save one tap would put a second, less-tested path into
+   * the code that can overwrite a save. Reusing it is worth the tap.
+   *
+   * The long flow is untouched — this is an additional door, not a replacement.
+   */
+  const startQuick = async () => {
+    haptic.light();
+    try {
+      const targetSlot = await findFirstEmptySlot();
+      if (targetSlot === null) {
+        Alert.alert(
+          'All Save Slots Full',
+          'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const recommended = scenarios.find((sc) => sc.id === 'food_courier') ?? scenarios[0];
+      const randomName = generateRandomName('random');
+
+      setOnboardingState((prev) => ({
+        ...applyLifePathSelectionToOnboardingState(prev, recommended),
+        slot: targetSlot,
+        firstName: randomName.firstName,
+        lastName: randomName.lastName,
+        // Left unset deliberately: both are optional in `gameStateBuilder`
+        // (`ambitionId?`, `selectedPerks: []`), and a player who wanted to
+        // choose them would not have tapped Quick Start.
+        ambitionId: undefined,
+        perks: [],
+      }));
+
+      if (router && typeof router.push === 'function') {
+        router.push('/(onboarding)/Perks');
+      } else {
+        log.error('Router not available for navigation');
+        Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+      }
+    } catch (error) {
+      log.error('Quick start failed', error);
+      Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+    }
+  };
+
   const startNew = async () => {
     haptic.light();
     try {
@@ -668,7 +737,26 @@ export default function MainMenu() {
               )}
             </RevealItem>
 
-            <RevealItem index={hasSave ? 3 : 2} reduced={reduced}>
+            {/*
+              Quick Start sits directly under New Game and is deliberately the
+              SECONDARY option, not the primary one. A player who wants to pick
+              a scenario should not have to think about which door they want;
+              a player who does not should be able to see one that skips it.
+              Only offered when there is no save — a returning player already
+              knows what the four screens are for.
+            */}
+            {!hasSave ? (
+              <RevealItem index={2} reduced={reduced}>
+                <SecondaryActionCard
+                  icon={Zap}
+                  title="Quick Start"
+                  subtitle="Skip setup — random name, recommended start"
+                  onPress={startQuick}
+                />
+              </RevealItem>
+            ) : null}
+
+            <RevealItem index={hasSave ? 3 : 3} reduced={reduced}>
               <View style={styles.tertiaryRow}>
                 <TertiaryTile
                   icon={Save}

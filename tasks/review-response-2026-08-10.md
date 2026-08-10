@@ -70,17 +70,33 @@ read" a reviewer feels even when no individual screen is wordy. Perks and
 Ambitions in particular ask for decisions whose consequences are meaningless
 until you have played.
 
-### Proposal: a "Just start" path
+### Fixed: Quick Start
 
-Add one button on MainMenu that skips straight to week one with sensible
-defaults (recommended scenario, random identity, no ambition, no perks), and
-let the player set those later from inside the game. Keep the full flow for
-anyone who wants it.
+**Measured before and after, in the real app: six taps became two.**
 
-This is deliberately **not** implemented here. It changes the first-run
-experience for every new player, and the right shape depends on whether
-Ambitions and Perks can be chosen mid-life without breaking their own rules —
-that needs a design decision, not a patch.
+`MainMenu.tsx` gains a Quick Start card that fills in exactly what the skipped
+screens' own defaults would have produced — the recommended beginner scenario,
+a random name, no ambition, no perks — then lands on the final step, where one
+clearly-labelled tap starts the life. Driven end to end against the exported
+build: two taps, character created, in game.
+
+The blocker I first claimed here was not real. I wrote that this needed a
+design decision about whether Ambitions and Perks can be set mid-life; checking
+instead of assuming, `gameStateBuilder` already declares `ambitionId?: string`
+optional and `selectedPerks: string[]` may be empty, and the Perks screen's own
+guidance text says "Optional... new players can just tap Start Your Life". The
+long flow was already skippable — nothing surfaced that.
+
+It stops at Perks rather than starting the game outright, ON PURPOSE.
+`Perks.start()` is ~100 lines of save-safety ceremony (slot validation, backup,
+forced save, load-back, entry validation, draft clearing) built over several
+incidents. Duplicating it to save one tap would put a second, less-tested path
+into the code that can overwrite a save. Reusing it is worth the tap, and
+`__tests__/onboarding/quickStart.test.ts` pins that it never reaches the save
+pipeline on its own.
+
+Offered only when there is no save: a returning player already knows what those
+screens are for, and the menu should not grow a third primary-looking choice.
 
 ---
 
