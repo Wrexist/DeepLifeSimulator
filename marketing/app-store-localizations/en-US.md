@@ -15,7 +15,7 @@ Rags to riches money life sim
 ## promotional_text
 
 ```text
-One tap, one year. Story Mode lets you live a whole life in a sitting — the same economy, every week still simulated. Start at 18 with $0. Die a billionaire, or don't.
+Tap Play and you're living a life in seconds. Start at 18 with $0. Real economy, real consequences. Die a billionaire, or don't.
 ```
 
 ## keywords
@@ -99,18 +99,13 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-Story Mode — live a whole life in one sitting.
+A much faster start, and a fairer economy.
 
-• Choose your pace when you start a new life. Classic is one tap, one week. Story Mode is one tap, one year.
-• The simulation is identical in both. Story Mode skips nothing — every week still runs in full, so the same bills land, the same interest accrues and the same market moves. It just stops asking you to tap for each one.
-• Every year ends with a Year in Review: what your money did, what your net worth did, and everything that happened while it ran.
-• Nothing is decided for you. Choices still wait for you to make them.
-• Sharing a life now links to the game, so the friend you send it to can install it.
-
-Also in this update:
-
-• Two stories that promised drama and then quietly took it away now follow through, with choices that lead somewhere genuinely different.
-• Fixed a bug where advancing several weeks quickly could use out-of-date numbers — your stats wore down against a stale snapshot, and a character could keep ageing after they had already died.
+• Tap Play and you're in a life — no setup screens first. Prefer to pick your own scenario, name and perks? Custom life is still one tap away.
+• A new first-session guide walks you to your first paycheck, one step at a time, following what you actually did.
+• Your first year now has no banner ads at all.
+• Fixed four ways money misbehaved — dark web jobs paying out for free, gym sessions and warehouse upgrades that could be taken without paying, and vehicle insurance that never ran out.
+• Removed the pace picker: choosing how fast to live before you'd played asked too much, too early. Every life runs at the original pace again.
 ```
 
 ## gp_short_description
