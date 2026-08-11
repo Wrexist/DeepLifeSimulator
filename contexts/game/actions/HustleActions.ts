@@ -711,6 +711,18 @@ export const launchIPO = (
 // ── Acquisitions ─────────────────────────────────────────────────────────
 
 /**
+ * Sanity ceiling on a target's stated annual revenue.
+ *
+ * `isFinite` alone rejects `NaN` and `Infinity` but accepts `1e300`, which
+ * survives the division and lands on `baseWeeklyIncome` as a permanent absurd
+ * number. Well above any realistic target — generated offers top out orders of
+ * magnitude below it — so it never binds on real data and only catches
+ * corruption. `PER_SOURCE_CAPS.companies` separately caps total company income
+ * at $200k/wk when it reaches passive income.
+ */
+export const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
+
+/**
  * Weekly income an acquisition actually adds — the ONE definition.
  *
  * `AcquireModal` advertises this figure and `acceptAcquisition` pays it, and the
@@ -727,7 +739,7 @@ export const launchIPO = (
 export const acquisitionWeeklyGain = (estimatedAnnualRevenue: unknown): number => {
   const annual =
     typeof estimatedAnnualRevenue === 'number' && isFinite(estimatedAnnualRevenue) && estimatedAnnualRevenue > 0
-      ? estimatedAnnualRevenue
+      ? Math.min(estimatedAnnualRevenue, MAX_ACQUISITION_ANNUAL_REVENUE)
       : 0;
   return Math.max(0, Math.round(annual / WEEKS_PER_YEAR));
 };

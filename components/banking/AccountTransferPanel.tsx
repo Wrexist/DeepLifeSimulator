@@ -203,18 +203,25 @@ export default function AccountTransferPanel({
          * adjusted — worse than announcing nothing, because it names an
          * interaction that does not exist.
          *
-         * 5% per step: 20 steps covers the range without the drag gesture's
-         * precision, and lands on the same `niceStep` rounding the chips use, so
-         * a stepped value reads as a clean figure rather than $3,847.13.
+         * 10% per step, so ten actions traverse the range — the drag gesture's
+         * precision is not reachable one step at a time and pretending otherwise
+         * just makes the control tedious. Values run through the same `niceStep`
+         * rounding the chips use, so a stepped amount reads as a clean figure
+         * rather than $3,847.13, and the functional `setAmount` means a rapid
+         * sequence of steps cannot read a stale amount from this closure.
          */
         accessibilityActions={[
           { name: 'increment', label: 'Increase amount' },
           { name: 'decrement', label: 'Decrease amount' },
         ]}
-        onAccessibilityAction={(e) => {
-          const step = max / 20;
-          const next = e.nativeEvent.actionName === 'increment' ? amount + step : amount - step;
-          setAmount(niceStep(Math.max(0, Math.min(max, next)), max));
+        onAccessibilityAction={(event) => {
+          if (max <= 0) return;
+          const step = Math.max(1, Math.round(max * 0.1)); // 10% steps
+          if (event.nativeEvent.actionName === 'increment') {
+            setAmount((prev) => niceStep(Math.min(max, prev + step), max));
+          } else if (event.nativeEvent.actionName === 'decrement') {
+            setAmount((prev) => niceStep(Math.max(0, prev - step), max));
+          }
         }}
       >
         <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>

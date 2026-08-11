@@ -15,6 +15,7 @@ import {
   acquisitionWeeklyGain,
   acquisitionSharePoints,
 } from '@/contexts/game/actions/HustleActions';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
@@ -71,6 +72,11 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
               {offers.map((offer: any) => {
                 const color = industryColor(offer.targetIndustry);
                 const canAfford = playerMoney >= offer.askingPrice;
+                // Every displayed figure goes through the SAME helper the accept
+                // path uses. Re-deriving the guard inline here is what let the
+                // card advertise a number the action would not pay.
+                const weeklyGain = acquisitionWeeklyGain(offer.estimatedAnnualRevenue);
+                const safeAnnualRevenue = weeklyGain * WEEKS_PER_YEAR;
                 return (
                   <View
                     key={offer.id}
@@ -88,7 +94,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerText}>
                         <Text style={[styles.offerName, { color: theme.text }]}>{offer.targetName}</Text>
                         <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
-                          {offer.targetIndustry} · ${(offer.estimatedAnnualRevenue / 1000).toFixed(0)}K annual
+                          {offer.targetIndustry} · ${(safeAnnualRevenue / 1000).toFixed(0)}K annual
                         </Text>
                       </View>
                     </View>
@@ -120,7 +126,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerMetric}>
                         <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +${acquisitionWeeklyGain(offer.estimatedAnnualRevenue).toLocaleString()}
+                          +${weeklyGain.toLocaleString()}
                         </Text>
                       </View>
                     </View>
