@@ -15,7 +15,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
-import { clampStat } from '@/utils/statUtils';
+import { clampStat, clampStatByKey } from '@/utils/statUtils';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
@@ -71,7 +71,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // screen. See hooks/useNavigationReady.ts.
   const navReady = useNavigationReady();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym' | 'housing'>('items');
-  const { gameState, setGameState, buyItem, sellItem, buyFood, updateStats, saveGame } = useGame();
+  const { gameState, setGameState, buyItem, sellItem, buyFood, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
@@ -405,20 +405,40 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     // still refreshes it (staving off accelerated fitness decay), so allow it.
     if (gymGainsAllZero && !gymTimerStale) return;
 
+    // The gate the PLAYER is told about, read from the committed snapshot. It is
+    // a fast path for messaging only — the authoritative check is against `prev`
+    // inside the updater below.
     if (gameState.stats.money < cost) return;
     if (gameState.stats.energy < energyCost) return;
 
-    updateStats({
-      money: -cost,
-      energy: -energyCost,
-      fitness: 5,
-      health: 3,
-      happiness: 2,
+    // Charge, grant and stamp the timer in ONE updater, re-checked against
+    // `prev`. Two taps in the same React batch both read the same stale
+    // `gameState` above and both pass, and `disabled={!canUseGym}` cannot help
+    // because it is derived from that same render. What made that a real
+    // exploit rather than a harmless overdraw is the clamping: `updateStats`
+    // routes money through `sanitizeAmount`, which turns anything <= 0 into 0,
+    // and energy through `clampStat`, which floors at 0. So the second workout
+    // charged NOTHING and still paid out +5 fitness / +3 health / +2 happiness.
+    // Charging against `prev` refuses it instead of forgiving the debt and
+    // granting anyway. Same discipline as the quick actions in TopStatsBar.
+    setGameState(prev => {
+      const st = prev.stats;
+      if ((st?.money ?? 0) < cost || (st?.energy ?? 0) < energyCost) return prev;
+      return {
+        ...prev,
+        // Refresh the gym-visit timer so consistent sessions stave off the
+        // accelerated fitness decay the weekly tick applies the longer you skip it.
+        lastGymVisitWeek: prev.weeksLived || 0,
+        stats: {
+          ...st,
+          money: clampStatByKey('money', (st.money ?? 0) - cost),
+          energy: clampStatByKey('energy', (st.energy ?? 0) - energyCost),
+          fitness: clampStatByKey('fitness', (st.fitness ?? 0) + 5),
+          health: clampStatByKey('health', (st.health ?? 0) + 3),
+          happiness: clampStatByKey('happiness', (st.happiness ?? 0) + 2),
+        },
+      };
     });
-    // Refresh the gym-visit timer so consistent sessions stave off the
-    // accelerated fitness decay the weekly tick applies the longer you skip it.
-    // (React batches this with the updateStats commit above — one render.)
-    setGameState(prev => ({ ...prev, lastGymVisitWeek: prev.weeksLived || 0 }));
     // Persist the session — deferred one macrotask so the save captures the
     // post-commit state (repo convention). Untracked on purpose: the save must
     // survive even if the screen unmounts right after the tap.
@@ -428,7 +448,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     showSuccess(gymGainsAllZero
       ? '💪 Workout done! Fitness routine maintained.'
       : '💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, updateStats, setGameState, saveGame, showSuccess]);
+  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, setGameState, saveGame, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead

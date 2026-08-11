@@ -1,5 +1,52 @@
 # What's New — DeepLife Simulator
 
+## v2.8.0 — A faster start, and a fairer economy
+
+**Covers:** everything since **v2.7.0**.
+**Compatibility:** every existing save loads unchanged. The save format stays
+at v38 — the version 2.7.0 shipped — so a save made in the pace-picker build
+loads here and simply runs at the normal pace.
+
+---
+
+### Store "What's New" (copy-paste ready)
+
+```text
+A much faster start, and a fairer economy.
+
+• Tap Play and you're in a life — no setup screens first. Prefer to pick your
+  own scenario, name and perks? Custom life is still one tap away.
+• A new first-session guide walks you to your first paycheck, one step at a
+  time, following what you actually did.
+• Your first year now has no banner ads at all.
+• Fixed four ways money misbehaved — dark web jobs paying out for free, gym
+  sessions and warehouse upgrades that could be taken without paying, and
+  vehicle insurance that never ran out.
+• Removed the pace picker: choosing how fast to live before you'd played asked
+  too much, too early. Every life runs at the original pace again.
+```
+
+---
+
+### What changed, and why
+
+**The first session was the problem.** Driven end to end against a real build, a
+new player's first three taps produced falling health and happiness, unchanged
+money, and nothing else — the core loop, as first presented, was "tap to watch
+numbers fall". "New Game" then led to four consecutive screens asking for
+decisions about systems the player had not seen. Two taps now reach a life, and
+a guide walks them to their first wage.
+
+**Four economy bugs, three of which moved money.** A dark web job paid its full
+reward again on a repeat tap without costing energy; a gym session and a
+warehouse upgrade could each be taken without paying; a warehouse could pass its
+own maximum level or leave a balance below zero; and vehicle insurance, sold as
+a six-month policy, never expired — one premium bought permanent cover.
+
+**The pace picker is gone.** It shipped in 2.7.0 and asked players to choose how
+fast to live before they had any basis to choose. A save from that build loads
+here untouched and runs at the normal pace.
+
 ## v2.7.0 — Polish & fixes
 
 **Covers:** everything since **v2.6.0**.
