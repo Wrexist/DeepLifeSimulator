@@ -1952,3 +1952,42 @@ and did not apply it.
    They now pin `weeksLived: 104` explicitly, with the reason.
 4. **"It works in the test" is not "it works."** Nothing here was verified by
    running the app until it had already been declared done — twice.
+
+---
+
+## 2026-08-11 — Weekly audit: a false red from a cold container, and the coach's second blind spot
+
+Two lessons from the routine weekly audit.
+
+**1. The audit's own `tsc` check red-flags a cold container.** `npm run
+audit:weekly` (S6, Crash & Stability) runs `npx tsc -p tsconfig.tests.json`
+directly. Run immediately after cloning — before `npm install` finishes — it
+reported "Test-tree type errors ROSE to 2" and flipped the whole domain to
+🟡. `npm run type-check:tests:ratchet` said **0**; re-running the audit after
+the install completed said 0 too. The 2 were phantom errors from
+half-resolved `@types` during an in-flight install.
+
+The rule is already in CLAUDE.md ("a 'failing' suite in a cold container is
+usually just missing dependencies") — this is the same trap wearing the
+audit's clothes. **Let `npm install` fully finish before trusting any
+audit/type/test output, and cross-check a single audit WARN against its
+dedicated ratchet before reporting it as a finding.** I launched the install in
+the background and read the audit before it landed; the fix was to wait and
+re-run.
+
+**2. "Established life" is gated on `totalWeeksWorked`, which crime/hustle/
+business income never touches.** The 2026-08-11 fix that stopped the
+first-session coach greeting established players (`coachStep.ts:61`,
+`FirstSessionCoach.tsx:83`) keys "established" on
+`lifetimeStatistics.totalWeeksWorked > 0`. That counter only increments on a
+formal career or political salary (`applyLifetimeStatistics.ts:93-94,151` —
+`effectiveSalary = careerSalary || politicalWeeklySalary`). A player who funded
+a long life entirely through crime, dark web, hustles, business ownership, or
+investments has `totalWeeksWorked = 0`, so on the app update that ships this
+they are told to "find their first job" for up to eight weeks — the exact
+failure the fix set out to prevent, for a supported, promoted playstyle. UI-only
+and self-retiring, so Medium, not blocking. **When picking a "has this player
+done X" signal, check every income/progress source that should count — a
+career-salary counter is not a proxy for "experienced life".** A positive stamp
+written at character creation ("this life is new") would be drift-proof where an
+inferred signal keeps missing paths.
