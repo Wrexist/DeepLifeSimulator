@@ -997,7 +997,11 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         <EmptyHero
           Icon={Users}
           title="No relationships yet"
-          subtitle="Date, befriend, or build family ties to populate this list."
+          // Was "Date, befriend, or build family ties" while nothing in the game
+          // could create a friend. Now it can — and the subtitle says WHERE,
+          // because naming an action without naming its home is how the old copy
+          // read as a missing feature rather than a hidden one.
+          subtitle="Match on Spark, then start dating or add them as a friend."
           theme={theme}
           darkMode={darkMode}
         />

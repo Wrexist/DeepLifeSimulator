@@ -2138,3 +2138,32 @@ and the difference vanished. The comment made the code read as correct on
 review, including my own. Check the callee's actual failure mode rather than the
 one the call site assumes; `null` and "clamped silently" are opposite contracts
 and look identical at the call site.
+
+**A guard can be correct and still be the bug, if it is the only exit.** Spark's
+anti-bigamy check refuses a second partner — right, and it stays. But
+`promoteMatchToRelationship` was the ONLY producer of relationships in the whole
+codebase, so "no second partner" silently meant "no second contact of any kind".
+The player experienced a correct rule as a broken feature. When a guard blocks
+the only path, the fix is a second path, not a weaker guard.
+
+**`'friend'` was read in six places and written in none.** Same class as
+`buyDarkWebItem`, found in the same report. `npcDepth` even built a
+`meet_friends` want that lists `'friend'` among its target types — a feature
+authored entirely against a value nothing could create. Grepping for a type's
+CONSUMERS proves nothing about whether it exists at runtime; grep for the
+producers.
+
+**Read the ratchet's instructions before working around it.** Adding
+`promoteMatchToFriend` took the C-9 count 62 → 63. My first instinct was to
+reshape the return to dodge the regex. The file's own header answers exactly
+this case: "If you are here because you added an action and this failed: use the
+pessimistic-capture shape. Do not raise the number." The "do not expand the
+pattern" warning elsewhere in the same file is about CONVERTING existing
+functions (the VehicleActions batch that broke `act()` tests), not about new
+ones. Two rules in one file, each scoped to a different situation — and taking
+the wrong one would have looked defensible.
+
+**A pessimistic capture needs a test that the happy path still reports success.**
+Its failure mode is silently returning the refusal forever, and every other test
+in the suite asserted on committed STATE rather than the return value — so none
+of them would have caught it.

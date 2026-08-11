@@ -754,14 +754,45 @@ pre-fix code** (verified by stashing the fix and re-running), so they detect the
 bugs rather than merely documenting the repair. Full suite: 526 suites / 6,633
 tests green; test-tree type errors holding at 0.
 
-**Then (not done):**
-5. **X-3** — one `type: 'friend'` producer lights up ContactsApp, npcDepth and X-4.
-6. **X-5** — a consequence for Branch 3.
-7. **H-2 / H-3** — make an acquisition move `baseWeeklyIncome`, and label synergy
-   with the number the code actually applies.
-8. **D-1 / D-3** — rep curve and listing rotation.
-9. **X-1** — retarget `company_emperor`; surface the prestige gate.
-10. **H-1** — delete the dead `Company.money` field.
+**✅ ALSO SHIPPED 2026-08-11** — batch 2, again with **no `STATE_VERSION` bump**:
+
+5. **X-3 / X-4** — `promoteMatchToFriend` is the second producer of
+   relationships the game has ever had. A Spark match can now become a friend
+   instead of only a partner, which is what made every match after the first a
+   dead end: the anti-bigamy guard was right, there was simply nowhere else for
+   a match to go. It stays untouched. The friend's TYPE lives on the
+   relationship, so `SparkMatch.promoted` remains a plain boolean and the save
+   format is unchanged. Six previously-dead consumers of `'friend'` come alive
+   with it, including `npcDepth`'s `meet_friends` want.
+6. **X-5** — branch 3 of `applyRelationshipHealth` has consequences. Family and
+   friends below `NEGLECT_THRESHOLD` (25) cost happiness weekly; a friend
+   neglected for 4+ sustained weeks can fade out of the save entirely. Family is
+   deliberately never removed — deleting a parent would break inheritance, the
+   family tree and every `parent`-typed consumer, so estrangement is a standing
+   cost instead. The threshold sits below the UI's "at risk" cutoff (strength
+   < 50) so the Attention tab warns before anything bites. Reuses the existing
+   optional `weeksAtLowRelationship`, so again no new field.
+
+Coverage: `__tests__/social/friendsAndNeglect.test.ts` (18 cases). Full suite
+527 suites / 6,657 tests green; coverage ratchet OK; C-9 ratchet back to exactly
+its 62 baseline (see below).
+
+**Then (not done) — recommended order:**
+7. **X-1 + H-1 together** — both are one-line deletions of standing lies:
+   retarget `company_emperor` from an impossible 20 to the real cap of 15, and
+   delete the writerless `Company.money`. Near-zero cost, near-zero risk.
+8. **H-2 / H-3** — make an acquisition move `baseWeeklyIncome`, and label synergy
+   with the number the code actually applies. Needs an owner call on the first.
+9. **D-1 / D-3** — rep curve and listing rotation. Pure balance.
+10. **M-1** — teach the C-9 detector to see through a ternary, and correct the
+    ratchet upward in the same commit.
+11. **D-5 (downgraded to P2)** — dark-web pools in net worth. `cleanBtc` has an
+    exit path via `withdrawCleanBtc`, so it is a transient staging pool rather
+    than a permanent hole, and there is a defensible argument that dirty money
+    should not score at all.
+12. **X-2** — network contacts are read-only. This is feature work, not a bug:
+    `lib/contacts/favors.ts` already defines `influence` / `discount` / `safety`
+    / `intro` favor kinds for exactly these contacts, and nothing produces them.
 
 **Cross-cutting note.** Six of these — B-1, D-4, C-2, H-3, X-2, X-5 — share one
 shape: **the UI states an outcome the code does not produce.** "Deposits handled
