@@ -572,18 +572,42 @@ export function upgradeWarehouse(
     return { success: false, message: `Not enough money. Upgrade costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost)}` };
   }
 
-  // Upgrade warehouse
-  setGameState(prev => ({
-    ...prev,
-    warehouse: prev.warehouse ? {
-      ...prev.warehouse,
-      level: prev.warehouse.level + 1,
-    } : undefined,
-    stats: {
-      ...prev.stats,
-      money: prev.stats.money - cost,
-    },
-  }));
+  // The upgrade itself, re-validated against FRESH `prev`.
+  //
+  // Everything above this point reads the caller's snapshot and exists to
+  // produce the message. It cannot be the gate: two taps in the same React
+  // batch see identical state and both pass, and this function used to apply
+  // the level and the charge with no second look. That was three bugs at once —
+  // the level rose twice (straight past the max-10 ceiling), the second upgrade
+  // was billed at the STALE level's cheaper price, and `money` was written by
+  // hand with no clamp, so an overdraw stored a NEGATIVE balance rather than
+  // being refused.
+  //
+  // `buyWarehouse`, `buyMiner` and `sellMiner` in this same file all validate
+  // inside their updater; this one was the outlier. Cost is recomputed from
+  // `prev.warehouse.level` so a queued second upgrade pays the real, higher
+  // price for the level it is actually buying.
+  setGameState(prev => {
+    const wh = prev.warehouse;
+    if (!wh || wh.level >= maxLevel) return prev;
+
+    const prevIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
+      ? prev.economy.priceIndex
+      : 1;
+    const liveCost = getInflatedPrice(baseCost * wh.level, prevIndex);
+    if (!isFinite(liveCost) || liveCost < 0) return prev;
+
+    const money = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
+      ? prev.stats.money
+      : 0;
+    if (money < liveCost) return prev;
+
+    return {
+      ...prev,
+      warehouse: { ...wh, level: wh.level + 1 },
+      stats: { ...prev.stats, money: money - liveCost },
+    };
+  });
 
   const newCapacity = 10 + (gameState.warehouse.level) * 5; // After upgrade, capacity increases
   return { success: true, message: `Warehouse upgraded to level ${gameState.warehouse.level + 1}! New capacity: ${newCapacity} miners.` };
