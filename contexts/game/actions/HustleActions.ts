@@ -796,8 +796,14 @@ export const acceptAcquisition = (
     // otherwise be divided, rounded and PERSISTED onto `baseWeeklyIncome`,
     // poisoning the company's income for the rest of the save.
     const rawAnnual = offer.estimatedAnnualRevenue;
+    // Cap at $100M annual (~$2M/week) — a sanity ceiling well above realistic
+    // acquisition targets. PER_SOURCE_CAPS.companies will further cap the total
+    // company income at $200k/wk in the passive income calculation.
+    const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
     const safeAnnual =
-      typeof rawAnnual === 'number' && isFinite(rawAnnual) && rawAnnual > 0 ? rawAnnual : 0;
+      typeof rawAnnual === 'number' && isFinite(rawAnnual) && rawAnnual > 0
+        ? Math.min(rawAnnual, MAX_ACQUISITION_ANNUAL_REVENUE)
+        : 0;
     const weeklyRevenueGain = Math.max(0, Math.round(safeAnnual / WEEKS_PER_YEAR));
     const companies = next.companies ?? [];
     const cIdx = companies.findIndex((c) => c?.id === companyId);

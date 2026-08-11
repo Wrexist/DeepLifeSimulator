@@ -102,7 +102,11 @@ export const depositCashToAccount = (
           ? Math.max(0, state.bankSavings)
           : 0;
       const next = withLegacySavings(state, currentSavings + amount);
-      return { ...next, stats: { ...next.stats, money: currentMoney - amount } };
+      // Debit cash through applyMoneyDelta so dailySummary.moneyChange is updated
+      // and the amount is recorded in the standard money-flow path (CLAUDE.md §4.4).
+      const debit = applyMoneyDelta(next, -amount, 'Deposit to savings');
+      if (!debit) return prev; // reject if the debit fails (shouldn't happen since we checked affordability)
+      return { ...next, ...debit };
     }
     // checking-default still mirrors `stats.money`: moving cash into your own
     // cash is not a transaction, and writing the balance would be erased by the

@@ -189,6 +189,19 @@ export default function AccountTransferPanel({
         accessibilityRole="adjustable"
         accessibilityLabel={`${isDeposit ? 'Deposit' : 'Withdraw'} amount slider`}
         accessibilityValue={{ min: 0, max: Math.floor(max), now: Math.floor(amount) }}
+        accessibilityActions={[
+          { name: 'increment', label: 'Increase amount' },
+          { name: 'decrement', label: 'Decrease amount' },
+        ]}
+        onAccessibilityAction={(event) => {
+          if (max <= 0) return;
+          const step = Math.max(1, Math.round(max * 0.1)); // 10% steps
+          if (event.nativeEvent.actionName === 'increment') {
+            setAmount((prev) => niceStep(Math.min(max, prev + step), max));
+          } else if (event.nativeEvent.actionName === 'decrement') {
+            setAmount((prev) => niceStep(Math.max(0, prev - step), max));
+          }
+        }}
       >
         <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
           {/* Fill reaches the thumb's CENTRE, so the bar and the circle agree at

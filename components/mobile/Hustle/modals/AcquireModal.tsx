@@ -67,6 +67,19 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
               {offers.map((offer: any) => {
                 const color = industryColor(offer.targetIndustry);
                 const canAfford = playerMoney >= offer.askingPrice;
+                // Validate numeric offer fields before rendering to prevent NaN/Infinity display
+                const safeAnnualRevenue =
+                  typeof offer.estimatedAnnualRevenue === 'number' &&
+                  isFinite(offer.estimatedAnnualRevenue) &&
+                  offer.estimatedAnnualRevenue > 0
+                    ? offer.estimatedAnnualRevenue
+                    : 0;
+                const safeSynergyPercent =
+                  typeof offer.synergyBonusPercent === 'number' &&
+                  isFinite(offer.synergyBonusPercent) &&
+                  offer.synergyBonusPercent >= 0
+                    ? offer.synergyBonusPercent
+                    : 0;
                 return (
                   <View
                     key={offer.id}
@@ -84,7 +97,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerText}>
                         <Text style={[styles.offerName, { color: theme.text }]}>{offer.targetName}</Text>
                         <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
-                          {offer.targetIndustry} · ${(offer.estimatedAnnualRevenue / 1000).toFixed(0)}K annual
+                          {offer.targetIndustry} · ${(safeAnnualRevenue / 1000).toFixed(0)}K annual
                         </Text>
                       </View>
                     </View>
@@ -116,13 +129,13 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerMetric}>
                         <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +${Math.round(offer.estimatedAnnualRevenue / WEEKS_PER_YEAR).toLocaleString()}
+                          +${Math.round(safeAnnualRevenue / WEEKS_PER_YEAR).toLocaleString()}
                         </Text>
                       </View>
                     </View>
 
                     <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
-                      Synergy +{(offer.synergyBonusPercent / 4).toFixed(1)} market share
+                      Synergy +{(safeSynergyPercent / 4).toFixed(1)} market share
                     </Text>
 
                     <View style={styles.offerCtaRow}>
