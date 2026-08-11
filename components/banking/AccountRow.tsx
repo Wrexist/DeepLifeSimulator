@@ -108,15 +108,21 @@ export default function AccountRow({
     const ageWeeks = Math.max(0, currentWeek - account.openedWeek);
     const cardTap = onDetail ?? onPress;
     return (
-      <TouchableOpacity
-        activeOpacity={cardTap ? 0.85 : 1}
-        onPress={cardTap}
-        accessibilityRole={cardTap ? 'button' : undefined}
-        accessibilityLabel={
-          cardTap
-            ? `${account.name}, ${accountTypeLabel(account.type)}, balance ${formatMoney(account.balance)}`
-            : undefined
-        }
+      /**
+       * A View, not a Pressable.
+       *
+       * The whole card used to be one `TouchableOpacity` with the Deposit /
+       * Withdraw / Close buttons rendered INSIDE it. Nested interactive controls
+       * are invalid on web — RN-Web logs "<button> cannot contain a nested
+       * <button>" — and the outer control wins the hit test, so the inner
+       * buttons were unreliable to tap and ambiguous to a screen reader, which
+       * sees a button inside a button.
+       *
+       * The tap-to-detail affordance now wraps only the INFORMATIONAL part of
+       * the card, and the action row is its sibling. Same look, one interactive
+       * control per thing you can actually do.
+       */
+      <View
         // Recipe-B anatomy: outer view carries shadow + radius + border + solid
         // fill (no overflow here or the shadow clips on iOS); inner view clips the
         // tint wash + glow blob. Elevation 10 lifts the deck above the L1 rows.
@@ -156,6 +162,20 @@ export default function AccountRow({
             />
           )}
 
+          {/* The tap-to-detail region: everything ABOVE the action row. Kept as
+              its own pressable so the buttons below are siblings, not children,
+              of an interactive element. */}
+          <TouchableOpacity
+            activeOpacity={cardTap ? 0.85 : 1}
+            onPress={cardTap}
+            disabled={!cardTap}
+            accessibilityRole={cardTap ? 'button' : undefined}
+            accessibilityLabel={
+              cardTap
+                ? `${account.name}, ${accountTypeLabel(account.type)}, balance ${formatMoney(account.balance)}`
+                : undefined
+            }
+          >
           {/* top: bubble + type eyebrow / name + tappable chevron */}
           <View style={styles.cardTop}>
             <View
@@ -211,6 +231,7 @@ export default function AccountRow({
               </Text>
             </View>
           )}
+          </TouchableOpacity>
 
           {/* actions — labeled + >=36pt; mirrored accounts stay read-only */}
           {showActions ? (
@@ -257,7 +278,7 @@ export default function AccountRow({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
