@@ -77,25 +77,32 @@ describe('the gate itself cannot be loosened by accident', () => {
 
   it('every render of the modal is behind the flag', () => {
     /**
-     * The previous assertion here was `not.toMatch(/<DevToolsModal(?![^>]*)/)`.
-     * `[^>]*` matches the empty string, so the negative lookahead always
-     * succeeded and the pattern could never match a real `<DevToolsModal …>`
-     * tag — an unguarded render could be added without failing this test.
-     * Caught in review; it is the exact "assertion that tests nothing" failure
-     * this file exists to prevent, in the file meant to prevent it.
+     * STRUCTURAL, not proximity-based. Two earlier versions of this assertion
+     * were both satisfiable without the property holding:
      *
-     * Now: find every JSX render site and require each to sit behind the flag.
+     *   1. `not.toMatch(/<DevToolsModal(?![^>]*)/)` — `[^>]*` matches the empty
+     *      string, so the negative lookahead always succeeded and the pattern
+     *      could never match a real tag.
+     *   2. "the guard appears in the preceding 200 characters" — a nearby
+     *      guarded render, a comment mentioning the flag, or a string could
+     *      satisfy the window for a DIFFERENT, unguarded render site.
+     *
+     * Both would have passed while a release build shipped an ungated cheat
+     * menu, which is the single thing this file exists to prevent. So the check
+     * now ties each render to the conditional that immediately encloses it: the
+     * exact `{DEV_TOOLS_ENABLED && DevToolsModal ? (\n  <DevToolsModal` wrapper,
+     * matched as one unit. No window, no proximity.
      */
     const renders = [...src.matchAll(/<DevToolsModal[\s/>]/g)];
     expect(renders.length).toBeGreaterThan(0); // the modal IS rendered somewhere
 
-    for (const m of renders) {
-      // The guard must appear in the 200 characters preceding the tag — the
-      // `{DEV_TOOLS_ENABLED && DevToolsModal ? (` wrapper sits immediately above.
-      const before = src.slice(Math.max(0, m.index - 200), m.index);
-      expect(`render@${m.index} guarded: ${/DEV_TOOLS_ENABLED && DevToolsModal/.test(before)}`)
-        .toBe(`render@${m.index} guarded: true`);
-    }
+    // Every render site must be the one immediately inside the guard.
+    const guarded = [
+      ...src.matchAll(/\{DEV_TOOLS_ENABLED && DevToolsModal \?\s*\(\s*<DevToolsModal[\s/>]/g),
+    ];
+    expect(`guarded renders: ${guarded.length} of ${renders.length}`).toBe(
+      `guarded renders: ${renders.length} of ${renders.length}`,
+    );
   });
 });
 

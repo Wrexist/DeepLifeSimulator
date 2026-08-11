@@ -78,15 +78,29 @@ export function clearPromotedSparkMatch(
  * Returns the SAME object when nothing is stale, so the common weekly path
  * allocates nothing.
  */
+/** Minimum shape this reconciliation needs from a relationship. */
+export interface RelationshipIdentity {
+  id?: string;
+}
+
 export function clearOrphanedSparkPromotions(
   sparkApp: SparkAppState | undefined,
-  relationships: readonly { id?: string }[] | undefined,
+  relationships: readonly RelationshipIdentity[] | undefined,
 ): SparkAppState | undefined {
   if (!sparkApp?.matches) return sparkApp;
+  /**
+   * A missing or malformed relationship list means "I cannot tell", NOT "there
+   * are no relationships".
+   *
+   * The previous form degraded a non-array to `[]`, which made `live` empty and
+   * therefore cleared the `promoted` flag on EVERY match — turning an absent
+   * input into wholesale data loss, and re-offering "Befriend" for people the
+   * player is already dating. Changing nothing is the only safe answer when the
+   * comparison set is unavailable.
+   */
+  if (!Array.isArray(relationships)) return sparkApp;
   const live = new Set(
-    (Array.isArray(relationships) ? relationships : [])
-      .map((r) => r?.id)
-      .filter((id): id is string => typeof id === 'string'),
+    relationships.map((r) => r?.id).filter((id): id is string => typeof id === 'string'),
   );
   if (!sparkApp.matches.some((m) => m?.promoted && !live.has(m.id))) return sparkApp;
   return {

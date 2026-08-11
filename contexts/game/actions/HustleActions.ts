@@ -723,6 +723,15 @@ export const launchIPO = (
 export const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
 
 /**
+ * Sanity ceiling on a target's stated synergy percentage.
+ *
+ * Generated offers quote 8–30, so this never binds on real data; it exists for
+ * the same reason as the revenue ceiling — `isFinite` accepts absurd finite
+ * values, and this one is persisted into `marketSharePercent`.
+ */
+export const MAX_ACQUISITION_SYNERGY_PERCENT = 30;
+
+/**
  * Weekly income an acquisition actually adds — the ONE definition.
  *
  * `AcquireModal` advertises this figure and `acceptAcquisition` pays it, and the
@@ -754,7 +763,7 @@ export const acquisitionWeeklyGain = (estimatedAnnualRevenue: unknown): number =
 export const acquisitionSharePoints = (synergyBonusPercent: unknown): number => {
   const pct =
     typeof synergyBonusPercent === 'number' && isFinite(synergyBonusPercent) && synergyBonusPercent > 0
-      ? synergyBonusPercent
+      ? Math.min(synergyBonusPercent, MAX_ACQUISITION_SYNERGY_PERCENT)
       : 0;
   return pct / 4;
 };
@@ -799,8 +808,15 @@ export const acceptAcquisition = (
         {
           ...o,
           pendingAcquisitions: o.pendingAcquisitions.filter((a) => a.id !== offerId),
-          // Synergy bonus: +X% to weekly market share; tick will recompute earnings
-          marketSharePercent: Math.min(85, o.marketSharePercent + offer.synergyBonusPercent / 4),
+          // Synergy bonus: +X% to weekly market share; tick will recompute
+          // earnings. Through the SHARED helper — this site read the raw field
+          // while the modal read the validated one, so a NaN `synergyBonusPercent`
+          // would have been persisted into `marketSharePercent` by
+          // `Math.min(85, x + NaN)` and poisoned the overlay for the whole save.
+          marketSharePercent: Math.min(
+            85,
+            o.marketSharePercent + acquisitionSharePoints(offer.synergyBonusPercent),
+          ),
         },
         'acquisition_offer',
         `Acquired ${offer.targetName} for $${offer.askingPrice.toLocaleString()}`,
@@ -860,7 +876,16 @@ export const acceptAcquisition = (
           nextBase * companyIncomeMultiplier(target.workerMultiplier ?? 1.1, target.employees ?? 0),
         ),
       };
-      withIncome = { ...next, companies: nextCompanies };
+      // `state.company` is a SECOND reference to the same record, and screens
+      // read it directly. `withEmployeeDelta` in this file already syncs it on
+      // every headcount change; leaving it stale here meant an acquisition
+      // raised the income on the companies list while the currently-selected
+      // company card kept showing the old number.
+      withIncome = {
+        ...next,
+        companies: nextCompanies,
+        company: next.company?.id === companyId ? nextCompanies[cIdx] : next.company,
+      };
     }
 
     // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).

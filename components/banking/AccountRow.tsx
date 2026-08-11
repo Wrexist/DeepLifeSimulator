@@ -295,12 +295,26 @@ export default function AccountRow({
   const bubbleColor = isChecking ? accent.info : accent.success;
 
   return (
-    <TouchableOpacity
-      activeOpacity={onPress ? 0.7 : 1}
-      onPress={onPress}
+    /**
+     * Same split as the card variant above, and for the same reason: the
+     * Deposit / Withdraw / Close buttons used to sit INSIDE the outer
+     * pressable, which nests interactive controls — invalid on web (a `button`
+     * inside a `button`) and ambiguous for a screen reader, which cannot say
+     * whether a tap opens the account or withdraws from it.
+     *
+     * It also became reachable here for the first time: `savings-default`
+     * previously rendered no action row at all, so this path never ran for the
+     * one account most likely to be tapped.
+     */
+    <View
       style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
-      <View style={styles.mainRow}>
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.7 : 1}
+        onPress={onPress}
+        disabled={!onPress}
+        style={styles.mainRow}
+      >
         <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: `rgba(${bubbleRGB}, 0.15)`, borderWidth: 1, borderColor: `rgba(${bubbleRGB}, 0.30)` }]}>
           <Icon size={scale(20)} color={bubbleColor} />
         </View>
@@ -331,7 +345,7 @@ export default function AccountRow({
           <Text style={[styles.balance, { color: theme.text }]}>{formatMoney(account.balance)}</Text>
           {onPress && <ChevronRight size={scale(16)} color={theme.textMuted} />}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {showActions && (
         <View style={styles.actionsRow}>
@@ -363,7 +377,7 @@ export default function AccountRow({
           )}
         </View>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 

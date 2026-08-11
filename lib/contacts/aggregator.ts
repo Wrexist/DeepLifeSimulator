@@ -238,15 +238,32 @@ export const DEFAULT_ATTENTION_STRENGTH_THRESHOLD = 50;
 /** Weeks without contact before a contact is considered stale. */
 export const DEFAULT_ATTENTION_STALE_WEEKS = 8;
 
+/** Overrides for the at-risk filter. Both fall back to the exported defaults. */
+export interface AttentionOptions {
+  staleWeeks?: number;
+  strengthThreshold?: number;
+}
+
 /**
  * Identify contacts at risk of decay — not contacted in N weeks AND strength below threshold.
  */
 export function contactsNeedingAttention(
   contacts: ContactView[],
-  opts: { staleWeeks?: number; strengthThreshold?: number } = {}
+  opts: AttentionOptions = {}
 ): ContactView[] {
-  const stale = opts.staleWeeks ?? DEFAULT_ATTENTION_STALE_WEEKS;
-  const strengthMin = opts.strengthThreshold ?? DEFAULT_ATTENTION_STRENGTH_THRESHOLD;
+  // Validated and clamped: a NaN threshold makes every `<` comparison false and
+  // silently empties the Attention tab, which reads as "nothing needs attention"
+  // — the most misleading possible failure for a warning surface.
+  const staleInput = opts.staleWeeks ?? DEFAULT_ATTENTION_STALE_WEEKS;
+  const strengthInput = opts.strengthThreshold ?? DEFAULT_ATTENTION_STRENGTH_THRESHOLD;
+  const stale =
+    typeof staleInput === 'number' && isFinite(staleInput)
+      ? Math.max(0, staleInput)
+      : DEFAULT_ATTENTION_STALE_WEEKS;
+  const strengthMin =
+    typeof strengthInput === 'number' && isFinite(strengthInput)
+      ? Math.max(0, Math.min(100, strengthInput))
+      : DEFAULT_ATTENTION_STRENGTH_THRESHOLD;
   return contacts.filter((c) => {
     if (c.weeksSinceContact === undefined) return false;
     return c.weeksSinceContact >= stale && c.strength < strengthMin;

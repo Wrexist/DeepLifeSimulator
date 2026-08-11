@@ -81,14 +81,20 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
   // because those two rows ARE the cash and savings above — 1:1 mirrors of
   // `stats.money` and `bankSavings` — so counting them here would double them.
   (gameState.banking?.accounts ?? []).forEach((a, i) => {
-    if (!a || MIRRORED_ACCOUNT_IDS.has(a.id)) return;
+    if (!a) return;
+    // Resolved ONCE. The id was previously read three ways in four lines — bare
+    // for the mirror check, `?? i` for the asset id, and as a name fallback —
+    // so an account missing an id both escaped the mirror check and rendered a
+    // row literally named "undefined".
+    const accountId = a.id ?? `account-${i}`;
+    if (MIRRORED_ACCOUNT_IDS.has(accountId)) return;
     if ((a.balance || 0) <= 0) return;
     assets.push({
-      id: `account_${a.id ?? i}`,
+      id: `account_${accountId}`,
       type: 'cash',
       baseValue: a.balance || 0,
       group: 'accounts',
-      rowName: a.name || a.id,
+      rowName: a.name || accountId,
     });
   });
 
@@ -184,11 +190,46 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
       }),
     );
 
+  /**
+   * Vehicles, validated EXACTLY as the canonical `netWorth()` validates them
+   * (`lib/progress/achievements.ts`) — same guards, same fallbacks, same
+   * depreciation, so the two answers cannot drift.
+   *
+   * The guards are not defensive decoration. `condition` was read as
+   * `vehicle.condition / 100` with no fallback while `mileage` got a `|| 0`, so
+   * ONE legacy or hand-edited row with a missing `condition` or `price` produced
+   * `NaN`, and `computeNetWorth` summed it into `totalAssets`. The headline,
+   * every percentage and `netWorth` itself would all render as `NaN` — a single
+   * bad row poisoning the entire modal. This code was moved verbatim out of the
+   * component, so the hole came with it.
+   *
+   * No `owned` filter, deliberately: selling REMOVES the vehicle from the array
+   * (`VehicleActions`), so a lingering `owned: false` row is not a state the
+   * game produces, and the canonical calculation does not filter either.
+   */
   (vehicles || []).forEach((vehicle) => {
+    if (!vehicle) return;
+    const price =
+      typeof vehicle.price === 'number' && isFinite(vehicle.price) && vehicle.price >= 0 ? vehicle.price : 0;
+    const condition =
+      typeof vehicle.condition === 'number' &&
+      isFinite(vehicle.condition) &&
+      vehicle.condition >= 0 &&
+      vehicle.condition <= 100
+        ? vehicle.condition
+        : 100;
+    const mileage =
+      typeof vehicle.mileage === 'number' && isFinite(vehicle.mileage) && vehicle.mileage >= 0
+        ? vehicle.mileage
+        : 0;
+    if (price <= 0) return;
+
     const baseSellPercent = 0.8;
-    const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
-    const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
-    const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+    const conditionMultiplier = 0.2 + (condition / 100) * 0.8;
+    const mileagePenalty = Math.min(0.3, mileage / 500000);
+    const depreciatedValue = price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+    if (!isFinite(depreciatedValue) || depreciatedValue <= 0) return;
+
     assets.push({
       id: vehicle.id,
       type: 'vehicle',

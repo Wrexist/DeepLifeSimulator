@@ -2167,7 +2167,7 @@ nothing called it. Adding the Gear tab made every one of its unexercised guards
 load-bearing in a single commit. A dormant writer has never had its guards run;
 re-read them BEFORE giving it a caller, not after.
 
-**A comment that describes behaviour the callee does not have is a bug with a
+**A comment that describes behaviour the callee does not have is a bug with an
 alibi.** I wrote "if the credit is refused (MONEY_CEILING) we return prev" over
 a call to `applyMoneyDelta`, which does not refuse an over-ceiling credit — it
 CLAMPS and returns a value. The savings debit was full, the cash credit partial,

@@ -132,6 +132,12 @@ describe('an empty life produces an empty list, not a broken one', () => {
   it('no holdings → no rows, and no division by zero in the percentages', () => {
     const broke = createTestGameState({ stats: { money: 0 }, bankSavings: 0 } as unknown as Partial<GameState>) as GameState;
     const { rows, breakdown } = buildNetWorthItemisation(broke);
+    // Assert the TITLE. The loop below alone proved nothing: an empty `rows`
+    // never enters it, and a non-empty `rows` passes as long as the values are
+    // positive — so the test claimed "no rows" while checking neither case.
+    // Verified empty against the real `createTestGameState`, which seeds no
+    // owned items or vehicles.
+    expect(rows).toEqual([]);
     for (const row of rows) {
       expect(row.value).toBeGreaterThan(0);
     }

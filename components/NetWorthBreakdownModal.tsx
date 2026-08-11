@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package, Landmark, Bitcoin, Gem } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { buildNetWorthItemisation, NetWorthGroup } from '@/utils/netWorthItemisation';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -19,7 +20,7 @@ interface NetWorthBreakdownModalProps {
  * module, which is where the "rows must add up to the headline" invariant is
  * tested (`__tests__/economy/netWorthItemisation.test.ts`).
  */
-const GROUP_PRESENTATION: Record<NetWorthGroup, { label: string; icon: any; color: string }> = {
+const GROUP_PRESENTATION: Record<NetWorthGroup, { label: string; icon: LucideIcon; color: string }> = {
   cash: { label: 'Cash', icon: DollarSign, color: '#10B981' },
   savings: { label: 'Bank Savings', icon: Wallet, color: '#3B82F6' },
   accounts: { label: 'Your Accounts', icon: Landmark, color: '#0EA5E9' },
