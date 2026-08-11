@@ -17,6 +17,7 @@
  * `weeklyIncome` is recomputed through the same headcount multiplier the
  * upgrade and hiring paths use.
  */
+import type React from 'react';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { GameState, Company, HustleAcquisitionOffer } from '@/contexts/game/types';
 import { acceptAcquisition } from '@/contexts/game/actions/HustleActions';
@@ -73,13 +74,23 @@ function stateWithOffer(over: Partial<Company> = {}): GameState {
   };
 }
 
-/** Drive the action and return the committed state. */
-function accept(state: GameState) {
+/**
+ * Drive the action and return the committed state.
+ *
+ * The setter is typed as the real `React.Dispatch` rather than cast with
+ * `as never`: the cast severed the compile-time link to `acceptAcquisition`, so
+ * a change to its setter parameter would still type-check here while this
+ * harness quietly stopped matching what the action is handed.
+ */
+function accept(state: GameState): {
+  result: ReturnType<typeof acceptAcquisition>;
+  state: GameState;
+} {
   let committed = state;
-  const set = (u: unknown) => {
-    committed = typeof u === 'function' ? (u as (p: GameState) => GameState)(committed) : (u as GameState);
+  const set: React.Dispatch<React.SetStateAction<GameState>> = (u) => {
+    committed = typeof u === 'function' ? u(committed) : u;
   };
-  const result = acceptAcquisition(set as never, state, COMPANY_ID, offer.id);
+  const result = acceptAcquisition(set, state, COMPANY_ID, offer.id);
   return { result, state: committed };
 }
 
@@ -123,11 +134,11 @@ describe('acquiring a company adds its revenue', () => {
     // (company income) that a double-fire would also have duplicated.
     const base = stateWithOffer();
     let committed = base;
-    const set = (u: unknown) => {
-      committed = typeof u === 'function' ? (u as (p: GameState) => GameState)(committed) : (u as GameState);
+    const set: React.Dispatch<React.SetStateAction<GameState>> = (u) => {
+      committed = typeof u === 'function' ? u(committed) : u;
     };
-    acceptAcquisition(set as never, base, COMPANY_ID, offer.id);
-    acceptAcquisition(set as never, base, COMPANY_ID, offer.id); // stale snapshot
+    acceptAcquisition(set, base, COMPANY_ID, offer.id);
+    acceptAcquisition(set, base, COMPANY_ID, offer.id); // stale snapshot
 
     expect(committed.stats.money).toBe(10_000_000 - PRICE);
     expect(committed.companies![0].baseWeeklyIncome).toBe(5_000 + ANNUAL / WEEKS_PER_YEAR);
@@ -151,10 +162,10 @@ describe('acquiring a company adds its revenue', () => {
       },
     };
     let committed = clamped;
-    const set = (u: unknown) => {
-      committed = typeof u === 'function' ? (u as (p: GameState) => GameState)(committed) : (u as GameState);
+    const set: React.Dispatch<React.SetStateAction<GameState>> = (u) => {
+      committed = typeof u === 'function' ? u(committed) : u;
     };
-    acceptAcquisition(set as never, clamped, COMPANY_ID, offer.id);
+    acceptAcquisition(set, clamped, COMPANY_ID, offer.id);
 
     expect(committed.companies![0].baseWeeklyIncome).toBeGreaterThan(5_000);
   });
@@ -185,11 +196,24 @@ describe('the modal quotes the number the action applies', () => {
 
     // The stripper must not have eaten the file.
     expect(src.length).toBeGreaterThan(500);
-    // The headline is derived from the same term acceptAcquisition adds.
-    expect(src).toMatch(/estimatedAnnualRevenue \/ WEEKS_PER_YEAR/);
+
+    /**
+     * The modal must call the SHARED helpers, not re-derive the arithmetic.
+     *
+     * This assertion used to pin the literal expression
+     * `estimatedAnnualRevenue / WEEKS_PER_YEAR`, which pinned a COPY of the
+     * calculation — satisfied by any inline re-derivation, including one that
+     * had drifted from what `acceptAcquisition` pays. That is the weaker
+     * property: two identical expressions in two files still disagree the moment
+     * one is edited. Pinning the call sites means the card and the payout read
+     * from one definition and cannot diverge at all.
+     */
+    expect(src).toMatch(/acquisitionWeeklyGain\(offer\.estimatedAnnualRevenue\)/);
+    expect(src).toMatch(/acquisitionSharePoints\(offer\.synergyBonusPercent\)/);
+    // And nothing re-derives either figure locally any more.
+    expect(src).not.toMatch(/offer\.estimatedAnnualRevenue\s*\//);
+    expect(src).not.toMatch(/offer\.synergyBonusPercent\s*\/\s*4/);
     // The bare 4x-overstated figure is gone as the headline metric.
     expect(src).not.toMatch(/\+\{offer\.synergyBonusPercent\}%/);
-    // Synergy is still shown, but as the share points it actually moves.
-    expect(src).toMatch(/synergyBonusPercent \/ 4/);
   });
 });

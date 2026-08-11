@@ -280,7 +280,7 @@ export const achievements: Achievement[] = [
      * drift apart again.
      */
     description: 'Own 15 companies — every type, maxed out.',
-    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 15 },
+    progressSpec: { kind: 'counter', current: (gs: GameState): number => gs.companies?.length ?? 0, goal: 15 },
     goldReward: 300,
     group: 'company',
   },

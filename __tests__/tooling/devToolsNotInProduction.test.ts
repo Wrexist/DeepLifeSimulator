@@ -26,7 +26,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 
 const ROOT = path.join(__dirname, '..', '..');
-const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const FLAG = 'EXPO_PUBLIC_ENABLE_DEVTOOLS';
 

@@ -2246,3 +2246,33 @@ other, compute it. A test that asserts they agree is second best; two lists a
 human must remember to update in step is not a design, it is a scheduled bug.
 And prefer the pure module over the component when the invariant needs a test —
 the render harness cannot seed the state that makes the disagreement visible.
+
+## 2026-08-11 — Reconciling an automated fixer's patch with your own
+
+CodeRabbit's autofix ran on this PR while I was fixing the same four findings by
+hand, and pushed a commit on top of mine. Merging the two was more instructive
+than either half.
+
+Where it was **wrong**: its banking fix credited savings by the requested
+`amount` while debiting cash through `applyMoneyDelta`, which CLAMPS. That is
+the R-1 money-creation shape in mirror image — benign today only because an
+earlier guard makes the two equal. It fixed the reported symptom
+(`dailySummary` asymmetry) without the invariant behind it.
+
+Where it was **right**, and I was not: its accessibility handler used the
+functional `setAmount(prev => …)` form and guarded `max <= 0`; mine read
+`amount` from the closure. It also caught a third display site I had missed, and
+added a sanity ceiling on acquisition revenue — `isFinite` rejects `NaN` and
+`Infinity` but happily accepts `1e300`.
+
+Where it was **locally right and globally wrong**: it duplicated the validation
+inline in the modal instead of sharing it with the action, so display and payout
+were free to diverge again — and by the end of its own patch they had (the
+action clamped at $100M, the modal did not).
+
+**Rules.** Read an automated patch for the INVARIANT, not the symptom; a fix
+that makes the reported test pass can still leave the bug. Take what it got
+right without ego — the stale-closure fix was better than mine. And check
+whether it duplicated a rule rather than centralising one, because a fixer
+optimises for the file it was pointed at and cannot see that two files now
+disagree.

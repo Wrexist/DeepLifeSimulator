@@ -24,7 +24,7 @@
  * the existing optional `weeksAtLowRelationship`.
  */
 import { createTestGameState } from '../helpers/createTestGameState';
-import { applyWithSetState as apply } from '../helpers/setGameStateStub';
+import { applyWithSetState as apply, createSetGameStateStub } from '../helpers/setGameStateStub';
 import { GameState, Relationship } from '@/contexts/game/types';
 import { promoteMatchToFriend, promoteMatchToRelationship } from '@/contexts/game/actions/SparkActions';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
@@ -36,6 +36,7 @@ import {
   FRIEND_DRIFT_HAPPINESS_PENALTY,
 } from '@/contexts/game/actions/weekly/applyRelationshipHealth';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { DEFAULT_ATTENTION_STRENGTH_THRESHOLD } from '@/lib/contacts/aggregator';
 
 // ── X-3: friends ───────────────────────────────────────────────────────────
 
@@ -62,9 +63,12 @@ function stateWithMatches(): GameState {
 
 describe('a Spark match can become a friend', () => {
   it('creates a relationship of type friend', () => {
-    const after = apply(stateWithMatches(), (set) =>
-      promoteMatchToFriend(set, stateWithMatches(), 'm1')
-    );
+    // ONE state object: the action reads its snapshot from the second argument
+    // while `apply` runs the updater against the first. Building it twice made
+    // those different objects, and the test passed only because they happened to
+    // be structurally equal.
+    const base = stateWithMatches();
+    const after = apply(base, (set) => promoteMatchToFriend(set, base, 'm1'));
     const rel = after.relationships?.find((r) => r.id === 'm1');
     expect(rel?.type).toBe('friend');
     expect(rel?.name).toBe(DATING_PROFILES[0].name);
@@ -78,11 +82,8 @@ describe('a Spark match can become a friend', () => {
     // on committed STATE rather than the return value — so nothing else would
     // notice.
     const base = stateWithMatches();
-    let committed = base;
-    const set = (u: unknown) => {
-      committed = typeof u === 'function' ? (u as (p: GameState) => GameState)(committed) : (u as GameState);
-    };
-    const result = promoteMatchToFriend(set as never, base, 'm1');
+    const stub = createSetGameStateStub(base);
+    const result = promoteMatchToFriend(stub.setGameState, base, 'm1');
 
     expect(result.success).toBe(true);
     expect(result.relationshipId).toBe('m1');
@@ -90,9 +91,8 @@ describe('a Spark match can become a friend', () => {
   });
 
   it('starts above the neglect threshold — a new friend is not born "at risk"', () => {
-    const after = apply(stateWithMatches(), (set) =>
-      promoteMatchToFriend(set, stateWithMatches(), 'm1')
-    );
+    const base = stateWithMatches();
+    const after = apply(base, (set) => promoteMatchToFriend(set, base, 'm1'));
     const rel = after.relationships?.find((r) => r.id === 'm1');
     expect(rel!.relationshipScore).toBeGreaterThan(NEGLECT_THRESHOLD);
   });
@@ -119,14 +119,11 @@ describe('a Spark match can become a friend', () => {
   it('a double-tap in one batch cannot add the same person twice', () => {
     // The updater re-checks `prev`, not the caller's snapshot (CLAUDE.md §4.4).
     const base = stateWithMatches();
-    let committed = base;
-    const set = (u: unknown) => {
-      committed = typeof u === 'function' ? (u as (p: GameState) => GameState)(committed) : (u as GameState);
-    };
-    promoteMatchToFriend(set as never, base, 'm1');
-    promoteMatchToFriend(set as never, base, 'm1'); // same stale snapshot
+    const stub = createSetGameStateStub(base);
+    promoteMatchToFriend(stub.setGameState, base, 'm1');
+    promoteMatchToFriend(stub.setGameState, base, 'm1'); // same stale snapshot
 
-    expect(committed.relationships?.filter((r) => r.id === 'm1')).toHaveLength(1);
+    expect(stub.current().relationships?.filter((r) => r.id === 'm1')).toHaveLength(1);
   });
 
   it('refuses a match that is already promoted', () => {
@@ -221,6 +218,22 @@ describe('friends fade, family does not', () => {
     expect(r.rel).not.toBeNull();
   });
 
+  it('fires on the FIRST week that reaches the threshold, not a week later', () => {
+    // The stored counter is incremented before the comparison, so a stored
+    // `MIN - 1` becomes `MIN` on this tick and must drift. Only the `- 2` case
+    // above was covered, which never exercised `weeksAtLow >= MIN` at its
+    // boundary — an off-by-one that delayed every drift by a week would have
+    // passed both the old assertion and the always-fires one.
+    const c = ctx(Array.from({ length: 20 }, () => 0.0));
+    const r = applyRelationshipHealth(
+      rel({ relationshipScore: 5, weeksAtLowRelationship: FRIEND_DRIFT_MIN_WEEKS - 1 }),
+      0,
+      c
+    );
+    expect(r.rel).toBeNull();
+    expect(r.happinessPenalty).toBe(FRIEND_DRIFT_HAPPINESS_PENALTY);
+  });
+
   it('a parent is NEVER removed, however long they are neglected', () => {
     // Deleting a parent would break inheritance, the family tree and every
     // `parent`-typed consumer — estrangement is a happiness cost, not a delete.
@@ -260,9 +273,13 @@ describe('friends fade, family does not', () => {
 
 describe('the warning fires before the consequence', () => {
   it('the neglect threshold sits below the UI "at risk" strength cutoff', () => {
-    // `contactsNeedingAttention` flags strength < 50. If the mechanic bit at the
-    // same number, the Attention tab would be a post-mortem rather than a
-    // warning.
-    expect(NEGLECT_THRESHOLD).toBeLessThan(50);
+    // `contactsNeedingAttention` flags strength below its threshold. If the
+    // mechanic bit at that same number, the Attention tab would be a post-mortem
+    // rather than a warning.
+    //
+    // Imported, not a literal: if the UI cutoff moves, this assertion must move
+    // with it. A hardcoded 50 would keep passing while the warning quietly
+    // stopped preceding the consequence — the whole property being asserted.
+    expect(NEGLECT_THRESHOLD).toBeLessThan(DEFAULT_ATTENTION_STRENGTH_THRESHOLD);
   });
 });

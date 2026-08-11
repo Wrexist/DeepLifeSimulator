@@ -11,6 +11,19 @@ import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 // just did.
 import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 
+/**
+ * The Onion Browser explainer, shared by the two FAQ sections that both ask
+ * "What is the Onion Browser?".
+ *
+ * It was pasted twice. An edit to one copy would not reach the other, and the
+ * test that pins this copy (`__tests__/economy/uiTruthF5toF8.test.ts`) uses
+ * `toMatch`, which is satisfied by EITHER copy — so the stale one could describe
+ * a dark web that no longer exists and nothing would fail.
+ */
+const ONION_BROWSER_ANSWER =
+  'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store — lockpicks, gloves, VPNs, malware kits — bought with Bitcoin. Those tools are what unlock the illegal jobs on the Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.';
+
+
 interface HelpModalProps {
   visible: boolean;
   onClose: () => void;
@@ -192,7 +205,8 @@ const helpContent = [
       },
       {
         question: 'What is the Onion Browser?',
-        answer: 'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store — lockpicks, gloves, VPNs, malware kits — bought with Bitcoin. Those tools are what unlock the illegal jobs on the Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.',
+        answer: ONION_BROWSER_ANSWER,
+
       },
       {
         question: 'What is YouVideo?',
@@ -490,7 +504,8 @@ const helpContent = [
       },
       {
         question: 'What is the Onion Browser?',
-        answer: 'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store — lockpicks, gloves, VPNs, malware kits — bought with Bitcoin. Those tools are what unlock the illegal jobs on the Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.',
+        answer: ONION_BROWSER_ANSWER,
+
       },
       {
         question: 'What is YouVideo?',

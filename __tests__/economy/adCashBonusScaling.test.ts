@@ -24,7 +24,7 @@ import { netWorth } from '@/lib/progress/achievements';
 
 const withState = (over: Partial<GameState>): GameState => {
   const base = createTestGameState();
-  return { ...base, ...over } as GameState;
+  return { ...base, ...over };
 };
 
 const withCash = (money: number): GameState => {

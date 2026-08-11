@@ -225,14 +225,28 @@ export function contactCountsByKind(contacts: ContactView[]): Record<ContactKind
 }
 
 /**
+/**
+ * Strength below which the UI flags a contact as "at risk".
+ *
+ * Exported because it is a CONTRACT with the weekly neglect mechanic, not just a
+ * default: `NEGLECT_THRESHOLD` must sit below it so the Attention tab warns well
+ * before anything actually happens to a relationship. A test pins that ordering,
+ * and it can only track this value if the value has a name.
+ */
+export const DEFAULT_ATTENTION_STRENGTH_THRESHOLD = 50;
+
+/** Weeks without contact before a contact is considered stale. */
+export const DEFAULT_ATTENTION_STALE_WEEKS = 8;
+
+/**
  * Identify contacts at risk of decay — not contacted in N weeks AND strength below threshold.
  */
 export function contactsNeedingAttention(
   contacts: ContactView[],
   opts: { staleWeeks?: number; strengthThreshold?: number } = {}
 ): ContactView[] {
-  const stale = opts.staleWeeks ?? 8;
-  const strengthMin = opts.strengthThreshold ?? 50;
+  const stale = opts.staleWeeks ?? DEFAULT_ATTENTION_STALE_WEEKS;
+  const strengthMin = opts.strengthThreshold ?? DEFAULT_ATTENTION_STRENGTH_THRESHOLD;
   return contacts.filter((c) => {
     if (c.weeksSinceContact === undefined) return false;
     return c.weeksSinceContact >= stale && c.strength < strengthMin;

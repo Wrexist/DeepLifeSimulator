@@ -17,6 +17,7 @@
  * Both are now pinned. The five non-delivering categories stay reputation/heat
  * plays; giving them real payloads is economy design, not a copy fix.
  */
+import type React from 'react';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { GameState } from '@/contexts/game/types';
 import {
@@ -68,14 +69,19 @@ function stateWithListing(
 }
 
 /** Drive the action and return the committed state. */
-function buy(state: GameState, listingId = 'L-test') {
+function buy(
+  state: GameState,
+  listingId = 'L-test',
+): { result: ReturnType<typeof buyMarketListing>; state: GameState } {
   let committed = state;
-  const set = (updater: unknown) => {
-    committed = typeof updater === 'function'
-      ? (updater as (p: GameState) => GameState)(committed)
-      : (updater as GameState);
+  // Typed as the real dispatch rather than cast with `as never`. The cast broke
+  // the compile-time link between this harness and `buyMarketListing`: a change
+  // to the setter parameter would still type-check here while the harness
+  // silently stopped matching what the action is actually handed.
+  const set: React.Dispatch<React.SetStateAction<GameState>> = (updater) => {
+    committed = typeof updater === 'function' ? updater(committed) : updater;
   };
-  const result = buyMarketListing(state, set as never, listingId);
+  const result = buyMarketListing(state, set, listingId);
   return { result, state: committed };
 }
 

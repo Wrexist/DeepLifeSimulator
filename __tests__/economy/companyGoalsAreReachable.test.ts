@@ -60,6 +60,29 @@ describe('the company ceiling is what this test thinks it is', () => {
   });
 });
 
+/**
+ * A `progressSpec` that carries a numeric target.
+ *
+ * The spec is a union, and the other members have no `goal`. Reading it through
+ * an inline `as { goal: number }` bypasses that union — the cast asserts the
+ * member rather than checking it, so a spec shape change would compile and this
+ * whole file would quietly test nothing. CLAUDE.md Hard Rule #2: access union
+ * members via a guard, never a cast.
+ */
+interface CounterGoalSpec {
+  goal: number;
+}
+
+function hasNumericGoal(spec: unknown): spec is CounterGoalSpec {
+  return (
+    typeof spec === 'object' &&
+    spec !== null &&
+    'goal' in spec &&
+    typeof (spec as CounterGoalSpec).goal === 'number' &&
+    isFinite((spec as CounterGoalSpec).goal)
+  );
+}
+
 describe('every company achievement is reachable', () => {
   const companyCountGoals = achievements.filter(
     (a) => a.group === 'company' && /Own \d+ compan/i.test(a.description ?? ''),
@@ -70,10 +93,14 @@ describe('every company achievement is reachable', () => {
   });
 
   it('no goal exceeds the number of companies the game can hold', () => {
-    const impossible = companyCountGoals
-      .filter((a) => (a.progressSpec as { goal?: number })?.goal !== undefined)
-      .filter((a) => ((a.progressSpec as { goal: number }).goal) > MAX_COMPANIES)
-      .map((a) => `${a.id} wants ${(a.progressSpec as { goal: number }).goal} of ${MAX_COMPANIES}`);
+    // `flatMap` rather than filter-then-map: a filter on a property does not
+    // narrow the element type, so the map would still need a cast — which is the
+    // thing the guard exists to remove.
+    const impossible = companyCountGoals.flatMap((a) => {
+      const spec = a.progressSpec;
+      if (!hasNumericGoal(spec)) return [];
+      return spec.goal > MAX_COMPANIES ? [`${a.id} wants ${spec.goal} of ${MAX_COMPANIES}`] : [];
+    });
 
     expect(impossible).toEqual([]);
   });
@@ -86,7 +113,7 @@ describe('every company achievement is reachable', () => {
     const mismatched = companyCountGoals
       .map((a) => {
         const stated = Number(/Own (\d+)/i.exec(a.description ?? '')?.[1]);
-        const goal = (a.progressSpec as { goal?: number })?.goal;
+        const goal = hasNumericGoal(a.progressSpec) ? a.progressSpec.goal : undefined;
         return { id: a.id, stated, goal };
       })
       .filter((x) => Number.isFinite(x.stated) && x.stated !== x.goal)

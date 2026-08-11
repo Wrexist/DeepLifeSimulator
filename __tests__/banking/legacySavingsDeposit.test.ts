@@ -36,13 +36,23 @@ const savingsRow = (s: GameState) =>
 
 /** Run the real weekly banking tick, which is what used to erase mirror writes. */
 function reMirror(s: GameState): GameState {
-  const result = runWeeklyBankingTick({
+  // Typed with the function's OWN parameter type, not `as never`. This helper
+  // carries the file's central guarantee — the weekly re-mirror must not undo a
+  // deposit — and `as never` disabled type checking of the very argument that
+  // guarantee depends on. A renamed or added field would still compile, and the
+  // guarantee would quietly become vacuous.
+  const args: Parameters<typeof runWeeklyBankingTick>[0] = {
     banking: s.banking!,
     currentWeek: (s.weeksLived ?? 0) + 1,
     newBankSavings: s.bankSavings ?? 0,
     newMoney: s.stats.money,
     economyState: undefined,
-  } as never);
+    // Required, and the cast was hiding both: no loans in this fixture, so the
+    // before/after lists are the save's own (empty) list on both sides.
+    prevLoans: s.loans ?? [],
+    processedLoans: s.loans ?? [],
+  };
+  const result = runWeeklyBankingTick(args);
   return { ...s, banking: result.banking };
 }
 

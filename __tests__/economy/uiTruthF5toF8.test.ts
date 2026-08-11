@@ -110,7 +110,9 @@ describe('F6 — the Help describes the dark web that shipped', () => {
       .flatMap((d) => walk(path.join(ROOT, d)))
       .filter((f) => /\.tsx$/.test(f))
       .filter((f) => re.test(fs.readFileSync(f, 'utf8')))
-      .map((f) => path.relative(ROOT, f));
+      // Normalised to forward slashes: `path.relative` yields backslashes on
+      // Windows, and the assertions below compare against posix-style paths.
+      .map((f) => path.relative(ROOT, f).split(path.sep).join('/'));
   };
 
   it('the hack actions still have no UI caller (the surviving premise)', () => {
