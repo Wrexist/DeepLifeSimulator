@@ -54,9 +54,10 @@ function unguardedRun(prev: GameState): GameState {
   };
 }
 
+/** From the factory, spread — no `as GameState` (Hard Rule #3). */
 function withEnergy(energy: number, money = 0): GameState {
   const base = createTestGameState();
-  return { ...base, stats: { ...base.stats, energy, money } } as GameState;
+  return { ...base, stats: { ...base.stats, energy, money } };
 }
 
 /** Apply one updater N times to the same starting state — a batched multi-tap. */

@@ -38,7 +38,7 @@ import type { GameState } from '@/contexts/game/types';
  * batched double-tap produces.
  */
 function runBatched(state: GameState, taps: number): GameState {
-  const updaters: Array<(p: GameState) => GameState> = [];
+  const updaters: ((p: GameState) => GameState)[] = [];
   const collect = (u: unknown) => {
     if (typeof u === 'function') updaters.push(u as (p: GameState) => GameState);
   };
@@ -47,13 +47,19 @@ function runBatched(state: GameState, taps: number): GameState {
   return updaters.reduce((acc, u) => u(acc), state);
 }
 
+/**
+ * Built from the factory and narrowed by spreading, with NO `as GameState`.
+ * Hard Rule #3 bans that assertion in tests for a reason worth restating: it
+ * silences exactly the error that tells you a field has moved or been renamed,
+ * so a suite full of them keeps passing against a shape that no longer exists.
+ */
 function withWarehouse(level: number, money: number): GameState {
   const base = createTestGameState();
   return {
     ...base,
     stats: { ...base.stats, money },
     warehouse: { level, miners: {}, minerDurability: {} },
-  } as GameState;
+  };
 }
 
 describe('a single upgrade still works', () => {
