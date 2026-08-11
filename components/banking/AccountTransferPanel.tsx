@@ -113,12 +113,19 @@ export default function AccountTransferPanel({
     [setFromX],
   );
 
-  const onTrackLayout = (e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width);
+  // Both handlers go to child components (the track `View`, the segment
+  // `TouchableOpacity`s), so a fresh identity per render is a wasted re-render
+  // on every keystroke of the slider. State setters are stable, so both close
+  // over nothing that changes and take an empty dependency list.
+  const onTrackLayout = useCallback(
+    (e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width),
+    [],
+  );
 
-  const switchTo = (next: TransferDirection) => {
+  const switchTo = useCallback((next: TransferDirection) => {
     setDirection(next);
     setAmount(0); // never carry an amount across a direction change
-  };
+  }, []);
 
   const pct = max > 0 ? Math.max(0, Math.min(1, amount / max)) : 0;
   // Thumb travel is the track minus its own width, so it never overhangs.
@@ -189,6 +196,26 @@ export default function AccountTransferPanel({
         accessibilityRole="adjustable"
         accessibilityLabel={`${isDeposit ? 'Deposit' : 'Withdraw'} amount slider`}
         accessibilityValue={{ min: 0, max: Math.floor(max), now: Math.floor(amount) }}
+        /**
+         * `adjustable` PROMISES assistive tech an increment/decrement
+         * affordance. Declaring the role without these handlers hands a
+         * screen-reader user a control announced as adjustable that cannot be
+         * adjusted — worse than announcing nothing, because it names an
+         * interaction that does not exist.
+         *
+         * 5% per step: 20 steps covers the range without the drag gesture's
+         * precision, and lands on the same `niceStep` rounding the chips use, so
+         * a stepped value reads as a clean figure rather than $3,847.13.
+         */
+        accessibilityActions={[
+          { name: 'increment', label: 'Increase amount' },
+          { name: 'decrement', label: 'Decrease amount' },
+        ]}
+        onAccessibilityAction={(e) => {
+          const step = max / 20;
+          const next = e.nativeEvent.actionName === 'increment' ? amount + step : amount - step;
+          setAmount(niceStep(Math.max(0, Math.min(max, next)), max));
+        }}
       >
         <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
           {/* Fill reaches the thumb's CENTRE, so the bar and the circle agree at

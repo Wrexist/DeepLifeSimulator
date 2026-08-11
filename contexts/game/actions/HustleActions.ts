@@ -710,6 +710,43 @@ export const launchIPO = (
 
 // ── Acquisitions ─────────────────────────────────────────────────────────
 
+/**
+ * Weekly income an acquisition actually adds — the ONE definition.
+ *
+ * `AcquireModal` advertises this figure and `acceptAcquisition` pays it, and the
+ * modal's own comment claims the two share their arithmetic. They did not: the
+ * action validated `estimatedAnnualRevenue` before dividing, the modal divided
+ * it raw. A malformed offer therefore rendered `+$NaN` on the card and then
+ * granted 0 on accept — the display and the payout disagreeing in exactly the
+ * way the comment promised they could not.
+ *
+ * A non-finite or non-positive revenue yields 0, which is the honest answer:
+ * "this offer adds nothing", shown before the money is spent rather than
+ * discovered after.
+ */
+export const acquisitionWeeklyGain = (estimatedAnnualRevenue: unknown): number => {
+  const annual =
+    typeof estimatedAnnualRevenue === 'number' && isFinite(estimatedAnnualRevenue) && estimatedAnnualRevenue > 0
+      ? estimatedAnnualRevenue
+      : 0;
+  return Math.max(0, Math.round(annual / WEEKS_PER_YEAR));
+};
+
+/**
+ * Market-share points an acquisition's synergy actually delivers.
+ *
+ * `synergyBonusPercent` is quoted at 8–30 but only a QUARTER of it reaches
+ * market share, so the raw field overstates the effect 4× (H-3). Same guard,
+ * same reason as above.
+ */
+export const acquisitionSharePoints = (synergyBonusPercent: unknown): number => {
+  const pct =
+    typeof synergyBonusPercent === 'number' && isFinite(synergyBonusPercent) && synergyBonusPercent > 0
+      ? synergyBonusPercent
+      : 0;
+  return pct / 4;
+};
+
 export const acceptAcquisition = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
@@ -794,11 +831,9 @@ export const acceptAcquisition = (
      */
     // Validate before arithmetic: a malformed offer (NaN / Infinity) would
     // otherwise be divided, rounded and PERSISTED onto `baseWeeklyIncome`,
-    // poisoning the company's income for the rest of the save.
-    const rawAnnual = offer.estimatedAnnualRevenue;
-    const safeAnnual =
-      typeof rawAnnual === 'number' && isFinite(rawAnnual) && rawAnnual > 0 ? rawAnnual : 0;
-    const weeklyRevenueGain = Math.max(0, Math.round(safeAnnual / WEEKS_PER_YEAR));
+    // poisoning the company's income for the rest of the save. Shared with the
+    // modal so the advertised figure and the paid one cannot diverge.
+    const weeklyRevenueGain = acquisitionWeeklyGain(offer.estimatedAnnualRevenue);
     const companies = next.companies ?? [];
     const cIdx = companies.findIndex((c) => c?.id === companyId);
     let withIncome = next;

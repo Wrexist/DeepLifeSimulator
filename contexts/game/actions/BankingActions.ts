@@ -101,8 +101,15 @@ export const depositCashToAccount = (
         typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
           ? Math.max(0, state.bankSavings)
           : 0;
-      const next = withLegacySavings(state, currentSavings + amount);
-      return { ...next, stats: { ...next.stats, money: currentMoney - amount } };
+      const debit = applyMoneyDelta(state, -amount, 'Deposit to savings');
+      if (!debit) return prev;
+      // Credit savings by what ACTUALLY left cash, exactly as the withdraw half
+      // debits savings by what actually landed. See the long note there: writing
+      // the requested `amount` on one side and letting `applyMoneyDelta` clamp
+      // the other is how money gets created or destroyed at the boundaries.
+      const moved = currentMoney - debit.stats.money;
+      if (moved <= 0) return prev;
+      return { ...withLegacySavings(state, currentSavings + moved), ...debit };
     }
     // checking-default still mirrors `stats.money`: moving cash into your own
     // cash is not a transaction, and writing the balance would be erased by the
@@ -111,14 +118,30 @@ export const depositCashToAccount = (
       log.warn(`Deposit rejected: ${accountId} mirrors cash and is read-only`);
       return prev;
     }
-    const result = depositToAccount(state.banking, accountId, amount);
+    /**
+     * Debit cash through `applyMoneyDelta`, then credit the account with what
+     * actually left — the same shape as every other money movement here.
+     *
+     * The direct `money: currentMoney - amount` write this replaces skipped
+     * `dailySummary.moneyChange` entirely, while the WITHDRAW half credits it.
+     * So a deposit followed by a withdrawal of the same sum reported a net
+     * positive week even though cash had returned to exactly where it started.
+     * (`totalMoneyEarned` was never affected — `NON_INCOME_REASON` already
+     * excludes deposit/withdraw/savings/bank, which is what keeps the daily
+     * "earn $X" gem challenges unfarmable.)
+     */
+    const debit = applyMoneyDelta(state, -amount, `Deposit to account ${accountId}`);
+    if (!debit) return prev;
+    const moved = currentMoney - debit.stats.money;
+    if (moved <= 0) return prev;
+    const result = depositToAccount(state.banking, accountId, moved);
     if (!result.ok) {
       log.warn(`Deposit failed: ${result.reason}`);
       return prev;
     }
     return {
       ...state,
-      stats: { ...state.stats, money: currentMoney - amount },
+      ...debit,
       banking: result.banking,
     };
   });

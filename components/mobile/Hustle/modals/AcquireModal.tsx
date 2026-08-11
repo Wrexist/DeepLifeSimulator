@@ -9,8 +9,12 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { acceptAcquisition, declineAcquisition } from '@/contexts/game/actions/HustleActions';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import {
+  acceptAcquisition,
+  declineAcquisition,
+  acquisitionWeeklyGain,
+  acquisitionSharePoints,
+} from '@/contexts/game/actions/HustleActions';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
@@ -116,13 +120,13 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerMetric}>
                         <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +${Math.round(offer.estimatedAnnualRevenue / WEEKS_PER_YEAR).toLocaleString()}
+                          +${acquisitionWeeklyGain(offer.estimatedAnnualRevenue).toLocaleString()}
                         </Text>
                       </View>
                     </View>
 
                     <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
-                      Synergy +{(offer.synergyBonusPercent / 4).toFixed(1)} market share
+                      Synergy +{acquisitionSharePoints(offer.synergyBonusPercent).toFixed(1)} market share
                     </Text>
 
                     <View style={styles.offerCtaRow}>

@@ -5,7 +5,7 @@ import { BankAccount } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassButton } from '@/utils/glassmorphismStyles';
-import { MIRRORED_ACCOUNT_IDS, LEGACY_SAVINGS_ACCOUNT_ID } from '@/lib/banking/operations';
+import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
 
 interface Props {
   account: BankAccount;
@@ -93,14 +93,19 @@ export default function AccountRow({
   // never move (BBQ, 2026-08-11). Its deposits and withdrawals route through
   // `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID. Close stays unavailable: it is
   // a primary account, not something the player opened.
-  const isLegacySavings = account.id === LEGACY_SAVINGS_ACCOUNT_ID;
-  const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id) && !isLegacySavings;
-  // `closeAccount` still refuses every id in MIRRORED_ACCOUNT_IDS ("Your primary
-  // checking and savings accounts cannot be closed"), so offering the button
-  // here would render a control that always fails. Drop it for this one account
-  // rather than loosening the pure guard.
-  const closeAction = isLegacySavings ? undefined : onClose;
-  const showActions = !isMirrored && (!!onWithdraw || !!closeAction);
+  // Both rules come from `lib/banking/operations` rather than being re-derived
+  // here. Three components asked the same two questions inline, this change had
+  // to edit all three when the answer moved, and a future edit that misses one
+  // leaves them disagreeing about whether the gold piggy takes deposits.
+  const isMirrored = isReadOnlyMirror(account.id);
+  // `closeAccount` refuses every mirror ("Your primary checking and savings
+  // accounts cannot be closed"), so offering the button would render a control
+  // that always fails.
+  const closeAction = canCloseAccount(account.id) ? onClose : undefined;
+  // `onPress` counts: it is the deposit affordance. Gating solely on withdraw
+  // and close meant a caller passing only `onPress` got the "read-only" chip on
+  // an account this change makes depositable.
+  const showActions = !isMirrored && (!!onPress || !!onWithdraw || !!closeAction);
 
   // ── Apple-Wallet card face ────────────────────────────────────────────────
   if (variant === 'card') {

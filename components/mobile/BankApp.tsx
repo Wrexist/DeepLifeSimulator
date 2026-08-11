@@ -42,7 +42,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS, LEGACY_SAVINGS_ACCOUNT_ID } from '@/lib/banking/operations';
+import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
 
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
 import AccountRow, { accountPalette, accountTypeLabel } from '@/components/banking/AccountRow';
@@ -51,7 +51,7 @@ import CreditCardRow from '@/components/banking/CreditCardRow';
 import BillPayRow from '@/components/banking/BillPayRow';
 import SavingsGoalCard from '@/components/banking/SavingsGoalCard';
 import AmountInputModal from '@/components/banking/AmountInputModal';
-import AccountTransferPanel from '@/components/banking/AccountTransferPanel';
+import AccountTransferPanel, { TransferDirection } from '@/components/banking/AccountTransferPanel';
 import OpenAccountModal from '@/components/banking/OpenAccountModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import ApplyCardModal from '@/components/banking/ApplyCardModal';
@@ -240,12 +240,31 @@ function BankAppInner({ onBack }: BankAppProps) {
   );
 
   // ───────────────────────────── Account detail page ───────────────────────
+  /**
+   * Stable transfer handler for the account the detail view currently has open.
+   *
+   * `AccountTransferPanel` is a child component, so an inline arrow was a fresh
+   * prop identity on every render — exactly what the panel's own memo work
+   * exists to avoid. Keyed on the OPEN account id rather than curried by id: a
+   * curried factory would still allocate per render and change nothing.
+   */
+  const openAccountId = subView?.kind === 'account' ? subView.id : null;
+  const handleTransfer = useCallback(
+    (dir: TransferDirection, amt: number) => {
+      if (!openAccountId) return;
+      if (dir === 'deposit') depositCashToAccount(setGameState, openAccountId, amt);
+      else withdrawCashFromAccount(setGameState, openAccountId, amt);
+      queueSave();
+    },
+    [setGameState, queueSave, openAccountId]
+  );
+
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
     // Only `checking-default` is read-only now. `savings-default` deposits and
     // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
     const isMirrored =
-      MIRRORED_ACCOUNT_IDS.has(account.id) && account.id !== LEGACY_SAVINGS_ACCOUNT_ID;
+      isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
     const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
     const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;
@@ -332,11 +351,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                 darkMode={darkMode}
                 withdrawDisabled={isLocked}
                 withdrawDisabledReason={isLocked ? `Locked until week ${account.lockUntilWeek}` : undefined}
-                onSubmit={(dir, amt) => {
-                  if (dir === 'deposit') depositCashToAccount(setGameState, account.id, amt);
-                  else withdrawCashFromAccount(setGameState, account.id, amt);
-                  queueSave();
-                }}
+                onSubmit={handleTransfer}
               />
               {/* `closeAccount` refuses every id in MIRRORED_ACCOUNT_IDS
                   ("Your primary checking and savings accounts cannot be
@@ -345,7 +360,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                   already drops it for the same reason; this detail view is a
                   separate component and needed the same guard. Caught by
                   driving the real app, not by the suite. */}
-              {account.id !== LEGACY_SAVINGS_ACCOUNT_ID && (
+              {canCloseAccount(account.id) && (
                 <TouchableOpacity
                   onPress={() => confirmCloseAccount(account)}
                   disabled={isLocked}

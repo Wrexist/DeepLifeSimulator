@@ -35,20 +35,6 @@ const HISTORY_CAP = 100;
 const INQUIRY_LOOKBACK_WEEKS = 2 * WEEKS_PER_YEAR;
 
 /**
- * Accounts that are weekly 1:1 MIRRORS of the legacy fields, not independent
- * pools: `checking-default` mirrors `stats.money` and `savings-default` mirrors
- * `bankSavings` (see lib/banking/weeklyTick.ts → mirrorAccountsFromLegacy).
- * Manual cash moves on them desynced from the legacy source — the next mirror
- * tick overwrote the balance back, letting players print cash (withdraw/pay) or
- * destroy it (deposit). The action layer treats these as read-only mirrors and
- * routes any cash movement through the authoritative legacy field instead.
- */
-export const MIRRORED_ACCOUNT_IDS: ReadonlySet<string> = new Set([
-  'checking-default',
-  'savings-default',
-]);
-
-/**
  * The savings mirror, named on its own because it is the ONE mirror the player
  * may move money in and out of.
  *
@@ -73,6 +59,52 @@ export const MIRRORED_ACCOUNT_IDS: ReadonlySet<string> = new Set([
  * mirrors `stats.money`, so "moving cash into your cash" is not a transaction.
  */
 export const LEGACY_SAVINGS_ACCOUNT_ID = 'savings-default';
+
+/**
+ * The checking mirror. Fully read-only — see below.
+ */
+export const LEGACY_CHECKING_ACCOUNT_ID = 'checking-default';
+
+/**
+ * Accounts that are weekly 1:1 MIRRORS of the legacy fields, not independent
+ * pools: `checking-default` mirrors `stats.money` and `savings-default` mirrors
+ * `bankSavings` (see lib/banking/weeklyTick.ts → mirrorAccountsFromLegacy).
+ * Manual cash moves on them desynced from the legacy source — the next mirror
+ * tick overwrote the balance back, letting players print cash (withdraw/pay) or
+ * destroy it (deposit). The action layer treats these as read-only mirrors and
+ * routes any cash movement through the authoritative legacy field instead.
+ */
+export const MIRRORED_ACCOUNT_IDS: ReadonlySet<string> = new Set([
+  LEGACY_CHECKING_ACCOUNT_ID,
+  // Derived, not repeated. The id lived here as a literal AND in
+  // `LEGACY_SAVINGS_ACCOUNT_ID`; if one were renamed the savings carve-out would
+  // stop matching the mirror set and deposits would silently fall through to the
+  // read-only rejection — the exact bug this whole area exists to fix.
+  LEGACY_SAVINGS_ACCOUNT_ID,
+]);
+
+/**
+ * Does this account reject manual cash movement entirely?
+ *
+ * `checking-default` does; `savings-default` does not (it routes through
+ * `bankSavings`). Three components re-derived that distinction inline, this PR
+ * had to edit all three when the rule changed, and a future change that misses
+ * one leaves the surfaces disagreeing about whether the gold piggy takes
+ * deposits. One definition, called everywhere.
+ */
+export const isReadOnlyMirror = (accountId: string): boolean =>
+  MIRRORED_ACCOUNT_IDS.has(accountId) && accountId !== LEGACY_SAVINGS_ACCOUNT_ID;
+
+/**
+ * May the player close this account?
+ *
+ * Never a mirror — neither one is an account the player opened, and closing one
+ * would mean deleting their cash or their savings. `closeAccount` already
+ * rejects both; this is the same rule stated where the UI can ask it, so a Close
+ * button is not offered for something that will always refuse.
+ */
+export const canCloseAccount = (accountId: string): boolean =>
+  !MIRRORED_ACCOUNT_IDS.has(accountId);
 
 const safe = (n: number | undefined, fb = 0): number => (typeof n === 'number' && isFinite(n) ? n : fb);
 
