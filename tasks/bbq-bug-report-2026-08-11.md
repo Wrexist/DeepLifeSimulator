@@ -10,6 +10,15 @@ Legend: **CONFIRMED** = reproduced in source · **CONFIRMED +** = real and worse
 than reported · **PARTIAL** = true under a condition BBQ did not hit ·
 **AS DESIGNED** = intentional, but the report exposes a gap around it.
 
+> **Amended 2026-08-11 (same day).** Two entries below were over-graded on the
+> first pass and are corrected in place — see **B-2** and **D-2**. Both errors
+> were mine, both were caught by re-reading the source before writing the fix,
+> and both are the failure mode CLAUDE.md §8 warns about: trusting a finding
+> without re-reading. The corrections are marked ⚠ where they appear.
+>
+> A third item is added: **M-1**, a measurement defect in the C-9 ratchet found
+> while fixing D-4.
+
 ---
 
 ## Summary table
@@ -17,9 +26,10 @@ than reported · **PARTIAL** = true under a condition BBQ did not hit ·
 | # | Area | Finding | Status | Sev |
 |---|---|---|---|---|
 | B-1 | Banking | `bankSavings` (the gold piggy) has no player deposit path at all | CONFIRMED + | **P0** |
-| B-2 | Banking | Self-opened accounts are invisible to the piggy, Bank Breakdown, Net Worth — but visible to the prestige evaluator | CONFIRMED + | **P0** |
+| B-2 | Banking | ⚠ *corrected* — self-opened accounts are invisible to three DISPLAY surfaces; the canonical `netWorth()` already counts them | CONFIRMED | P1 |
 | D-1 | Dark Web | Buyer rep gains +1/purchase against an 80–95% scam wall; pro=10, elite=35 | CONFIRMED | P1 |
-| D-2 | Dark Web | A scammed vendor stops posting listings for 20–43 weeks — the board freezes | CONFIRMED + | **P0** |
+| D-2 | Dark Web | ⚠ *corrected* — the vendor sit-out is INTENTIONAL and tested; the real gap is that the scam odds are never shown | AS DESIGNED | P1 |
+| M-1 | Meta | The C-9 ratchet under-counts: its regex cannot see a success return through a ternary | CONFIRMED | P2 |
 | D-3 | Dark Web | Listings have a 4-week life and refill only on expiry → static board in 4-week blocks | CONFIRMED | P1 |
 | D-4 | Dark Web | 5 of 7 listing categories deliver literally nothing; UI still says "is yours" | CONFIRMED + | **P0** |
 | D-5 | Dark Web | `darkWebItems`, `cleanBtc`, `dirtyBtc` are excluded from `calculateNetWorth` | CONFIRMED | P1 |
@@ -96,27 +106,41 @@ the correct symptom of an unfixed cause.
 
 Recommend **(a)** for the next build.
 
-## B-2 · Self-opened accounts are invisible to four surfaces but visible to prestige — **P0**
+## B-2 ⚠ *corrected* · Self-opened accounts are invisible to three DISPLAY surfaces — **P1**
 
-An inconsistency found while tracing B-1, not reported by BBQ but the same root.
+**What the first pass claimed, and why it was wrong.** I wrote that
+`calculateNetWorth` ignores `banking.accounts` while the prestige evaluator
+counts them, and called it a live two-answers-to-one-question split gating
+achievements. That is not what the code does.
 
-`calculateNetWorth` (`contexts/game/actions/weekly/preTick.ts:37-160`) sums cash,
-`bankSavings`, stocks, real estate, vehicles, companies, warehouse, miners,
-crypto and `items` — and **never touches `banking.accounts`**. The same omission
-exists in `TopStatsBar` (piggy), `BankBreakdownModal`, and
-`NetWorthBreakdownModal.tsx:34` (`{ id: 'savings', baseValue: bankSavings || 0 }`).
+The canonical figure is `netWorth()` in `lib/progress/achievements.ts`, and it
+**already** counts `nonMirrorDeposits` (line 239), crypto, credit-card debt and
+savings goals. `lib/statistics/statisticsTracker.calculateNetWorth` is a
+one-line delegation to it, and `ShareLifeCard` calls the same function — a
+5-way duplication consolidated by an earlier audit. Prestige agrees with all of
+them. The `preTick.ts` copy I cited is imported at `GameActionsContext.tsx:98`
+and **never called**; it survives only because
+`__tests__/refactor/subsystemEquivalence.test.ts` snapshots it.
 
-Meanwhile the prestige evaluator *does* count them
-(`lib/prestige/prestigeExecution.ts:178-179`):
+**What is actually true.** Three *display* surfaces still exclude
+`banking.accounts`, so a funded high-yield account looks like it swallowed the
+money even though every gate and achievement values it correctly:
 
-```ts
-bankSavings: (gameState.bankSavings || 0) + nonMirrorDeposits(gameState.banking?.accounts ?? []),
-```
+- `components/TopStatsBar.tsx:634` — the gold chip (`bankSavings + stocks`).
+- `components/BankBreakdownModal.tsx:23` — the modal that chip opens.
+- `components/NetWorthBreakdownModal.tsx:34` — which omits crypto **and**
+  accounts while carrying a comment stating *"the itemisation must add up to the
+  CANONICAL headline (UX-3)"*. It names the invariant it breaks.
 
-So $2M parked in a high-yield account is worth $0 to the HUD, the Net Worth
-modal and every net-worth achievement, and $2M to the prestige threshold. Two
-answers to one question. Whatever is chosen for B-1 must make all five call sites
-agree.
+Narrower than first written, but still a real disagreement between the number a
+player sees and the number the game uses — and the third case is self-refuting
+in its own comment.
+
+**Fixed** in the same change as B-1: all three now add `nonMirrorDeposits`, the
+Bank Breakdown itemises each self-opened account, and the Net Worth modal gained
+its missing crypto term. The dead `preTick` copy is left in place (the
+equivalence snapshot pins it) with a comment saying plainly that it is not
+canonical and must not be wired to anything.
 
 ---
 
@@ -153,7 +177,35 @@ listing is the trap.
 than tier band. Surface the scam probability as a vendor trust badge — the number
 already exists and is never shown.
 
-## D-2 · A scammed vendor stops posting for 20–43 weeks. This is the real "no shuffle" bug. — **P0**
+## D-2 ⚠ *corrected* · The vendor burn-out is INTENTIONAL. The missing piece is the warning. — **P1**
+
+**What the first pass got wrong.** I graded the flagged-vendor sit-out a P0 bug
+and proposed letting flagged vendors keep posting. It is a deliberate,
+documented, tested mechanic. `__tests__/economy/darkWebVendorRecovery.test.ts`
+asserts it directly — the describe block is literally *"the seeded market really
+can burn out (guards everything below)"*, with `posts nothing the week it is
+flagged` → `expect(listings.length).toBe(0)` and `stays out for a meaningful
+number of weeks, not one` → `expect(weeksOut).toBeGreaterThan(4)`. Removing it
+would have deleted a designed feature and three of its tests.
+
+**What is actually wrong.** BBQ's experience is real; the cause is one layer up.
+`vendorScamProbability` is computed and never shown at the decision point. The
+buy dialog read *"Vendor rep 15/100"* — and rep is a sigmoid, not a line, so 15
+means a **95%** chance of losing the entire payment. A bare "15/100" reads as
+"poor but worth a punt", and because low-rep vendors also price cheapest
+(`priceMultiplierForReputation`), the game steered a cash-poor new player
+straight at its worst odds, then burned the vendor they had just been steered
+into. That compounding produced both "rep is too slow to gain" and "listings do
+not shuffle" from one root.
+
+**Fixed** by telegraphing, not by changing the mechanic: the confirm dialog now
+states the scam percentage and what a scam costs, and every listing row shows
+`scam_risk` — previously hidden below 20%, which made a low risk
+indistinguishable from an unmeasured one. The burn-out and its tests are
+untouched.
+
+The mechanical detail below stands as the record of why the burn bites so hard,
+and is worth reading alongside D-1 when the rep curve is tuned.
 
 > "Most listings are locked behind rep requirements and do not shuffle as week
 > past with other options."
@@ -566,19 +618,88 @@ something without inventing new UI.
 
 ---
 
+# M — Meta (found while fixing, not reported)
+
+## M-1 · The C-9 ratchet under-counts: its regex cannot see through a ternary — **P2**
+
+`__tests__/refactor/updaterResultRatchet.test.ts` pins the number of functions
+that reject inside a `setGameState` updater and then return unconditional
+success. Its final filter is:
+
+```js
+if (!/\n\s*return \{\s*\n?\s*success: true/.test(body.slice(-900))) continue;
+```
+
+That only matches a success return written as a **statement**. A function whose
+tail is a ternary —
+
+```ts
+return cond ? { success: true, … } : { success: true, … };
+```
+
+— is invisible to it. `buyMarketListing` is exactly that shape and has always
+belonged to the class (benignly: every inner `return prev` mirrors an outer
+guard). Rewriting its tail as `if (…) return …; return …;` while fixing D-4 made
+it appear, taking the count 62 → 63 against a ratchet that must never rise.
+
+The tail was left as a ternary so the D-4 copy fix would not smuggle in ratchet
+work. But the ratchet's real count is **at least 63**, and the true number is
+unknown until the detector also recognises ternary and arrow-body returns.
+Worth fixing when the backlog is next worked — with the count corrected upward
+in the same commit, since a ratchet that under-measures is the same failure as
+one that cannot pass.
+
+**Two control assertions in that file were also broken, and are fixed here.**
+Both named `openAccount` — the imported pure op from `lib/banking/operations` —
+where the action is `openNewAccount`:
+
+- `expect(current).not.toContain('BankingActions.ts::openAccount')` could never
+  fail. The detector keys on exported action names, so that string was not a
+  possible member of the list. It asserted nothing.
+- The shape check did `src.indexOf('openAccount')`, which matched the **import**
+  at offset ~763, then read a fixed 6,000-character window. The real
+  `openNewAccount` declaration sits at ~8,300 — it was only passing because the
+  intervening code happened to be short enough to drag it inside the window.
+  Adding ~1.7k of unrelated code above it pushed the declaration out and the
+  control failed, reporting a regression in a function nobody had touched.
+
+Both now anchor to `export const <name>` and assert the declaration exists, so a
+rename fails loudly instead of silently slicing an empty string.
+
+---
+
 # Recommended order of work
 
-**Ship first (each is a dead system, not a tuning problem):**
-1. **C-1 / C-2** — restore the dark-web gear store. One screen calling an existing
-   action re-opens 18 of 19 crime jobs and the whole criminal-level ladder.
-2. **B-1 / B-2** — give the gold piggy a deposit path and make all five net-worth
-   surfaces agree.
-3. **D-4** — stop claiming "is yours" for a delivery that does not happen; give
-   the other five categories a payload or change the copy.
-4. **D-2** — a scammed vendor should not silently delete a quarter of the
-   marketplace for 43 weeks.
+**✅ SHIPPED 2026-08-11** (branch `claude/bbq-bug-report-dcsfyf`) — no
+`STATE_VERSION` bump; every change writes fields that already existed:
 
-**Then:**
+1. **C-1 / C-2** — the gear store is back, as a **Gear tab in the Onion app**
+   (BTC currency, so the dark web is its correct home). `buyDarkWebItem` finally
+   has a caller; all 19 illegal jobs are reachable through their stated
+   requirements. The dead `'crime'` mapping in `market.tsx` — a fossil pointing
+   at a screen that sells dollars, not BTC — is deleted.
+2. **B-1 / B-2** — `savings-default` is a real deposit target, routed through
+   `bankSavings` so the weekly re-mirror has nothing to overwrite.
+   `checking-default` stays read-only and its exploit guards are re-asserted.
+   The three display surfaces now include `nonMirrorDeposits`.
+3. **D-4** — delivery resolves through `LISTING_TITLE_TO_ITEM_ID`, so buying
+   "Night Vision" grants night vision instead of whatever sat first in the
+   catalogue. An already-owned tool is refused **before** BTC moves, and the
+   five non-delivering categories no longer claim an item.
+4. **D-2** — telegraphed rather than changed: scam odds now appear in the confirm
+   dialog and on every listing row.
+
+Also: the Help modal described three Onion tabs and now describes four, and
+**M-1** fixes two control assertions that were measuring nothing.
+
+Coverage added — `__tests__/banking/legacySavingsDeposit.test.ts`,
+`__tests__/economy/darkWebDelivery.test.ts`,
+`__tests__/economy/crimeToolsReachable.test.ts`. All three **fail on the
+pre-fix code** (verified by stashing the fix and re-running), so they detect the
+bugs rather than merely documenting the repair. Full suite: 526 suites / 6,633
+tests green; test-tree type errors holding at 0.
+
+**Then (not done):**
 5. **X-3** — one `type: 'friend'` producer lights up ContactsApp, npcDepth and X-4.
 6. **X-5** — a consequence for Branch 3.
 7. **H-2 / H-3** — make an acquisition move `baseWeeklyIncome`, and label synergy

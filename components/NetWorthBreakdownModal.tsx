@@ -4,6 +4,7 @@ import Gradient from '@/components/ui/Gradient';
 import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
+import { nonMirrorDeposits } from '@/lib/banking/operations';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
@@ -33,6 +34,24 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
       { id: 'cash', type: 'cash', baseValue: stats.money },
       { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
     ];
+
+    // Self-opened deposits + crypto. The comment above says this itemisation
+    // must add up to the canonical headline, and these were the last two terms
+    // `netWorth()` counts that this list did not — so a deposit-heavy or
+    // crypto-heavy player saw a breakdown that undershot their own headline.
+    // `nonMirrorDeposits` excludes the two mirror accounts, which already ride
+    // in via `stats.money` and `bankSavings`.
+    const bankAccountsValue = nonMirrorDeposits(gameState.banking?.accounts ?? []);
+    if (bankAccountsValue > 0) {
+      assets.push({ id: 'bankAccounts', type: 'cash', baseValue: bankAccountsValue });
+    }
+
+    (gameState.cryptos || []).forEach((c, i) => {
+      const value = (c?.owned || 0) * (c?.price || 0);
+      if (value > 0) {
+        assets.push({ id: `crypto_${c?.id ?? i}`, type: 'investment', baseValue: value });
+      }
+    });
 
     // Items
     (items || [])
@@ -108,6 +127,8 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
     gameState.luxuryItems,
     gameState.luxuryHoldings,
     gameState.loans,
+    gameState.banking?.accounts,
+    gameState.cryptos,
   ]);
 
   const assetDetails = useMemo(() => {

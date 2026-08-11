@@ -94,8 +94,11 @@ import {
 // out shrinks `nextWeek()` (helps the JIT inline the smaller hot function)
 // and lets the equivalence-test battery in __tests__/refactor lock in the
 // current behavior. Byte-identical output verified by snapshot tests.
+// NOTE: `calculateNetWorth` is deliberately NOT imported here. It lives in
+// preTick.ts and the week loop no longer calls it — the canonical figure is
+// `netWorth()` in lib/progress/achievements.ts, which the HUD, prestige, bail
+// and ad rewards all read. Importing the preTick copy here made it look live.
 import {
-  calculateNetWorth,
   computeDecayInputs,
   buildPreRolls,
 } from './actions/weekly/preTick';

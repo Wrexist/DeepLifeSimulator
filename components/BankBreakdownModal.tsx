@@ -7,6 +7,8 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 import BaseModal from '@/components/ui/BaseModal';
 import { useTheme } from '@/hooks/useTheme';
+import { nonMirrorDeposits, MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { accountTypeLabel } from '@/components/banking/AccountRow';
 
 interface BankBreakdownModalProps {
   visible: boolean;
@@ -15,12 +17,20 @@ interface BankBreakdownModalProps {
 
 export default function BankBreakdownModal({ visible, onClose }: BankBreakdownModalProps) {
   const bankSavings = useGameSelector((s) => s.bankSavings);
+  // The accounts the player opened themselves. `nonMirrorDeposits` drops
+  // checking-default / savings-default, which mirror `stats.money` /
+  // `bankSavings` — the legacy pool is already counted as `savings` below.
+  const accounts = useGameSelector((s) => s.banking?.accounts);
   const stocks = useGameSelector((s) => s.stocks);
   const weeksLived = useGameSelector((s) => s.weeksLived);
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
     const savings = bankSavings ?? 0;
+    const selfOpened = (accounts ?? []).filter(
+      (a) => a && !MIRRORED_ACCOUNT_IDS.has(a.id) && (a.balance ?? 0) > 0
+    );
+    const selfOpenedTotal = nonMirrorDeposits(accounts ?? []);
 
     // Calculate stock investments
     // CRITICAL: Get the latest stock prices to ensure sync with StocksApp
@@ -47,15 +57,20 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
     });
 
     const totalStockValue = stockItems.reduce((sum, item) => sum + item.totalValue, 0);
-    const totalSavings = savings + totalStockValue;
+    // Must match the HUD chip's total exactly — the chip is what opens this
+    // modal, so any term missing from one and present in the other reads as a
+    // bug in whichever the player looks at second.
+    const totalSavings = savings + selfOpenedTotal + totalStockValue;
 
     return {
       savings,
+      selfOpened,
+      selfOpenedTotal,
       stockItems,
       totalStockValue,
       totalSavings,
     };
-  }, [bankSavings, stocks, weeksLived]); // Recalculate when week changes
+  }, [bankSavings, accounts, stocks, weeksLived]); // Recalculate when week changes
 
   return (
     <BaseModal visible={visible} onClose={onClose} title="Bank & Investments">
@@ -110,6 +125,43 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
             })}
           </Text>
         </View>
+
+        {/* Accounts the player opened themselves. These carry a real balance and
+            a real APR, and were previously absent from both this list and the
+            total it rolls up to — so a funded high-yield account looked like it
+            had swallowed the money. */}
+        {breakdown.selfOpened.map((account) => (
+          <View
+            key={account.id}
+            style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}
+          >
+            <View style={styles.itemHeader}>
+              <View style={[styles.itemIconContainer, { backgroundColor: '#F59E0B20' }]}>
+                <PiggyBank size={scale(16)} color="#F59E0B" />
+              </View>
+              <View style={styles.itemInfo}>
+                <Text style={[styles.itemLabel, { color: theme.text }]}>
+                  {account.name}
+                </Text>
+                <Text style={[styles.itemDescription, { color: theme.textSecondary }]}>
+                  {accountTypeLabel(account.type)}
+                  {account.baseAPR > 0 ? ` · ${(account.baseAPR * 100).toFixed(2)}% APR` : ''}
+                </Text>
+              </View>
+              <Text style={[styles.itemValue, { color: theme.text }]}>
+                {formatMoney(account.balance)}
+              </Text>
+            </View>
+            <Text style={[styles.exactValueSmall, { color: theme.textSecondary }]}>
+              {(account.balance ?? 0).toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
+            </Text>
+          </View>
+        ))}
       </View>
 
       {/* Stock Investments */}

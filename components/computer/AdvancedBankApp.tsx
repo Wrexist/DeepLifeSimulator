@@ -62,7 +62,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
+import { MIRRORED_ACCOUNT_IDS, LEGACY_SAVINGS_ACCOUNT_ID, computeStatementNetWorth } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
@@ -915,7 +915,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // ─────────────────────────── Account statement page ────────────────────────
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
-    const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
+    // Only `checking-default` is read-only now. `savings-default` deposits and
+    // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
+    const isMirrored =
+      MIRRORED_ACCOUNT_IDS.has(account.id) && account.id !== LEGACY_SAVINGS_ACCOUNT_ID;
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
     const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
     const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;

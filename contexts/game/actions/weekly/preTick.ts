@@ -33,6 +33,22 @@ import { logger } from '@/utils/logger';
 // `GameActionsContext.tsx:92-212`. Moved verbatim — same try/catch shape,
 // same field iteration order, same logger calls. Any change here will
 // surface as a snapshot diff in `subsystemEquivalence.test.ts`.
+//
+// ⚠ NOT THE CANONICAL NET WORTH, AND NOT CALLED BY THE WEEK LOOP.
+//
+// The figure the game actually uses is `netWorth()` in
+// `lib/progress/achievements.ts` — it gates prestige, the $10M achievement,
+// ambitions, the leaderboard, the passive-income soft cap, bail and ad rewards,
+// and `statistics/statisticsTracker.calculateNetWorth` + `ShareLifeCard` both
+// delegate to it. That one counts self-opened bank accounts
+// (`nonMirrorDeposits`), crypto, savings goals and credit-card debt; this one
+// counts none of the four, so the two disagree for most real saves.
+//
+// It survives ONLY because `__tests__/refactor/subsystemEquivalence.test.ts`
+// pins it as part of the R7 extraction snapshot. Do not wire it to anything, and
+// do not "fix" its coverage to match — that would silently create a second
+// authority. If the equivalence snapshot is ever retired, delete this function
+// with it.
 
 export function calculateNetWorth(gameState: GameState): number {
   try {

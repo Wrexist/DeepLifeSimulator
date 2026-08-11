@@ -48,6 +48,32 @@ export const MIRRORED_ACCOUNT_IDS: ReadonlySet<string> = new Set([
   'savings-default',
 ]);
 
+/**
+ * The savings mirror, named on its own because it is the ONE mirror the player
+ * may move money in and out of.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-11): "The default savings account that links to
+ * the gold piggy still does not work."
+ *
+ * He was right, and the previous fix addressed a different half of it. The HUD's
+ * gold chip renders `bankSavings`, and `bankSavings` had exactly three non-test
+ * writers — the interest tick, the divorce split, and the estate reader. Nothing
+ * deposited into it, so interest on a balance of 0 kept it at 0 for the whole
+ * life. Opening a SECOND savings account (the earlier fix) works, but that money
+ * lands in `banking.accounts` and the chip never moves.
+ *
+ * The read-only rule exists because a manual write to a mirror's `balance` is
+ * erased by the next `mirrorAccountsFromLegacy` pass — destroying a deposit and
+ * printing a withdrawal. That reasoning bans writing the BALANCE; it does not
+ * ban moving the money. Deposits and withdrawals on this account are therefore
+ * routed through `bankSavings` — the authoritative field the mirror reflects —
+ * so the tick has nothing to overwrite and the round trip conserves value.
+ *
+ * `checking-default` gets no such treatment and stays fully read-only: it
+ * mirrors `stats.money`, so "moving cash into your cash" is not a transaction.
+ */
+export const LEGACY_SAVINGS_ACCOUNT_ID = 'savings-default';
+
 const safe = (n: number | undefined, fb = 0): number => (typeof n === 'number' && isFinite(n) ? n : fb);
 
 // ---------------------------------------------------------------------------

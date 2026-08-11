@@ -126,7 +126,12 @@ export function updatePlayerReputation(
 // Listing generation (rotation each week)
 // ---------------------------------------------------------------------------
 
-const TITLES_BY_CATEGORY: Record<MarketCategory, string[]> = {
+// Exported so the drift guard in `__tests__/economy/darkWebDelivery.test.ts` can
+// assert that every gear / hackingTools title has a delivery mapping. Without the
+// export that test reads `undefined`, iterates nothing and passes vacuously —
+// which is how a title added here without a mapping would slip straight back
+// into "bought it, got nothing".
+export const TITLES_BY_CATEGORY: Record<MarketCategory, string[]> = {
   stolenAccounts: ['Netflix Premium x10', 'Spotify Family x5', 'Bank Login Bundle', 'Streaming Pack', 'Social Inbox'],
   cardedItems:    ['Electronics Bundle', 'Luxury Goods', 'Gift Card Stack', 'Designer Apparel', 'Mystery Box'],
   fakeIds:        ['Driver\'s License', 'Passport (EU)', 'Student ID', 'Work Permit', 'New Identity Kit'],
@@ -135,6 +140,52 @@ const TITLES_BY_CATEGORY: Record<MarketCategory, string[]> = {
   data:           ['Credit Card Dump', 'Email Database', 'Crypto Wallet List', 'SSN Pack', 'Medical Records'],
   gear:           ['Lockpicks', 'EMP Device', 'Wireless Scanner', 'Night Vision', 'Encrypted Phone'],
 };
+
+/**
+ * Which `darkWebItems` catalogue entry a gear / hacking-tool listing delivers.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-11): "Everything bought from Vendor has no
+ * purpose and is a piece of candy."
+ *
+ * The delivery path used to grant `items.findIndex(it => !it.owned)` — the next
+ * unowned entry in CATALOGUE order, which has nothing to do with what was on the
+ * listing. Buying "Night Vision" handed you a "Special USB", and once the early
+ * catalogue entries were owned it silently handed over whatever came next.
+ *
+ * Keyed by title and co-located with `TITLES_BY_CATEGORY` (directly above) so
+ * the two cannot drift apart unnoticed; `listingItemId` resolves through it.
+ * A title with no entry delivers nothing and says so — that is the honest
+ * outcome, not a fallback to an arbitrary item.
+ *
+ * Several titles intentionally map to the same tool (a phishing kit, a RAT
+ * builder and ransomware-as-a-service are all `malware_kit`). Duplicate routes
+ * to one item are fine; a WRONG item is not.
+ */
+export const LISTING_TITLE_TO_ITEM_ID: Readonly<Record<string, string>> = {
+  // gear
+  'Lockpicks': 'lockpick',
+  'EMP Device': 'emp_device',
+  'Wireless Scanner': 'wireless_hack',
+  'Night Vision': 'night_vision',
+  'Encrypted Phone': 'encryption',
+  // hackingTools
+  'Zero-Day Exploit': 'exploit',
+  'Phishing Kit': 'malware_kit',
+  'Ransomware-as-a-Service': 'malware_kit',
+  'RAT Builder': 'malware_kit',
+  'SQL Injection Pack': 'exploit',
+};
+
+/**
+ * The catalogue id a listing delivers, or `undefined` if it delivers nothing.
+ *
+ * Categories other than `gear` / `hackingTools` are pure reputation/heat plays
+ * and deliver no item — the caller must not claim otherwise in its copy.
+ */
+export function listingItemId(listing: Pick<MarketListing, 'category' | 'title'>): string | undefined {
+  if (listing.category !== 'gear' && listing.category !== 'hackingTools') return undefined;
+  return LISTING_TITLE_TO_ITEM_ID[listing.title];
+}
 
 const TIER_PRICE_RANGE: Record<ListingTier, [number, number]> = {
   common: [0.002, 0.01],

@@ -24,17 +24,17 @@ import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Item category mapping - outside component for stability
-const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {
+//
+// The eight dark-web ids that used to sit here (`gloves`, `usb`, `lockpick`,
+// `slim_jim`, `drill_kit`, `explosives`, `crowbar`, `drug_supply`) are gone.
+// They were unreachable in three separate ways: they live in
+// `gameState.darkWebItems`, this screen only ever renders `gameState.items`,
+// and `FILTER_CATEGORIES` has no 'crime' chip to select them with. They also
+// cost BTC, not dollars, so they could never have been bought here.
+// The gear store now lives in the Onion app's Gear tab, which spends BTC.
+const ITEM_CATEGORIES: Record<string, 'electronics' | 'lifestyle'> = {
   smartphone: 'electronics',
   computer: 'electronics',
-  gloves: 'crime',
-  usb: 'crime',
-  lockpick: 'crime',
-  slim_jim: 'crime',
-  drill_kit: 'crime',
-  explosives: 'crime',
-  crowbar: 'crime',
-  drug_supply: 'crime',
   guitar: 'lifestyle',
   bike: 'lifestyle',
   suit: 'lifestyle',

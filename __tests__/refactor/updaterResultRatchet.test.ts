@@ -170,24 +170,52 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(RATCHET - suspects().length).toBeLessThanOrEqual(5);
   });
 
+  /**
+   * The control pair. Both entries name the EXPORTED function, and both are
+   * located by their `export const` declaration.
+   *
+   * Previously the second entry read `openAccount`, which is the imported PURE
+   * op from `lib/banking/operations`, not the action. Two things followed:
+   *
+   *  - `not.toContain('BankingActions.ts::openAccount')` could never fail — the
+   *    detector keys on exported action names, so that string is not a possible
+   *    member of the list. The assertion tested nothing.
+   *  - The shape check did `src.indexOf('openAccount')`, which matched the
+   *    IMPORT at offset ~763 and then read a fixed 6,000-character window. The
+   *    real `openNewAccount` declaration sits at ~8,300, so the check was only
+   *    passing because the intervening code happened to be short enough to drag
+   *    the declaration inside the window. Adding ~1.7k of unrelated code above
+   *    it pushed the declaration out and the control failed — reporting a
+   *    regression in a function nobody had touched.
+   *
+   * Anchoring to the declaration makes both assertions real and removes the
+   * dependency on byte distance from an unrelated import.
+   */
+  const CONTROLS: [string, string][] = [
+    ['CompanyActions.ts', 'buyCompanyUpgrade'],
+    ['BankingActions.ts', 'openNewAccount'],
+  ];
+
   it('the functions already fixed are NOT in the list (the control)', () => {
     // If the detector flagged the fixed shape too, the ratchet would be
     // measuring noise and could never reach zero.
     const current = suspects();
 
-    expect(current).not.toContain('CompanyActions.ts::buyCompanyUpgrade');
-    expect(current).not.toContain('BankingActions.ts::openAccount');
+    for (const [file, fn] of CONTROLS) {
+      expect(current).not.toContain(`${file}::${fn}`);
+    }
   });
 
   it('and those really do use the pessimistic shape (the control)', () => {
-    for (const [file, fn] of [
-      ['CompanyActions.ts', 'buyCompanyUpgrade'],
-      ['BankingActions.ts', 'openAccount'],
-    ]) {
+    for (const [file, fn] of CONTROLS) {
       const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
-      const i = src.indexOf(fn);
-      const body = src.slice(i, i + 6000);
+      const i = src.indexOf(`export const ${fn}`);
 
+      // The declaration must exist. A renamed export would otherwise make
+      // `indexOf` return -1, slice from the end, and pass on an empty string.
+      expect(`${file}::${fn} declared: ${i !== -1}`).toBe(`${file}::${fn} declared: true`);
+
+      const body = src.slice(i, i + 6000);
       expect(`${file}::${fn}: ${/let result[^=]*=\s*\{\s*\n?\s*success: false/.test(body)}`)
         .toBe(`${file}::${fn}: true`);
     }

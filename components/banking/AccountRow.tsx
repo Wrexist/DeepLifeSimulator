@@ -5,7 +5,7 @@ import { BankAccount } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassButton } from '@/utils/glassmorphismStyles';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { MIRRORED_ACCOUNT_IDS, LEGACY_SAVINGS_ACCOUNT_ID } from '@/lib/banking/operations';
 
 interface Props {
   account: BankAccount;
@@ -85,10 +85,22 @@ export default function AccountRow({
   const isLocked = account.lockUntilWeek != null && currentWeek < account.lockUntilWeek;
   const weeksUntilUnlock = isLocked ? account.lockUntilWeek! - currentWeek : 0;
   const Icon = variant === 'card' ? accountGlyph(account.type) : account.type === 'checking' ? Wallet : PiggyBank;
-  // Mirrored default accounts are read-only views of cash / legacy savings —
-  // withdraw/close are rejected by the action layer, so don't offer them at all.
-  const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
-  const showActions = !isMirrored && (!!onWithdraw || !!onClose);
+  // `checking-default` is a read-only view of cash — deposit/withdraw/close are
+  // all rejected by the action layer, so don't offer them at all.
+  //
+  // `savings-default` is NOT in that bucket any more. It is the account behind
+  // the HUD's gold chip, and hiding its controls was half of why that chip could
+  // never move (BBQ, 2026-08-11). Its deposits and withdrawals route through
+  // `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID. Close stays unavailable: it is
+  // a primary account, not something the player opened.
+  const isLegacySavings = account.id === LEGACY_SAVINGS_ACCOUNT_ID;
+  const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id) && !isLegacySavings;
+  // `closeAccount` still refuses every id in MIRRORED_ACCOUNT_IDS ("Your primary
+  // checking and savings accounts cannot be closed"), so offering the button
+  // here would render a control that always fails. Drop it for this one account
+  // rather than loosening the pure guard.
+  const closeAction = isLegacySavings ? undefined : onClose;
+  const showActions = !isMirrored && (!!onWithdraw || !!closeAction);
 
   // ── Apple-Wallet card face ────────────────────────────────────────────────
   if (variant === 'card') {
@@ -225,9 +237,9 @@ export default function AccountRow({
                   <Text style={[styles.cardBtnText, { color: theme.text }]}>Withdraw</Text>
                 </TouchableOpacity>
               )}
-              {onClose && (
+              {closeAction && (
                 <TouchableOpacity
-                  onPress={onClose}
+                  onPress={closeAction}
                   disabled={isLocked}
                   accessibilityRole="button"
                   accessibilityLabel={`Close ${account.name}`}
@@ -314,9 +326,9 @@ export default function AccountRow({
               <Text style={[styles.actionText, { color: theme.text }]}>Withdraw</Text>
             </TouchableOpacity>
           )}
-          {onClose && (
+          {closeAction && (
             <TouchableOpacity
-              onPress={onClose}
+              onPress={closeAction}
               disabled={isLocked}
               style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}
             >

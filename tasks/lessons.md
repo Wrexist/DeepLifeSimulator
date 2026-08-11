@@ -2072,3 +2072,53 @@ editing their own save harms nobody. It becomes real the moment anything is
 server-authoritative. The lesson is narrower and sharper than "rotate the key":
 **writing "secret" next to a value that ships in the client encodes a false
 belief that some later feature will be built on.**
+
+---
+
+## 2026-08-11 — BBQ bug report: a writer with no caller, and two findings I over-graded
+
+**A WRITER with no caller is invisible to every test that action has.**
+`buyDarkWebItem` debited BTC correctly, flipped `owned` correctly, guarded
+already-owned and insufficient-funds correctly — and had zero call sites in
+`components/` or `app/`. Every unit test of it passed, because the action was
+never the broken part. What was broken was that nothing called it, so a 20-item
+catalogue was unreachable and 18 of the 19 illegal street jobs sat locked behind
+tools with no storefront. The weekly audit hunts *readers without writers*; this
+is the mirror image and nothing was looking for it. The new guard
+(`__tests__/economy/crimeToolsReachable.test.ts`) asserts the whole CHAIN — job
+requires id → id exists in catalogue → catalogue has a screen → that screen
+calls the action — because any single link passing proves nothing.
+
+**Two of my own findings were over-graded, and re-reading the source before
+writing the fix is what caught both.** CLAUDE.md §8 says not to trust a finding
+without re-reading; it applies to findings I wrote myself, an hour earlier.
+
+- I claimed `calculateNetWorth` ignores bank accounts while prestige counts
+  them. The canonical `netWorth()` already counted them, and two other callers
+  delegate to it. The copy I cited was imported and **never called**. The real
+  defect was three *display* surfaces — narrower, and still worth fixing.
+- I graded the flagged-vendor sit-out a P0 bug and proposed removing it. It is
+  deliberate and has a test suite whose describe block says so: *"the seeded
+  market really can burn out"*. The player's complaint was real; the cause was
+  one layer up — the scam odds are computed and never shown, and rep is a
+  sigmoid, so "15/100" means a 95% loss chance and reads like "worth a punt".
+
+Same shape both times: **a real symptom attached to the wrong mechanism.** The
+tell in each case was a test that already asserted the opposite of what I
+assumed. Grep the tests for the behaviour before calling it a bug — if the
+repo already pinned it, it is a design decision and the bug is elsewhere.
+
+**A test can fail because of byte distance.** The C-9 ratchet's control did
+`src.indexOf('openAccount')` — matching an *import* — then read a fixed 6,000
+character window hoping the real declaration fell inside. Adding ~1.7k of
+unrelated code above it pushed the declaration out and the control failed,
+reporting a regression in a function nobody had touched. Its sibling assertion
+named the same wrong symbol and could never fail at all. Anchor to
+`export const <name>` and assert the anchor was found; a locator that silently
+returns -1 slices an empty string and passes.
+
+**Third time in this repo that the CHECKER was the wrong thing** (after the
+`return prevState` false positives and the G5 money-delta blind spot). The C-9
+detector cannot see a success return through a ternary, so its "62" is really
+"at least 63". When a ratchet moves because of an unrelated edit, suspect the
+detector before the code.

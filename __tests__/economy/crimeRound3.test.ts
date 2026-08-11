@@ -40,22 +40,46 @@ const read = (rel: string): string =>
 describe('R3-C1 + R3-C10 — a gear purchase delivers gear', () => {
   const source = read('contexts/game/actions/CrimeActions.ts');
 
-  it('grants a catalogue item on a SUCCESSFUL gear purchase', () => {
-    expect(source).toMatch(/result\.result\.outcome === 'success' &&/);
-    expect(source).toMatch(/DELIVERS_GEAR\.includes\(listing\.category\)/);
-    expect(source).toMatch(/nextItems\[nextIdx\] = \{ \.\.\.nextItems\[nextIdx\], owned: true \}/);
+  /**
+   * MECHANISM REPLACED 2026-08-11 (BBQ report, D-4).
+   *
+   * R3-C10 shipped the grant as "the next unowned entry in CATALOGUE order":
+   *
+   *     const nextIdx = items.findIndex((it) => it && !it.owned);
+   *
+   * which delivered *an* item but never *the* item — buying "Night Vision"
+   * handed over a "Special USB", because `usb` is index 0. The three assertions
+   * here pinned that literal code, so they had to move with it.
+   *
+   * The grant now resolves through `listingItemId`, backed by
+   * `LISTING_TITLE_TO_ITEM_ID` in `lib/darkweb/marketplace.ts`. Behaviour is
+   * covered properly — by driving the real action rather than by regex — in
+   * `__tests__/economy/darkWebDelivery.test.ts`. What stays here is the
+   * structural intent R3-C10 was protecting.
+   */
+  it('grants the LISTED catalogue item on a successful gear purchase', () => {
+    expect(source).toMatch(/result\.result\.outcome === 'success' && deliveredId/);
+    // Resolved from the listing, not from catalogue position.
+    expect(source).toMatch(/const deliveredId = listingItemId\(listing\)/);
+    expect(source).toMatch(/items\.findIndex\(\(it\) => it\?\.id === deliveredId\)/);
+    // The positional grant must not come back.
+    expect(source).not.toMatch(/findIndex\(\(it\) => it && !it\.owned\)/);
   });
 
   it('only gear and hacking-tool categories deliver', () => {
     // Stolen accounts, carded items, fake IDs, services and data stay the pure
-    // reputation/heat plays they already were.
-    expect(source).toMatch(/const DELIVERS_GEAR: MarketCategory\[\] = \['gear', 'hackingTools'\]/);
+    // reputation/heat plays they already were. The category gate moved into
+    // `listingItemId`, which is the single place that decides.
+    const marketplace = read('lib/darkweb/marketplace.ts');
+    expect(marketplace).toMatch(
+      /if \(listing\.category !== 'gear' && listing\.category !== 'hackingTools'\) return undefined;/
+    );
   });
 
   it('does not grant on a scam', () => {
     // A scam is the vendor taking the money and vanishing; delivering anyway
     // would remove the entire downside.
-    const block = source.slice(source.indexOf('const DELIVERS_GEAR'));
+    const block = source.slice(source.indexOf('const deliveredId'));
     expect(block.slice(0, 400)).not.toMatch(/outcome === 'scam'/);
   });
 

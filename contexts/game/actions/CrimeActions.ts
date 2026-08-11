@@ -9,7 +9,7 @@
 import React from 'react';
 import { GameState, DarkWebMixerTier, DarkWebSkillId } from '../types';
 import { logger } from '@/utils/logger';
-import type { MarketCategory } from '@/lib/darkweb/marketplace';
+import { listingItemId } from '@/lib/darkweb/marketplace';
 import { initialGameState } from '../initialState';
 import {
   attemptJobStage,
@@ -74,6 +74,13 @@ export const buyMarketListing = (
   if (getBtcOwned(snapshot) < snapListing.costBtc) {
     return { success: false, message: `You need ${snapListing.costBtc.toFixed(4)} ₿ for this.` };
   }
+  // A listing that would deliver something you already own is refused BEFORE any
+  // BTC moves. Without this the purchase succeeds, charges full price and grants
+  // nothing — which is the "piece of candy" complaint reappearing in a new place.
+  const snapItemId = listingItemId(snapListing);
+  if (snapItemId && (snapshot.darkWebItems || []).find((it) => it?.id === snapItemId)?.owned) {
+    return { success: false, message: `You already own this.` };
+  }
   const preview = attemptPurchase(snapshot.darkWeb, listingId, purchaseRoll);
   if (!preview.ok) return { success: false, message: preview.reason };
 
@@ -126,16 +133,15 @@ export const buyMarketListing = (
      * carded items, fake IDs, services, data — as the pure reputation/heat
      * plays they already are.
      */
-    const DELIVERS_GEAR: MarketCategory[] = ['gear', 'hackingTools'];
-    if (
-      result.result.outcome === 'success' &&
-      DELIVERS_GEAR.includes(listing.category)
-    ) {
+    const deliveredId = listingItemId(listing);
+    if (result.result.outcome === 'success' && deliveredId) {
       const items = stateAfterBtc.darkWebItems || [];
-      const nextIdx = items.findIndex((it) => it && !it.owned);
-      if (nextIdx !== -1) {
+      const idx = items.findIndex((it) => it?.id === deliveredId);
+      // Already-owned is normally refused in the pre-check above; re-checked here
+      // because the updater must decide from `prev`, not the caller's snapshot.
+      if (idx !== -1 && !items[idx]?.owned) {
         const nextItems = [...items];
-        nextItems[nextIdx] = { ...nextItems[nextIdx], owned: true };
+        nextItems[idx] = { ...nextItems[idx], owned: true };
         return { ...stateAfterBtc, darkWebItems: nextItems, darkWeb: result.result.dw };
       }
     }
@@ -143,6 +149,28 @@ export const buyMarketListing = (
     return { ...stateAfterBtc, darkWeb: result.result.dw };
   });
 
+  /**
+   * Say what actually happened.
+   *
+   * This used to read "Delivered. <title> is yours." for EVERY category, but
+   * only `gear` and `hackingTools` put anything in your inventory. The other
+   * five — stolen accounts, carded items, fake IDs, services, data — move buyer
+   * reputation and heat and nothing else, so the player was told they owned a
+   * "New Identity Kit" that no system had ever heard of. That mismatch is what
+   * a bug report looks like from the outside.
+   *
+   * Those five stay reputation/heat plays for now; giving them real payloads is
+   * economy design, not a copy fix. The copy stops lying either way.
+   *
+   * Kept as a ternary rather than an early return purely to hold the diff to the
+   * message text. Rewriting it as `if (scam) return …; return …;` changes
+   * nothing behaviourally but newly exposes this function to the C-9 detector in
+   * `__tests__/refactor/updaterResultRatchet.test.ts`, whose regex cannot see a
+   * success return through a ternary. `buyMarketListing` does belong to that
+   * class — benignly, since every inner `return prev` mirrors an outer guard
+   * above — but surfacing it is ratchet work, not a copy fix, and it must not
+   * ride in on this change. See the note in tasks/bbq-bug-report-2026-08-11.md.
+   */
   return preview.result.outcome === 'scam'
     ? {
         success: true,
@@ -152,7 +180,9 @@ export const buyMarketListing = (
     : {
         success: true,
         outcome: 'success',
-        message: `Delivered. ${snapListing.title} is yours.`,
+        message: listingItemId(snapListing)
+          ? `Delivered. ${snapListing.title} is yours.`
+          : `Deal done. ${snapListing.title} moved — buyer reputation up, heat up. Nothing to add to your kit.`,
       };
 };
 

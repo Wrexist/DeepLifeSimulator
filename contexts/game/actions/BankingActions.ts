@@ -32,6 +32,7 @@ import {
   findCheckingAccount,
   recomputeCreditScore,
   MIRRORED_ACCOUNT_IDS,
+  LEGACY_SAVINGS_ACCOUNT_ID,
 } from '@/lib/banking/operations';
 
 const log = logger.scope('BankingActions');
@@ -46,6 +47,34 @@ function ensureBanking(state: GameState): GameState {
 // Account operations
 // ---------------------------------------------------------------------------
 
+/**
+ * Write a new legacy-savings balance onto BOTH the authoritative field and the
+ * mirror row that reflects it, in one object.
+ *
+ * `bankSavings` is the source of truth; `savings-default.balance` is what the
+ * Bank screen renders. Writing only the former leaves the account card showing a
+ * stale number until the next weekly tick re-mirrors it, which reads as "the
+ * deposit didn't work" — the exact complaint being fixed. Writing both keeps the
+ * two in step immediately and makes `mirrorAccountsFromLegacy` a no-op re-sync
+ * rather than a correction.
+ */
+function withLegacySavings(state: GameState, nextSavings: number): GameState {
+  const safeNext = Number.isFinite(nextSavings) ? Math.max(0, nextSavings) : 0;
+  const banking = state.banking;
+  return {
+    ...state,
+    bankSavings: safeNext,
+    banking: banking
+      ? {
+          ...banking,
+          accounts: (banking.accounts || []).map((a) =>
+            a?.id === LEGACY_SAVINGS_ACCOUNT_ID ? { ...a, balance: safeNext } : a
+          ),
+        }
+      : banking,
+  };
+}
+
 export const depositCashToAccount = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   accountId: string,
@@ -55,16 +84,30 @@ export const depositCashToAccount = (
     if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
-    // checking-default / savings-default mirror legacy cash; depositing into them
-    // is silently erased by the next mirror tick (money loss). Reject. Players
-    // save by depositing into a self-opened account, which is a real pool.
-    if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
-      log.warn(`Deposit rejected: ${accountId} mirrors cash and is read-only`);
+    const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+    // Affordability is re-checked against `prev` INSIDE the updater, not against
+    // the caller's snapshot, so a double-tap in one React batch cannot deposit
+    // the same dollars twice (CLAUDE.md §4.4).
+    if (!Number.isFinite(amount) || amount <= 0 || amount > currentMoney) {
+      log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
       return prev;
     }
-    const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
-    if (amount <= 0 || amount > currentMoney) {
-      log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
+    // The savings mirror is a real deposit target — routed through `bankSavings`,
+    // the field it reflects, so the weekly re-mirror has nothing to overwrite.
+    // See LEGACY_SAVINGS_ACCOUNT_ID for why this one is not read-only.
+    if (accountId === LEGACY_SAVINGS_ACCOUNT_ID) {
+      const currentSavings =
+        typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
+          ? Math.max(0, state.bankSavings)
+          : 0;
+      const next = withLegacySavings(state, currentSavings + amount);
+      return { ...next, stats: { ...next.stats, money: currentMoney - amount } };
+    }
+    // checking-default still mirrors `stats.money`: moving cash into your own
+    // cash is not a transaction, and writing the balance would be erased by the
+    // next mirror tick (an unbounded money printer on the withdraw side).
+    if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
+      log.warn(`Deposit rejected: ${accountId} mirrors cash and is read-only`);
       return prev;
     }
     const result = depositToAccount(state.banking, accountId, amount);
@@ -89,6 +132,26 @@ export const withdrawCashFromAccount = (
     if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // Savings mirror: the other half of the deposit path. Debit `bankSavings`
+    // (authoritative) and credit cash through applyMoneyDelta, so the round trip
+    // conserves value and the next re-mirror is a no-op.
+    if (accountId === LEGACY_SAVINGS_ACCOUNT_ID) {
+      const currentSavings =
+        typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
+          ? Math.max(0, state.bankSavings)
+          : 0;
+      if (!Number.isFinite(amount) || amount <= 0 || amount > currentSavings) {
+        log.warn(`Withdraw rejected: amount=${amount}, savings=${currentSavings}`);
+        return prev;
+      }
+      // Debit FIRST, then credit through applyMoneyDelta — if the credit is
+      // refused (MONEY_CEILING / non-finite) we return `prev` and the savings
+      // debit goes with it, rather than deleting the money.
+      const debited = withLegacySavings(state, currentSavings - amount);
+      const credit = applyMoneyDelta(debited, amount, 'Withdraw from savings');
+      if (!credit) return prev;
+      return { ...debited, ...credit };
+    }
     // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
     // cash here and letting the next mirror tick restore the account balance was
     // an unbounded money printer. There is nothing to withdraw FROM your own cash

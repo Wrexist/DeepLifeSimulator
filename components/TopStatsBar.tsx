@@ -22,6 +22,7 @@ import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { nonMirrorDeposits } from '@/lib/banking/operations';
 import Gradient from '@/components/ui/Gradient';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -82,6 +83,11 @@ function TopStatsBarComponent() {
  const stats = useGameSelector((s) => s?.stats, shallowEqual);
  const settings = useGameSelector((s) => s?.settings, shallowEqual);
  const bankSavings = useGameSelector((s) => s?.bankSavings ?? 0);
+ // Self-opened accounts (HYSA / CD / money market) are real deposits and were
+ // missing from this chip, so parking $2M in a high-yield account left the gold
+ // total unchanged. Selects the NUMBER, not the accounts array, so the chip does
+ // not re-render on every unrelated banking mutation.
+ const selfOpenedDeposits = useGameSelector((s) => nonMirrorDeposits(s?.banking?.accounts ?? []));
  const stocks = useGameSelector((s) => s?.stocks);
  const generationNumber = useGameSelector((s) => s?.generationNumber);
  const prestige = useGameSelector((s) => s?.prestige);
@@ -630,8 +636,11 @@ function TopStatsBarComponent() {
  }, 0);
  };
 
- // Calculate total savings including stock investments
- const totalSavings = bankSavings + calculateStockValue();
+ // Calculate total savings including stock investments.
+ // `nonMirrorDeposits` excludes checking-default / savings-default, which are
+ // 1:1 reflections of `stats.money` / `bankSavings` — counting them here would
+ // double the savings line for anyone holding cash.
+ const totalSavings = bankSavings + selfOpenedDeposits + calculateStockValue();
 
  const formatSavings = (amount: number) => {
  const a = Math.floor(amount || 0);
