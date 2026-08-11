@@ -15,7 +15,7 @@ Money, Choices, Consequences
 ## promotional_text
 
 ```text
-One tap, one year. Story Mode lets you live a whole life in a sitting — the same economy, every week still simulated. Start at 18 with $0. Die a billionaire, or don't.
+Tap Play and you're living a life in seconds. Start at 18 with $0. Real economy, real consequences. Die a billionaire, or don't.
 ```
 
 ## keywords
@@ -99,19 +99,13 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-v2.5.8 - Stability & Polish
+A much faster start, and a fairer economy.
 
-Thank you for playing Deep Life Simulator. This update is all about making the game smoother and more reliable:
-
-• Bug fixes across saves, the economy, and the in-app store
-• Performance and stability improvements throughout
-• General polish based on the issues you've reported
-
-Every update aims to make your choices matter more and your saves safer.
-
-Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
-
-No forced ads. No pay-to-win. Just a fair, strategic life sim.
+• Tap Play and you're in a life — no setup screens first. Prefer to pick your own scenario, name and perks? Custom life is still one tap away.
+• A new first-session guide walks you to your first paycheck, one step at a time, following what you actually did.
+• Your first year now has no banner ads at all.
+• Fixed four ways money misbehaved — dark web jobs paying out for free, gym sessions and warehouse upgrades that could be taken without paying, and vehicle insurance that never ran out.
+• Removed the pace picker: choosing how fast to live before you'd played asked too much, too early. Every life runs at the original pace again.
 ```
 
 ## gp_short_description
