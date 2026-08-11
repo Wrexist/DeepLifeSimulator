@@ -45,6 +45,55 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.8.0',
+    date: 'August 2026',
+    headline: 'A faster start, and a fairer economy',
+    summary: 'Get into a life in two taps, keep your first year ad-free, and four money bugs are gone.',
+    changes: [
+      {
+        category: 'improved',
+        title: 'Start a life in two taps',
+        bullets: [
+          'Tap Play and you are in — no scenario, name, ambition or perk screens first.',
+          'Want to pick all of that yourself? Custom life is still one tap away.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'A guide that walks you to your first paycheck',
+        bullets: [
+          'One clear next step at a time: find work, live a week, get paid.',
+          'It follows what you actually did, so it never asks for something twice.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Your first year has no banner ads',
+        bullets: [
+          'New lives get a clean run at the game before any banner appears.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Four ways money behaved wrongly',
+        bullets: [
+          'Dark web jobs could pay out again without costing you any energy.',
+          'Gym sessions and warehouse upgrades could be taken without paying.',
+          'A warehouse could also pass its maximum level, or leave you below zero.',
+          'Vehicle insurance never ran out — it now lasts its term and tells you.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'The pace picker is gone',
+        bullets: [
+          'Choosing how fast to live before you had played asked too much too early.',
+          'Every life runs at the original pace again. Your saves carry over.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.7.0',
     date: 'August 2026',
     headline: 'Polish & fixes',
