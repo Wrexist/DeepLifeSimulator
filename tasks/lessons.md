@@ -2225,3 +2225,24 @@ and hit a `COMPANY_FACTOR_MAX` clamp that could zero it entirely. The label was
 not lying about the field; it was quoting the field faithfully and the field
 only mattered a quarter as much as it looked. Trace a headline number all the
 way to the thing it changes before deciding the feature "works".
+
+## 2026-08-11 — A total and its itemisation are one fact written twice
+
+`NetWorthBreakdownModal` kept two lists: the assets it valued for the headline,
+and a hand-written list of the rows underneath. Every term added to the first
+was forgotten in the second — stocks, then luxury, then (in the very commit
+that was fixing this class of bug) bank accounts and crypto. Four misses, none
+noticed, because the failure is silent in the worst way: the number everyone
+checks stays correct, and only the percentages below it quietly stop reaching
+100%.
+
+Adding the fifth row would have been the fifth version of the same mistake. The
+fix was to delete the second list — `computeNetWorth` now reports what each
+asset was worth (`perAsset`), one tagged asset list produces both the total and
+the rows, and the component only maps a group key to an icon.
+
+**Rule.** When two structures must agree and one can be computed from the
+other, compute it. A test that asserts they agree is second best; two lists a
+human must remember to update in step is not a design, it is a scheduled bug.
+And prefer the pure module over the component when the invariant needs a test —
+the render harness cannot seed the state that makes the disagreement visible.

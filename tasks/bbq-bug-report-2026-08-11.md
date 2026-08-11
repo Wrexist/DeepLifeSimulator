@@ -671,6 +671,51 @@ Worth stating plainly: **wiring up dead code promotes its latent bugs to live
 ones.** A dormant writer's guards have never been exercised, so they should be
 re-read before it gains a caller, not after.
 
+## R-3 · The B-2 fix raised the headline and left the itemised list behind — **P1**
+
+B-2 added self-opened accounts and crypto to `NetWorthBreakdownModal`'s
+calculation. `totalAssets` and `netWorth` both rose. The rows underneath did
+not, because that modal kept **two** lists: the assets it fed to
+`computeNetWorth`, and a separate, hand-written list of display rows.
+
+So the fix reproduced the very defect it was written for, one level down. And it
+had happened twice before, to stocks and to luxury — both counted in the total
+since an earlier change, neither ever given a row. The symptom is quiet enough
+to survive indefinitely: the big number stays correct while the percentages
+below it stop reaching 100%, so the modal under-explains the one figure it
+exists to explain. Two smaller mismatches rode along inside rows that *did*
+exist — properties itemised at PURCHASE price under a row total computed from
+current value, and companies itemised at `weeklyIncome × 10` under a row total
+computed at `× 52`.
+
+The fix is not a third list entry. The two lists are now one:
+
+- `computeNetWorth` returns `perAsset` — what each input asset was actually
+  worth, unrounded and in input order.
+- `utils/netWorthItemisation.ts` (new, pure, React-free) builds ONE asset list
+  where every entry carries the display group it belongs to, and folds the rows
+  up out of `perAsset`.
+- `NetWorthBreakdownModal` is now presentation: it maps a group key to an icon
+  and a colour and renders. It cannot omit a term, because it no longer decides
+  what the terms are.
+
+Reading `perAsset` rather than the raw inputs also fixes a discrepancy that was
+there from the start: `applyLiquidationAdjustments` takes a 1% transaction-fee
+haircut off **every** asset, so the old rows — which quoted the raw input —
+summed to slightly MORE than the total printed above them.
+
+Pinned by `__tests__/economy/netWorthItemisation.test.ts`, which builds a player
+holding something in all eleven groups and asserts the rows sum to
+`totalAssets`, the sub-items sum to their row, and the displayed percentages
+reach 100%. Negative-verified: suppressing two groups fails four of its eight
+tests. A render smoke could not have caught any of this — the render harness
+cannot seed a portfolio, which is why the pure module exists.
+
+**The pattern, stated once:** a total and its itemisation are the same fact
+written twice. Derive the second from the first, or they will disagree — and the
+disagreement will be invisible, because the number everyone checks is the one
+that stays right.
+
 ---
 
 # M — Meta (found while fixing, not reported)
