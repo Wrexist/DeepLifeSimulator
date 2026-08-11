@@ -163,7 +163,6 @@ import { applyAutoCheckpoint } from './actions/weekly/applyAutoCheckpoint';
 import { applyLifetimeStatistics } from './actions/weekly/applyLifetimeStatistics';
 import { applyCliffhangerRoll } from './actions/weekly/applyCliffhangerRoll';
 import type { WeekContext } from './actions/weekly/weekContext';
-import { STORY_MODE_WEEKS_PER_TAP, STORY_WEEK_MS, isInDanger, shouldStopBatch, type StoryPause, type YearStopReason } from '@/lib/gameMode/mode';
 
 /**
  * Energy the Auto-Rest prestige bonus tops a depleted week up to.
@@ -186,12 +185,6 @@ const AUTO_REST_TARGET_ENERGY = 70;
 interface GameActionsContextType {
  // Core Game Progression
  nextWeek: () => void;
- /**
-  * STORY MODE: advance up to `maxWeeks` (default 52) in one call by running the
-  * real `nextWeek` in a loop. Stops early on death or a pending decision.
-  * Classic mode never calls this. See `lib/gameMode/mode.ts`.
-  */
- liveYear: (maxWeeks?: number) => Promise<StoryPause>;
  resolveEvent: (eventId: string, choiceId: string) => void;
  checkAchievements: (state?: GameState) => void;
  claimProgressAchievement: (achievementId: string, goldReward: number) => void;
@@ -397,43 +390,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ANTI-EXPLOIT: Guard against rapid nextWeek() calls (race condition)
  const nextWeekInProgressRef = useRef(false);
 
- /**
-  * Set while `liveYear` is driving `nextWeek` in a loop (story mode).
-  *
-  * The tick itself is UNCHANGED under batching — same subsystems, same order,
-  * same results. What this suppresses is strictly the PER-TAP presentation
-  * that would otherwise fire 52 times for one tap: the haptic buzz, the
-  * loading overlay, the weekly banner, and the autosave. `liveYear` does each
-  * of those exactly once for the whole batch.
-  */
- const batchTickRef = useRef(false);
-
- /**
-  * Subsystem messages the last tick produced, for the batched Year in Review.
-  *
-  * ONLY messages. Everything `liveYear` decides on — did the week advance, did
-  * they die, is a decision waiting — is read back off the live state instead
-  * (`readCurrentState`), because anything the tick reports about itself has to
-  * be written at some point whose ordering against React's commit is not
-  * guaranteed inside a batch. Strings have no such hazard.
-  */
- /**
-  * What the last tick did, for `liveYear` to read between iterations.
-  *
-  * `advanced` is the one the batch steers on. Two places in `nextWeek` already
-  * REASONED about it in comments — "`advanced` stays false, so `liveYear` must
-  * stop the batch here" — but the field did not exist and nothing read it, so
-  * after a failed state update or an unrepairable save the batch went right on
-  * running its remaining 51 ticks over exactly the state those comments say it
-  * must not touch. It is a real field now.
-  */
- const lastTickOutcomeRef = useRef<{ notes: string[]; state: GameState | null; advanced: boolean }>({ notes: [], state: null, advanced: false });
 
  // Core Game Progression Actions
  const nextWeek = useCallback(async () => {
  const gameState = gameStateRef.current;
- // Fresh buffer per tick; `liveYear` drains it after each iteration.
- lastTickOutcomeRef.current = { notes: [], state: null, advanced: false };
  if (!gameState) return;
  // M-2 (R8): never advance a week while the death popup is up. The DeathPopup
  // modal normally blocks taps, but a programmatic call, automation, or an
@@ -448,11 +408,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (nextWeekInProgressRef.current) return;
  nextWeekInProgressRef.current = true;
 
- // Story mode drives this in a loop; one tap must not buzz and flash an
- // overlay 52 times. `liveYear` owns the haptic and the loading state for the
- // whole batch.
- const batching = batchTickRef.current;
- if (!batching) {
+ {
  haptic.medium(); // Tactile tick for week advance
  setIsLoading(true);
  setLoadingMessage('Progressing to next week...');
@@ -557,14 +513,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // THE DEATH GUARD, WHERE IT CAN ACTUALLY SEE THE DEATH.
  //
  // There is a matching check at the top of `nextWeek`, but it reads
- // `gameStateRef.current`, which a post-commit effect refreshes — so inside a
- // `liveYear` batch it can still say "alive" several weeks after the character
- // died, and the tick would keep aging, earning and re-killing a corpse. The
- // outer check stays as a cheap fast path; THIS one is the authority, because
- // `prevState` is the only state React guarantees is current.
+ // `gameStateRef.current`, which only a post-commit effect refreshes — so it
+ // can still say "alive" after the character died, and the tick would keep
+ // aging, earning and re-killing a corpse. The outer check stays as a cheap
+ // fast path; THIS one is the authority, because `prevState` is the only state
+ // React guarantees is current.
  //
- // Returning `prevState` unchanged means the clock does not move, which is
- // exactly how `liveYear` detects that the batch is over.
+ // Found while building a batched mode that has since been removed; the guard
+ // stays because the staleness it closes is a property of the ref, not of that
+ // feature. Any caller that ticks twice before React commits hits it.
  if (prevState.showDeathPopup) {
    postTickState = prevState;
    return prevState;
@@ -577,12 +534,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // They are also computed above, from `gameStateRef.current`, and that copy
  // is kept for the log line — but the tick must not USE it. The ref is only
- // refreshed by a post-commit `useEffect`, so when `liveYear` drives this in
- // a loop the ref can still describe an earlier week. The tick would then
- // decay a character against a health/net-worth snapshot that is several
- // weeks out of date, which in practice meant a batched life never
- // accumulated damage and sailed straight past the death a classic life
- // reaches from identical inputs.
+ // refreshed by a post-commit `useEffect`, so it can describe an earlier week
+ // whenever a tick runs before React commits. The tick would then decay a
+ // character against a health/net-worth snapshot that is out of date, so
+ // damage never accumulates. Measured exactly that way: a life driven faster
+ // than the commit cycle sailed straight past a death it should have hit.
  //
  // `prevState` is the one input React guarantees is current. `getStatDecayMultiplier`
  // and `computeDecayInputs` are both pure, so re-deriving costs nothing and
@@ -3256,12 +3212,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
  postTickState = nextState;
- // Story mode reads the batch's progress from here. Published INSIDE the
- // updater on purpose: this is the one place the post-tick state provably
- // exists, with no question about whether React has committed yet. Anything
- // written after `setGameState` returns can still be a tick behind inside a
- // batch loop, which is how a 52-week batch previously reported week 1.
- lastTickOutcomeRef.current.state = nextState;
  return nextState;
  } catch (error) {
  // CRITICAL: If state update fails, log error and return previous state
@@ -3274,15 +3224,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  });
 
- if (!batching) setLoadingProgress(100);
+ setLoadingProgress(100);
 
  // CRITICAL: Check if state update failed
  if (stateUpdateError) {
  logger.error('[WEEK PROGRESSION] State update failed, aborting week progression:', stateUpdateError);
- if (!batching) setIsLoading(false);
+ setIsLoading(false);
  showError('Progression Error', 'Failed to update game state. Please try again.');
- // `advanced` stays false — the updater bailed, so `liveYear` must stop the
- // batch here rather than spend its remaining 51 iterations on a broken tick.
+ // The updater bailed, so the week did not advance.
  return;
  }
 
@@ -3298,14 +3247,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const uniqueNotifications = pendingNotifications.filter((n) =>
  seenIds.has(n.id) ? false: (seenIds.add(n.id), true)
  );
- // Story mode: banners are the wrong surface for a batched year — 52 weeks of
- // them would either flood the screen or, with the fixed-id summary, overwrite
- // each other until only the last week survived. Hand the messages to
- // `liveYear` instead, which collects them across the batch and shows them in
- // the Year in Review. Nothing is dropped; it changes where they are read.
- if (batching) {
- lastTickOutcomeRef.current.notes = uniqueNotifications.map(n => n.message);
- } else {
+ {
  setTimeout(() => {
  // NOISE: if this tick killed the character, the DeathPopup owns the
  // screen — routine subsystem banners on top of it are pure clutter.
@@ -3345,12 +3287,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // `gameStateRef` is otherwise refreshed only by a post-commit `useEffect`, and
  // the top of this very function reads it to build the tick's pre-roll and
- // decay inputs. That is fine when taps are seconds apart, but `liveYear` runs
- // this in a tight await-loop where React has not necessarily committed — and a
- // stale read there means every batched week computes its inputs from the SAME
- // base state, so damage never accumulates and the character quietly stops
- // ageing. (Observed exactly that: a batched life sailed past the week-15 death
- // a classic life hits from identical inputs.)
+ // decay inputs. That is fine when taps are seconds apart, but any caller that
+ // ticks again before React commits gets a stale read — and then every week
+ // computes its inputs from the SAME base state, so damage never accumulates
+ // and the character quietly stops ageing. (Observed exactly that while a
+ // batched mode existed: the life sailed past a death it should have hit.)
  //
  // The effect still runs and still assigns the same value; this just stops the
  // ref lagging the state it is supposed to mirror. `postTickState` is what the
@@ -3378,7 +3319,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } else {
  logger.error('[WEEK PROGRESSION] State corruption detected and could not be repaired');
  showError('State Error', 'Game state became corrupted. Please reload your save.');
- if (!batching) setIsLoading(false);
+ setIsLoading(false);
  // Irrecoverable: leave `advanced` false so a story-mode batch halts here
  // instead of running 51 more ticks over state we just failed to repair.
  return;
@@ -3405,13 +3346,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // The week is now committed and the state is sound: every path that could
- // bail has already returned with `advanced` false. Set it BEFORE the death
- // branch, because a week that killed the character still advanced — the batch
- // stops on the NEXT iteration, where the `showDeathPopup` guard at the top
- // returns without setting this.
- lastTickOutcomeRef.current.advanced = true;
-
  // If death was triggered, stop loading immediately so death popup can show
  // CRITICAL: Stop loading synchronously to prevent blocking the death popup
  if (deathTriggered) {
@@ -3419,17 +3353,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // which React 19 runs twice in StrictMode and may run speculatively under
  // concurrent rendering (same double-fire class as the pendingNotifications dedup).
  haptic.error();
- if (!batching) {
  setIsLoading(false);
  setLoadingMessage('');
- }
  logger.warn('[DEATH] Death triggered - stopped loading immediately to show death popup');
  // Early return to prevent any further processing
  return;
  }
 
  // Normal completion - stop loading
- if (!batching) setIsLoading(false);
+ setIsLoading(false);
 
  // The lib/automation rule engine used to run here. Deleted 2026-08-06: it
  // read `state.automation`, a key no save has ever carried (never in
@@ -3444,11 +3376,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // underlying save queue retries 3× with cleanup, each one re-parsing every
  // backup, which can lock the JS thread for ~10s on near-full devices and
  // feels like a freeze.
- // Story mode saves ONCE for the whole batch, in `liveYear`. Saving per tick
- // would run the HMAC-SHA256 save pipeline over a ~100KB payload 52 times for
- // one tap — the single most expensive thing the batch could do, and pointless
- // since only the final state is reachable.
- if (!batching) {
  saveGame(false).catch(err => {
  logger.warn('Auto-save after nextWeek failed (will retry):', err);
  const msg = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: unknown }).message ?? '') : String(err);
@@ -3456,11 +3383,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showWarning('storage-quota', 'Your device is low on space — please clean up old saves in Settings.', 'Storage warning');
  }
  });
- }
  } catch (error) {
  logger.error('Failed to progress to next week:', error);
  showError('Progression Error', 'Failed to advance to next week');
- if (!batching) setIsLoading(false);
+ setIsLoading(false);
  } finally {
  // ANTI-EXPLOIT: Release the week progression guard
  nextWeekInProgressRef.current = false;
@@ -3468,180 +3394,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfoBanner, saveGame]);
 
  /** Re-entrancy guard for the batch itself — see `nextWeekInProgressRef`. */
- const liveYearInProgressRef = useRef(false);
 
- /**
-  * STORY MODE: advance up to a year in one tap.
-  *
-  * Runs the REAL `nextWeek` in a loop. It does not reimplement, shortcut or
-  * merge any weekly work — every subsystem still runs once per game week, in
-  * the same order, so the economy is exactly what classic mode produces over
-  * the same span. `__tests__/gameMode/batchEquivalence.test.ts` pins that, and
-  * it is the test to run before touching anything in here.
-  *
-  * ── WHY THIS LOOP DELIBERATELY OBSERVES NOTHING ──────────────────────────
-  * An earlier version checked after every iteration whether the character had
-  * died or an event was waiting, so it could stop mid-year. That cannot be made
-  * correct: the loop runs inside one React callback, and every way of asking
-  * what the last tick produced — the state ref, the tick's own published
-  * state, a no-op probe updater — was measured returning values one to three
-  * iterations stale. Under `act()` React does not run a queued updater at all
-  * until the block exits.
-  *
-  * So the loop asks nothing. It relies on two properties instead:
-  *
-  *   - **Death is self-guarding.** `nextWeek` refuses to advance a character
-  *     whose death popup is up, so every iteration after a death is a cheap
-  *     no-op and the clock simply stops. No check needed.
-  *   - **Queued events never blocked classic ticks either.** A classic player
-  *     keeps tapping with a decision pending; the events queue and get answered
-  *     when the player gets to them. Story mode does the same, which is what
-  *     makes the two modes comparable at all — and the Year in Review is a
-  *     better place to answer a year's decisions than three separate modals
-  *     interrupting a single tap.
-  *
-  * Nothing is auto-resolved either way: queued events are still the player's to
-  * answer, they just surface at the end of the year rather than mid-batch.
-  *
-  * Returns a `StoryPause`: how far it got, why it stopped, and the net worth on
-  * either side. No digest, no summary, no recap modal — the player watched it.
-  */
- /**
-  * Play the life forward, a week at a time, until it needs its player.
-  *
-  * ── This used to run blocked behind a spinner, and that was the problem ──
-  * The batched design ran 52 ticks with the UI frozen and then explained them
-  * in a modal, which required a digest, a summary, suppression flags and a
-  * 370-line recap. Letting the run PLAY deletes the need for all of it: the
-  * HUD updates as it goes, so there is nothing to recap, and the run stops
-  * with a one-line reason instead of a screen full of numbers.
-  *
-  * Still batches the INTERACTION and never the simulation — this is `nextWeek`
-  * in a loop, exactly as classic mode would run it, which is what makes the
-  * equivalence in `__tests__/gameMode/batchEquivalence.test.ts` trivially true
-  * rather than something to defend.
-  */
- const liveYear = useCallback(async (maxWeeks: number = STORY_MODE_WEEKS_PER_TAP): Promise<StoryPause> => {
- const before = gameStateRef.current;
- const startWeeks = before?.weeksLived ?? 0;
- const netWorthBefore = before ? calculateNetWorth(before) : 0;
- // Nothing ran, so nothing advanced. Reporting a span here would be reading
- // state to describe work that did not happen.
- const idle = (reason: YearStopReason | null = null): StoryPause => ({
- weeksAdvanced: 0,
- reason,
- netWorthBefore,
- netWorthAfter: netWorthBefore,
- });
- if (!before) return idle();
-
- // Already dead — nothing to run, and `nextWeek` would no-op 52 times anyway.
- if (before.showDeathPopup) return idle();
- if (liveYearInProgressRef.current) return idle();
-
- liveYearInProgressRef.current = true;
- // Suppresses the AUTOSAVE and the per-week haptic only. Banners stay
- // suppressed too: at nine weeks a second, "Rent paid" forty times is noise,
- // and the HUD already shows the money moving. The loading OVERLAY is
- // deliberately not set — the player is meant to watch this.
- batchTickRef.current = true;
- haptic.medium(); // ONE buzz for the tap, not 52
-
- // Only warn about danger the batch WALKS INTO. A player who ended last year
- // at 12 happiness and tapped again without fixing it has already been told;
- // stopping them after one week every time would be a nag loop they cannot
- // escape, since the fix costs weeks they are not being allowed to run.
- const startedInDanger = isInDanger(before.stats);
-
- // Diseases the player already had when they tapped. Only something NEW is a
- // reason to hand the wheel back — an illness they tapped WITH is one they
- // have chosen to live with, and stopping on it every week would be a nag loop
- // they could not escape, exactly like `startedInDanger`.
- const knownIllnesses = new Set((before.diseases ?? []).map(d => d?.id).filter(Boolean));
-
- let stopped: YearStopReason | null = null;
- let stoppedIllness: string | undefined;
- // COUNTED, not read back off state. The loop knows how many weeks it ran
- // because it is the thing running them — same principle as `stopped`. Reading
- // `gameStateRef` afterwards gave 1 when the store had moved 15, because React
- // defers updaters queued inside one `act()` block until the block exits, and
- // the ref had only caught the first publish. A number the player is shown
- // ("11 weeks passed") must not depend on commit timing.
- let advancedWeeks = 0;
-
- try {
- for (let i = 0; i < maxWeeks; i++) {
- await nextWeek();
- // Let the frame paint before the next tick. This is the whole difference
- // between "watch a life play" and "a spinner, then a wall of numbers",
- // and it costs ~6 seconds for a full year.
- await new Promise(resolve => setTimeout(resolve, STORY_WEEK_MS));
-
- // Stop on a tick that did not advance (death, failed update, corruption)
- // or on a life that has just crossed into danger. The judgement is in
- // `shouldStopBatch` so it can be tested directly — driving it through
- // this loop under `act()` proves nothing, because React defers every
- // updater queued inside one `act()` block until the block exits.
- //
- // Both vitals sources are post-tick and both are kept fresh DURING the
- // batch by the publish-immediately fix in `nextWeek`; the fallback
- // matters when the updater has not run yet.
- // Same freshness rule as `vitals`: read the post-tick state the tick just
- // published, falling back to the ref. A disease contracted this week is
- // only visible here — by the next iteration it is "known" and no longer new.
- const postTick = lastTickOutcomeRef.current.state ?? gameStateRef.current;
- const contracted = (postTick?.diseases ?? []).find(
- d => d?.id && !knownIllnesses.has(d.id)
- );
- if (contracted?.id) knownIllnesses.add(contracted.id);
- if (lastTickOutcomeRef.current.advanced) advancedWeeks++;
-
- const stop = shouldStopBatch({
- advanced: lastTickOutcomeRef.current.advanced,
- startedInDanger,
- vitals: postTick?.stats,
- newIllness: contracted?.name ?? null,
- });
- if (stop) {
- stopped = stop;
- if (stop === 'illness') stoppedIllness = contracted?.name;
- break;
- }
- }
- } catch (err) {
- logger.error('[STORY MODE] liveYear failed mid-batch', err);
- } finally {
- batchTickRef.current = false;
- liveYearInProgressRef.current = false;
- setIsLoading(false);
- setLoadingMessage('');
- setLoadingProgress(0);
- }
-
- logger.info('[STORY MODE] Year batch finished', { weeksRequested: maxWeeks });
-
- // ONE save for the whole batch, replacing the 52 per-tick autosaves the batch
- // suppressed. Fire-and-forget, exactly like the classic path.
- saveGame(false).catch(err => {
- logger.warn('[STORY MODE] Auto-save after liveYear failed (will retry):', err);
- const msg = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: unknown }).message ?? '') : String(err);
- if (msg.toLowerCase().includes('quota') && typeof showWarning === 'function') {
- showWarning('storage-quota', 'Your device is low on space — please clean up old saves in Settings.', 'Storage warning');
- }
- });
-
- // Same freshness rule as the loop: prefer the state the tick published over
- // the ref, which may not have caught up yet.
- const after = lastTickOutcomeRef.current.state ?? gameStateRef.current;
- return {
- weeksAdvanced: advancedWeeks,
- reason: stopped,
- illnessName: stoppedIllness,
- netWorthBefore,
- netWorthAfter: after ? calculateNetWorth(after) : netWorthBefore,
- };
- }, [nextWeek, showWarning, saveGame]);
-
+ 
  // Ref to track resolving events (prevent duplicates)
  const resolvingEventsRef = useRef<Set<string>>(new Set());
 
@@ -5278,7 +5032,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  const value = useMemo<GameActionsContextType>(() => ({
  nextWeek,
- liveYear,
  resolveEvent,
  checkAchievements,
  claimProgressAchievement,
@@ -5295,7 +5048,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  savePermanentPerk,
  hasPermanentPerk,
  executePrestige: executePrestigeAction,
- }), [nextWeek, liveYear, resolveEvent, checkAchievements, claimProgressAchievement, updateStats, updateMoney, updateRelationship, recordRelationshipAction, breakUpWithPartner, proposeToPartner, moveInTogether, fileDivorceAction, saveGame, loadGame, savePermanentPerk, hasPermanentPerk, executePrestigeAction]);
+ }), [nextWeek, resolveEvent, checkAchievements, claimProgressAchievement, updateStats, updateMoney, updateRelationship, recordRelationshipAction, breakUpWithPartner, proposeToPartner, moveInTogether, fileDivorceAction, saveGame, loadGame, savePermanentPerk, hasPermanentPerk, executePrestigeAction]);
 
  return (
  <GameActionsContext.Provider value={value}>

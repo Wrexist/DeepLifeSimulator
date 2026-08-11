@@ -1900,3 +1900,55 @@ correct result, and did it while looking more rigorous than before.
    was one six-minute probe.
 4. **Fixing a verification gap is not the same as verifying.** Both attempts
    here were reflexes toward rigour that produced none.
+
+---
+
+## 2026-08-10 — A gate on `weeksLived` that never let anything through
+
+The first-session coach shipped invisible. Every unit test passed, the
+component was in the bundle, the mount was in the only render tree the screen
+has, and no error appeared in the console. It simply never rendered, and I
+burned four full export-and-drive cycles guessing at why: the storage flag, the
+absolute positioning, the tab bar, the gate direction. Three of those were real
+problems and none was THE problem.
+
+The cause, found in thirty seconds once I stopped guessing and added one
+`console.log`:
+
+```
+[COACH] {"step":null,"weeksLived":104,"dismissed":false,"hasJob":false}
+```
+
+`weeksLived` is the ABSOLUTE life counter (CLAUDE.md §4.2). A character created
+at age 20 starts at **104**, not 0. The retirement cap read
+`if (weeksLived > 8) return null`, so the coach was already eight weeks
+"expired" before its first frame.
+
+**Why the tests did not catch it.** They fed the step function `weeksLived: 0,
+1, 2, 8, 9` — the numbers the implementation assumed. A test suite written from
+the same wrong mental model as the code confirms the model, not the behaviour.
+Every assertion was correct and the feature was still broken.
+
+**Why the codebase did not save me either.** `FirstWeekGuide.tsx` carries this
+comment, four lines above logic doing the same clamp:
+
+> `currentWeek` is the absolute weeksLived, which is 0 for age-18 starts and
+> 100+ for older starts
+
+I read that file during this work — it is quoted in the coach's own header —
+and did not apply it.
+
+**The rules.**
+
+1. **Never compare `weeksLived` to a small number.** It is an absolute clock,
+   not an age or a duration. Anything meaning "N weeks after X" needs a stored
+   baseline and a subtraction. §4.2 says this; it earns a third entry here.
+2. **When a component renders nothing, instrument before theorising.** One
+   `console.log` of the decision inputs beat four rebuild cycles of plausible
+   hypotheses. The cost of the log was one export; the cost of guessing was
+   four.
+3. **A unit test written alongside the code shares its assumptions.** These
+   tests could only have caught this if they had used a REAL starting value.
+   They now pin `weeksLived: 104` explicitly, with the reason.
+4. **"It works in the test" is not "it works."** Nothing here was verified by
+   running the app until it had already been declared done — twice.

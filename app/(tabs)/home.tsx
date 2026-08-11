@@ -36,6 +36,7 @@ import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
+import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
@@ -598,6 +599,25 @@ function HomeScreenContent() {
           week={gameState.date?.week || 1}
           age={Math.floor(gameState.date?.age ?? 18)}
         />
+
+        {/*
+          The first-session coach, at the TOP of the feed rather than pinned to
+          the bottom. Two reasons, and the first was found by looking:
+          absolutely positioned at `bottom: 0` it rendered BEHIND the tab bar
+          and a new player never saw it at all.
+
+          The second is the better argument anyway — this is the one thing on
+          screen telling a new player what to do, and it belongs where the eye
+          lands. The card a player used to meet first was a passive profile
+          (name, age, "Unemployed") with nothing actionable on it.
+
+          Mounted UNCONDITIONALLY: it owns its own gating from live game state,
+          so it cannot ask for something already done and retires itself once
+          the player has been paid. `FirstWeekGuide` below is gated on
+          `hasCompletedTutorial`, and driving the shipped build showed it never
+          rendered — the coach must not inherit that dependency.
+        */}
+        <FirstSessionCoach />
 
         <FadeInUp delay={0}>
           <IdentityCard />

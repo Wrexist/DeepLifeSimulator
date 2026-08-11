@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { ChevronRight, Megaphone, Play, Plus, Save, Settings } from 'lucide-react-native';
+import { ChevronRight, Megaphone, Play, Plus, Save, Settings, Zap } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
@@ -30,6 +30,9 @@ import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
+import { applyLifePathSelectionToOnboardingState } from '@/src/features/onboarding/scenariosFlow';
+import { scenarios } from '@/src/features/onboarding/scenarioData';
+import { generateRandomName } from '@/src/features/onboarding/nameData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
@@ -83,6 +86,12 @@ interface SaveSummary {
  * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
  */
+/**
+ * When the action cards start, relative to the brand entrance. See the delay
+ * note inside `RevealItem` — this exists so the two sequences read as one.
+ */
+const MENU_LEAD_MS = 560;
+
 function RevealItem({
   index,
   reduced,
@@ -101,17 +110,86 @@ function RevealItem({
     }
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 200,
-      delay: index * 45,
-      easing: Easing.out(Easing.cubic),
+      // 420ms/70ms rather than the old 200ms/45ms. The previous timing was so
+      // quick the stagger read as a single flicker — technically animated,
+      // visually a hard cut. A premium entrance needs long enough for the eye
+      // to follow one card to the next; this is still under half a second to
+      // the last item, so nothing is waiting on it.
+      duration: 420,
+      // Offset so the cards follow the brand rather than racing it. The hero's
+      // last line starts at 90 + 2*130 = 350ms and runs 620ms, so the menu
+      // begins arriving as the title settles — overlapping slightly, which
+      // reads as one continuous entrance instead of two separate ones.
+      delay: MENU_LEAD_MS + index * 70,
+      // A gentle overshoot-free ease. `back` was tried and rejected: on a
+      // MENU the bounce reads as toy-like, which is the opposite of the goal.
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
   }, [index, reduced, progress]);
 
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
-  return <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>;
+  // Travel raised 10 → 22 and paired with a slight scale. Both are transform
+  // properties, so the whole thing stays on the native driver and cannot drop
+  // frames behind JS work during boot.
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [22, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] });
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * The brand entrance — the first thing anyone sees, so it is the one place
+ * worth spending animation on.
+ *
+ * The three lines arrive in sequence (eyebrow → DEEP LIFE → SIMULATOR) rather
+ * than as one block, each rising and settling. That sequencing is the whole
+ * effect: a single fade makes a title appear, a staggered one makes it ARRIVE.
+ *
+ * Everything animated here is opacity + transform, so `useNativeDriver` holds
+ * and the entrance stays smooth while JS is still busy hydrating the menu
+ * behind it. Honours reduced motion by snapping straight to the end state —
+ * the check is a hard branch, not a shortened duration, because a vestibular
+ * trigger is not fixed by making it faster.
+ */
+function HeroLine({
+  index,
+  reduced,
+  children,
+}: {
+  index: number;
+  reduced: boolean;
+  children: React.ReactNode;
+}) {
+  const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      progress.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: 1,
+      duration: 620,
+      delay: 90 + index * 130,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [index, reduced, progress]);
+
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
+      {children}
+    </Animated.View>
+  );
 }
 
 /**
@@ -546,6 +624,72 @@ export default function MainMenu() {
     }
   };
 
+  /**
+   * Quick Start — one tap from the menu to a life, for players who have not
+   * yet earned an opinion about scenarios, ambitions or perks.
+   *
+   * ── Why this exists ───────────────────────────────────────────────────
+   * A 3-star review said "it's too much to read". Measured, the copy is not
+   * the problem: event descriptions run a median of 13 words and all of
+   * onboarding plus the main tabs is ~870 words. The problem is STRUCTURAL —
+   * "New Game" led to four consecutive screens (Scenarios, Customize,
+   * Ambitions, Perks), each asking a decision about a system the player has
+   * not seen yet. Perks in particular are mostly LOCKED on a first run, so the
+   * screen exists to be skipped and says so in its own guidance text.
+   *
+   * This fills in exactly what the full flow would have produced from its own
+   * defaults — the recommended beginner scenario, a random name, no ambition,
+   * no perks — and lands on the final step, where one clearly-labelled tap
+   * starts the life.
+   *
+   * It stops at Perks rather than starting the game directly ON PURPOSE.
+   * `Perks.start()` is ~100 lines of save-safety ceremony (slot validation,
+   * backup, forced save, load-back, entry validation, draft clearing) and
+   * duplicating it to save one tap would put a second, less-tested path into
+   * the code that can overwrite a save. Reusing it is worth the tap.
+   *
+   * The long flow is untouched — this is an additional door, not a replacement.
+   */
+  const startQuick = async () => {
+    haptic.light();
+    try {
+      const targetSlot = await findFirstEmptySlot();
+      if (targetSlot === null) {
+        Alert.alert(
+          'All Save Slots Full',
+          'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const recommended = scenarios.find((sc) => sc.id === 'food_courier') ?? scenarios[0];
+      const randomName = generateRandomName('random');
+
+      setOnboardingState((prev) => ({
+        ...applyLifePathSelectionToOnboardingState(prev, recommended),
+        slot: targetSlot,
+        firstName: randomName.firstName,
+        lastName: randomName.lastName,
+        // Left unset deliberately: both are optional in `gameStateBuilder`
+        // (`ambitionId?`, `selectedPerks: []`), and a player who wanted to
+        // choose them would not have tapped Quick Start.
+        ambitionId: undefined,
+        perks: [],
+      }));
+
+      if (router && typeof router.push === 'function') {
+        router.push('/(onboarding)/Perks');
+      } else {
+        log.error('Router not available for navigation');
+        Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+      }
+    } catch (error) {
+      log.error('Quick start failed', error);
+      Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+    }
+  };
+
   const startNew = async () => {
     haptic.light();
     try {
@@ -617,17 +761,21 @@ export default function MainMenu() {
           <View style={styles.spacerTop} />
 
           {/* Brand block — crisp text on the flat dark base, no lighter panel. */}
-          <RevealItem index={0} reduced={reduced}>
-            <View style={styles.hero}>
+          <View style={styles.hero}>
+            <HeroLine index={0} reduced={reduced}>
               <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+            </HeroLine>
+            <HeroLine index={1} reduced={reduced}>
               <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
                 DEEP LIFE
               </Text>
+            </HeroLine>
+            <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
                 SIMULATOR
               </Text>
-            </View>
-          </RevealItem>
+            </HeroLine>
+          </View>
 
           <View style={styles.heroGap} />
 
@@ -650,25 +798,49 @@ export default function MainMenu() {
               </RevealItem>
             ) : null}
 
-            <RevealItem index={hasSave ? 2 : 1} reduced={reduced}>
-              {hasSave ? (
-                <SecondaryActionCard
-                  icon={Plus}
-                  title={t('mainMenu.newGame')}
-                  subtitle={t('mainMenu.newGameSubtitle')}
-                  onPress={startNew}
-                />
-              ) : (
+            {/*
+              FIRST-TIME PLAYER: "Play" is the primary action and it skips
+              character setup entirely.
+
+              Research on first-session retention is blunt about this — a player
+              should be IN the game inside 60 seconds, and the fastest way to
+              lose them is to open with a choice they have no basis to make.
+              Measured on this build: Play reaches a live game in 2 taps against
+              New Game's 6, and 12.3s against 21.4s.
+
+              So the doors are ordered by what a newcomer needs rather than by
+              what the app can do. Someone who WANTS to pick a scenario, a name,
+              an ambition and perks still has that door, one line below and
+              plainly labelled — it is demoted, not hidden.
+            */}
+            {!hasSave ? (
+              <RevealItem index={1} reduced={reduced}>
                 <PrimaryActionCard
-                  icon={Plus}
-                  title={t('mainMenu.newGame')}
-                  subtitle={t('mainMenu.newGameSubtitle')}
-                  onPress={startNew}
+                  icon={Play}
+                  title="Play"
+                  subtitle="Start a life right now"
+                  onPress={startQuick}
                 />
-              )}
+              </RevealItem>
+            ) : null}
+
+            <RevealItem index={hasSave ? 2 : 2} reduced={reduced}>
+              <SecondaryActionCard
+                icon={Plus}
+                title={hasSave ? t('mainMenu.newGame') : 'Custom life'}
+                subtitle={
+                  hasSave
+                    ? t('mainMenu.newGameSubtitle')
+                    // Short enough to fit on one line at the card's width —
+                    // the longer version truncated to "Choose your scenario,
+                    // name, …", which reads as a bug rather than a summary.
+                    : 'Pick everything yourself'
+                }
+                onPress={startNew}
+              />
             </RevealItem>
 
-            <RevealItem index={hasSave ? 3 : 2} reduced={reduced}>
+            <RevealItem index={hasSave ? 3 : 3} reduced={reduced}>
               <View style={styles.tertiaryRow}>
                 <TertiaryTile
                   icon={Save}

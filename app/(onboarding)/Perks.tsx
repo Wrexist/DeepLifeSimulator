@@ -498,7 +498,6 @@ export default function Perks() {
         permanentPerks,
         selectedMindset,
         ambitionId: state.ambitionId,
-        gameMode: state.gameMode,
       });
 
       // Pass the chosen slot through UNCHANGED. The old `state.slot || 1` is
