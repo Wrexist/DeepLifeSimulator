@@ -112,10 +112,14 @@ describe('the removed Market-screen mapping is gone', () => {
     // dollar-priced `items`. The mapping was a fossil that could never match and
     // pointed maintainers at the wrong screen.
     const market = readCode('app/(tabs)/market.tsx');
-    const categories = market.slice(
-      market.indexOf('const ITEM_CATEGORIES'),
-      market.indexOf('const FILTER_CATEGORIES')
-    );
+    // Anchor first. `indexOf` returns -1 for a renamed constant, which would
+    // slice an empty/inverted region and let every assertion below pass on
+    // nothing — the exact drift this ratchet exists to catch.
+    const from = market.indexOf('const ITEM_CATEGORIES');
+    const to = market.indexOf('const FILTER_CATEGORIES');
+    expect(`ITEM_CATEGORIES found: ${from > -1}`).toBe('ITEM_CATEGORIES found: true');
+    expect(`FILTER_CATEGORIES after it: ${to > from}`).toBe('FILTER_CATEGORIES after it: true');
+    const categories = market.slice(from, to);
     for (const id of ['gloves', 'lockpick', 'slim_jim', 'drill_kit', 'explosives', 'crowbar', 'drug_supply']) {
       expect(`${id}: ${categories.includes(`${id}:`)}`).toBe(`${id}: false`);
     }

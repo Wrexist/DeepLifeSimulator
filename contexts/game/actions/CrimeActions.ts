@@ -126,24 +126,32 @@ export const buyMarketListing = (
      * repo's own stress test already worked around it by filtering to jobs with
      * no requirements.
      *
-     * Gear and hacking-tool listings now grant the next unowned entry from the
-     * existing `darkWebItems` catalogue. Deterministic (first unowned in
-     * catalogue order, so the ladder unlocks predictably), needs no new content
-     * or storefront, and leaves the other listing categories — stolen accounts,
-     * carded items, fake IDs, services, data — as the pure reputation/heat
-     * plays they already are.
+     * Gear and hacking-tool listings deliver the item the LISTING names, resolved
+     * through `listingItemId` / `LISTING_TITLE_TO_ITEM_ID` in
+     * `lib/darkweb/marketplace.ts`. (An earlier pass granted "the next unowned
+     * entry in catalogue order", which delivered *an* item but never *the* item —
+     * buying "Night Vision" handed over a "Special USB".) The other listing
+     * categories — stolen accounts, carded items, fake IDs, services, data —
+     * remain the pure reputation/heat plays they already are.
      */
     const deliveredId = listingItemId(listing);
     if (result.result.outcome === 'success' && deliveredId) {
       const items = stateAfterBtc.darkWebItems || [];
       const idx = items.findIndex((it) => it?.id === deliveredId);
-      // Already-owned is normally refused in the pre-check above; re-checked here
-      // because the updater must decide from `prev`, not the caller's snapshot.
-      if (idx !== -1 && !items[idx]?.owned) {
-        const nextItems = [...items];
-        nextItems[idx] = { ...nextItems[idx], owned: true };
-        return { ...stateAfterBtc, darkWebItems: nextItems, darkWeb: result.result.dw };
-      }
+      /**
+       * ABORT, don't fall through.
+       *
+       * Already-owned is normally refused by the snapshot pre-check above, but
+       * that reads the caller's `gameState`, so it cannot see a second tap
+       * landing in the same React batch — which is the case this re-check exists
+       * for. Falling through to the generic return would commit the BTC debit
+       * and consume the listing while granting nothing: precisely the
+       * "charged full price, got nothing" defect this whole block removes.
+       */
+      if (idx === -1 || items[idx]?.owned) return prev;
+      const nextItems = [...items];
+      nextItems[idx] = { ...nextItems[idx], owned: true };
+      return { ...stateAfterBtc, darkWebItems: nextItems, darkWeb: result.result.dw };
     }
 
     return { ...stateAfterBtc, darkWeb: result.result.dw };

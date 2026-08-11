@@ -330,7 +330,7 @@ balance and their net worth will not move.
 ItemActions context at line 817. It has **zero call sites in `components/` or
 `app/`.** Grep:
 
-```
+```sh
 grep -rn "buyDarkWebItem" --include=*.tsx components/ app/   →   (no output)
 ```
 

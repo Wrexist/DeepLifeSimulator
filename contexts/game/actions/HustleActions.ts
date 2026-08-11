@@ -792,10 +792,13 @@ export const acceptAcquisition = (
      * capped at $200k/wk in total by `PER_SOURCE_CAPS.companies`, so past that
      * ceiling an acquisition buys market share and valuation rather than cash.
      */
-    const weeklyRevenueGain = Math.max(
-      0,
-      Math.round((offer.estimatedAnnualRevenue || 0) / WEEKS_PER_YEAR),
-    );
+    // Validate before arithmetic: a malformed offer (NaN / Infinity) would
+    // otherwise be divided, rounded and PERSISTED onto `baseWeeklyIncome`,
+    // poisoning the company's income for the rest of the save.
+    const rawAnnual = offer.estimatedAnnualRevenue;
+    const safeAnnual =
+      typeof rawAnnual === 'number' && isFinite(rawAnnual) && rawAnnual > 0 ? rawAnnual : 0;
+    const weeklyRevenueGain = Math.max(0, Math.round(safeAnnual / WEEKS_PER_YEAR));
     const companies = next.companies ?? [];
     const cIdx = companies.findIndex((c) => c?.id === companyId);
     let withIncome = next;

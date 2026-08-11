@@ -19,7 +19,7 @@
  * one for a single control would pull a native module into a codebase whose
  * release builds are deliberately thin (CLAUDE.md §4.6).
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, LayoutChangeEvent } from 'react-native';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -76,10 +76,17 @@ export default function AccountTransferPanel({
 
   // Refs, because the PanResponder is created once and would otherwise close
   // over the first render's values forever.
+  //
+  // Written in an EFFECT, not during render: React 19 may replay or discard a
+  // render, and a mutation from a render that never commits would leak into the
+  // PanResponder's closure. Gestures only happen after commit, so the values are
+  // always current by the time they are read.
   const maxRef = useRef(max);
-  maxRef.current = max;
   const widthRef = useRef(trackWidth);
-  widthRef.current = trackWidth;
+  useEffect(() => {
+    maxRef.current = max;
+    widthRef.current = trackWidth;
+  }, [max, trackWidth]);
 
   /**
    * Map a touch x to an amount over the THUMB'S travel, not the raw track

@@ -744,9 +744,12 @@ export const getAdCashBonusAmount = (state: GameState): number => {
   let worth = 0;
   try {
     worth = calculateNetWorth(state);
-  } catch {
+  } catch (err) {
     // A corrupt save must degrade to the floor, never to a throw inside a
     // render — this feeds a button label on a screen the player can always open.
+    // Logged rather than swallowed: silently paying every player the floor would
+    // hide the underlying corruption indefinitely.
+    log.error('getAdCashBonusAmount: calculateNetWorth failed, using the floor', err);
     worth = 0;
   }
   const base = Math.max(isFinite(worth) ? worth : 0, cash, 0);

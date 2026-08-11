@@ -41,8 +41,9 @@ import { logger } from '@/utils/logger';
 // ambitions, the leaderboard, the passive-income soft cap, bail and ad rewards,
 // and `statistics/statisticsTracker.calculateNetWorth` + `ShareLifeCard` both
 // delegate to it. That one counts self-opened bank accounts
-// (`nonMirrorDeposits`), crypto, savings goals and credit-card debt; this one
-// counts none of the four, so the two disagree for most real saves.
+// (`nonMirrorDeposits`), savings goals and credit-card debt; this one counts
+// none of the three, so the two disagree for most real saves. (Both DO count
+// crypto — an earlier version of this note wrongly listed it as a difference.)
 //
 // It survives ONLY because `__tests__/refactor/subsystemEquivalence.test.ts`
 // pins it as part of the R7 extraction snapshot. Do not wire it to anything, and

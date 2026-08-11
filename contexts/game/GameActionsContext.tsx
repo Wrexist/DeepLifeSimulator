@@ -150,9 +150,13 @@ import { applyNPCDepthTick } from './actions/weekly/applyNPCDepthTick';
 import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
-import { clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
+import { clearPromotedSparkMatch, clearOrphanedSparkPromotions } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
-import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
+import {
+  applyRelationshipHealth,
+  NEGLECT_HAPPINESS_DRAG,
+  NEGLECT_HAPPINESS_DRAG_CAP,
+} from './actions/weekly/applyRelationshipHealth';
 import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
@@ -1316,6 +1320,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Process weddings, pregnancy, and relationship health
  let relationshipHappinessPenalty = 0;
+ // Neglect drag accumulates separately so it can be capped as a group.
+ let neglectDragTotal = 0;
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
@@ -1384,7 +1390,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats AFTER the .map() below.
  const healthResult = applyRelationshipHealth(rel, relIdx, weeklyCtx);
  if (healthResult.happinessPenalty !== 0) {
+ // The standing neglect drag is capped ACROSS all relationships, separately
+ // from the one-off breakup / disappointed / drift hits. Without the split, a
+ // large family all sitting below the threshold would out-punish a failing
+ // marriage purely on headcount (see NEGLECT_HAPPINESS_DRAG_CAP).
+ if (healthResult.happinessPenalty === NEGLECT_HAPPINESS_DRAG) {
+ neglectDragTotal = Math.max(
+ NEGLECT_HAPPINESS_DRAG_CAP,
+ neglectDragTotal + healthResult.happinessPenalty,
+ );
+ } else {
  relationshipHappinessPenalty += healthResult.happinessPenalty;
+ }
  }
  return healthResult.rel;
  }).filter((rel): rel is Relationship => rel != null && typeof rel === 'object'); // Remove null/undefined/non-object relationships (breakups + corruption guard)
@@ -1422,12 +1439,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowBirthPopup = false;
  birthMessage = '';
  relationshipHappinessPenalty = 0;
+ neglectDragTotal = 0;
  }
 
- // Applied outside the try: a throw mid-pass resets the accumulator above, so
+ // Applied outside the try: a throw mid-pass resets the accumulators above, so
  // the player is never charged a partial week of relationship unhappiness.
- if (relationshipHappinessPenalty < 0) {
- newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + relationshipHappinessPenalty));
+ // `neglectDragTotal` is already capped as it accumulates; the one-off hits
+ // (breakup / disappointed / drift) are not, because each is a single event the
+ // player can attribute to a specific person.
+ const totalRelationshipPenalty = relationshipHappinessPenalty + neglectDragTotal;
+ if (totalRelationshipPenalty < 0) {
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + totalRelationshipPenalty));
  }
 
  // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
@@ -2143,6 +2165,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // boost expiry, jealousy spawn). Surfaces tick notifications into the
  // pendingNotifications queue alongside everyone else.
  let sparkAppNext = sparkTickResult?.sparkApp ?? prevState.sparkApp;
+
+ // A relationship removed by this week's health pass (a breakup, or a friend
+ // drifting away) leaves its Spark match flagged `promoted` with nothing on the
+ // other end. That match then shows as "Dating" in the chat, hides the befriend
+ // button, and is refused by BOTH promotion actions — the person is gone and
+ // cannot be re-approached. Reconcile against the relationships this tick
+ // actually produced. No-op (same object) when nothing is stale.
+ sparkAppNext = clearOrphanedSparkPromotions(sparkAppNext, processedRelationships);
 
  // In-game subscription auto-renew billing (Pulse Verified Pro + Spark
  // Premium). These are paid from cash — NOT real App Store IAPs — so the weekly

@@ -42,11 +42,17 @@ describe('the company ceiling is what this test thinks it is', () => {
       require('path').join(__dirname, '../../contexts/game/actions/CompanyActions.ts'),
       'utf8',
     ) as string;
-    const table = src.slice(src.indexOf('const companyCosts'), src.indexOf('const baseCost'));
-    expect(table.length).toBeGreaterThan(50);
-    for (const t of COMPANY_TYPES) {
-      expect(`${t}: ${table.includes(`${t}:`)}`).toBe(`${t}: true`);
-    }
+    const from = src.indexOf('const companyCosts');
+    const to = src.indexOf('const baseCost');
+    expect(`anchors found: ${from > -1 && to > from}`).toBe('anchors found: true');
+    const table = src.slice(from, to);
+
+    // EXACT set, both directions. Only checking that the five expected keys are
+    // present would accept a sixth type being added — at which point
+    // MAX_COMPANIES silently understates the real ceiling and the achievement
+    // this file guards becomes reachable-but-wrong instead of unreachable.
+    const declared = [...table.matchAll(/^\s{4}(\w+):\s*\d/gm)].map((m) => m[1]).sort();
+    expect(declared).toEqual([...COMPANY_TYPES].sort());
   });
 
   it('the absolute maximum is 15', () => {

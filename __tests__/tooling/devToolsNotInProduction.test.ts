@@ -23,6 +23,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -75,13 +76,26 @@ describe('the gate itself cannot be loosened by accident', () => {
   });
 
   it('every render of the modal is behind the flag', () => {
-    const uses = src.match(/DevToolsModal/g) ?? [];
-    const guarded = src.match(/DEV_TOOLS_ENABLED && DevToolsModal/g) ?? [];
-    // One use is the conditional require, one is the type annotation on the
-    // const, the rest must be guarded renders.
-    expect(uses.length).toBeGreaterThan(0);
-    expect(guarded.length).toBeGreaterThan(0);
-    expect(src).not.toMatch(/<DevToolsModal(?![^>]*)/);
+    /**
+     * The previous assertion here was `not.toMatch(/<DevToolsModal(?![^>]*)/)`.
+     * `[^>]*` matches the empty string, so the negative lookahead always
+     * succeeded and the pattern could never match a real `<DevToolsModal …>`
+     * tag — an unguarded render could be added without failing this test.
+     * Caught in review; it is the exact "assertion that tests nothing" failure
+     * this file exists to prevent, in the file meant to prevent it.
+     *
+     * Now: find every JSX render site and require each to sit behind the flag.
+     */
+    const renders = [...src.matchAll(/<DevToolsModal[\s/>]/g)];
+    expect(renders.length).toBeGreaterThan(0); // the modal IS rendered somewhere
+
+    for (const m of renders) {
+      // The guard must appear in the 200 characters preceding the tag — the
+      // `{DEV_TOOLS_ENABLED && DevToolsModal ? (` wrapper sits immediately above.
+      const before = src.slice(Math.max(0, m.index - 200), m.index);
+      expect(`render@${m.index} guarded: ${/DEV_TOOLS_ENABLED && DevToolsModal/.test(before)}`)
+        .toBe(`render@${m.index} guarded: true`);
+    }
   });
 });
 
@@ -94,12 +108,22 @@ describe('no committed env file turns it on', () => {
   });
 
   it('no .env file is tracked in the repo', () => {
-    // A committed `.env` would be inlined into the bundle at build time and
-    // would override the profile's intent.
-    const tracked = fs
-      .readdirSync(ROOT)
-      .filter((f) => /^\.env/.test(f))
-      .filter((f) => f !== '.env.example');
+    /**
+     * Ask GIT, not the working tree.
+     *
+     * The first version read `fs.readdirSync(ROOT)`, which fails the moment a
+     * developer copies `.env.example` to `.env` locally — the correct, expected
+     * thing to do, and `.gitignore` already covers it. It also missed tracked
+     * env files in subdirectories entirely. What matters is what is COMMITTED,
+     * because that is what reaches a build.
+     */
+    const tracked = execFileSync('git', ['ls-files', '-z', '--', '*.env', '.env*', '**/.env*'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter(Boolean)
+      .filter((f) => !f.endsWith('.env.example'));
 
     expect(tracked).toEqual([]);
   });

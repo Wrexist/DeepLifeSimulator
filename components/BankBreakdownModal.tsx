@@ -227,7 +227,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
         <Text style={[styles.summaryText, { color: theme.textSecondary }]}>
           {'\u2022'} Bank savings are safe and secure{'\n'}
           {'\u2022'} Stock investments can gain or lose value{'\n'}
-          {'\u2022'} Total savings = Bank savings + Stock investments{'\n'}
+          {'\u2022'} Total savings = Bank savings + Your accounts + Stock investments{'\n'}
           {'\u2022'} Monitor your investments regularly{'\n'}
           {'\u2022'} Diversify your portfolio to reduce risk
         </Text>

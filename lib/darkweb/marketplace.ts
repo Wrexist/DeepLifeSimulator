@@ -117,8 +117,28 @@ export function updatePlayerReputation(
   tier: ListingTier
 ): number {
   const base = safe(current, 0);
-  if (outcome !== 'success') return base;
-  const gain = tier === 'elite' ? 3 : tier === 'pro' ? 2 : 1;
+  if (outcome === 'cancelled') return base; // no trade happened, nothing was seen
+  const full = tier === 'elite' ? 3 : tier === 'pro' ? 2 : 1;
+  /**
+   * A scam still moves the needle, at half rate.
+   *
+   * PLAYER REPORT (BBQ, 2026-08-11): "buyer rep is too slow to gain."
+   *
+   * It awarded ZERO on a scam, and the scam wall early on is brutal — the seed
+   * vendors sit at 15 and 35 reputation, which `vendorScamProbability` turns
+   * into 95% and 82%. Those are also the CHEAPEST vendors
+   * (`priceMultiplierForReputation` prices low reputation at 0.6x), so a
+   * cash-poor new player is steered at the worst odds and then earns nothing
+   * for taking them. Reaching `pro` (rep 10) took ~10 clean buys; buying cheap
+   * it took upwards of 200 attempts.
+   *
+   * You still paid, the vendor still took the order, and the market still saw a
+   * buyer — the reputation being tracked here is the PLAYER'S standing as a
+   * customer, not a scorecard of good luck. Losing the BTC is the punishment;
+   * having progression stall to zero on top of it was the part that read as
+   * broken. Half rate keeps a clean purchase strictly better.
+   */
+  const gain = outcome === 'scam' ? Math.ceil(full / 2) : full;
   return Math.max(0, Math.min(100, base + gain));
 }
 
@@ -250,7 +270,24 @@ export function generateListingsForVendor(
       heatCost: TIER_HEAT_COST[tier],
       minBuyerRep: TIER_MIN_REP[tier],
       postedWeek,
-      lifetimeWeeks: 4,
+      /**
+       * Staggered, not a flat 4.
+       *
+       * PLAYER REPORT (BBQ, 2026-08-11): "Most listings … do not shuffle as week
+       * past with other options. If they do it doesn't as often."
+       *
+       * Every listing used to live exactly 4 weeks. Since `refreshMarketplace`
+       * fills every vendor to 3 slots the first time it runs, all twelve were
+       * posted on the same week and therefore EXPIRED on the same week: the
+       * board sat frozen for four weeks, replaced itself wholesale, then froze
+       * again. The rotation existed; it just happened all at once, four weeks
+       * apart, which is indistinguishable from not rotating.
+       *
+       * A 2–5 week spread desynchronises the slots after the first cycle, so
+       * something changes most weeks. Derived from the same seeded roll source
+       * as the rest of the listing, so it stays reproducible from the save.
+       */
+      lifetimeWeeks: 2 + Math.floor(rolls(`${vendor.id}.${i}.life`) * 4),
       xpReward: tier === 'common' ? undefined : { skill: 'opsec', amount: tier === 'elite' ? 30 : 10 },
     });
   }

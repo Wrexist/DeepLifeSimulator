@@ -56,3 +56,43 @@ export function clearPromotedSparkMatch(
     ),
   };
 }
+
+/**
+ * Clear `promoted` on every match whose relationship no longer exists.
+ *
+ * The sibling above takes ONE id and is called from the paths that knowingly
+ * end a relationship (divorce, breakup). This one reconciles against the whole
+ * live set instead, because the weekly health pass removes relationships
+ * WITHOUT any single call site knowing which — a partner breakup roll, and
+ * (since neglect got teeth) a friend drifting away.
+ *
+ * A match left stranded is unusable in both directions: the chat header reads
+ * "Dating", the befriend affordance is hidden because it only renders for an
+ * un-promoted match, and BOTH promotion actions refuse with "Already dating
+ * this person" / "Already in your contacts". The person is gone from your life
+ * and you cannot re-approach them.
+ *
+ * Reconciling against the live set rather than a removed-id list also self-heals
+ * any match orphaned by an earlier path that forgot to call the sibling.
+ *
+ * Returns the SAME object when nothing is stale, so the common weekly path
+ * allocates nothing.
+ */
+export function clearOrphanedSparkPromotions(
+  sparkApp: SparkAppState | undefined,
+  relationships: readonly { id?: string }[] | undefined,
+): SparkAppState | undefined {
+  if (!sparkApp?.matches) return sparkApp;
+  const live = new Set(
+    (Array.isArray(relationships) ? relationships : [])
+      .map((r) => r?.id)
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  if (!sparkApp.matches.some((m) => m?.promoted && !live.has(m.id))) return sparkApp;
+  return {
+    ...sparkApp,
+    matches: sparkApp.matches.map((m) =>
+      m?.promoted && !live.has(m.id) ? { ...m, promoted: false } : m,
+    ),
+  };
+}

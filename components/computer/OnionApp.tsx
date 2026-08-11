@@ -495,6 +495,9 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const meetsRep = (dw.playerReputation ?? 0) >= listing.minBuyerRep;
     const tm = TIER_META[listing.tier] ?? TIER_META.common;
     const scamPct = vendorScamProbability(vendor.reputation) * 100;
+    // Round ONCE. Comparing the raw value against the bands while printing the
+    // rounded one puts 29.6% on screen as "30%" inside the green band.
+    const scamShown = Math.round(scamPct);
     return (
       <TerminalPanel key={listing.id} darkMode={darkMode}>
         <View style={styles.rowHead}>
@@ -530,10 +533,10 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         <Text style={styles.monoXs} numberOfLines={1}>
           <Text
             style={{
-              color: scamPct >= 60 ? accent.danger : scamPct >= 30 ? accent.warning : TERM.greenDim,
+              color: scamShown >= 60 ? accent.danger : scamShown >= 30 ? accent.warning : TERM.greenDim,
             }}
           >
-            {`${scamPct >= 30 ? '! ' : ''}scam_risk=${Math.round(scamPct)}%`}
+            {`${scamShown >= 30 ? '! ' : ''}scam_risk=${scamShown}%`}
           </Text>
           {listing.xpReward ? (
             <Text style={{ color: TERM.purple }}>{`  xp+${listing.xpReward.amount} ${listing.xpReward.skill}`}</Text>

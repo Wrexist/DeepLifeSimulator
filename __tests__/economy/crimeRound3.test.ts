@@ -79,7 +79,11 @@ describe('R3-C1 + R3-C10 — a gear purchase delivers gear', () => {
   it('does not grant on a scam', () => {
     // A scam is the vendor taking the money and vanishing; delivering anyway
     // would remove the entire downside.
-    const block = source.slice(source.indexOf('const deliveredId'));
+    // Anchor first: a renamed const would make indexOf return -1, slice from
+    // the end, and pass on an empty string.
+    const at = source.indexOf('const deliveredId');
+    expect(`deliveredId anchor found: ${at > -1}`).toBe('deliveredId anchor found: true');
+    const block = source.slice(at);
     expect(block.slice(0, 400)).not.toMatch(/outcome === 'scam'/);
   });
 

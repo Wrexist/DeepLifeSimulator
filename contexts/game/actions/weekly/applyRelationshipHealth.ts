@@ -76,6 +76,18 @@ export const FRIEND_DRIFT_MAX_CHANCE = 0.25;
 /** Standing weekly happiness cost of one neglected family member or friend. */
 export const NEGLECT_HAPPINESS_DRAG = -1;
 
+/**
+ * Ceiling on the TOTAL neglect drag one week can apply.
+ *
+ * The caller accumulates `happinessPenalty` across every relationship, so a
+ * player with two parents, three children and a handful of friends all below the
+ * threshold would take -6 or worse every week from this branch alone — on top of
+ * the partner branch's -10 / -25. Only the final happiness value is clamped, so
+ * without a cap a large family is a bigger happiness liability than a neglected
+ * marriage, which is not the intent. Applied by the caller.
+ */
+export const NEGLECT_HAPPINESS_DRAG_CAP = -3;
+
 /** One-off happiness hit when a friendship finally fades. */
 export const FRIEND_DRIFT_HAPPINESS_PENALTY = -8;
 
