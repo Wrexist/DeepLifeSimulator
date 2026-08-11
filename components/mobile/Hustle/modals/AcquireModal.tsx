@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { acceptAcquisition, declineAcquisition } from '@/contexts/game/actions/HustleActions';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
@@ -95,13 +96,34 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                           ${offer.askingPrice.toLocaleString()}
                         </Text>
                       </View>
+                      {/**
+                        * The number the player is actually paid, not the raw
+                        * `synergyBonusPercent`.
+                        *
+                        * This used to render `+{offer.synergyBonusPercent}%` under
+                        * the bare label "Synergy" — no unit, no target. The field
+                        * is 8–30, but only a QUARTER of it reaches market share
+                        * (`+synergyBonusPercent / 4`), so a headline "+24%"
+                        * described a +6-point share move. A 4× overstatement on a
+                        * seven-figure purchase is the single most likely reason
+                        * this read as "acquisition changed nothing".
+                        *
+                        * Weekly income is now the headline because it is the term
+                        * the player can verify on the company card, and it is
+                        * derived from the SAME arithmetic `acceptAcquisition`
+                        * applies, so display and payout cannot drift.
+                        */}
                       <View style={styles.offerMetric}>
-                        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Synergy</Text>
+                        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +{offer.synergyBonusPercent}%
+                          +${Math.round(offer.estimatedAnnualRevenue / WEEKS_PER_YEAR).toLocaleString()}
                         </Text>
                       </View>
                     </View>
+
+                    <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
+                      Synergy +{(offer.synergyBonusPercent / 4).toFixed(1)} market share
+                    </Text>
 
                     <View style={styles.offerCtaRow}>
                       <Pressable

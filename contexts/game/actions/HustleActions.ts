@@ -27,6 +27,7 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
 import { companyIncomeMultiplier, MAX_COMPANY_EMPLOYEES } from '../company';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import {
   generateCandidates,
   evaluateOffer,
@@ -757,12 +758,69 @@ export const acceptAcquisition = (
         weeksLived,
       );
     });
+
+    /**
+     * The acquired business brings its REVENUE with it.
+     *
+     * PLAYER REPORT (BBQ, 2026-08-11): "Acquisition of another company did not
+     * make any changes to the company. Synergy another hidden element that
+     * needs elaboration?"
+     *
+     * He was right that nothing visible changed. The only mechanical payload was
+     * `marketSharePercent + synergyBonusPercent / 4`, which reaches money as
+     * `share / 200` in `companyIncomeFactors` — so a headline "+24% synergy"
+     * delivered +6 share points and about **+3% weekly income**, for a
+     * seven-figure price. Worse, `companyIncomeFactors` clamps at
+     * `COMPANY_FACTOR_MAX` (1.6), so a mature company already at the cap got
+     * literally nothing for the purchase.
+     *
+     * Buying a company that earns money should earn you money. The target's
+     * weekly revenue is added to `baseWeeklyIncome` — the stored base both
+     * Hustle surfaces render and the one the overlay multiplier scales — and
+     * `weeklyIncome` is recomputed through the same headcount multiplier
+     * `buyCompanyUpgrade` and `adjustEmployees` use, so the three cannot
+     * disagree about what a company earns.
+     *
+     * The synergy share bump is KEPT: it is the part that models two businesses
+     * being worth more together than apart, and it is now the smaller half of a
+     * real payload rather than the whole of a token one.
+     *
+     * NOTE for balance review: `askingPrice` is 4–10× the target's annual
+     * revenue, so simple payback is 208–520 game weeks. That is a realistic
+     * multiple and a slow one; it is left alone deliberately because changing it
+     * is an economy decision, not a correctness fix. Company income is also
+     * capped at $200k/wk in total by `PER_SOURCE_CAPS.companies`, so past that
+     * ceiling an acquisition buys market share and valuation rather than cash.
+     */
+    const weeklyRevenueGain = Math.max(
+      0,
+      Math.round((offer.estimatedAnnualRevenue || 0) / WEEKS_PER_YEAR),
+    );
+    const companies = next.companies ?? [];
+    const cIdx = companies.findIndex((c) => c?.id === companyId);
+    let withIncome = next;
+    if (cIdx !== -1 && weeklyRevenueGain > 0) {
+      const target = companies[cIdx];
+      const nextBase = (target.baseWeeklyIncome ?? 0) + weeklyRevenueGain;
+      const nextCompanies = [...companies];
+      nextCompanies[cIdx] = {
+        ...target,
+        baseWeeklyIncome: nextBase,
+        weeklyIncome: Math.round(
+          nextBase * companyIncomeMultiplier(target.workerMultiplier ?? 1.1, target.employees ?? 0),
+        ),
+      };
+      withIncome = { ...next, companies: nextCompanies };
+    }
+
     // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).
-    const spend = applyMoneyDelta(next, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
+    const spend = applyMoneyDelta(withIncome, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
     if (!spend) return prev; // unaffordable → don't close the deal
     // P1-14: +3 reputation folded into the SAME updater (was a trailing updateStats
     // that granted reputation even when the price bailed and the deal didn't close).
-    return withReputationDelta({ ...next, ...spend }, 3);
+    // Spread `withIncome`, NOT `next` — spreading the pre-acquisition state here
+    // would silently drop the revenue gain computed above.
+    return withReputationDelta({ ...withIncome, ...spend }, 3);
   });
 
   return { success: true, message: `Closed: ${offer.targetName} is now part of your empire` };

@@ -57,7 +57,6 @@ describe('Integration Stress Tests', () => {
           type: type as Company['type'],
           name: `${type} Company`,
           employees: 0,
-          money: 0,
           weeklyIncome: 2000,
           baseWeeklyIncome: 2000,
           upgrades: [],

@@ -2167,3 +2167,24 @@ the wrong one would have looked defensible.
 Its failure mode is silently returning the refusal forever, and every other test
 in the suite asserted on committed STATE rather than the return value — so none
 of them would have caught it.
+
+**Deleting a dead field is how you find out who was writing it.** Removing
+`Company.money` — a field nothing had ever read — immediately broke four TEST
+FIXTURES that were dutifully setting it. Nobody reads a dead field, but people
+keep writing it, because a field in a type looks like a field that matters. The
+compile errors are the feature: they list everyone who assumed it did.
+
+**Two numbers in two files with no assertion between them will drift.** The
+company achievement table said 20; the cap in `lib/business/subsidiaries.ts`
+said 5 × 3 = 15. Both were internally consistent, both were readable, and the
+300-gold promise was impossible for as long as anyone cared to check. Retarget
+the achievement, but the actual fix is the test that ties them together —
+otherwise the next change to `MAX_PER_COMPANY_TYPE` re-opens it silently.
+
+**When a feature's whole payload is a display value, check what fraction of it
+reaches the player.** The acquisition's "Synergy +24%" reached money as
+`(24 / 4) / 200` — three percent of weekly income, for a seven-figure price —
+and hit a `COMPANY_FACTOR_MAX` clamp that could zero it entirely. The label was
+not lying about the field; it was quoting the field faithfully and the field
+only mattered a quarter as much as it looked. Trace a headline number all the
+way to the thing it changes before deciding the feature "works".

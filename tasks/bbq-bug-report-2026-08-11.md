@@ -35,7 +35,7 @@ than reported · **PARTIAL** = true under a condition BBQ did not hit ·
 | D-5 | Dark Web | `darkWebItems`, `cleanBtc`, `dirtyBtc` are excluded from `calculateNetWorth` | CONFIRMED | P1 |
 | C-1 | Crime | The crime-tool store has no UI; `buyDarkWebItem` has zero call sites | CONFIRMED + | **P0** |
 | C-2 | Crime | 18 of 19 illegal jobs gated on those items → only "Find Lost Items" is playable | CONFIRMED | **P0** |
-| H-1 | Hustle | "Cash" → "Payroll" on the company tile | AS DESIGNED | P3 |
+| H-1 | Hustle | "Cash" → "Payroll" was intentional; the dead `Company.money` field behind it is now deleted | AS DESIGNED | P3 |
 | H-2 | Hustle | An acquisition changes ~+2.5% weekly income for a seven-figure price | CONFIRMED | P1 |
 | H-3 | Hustle | "Synergy +X%" in AcquireModal overstates the real effect by 4× | CONFIRMED | P1 |
 | X-1 | Contradiction | "Own 20 companies" is mathematically unreachable (hard cap 15); pre-prestige cap is 5 | CONFIRMED | P1 |
@@ -777,20 +777,46 @@ Coverage: `__tests__/social/friendsAndNeglect.test.ts` (18 cases). Full suite
 527 suites / 6,657 tests green; coverage ratchet OK; C-9 ratchet back to exactly
 its 62 baseline (see below).
 
+**✅ ALSO SHIPPED 2026-08-11** — batch 3, still **no `STATE_VERSION` bump**:
+
+7. **X-1** — `company_emperor` retargeted from an impossible 20 to **15**, the
+   real ceiling (5 types × `MAX_PER_COMPANY_TYPE`). Retargeted rather than
+   raising the cap: 3-per-type is a documented balance decision in
+   `lib/business/subsidiaries.ts`, and moving it to satisfy an achievement is
+   the tail wagging the dog. `companyGoalsAreReachable.test.ts` now pins the
+   relationship between the two numbers, which nothing connected before — an
+   achievement table and a gameplay cap in different files with no assertion
+   between them is exactly how a 300-gold promise stayed impossible.
+8. **H-1** — `Company.money` deleted. Deleting it surfaced four test fixtures
+   that had been setting it, which is the point: a field nothing reads still
+   gets written by people who assume it matters.
+9. **H-2 / H-3** — an acquisition now adds the target's weekly revenue to
+   `baseWeeklyIncome`, recomputed through the same headcount multiplier the
+   upgrade and hiring paths use, so the three cannot disagree about what a
+   company earns. The synergy share bump is kept — it is now the smaller half of
+   a real payload instead of the whole of a token one. This also fixes the case
+   that returned **literally nothing**: a company already at
+   `COMPANY_FACTOR_MAX` could not gain from a share bump at all. The modal
+   headline is now the added weekly income (derived from the same term the
+   action applies) with synergy shown as the share points it really moves,
+   replacing a "+24%" that overstated its effect 4×.
+
+   ⚠ **Left for balance review, deliberately:** `askingPrice` is 4–10× the
+   target's annual revenue, so simple payback is 208–520 game weeks. That is a
+   realistic multiple and a slow one. Changing it is an economy decision, not a
+   correctness fix, so it is untouched and flagged rather than quietly tuned.
+   Note also `PER_SOURCE_CAPS.companies` caps total company income at $200k/wk,
+   so past that ceiling an acquisition buys market share and valuation, not cash.
+
 **Then (not done) — recommended order:**
-7. **X-1 + H-1 together** — both are one-line deletions of standing lies:
-   retarget `company_emperor` from an impossible 20 to the real cap of 15, and
-   delete the writerless `Company.money`. Near-zero cost, near-zero risk.
-8. **H-2 / H-3** — make an acquisition move `baseWeeklyIncome`, and label synergy
-   with the number the code actually applies. Needs an owner call on the first.
-9. **D-1 / D-3** — rep curve and listing rotation. Pure balance.
-10. **M-1** — teach the C-9 detector to see through a ternary, and correct the
+10. **D-1 / D-3** — rep curve and listing rotation. Pure balance.
+11. **M-1** — teach the C-9 detector to see through a ternary, and correct the
     ratchet upward in the same commit.
-11. **D-5 (downgraded to P2)** — dark-web pools in net worth. `cleanBtc` has an
+12. **D-5 (downgraded to P2)** — dark-web pools in net worth. `cleanBtc` has an
     exit path via `withdrawCleanBtc`, so it is a transient staging pool rather
     than a permanent hole, and there is a defensible argument that dirty money
     should not score at all.
-12. **X-2** — network contacts are read-only. This is feature work, not a bug:
+13. **X-2** — network contacts are read-only. This is feature work, not a bug:
     `lib/contacts/favors.ts` already defines `influence` / `discount` / `safety`
     / `intro` favor kinds for exactly these contacts, and nothing produces them.
 
