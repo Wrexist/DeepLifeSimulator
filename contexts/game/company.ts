@@ -587,30 +587,71 @@ export function upgradeWarehouse(
   // inside their updater; this one was the outlier. Cost is recomputed from
   // `prev.warehouse.level` so a queued second upgrade pays the real, higher
   // price for the level it is actually buying.
+  //
+  // The OUTCOME is reported from inside the updater too, the same shape
+  // `buyWarehouse` uses. Building the return value from `gameState` instead —
+  // which is what this did first — meant a rejected second tap still answered
+  // "Warehouse upgraded to level 3!", naming a level the player never reached
+  // and a charge that never happened. Fixing the state without fixing the
+  // message just moves the lie.
+  //
+  // The known cost of this shape (CLAUDE.md §4.1): React only evaluates an
+  // updater eagerly when the fiber has no pending lanes, so under contention
+  // `result` may still hold its initial value when it is read. That is the
+  // right way round here. The initial value is a REFUSAL, so the failure mode
+  // is "said no when it meant yes" — recoverable, the player taps again and the
+  // state was correct throughout. The alternative failed the other way, and a
+  // player told they bought something they did not is the worse outcome.
+  let result: { success: boolean; message?: string } = {
+    success: false,
+    message: 'Upgrade could not be applied. Please try again.',
+  };
+
   setGameState(prev => {
     const wh = prev.warehouse;
-    if (!wh || wh.level >= maxLevel) return prev;
+    if (!wh) {
+      result = { success: false, message: 'You need to buy a warehouse first' };
+      return prev;
+    }
+    if (wh.level >= maxLevel) {
+      result = { success: false, message: 'Warehouse is already at maximum level' };
+      return prev;
+    }
 
     const prevIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
       ? prev.economy.priceIndex
       : 1;
     const liveCost = getInflatedPrice(baseCost * wh.level, prevIndex);
-    if (!isFinite(liveCost) || liveCost < 0) return prev;
+    if (!isFinite(liveCost) || liveCost < 0) {
+      result = { success: false, message: 'Upgrade price is unavailable right now' };
+      return prev;
+    }
 
     const money = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
       ? prev.stats.money
       : 0;
-    if (money < liveCost) return prev;
+    if (money < liveCost) {
+      result = {
+        success: false,
+        message: `Not enough money. Upgrade costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(liveCost)}`,
+      };
+      return prev;
+    }
 
+    // Quoted from the level actually being bought, not from the snapshot.
+    const newLevel = wh.level + 1;
+    result = {
+      success: true,
+      message: `Warehouse upgraded to level ${newLevel}! New capacity: ${10 + newLevel * 5} miners.`,
+    };
     return {
       ...prev,
-      warehouse: { ...wh, level: wh.level + 1 },
+      warehouse: { ...wh, level: newLevel },
       stats: { ...prev.stats, money: money - liveCost },
     };
   });
 
-  const newCapacity = 10 + (gameState.warehouse.level) * 5; // After upgrade, capacity increases
-  return { success: true, message: `Warehouse upgraded to level ${gameState.warehouse.level + 1}! New capacity: ${newCapacity} miners.` };
+  return result;
 }
 
 export function sellMiner(

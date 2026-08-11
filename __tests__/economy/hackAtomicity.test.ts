@@ -131,7 +131,12 @@ describe('the shipped source carries the guard', () => {
   it('guards BOTH the reward path and the caught path', () => {
     // The caught branch also spends energy and adds jail weeks, so leaving it
     // unguarded would just move the duplicate to the unlucky roll.
-    expect((src.match(/if \(!canRunHack\(prev\)\) return prev;/g) ?? []).length).toBe(2);
+    //
+    // At LEAST two, and whitespace-tolerant: an exact 2 would fail if a third
+    // guarded updater were ever added, which is the change this test should be
+    // encouraging rather than blocking.
+    const guards = src.match(/if\s*\(\s*!canRunHack\(prev\)\s*\)\s*return\s+prev;/g) ?? [];
+    expect(guards.length).toBeGreaterThanOrEqual(2);
   });
 
   it('re-checks that the hack is still owned', () => {

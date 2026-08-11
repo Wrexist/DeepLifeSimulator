@@ -60,9 +60,15 @@ function countUnguardedCharges(files) {
     const lines = src.split('\n');
 
     lines.forEach((line, i) => {
-      // A hand-written charge: money/gems reduced by a NAMED cost, not a literal.
+      // A hand-written charge: money/gems reduced by something.
+      //
+      // The operand may be a named cost OR a numeric literal. Only identifiers
+      // were matched at first, which silently exempted `money: prev.money - 100`
+      // and `gems: prev.gems - 5` — the same stale-gate failure mode, invisible
+      // to the budget. A detector with a blind spot reports a number that means
+      // less than it looks like it means.
       if (!/\b(money|gems)\s*:/.test(line)) return;
-      if (!/-\s*[A-Za-z_$][\w$.]*/.test(line)) return;
+      if (!/-\s*(?:[A-Za-z_$][\w$.]*|\d)/.test(line)) return;
 
       // Walk back to the enclosing updater, capturing its PARAMETER NAME.
       // Binding the real name matters: this codebase uses `prev`, `prevState`

@@ -108,6 +108,53 @@ describe('a batched double-tap cannot double-upgrade', () => {
   });
 });
 
+describe('the reported outcome matches what actually happened', () => {
+  /**
+   * Call `upgradeWarehouse` with a snapshot that PASSES its outer checks while
+   * the committed state the updater sees does not — exactly the divergence a
+   * batched second tap produces — and return what the function claimed.
+   */
+  function outcomeWhenCommittedStateIs(committed: GameState, snapshot: GameState) {
+    return upgradeWarehouse(snapshot, ((u: unknown) => {
+      if (typeof u === 'function') (u as (p: GameState) => GameState)(committed);
+    }) as never);
+  }
+
+  it('reports success, and the real level, when the upgrade lands', () => {
+    const state = withWarehouse(1, 1_000_000);
+    const res = outcomeWhenCommittedStateIs(state, state);
+    expect(res.success).toBe(true);
+    expect(res.message).toMatch(/level 2\b/);
+  });
+
+  it('does NOT claim success when the updater refused for lack of funds', () => {
+    // THE BUG THIS EXISTS FOR. The message used to be built from the caller's
+    // snapshot after the updater ran, so a rejected tap still answered
+    // "Warehouse upgraded to level 2!" — naming a level never reached and a
+    // charge never made. Fixing the state without fixing the message would just
+    // move the lie.
+    const res = outcomeWhenCommittedStateIs(withWarehouse(1, 0), withWarehouse(1, 1_000_000));
+    expect(res.success).toBe(false);
+    expect(res.message).not.toMatch(/upgraded to level/i);
+  });
+
+  it('does NOT claim success when the updater refused at the ceiling', () => {
+    const res = outcomeWhenCommittedStateIs(withWarehouse(10, 1_000_000), withWarehouse(1, 1_000_000));
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(/maximum level/i);
+  });
+
+  it('fails CLOSED when the updater never runs', () => {
+    // React only evaluates an updater eagerly when the fiber has no pending
+    // lanes (CLAUDE.md §4.1), so under contention the result may still hold its
+    // initial value. That value must be a refusal: "said no when it meant yes"
+    // is recoverable — the player taps again — whereas the other direction
+    // tells someone they bought something they did not.
+    const res = upgradeWarehouse(withWarehouse(1, 1_000_000), (() => {}) as never);
+    expect(res.success).toBe(false);
+  });
+});
+
 describe('the level ceiling holds under contention', () => {
   it('does not step past max level when already there', () => {
     const after = runBatched(withWarehouse(10, 10_000_000), 3);
@@ -116,7 +163,11 @@ describe('the level ceiling holds under contention', () => {
 
   it('does not overshoot the ceiling from just below it', () => {
     // The stale check said "level 9 < 10, allowed" for every tap in the batch.
+    //
+    // Asserted as an EXACT 10, not `<= 10`: the loose form also passes if no
+    // upgrade applies at all and the level sits at 9, which would hide the
+    // guard over-rejecting. One tap must land, and only one.
     const after = runBatched(withWarehouse(9, 10_000_000), 4);
-    expect(after.warehouse?.level).toBeLessThanOrEqual(10);
+    expect(after.warehouse?.level).toBe(10);
   });
 });

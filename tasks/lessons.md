@@ -2032,3 +2032,43 @@ went bad. It now binds the updater's real parameter name.
 And the audit caught *me*: my first regression tests used `as GameState`,
 violating Hard Rule #3, and the save analyzer flagged it. Worth remembering
 that the guardrails apply to the person auditing too.
+
+### Addendum — what the bot review of that audit caught
+
+Three real findings on the audit PR itself, all worth recording because two are
+about the *fix*, not the original bug.
+
+**Fixing the state without fixing the message just moves the lie.**
+`upgradeWarehouse` was corrected so a batched second tap can no longer
+double-upgrade — but the return value was still built from the caller's
+snapshot, so the rejected tap answered "Warehouse upgraded to level 3!". A level
+never reached, a charge never made. The state was right and the player was still
+told something false. Outcome now comes from inside the updater.
+
+That shape carries the §4.1 hazard (React only evaluates an updater eagerly when
+the fiber has no pending lanes, so the variable may be read before it is set),
+and the resolution is to pick the *direction* of the failure deliberately: the
+initial value is a refusal, so it fails CLOSED. "Said no when it meant yes" is
+recoverable — the player taps again, state was correct throughout. The opposite
+tells someone they bought something they did not.
+
+**A detector with a blind spot reports a number that means less than it looks
+like it means.** G5 matched only `money: prev.money - namedCost`, so a literal
+`- 100` was silently exempt from the budget it existed to enforce. Widening it
+did not change the count — nothing was hiding there — but the count had been
+trustworthy by luck rather than by construction. This is the second time in one
+change that the *checker* was the thing that was wrong; the first was the
+`return prevState` false positives.
+
+**`EXPO_PUBLIC_*` is not a secret, and calling one a secret is its own bug.**
+The owner checklist listed `EXPO_PUBLIC_SAVE_HMAC_KEY` under "production
+secrets". Expo inlines every `EXPO_PUBLIC_*` value into the JS bundle at build
+time — documented behaviour — so the key ships inside the app, and the same key
+both signs and verifies on the client. It genuinely detects corruption and
+casual tampering; it cannot stop anyone willing to read it out of the bundle.
+
+Nothing to change in the code today — single-player, save on device, a player
+editing their own save harms nobody. It becomes real the moment anything is
+server-authoritative. The lesson is narrower and sharper than "rotate the key":
+**writing "secret" next to a value that ships in the client encodes a false
+belief that some later feature will be built on.**

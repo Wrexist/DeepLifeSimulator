@@ -56,16 +56,42 @@ yours — I will never commit a key.
 
 ---
 
-## Step 3 — Confirm the other production secrets exist
+## Step 3 — Confirm the other production variables exist
 
 Same command shape as above. Check `eas env:list --environment production`
 contains these before building:
 
 | Variable | Why it matters if missing |
 |---|---|
-| `EXPO_PUBLIC_SAVE_HMAC_KEY` | **Never change this if it is already set.** Rotating it invalidates the signature on every existing save. Set once, never again. |
+| `EXPO_PUBLIC_SAVE_HMAC_KEY` | **Never change this if it is already set.** Rotating it invalidates the signature on every existing save. Set once, never again. Not a secret — see below. |
 | `EXPO_PUBLIC_ADMOB_*` (banner + interstitial, iOS + Android) | Ads silently do not serve — pure lost revenue, no error. |
 | `EXPO_PUBLIC_FIREBASE_*` | No analytics, so the retention question in Step 8 stays unanswerable. |
+
+### What the save HMAC key is and is not
+
+Raised in review, and the reviewer was right, so it is worth stating plainly:
+**`EXPO_PUBLIC_SAVE_HMAC_KEY` is not a secret.** Every `EXPO_PUBLIC_*` variable
+is inlined into the JavaScript bundle at build time — that is documented Expo
+behaviour, not a misconfiguration — so the value ships inside the app and can be
+read out of it. The same key both signs and verifies, on the client.
+
+What it therefore does and does not buy you:
+
+- ✅ **Detects corruption and casual tampering.** A save edited with a plain
+  file browser fails verification. This is the case it was built for and it
+  works.
+- ❌ **Does not stop a determined attacker.** Anyone willing to extract the key
+  from the bundle can forge a valid signature for any save they like.
+
+Nothing to change today — this is single-player, the save lives on the device,
+and a player editing their own save harms nobody. It matters only if a
+server-authoritative feature is ever added (leaderboards, cloud-synced
+progression, anything where one player's save affects another). At that point
+signing has to move to server code, because a client-held key cannot make a
+client-written save trustworthy.
+
+The "never rotate it" warning above stands regardless, and for a different
+reason: it is about not destroying existing players' saves.
 
 *Time: 5 minutes.*
 

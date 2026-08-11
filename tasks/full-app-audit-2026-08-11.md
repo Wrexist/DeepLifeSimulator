@@ -95,6 +95,13 @@ granted anyway (1, 2); a raw subtraction stored a negative balance (3).
 balance charges whose updater has no refusal path. Budget **2**, which is the
 measured truth — and both remaining sites are dead exports, marked as such.
 
+Its scope covers a charge by a **named cost or a numeric literal**. The first
+version matched only identifiers, which silently exempted
+`money: prev.money - 100` — the same stale-gate failure mode, invisible to the
+budget. Raised in review and widened; the count held at 2, so the blind spot was
+real but nothing was hiding in it. Worth stating either way, because a number
+produced by a detector with a known gap means less than it looks like it means.
+
 It is a ratchet rather than a threshold on purpose: this repo's own coverage
 post-mortem records that a gate which cannot pass trains you to skim the
 failure. **Raise it to get a build unstuck and the next real one walks in
