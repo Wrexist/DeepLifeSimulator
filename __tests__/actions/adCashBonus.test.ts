@@ -18,6 +18,8 @@ import {
   weeksUntilAdCashBonus,
   getAdCashBonusAmount,
   AD_CASH_BONUS_COOLDOWN_WEEKS,
+  AD_CASH_BONUS_MIN,
+  AD_CASH_BONUS_MAX,
 } from '@/contexts/game/actions/BankingActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
@@ -106,14 +108,18 @@ describe('the sponsored bonus pays once per in-game week', () => {
   });
 
   it('quotes exactly what it pays, at both ends of the scale', () => {
+    // Bounds asserted through the exported constants, not literals. This test
+    // previously hard-coded 50 and 5000 and so had to be edited when the reward
+    // was rebased onto net worth with a $2,000 floor — a bound that lives in two
+    // places drifts, and the version that fails is the one nobody updated.
     for (const money of [0, 1_000, 250_000, 100_000_000]) {
       const state = saver(money);
       const quoted = getAdCashBonusAmount(state);
       const { result } = drive(state);
       expect(result.amount).toBe(quoted);
       // Bounded at both ends so it is neither pointless nor a late-game faucet.
-      expect(quoted).toBeGreaterThanOrEqual(50);
-      expect(quoted).toBeLessThanOrEqual(5000);
+      expect(quoted).toBeGreaterThanOrEqual(AD_CASH_BONUS_MIN);
+      expect(quoted).toBeLessThanOrEqual(AD_CASH_BONUS_MAX);
     }
   });
 

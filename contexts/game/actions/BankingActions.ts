@@ -11,6 +11,7 @@ import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoal
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { applyMoneyDelta } from './MoneyActions';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   depositToAccount,
@@ -694,18 +695,66 @@ export const getCheckingAccount = (state: GameState) => {
 /** One sponsored bonus per in-game week. */
 export const AD_CASH_BONUS_COOLDOWN_WEEKS = 1;
 
+/** Floor — the bonus is never smaller than this, however poor the player is. */
+export const AD_CASH_BONUS_MIN = 2_000;
+/** Share of the player's worth paid out, once per in-game week. */
+export const AD_CASH_BONUS_RATE = 0.02;
 /**
- * The bank's weekly sponsored bonus, scaled off the player's balance.
+ * Ceiling. Matches `AdRewardOrb`'s `REWARD_MAX` so the game's two cash ad
+ * rewards top out at the same number instead of two unrelated ones.
+ */
+export const AD_CASH_BONUS_MAX = 500_000;
+
+/**
+ * The bank's weekly sponsored bonus, scaled off everything the player owns.
  *
  * Exported so the button quotes exactly what the action will pay — a reward
  * that advertises one number and grants another is the shape of every "silent
  * rejection" finding in this codebase.
+ *
+ * ── Why net worth, not cash ───────────────────────────────────────────────
+ *
+ * This used to read `stats.money` alone, floored at $50 and capped at $5,000.
+ * Cash is the worst available proxy for how far along a player is: someone with
+ * $40M in property, companies and stock but $300 in their wallet — an entirely
+ * normal late-game shape, since idle cash earns nothing — was offered **$50**.
+ * Meanwhile `AdRewardOrb` had already been fixed to scale off
+ * `max(netWorth, cash) × 1.5%` with a $1,000 floor and a $500,000 cap, so the
+ * game shipped two cash ad rewards on scales three orders of magnitude apart.
+ *
+ * `calculateNetWorth` delegates to the canonical `netWorth()` in
+ * `lib/progress/achievements.ts`, which is genuinely "everything that has
+ * worth": cash, legacy savings, self-opened accounts, savings goals, crypto,
+ * stocks, real estate, companies, vehicles and luxury, minus card debt and
+ * loans.
+ *
+ * `Math.max(netWorth, cash)` rather than net worth alone, matching the orb: net
+ * worth subtracts debt, so a player who is cash-rich and mortgage-heavy would
+ * otherwise be pushed to the floor by a number that says nothing about what
+ * they can spend.
+ *
+ * The floor is what makes this worth watching an ad for early — 2% of a
+ * starting $1,500 is $30 — and it binds until roughly $100k of worth, after
+ * which the percentage takes over.
  */
 export const getAdCashBonusAmount = (state: GameState): number => {
   const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money)
     ? Math.max(0, state.stats.money)
     : 0;
-  return Math.max(50, Math.min(5000, Math.round((cash * 0.02) / 10) * 10));
+  let worth = 0;
+  try {
+    worth = calculateNetWorth(state);
+  } catch {
+    // A corrupt save must degrade to the floor, never to a throw inside a
+    // render — this feeds a button label on a screen the player can always open.
+    worth = 0;
+  }
+  const base = Math.max(isFinite(worth) ? worth : 0, cash, 0);
+  const raw = base * AD_CASH_BONUS_RATE;
+  const clamped = Math.max(AD_CASH_BONUS_MIN, Math.min(AD_CASH_BONUS_MAX, raw));
+  // Clean $10 steps, and the floor re-applied after rounding so it can never
+  // round DOWN through the minimum.
+  return Math.max(AD_CASH_BONUS_MIN, Math.round(clamped / 10) * 10);
 };
 
 /** Weeks until the bonus is claimable again — 0 when it is ready now. */

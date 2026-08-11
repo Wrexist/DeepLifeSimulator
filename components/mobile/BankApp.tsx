@@ -51,6 +51,7 @@ import CreditCardRow from '@/components/banking/CreditCardRow';
 import BillPayRow from '@/components/banking/BillPayRow';
 import SavingsGoalCard from '@/components/banking/SavingsGoalCard';
 import AmountInputModal from '@/components/banking/AmountInputModal';
+import AccountTransferPanel from '@/components/banking/AccountTransferPanel';
 import OpenAccountModal from '@/components/banking/OpenAccountModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import ApplyCardModal from '@/components/banking/ApplyCardModal';
@@ -319,53 +320,43 @@ function BankAppInner({ onBack }: BankAppProps) {
             </View>
           ) : (
             <View style={{ gap: responsiveSpacing.sm }}>
-              <TouchableOpacity
-                onPress={() => setDepositTarget(account)}
-                accessibilityRole="button"
-                accessibilityLabel={`Deposit to ${account.name}`}
-                style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
-              >
-                <View style={styles.ctaInner}>
-                  {/* A two-identical-stop "gradient" is a flat fill. It only
-                      existed because the old fallback painted colors[0]; now
-                      that Gradient renders a real SVG there is no reason to
-                      mount one per account card to paint a single colour. */}
-                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: pal.hex }]} />
-                  <Coins size={scale(16)} color="#fff" />
-                  <Text style={styles.ctaText}>Deposit</Text>
-                </View>
-              </TouchableOpacity>
-              <View style={styles.detailSecondaryRow}>
+              {/* Moving money is the reason this screen gets opened, so it is
+                  the control on the screen rather than two buttons that each
+                  open a modal with a keyboard. Slider + percentage chips
+                  because the amounts people pick are proportions ("half of it")
+                  far more often than round numbers. */}
+              <AccountTransferPanel
+                cashAvailable={cash}
+                accountBalance={account.balance}
+                tint={pal.hex}
+                darkMode={darkMode}
+                withdrawDisabled={isLocked}
+                withdrawDisabledReason={isLocked ? `Locked until week ${account.lockUntilWeek}` : undefined}
+                onSubmit={(dir, amt) => {
+                  if (dir === 'deposit') depositCashToAccount(setGameState, account.id, amt);
+                  else withdrawCashFromAccount(setGameState, account.id, amt);
+                  queueSave();
+                }}
+              />
+              {/* `closeAccount` refuses every id in MIRRORED_ACCOUNT_IDS
+                  ("Your primary checking and savings accounts cannot be
+                  closed"), so offering Close on the legacy savings account
+                  renders a control that can only ever fail. `AccountRow`
+                  already drops it for the same reason; this detail view is a
+                  separate component and needed the same guard. Caught by
+                  driving the real app, not by the suite. */}
+              {account.id !== LEGACY_SAVINGS_ACCOUNT_ID && (
                 <TouchableOpacity
-                  onPress={() => setWithdrawTarget(account)}
+                  onPress={() => confirmCloseAccount(account)}
                   disabled={isLocked}
                   accessibilityRole="button"
-                  accessibilityLabel={`Withdraw from ${account.name}`}
+                  accessibilityLabel={`Close ${account.name}`}
                   accessibilityState={{ disabled: isLocked }}
                   style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
                 >
-                  <Text style={[styles.secondaryText, { color: theme.text }]}>Withdraw</Text>
+                  <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
                 </TouchableOpacity>
-                {/* `closeAccount` refuses every id in MIRRORED_ACCOUNT_IDS
-                    ("Your primary checking and savings accounts cannot be
-                    closed"), so offering Close on the legacy savings account
-                    renders a control that can only ever fail. `AccountRow`
-                    already drops it for the same reason; this detail view is a
-                    separate component and needed the same guard. Caught by
-                    driving the real app, not by the suite. */}
-                {account.id !== LEGACY_SAVINGS_ACCOUNT_ID && (
-                  <TouchableOpacity
-                    onPress={() => confirmCloseAccount(account)}
-                    disabled={isLocked}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Close ${account.name}`}
-                    accessibilityState={{ disabled: isLocked }}
-                    style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
-                  >
-                    <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              )}
             </View>
           )}
 
