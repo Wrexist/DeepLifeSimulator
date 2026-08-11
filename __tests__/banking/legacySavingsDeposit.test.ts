@@ -29,6 +29,7 @@ import {
 } from '@/contexts/game/actions/BankingActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { nonMirrorDeposits, LEGACY_SAVINGS_ACCOUNT_ID } from '@/lib/banking/operations';
+import { MONEY_CEILING } from '@/contexts/game/actions/MoneyActions';
 
 const savingsRow = (s: GameState) =>
   s.banking!.accounts.find((a) => a.id === LEGACY_SAVINGS_ACCOUNT_ID)!;
@@ -121,6 +122,23 @@ describe('withdrawing from the default savings account', () => {
 
     expect(after.bankSavings).toBe(500);
     expect(after.stats.money).toBe(0);
+  });
+
+  it('does not destroy savings when the cash credit is clamped at the ceiling', () => {
+    // `applyMoneyDelta` does NOT refuse an over-ceiling credit — it clamps to
+    // MONEY_CEILING and returns a value. Debiting the requested amount while
+    // cash rose by less would silently delete the difference. The debit is
+    // therefore derived from what actually landed.
+    const base = { ...createTestGameState(), bankSavings: 1_000_000 };
+    base.stats.money = MONEY_CEILING - 400;
+
+    const after = apply(base, (set) => withdrawCashFromAccount(set, LEGACY_SAVINGS_ACCOUNT_ID, 1_000));
+
+    const cashGained = after.stats.money - (MONEY_CEILING - 400);
+    const savingsLost = 1_000_000 - (after.bankSavings ?? 0);
+    expect(savingsLost).toBe(cashGained);
+    expect(after.stats.money + (after.bankSavings ?? 0))
+      .toBe(MONEY_CEILING - 400 + 1_000_000);
   });
 
   it('conserves value across a deposit → tick → withdraw round trip', () => {

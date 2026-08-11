@@ -2122,3 +2122,19 @@ returns -1 slices an empty string and passes.
 detector cannot see a success return through a ternary, so its "62" is really
 "at least 63". When a ratchet moves because of an unrelated edit, suspect the
 detector before the code.
+
+**Wiring up dead code promotes its latent bugs to live ones.** `buyDarkWebItem`
+gated already-owned and insufficient-BTC against `stateRef.current` and granted
+inside the updater — textbook gate-then-grant. It had never mattered, because
+nothing called it. Adding the Gear tab made every one of its unexercised guards
+load-bearing in a single commit. A dormant writer has never had its guards run;
+re-read them BEFORE giving it a caller, not after.
+
+**A comment that describes behaviour the callee does not have is a bug with a
+alibi.** I wrote "if the credit is refused (MONEY_CEILING) we return prev" over
+a call to `applyMoneyDelta`, which does not refuse an over-ceiling credit — it
+CLAMPS and returns a value. The savings debit was full, the cash credit partial,
+and the difference vanished. The comment made the code read as correct on
+review, including my own. Check the callee's actual failure mode rather than the
+one the call site assumes; `null` and "clamped silently" are opposite contracts
+and look identical at the call site.

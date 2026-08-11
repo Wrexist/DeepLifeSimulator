@@ -618,6 +618,61 @@ something without inventing new UI.
 
 ---
 
+# R — Found reviewing the fix itself (post-merge)
+
+Both of these were introduced or exposed by the P0 change and are fixed in the
+follow-up commit. Recording them because "the fix had a defect" is the part
+that usually goes unwritten.
+
+## R-1 · The savings withdrawal could destroy money at the ceiling — **P1**
+
+My first cut of `withdrawCashFromAccount` debited `bankSavings` by the requested
+amount and then credited cash via `applyMoneyDelta`, with a comment claiming the
+credit would be *refused* if it breached `MONEY_CEILING`.
+
+It is not refused. `applyMoneyDelta` **clamps**:
+
+```ts
+const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + amount));
+```
+
+So above the ceiling the savings debit is full and the cash credit is partial —
+silently deleting the difference. That is precisely the money-conservation
+failure the read-only-mirror rule was written to prevent, reintroduced by the
+change that relaxed it. `MONEY_CEILING` is `MAX_SAFE_INTEGER`, so it is only
+reachable in an extreme late game, but the invariant should not hold *below a
+threshold* — it should hold.
+
+Fixed by deriving the debit from what actually landed
+(`credit.stats.money - currentMoney`) rather than from what was asked for, and
+bailing if nothing moved. Pinned by *"does not destroy savings when the cash
+credit is clamped at the ceiling"*.
+
+**Checked and clear:** the new deposit path does NOT open loan arbitrage. Every
+borrow floor is 6% (`PRIVATE_BANKING_APR_CAP`, `POLITICS_LOAN_APR_FLOOR`)
+against a `SAVINGS_APR_HARD_CAP` of 5.5%, and both `computeSavingsInterest` and
+`effectiveDepositAPR` clamp to that cap — so borrow-low/save-high stays a loss.
+`LOAN_APR_FLOOR = 0.025` looks like it breaks this but only floors the
+rate-environment delta, never a quoted rate.
+
+## R-2 · `buyDarkWebItem` gated outside its own updater — **P1**
+
+The classic gate-then-grant shape (CLAUDE.md §4.4): the already-owned and
+insufficient-BTC checks read `stateRef.current`, and the grant happened inside
+`setGameState`. Two taps in one React batch both pass the outer check, and the
+second charges BTC for an item already owned.
+
+It had never been reachable — the function had no caller, which is the C-1
+defect. Adding the Gear tab made it live, so the guard had to become real:
+ownership and balance are now re-checked against `prev` inside the updater,
+alongside the `showDeathPopup` guard every sibling action already had.
+
+Worth stating plainly: **wiring up dead code promotes its latent bugs to live
+ones.** A dormant writer's guards have never been exercised, so they should be
+re-read before it gains a caller, not after.
+
+---
+
 # M — Meta (found while fixing, not reported)
 
 ## M-1 · The C-9 ratchet under-counts: its regex cannot see through a ternary — **P2**

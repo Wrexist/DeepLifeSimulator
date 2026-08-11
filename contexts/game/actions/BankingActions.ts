@@ -140,17 +140,30 @@ export const withdrawCashFromAccount = (
         typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
           ? Math.max(0, state.bankSavings)
           : 0;
+      const currentMoney =
+        typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
       if (!Number.isFinite(amount) || amount <= 0 || amount > currentSavings) {
         log.warn(`Withdraw rejected: amount=${amount}, savings=${currentSavings}`);
         return prev;
       }
-      // Debit FIRST, then credit through applyMoneyDelta — if the credit is
-      // refused (MONEY_CEILING / non-finite) we return `prev` and the savings
-      // debit goes with it, rather than deleting the money.
-      const debited = withLegacySavings(state, currentSavings - amount);
-      const credit = applyMoneyDelta(debited, amount, 'Withdraw from savings');
+      const credit = applyMoneyDelta(state, amount, 'Withdraw from savings');
       if (!credit) return prev;
-      return { ...debited, ...credit };
+      /**
+       * Debit savings by what ACTUALLY landed in cash, not by what was asked
+       * for.
+       *
+       * `applyMoneyDelta` does not refuse an over-ceiling credit — it CLAMPS
+       * (`Math.min(MONEY_CEILING, …)`) and returns a value. Debiting `amount`
+       * while cash only rose by the clamped delta would silently destroy the
+       * difference, which is the money-conservation failure the whole
+       * read-only-mirror rule exists to prevent. `MONEY_CEILING` is
+       * `MAX_SAFE_INTEGER`, so this is only reachable in an extreme late game —
+       * but deriving the debit from the credit makes the invariant hold at every
+       * balance instead of below a threshold.
+       */
+      const landed = credit.stats.money - currentMoney;
+      if (landed <= 0) return prev; // nothing moved — don't burn the savings
+      return { ...withLegacySavings(state, currentSavings - landed), ...credit };
     }
     // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
     // cash here and letting the next mirror tick restore the account balance was

@@ -75,6 +75,37 @@ describe('the catalogue has a storefront', () => {
   });
 });
 
+describe('the buy path is atomic now that it has a caller', () => {
+  // `buyDarkWebItem` gated on `stateRef.current` and granted inside the updater —
+  // the gate-outside/grant-inside shape from CLAUDE.md §4.4. It never bit because
+  // nothing called it. The Gear tab is the first caller, so the re-check has to
+  // be real: two taps in one React batch must not charge BTC twice.
+  const source = readCode('contexts/game/ItemActionsContext.tsx');
+  const body = source.slice(
+    source.indexOf('const buyDarkWebItem'),
+    source.indexOf('const buyHack')
+  );
+
+  it('isolated the right function (guards the assertions below)', () => {
+    expect(body.length).toBeGreaterThan(200);
+    expect(body).toMatch(/setGameState/);
+  });
+
+  it('refuses once the player is dead', () => {
+    expect(body).toMatch(/prev\.showDeathPopup/);
+  });
+
+  it('re-checks ownership against prev, not the outer snapshot', () => {
+    expect(body).toMatch(/prev\.darkWebItems/);
+    expect(body).toMatch(/if \(!owned \|\| owned\.owned\) return prev;/);
+  });
+
+  it('re-checks the BTC balance against prev', () => {
+    expect(body).toMatch(/prev\.cryptos\?\.find/);
+    expect(body).toMatch(/btc < item\.costBtc\) return prev;/);
+  });
+});
+
 describe('the removed Market-screen mapping is gone', () => {
   it('market.tsx no longer categorises dark-web ids it cannot sell', () => {
     // These are BTC-priced entries in `darkWebItems`; the Market screen renders
