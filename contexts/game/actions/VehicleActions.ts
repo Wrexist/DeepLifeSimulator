@@ -679,6 +679,28 @@ export const processAccident = (
  * same tick would double-charge upkeep. It is retained only because the vehicle
  * stress suite still exercises it directly; it must not be re-added to the tick.
  */
+/**
+ * @deprecated SUPERSEDED — do not wire this into the week loop.
+ *
+ * The live weekly vehicle tick is `applyVehiclesForWeek`
+ * (`contexts/game/actions/weekly/applyVehicles.ts`). This is its pre-WeekContext
+ * ancestor, and it has NO production caller — only its own stress tests, which
+ * is precisely what let it rot unnoticed while looking maintained.
+ *
+ * It is kept because those tests still exercise real fuel/mileage/condition
+ * arithmetic, but it has DIVERGED from the shipped economy in two ways that
+ * make re-adopting it a regression:
+ *
+ *   · It charges with `Math.max(0, money - cost)`, silently forgiving what the
+ *     player cannot pay. The live path routes shortfalls through
+ *     `chargeOrDefer` into `overdueBalance` (v31 arrears), so mandatory costs
+ *     have a failure state.
+ *   · It has none of the accidents.ts model the live reducer uses.
+ *
+ * Its one behaviour the live path was MISSING — expiring a lapsed insurance
+ * policy — has been moved into `applyVehiclesForWeek`. Before that move, a
+ * single six-month premium bought permanent coverage.
+ */
 export const processVehicleWeekly = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,

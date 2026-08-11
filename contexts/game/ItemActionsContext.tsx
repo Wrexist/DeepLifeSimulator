@@ -7,6 +7,7 @@ import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { HackResult } from './types';
+import type { GameState } from './types';
 import { clampStatByKey } from '@/utils/statUtils';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
@@ -159,10 +160,30 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       logger.error('Hack not available:', { hackId, found: !!hack, purchased: hack?.purchased });
       return empty;
     }
+    // Messaging gate, read from the committed snapshot. `stateRef.current` is
+    // synced by a post-commit effect, so inside a single React batch it is the
+    // PRE-batch state and two taps read identical energy. The authoritative
+    // check is `canRunHack(prev)` inside each updater below.
     if ((state.stats.energy ?? 0) < hack.energyCost) {
       showError('Too Tired', `You need ${hack.energyCost} energy to run ${hack.name}.`);
       return empty;
     }
+
+    /**
+     * Can `prev` actually pay for this run? Checked against `prev`, never a ref.
+     *
+     * Without this the hack MINTED MONEY. Energy is written with
+     * `Math.max(0, …)`, so a second tap in the same batch was charged nothing
+     * and still paid out the full cash reward and the BTC — repeatable at zero
+     * energy for as long as the taps landed in one batch. Rejecting leaves the
+     * outer return value optimistic for that second tap, which is the same
+     * trade the quick actions in TopStatsBar make and document: a toast for
+     * something that correctly changed nothing beats a grant that should never
+     * have happened.
+     */
+    const canRunHack = (prev: GameState) =>
+      (prev.stats?.energy ?? 0) >= hack.energyCost
+      && !!prev.hacks?.find(h => h.id === hackId)?.purchased;
 
     const ownedItems = (state.darkWebItems || []).filter(i => i.owned);
     const riskReduction = ownedItems.reduce((sum, i) => sum + (i.riskReduction || 0), 0);
@@ -172,11 +193,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const caught = Math.random() < effectiveRisk;
 
     if (caught) {
-      setGameState(prev => ({
-        ...prev,
-        stats: { ...prev.stats, energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost) },
-        jailWeeks: Math.min(52, (prev.jailWeeks ?? 0) + 4),
-      }));
+      setGameState(prev => {
+        if (!canRunHack(prev)) return prev;
+        return {
+          ...prev,
+          stats: { ...prev.stats, energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost) },
+          jailWeeks: Math.min(52, (prev.jailWeeks ?? 0) + 4),
+        };
+      });
       logger.warn('Hack caught:', { hackId, risk: effectiveRisk });
       return { success: false, caught: true, reward: 0, btcReward: 0, risk: effectiveRisk, jailed: true };
     }
@@ -186,17 +210,20 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const btcPrice = state.cryptos?.find(c => c.id === 'btc')?.price || 50000;
     const btcReward = btcPrice > 0 ? (hack.reward * 0.2) / btcPrice : 0;
 
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        money: (prev.stats.money ?? 0) + cashReward,
-        energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost),
-      },
-      cryptos: (prev.cryptos || []).map(c =>
-        c.id === 'btc' ? { ...c, owned: c.owned + btcReward } : c
-      ),
-    }));
+    setGameState(prev => {
+      if (!canRunHack(prev)) return prev;
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: (prev.stats.money ?? 0) + cashReward,
+          energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost),
+        },
+        cryptos: (prev.cryptos || []).map(c =>
+          c.id === 'btc' ? { ...c, owned: c.owned + btcReward } : c
+        ),
+      };
+    });
     logger.info('Hack successful:', { hackId, cashReward, btcReward, risk: effectiveRisk });
     return { success: true, caught: false, reward: cashReward, btcReward, risk: effectiveRisk };
   }, [setGameState, showError]);

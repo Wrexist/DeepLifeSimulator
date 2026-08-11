@@ -83,7 +83,31 @@ export function applyVehiclesForWeek(
     // Mileage increases ~200 miles/week
     v.mileage = (v.mileage || 0) + VEHICLE_WEEKLY_MILEAGE;
 
-    // Insurance: no weekly charge — premium is paid upfront in purchaseInsurance()
+    // Insurance: no weekly charge — the premium is paid upfront in
+    // purchaseInsurance() — but the policy is a 26-WEEK TERM and has to lapse.
+    //
+    // It did not. The only code that ever expired a policy lived in
+    // `VehicleActions.processVehicleWeekly`, the pre-WeekContext version of this
+    // reducer, and that function has no production caller — it is reachable only
+    // from its own stress tests. So `expiresWeek` was written at purchase, read
+    // to block re-buying an active policy and to prorate a cancellation refund,
+    // and never once acted on. A single six-month premium bought PERMANENT
+    // coverage: reduced repair bills and reduced injury, for the rest of the
+    // life, on every vehicle.
+    //
+    // Expiring here rather than only at the point of use means the policy also
+    // stops reading as active in the UI, and the player can buy a fresh term.
+    const expiresWeek = typeof v.insurance?.expiresWeek === 'number' && isFinite(v.insurance.expiresWeek)
+      ? v.insurance.expiresWeek
+      : 0;
+    if (v.insurance?.active && expiresWeek > 0 && ctx.nextWeeksLived >= expiresWeek) {
+      v.insurance = { ...v.insurance, active: false };
+      ctx.notifications.push({
+        id: `vehicle-insurance-expired-${v.id}`,
+        message: `Your insurance on the ${v.name} has expired. Renew it before your next accident.`,
+        title: 'Insurance Expired',
+      });
+    }
 
     // Accident roll via the tested accidents.ts model.
     // Pre-roll arrays are capped (length 10). For vehicles beyond the cap, wrap
