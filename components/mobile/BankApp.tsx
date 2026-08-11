@@ -346,16 +346,25 @@ function BankAppInner({ onBack }: BankAppProps) {
                 >
                   <Text style={[styles.secondaryText, { color: theme.text }]}>Withdraw</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => confirmCloseAccount(account)}
-                  disabled={isLocked}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Close ${account.name}`}
-                  accessibilityState={{ disabled: isLocked }}
-                  style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
-                >
-                  <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
-                </TouchableOpacity>
+                {/* `closeAccount` refuses every id in MIRRORED_ACCOUNT_IDS
+                    ("Your primary checking and savings accounts cannot be
+                    closed"), so offering Close on the legacy savings account
+                    renders a control that can only ever fail. `AccountRow`
+                    already drops it for the same reason; this detail view is a
+                    separate component and needed the same guard. Caught by
+                    driving the real app, not by the suite. */}
+                {account.id !== LEGACY_SAVINGS_ACCOUNT_ID && (
+                  <TouchableOpacity
+                    onPress={() => confirmCloseAccount(account)}
+                    disabled={isLocked}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Close ${account.name}`}
+                    accessibilityState={{ disabled: isLocked }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}

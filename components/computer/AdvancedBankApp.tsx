@@ -1008,16 +1008,21 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 >
                   <Text style={[styles.secondaryText, { color: theme.text }]}>Withdraw</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => confirmCloseAccount(account)}
-                  disabled={isLocked}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Close ${account.name}`}
-                  accessibilityState={{ disabled: isLocked }}
-                  style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
-                >
-                  <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
-                </TouchableOpacity>
+                {/* Same guard as the phone BankApp: `closeAccount` refuses the
+                    mirrored ids, so Close on the legacy savings account is a
+                    button that can only fail. */}
+                {account.id !== LEGACY_SAVINGS_ACCOUNT_ID && (
+                  <TouchableOpacity
+                    onPress={() => confirmCloseAccount(account)}
+                    disabled={isLocked}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Close ${account.name}`}
+                    accessibilityState={{ disabled: isLocked }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
