@@ -843,6 +843,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   // ---- Network detail (list → detail page) ----------------------------------
   const renderNetworkDetail = (c: ContactView) => {
     const { Icon, color } = kindMeta(c.kind);
+    // Derived once, before the JSX — an IIFE in the tree recomputed these on
+    // every render and rebuilt the press handler with them.
+    const favorKind = FAVOR_KIND_BY_CONTACT[c.kind];
+    const owedFavor = open.find((f) => f.contactId === c.id);
+    const tooDistant = c.strength < NETWORK_FAVOR_MIN_STRENGTH;
+    const askDisabled = !!owedFavor || tooDistant;
+    const onAskFavor = () => handleAskFavor(c);
     return (
       <ScrollView
         style={styles.flex1}
@@ -895,39 +902,32 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         {/* X-2: the one thing you can actually DO with a network contact.
             Everything above this was read-only — the report's complaint was
             that vendors and politicals "can't [be] associate[d] with". */}
-        {(() => {
-          const favorKind = FAVOR_KIND_BY_CONTACT[c.kind];
-          if (!favorKind) return null;
-          const owed = open.find((f) => f.contactId === c.id);
-          const tooDistant = c.strength < NETWORK_FAVOR_MIN_STRENGTH;
-          const disabled = !!owed || tooDistant;
-          return (
-            <View style={cardSurface}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Call in a favour</Text>
-              <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-                {owed
-                  ? `${c.name} already owes you a ${owed.kind}. Redeem it from the Favors tab.`
-                  : tooDistant
-                    ? `Needs ${NETWORK_FAVOR_MIN_STRENGTH} standing — you are at ${Math.round(c.strength)}.`
-                    : `${c.name} can owe you a ${favorKind}. One at a time.`}
+        {favorKind ? (
+          <View style={cardSurface}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Call in a favour</Text>
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
+              {owedFavor
+                ? `${c.name} already owes you a ${owedFavor.kind}. Redeem it from the Favors tab.`
+                : tooDistant
+                  ? `Needs ${NETWORK_FAVOR_MIN_STRENGTH} standing — you are at ${Math.round(c.strength)}.`
+                  : `${c.name} can owe you a ${favorKind}. One at a time.`}
+            </Text>
+            <TouchableOpacity
+              style={[styles.triageBtn, getGlassButton(darkMode), askDisabled && { opacity: 0.5 }]}
+              onPress={onAskFavor}
+              disabled={askDisabled}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Ask ${c.name} for a ${favorKind}`}
+              accessibilityState={{ disabled: askDisabled }}
+            >
+              <Handshake size={scale(15)} color={theme.text} />
+              <Text style={[styles.triageBtnText, { color: theme.text }]}>
+                {owedFavor ? 'Favour outstanding' : `Ask for a ${favorKind}`}
               </Text>
-              <TouchableOpacity
-                style={[styles.triageBtn, getGlassButton(darkMode), disabled && { opacity: 0.5 }]}
-                onPress={() => handleAskFavor(c)}
-                disabled={disabled}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={`Ask ${c.name} for a ${favorKind}`}
-                accessibilityState={{ disabled }}
-              >
-                <Handshake size={scale(15)} color={theme.text} />
-                <Text style={[styles.triageBtnText, { color: theme.text }]}>
-                  {owed ? 'Favour outstanding' : `Ask for a ${favorKind}`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <TouchableOpacity
           style={[styles.triageBtn, getGlassButton(darkMode)]}
           onPress={handleBack}

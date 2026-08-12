@@ -189,6 +189,65 @@ describe('redeeming a non-money favour actually does something', () => {
     expect(openFavors(stub.current().favorLedger!)).toHaveLength(0);
   });
 
+  it('refuses a favour that is past its expiry, even if the tick has not stamped it', () => {
+    /**
+     * `expireFavors` runs in the weekly tick, so between the expiry week
+     * arriving and the next tick a favour sits `open` with `expiresWeek` behind
+     * it. Without this guard the payout still landed — a deadline that only
+     * binds if a tick happened to run is not a deadline. Only reachable at all
+     * because network favours introduced expiries the player holds for weeks.
+     */
+    const start = base({
+      weeksLived: 200, // well past the favour's expiry
+      favorLedger: { favors: [favorOf('influence', { expiresWeek: 112 })] },
+    });
+    const stub = createSetGameStateStub(start);
+    const r = redeemFavor(start, stub.setGameState, 'f-influence');
+
+    expect(r.success).toBe(false);
+    expect(stub.current().stats.reputation).toBe(50); // no payout
+    expect(openFavors(stub.current().favorLedger!)).toHaveLength(1); // still open, not consumed
+  });
+
+  it('a favour still inside its window redeems normally (the control)', () => {
+    const start = base({
+      weeksLived: 105,
+      favorLedger: { favors: [favorOf('influence', { expiresWeek: 112 })] },
+    });
+    const stub = createSetGameStateStub(start);
+
+    expect(redeemFavor(start, stub.setGameState, 'f-influence').success).toBe(true);
+    expect(stub.current().stats.reputation).toBe(50 + INFLUENCE_FAVOR_REPUTATION);
+  });
+
+  it('an introduced contact is a COMPLETE relationship, not a partial cast', () => {
+    // `personality`, `gender` and `age` are required by the contract and were
+    // omitted behind an `as Relationship`. This record is persisted and read by
+    // the weekly health pass, Contacts and the family tree.
+    const start = base({ favorLedger: { favors: [favorOf('intro')] } });
+    const stub = createSetGameStateStub(start);
+    redeemFavor(start, stub.setGameState, 'f-intro');
+
+    const made = (stub.current().relationships ?? []).find((r) => r.id.startsWith('intro-'));
+    expect(made).toBeDefined();
+    for (const field of ['personality', 'gender', 'age'] as const) {
+      expect(`${field}: ${made?.[field] !== undefined}`).toBe(`${field}: true`);
+    }
+    expect(['male', 'female']).toContain(made!.gender);
+    expect(made!.age).toBeGreaterThan(17);
+  });
+
+  it('the same introduction is the same person on every load', () => {
+    // Derived from the favour, not rolled — `Math.random()` here would give the
+    // player a different friend each time the state was rebuilt.
+    const once = applyNonMoneyFavor(base(), favorOf('intro'));
+    const twice = applyNonMoneyFavor(base(), favorOf('intro'));
+    const a = (once?.relationships ?? []).at(-1);
+    const b = (twice?.relationships ?? []).at(-1);
+
+    expect(a).toEqual(b);
+  });
+
   it('a double-tap redeem pays once', () => {
     const start = base({ favorLedger: { favors: [favorOf('influence')] } });
     const stub = createSetGameStateStub(start);

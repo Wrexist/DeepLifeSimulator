@@ -247,11 +247,17 @@ export const netWorth = (state: GameState): number => {
    * path anywhere in the game, and every other term here is what an asset would
    * actually pay out. An item you can never sell has no realisable value.
    */
-  const btcPrice = Number((state.cryptos ?? []).find((c) => c?.id === 'btc')?.price);
-  const cleanBtc = Number(state.darkWeb?.cleanBtc);
+  const rawBtcPrice = (state.cryptos ?? []).find((c) => c?.id === 'btc')?.price;
+  const rawCleanBtc = state.darkWeb?.cleanBtc;
+  // `typeof === 'number'` rather than `Number(x)`: the coercing form credits a
+  // persisted STRING like "2", which is exactly the corrupt-save shape the
+  // surrounding guards exist to reject. The product is clamped because two
+  // individually-finite values can still multiply to Infinity, and the
+  // isFinite sweep further down would then silently zero the whole term.
   const darkWebBtcValue =
-    isFinite(btcPrice) && btcPrice > 0 && isFinite(cleanBtc) && cleanBtc > 0
-      ? cleanBtc * btcPrice
+    typeof rawBtcPrice === 'number' && isFinite(rawBtcPrice) && rawBtcPrice > 0 &&
+    typeof rawCleanBtc === 'number' && isFinite(rawCleanBtc) && rawCleanBtc > 0
+      ? Math.min(MAX_SAFE_VALUE, rawCleanBtc * rawBtcPrice)
       : 0;
 
   /**

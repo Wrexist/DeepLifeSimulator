@@ -115,6 +115,24 @@ describe('it degrades rather than poisoning the total', () => {
     }
   });
 
+  it('a numeric STRING gets no credit', () => {
+    // `Number('2')` is 2, so a coercing guard would have paid out on a corrupt
+    // persisted value. The whole point of the surrounding validation is to
+    // reject shapes a real save never produces.
+    const strung = netWorth(launderer({ darkWeb: { cleanBtc: '2', dirtyBtc: 0 } }));
+    const zero = netWorth(launderer({ darkWeb: { cleanBtc: 0, dirtyBtc: 0 } }));
+
+    expect(strung).toBe(zero);
+  });
+
+  it('an oversized but finite balance stays finite', () => {
+    // Two individually-finite numbers can still multiply to Infinity, and the
+    // isFinite sweep downstream would then silently zero the entire term.
+    const huge = netWorth(launderer({ darkWeb: { cleanBtc: 1e300, dirtyBtc: 0 } }));
+    expect(Number.isFinite(huge)).toBe(true);
+    expect(huge).toBeGreaterThan(0);
+  });
+
   it('contributes 0 when no BTC price is available to value it against', () => {
     // Without a priced BTC entry there is no honest conversion, so the term
     // drops out rather than guessing.

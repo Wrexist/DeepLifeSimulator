@@ -238,6 +238,22 @@ export function redeemFavor(
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
     if (!fresh || fresh.status !== 'open') return prev; // already redeemed this batch
 
+    /**
+     * Past its expiry counts as closed even if the tick has not stamped it yet.
+     *
+     * `expireFavors` runs in the weekly tick, so between the expiry week
+     * arriving and the next tick a favour sits `open` with `expiresWeek` behind
+     * it — and this path would happily pay it out. That gap only became
+     * reachable when network favours introduced expiries the player can hold
+     * for weeks. Refusing here makes the deadline mean the same thing whether
+     * or not a tick has run.
+     */
+    const nowWeek = prev.weeksLived ?? 0;
+    if (fresh.expiresWeek !== undefined && nowWeek >= fresh.expiresWeek) {
+      log.info(`Favor ${favorId} is past its expiry (week ${fresh.expiresWeek})`);
+      return prev;
+    }
+
     // Cash IOU owed-to-player → validate the amount BEFORE flipping. If the
     // value is invalid (NaN/Infinity/≤0), keep the favor open rather than
     // closing it without paying out — a redeemed-but-unpaid IOU is unrecoverable.
@@ -419,9 +435,25 @@ export const FAVOR_KIND_BY_CONTACT: Record<string, Favor['kind']> = {
   employee: 'safety',
 };
 
-/** One stable id per contact per week, so a double-tap cannot mint two. */
+/**
+ * One stable id per contact per week, so a double-tap cannot mint two.
+ *
+ * @param contactId - the aggregated contact's id
+ * @param week - `weeksLived` at the moment of asking
+ * @returns a deterministic favour id
+ */
 export const networkFavorId = (contactId: string, week: number): string =>
   `network-favor-${contactId}-${week}`;
+
+/** The minimum a caller must know about a contact to ask it for a favour. */
+export interface NetworkFavorContact {
+  id: string;
+  name: string;
+  /** `ContactKind` from the aggregator — matched against FAVOR_KIND_BY_CONTACT. */
+  kind: string;
+  /** 0..100, derived per source system by `aggregateContacts`. */
+  strength: number;
+}
 
 export interface AskFavorResult {
   success: boolean;
@@ -444,7 +476,7 @@ export interface AskFavorResult {
 export function askNetworkFavor(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  contact: { id: string; name: string; kind: string; strength: number }
+  contact: NetworkFavorContact
 ): AskFavorResult {
   const kind = FAVOR_KIND_BY_CONTACT[contact.kind];
   if (!kind) {
@@ -537,6 +569,19 @@ export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | n
     case 'intro': {
       const id = `intro-${favor.contactId}-${favor.createdWeek}`;
       if ((prev.relationships ?? []).some((r) => r.id === id)) return null;
+      /**
+       * A COMPLETE record. The first cut supplied four fields and reached for
+       * `as Relationship` to silence the rest — but `personality`, `gender` and
+       * `age` are required, and this object is persisted into `relationships`
+       * where the weekly health pass, the Contacts app and the family tree all
+       * read it. A cast that makes a partial record compile does not make the
+       * consumers safe; it just moves the failure to whoever reads it first.
+       *
+       * The traits are derived from the favour rather than rolled, so the same
+       * introduction is the same person on every load — `Math.random()` here
+       * would re-roll them on a reload.
+       */
+      const seed = hashString(`${favor.contactId}:${favor.createdWeek}`);
       const introduced: Relationship = {
         id,
         name: introNameFor(favor),
@@ -544,12 +589,26 @@ export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | n
         // Same starting score as a Spark-promoted friend: known, not close, and
         // comfortably clear of the neglect threshold.
         relationshipScore: 45,
-      } as Relationship;
+        personality: INTRO_PERSONALITIES[seed % INTRO_PERSONALITIES.length],
+        gender: seed % 2 === 0 ? 'male' : 'female',
+        // A professional introduction is a working adult, not a classmate.
+        age: 28 + (seed % 22),
+      };
       return { ...prev, relationships: [...(prev.relationships ?? []), introduced] };
     }
     default:
       return null;
   }
+}
+
+/** Personalities an introduced contact can have. Indexed deterministically. */
+const INTRO_PERSONALITIES = ['ambitious', 'friendly', 'analytical', 'charming', 'reserved'] as const;
+
+/** Stable non-cryptographic hash, so an introduction is the same person on every load. */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
 }
 
 /** Cash a `discount` favor is worth — its value, validated. */

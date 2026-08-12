@@ -120,13 +120,19 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
    * reopen the exact gap this module exists to close — the headline counting a
    * term the itemised list below it does not.
    */
-  const btcPrice = Number((gameState.cryptos ?? []).find((c) => c?.id === 'btc')?.price);
-  const cleanBtc = Number(gameState.darkWeb?.cleanBtc);
-  if (isFinite(btcPrice) && btcPrice > 0 && isFinite(cleanBtc) && cleanBtc > 0) {
+  // Same strict validation as the canonical `netWorth()` — `typeof === 'number'`
+  // rather than `Number(x)`, so a persisted string like "2" gets no row, and the
+  // product clamped so two finite values cannot multiply to Infinity.
+  const btcPrice = (gameState.cryptos ?? []).find((c) => c?.id === 'btc')?.price;
+  const cleanBtc = gameState.darkWeb?.cleanBtc;
+  if (
+    typeof btcPrice === 'number' && isFinite(btcPrice) && btcPrice > 0 &&
+    typeof cleanBtc === 'number' && isFinite(cleanBtc) && cleanBtc > 0
+  ) {
     assets.push({
       id: 'darkweb_clean_btc',
       type: 'investment',
-      baseValue: cleanBtc * btcPrice,
+      baseValue: Math.min(Number.MAX_SAFE_INTEGER, cleanBtc * btcPrice),
       group: 'crypto',
       rowName: 'Bitcoin (laundered)',
     });

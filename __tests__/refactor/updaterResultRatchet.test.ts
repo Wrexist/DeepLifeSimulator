@@ -94,6 +94,33 @@ const ACTIONS_DIR = path.join(__dirname, '..', '..', 'contexts/game/actions');
  * ratchet needs. A function that captures into `let result` is excluded because
  * that is the fixed shape.
  */
+/**
+ * Does this post-updater tail report success no matter what happened inside?
+ *
+ * Two spellings. The statement form is what the detector always saw. The
+ * ternary form is what it could not:
+ *
+ *     return cond ? { success: true, … } : { success: true, … };
+ *
+ * an unconditional success wearing a conditional's clothes (`buyMarketListing`,
+ * BBQ report M-1).
+ *
+ * Each ternary is judged on its OWN statement, cut at its terminating `;`. An
+ * earlier version tested `success: false` across the whole remaining tail,
+ * which cut both ways: an unrelated failure return AFTER an all-success ternary
+ * suppressed a real detection, and a failure branch belonging to a LATER
+ * ternary could mask an earlier all-success one. A detector whose answer
+ * depends on unrelated code further down the file is the same disease as the
+ * fixed byte window it replaced.
+ */
+export function reportsUnconditionalSuccess(afterUpdater: string): boolean {
+  if (/\n\s*return \{\s*\n?\s*success: true/.test(afterUpdater)) return true;
+  return [...afterUpdater.matchAll(/\n\s*return [^;]*\?[\s\S]*?;/g)].some((m) => {
+    const statement = m[0];
+    return /success:\s*true/.test(statement) && !/success:\s*false/.test(statement);
+  });
+}
+
 function suspects(): string[] {
   const found: string[] = [];
 
@@ -144,10 +171,7 @@ function suspects(): string[] {
        * `granted > 0 ? success : failure` — is a REAL conditional outcome, i.e.
        * the fixed shape, and must not be counted.
        */
-      const stmt = /\n\s*return \{\s*\n?\s*success: true/.test(afterUpdater);
-      const ternaryAt = afterUpdater.search(/\n\s*return [^;]*\?[\s\S]*?success:\s*true/);
-      const ternary = ternaryAt !== -1 && !/success:\s*false/.test(afterUpdater.slice(ternaryAt));
-      if (!stmt && !ternary) continue;
+      if (!reportsUnconditionalSuccess(afterUpdater)) continue;
 
       /**
        * Exclude anything already using the fixed shape.
@@ -305,6 +329,50 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(`any false branch: ${branches.some((b) => b.includes('false'))}`).toBe(
       'any false branch: false',
     );
+  });
+
+  /**
+   * The scoping, tested on synthetic tails.
+   *
+   * The real-file tests above cannot reach the interesting case — a tree that
+   * happens not to contain an all-success ternary NEXT TO an unrelated failure
+   * return proves nothing about whether the two interfere.
+   */
+  describe('each ternary is judged on its own statement', () => {
+    it('an all-success ternary still counts when an unrelated failure follows it', () => {
+      const tail = [
+        'setGameState((prev) => prev);',
+        '',
+        '  return ok ? { success: true, a: 1 } : { success: true, a: 2 };',
+        '',
+        '  return { success: false, message: "unrelated" };',
+      ].join('\n');
+      expect(reportsUnconditionalSuccess(tail)).toBe(true);
+    });
+
+    it('and still counts when an unrelated failure PRECEDES it', () => {
+      const tail = [
+        'setGameState((prev) => prev);',
+        '',
+        '  return { success: false, message: "unrelated" };',
+        '',
+        '  return ok ? { success: true, a: 1 } : { success: true, a: 2 };',
+      ].join('\n');
+      expect(reportsUnconditionalSuccess(tail)).toBe(true);
+    });
+
+    it('a ternary with a real failure branch never counts', () => {
+      const tail = [
+        'setGameState((prev) => prev);',
+        '',
+        '  return granted > 0 ? { success: true, a: 1 } : { success: false, a: 0 };',
+      ].join('\n');
+      expect(reportsUnconditionalSuccess(tail)).toBe(false);
+    });
+
+    it('a tail with no success return at all does not count', () => {
+      expect(reportsUnconditionalSuccess('setGameState((prev) => prev);\n  return next;')).toBe(false);
+    });
   });
 
   it('does NOT flag a ternary that can actually report failure (the control)', () => {
