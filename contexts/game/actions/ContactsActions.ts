@@ -18,6 +18,7 @@ import {
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
+import { clampStatByKey } from '@/utils/statUtils';
 
 const log = logger.scope('ContactsActions');
 
@@ -263,11 +264,26 @@ export function redeemFavor(
       return { ...flipped, ...credit };
     }
 
-    // Non-money favor → just flip the ledger.
+    /**
+     * Non-money favor → apply its EFFECT, then flip the ledger.
+     *
+     * This used to flip and nothing else, which meant `influence`, `discount`,
+     * `safety` and `intro` were four favor kinds whose Redeem button changed a
+     * label and no state. Nothing produced them at the time, so it was
+     * invisible; `askNetworkFavor` (X-2) makes them reachable, and a reachable
+     * no-op is a lie the player can see.
+     *
+     * `applyNonMoneyFavor` returns null when the effect would be a genuine
+     * no-op — reputation already at the cap, no heat to clear, an intro already
+     * made. The favor still closes: the contact HAS done the thing, and leaving
+     * it open would let the player farm the same IOU until the state happened
+     * to move.
+     */
+    const withEffect = applyNonMoneyFavor(prev, fresh) ?? prev;
     redeemed = true;
     return {
-      ...prev,
-      favorLedger: redeemFavorPure(prevLedger, favorId),
+      ...withEffect,
+      favorLedger: redeemFavorPure(ledgerOf(withEffect), favorId),
     } as GameState;
   });
   if (!redeemed) {
@@ -348,4 +364,205 @@ export function tickFavors(
     if (after === before) return prev;
     return { ...prev, favorLedger: after } as GameState;
   });
+}
+
+// ---------------------------------------------------------------------------
+// X-2 — network contacts you can actually deal with
+// ---------------------------------------------------------------------------
+
+/**
+ * PLAYER REPORT (BBQ, 2026-08-11): "Contacts are vendors which you can't
+ * associate with (business, political)."
+ *
+ * He was right, and the gap was wider than the missing button. `favors.ts`
+ * declares four non-money favor kinds — `influence`, `discount`, `safety`,
+ * `intro` — explicitly for political and vendor contacts, and NOTHING in the
+ * game produced any of them. `ContactsApp` only ever created `money` favors,
+ * from personal contacts. So the network half of the Contacts app was a
+ * read-only directory: hero, Overview, Tags, "Back to network".
+ *
+ * The button alone would not have fixed it. `redeemFavor` handles a non-money
+ * favor by flipping the ledger entry and doing nothing else, so shipping an
+ * "Ask a favor" action on its own would have produced a Redeem button that
+ * changes a label and no state — the same "UI names an outcome the code does
+ * not produce" defect this whole audit is about, freshly minted. So the ask and
+ * the payoff land together.
+ *
+ * Everything here rides on state that already exists. No new field, no
+ * migration: the cooldown IS the ledger (one open favor per contact), and each
+ * payoff routes through a system already in the save.
+ */
+
+/** How long an unredeemed network favor stays callable. */
+export const NETWORK_FAVOR_EXPIRY_WEEKS = 12;
+
+/** Standing a network contact needs before they will owe you anything. */
+export const NETWORK_FAVOR_MIN_STRENGTH = 40;
+
+/** Reputation granted by an `influence` favor. */
+export const INFLUENCE_FAVOR_REPUTATION = 6;
+
+/** Dark-web heat cleared by a `safety` favor. */
+export const SAFETY_FAVOR_HEAT_RELIEF = 20;
+
+/**
+ * What each kind of network contact can be asked for.
+ *
+ * Personal kinds (`family`, `partner`, `friend`) are absent on purpose — they
+ * already have Call / Hang Out / lend, and `money` is their favor.
+ */
+export const FAVOR_KIND_BY_CONTACT: Record<string, Favor['kind']> = {
+  lobbyist: 'influence',
+  alliance: 'influence',
+  vendor: 'discount',
+  business: 'intro',
+  employee: 'safety',
+};
+
+/** One stable id per contact per week, so a double-tap cannot mint two. */
+export const networkFavorId = (contactId: string, week: number): string =>
+  `network-favor-${contactId}-${week}`;
+
+export interface AskFavorResult {
+  success: boolean;
+  message: string;
+  favorId?: string;
+}
+
+/**
+ * Ask a network contact to owe you one.
+ *
+ * Scarcity without a new save field: a contact can carry only ONE open favor at
+ * a time, and it expires. "You cannot call in a second favor while the first is
+ * outstanding" is both the natural rule and, conveniently, already recorded in
+ * the ledger — so the cooldown needs nowhere to live.
+ *
+ * `strength` is passed in rather than read here because it is DERIVED per
+ * source system (lobbyist retainer, vendor reputation, company headcount) and
+ * has no single home on `GameState`; `aggregateContacts` is what knows it.
+ */
+export function askNetworkFavor(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contact: { id: string; name: string; kind: string; strength: number }
+): AskFavorResult {
+  const kind = FAVOR_KIND_BY_CONTACT[contact.kind];
+  if (!kind) {
+    return { success: false, message: 'This contact is not part of your network.' };
+  }
+  if (!isFinite(contact.strength) || contact.strength < NETWORK_FAVOR_MIN_STRENGTH) {
+    return {
+      success: false,
+      message: `${contact.name} does not know you well enough yet.`,
+    };
+  }
+
+  const week = gameState.weeksLived ?? 0;
+  const ledger = ledgerOf(gameState);
+  if (ledger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
+    return { success: false, message: `${contact.name} already owes you one.` };
+  }
+
+  const id = networkFavorId(contact.id, week);
+  // Pessimistic capture: the authoritative checks are re-run against `prev`
+  // inside the updater, so a second tap in the same React batch reports the
+  // refusal rather than a success it did not get (C-9).
+  let outcome: AskFavorResult = { success: false, message: 'Could not ask right now.' };
+
+  setGameState((prev) => {
+    if (prev.showDeathPopup) return prev;
+    const prevLedger = ledgerOf(prev);
+    if (prevLedger.favors.some((f) => f.id === id)) return prev;
+    if (prevLedger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
+      return prev;
+    }
+    const prevWeek = prev.weeksLived ?? 0;
+    const favor: Omit<Favor, 'status'> = {
+      id,
+      contactId: contact.id,
+      direction: 'owed-to-player',
+      kind,
+      // Scales with standing, so a stronger contact is worth more to know.
+      value: Math.max(1, Math.round(contact.strength)),
+      createdWeek: prevWeek,
+      expiresWeek: prevWeek + NETWORK_FAVOR_EXPIRY_WEEKS,
+      note: `${contact.name} owes you a ${kind}`,
+    };
+    outcome = { success: true, message: `${contact.name} owes you a ${kind}.`, favorId: id };
+    return { ...prev, favorLedger: addFavorPure(prevLedger, favor) } as GameState;
+  });
+
+  if (outcome.success) log.info(`Network favor asked: ${id} (${kind})`);
+  return outcome;
+}
+
+/**
+ * The payoff for a non-money favor.
+ *
+ * Returns the state delta a redemption should apply, or `null` for kinds with
+ * no effect. Pure and exported so the redeem path and any preview read ONE
+ * definition — the thing that keeps a button's promise and its result from
+ * drifting (the lesson from the acquisition modal).
+ *
+ *   influence → reputation. A political ask cashed in as standing.
+ *   safety    → dark-web heat relief. Protection, which is what `safety` means.
+ *   discount  → the markdown, paid as cash. The vendor owed you a better price;
+ *               you are collecting it after the fact.
+ *   intro     → a new friend. An introduction that produces a person is the
+ *               only honest reading, and relationship creation already exists
+ *               (X-3's `promoteMatchToFriend` built the same shape).
+ */
+export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | null {
+  switch (favor.kind) {
+    case 'influence': {
+      const current = prev.stats?.reputation ?? 0;
+      const next = clampStatByKey('reputation', current + INFLUENCE_FAVOR_REPUTATION);
+      if (next === current) return null;
+      return { ...prev, stats: { ...prev.stats, reputation: next } };
+    }
+    case 'safety': {
+      const dw = prev.darkWeb;
+      if (!dw) return null;
+      const heat = typeof dw.heat === 'number' && isFinite(dw.heat) ? dw.heat : 0;
+      const next = Math.max(0, heat - SAFETY_FAVOR_HEAT_RELIEF);
+      if (next === heat) return null;
+      return { ...prev, darkWeb: { ...dw, heat: next } };
+    }
+    case 'discount': {
+      // Routed through applyMoneyDelta so it respects MONEY_CEILING and lands
+      // in dailySummary like every other credit.
+      const credit = applyMoneyDelta(prev, favorPayout(favor), `Vendor discount from ${favor.contactId}`);
+      return credit ? { ...prev, ...credit } : null;
+    }
+    case 'intro': {
+      const id = `intro-${favor.contactId}-${favor.createdWeek}`;
+      if ((prev.relationships ?? []).some((r) => r.id === id)) return null;
+      const introduced: Relationship = {
+        id,
+        name: introNameFor(favor),
+        type: 'friend',
+        // Same starting score as a Spark-promoted friend: known, not close, and
+        // comfortably clear of the neglect threshold.
+        relationshipScore: 45,
+      } as Relationship;
+      return { ...prev, relationships: [...(prev.relationships ?? []), introduced] };
+    }
+    default:
+      return null;
+  }
+}
+
+/** Cash a `discount` favor is worth — its value, validated. */
+function favorPayout(favor: Favor): number {
+  const v = Number(favor.value);
+  if (!isFinite(v) || v <= 0) return 0;
+  // The stored value is standing (1..100); a discount is worth real money, so
+  // scale it into a sum that reads as a markdown rather than pocket change.
+  return Math.round(Math.min(100, v) * 250);
+}
+
+/** A name for someone introduced through the network. */
+function introNameFor(favor: Favor): string {
+  const from = favor.note?.replace(/ owes you a .*$/, '') ?? 'A contact';
+  return `${from}'s associate`;
 }

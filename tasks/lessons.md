@@ -2276,3 +2276,50 @@ right without ego — the stale-closure fix was better than mine. And check
 whether it duplicated a rule rather than centralising one, because a fixer
 optimises for the file it was pointed at and cannot see that two files now
 disagree.
+
+## 2026-08-12 — Wiring up a dead feature promotes its dead ends too
+
+X-2 asked for one button: network contacts in the Contacts app had no action at
+all. The button was the easy half. `favors.ts` had declared `influence`,
+`discount`, `safety` and `intro` for exactly these contacts, and `redeemFavor`
+handled every non-money kind by flipping the ledger entry and doing **nothing
+else**. Nothing produced those kinds, so the no-op had never been reachable.
+
+Shipping the ask alone would have produced a Redeem button that changes a label
+and no state — a brand-new instance of the defect the whole audit was about,
+created by fixing a different instance of it.
+
+**Rule.** Before giving dead code a caller, read what happens AFTER the call,
+not just at it. This is the same lesson as C-1/R-2 (`buyDarkWebItem` had a
+latent gate-then-grant that only mattered once the Gear tab existed), one level
+further out: there, wiring exposed a bug in the callee; here, wiring would have
+exposed a *hole* in the callee's downstream. A dormant path's guarantees have
+never been tested by anything. Check the whole chain the feature will light up.
+
+Corollary that saved this one: when a type declares variants "for" a feature,
+assert the mapping in BOTH directions — every consumer kind has a producer, and
+every declared kind has a producer. One-directional coverage is how four favor
+kinds sat in the type system for months with no way to create them.
+
+## 2026-08-12 — A ratchet anchored on byte distance is not a ratchet
+
+The C-9 detector selected its search region with `body.slice(-900)`. Three
+functions belonged to the class it counts and were invisible: one because its
+success return was a ternary rather than a statement, two because a long
+trailing comment pushed their success return past the 900th character from the
+end. The count read 62 for months and the truth was 65.
+
+Membership that changes with how much prose follows a function is noise. The
+fix was to anchor on MEANING — everything after the last `setGameState(` call,
+which is precisely "what this returns once the updater is handed off", the shape
+being counted.
+
+**Rule.** Fixed-size windows and `indexOf` slices are the recurring way a guard
+in this repo comes to test nothing (this is the third: `updaterResultRatchet`'s
+6000-char control, `crimeToolsReachable`'s unguarded `indexOf`, now this).
+Anchor on a construct, assert the anchor was found, and prefer a semantic
+boundary over a byte count.
+
+And when a widened detector finds MORE, that is the detector improving, not a
+regression — but say so explicitly at the constant, or the next reader reads a
+raised ratchet as someone getting a build unstuck.
