@@ -10,6 +10,7 @@
  * `green_energy` is the fixture: an `environmental` bill at $50,000, level 2.
  */
 import { createTestGameState } from '../helpers/createTestGameState';
+import { initialGameState } from '@/contexts/game/initialState';
 import { createSetGameStateStub } from '../helpers/setGameStateStub';
 import { enactPolicy } from '@/contexts/game/actions/PoliticalActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -21,19 +22,33 @@ const POLICY_ID = 'green_energy';
 const STICKER = getPolicyById(POLICY_ID)!.implementationCost;
 const deps = { updateMoney, updateStats };
 
+/**
+ * The politics slice is optional on `GameState` but shipped in `initialState`,
+ * so the fixture builds on the real one rather than a partial literal behind a
+ * cast — a cast here would let a renamed `PoliticsState` field go on silently
+ * not being set (Hard Rule #3).
+ */
+function requireSlice<T>(slice: T | undefined, name: string): T {
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  return slice;
+}
+
+const BASE_POLITICS = requireSlice(initialGameState.politics, 'politics');
+
 function politician(over: { influence?: number; lobbyists?: string[]; money?: number } = {}): GameState {
-  const base = createTestGameState();
   return createTestGameState({
     weeksLived: 200,
-    stats: { ...base.stats, money: over.money ?? 10_000_000 },
+    stats: { money: over.money ?? 10_000_000 },
     politics: {
-      ...(base.politics ?? {}),
+      ...BASE_POLITICS,
       careerLevel: 5,
       policyInfluence: over.influence ?? 0,
       policiesEnacted: [],
       activePolicies: [],
+      // Only `id` is read — the discount is derived from the CATALOGUE, keyed by
+      // id, which is why making specialty real needed no save change.
       lobbyists: (over.lobbyists ?? []).map((id) => ({ id, name: id, cost: 0, influence: 0, active: true })),
-    } as never,
+    },
   });
 }
 
@@ -143,12 +158,11 @@ describe('the quoted price is the charged price', () => {
   });
 
   it('degrades to the sticker price on a save with no politics slice', () => {
-    const base = createTestGameState();
     const noPolitics = createTestGameState({
       weeksLived: 200,
-      stats: { ...base.stats, money: 10_000_000 },
+      stats: { money: 10_000_000 },
       politics: undefined,
-    } as never);
+    });
     const stub = createSetGameStateStub(noPolitics);
 
     // No career level, so it is refused — but it must be refused cleanly with a

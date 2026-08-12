@@ -22,7 +22,8 @@
  * Hence the redemption-effect tests below carry the weight. An "ask" that books
  * a row is easy; a favor that pays out is the feature.
  */
-import { createTestGameState } from '../helpers/createTestGameState';
+import { createTestGameState, type TestGameStateOverrides } from '../helpers/createTestGameState';
+import { initialGameState } from '@/contexts/game/initialState';
 import { createSetGameStateStub } from '../helpers/setGameStateStub';
 import {
   askNetworkFavor,
@@ -38,15 +39,22 @@ import { openFavors } from '@/lib/contacts/favors';
 import type { Favor } from '@/lib/contacts/favors';
 import type { GameState } from '@/contexts/game/types';
 
+function requireSlice<T>(slice: T | undefined, name: string): T {
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  return slice;
+}
+
+const BASE_DARK_WEB = requireSlice(initialGameState.darkWeb, 'darkWeb');
+
 const LOBBYIST = { id: 'lob-1', name: 'Dana Reyes', kind: 'lobbyist', strength: 70 };
 
-function base(over: Record<string, unknown> = {}): GameState {
+function base(over: TestGameStateOverrides = {}): GameState {
   return createTestGameState({
     weeksLived: 100,
     stats: { money: 10_000, reputation: 50 },
     favorLedger: { favors: [] },
     ...over,
-  } as unknown as Partial<GameState>);
+  });
 }
 
 const favorOf = (kind: Favor['kind'], over: Partial<Favor> = {}): Favor => ({
@@ -148,7 +156,7 @@ describe('redeeming a non-money favour actually does something', () => {
 
   it('safety clears dark-web heat', () => {
     const start = base({
-      darkWeb: { heat: 60, cleanBtc: 0, dirtyBtc: 0 },
+      darkWeb: { ...BASE_DARK_WEB, heat: 60, cleanBtc: 0, dirtyBtc: 0 },
       favorLedger: { favors: [favorOf('safety')] },
     });
     const stub = createSetGameStateStub(start);

@@ -15,9 +15,128 @@
  * portfolio, so a mount smoke could never have caught any of the four misses.
  */
 import { createTestGameState } from '../helpers/createTestGameState';
+import { initialGameState } from '@/contexts/game/initialState';
 import { buildNetWorthItemisation, NET_WORTH_GROUPS } from '@/utils/netWorthItemisation';
 import { LUXURY_CATALOG } from '@/lib/luxury';
-import type { GameState } from '@/contexts/game/types';
+import type {
+  GameState,
+  BankAccount,
+  Crypto,
+  DarkWebState,
+  Item,
+  Company,
+  RealEstate,
+  Vehicle,
+  Loan,
+} from '@/contexts/game/types';
+
+/**
+ * Every holding below is a COMPLETE record of its type.
+ *
+ * The fixture used to be one object literal behind
+ * `as unknown as Partial<GameState>`, and that single cast was hiding seven
+ * separate pieces of drift: a `'highYield'` account type that does not exist
+ * (the real member is `'highYieldSavings'`), a `history` key on `Crypto`, an
+ * `avgCost` on a stock holding, a `category` on `Item`, and partial `Company` /
+ * `RealEstate` / `Vehicle` / `Loan` records missing between four and thirteen
+ * required fields each.
+ *
+ * None of it failed, and that is the point: a fixture that sets fields the type
+ * does not have is a test asserting on something the game never produces.
+ * Hard Rule #3 exists for exactly this, and a cast walks straight past it.
+ */
+/**
+ * These slices are optional on `GameState` but shipped in `initialState`.
+ *
+ * A throw rather than a `?? {}` fallback: substituting an empty object would
+ * quietly rebuild the partial-slice problem this whole fixture rewrite removed,
+ * and it would do it silently.
+ */
+function requireSlice<T>(slice: T | undefined, name: string): T {
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  return slice;
+}
+
+const BASE_DARK_WEB = requireSlice(initialGameState.darkWeb, 'darkWeb');
+const BASE_BANKING = requireSlice(initialGameState.banking, 'banking');
+const BASE_STOCKS = requireSlice(initialGameState.stocks, 'stocks');
+
+const account = (over: Partial<BankAccount> & Pick<BankAccount, 'id' | 'type' | 'name' | 'balance'>): BankAccount => ({
+  baseAPR: 0,
+  openedWeek: 0,
+  ...over,
+});
+
+const BTC: Crypto = {
+  id: 'btc', symbol: 'BTC', name: 'Bitcoin', price: 60_000, change: 0, changePercent: 0, owned: 0.5,
+};
+
+const LAUNDERED: DarkWebState = { ...BASE_DARK_WEB, cleanBtc: 0.25, dirtyBtc: 3 };
+
+const LAPTOP: Item = { id: 'laptop', name: 'Laptop', price: 1_200, owned: true, description: '' };
+
+const ACME: Company = {
+  id: 'co-1',
+  name: 'Acme Co',
+  type: 'factory',
+  weeklyIncome: 2_000,
+  baseWeeklyIncome: 2_000,
+  upgrades: [],
+  employees: 0,
+  workerSalary: 0,
+  workerMultiplier: 1,
+  marketingLevel: 0,
+  miners: { basic: 2 },
+  warehouseLevel: 0,
+};
+
+const HOUSE: RealEstate = {
+  id: 'house-1',
+  name: 'Starter Home',
+  price: 200_000,
+  currentValue: 260_000,
+  owned: true,
+  weeklyHappiness: 0,
+  weeklyEnergy: 0,
+  interior: [],
+  upgradeLevel: 0,
+};
+
+const SEDAN: Vehicle = {
+  id: 'car-1',
+  name: 'Sedan',
+  type: 'car',
+  brand: 'Generic',
+  model: 'Sedan',
+  year: 2020,
+  price: 30_000,
+  condition: 80,
+  fuelLevel: 100,
+  fuelCapacity: 50,
+  fuelEfficiency: 30,
+  mileage: 20_000,
+  weeklyMaintenanceCost: 0,
+  weeklyFuelCost: 0,
+  maxSpeed: 120,
+  owned: true,
+  reputationBonus: 0,
+  speedBonus: 0,
+};
+
+const LOAN: Loan = {
+  id: 'loan-1',
+  name: 'Personal Loan',
+  principal: 20_000,
+  remaining: 15_000,
+  rateAPR: 0.1,
+  termWeeks: 104,
+  weeklyPayment: 200,
+  startWeek: 0,
+  autoPay: false,
+  type: 'personal',
+  weeksRemaining: 75,
+  interestRate: 0.1,
+};
 
 /** A player who holds something in EVERY group the modal can render. */
 function richState(): GameState {
@@ -26,36 +145,30 @@ function richState(): GameState {
     stats: { money: 12_500 },
     bankSavings: 40_000,
     banking: {
+      ...BASE_BANKING,
       accounts: [
         // The two mirrors — these must NOT produce rows; they duplicate the
         // cash and savings above.
-        { id: 'checking-default', type: 'checking', name: 'Checking', balance: 12_500, baseAPR: 0, openedWeek: 0 },
-        { id: 'savings-default', type: 'savings', name: 'Savings', balance: 40_000, baseAPR: 0.01, openedWeek: 0 },
-        { id: 'hy-1', type: 'highYield', name: 'High Yield', balance: 75_000, baseAPR: 0.04, openedWeek: 4 },
+        account({ id: 'checking-default', type: 'checking', name: 'Checking', balance: 12_500 }),
+        account({ id: 'savings-default', type: 'savings', name: 'Savings', balance: 40_000, baseAPR: 0.01 }),
+        account({ id: 'hy-1', type: 'highYieldSavings', name: 'High Yield', balance: 75_000, baseAPR: 0.04, openedWeek: 4 }),
       ],
     },
-    cryptos: [
-      { id: 'btc', symbol: 'BTC', name: 'Bitcoin', price: 60_000, owned: 0.5, history: [], change24h: 0 },
-    ],
+    cryptos: [BTC],
     // D-5: laundered proceeds are spendable BTC and must appear as a row, not
     // only in the total. Held here so the sum invariant covers them too.
-    darkWeb: { cleanBtc: 0.25, dirtyBtc: 3 },
+    darkWeb: LAUNDERED,
     stocks: {
-      holdings: [{ symbol: 'ACME', shares: 100, currentPrice: 42, avgCost: 30 }],
+      ...BASE_STOCKS,
+      holdings: [{ symbol: 'ACME', shares: 100, currentPrice: 42, averagePrice: 30 }],
     },
     luxuryItems: [luxuryId],
-    items: [{ id: 'laptop', name: 'Laptop', price: 1_200, owned: true, category: 'tech', description: '' }],
-    companies: [
-      { id: 'co-1', name: 'Acme Co', weeklyIncome: 2_000, miners: { basic: 2 } },
-    ],
-    realEstate: [
-      { id: 'house-1', name: 'Starter Home', price: 200_000, currentValue: 260_000, owned: true },
-    ],
-    vehicles: [
-      { id: 'car-1', name: 'Sedan', price: 30_000, condition: 80, mileage: 20_000 },
-    ],
-    loans: [{ id: 'loan-1', remaining: 15_000 }],
-  } as unknown as Partial<GameState>);
+    items: [LAPTOP],
+    companies: [ACME],
+    realEstate: [HOUSE],
+    vehicles: [SEDAN],
+    loans: [LOAN],
+  });
 }
 
 describe('every value in the headline is visible in a row', () => {
@@ -147,7 +260,7 @@ describe('debt still counts against the headline', () => {
 
 describe('an empty life produces an empty list, not a broken one', () => {
   it('no holdings → no rows, and no division by zero in the percentages', () => {
-    const broke = createTestGameState({ stats: { money: 0 }, bankSavings: 0 } as unknown as Partial<GameState>);
+    const broke = createTestGameState({ stats: { money: 0 }, bankSavings: 0 });
     const { rows, breakdown } = buildNetWorthItemisation(broke);
     // Assert the TITLE. The loop below alone proved nothing: an empty `rows`
     // never enters it, and a non-empty `rows` passes as long as the values are
