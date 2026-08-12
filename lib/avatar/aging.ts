@@ -3,8 +3,9 @@
  *
  * This is the reason the avatar is parameters at all. The old pool aged a
  * character by swapping them to a DIFFERENT pre-rendered person from the next
- * age bucket, which produced the "my character turned into someone else"
- * reports documented at length in `utils/facePool.ts`. Here the player's
+ * age bucket — a slot index is not an identity — which is what produced the
+ * "my character turned into someone else" reports. See
+ * `docs/avatar-art-direction-research.md`. Here the player's
  * chosen features never change — ageing only greys the hair, thins it, and
  * makes glasses likelier, so the same face grows old.
  *

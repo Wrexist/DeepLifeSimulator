@@ -18,13 +18,14 @@ import {
   buildStyleOptions,
   greyedHairHex,
 } from '@/lib/avatar/style';
-import { CLOTHING_COLORS, HAIR_COLORS, SKIN_TONES } from '@/lib/avatar/palette';
+import { CLOTHING_COLORS, HAIR_COLORS, NATURAL_HAIR_COUNT, SKIN_TONES } from '@/lib/avatar/palette';
 import { ageEffects, FACIAL_HAIR_MIN_AGE } from '@/lib/avatar/aging';
 import { avatarFromSeed, cycleField, normalizeAvatar, PICKER_LENGTHS, randomAvatar } from '@/lib/avatar/random';
 import { CODEC_MAX_INDEX, codecFitsCatalogs, decodeAvatar, encodeAvatar, FIELD_ORDER } from '@/lib/avatar/encode';
 import { inheritAvatar } from '@/lib/avatar/inherit';
 import { avatarSeedFor, resolveAvatar, resolveNpcAvatar, toAvatarSex } from '@/lib/avatar/resolve';
 import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
+import { childParentSources, resolveChildAvatar } from '@/lib/avatar/family';
 import type { AvatarConfig } from '@/lib/avatar/types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -76,15 +77,15 @@ describe('catalogs', () => {
     expect(CATALOG_SIZES.clothing).toBe(CLOTHING.length);
   });
 
-  it('orders mouths pleasant-first, which the generator weighting relies on', () => {
-    // `random.ts` treats the first four as the neutral-to-positive prefix. If
-    // this ordering changes, generated crowds start looking miserable.
-    expect(MOUTH_SHAPES.slice(0, 4).map((m) => m.value)).toEqual([
-      'default',
-      'smile',
-      'serious',
-      'twinkle',
-    ]);
+  it('offers no despondent expression as a permanent face', () => {
+    // This is the character's face for their whole life. Sadness is a state,
+    // not an identity — offering it produced characters who looked stricken at
+    // their own wedding.
+    const mouths = MOUTH_SHAPES.map((m) => m.value);
+    for (const bad of ['sad', 'concerned', 'disbelief']) {
+      expect(mouths).not.toContain(bad);
+    }
+    expect(mouths).toEqual(['default', 'smile', 'serious', 'twinkle']);
   });
 
   it('offers enough hair to feel like a choice', () => {
@@ -105,6 +106,26 @@ describe('palette', () => {
     // complaint. Guard the span rather than the exact values.
     const values = SKIN_TONES.map(luma);
     expect(Math.max(...values) - Math.min(...values)).toBeGreaterThan(120);
+  });
+
+  it('never lets the generator reach a grey or white hair colour', () => {
+    // Grey hair is how the game says "old". A generator that can pick it
+    // outright breaks that signal AND puts grey hair on children — which has
+    // now happened twice, once because NATURAL_HAIR_COUNT is an index count
+    // that shifts when an entry above it is removed. Assert the property, not
+    // the number.
+    const generatorRange = HAIR_COLORS.slice(0, NATURAL_HAIR_COUNT);
+    for (const hex of generatorRange) {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      const spread = Math.max(r, g, b) - Math.min(r, g, b);
+      // Desaturation only reads as GREY when it is also light — near-black hair
+      // is legitimately desaturated and must not trip this.
+      const readsAsGrey = spread < 24 && luma(hex) > 120;
+      const readsAsWhite = luma(hex) > 205;
+      expect(readsAsGrey || readsAsWhite).toBe(false);
+    }
+    // ...and the player can still choose them.
+    expect(HAIR_COLORS.length).toBeGreaterThan(NATURAL_HAIR_COUNT);
   });
 
   it('greys hair monotonically toward white', () => {
@@ -222,12 +243,11 @@ describe('generation', () => {
     expect(avatarFromSeed('a', 'male')).not.toEqual(avatarFromSeed('b', 'male'));
   });
 
-  it('mostly generates pleasant expressions', () => {
-    // Not a hard rule — sad faces exist on purpose — but a flat roll made
-    // roughly half of every crowd look miserable, which read as bad art.
+  it('cannot generate a miserable face, because none exists to generate', () => {
     const sample = Array.from({ length: 400 }, (_, i) => avatarFromSeed(`mood-${i}`, 'female'));
-    const pleasant = sample.filter((c) => c.mouthShape < 4).length;
-    expect(pleasant / sample.length).toBeGreaterThan(0.7);
+    for (const config of sample) {
+      expect(config.mouthShape).toBeLessThan(MOUTH_SHAPES.length);
+    }
   });
 
   it('never gives a feminine face facial hair', () => {
@@ -442,5 +462,67 @@ describe('pickers', () => {
     const fields = AVATAR_PICKERS.map((c) => c.field);
     expect(new Set(fields).size).toBe(fields.length);
     expect(fields.slice().sort()).toEqual(FIELD_ORDER.slice().sort());
+  });
+});
+
+describe('family faces', () => {
+  const mother = avatarFromSeed('the-mother', 'female');
+  const father = avatarFromSeed('the-father', 'male');
+
+  it('picks the player and their partner as the two parents', () => {
+    const state = {
+      userProfile: { name: 'Ada', sex: 'female' },
+      relationships: [
+        { type: 'friend', name: 'Nope', gender: 'male' },
+        { type: 'spouse', name: 'Grace', gender: 'male' },
+      ],
+    };
+    const parents = childParentSources(state);
+    expect(parents.mother?.name).toBe('Ada');
+    expect(parents.father?.name).toBe('Grace');
+  });
+
+  it('prefers a spouse over a partner', () => {
+    const state = {
+      userProfile: { name: 'Ada', sex: 'male' },
+      relationships: [
+        { type: 'partner', name: 'Partner', gender: 'female' },
+        { type: 'spouse', name: 'Spouse', gender: 'female' },
+      ],
+    };
+    expect(childParentSources(state).mother?.name).toBe('Spouse');
+  });
+
+  it('survives a save with no partner, no relationships, or no profile', () => {
+    expect(() => childParentSources({ userProfile: { name: 'Solo', sex: 'male' } })).not.toThrow();
+    expect(() => childParentSources({ relationships: null })).not.toThrow();
+    expect(() => childParentSources(undefined)).not.toThrow();
+    expect(childParentSources(undefined).mother).toBeUndefined();
+  });
+
+  it('gives a child a face derived from both parents, stable per child id', () => {
+    const parents = { mother: { avatar: encodeAvatar(mother) }, father: { avatar: encodeAvatar(father) } };
+    const once = resolveChildAvatar('child-7', 'female', parents);
+    const again = resolveChildAvatar('child-7', 'female', parents);
+    expect(once).toEqual(again);
+    expect(resolveChildAvatar('child-8', 'female', parents)).not.toEqual(once);
+  });
+
+  it('actually inherits rather than seeding independently', () => {
+    // The whole point: a child of these parents must not look like a stranger
+    // who happens to share their id.
+    const parents = { mother: { avatar: encodeAvatar(mother) }, father: { avatar: encodeAvatar(father) } };
+    const child = resolveChildAvatar('child-1', 'male', parents);
+    const stranger = avatarFromSeed('child-1', 'male');
+    const low = Math.min(mother.skinTone, father.skinTone);
+    const high = Math.max(mother.skinTone, father.skinTone);
+    expect(child.skinTone).toBeGreaterThanOrEqual(Math.max(0, low - 1));
+    expect(child.skinTone).toBeLessThanOrEqual(high + 1);
+    expect(child).not.toEqual(stranger);
+  });
+
+  it('falls back to a seeded face when neither parent is known', () => {
+    expect(resolveChildAvatar('orphan', 'male', undefined)).toEqual(avatarFromSeed('orphan', 'male'));
+    expect(resolveChildAvatar('orphan', 'male', {})).toEqual(avatarFromSeed('orphan', 'male'));
   });
 });

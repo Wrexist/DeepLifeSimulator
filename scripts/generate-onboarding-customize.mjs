@@ -75,6 +75,9 @@ const screen = `<div style="width:390px;background:#0B1220;border-radius:38px;pa
       <div style="border-radius:96px;border:1px solid rgba(96,165,250,0.35);padding:5px;background:rgba(15,23,42,0.55)">${avatar(cfg, 'female', 18, 168)}</div>
       <div style="color:#fff;font:800 20px system-ui;margin-top:10px">Maya Okonkwo</div>
       <div style="color:#94A3B8;font:600 11px system-ui">Ages with you · passed to your children</div>
+      <div style="display:flex;gap:16px;margin-top:10px">
+        ${[18, 45, 75].map((a) => `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">${avatar(cfg, 'female', a, 44)}<span style="color:#64748B;font:700 10px system-ui">${a}</span></div>`).join('')}
+      </div>
       <div style="display:flex;gap:10px;margin-top:10px">
         <div style="padding:9px 16px;border-radius:999px;background:rgba(59,130,246,0.28);border:1px solid rgba(96,165,250,0.85);color:#fff;font:800 12px system-ui">⚄ Randomize</div>
         <div style="padding:9px 16px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#60A5FA;font:700 12px system-ui">⤫ New name</div>

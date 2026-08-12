@@ -124,15 +124,21 @@ export const BROW_SHAPES: Named[] = [
   { value: 'frownNatural', name: 'Frown' },
 ];
 
-/** Curated: `vomit`, `screamOpen`, `grimace`, `eating` and `tongue` are dropped. */
+/**
+ * Curated hard.
+ *
+ * `vomit`, `screamOpen`, `grimace`, `eating` and `tongue` are dropped as
+ * obviously wrong. So are `sad`, `concerned` and `disbelief`, for a subtler
+ * reason: this is the character's PERMANENT face, and sadness is a state, not
+ * an identity. Offering it produced characters who looked stricken at their own
+ * wedding, and a randomize button that regularly handed the player a miserable
+ * stranger on the creation screen. Mood belongs to what happens in the life.
+ */
 export const MOUTH_SHAPES: Named[] = [
-  { value: 'default', name: 'Default' },
+  { value: 'default', name: 'Neutral' },
   { value: 'smile', name: 'Smile' },
   { value: 'serious', name: 'Serious' },
   { value: 'twinkle', name: 'Twinkle' },
-  { value: 'concerned', name: 'Concerned' },
-  { value: 'disbelief', name: 'Disbelief' },
-  { value: 'sad', name: 'Sad' },
 ];
 
 /** Curated: `eyepatch` is dropped — it reads as an injury, not a choice. */

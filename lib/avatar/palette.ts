@@ -38,8 +38,11 @@ export const HAIR_COLORS: string[] = [
   '#B58143',
   '#C93305',
   '#D6B370',
-  '#E6CEA8',
-  '#ECDCBF',
+  '#E0C088',
+  // Stops here rather than running to a near-white platinum. Anything paler
+  // reads as GREY at 44px, which quietly breaks the one signal ageing has:
+  // grey hair means old. Silver and white are still available below — they are
+  // just a deliberate choice rather than something a blonde slides into.
   '#B7B7B7',
   '#E8E1E1',
   '#E56AA6',
@@ -51,13 +54,18 @@ export const HAIR_COLORS: string[] = [
 /**
  * How many entries random generation may pick from.
  *
- * This stops at 10, BEFORE grey (#B7B7B7) and white (#E8E1E1). Those two are
- * offered to the player — someone may want a silver-haired character — but a
- * generator that can reach them hands grey hair to six-year-olds, which is
- * exactly what the first render of this system did. Greying is age's job, and
+ * This stops BEFORE grey (#B7B7B7) and white (#E8E1E1). Those two stay offered
+ * to the player — someone may want a silver-haired character — but a generator
+ * that can reach them hands grey hair to six-year-olds, which is exactly what
+ * an early render of this system did. Greying is age's job, and
  * `greyedHairHex` gets there from any starting colour.
+ *
+ * It is an INDEX COUNT, so it moves whenever an entry is inserted or removed
+ * above it — removing one pale blonde silently pulled grey into range once
+ * already. `avatarSystem.test.ts` asserts the property directly rather than
+ * trusting this number.
  */
-export const NATURAL_HAIR_COUNT = 10;
+export const NATURAL_HAIR_COUNT = 9;
 
 /** 12 clothing colours. Also used for headwear. */
 export const CLOTHING_COLORS: string[] = [

@@ -33,7 +33,7 @@ import JealousyModal from './modals/JealousyModal';
 import SparkPremiumUpsellModal from './modals/SparkPremiumUpsellModal';
 import SparkProfileEditModal from './modals/SparkProfileEditModal';
 import MatchBanner from './components/MatchBanner';
-import { type DatingProfile, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { type DatingProfile } from '@/lib/dating/datingProfiles';
 import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
@@ -225,7 +225,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
         <MatchBanner
           visible
           partnerName={matchBanner.profile.name}
-          partnerPhotoSource={getDatingProfileImage(matchBanner.profile)}
+          partnerFace={matchBanner.profile}
           playerPhoto={gameState.userProfile?.profilePhoto}
           onMessage={() => openChat(matchBanner.matchId)}
           onDismiss={() => setMatchBanner(null)}

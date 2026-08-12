@@ -141,3 +141,58 @@ The barrel is now a devDependency used only by the evaluation scripts.
 Known limitation, not hidden: **children look like small adults.** The style
 has no age geometry. Every candidate shares this; fixing it means commissioning
 a child art set.
+
+
+## Round 3 — finish the migration and polish the experience
+
+Every remaining face in the app now comes from the avatar system. Previously
+the player had a vector face while everyone else still had an AI portrait,
+which is worse than either option alone: two illustration styles side by side
+read as a broken app.
+
+Swept: `FamilyTab`, `FamilyTreeModal`, `DeathPopup`, `PrestigeModal`,
+`ContactsApp`, `CompanyDetailScreen`, and the whole Spark dating app
+(`ProfileCard`, `MatchBanner`, `MatchesScreen`, `LikesScreen`, `ChatScreen`,
+`PartnerProfileScreen`).
+
+Deleted: `utils/facePool.ts`, `utils/characterImages.ts`, its test, and
+`assets/images/Face/` — 3.5 MB of the portraits players objected to.
+`__tests__/avatar/avatarCoverage.test.ts` fails the build if any of it returns.
+
+Inheritance now actually reaches the screen. `lib/avatar/family.ts` works out
+which two people a child descends from (player + spouse, spouse preferred over
+partner), so children and grandchildren visibly resemble their parents rather
+than being seeded strangers.
+
+UX changes beyond the sweep:
+
+- **Age preview on the creator.** Three checkpoints under the hero avatar
+  showing the same face at three ages. The screen claims "ages with you";
+  this makes the claim checkable instead of asking players to trust it.
+- **No despondent expressions.** `sad`, `concerned` and `disbelief` are gone
+  from the catalog. This is the character's PERMANENT face, and sadness is a
+  state, not an identity — the old set produced characters who looked stricken
+  at their own wedding. Removing them also deleted the weighting hack that
+  existed to make them rare.
+- **The paywalled "who liked you" rail.** Its scrim was tuned to tint an
+  already-blurred image; `blurRadius` does nothing to an SVG, so at 0.18 alpha
+  the paywalled identity was legible. Now 0.82.
+- **Near-white blonde removed** from the generator range. Anything that pale
+  reads as grey at 44px, which breaks the one signal ageing has.
+
+Two bugs worth remembering, both caught by rendering:
+
+- `NATURAL_HAIR_COUNT` is an index count, so removing one pale blonde ABOVE it
+  silently pulled grey into the generator's range — the exact bug it exists to
+  prevent, reintroduced while fixing something else. The test now asserts the
+  property (no light desaturated colour is reachable) rather than the number.
+  Its first version also wrongly flagged near-black hair, which is legitimately
+  desaturated; greyness only reads as grey when it is also light.
+- `ContactView` carries an opaque `raw`, so contact faces read sex and age
+  through a type guard rather than a cast (Hard Rule #2).
+
+Verification:
+
+- `npm test` — 534 suites, 6742 passed, 1 skipped, 0 failed
+- `type-check`, `type-check:tests:ratchet`, `check:routes` — clean
+- `lint:ratchet` — 1191 warnings against a 1193 ceiling (2 fewer than before)

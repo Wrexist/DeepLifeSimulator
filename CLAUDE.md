@@ -389,8 +389,11 @@ including the crash screen.
   rendered under a 2.5D lit plate by `components/avatar/VectorAvatar.tsx`)
   rather than picked from a pool of pre-rendered portraits, so appearance is a
   set of parameters that AGES with the character instead of a PNG swapped for a
-  different person's face at each age band — the "my character turned into
-  someone else" class of report documented at length in `utils/facePool.ts`.
+  different person's face at each age band. The old pool assigned a bucket slot
+  per age band, so crossing a band swapped the character for a DIFFERENT
+  rendered person at the same index — the "my character turned into someone
+  else" class of report. `docs/avatar-art-direction-research.md` records the
+  mechanism; `utils/facePool.ts` and its 3.5 MB of portraits are deleted.
   The first attempt hand-authored the facial geometry as bezier path data and
   had to be thrown away; `docs/avatar-art-direction-research.md` records why
   that pipeline could never have worked and how the alternatives were measured.

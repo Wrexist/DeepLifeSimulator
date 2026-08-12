@@ -35,12 +35,6 @@ export function makeRng(seedNum: number): () => number {
   };
 }
 
-/**
- * How many entries at the head of MOUTH_SHAPES read as neutral-to-positive.
- * The catalog is ordered deliberately so this is a prefix.
- */
-const PLEASANT_MOUTHS = 4;
-
 function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
   const pick = (n: number) => Math.floor(rng() * n) % Math.max(1, n);
 
@@ -61,11 +55,10 @@ function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
     facialHair: sex === 'male' && rng() < 0.45 ? 1 + pick(FACIAL_HAIR.length - 1) : 0,
     eyeShape: pick(CATALOG_SIZES.eyeShape),
     browShape: pick(CATALOG_SIZES.browShape),
-    // Expression is weighted, not uniform. The catalogs are ordered pleasant
-    // first, and a flat roll makes roughly half of every generated crowd look
-    // sad or worried — which reads as the art being bad rather than as the
-    // character having a mood. The player can still pick any of them.
-    mouthShape: rng() < 0.82 ? pick(PLEASANT_MOUTHS) : PLEASANT_MOUTHS + pick(CATALOG_SIZES.mouthShape - PLEASANT_MOUTHS),
+    // A flat roll is safe here only because the catalog itself is curated down
+    // to neutral-and-up; an earlier version needed weighting to stop half of
+    // every crowd looking miserable. See MOUTH_SHAPES.
+    mouthShape: pick(CATALOG_SIZES.mouthShape),
     clothing: pick(CATALOG_SIZES.clothing),
     clothingColor: pick(CLOTHING_COLORS.length),
     // Glasses on about one face in five, matching roughly how common they are.

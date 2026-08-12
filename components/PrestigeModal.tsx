@@ -1,20 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Platform, Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  ScrollView,
-  Image,
-  Alert } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Alert } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
-import { getCharacterImage } from '@/utils/characterImages';
+import { childParentSources } from '@/lib/avatar/family';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
@@ -523,10 +515,15 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                                 }}
                                 activeOpacity={0.8}
                               >
-                                <Image
-                                  source={getCharacterImage(childAge, child.gender || 'male', child.id)}
-                                  style={styles.childImage}
-                                />
+                                <View style={styles.childImage}>
+                                  <CharacterAvatar
+                                    seed={child.id}
+                                    sex={child.gender || 'male'}
+                                    age={childAge}
+                                    size={56}
+                                    parents={childParentSources(gameState)}
+                                  />
+                                </View>
                                 <Text style={[
                                   styles.childName,
                                   isSelected && styles.childNameSelected,
@@ -997,6 +994,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.15)',
   },
   childImage: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     width: 60,
     height: 60,
     borderRadius: 30,

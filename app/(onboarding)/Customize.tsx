@@ -105,6 +105,13 @@ export default function Customize() {
 
   const scenarioAge = state.scenario?.start?.age ?? 18;
 
+  // Three checkpoints across a life, always ascending and always distinct — a
+  // scenario starting at 60 must not render "60, 45, 75".
+  const agePreview = useMemo(() => {
+    const start = Math.max(1, Math.round(scenarioAge));
+    return [start, Math.max(start + 12, 45), Math.max(start + 24, 75)];
+  }, [scenarioAge]);
+
   useEffect(() => {
     if (!shouldGenerateInitialIdentityName(firstName, lastName)) return;
     const randomName = generateRandomName(sex);
@@ -263,6 +270,24 @@ export default function Customize() {
                 {fullName}
               </Text>
               <Text style={styles.heroSub}>Ages with you · passed to your children</Text>
+
+              {/* The claim above, made checkable. The same config rendered at
+                  three ages — this is the whole reason the face is parameters
+                  rather than a picked portrait, so showing it beats saying it. */}
+              <View style={styles.ageStrip}>
+                {agePreview.map((previewAge) => (
+                  <View key={previewAge} style={styles.agePreview}>
+                    <VectorAvatar
+                      config={avatar}
+                      sex={sex}
+                      age={previewAge}
+                      size={scale(44)}
+                      circular
+                    />
+                    <Text style={styles.ageLabel}>{previewAge}</Text>
+                  </View>
+                ))}
+              </View>
 
               <View style={styles.heroActions}>
                 <TouchableOpacity
@@ -532,6 +557,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#94A3B8',
     textAlign: 'center',
+  },
+  ageStrip: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+  },
+  agePreview: {
+    alignItems: 'center',
+    gap: verticalScale(3),
+  },
+  ageLabel: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    color: '#64748B',
   },
   heroActions: {
     flexDirection: 'row',

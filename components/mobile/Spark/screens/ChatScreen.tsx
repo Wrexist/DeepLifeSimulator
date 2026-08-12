@@ -9,7 +9,7 @@
  * via `generateNpcReply` to keep the conversation flowing.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Heart, Send, User, UserPlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
@@ -24,7 +24,8 @@ import {
   promoteMatchToRelationship,
   promoteMatchToFriend,
 } from '@/contexts/game/actions/SparkActions';
-import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
@@ -136,10 +137,9 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
           <ArrowLeft size={fontScale(22)} color={theme.text} />
         </Pressable>
-        <Image
-          source={getDatingProfileImage(profile)}
-          style={[styles.headerAvatar, { borderColor: theme.glassBorder }]}
-        />
+        <View style={[styles.headerAvatar, { borderColor: theme.glassBorder }]}>
+          <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(34)} />
+        </View>
         <View style={styles.headerText}>
           <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
             {profile.name}

@@ -3,6 +3,27 @@
 Follow-up to `avatar-redesign-proposal.md`. That doc chose the right
 architecture (parameters, not PNGs) and the wrong art pipeline.
 
+## What the portrait pool actually did
+
+Worth recording accurately, because `utils/facePool.ts` is deleted in this
+change and its behaviour is the reason any of this happened.
+
+The pool grouped 77 rendered portraits into buckets by sex and age band, and
+assigned each person a bucket slot from a hash of a stable seed. Its own header
+described the result as a feature: *"as a person AGES, the band changes, so the
+face follows their age"*.
+
+But a slot index is not an identity. Crossing from one band to the next did not
+age a character's face — it swapped them for **a different rendered person** who
+happened to occupy the same index in the next bucket. A player watching their
+character turn 30 saw a stranger. That is the failure the parameterised system
+exists to fix, and it is structural: no amount of extra portraits could have
+fixed it, because the pool had no way to express "the same face, older".
+
+Earlier revisions of this work cited facePool.ts as *documenting* that
+complaint. It does not — it documents the mechanism approvingly. The complaint
+came from players.
+
 ## What went wrong the first time
 
 The first implementation hand-authored the facial geometry: bezier path data
@@ -134,9 +155,9 @@ adults.** The style has no age geometry, so a six-year-old differs from a
 thirty-year-old only in the levers above. Every candidate shares this; the
 alternative is a separate child art set, which is a commission.
 
-The rendered ladder (8 → 85 on one seed) holds up: the person stays the same
-person and visibly ages, which is the exact property the old portrait pool
-failed and that `utils/facePool.ts` documents at length.
+The rendered ladder (6 → 85 on one seed) holds up: the person stays the same
+person and visibly ages — the exact property the old portrait pool could not
+express at all (see the top of this document).
 
 ## What this changes in the code
 
@@ -180,10 +201,25 @@ so the save format, the codec and the inheritance maths are unaffected.
   and option-building with no dependency on it, so all of it is testable
   without the ESM runtime.
 
+## The migration is complete
+
+Every face in the app now comes from this system — the player, family, the
+family tree, contacts, the dating app, company hires, the death and prestige
+screens. `utils/facePool.ts`, `utils/characterImages.ts` and the 3.5 MB of
+rendered portraits under `assets/images/Face/` are deleted.
+
+That completeness is a UX requirement, not tidiness: a half-migrated app shows
+two different illustration styles depending on which screen you are on, which
+reads as broken. `__tests__/avatar/avatarCoverage.test.ts` fails the build if
+any of the old modules, helpers or assets come back, or if a screen stops
+routing through the avatar components.
+
 ## Still open
 
 - **Curation is a standing job.** The shipped subsets drop `vomit`,
   `screamOpen`, `grimace`, `eating`, `tongue`, `xDizzy`, `cry` and `eyepatch`,
   and pin `clothingGraphic` (unpinned, background NPCs turned up in skull
   tees). A test asserts the exclusions. Anything added later needs the same eye.
-- **NPC surfaces** still read the old portrait pool — see `tasks/todo.md`.
+- **Children look like small adults.** The style has no age geometry, so a
+  six-year-old differs from a thirty-year-old only by the levers above. Fixing
+  it properly means commissioning a child art set.

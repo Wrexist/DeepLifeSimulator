@@ -12,6 +12,7 @@
 import React, { useMemo } from 'react';
 import VectorAvatar from './VectorAvatar';
 import { resolveAvatar, resolveNpcAvatar, toAvatarSex, type AvatarSource } from '@/lib/avatar/resolve';
+import { resolveChildAvatar, type ParentSources } from '@/lib/avatar/family';
 import type { AvatarSex } from '@/lib/avatar/types';
 
 export interface CharacterAvatarProps {
@@ -29,6 +30,12 @@ export interface CharacterAvatarProps {
   circular?: boolean;
   /** Used when neither the source nor `sex` names one. */
   fallbackSex?: AvatarSex;
+  /**
+   * Derive the face from two parents instead of from the seed alone. Used for
+   * the player's children and grandchildren, so a family visibly resembles
+   * each other. Ignored when `source` carries a stored config.
+   */
+  parents?: ParentSources;
 }
 
 function CharacterAvatarImpl({
@@ -40,13 +47,17 @@ function CharacterAvatarImpl({
   backdrop = true,
   circular = true,
   fallbackSex = 'male',
+  parents,
 }: CharacterAvatarProps) {
+  const drawnSex = toAvatarSex(source?.sex ?? sex, fallbackSex);
   const config = useMemo(() => {
+    if (source?.avatar) return resolveAvatar(source, fallbackSex);
+    // A child with no stored config of their own inherits, rather than being
+    // seeded independently — that is the whole point of tracking the parents.
+    if (parents && seed) return resolveChildAvatar(seed, drawnSex, parents);
     if (source) return resolveAvatar(source, fallbackSex);
     return resolveNpcAvatar(seed, sex, fallbackSex);
-  }, [source, seed, sex, fallbackSex]);
-
-  const drawnSex = toAvatarSex(source?.sex ?? sex, fallbackSex);
+  }, [source, seed, sex, fallbackSex, parents, drawnSex]);
 
   return (
     <VectorAvatar

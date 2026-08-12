@@ -19,15 +19,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import {
   ArrowLeft,
   Heart,
@@ -67,7 +59,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
 import { redeemFavor, repayFavor, recordInteraction, lendMoney, recordFavor } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
-import { getRelationshipImage } from '@/utils/characterImages';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -514,6 +506,19 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   // ---- Personal: CRM row (avatar + recency dot + strength ring) --------------
+/**
+ * A ContactView carries only an opaque `raw` reference, so the face has to be
+ * read out of it defensively — `raw` is genuinely `unknown` and may be any of
+ * the source systems' records. Guarded rather than cast (Hard Rule #2); a
+ * contact with no usable shape still gets a stable face seeded from its id.
+ */
+function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
+  if (!raw || typeof raw !== 'object') return {};
+  const sex = 'gender' in raw && typeof raw.gender === 'string' ? raw.gender : undefined;
+  const age = 'age' in raw && typeof raw.age === 'number' ? raw.age : undefined;
+  return { sex, age };
+}
+
   const renderPersonalCard = (c: ContactView) => {
     const r = c.raw as Relationship;
     const expanded = expandedId === c.id;
@@ -537,10 +542,14 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           accessibilityLabel={`${c.name}, ${expanded ? 'collapse' : 'expand'} profile`}
         >
           <View style={styles.avatarWrap}>
-            <Image
-              source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type, r.id)}
-              style={[styles.avatar, { borderColor: theme.glassBorder }]}
-            />
+            <View style={[styles.avatar, { borderColor: theme.glassBorder }]}>
+              <CharacterAvatar
+                seed={r.id}
+                sex={r.gender || 'male'}
+                age={r.age || 25}
+                size={scale(46)}
+              />
+            </View>
             <View style={[styles.recencyDot, { backgroundColor: rec.color, borderColor: theme.surface }]} />
           </View>
           <View style={{ flex: 1 }}>
@@ -1015,14 +1024,20 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                     {topPersonal.map((c, i) => {
                       const rr = c.raw as Relationship;
                       return (
-                        <Image
+                        <View
                           key={c.id}
-                          source={getRelationshipImage(rr.age || 25, rr.gender || 'male', rr.type, rr.id)}
                           style={[
                             styles.clusterAvatar,
                             { marginLeft: i === 0 ? 0 : -scale(12), borderColor: theme.surface, zIndex: 10 - i },
                           ]}
-                        />
+                        >
+                          <CharacterAvatar
+                            seed={c.id}
+                            sex={faceTraitsOf(c.raw).sex}
+                            age={faceTraitsOf(c.raw).age ?? 30}
+                            size={scale(34)}
+                          />
+                        </View>
                       );
                     })}
                   </View>
@@ -1573,7 +1588,7 @@ const styles = StyleSheet.create({
   cardName: { fontSize: fs.md, fontWeight: '800' },
   cardSub: { fontSize: fs.sm, marginTop: 2 },
   avatarWrap: { position: 'relative' },
-  avatar: { width: scale(48), height: scale(48), borderRadius: scale(24), borderWidth: 1 },
+  avatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: scale(48), height: scale(48), borderRadius: scale(24), borderWidth: 1 },
   // Online-status-style recency dot pinned to the avatar corner.
   recencyDot: { position: 'absolute', bottom: 0, right: 0, width: scale(13), height: scale(13), borderRadius: scale(6.5), borderWidth: 2 },
   recencyDotInline: { width: scale(8), height: scale(8), borderRadius: scale(4) },
@@ -1668,7 +1683,7 @@ const styles = StyleSheet.create({
   // Inner-circle avatar stack in the personal hero.
   clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginBottom: sp.md },
   avatarStack: { flexDirection: 'row' },
-  clusterAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), borderWidth: 2 },
+  clusterAvatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: scale(38), height: scale(38), borderRadius: scale(19), borderWidth: 2 },
   clusterLabel: { flex: 1, fontSize: fs.sm, fontWeight: '700' },
   // Network badge-tile grid.
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.md },
