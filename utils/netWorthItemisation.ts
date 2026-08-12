@@ -110,6 +110,34 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     });
   });
 
+  /**
+   * Laundered dark-web BTC, valued exactly as the canonical `netWorth()` values
+   * it (D-5) — `cleanBtc × the BTC price`, dirty BTC excluded.
+   *
+   * It gets its own row rather than being folded into the coin above it: it is
+   * the same asset but a different pocket, and a player looking for where their
+   * laundering proceeds went should find them named. Omitting it here would
+   * reopen the exact gap this module exists to close — the headline counting a
+   * term the itemised list below it does not.
+   */
+  // Same strict validation as the canonical `netWorth()` — `typeof === 'number'`
+  // rather than `Number(x)`, so a persisted string like "2" gets no row, and the
+  // product clamped so two finite values cannot multiply to Infinity.
+  const btcPrice = (gameState.cryptos ?? []).find((c) => c?.id === 'btc')?.price;
+  const cleanBtc = gameState.darkWeb?.cleanBtc;
+  if (
+    typeof btcPrice === 'number' && isFinite(btcPrice) && btcPrice > 0 &&
+    typeof cleanBtc === 'number' && isFinite(cleanBtc) && cleanBtc > 0
+  ) {
+    assets.push({
+      id: 'darkweb_clean_btc',
+      type: 'investment',
+      baseValue: Math.min(Number.MAX_SAFE_INTEGER, cleanBtc * btcPrice),
+      group: 'crypto',
+      rowName: 'Bitcoin (laundered)',
+    });
+  }
+
   // Stocks — held holdings at their current price.
   (gameState.stocks?.holdings || []).forEach((h, i) => {
     const value = (h?.shares || 0) * (h?.currentPrice || 0);

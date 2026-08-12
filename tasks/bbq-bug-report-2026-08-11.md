@@ -300,7 +300,7 @@ categories should credit something the game already models (dirty BTC for
 penalties, `services` as a one-shot heat scrub). Until then, change the copy to
 match reality rather than promise an item.
 
-## D-5 · Dark-web assets are excluded from net worth — **P1**
+## D-5 · Dark-web assets are excluded from net worth — **P1** · ✅ FIXED
 
 > "Doesn't add to net worth or attribute any value to items owned."
 
@@ -512,7 +512,7 @@ the canonical one and should be deleted.
 `MAX_PER_COMPANY_TYPE` to 4 (→ 20). Say the prestige gate on the Create screen
 before the player counts to five and concludes the game is broken.
 
-## X-2 · Network contacts are read-only — **P2**
+## X-2 · Network contacts are read-only — **P2** · ✅ FIXED
 
 > "Contacts are vendors which you can't associate with (business, political)."
 
@@ -720,7 +720,7 @@ that stays right.
 
 # M — Meta (found while fixing, not reported)
 
-## M-1 · The C-9 ratchet under-counts: its regex cannot see through a ternary — **P2**
+## M-1 · The C-9 ratchet under-counts: its regex cannot see through a ternary — **P2** · ✅ FIXED
 
 `__tests__/refactor/updaterResultRatchet.test.ts` pins the number of functions
 that reject inside a `setGameState` updater and then return unconditional
@@ -871,3 +871,79 @@ automatically", "Delivered, is yours", "Need Stealth Gloves", "Synergy +24%",
 "At risk", "Date, befriend". A player cannot distinguish a missing feature from a
 broken one, so every one of them arrives as a bug report. Worth a standing check:
 when a system is stubbed, the copy in front of it has to say so.
+
+
+---
+
+# Closing pass — the three tracked follow-ups
+
+All three items left open when PR #119 merged are now done.
+
+## D-5 — laundered BTC is worth what BTC is worth
+
+`darkWeb.cleanBtc` counts at the BTC price. The bug was sharper than "a pool is
+missing": `withdrawCleanBtc` moves that pool 1:1 into `cryptos[btc].owned`,
+which net worth already counted, so **tapping Withdraw raised reported net
+worth without anything of value changing hands**. The conservation test
+(`darkWebNetWorth.test.ts`) pins that, and it is the assertion that matters —
+the absolute values only describe today's tuning.
+
+Two exclusions, both deliberate and argued at the call site rather than left to
+be rediscovered:
+
+- **`dirtyBtc` does not count.** It cannot leave without a mixer that takes a
+  cut and several weeks, so it is a claim on future value. Counting it at face
+  would also hide the mixer's fee from the scoreboard and remove the reason to
+  launder at all — laundering has to *raise* net worth or the mechanic is
+  decorative.
+- **`darkWebItems` do not count.** They carry `costBtc` but have no resale path
+  anywhere in the game, and every other term in `netWorth()` is what an asset
+  would actually pay out.
+
+`darkWeb` joined the memo cache key. Without it the cache serves the
+pre-laundering figure forever to a player who changed nothing else — a fix that
+reports the old number is not a fix.
+
+## M-1 — the ratchet was lying by 3
+
+62 → 65, and no production code got worse. The detector could not see a success
+return written as a ternary with `success: true` in **both** branches
+(`buyMarketListing`), and it could not see two more whose success returns sat
+beyond an arbitrary 900-character window. Membership that depends on how much
+prose follows a function is not a ratchet.
+
+The window is gone, replaced by a meaning-based anchor — everything after the
+last `setGameState(`. The ternary form now counts, *unless* a branch reports
+failure, so `claimAdCashBonus`'s real `granted > 0 ? success : failure` stays
+excluded as the fixed shape it is. Both directions are asserted against real
+files; a widened detector that matches everything is as useless as one that
+matches nothing.
+
+## X-2 — the missing button was the smaller half
+
+The report said network contacts were read-only, which was true: hero,
+Overview, Tags, "Back to network". But adding an **Ask a favour** action alone
+would have shipped a fresh instance of this audit's signature defect.
+`redeemFavor` handled a non-money favor by flipping the ledger entry and doing
+**nothing else** — so `influence`, `discount`, `safety` and `intro` would have
+become four favor kinds whose Redeem button changed a label and no state. It
+was invisible only because nothing produced them.
+
+So the ask and the payoff shipped together, each routed through a system
+already in the save:
+
+| Contact | Favour | Redeeming it |
+|---|---|---|
+| lobbyist · alliance | `influence` | +reputation |
+| vendor | `discount` | the markdown, paid as cash |
+| employee | `safety` | dark-web heat relief |
+| business | `intro` | a new **friend** — the only honest reading of an introduction, and X-3 already built relationship creation |
+
+No new save field and no migration: **the cooldown IS the ledger.** One open
+favour per contact, with an expiry. "You cannot call in a second favour while
+the first is outstanding" is both the natural rule and, conveniently, already
+recorded.
+
+The test file asserts the mapping in **both** directions — every network
+contact kind has a favour, and every declared favour kind has a producer —
+because either gap alone recreates the scaffolding this fixed.
