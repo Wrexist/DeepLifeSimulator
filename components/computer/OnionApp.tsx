@@ -32,8 +32,9 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { ArrowLeft, ShoppingBag, Target, Wallet } from 'lucide-react-native';
+import { ArrowLeft, ShoppingBag, Target, Wallet, Wrench } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useItemActions } from '@/contexts/game/ItemActionsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
@@ -319,7 +320,7 @@ interface OnionAppProps {
   onBack: () => void;
 }
 
-type Tab = 'market' | 'jobs' | 'wallet';
+type Tab = 'market' | 'gear' | 'jobs' | 'wallet';
 
 type SubView =
   | { kind: 'listing'; id: string }
@@ -331,12 +332,23 @@ type SubView =
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'market', label: 'Market', icon: ShoppingBag },
+  // The gear store. `buyDarkWebItem` has existed and worked since the Onion tab
+  // shipped, with ZERO call sites anywhere in `components/` or `app/` — so the
+  // 20-item catalogue in `initialState.darkWebItems` was unreachable, and with
+  // it 18 of the 19 illegal street jobs that gate on `darkWebRequirements`.
+  // Reported as "Crime tools were removed… making only job available Find Lost
+  // Items" (BBQ, 2026-08-11), which is exactly what a store with no door looks
+  // like from the player's side. This tab is the door.
+  { id: 'gear', label: 'Gear', icon: Wrench },
   { id: 'jobs', label: 'Jobs', icon: Target },
   { id: 'wallet', label: 'Wallet', icon: Wallet },
 ];
 
 function OnionAppInner({ onBack }: OnionAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  // The gear store's buy path. Already handles the BTC debit, the already-owned
+  // guard and the insufficient-funds message — it simply had no caller.
+  const { buyDarkWebItem } = useItemActions();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
@@ -400,9 +412,31 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
   // --- Shared action handlers (unchanged behaviour) -----------------------
   const confirmBuy = (listing: DarkWebMarketListing, vendor: DarkWebVendor) => {
+    /**
+     * Name the scam risk as a NUMBER, at the moment the BTC is committed.
+     *
+     * The dialog used to show "Vendor rep 15/100" and nothing else. Rep is not a
+     * linear scale — `vendorScamProbability` is a sigmoid, so rep 15 means a 95%
+     * chance of losing the whole payment and rep 35 means 82%. A bare "15/100"
+     * reads as "poor but worth a punt", and because low-rep vendors also price
+     * cheapest (`priceMultiplierForReputation`), the game was steering a
+     * cash-poor new player straight at its worst odds — then flagging the vendor
+     * so their listings vanished for tens of weeks. That compounding is what
+     * produced "buyer rep is too slow to gain" and "listings do not shuffle"
+     * (BBQ, 2026-08-11).
+     *
+     * The burn-out itself is deliberate and covered by
+     * `__tests__/economy/darkWebVendorRecovery.test.ts`, so it stays. What
+     * changes is that the player can now see it coming.
+     */
+    const scamPct = Math.round(vendorScamProbability(vendor.reputation) * 100);
+    const verdict =
+      scamPct >= 60 ? 'Very likely a scam.' : scamPct >= 30 ? 'Risky.' : scamPct >= 10 ? 'Fairly safe.' : 'Trusted.';
     Alert.alert(
       'Confirm purchase',
-      `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\nVendor rep ${vendor.reputation}/100.`,
+      `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\n` +
+        `Vendor rep ${vendor.reputation}/100 · scam risk ${scamPct}% — ${verdict}\n` +
+        `A scam costs the full ${listing.costBtc.toFixed(4)} ₿ and delivers nothing.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -461,6 +495,9 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const meetsRep = (dw.playerReputation ?? 0) >= listing.minBuyerRep;
     const tm = TIER_META[listing.tier] ?? TIER_META.common;
     const scamPct = vendorScamProbability(vendor.reputation) * 100;
+    // Round ONCE. Comparing the raw value against the bands while printing the
+    // rounded one puts 29.6% on screen as "30%" inside the green band.
+    const scamShown = Math.round(scamPct);
     return (
       <TerminalPanel key={listing.id} darkMode={darkMode}>
         <View style={styles.rowHead}>
@@ -489,16 +526,22 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <Text style={{ color: meetsRep ? TERM.greenDim : accent.danger }}>{`  rep≥${listing.minBuyerRep}`}</Text>
           ) : null}
         </Text>
-        {scamPct > 20 || listing.xpReward ? (
-          <Text style={styles.monoXs} numberOfLines={1}>
-            {scamPct > 20 ? (
-              <Text style={{ color: accent.danger }}>{`! scam_risk=${Math.round(scamPct)}%`}</Text>
-            ) : null}
-            {listing.xpReward ? (
-              <Text style={{ color: TERM.purple }}>{`${scamPct > 20 ? '  ' : ''}xp+${listing.xpReward.amount} ${listing.xpReward.skill}`}</Text>
-            ) : null}
+        {/* Scam risk shows on EVERY row, not only above 20%. Hiding it on safe
+            listings made its absence ambiguous — a player could not tell a low
+            risk from an unmeasured one, so the number never became something to
+            shop on. It is the single most important figure on this card. */}
+        <Text style={styles.monoXs} numberOfLines={1}>
+          <Text
+            style={{
+              color: scamShown >= 60 ? accent.danger : scamShown >= 30 ? accent.warning : TERM.greenDim,
+            }}
+          >
+            {`${scamShown >= 30 ? '! ' : ''}scam_risk=${scamShown}%`}
           </Text>
-        ) : null}
+          {listing.xpReward ? (
+            <Text style={{ color: TERM.purple }}>{`  xp+${listing.xpReward.amount} ${listing.xpReward.skill}`}</Text>
+          ) : null}
+        </Text>
         <View style={styles.actionRow}>
           <BracketButton
             label="BUY"
@@ -728,6 +771,138 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             </TerminalPanel>
           )}
         </View>
+      </View>
+    );
+  };
+
+  // --- Tab: GEAR ----------------------------------------------------------
+  /**
+   * The crime-tool store.
+   *
+   * Buys straight from `initialState.darkWebItems` through the long-orphaned
+   * `buyDarkWebItem`, which already debits `cryptos.btc` and flips `owned` — so
+   * this screen adds a door, not a system. `riskReduction` / `rewardBonus` are
+   * both live (summed in `ItemActionsContext` when a street job resolves), and
+   * are surfaced per row so the ladder reads as a progression rather than a
+   * price list.
+   */
+  const renderGear = () => {
+    const catalogue = gameState.darkWebItems ?? [];
+    const owned = catalogue.filter((i) => i?.owned);
+    // Cheapest-first among what's still unowned: the affordable next step is the
+    // one the player is deciding about, and the catalogue's own order is a
+    // content order, not a progression.
+    const unowned = catalogue
+      .filter((i) => i && !i.owned)
+      .sort((a, b) => (a.costBtc ?? 0) - (b.costBtc ?? 0));
+
+    const buy = (item: { id: string; name: string; costBtc: number }) => {
+      Alert.alert(
+        'Confirm purchase',
+        `Buy "${item.name}" for ${item.costBtc.toFixed(4)} ₿?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Buy',
+            onPress: () => {
+              buyDarkWebItem(item.id);
+              queueSave();
+            },
+          },
+        ]
+      );
+    };
+
+    const renderGearRow = (item: (typeof catalogue)[number]) => {
+      const affordable = btcOwned >= (item.costBtc ?? 0);
+      return (
+        <TerminalPanel key={item.id} darkMode={darkMode}>
+          <View style={styles.rowHead}>
+            <Text style={[styles.entryTitle, { color: item.owned ? TERM.greenDim : TERM.green }]} numberOfLines={1}>
+              <Text style={{ color: TERM.faint }}>[{item.owned ? '✓' : '+'}] </Text>
+              {item.name}
+            </Text>
+            <Text style={styles.entryPrice} numberOfLines={1}>
+              {item.owned ? 'owned' : `${(item.costBtc ?? 0).toFixed(4)} ₿`}
+            </Text>
+          </View>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>{item.description}</Text>
+          </PromptRow>
+          {item.riskReduction || item.rewardBonus ? (
+            <Text style={styles.monoXs} numberOfLines={1}>
+              {item.riskReduction ? (
+                <Text style={{ color: TERM.green }}>{`risk-${Math.round(item.riskReduction * 100)}%`}</Text>
+              ) : null}
+              {item.rewardBonus ? (
+                <Text style={{ color: TERM.purple }}>
+                  {`${item.riskReduction ? '  ' : ''}payout+${Math.round(item.rewardBonus * 100)}%`}
+                </Text>
+              ) : null}
+            </Text>
+          ) : null}
+          {!item.owned ? (
+            <View style={styles.actionRow}>
+              <BracketButton
+                label="BUY"
+                tone="phosphor"
+                disabled={!affordable}
+                onPress={() => buy(item)}
+                accessibilityLabel={`Buy ${item.name} for ${(item.costBtc ?? 0).toFixed(4)} bitcoin`}
+              />
+              {!affordable ? <Text style={styles.gate}>insufficient_funds</Text> : null}
+            </View>
+          ) : null}
+        </TerminalPanel>
+      );
+    };
+
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        <TerminalPanel darkMode={darkMode} elevation={12} glow>
+          <TermTitleBar title="gear@onion" />
+          <AsciiDivider />
+          <PromptRow prompt="$" promptColor={TERM.greenDim}>
+            ls ~/kit
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>owned = </Text>
+            <Text style={{ color: TERM.green, fontWeight: '700' }}>{owned.length}</Text>
+            <Text style={{ color: TERM.muted }}>/{catalogue.length}  </Text>
+            <Text style={{ color: TERM.purple }}>
+              {asciiBar(catalogue.length ? owned.length / catalogue.length : 0, 10)}
+            </Text>
+          </PromptRow>
+          <PromptRow>
+            <Text style={{ color: TERM.muted }}>balance = </Text>
+            <Text style={{ color: TERM.text, fontWeight: '700' }}>{btcOwned.toFixed(4)} ₿</Text>
+          </PromptRow>
+          <AsciiDivider color={TERM.borderDim} />
+          <Text style={styles.monoXs}>
+            <Text style={{ color: TERM.faint }}>{'// '}</Text>
+            <Text style={{ color: TERM.muted }}>
+              tools unlock the illegal jobs on the Work tab that list them as requirements
+            </Text>
+          </Text>
+        </TerminalPanel>
+
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <CmdLine cmd="./shop --available" count={unowned.length} />
+          {unowned.length === 0 ? (
+            <TerminalPanel darkMode={darkMode}>
+              <TermEmpty>full kit — every tool acquired</TermEmpty>
+            </TerminalPanel>
+          ) : (
+            unowned.map(renderGearRow)
+          )}
+        </View>
+
+        {owned.length > 0 ? (
+          <View style={{ gap: responsiveSpacing.sm }}>
+            <CmdLine cmd="./shop --owned" count={owned.length} />
+            {owned.map(renderGearRow)}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -1386,6 +1561,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     if (view?.kind === 'job') return renderJobDetail(view.id);
     if (view?.kind === 'ledger') return renderLedger();
     if (activeTab === 'market') return renderMarket();
+    if (activeTab === 'gear') return renderGear();
     if (activeTab === 'jobs') return renderJobs();
     return renderWallet();
   };

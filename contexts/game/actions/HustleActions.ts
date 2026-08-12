@@ -27,6 +27,7 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
 import { companyIncomeMultiplier, MAX_COMPANY_EMPLOYEES } from '../company';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import {
   generateCandidates,
   evaluateOffer,
@@ -709,6 +710,64 @@ export const launchIPO = (
 
 // ── Acquisitions ─────────────────────────────────────────────────────────
 
+/**
+ * Sanity ceiling on a target's stated annual revenue.
+ *
+ * `isFinite` alone rejects `NaN` and `Infinity` but accepts `1e300`, which
+ * survives the division and lands on `baseWeeklyIncome` as a permanent absurd
+ * number. Well above any realistic target — generated offers top out orders of
+ * magnitude below it — so it never binds on real data and only catches
+ * corruption. `PER_SOURCE_CAPS.companies` separately caps total company income
+ * at $200k/wk when it reaches passive income.
+ */
+export const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
+
+/**
+ * Sanity ceiling on a target's stated synergy percentage.
+ *
+ * Generated offers quote 8–30, so this never binds on real data; it exists for
+ * the same reason as the revenue ceiling — `isFinite` accepts absurd finite
+ * values, and this one is persisted into `marketSharePercent`.
+ */
+export const MAX_ACQUISITION_SYNERGY_PERCENT = 30;
+
+/**
+ * Weekly income an acquisition actually adds — the ONE definition.
+ *
+ * `AcquireModal` advertises this figure and `acceptAcquisition` pays it, and the
+ * modal's own comment claims the two share their arithmetic. They did not: the
+ * action validated `estimatedAnnualRevenue` before dividing, the modal divided
+ * it raw. A malformed offer therefore rendered `+$NaN` on the card and then
+ * granted 0 on accept — the display and the payout disagreeing in exactly the
+ * way the comment promised they could not.
+ *
+ * A non-finite or non-positive revenue yields 0, which is the honest answer:
+ * "this offer adds nothing", shown before the money is spent rather than
+ * discovered after.
+ */
+export const acquisitionWeeklyGain = (estimatedAnnualRevenue: unknown): number => {
+  const annual =
+    typeof estimatedAnnualRevenue === 'number' && isFinite(estimatedAnnualRevenue) && estimatedAnnualRevenue > 0
+      ? Math.min(estimatedAnnualRevenue, MAX_ACQUISITION_ANNUAL_REVENUE)
+      : 0;
+  return Math.max(0, Math.round(annual / WEEKS_PER_YEAR));
+};
+
+/**
+ * Market-share points an acquisition's synergy actually delivers.
+ *
+ * `synergyBonusPercent` is quoted at 8–30 but only a QUARTER of it reaches
+ * market share, so the raw field overstates the effect 4× (H-3). Same guard,
+ * same reason as above.
+ */
+export const acquisitionSharePoints = (synergyBonusPercent: unknown): number => {
+  const pct =
+    typeof synergyBonusPercent === 'number' && isFinite(synergyBonusPercent) && synergyBonusPercent > 0
+      ? Math.min(synergyBonusPercent, MAX_ACQUISITION_SYNERGY_PERCENT)
+      : 0;
+  return pct / 4;
+};
+
 export const acceptAcquisition = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
@@ -749,20 +808,94 @@ export const acceptAcquisition = (
         {
           ...o,
           pendingAcquisitions: o.pendingAcquisitions.filter((a) => a.id !== offerId),
-          // Synergy bonus: +X% to weekly market share; tick will recompute earnings
-          marketSharePercent: Math.min(85, o.marketSharePercent + offer.synergyBonusPercent / 4),
+          // Synergy bonus: +X% to weekly market share; tick will recompute
+          // earnings. Through the SHARED helper — this site read the raw field
+          // while the modal read the validated one, so a NaN `synergyBonusPercent`
+          // would have been persisted into `marketSharePercent` by
+          // `Math.min(85, x + NaN)` and poisoned the overlay for the whole save.
+          marketSharePercent: Math.min(
+            85,
+            o.marketSharePercent + acquisitionSharePoints(offer.synergyBonusPercent),
+          ),
         },
         'acquisition_offer',
         `Acquired ${offer.targetName} for $${offer.askingPrice.toLocaleString()}`,
         weeksLived,
       );
     });
+
+    /**
+     * The acquired business brings its REVENUE with it.
+     *
+     * PLAYER REPORT (BBQ, 2026-08-11): "Acquisition of another company did not
+     * make any changes to the company. Synergy another hidden element that
+     * needs elaboration?"
+     *
+     * He was right that nothing visible changed. The only mechanical payload was
+     * `marketSharePercent + synergyBonusPercent / 4`, which reaches money as
+     * `share / 200` in `companyIncomeFactors` — so a headline "+24% synergy"
+     * delivered +6 share points and about **+3% weekly income**, for a
+     * seven-figure price. Worse, `companyIncomeFactors` clamps at
+     * `COMPANY_FACTOR_MAX` (1.6), so a mature company already at the cap got
+     * literally nothing for the purchase.
+     *
+     * Buying a company that earns money should earn you money. The target's
+     * weekly revenue is added to `baseWeeklyIncome` — the stored base both
+     * Hustle surfaces render and the one the overlay multiplier scales — and
+     * `weeklyIncome` is recomputed through the same headcount multiplier
+     * `buyCompanyUpgrade` and `adjustEmployees` use, so the three cannot
+     * disagree about what a company earns.
+     *
+     * The synergy share bump is KEPT: it is the part that models two businesses
+     * being worth more together than apart, and it is now the smaller half of a
+     * real payload rather than the whole of a token one.
+     *
+     * NOTE for balance review: `askingPrice` is 4–10× the target's annual
+     * revenue, so simple payback is 208–520 game weeks. That is a realistic
+     * multiple and a slow one; it is left alone deliberately because changing it
+     * is an economy decision, not a correctness fix. Company income is also
+     * capped at $200k/wk in total by `PER_SOURCE_CAPS.companies`, so past that
+     * ceiling an acquisition buys market share and valuation rather than cash.
+     */
+    // Validate before arithmetic: a malformed offer (NaN / Infinity) would
+    // otherwise be divided, rounded and PERSISTED onto `baseWeeklyIncome`,
+    // poisoning the company's income for the rest of the save. Shared with the
+    // modal so the advertised figure and the paid one cannot diverge.
+    const weeklyRevenueGain = acquisitionWeeklyGain(offer.estimatedAnnualRevenue);
+    const companies = next.companies ?? [];
+    const cIdx = companies.findIndex((c) => c?.id === companyId);
+    let withIncome = next;
+    if (cIdx !== -1 && weeklyRevenueGain > 0) {
+      const target = companies[cIdx];
+      const nextBase = (target.baseWeeklyIncome ?? 0) + weeklyRevenueGain;
+      const nextCompanies = [...companies];
+      nextCompanies[cIdx] = {
+        ...target,
+        baseWeeklyIncome: nextBase,
+        weeklyIncome: Math.round(
+          nextBase * companyIncomeMultiplier(target.workerMultiplier ?? 1.1, target.employees ?? 0),
+        ),
+      };
+      // `state.company` is a SECOND reference to the same record, and screens
+      // read it directly. `withEmployeeDelta` in this file already syncs it on
+      // every headcount change; leaving it stale here meant an acquisition
+      // raised the income on the companies list while the currently-selected
+      // company card kept showing the old number.
+      withIncome = {
+        ...next,
+        companies: nextCompanies,
+        company: next.company?.id === companyId ? nextCompanies[cIdx] : next.company,
+      };
+    }
+
     // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).
-    const spend = applyMoneyDelta(next, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
+    const spend = applyMoneyDelta(withIncome, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
     if (!spend) return prev; // unaffordable → don't close the deal
     // P1-14: +3 reputation folded into the SAME updater (was a trailing updateStats
     // that granted reputation even when the price bailed and the deal didn't close).
-    return withReputationDelta({ ...next, ...spend }, 3);
+    // Spread `withIncome`, NOT `next` — spreading the pre-acquisition state here
+    // would silently drop the revenue gain computed above.
+    return withReputationDelta({ ...withIncome, ...spend }, 3);
   });
 
   return { success: true, message: `Closed: ${offer.targetName} is now part of your empire` };

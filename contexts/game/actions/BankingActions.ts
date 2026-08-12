@@ -11,6 +11,7 @@ import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoal
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { applyMoneyDelta } from './MoneyActions';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   depositToAccount,
@@ -32,6 +33,7 @@ import {
   findCheckingAccount,
   recomputeCreditScore,
   MIRRORED_ACCOUNT_IDS,
+  LEGACY_SAVINGS_ACCOUNT_ID,
 } from '@/lib/banking/operations';
 
 const log = logger.scope('BankingActions');
@@ -46,6 +48,34 @@ function ensureBanking(state: GameState): GameState {
 // Account operations
 // ---------------------------------------------------------------------------
 
+/**
+ * Write a new legacy-savings balance onto BOTH the authoritative field and the
+ * mirror row that reflects it, in one object.
+ *
+ * `bankSavings` is the source of truth; `savings-default.balance` is what the
+ * Bank screen renders. Writing only the former leaves the account card showing a
+ * stale number until the next weekly tick re-mirrors it, which reads as "the
+ * deposit didn't work" — the exact complaint being fixed. Writing both keeps the
+ * two in step immediately and makes `mirrorAccountsFromLegacy` a no-op re-sync
+ * rather than a correction.
+ */
+function withLegacySavings(state: GameState, nextSavings: number): GameState {
+  const safeNext = Number.isFinite(nextSavings) ? Math.max(0, nextSavings) : 0;
+  const banking = state.banking;
+  return {
+    ...state,
+    bankSavings: safeNext,
+    banking: banking
+      ? {
+          ...banking,
+          accounts: (banking.accounts || []).map((a) =>
+            a?.id === LEGACY_SAVINGS_ACCOUNT_ID ? { ...a, balance: safeNext } : a
+          ),
+        }
+      : banking,
+  };
+}
+
 export const depositCashToAccount = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   accountId: string,
@@ -55,26 +85,63 @@ export const depositCashToAccount = (
     if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
-    // checking-default / savings-default mirror legacy cash; depositing into them
-    // is silently erased by the next mirror tick (money loss). Reject. Players
-    // save by depositing into a self-opened account, which is a real pool.
+    const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+    // Affordability is re-checked against `prev` INSIDE the updater, not against
+    // the caller's snapshot, so a double-tap in one React batch cannot deposit
+    // the same dollars twice (CLAUDE.md §4.4).
+    if (!Number.isFinite(amount) || amount <= 0 || amount > currentMoney) {
+      log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
+      return prev;
+    }
+    // The savings mirror is a real deposit target — routed through `bankSavings`,
+    // the field it reflects, so the weekly re-mirror has nothing to overwrite.
+    // See LEGACY_SAVINGS_ACCOUNT_ID for why this one is not read-only.
+    if (accountId === LEGACY_SAVINGS_ACCOUNT_ID) {
+      const currentSavings =
+        typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
+          ? Math.max(0, state.bankSavings)
+          : 0;
+      const debit = applyMoneyDelta(state, -amount, 'Deposit to savings');
+      if (!debit) return prev;
+      // Credit savings by what ACTUALLY left cash, exactly as the withdraw half
+      // debits savings by what actually landed. See the long note there: writing
+      // the requested `amount` on one side and letting `applyMoneyDelta` clamp
+      // the other is how money gets created or destroyed at the boundaries.
+      const moved = currentMoney - debit.stats.money;
+      if (moved <= 0) return prev;
+      return { ...withLegacySavings(state, currentSavings + moved), ...debit };
+    }
+    // checking-default still mirrors `stats.money`: moving cash into your own
+    // cash is not a transaction, and writing the balance would be erased by the
+    // next mirror tick (an unbounded money printer on the withdraw side).
     if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
       log.warn(`Deposit rejected: ${accountId} mirrors cash and is read-only`);
       return prev;
     }
-    const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
-    if (amount <= 0 || amount > currentMoney) {
-      log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
-      return prev;
-    }
-    const result = depositToAccount(state.banking, accountId, amount);
+    /**
+     * Debit cash through `applyMoneyDelta`, then credit the account with what
+     * actually left — the same shape as every other money movement here.
+     *
+     * The direct `money: currentMoney - amount` write this replaces skipped
+     * `dailySummary.moneyChange` entirely, while the WITHDRAW half credits it.
+     * So a deposit followed by a withdrawal of the same sum reported a net
+     * positive week even though cash had returned to exactly where it started.
+     * (`totalMoneyEarned` was never affected — `NON_INCOME_REASON` already
+     * excludes deposit/withdraw/savings/bank, which is what keeps the daily
+     * "earn $X" gem challenges unfarmable.)
+     */
+    const debit = applyMoneyDelta(state, -amount, `Deposit to account ${accountId}`);
+    if (!debit) return prev;
+    const moved = currentMoney - debit.stats.money;
+    if (moved <= 0) return prev;
+    const result = depositToAccount(state.banking, accountId, moved);
     if (!result.ok) {
       log.warn(`Deposit failed: ${result.reason}`);
       return prev;
     }
     return {
       ...state,
-      stats: { ...state.stats, money: currentMoney - amount },
+      ...debit,
       banking: result.banking,
     };
   });
@@ -89,6 +156,39 @@ export const withdrawCashFromAccount = (
     if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // Savings mirror: the other half of the deposit path. Debit `bankSavings`
+    // (authoritative) and credit cash through applyMoneyDelta, so the round trip
+    // conserves value and the next re-mirror is a no-op.
+    if (accountId === LEGACY_SAVINGS_ACCOUNT_ID) {
+      const currentSavings =
+        typeof state.bankSavings === 'number' && isFinite(state.bankSavings)
+          ? Math.max(0, state.bankSavings)
+          : 0;
+      const currentMoney =
+        typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+      if (!Number.isFinite(amount) || amount <= 0 || amount > currentSavings) {
+        log.warn(`Withdraw rejected: amount=${amount}, savings=${currentSavings}`);
+        return prev;
+      }
+      const credit = applyMoneyDelta(state, amount, 'Withdraw from savings');
+      if (!credit) return prev;
+      /**
+       * Debit savings by what ACTUALLY landed in cash, not by what was asked
+       * for.
+       *
+       * `applyMoneyDelta` does not refuse an over-ceiling credit — it CLAMPS
+       * (`Math.min(MONEY_CEILING, …)`) and returns a value. Debiting `amount`
+       * while cash only rose by the clamped delta would silently destroy the
+       * difference, which is the money-conservation failure the whole
+       * read-only-mirror rule exists to prevent. `MONEY_CEILING` is
+       * `MAX_SAFE_INTEGER`, so this is only reachable in an extreme late game —
+       * but deriving the debit from the credit makes the invariant hold at every
+       * balance instead of below a threshold.
+       */
+      const landed = credit.stats.money - currentMoney;
+      if (landed <= 0) return prev; // nothing moved — don't burn the savings
+      return { ...withLegacySavings(state, currentSavings - landed), ...credit };
+    }
     // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
     // cash here and letting the next mirror tick restore the account balance was
     // an unbounded money printer. There is nothing to withdraw FROM your own cash
@@ -618,18 +718,69 @@ export const getCheckingAccount = (state: GameState) => {
 /** One sponsored bonus per in-game week. */
 export const AD_CASH_BONUS_COOLDOWN_WEEKS = 1;
 
+/** Floor — the bonus is never smaller than this, however poor the player is. */
+export const AD_CASH_BONUS_MIN = 2_000;
+/** Share of the player's worth paid out, once per in-game week. */
+export const AD_CASH_BONUS_RATE = 0.02;
 /**
- * The bank's weekly sponsored bonus, scaled off the player's balance.
+ * Ceiling. Matches `AdRewardOrb`'s `REWARD_MAX` so the game's two cash ad
+ * rewards top out at the same number instead of two unrelated ones.
+ */
+export const AD_CASH_BONUS_MAX = 500_000;
+
+/**
+ * The bank's weekly sponsored bonus, scaled off everything the player owns.
  *
  * Exported so the button quotes exactly what the action will pay — a reward
  * that advertises one number and grants another is the shape of every "silent
  * rejection" finding in this codebase.
+ *
+ * ── Why net worth, not cash ───────────────────────────────────────────────
+ *
+ * This used to read `stats.money` alone, floored at $50 and capped at $5,000.
+ * Cash is the worst available proxy for how far along a player is: someone with
+ * $40M in property, companies and stock but $300 in their wallet — an entirely
+ * normal late-game shape, since idle cash earns nothing — was offered **$50**.
+ * Meanwhile `AdRewardOrb` had already been fixed to scale off
+ * `max(netWorth, cash) × 1.5%` with a $1,000 floor and a $500,000 cap, so the
+ * game shipped two cash ad rewards on scales three orders of magnitude apart.
+ *
+ * `calculateNetWorth` delegates to the canonical `netWorth()` in
+ * `lib/progress/achievements.ts`, which is genuinely "everything that has
+ * worth": cash, legacy savings, self-opened accounts, savings goals, crypto,
+ * stocks, real estate, companies, vehicles and luxury, minus card debt and
+ * loans.
+ *
+ * `Math.max(netWorth, cash)` rather than net worth alone, matching the orb: net
+ * worth subtracts debt, so a player who is cash-rich and mortgage-heavy would
+ * otherwise be pushed to the floor by a number that says nothing about what
+ * they can spend.
+ *
+ * The floor is what makes this worth watching an ad for early — 2% of a
+ * starting $1,500 is $30 — and it binds until roughly $100k of worth, after
+ * which the percentage takes over.
  */
 export const getAdCashBonusAmount = (state: GameState): number => {
   const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money)
     ? Math.max(0, state.stats.money)
     : 0;
-  return Math.max(50, Math.min(5000, Math.round((cash * 0.02) / 10) * 10));
+  let worth = 0;
+  try {
+    worth = calculateNetWorth(state);
+  } catch (err) {
+    // A corrupt save must degrade to the floor, never to a throw inside a
+    // render — this feeds a button label on a screen the player can always open.
+    // Logged rather than swallowed: silently paying every player the floor would
+    // hide the underlying corruption indefinitely.
+    log.error('getAdCashBonusAmount: calculateNetWorth failed, using the floor', err);
+    worth = 0;
+  }
+  const base = Math.max(isFinite(worth) ? worth : 0, cash, 0);
+  const raw = base * AD_CASH_BONUS_RATE;
+  const clamped = Math.max(AD_CASH_BONUS_MIN, Math.min(AD_CASH_BONUS_MAX, raw));
+  // Clean $10 steps, and the floor re-applied after rounding so it can never
+  // round DOWN through the minimum.
+  return Math.max(AD_CASH_BONUS_MIN, Math.round(clamped / 10) * 10);
 };
 
 /** Weeks until the bonus is claimable again — 0 when it is ready now. */

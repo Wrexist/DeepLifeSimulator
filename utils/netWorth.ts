@@ -25,6 +25,20 @@ export interface NetWorthBreakdown {
   totalLiabilities: number;
   netWorth: number;
   byAssetType: Record<string, number>;
+  /**
+   * The valued contribution of each input asset, in input order and UNROUNDED.
+   *
+   * Exists so a caller can itemise the total without re-deriving what an asset
+   * is worth. `NetWorthBreakdownModal` used to keep a second, hand-maintained
+   * list beside the one it passed in here, and the two drifted every single
+   * time a term was added — the header rose, the visible rows did not, and the
+   * percentages stopped reaching 100%. Reading the split back out of the same
+   * pass makes that impossible.
+   *
+   * Unrounded on purpose: these are summed by the caller before display, and
+   * rounding first would compound the error across a large portfolio.
+   */
+  perAsset: number[];
 }
 
 const DEFAULT_DEPRECIATION_FLOOR = 0.3;
@@ -65,6 +79,7 @@ export function computeNetWorth(
 ): NetWorthBreakdown {
   let totalAssets = 0;
   const byAssetType: Record<string, number> = {};
+  const perAsset: number[] = [];
 
   for (const asset of assets) {
     let value = 0;
@@ -95,6 +110,7 @@ export function computeNetWorth(
 
     value = Math.max(0, value);
     totalAssets += value;
+    perAsset.push(value);
     byAssetType[asset.type] = (byAssetType[asset.type] || 0) + value;
   }
 
@@ -121,5 +137,6 @@ export function computeNetWorth(
     totalLiabilities: Math.round(totalLiabilities),
     netWorth: Math.round(netWorth),
     byAssetType: roundedBreakdown,
+    perAsset,
   };
 }

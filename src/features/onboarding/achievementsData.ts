@@ -257,8 +257,30 @@ export const achievements: Achievement[] = [
   {
     id: 'company_emperor',
     title: 'Company Emperor',
-    description: 'Own 20 companies.',
-    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 20 },
+    /**
+     * 15, not 20 — 20 was unreachable.
+     *
+     * PLAYER REPORT (BBQ, 2026-08-11): "There are achievements that state you
+     * could own 10 or even 20. This is not feasible. Max right now is 5."
+     *
+     * He was right on both numbers. The hard ceiling is five company types ×
+     * `MAX_PER_COMPANY_TYPE` (3) = **15**, so this promised 300 gold for
+     * something the code forbids. And the 5 he measured is also correct: a
+     * second company of any type is gated behind `feature:conglomerate`, which
+     * needs one prestige — so before prestiging, five (one of each) IS the cap.
+     *
+     * Retargeted rather than raising `MAX_PER_COMPANY_TYPE` to 4. That cap is a
+     * considered balance decision — `lib/business/subsidiaries.ts` explains that
+     * three of each puts a player deep into the 11+ efficiency tier (70%) with a
+     * third bank alone costing $12.5M. Moving it to satisfy an achievement would
+     * be the tail wagging the dog. At 15 this is now a true capstone: the most
+     * companies the game can hold.
+     *
+     * `companyGoalsAreReachable.test.ts` pins the relationship so the two cannot
+     * drift apart again.
+     */
+    description: 'Own 15 companies — every type, maxed out.',
+    progressSpec: { kind: 'counter', current: (gs: GameState): number => gs.companies?.length ?? 0, goal: 15 },
     goldReward: 300,
     group: 'company',
   },

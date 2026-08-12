@@ -59,9 +59,29 @@ describe('updatePlayerReputation', () => {
     expect(updatePlayerReputation(0, 'success', 'elite')).toBe(3);
   });
 
-  it('does not move on scam / cancelled', () => {
-    expect(updatePlayerReputation(50, 'scam', 'elite')).toBe(50);
+  it('does not move on a CANCELLED trade — nothing happened', (): void => {
     expect(updatePlayerReputation(50, 'cancelled', 'pro')).toBe(50);
+  });
+
+  it('moves at HALF rate on a scam, not zero', (): void => {
+    // Was zero, which stalled progression early on: the two cheapest seed
+    // vendors scam at 82% and 95%, so a cash-poor player earned almost nothing
+    // for the attempts they could afford. You still paid and the market still
+    // saw a buyer — losing the BTC is the punishment.
+    expect(updatePlayerReputation(50, 'scam', 'elite')).toBe(52); // ceil(3/2) = 2
+    expect(updatePlayerReputation(50, 'scam', 'pro')).toBe(51); // ceil(2/2) = 1
+    expect(updatePlayerReputation(50, 'scam', 'common')).toBe(51); // ceil(1/2) = 1
+  });
+
+  it('a clean purchase is never worse than a scam', (): void => {
+    for (const tier of ['common', 'pro', 'elite'] as const) {
+      expect(updatePlayerReputation(50, 'success', tier)).toBeGreaterThanOrEqual(
+        updatePlayerReputation(50, 'scam', tier),
+      );
+    }
+    expect(updatePlayerReputation(50, 'success', 'elite')).toBeGreaterThan(
+      updatePlayerReputation(50, 'scam', 'elite'),
+    );
   });
 
   it('caps at 100', () => {

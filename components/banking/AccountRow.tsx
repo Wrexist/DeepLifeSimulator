@@ -5,7 +5,7 @@ import { BankAccount } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassButton } from '@/utils/glassmorphismStyles';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
 
 interface Props {
   account: BankAccount;
@@ -85,10 +85,27 @@ export default function AccountRow({
   const isLocked = account.lockUntilWeek != null && currentWeek < account.lockUntilWeek;
   const weeksUntilUnlock = isLocked ? account.lockUntilWeek! - currentWeek : 0;
   const Icon = variant === 'card' ? accountGlyph(account.type) : account.type === 'checking' ? Wallet : PiggyBank;
-  // Mirrored default accounts are read-only views of cash / legacy savings —
-  // withdraw/close are rejected by the action layer, so don't offer them at all.
-  const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
-  const showActions = !isMirrored && (!!onWithdraw || !!onClose);
+  // `checking-default` is a read-only view of cash — deposit/withdraw/close are
+  // all rejected by the action layer, so don't offer them at all.
+  //
+  // `savings-default` is NOT in that bucket any more. It is the account behind
+  // the HUD's gold chip, and hiding its controls was half of why that chip could
+  // never move (BBQ, 2026-08-11). Its deposits and withdrawals route through
+  // `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID. Close stays unavailable: it is
+  // a primary account, not something the player opened.
+  // Both rules come from `lib/banking/operations` rather than being re-derived
+  // here. Three components asked the same two questions inline, this change had
+  // to edit all three when the answer moved, and a future edit that misses one
+  // leaves them disagreeing about whether the gold piggy takes deposits.
+  const isMirrored = isReadOnlyMirror(account.id);
+  // `closeAccount` refuses every mirror ("Your primary checking and savings
+  // accounts cannot be closed"), so offering the button would render a control
+  // that always fails.
+  const closeAction = canCloseAccount(account.id) ? onClose : undefined;
+  // `onPress` counts: it is the deposit affordance. Gating solely on withdraw
+  // and close meant a caller passing only `onPress` got the "read-only" chip on
+  // an account this change makes depositable.
+  const showActions = !isMirrored && (!!onPress || !!onWithdraw || !!closeAction);
 
   // ── Apple-Wallet card face ────────────────────────────────────────────────
   if (variant === 'card') {
@@ -96,15 +113,21 @@ export default function AccountRow({
     const ageWeeks = Math.max(0, currentWeek - account.openedWeek);
     const cardTap = onDetail ?? onPress;
     return (
-      <TouchableOpacity
-        activeOpacity={cardTap ? 0.85 : 1}
-        onPress={cardTap}
-        accessibilityRole={cardTap ? 'button' : undefined}
-        accessibilityLabel={
-          cardTap
-            ? `${account.name}, ${accountTypeLabel(account.type)}, balance ${formatMoney(account.balance)}`
-            : undefined
-        }
+      /**
+       * A View, not a Pressable.
+       *
+       * The whole card used to be one `TouchableOpacity` with the Deposit /
+       * Withdraw / Close buttons rendered INSIDE it. Nested interactive controls
+       * are invalid on web — RN-Web logs "<button> cannot contain a nested
+       * <button>" — and the outer control wins the hit test, so the inner
+       * buttons were unreliable to tap and ambiguous to a screen reader, which
+       * sees a button inside a button.
+       *
+       * The tap-to-detail affordance now wraps only the INFORMATIONAL part of
+       * the card, and the action row is its sibling. Same look, one interactive
+       * control per thing you can actually do.
+       */
+      <View
         // Recipe-B anatomy: outer view carries shadow + radius + border + solid
         // fill (no overflow here or the shadow clips on iOS); inner view clips the
         // tint wash + glow blob. Elevation 10 lifts the deck above the L1 rows.
@@ -144,6 +167,20 @@ export default function AccountRow({
             />
           )}
 
+          {/* The tap-to-detail region: everything ABOVE the action row. Kept as
+              its own pressable so the buttons below are siblings, not children,
+              of an interactive element. */}
+          <TouchableOpacity
+            activeOpacity={cardTap ? 0.85 : 1}
+            onPress={cardTap}
+            disabled={!cardTap}
+            accessibilityRole={cardTap ? 'button' : undefined}
+            accessibilityLabel={
+              cardTap
+                ? `${account.name}, ${accountTypeLabel(account.type)}, balance ${formatMoney(account.balance)}`
+                : undefined
+            }
+          >
           {/* top: bubble + type eyebrow / name + tappable chevron */}
           <View style={styles.cardTop}>
             <View
@@ -199,6 +236,7 @@ export default function AccountRow({
               </Text>
             </View>
           )}
+          </TouchableOpacity>
 
           {/* actions — labeled + >=36pt; mirrored accounts stay read-only */}
           {showActions ? (
@@ -225,9 +263,9 @@ export default function AccountRow({
                   <Text style={[styles.cardBtnText, { color: theme.text }]}>Withdraw</Text>
                 </TouchableOpacity>
               )}
-              {onClose && (
+              {closeAction && (
                 <TouchableOpacity
-                  onPress={onClose}
+                  onPress={closeAction}
                   disabled={isLocked}
                   accessibilityRole="button"
                   accessibilityLabel={`Close ${account.name}`}
@@ -245,7 +283,7 @@ export default function AccountRow({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
@@ -257,12 +295,26 @@ export default function AccountRow({
   const bubbleColor = isChecking ? accent.info : accent.success;
 
   return (
-    <TouchableOpacity
-      activeOpacity={onPress ? 0.7 : 1}
-      onPress={onPress}
+    /**
+     * Same split as the card variant above, and for the same reason: the
+     * Deposit / Withdraw / Close buttons used to sit INSIDE the outer
+     * pressable, which nests interactive controls — invalid on web (a `button`
+     * inside a `button`) and ambiguous for a screen reader, which cannot say
+     * whether a tap opens the account or withdraws from it.
+     *
+     * It also became reachable here for the first time: `savings-default`
+     * previously rendered no action row at all, so this path never ran for the
+     * one account most likely to be tapped.
+     */
+    <View
       style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
-      <View style={styles.mainRow}>
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.7 : 1}
+        onPress={onPress}
+        disabled={!onPress}
+        style={styles.mainRow}
+      >
         <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: `rgba(${bubbleRGB}, 0.15)`, borderWidth: 1, borderColor: `rgba(${bubbleRGB}, 0.30)` }]}>
           <Icon size={scale(20)} color={bubbleColor} />
         </View>
@@ -293,7 +345,7 @@ export default function AccountRow({
           <Text style={[styles.balance, { color: theme.text }]}>{formatMoney(account.balance)}</Text>
           {onPress && <ChevronRight size={scale(16)} color={theme.textMuted} />}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {showActions && (
         <View style={styles.actionsRow}>
@@ -314,9 +366,9 @@ export default function AccountRow({
               <Text style={[styles.actionText, { color: theme.text }]}>Withdraw</Text>
             </TouchableOpacity>
           )}
-          {onClose && (
+          {closeAction && (
             <TouchableOpacity
-              onPress={onClose}
+              onPress={closeAction}
               disabled={isLocked}
               style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}
             >
@@ -325,7 +377,7 @@ export default function AccountRow({
           )}
         </View>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 

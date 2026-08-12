@@ -56,3 +56,57 @@ export function clearPromotedSparkMatch(
     ),
   };
 }
+
+/**
+ * Clear `promoted` on every match whose relationship no longer exists.
+ *
+ * The sibling above takes ONE id and is called from the paths that knowingly
+ * end a relationship (divorce, breakup). This one reconciles against the whole
+ * live set instead, because the weekly health pass removes relationships
+ * WITHOUT any single call site knowing which — a partner breakup roll, and
+ * (since neglect got teeth) a friend drifting away.
+ *
+ * A match left stranded is unusable in both directions: the chat header reads
+ * "Dating", the befriend affordance is hidden because it only renders for an
+ * un-promoted match, and BOTH promotion actions refuse with "Already dating
+ * this person" / "Already in your contacts". The person is gone from your life
+ * and you cannot re-approach them.
+ *
+ * Reconciling against the live set rather than a removed-id list also self-heals
+ * any match orphaned by an earlier path that forgot to call the sibling.
+ *
+ * Returns the SAME object when nothing is stale, so the common weekly path
+ * allocates nothing.
+ */
+/** Minimum shape this reconciliation needs from a relationship. */
+export interface RelationshipIdentity {
+  id?: string;
+}
+
+export function clearOrphanedSparkPromotions(
+  sparkApp: SparkAppState | undefined,
+  relationships: readonly RelationshipIdentity[] | undefined,
+): SparkAppState | undefined {
+  if (!sparkApp?.matches) return sparkApp;
+  /**
+   * A missing or malformed relationship list means "I cannot tell", NOT "there
+   * are no relationships".
+   *
+   * The previous form degraded a non-array to `[]`, which made `live` empty and
+   * therefore cleared the `promoted` flag on EVERY match — turning an absent
+   * input into wholesale data loss, and re-offering "Befriend" for people the
+   * player is already dating. Changing nothing is the only safe answer when the
+   * comparison set is unavailable.
+   */
+  if (!Array.isArray(relationships)) return sparkApp;
+  const live = new Set(
+    relationships.map((r) => r?.id).filter((id): id is string => typeof id === 'string'),
+  );
+  if (!sparkApp.matches.some((m) => m?.promoted && !live.has(m.id))) return sparkApp;
+  return {
+    ...sparkApp,
+    matches: sparkApp.matches.map((m) =>
+      m?.promoted && !live.has(m.id) ? { ...m, promoted: false } : m,
+    ),
+  };
+}

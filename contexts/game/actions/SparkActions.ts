@@ -668,6 +668,104 @@ export const promoteMatchToRelationship = (
  *
  * Returns `{ success:false }` with a clear message when the player can't afford it.
  */
+/**
+ * Promote a Spark match into a **friend**.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-11): "Cannot make any friends. Mom Dad children
+ * and spouse are all that's available. You can match with as many people as you
+ * want on Spark but only the first one is a contact."
+ *
+ * Both halves of that were one gap. `'friend'` is a declared `Relationship`
+ * type read in at least six places — `lib/contacts/aggregator.ts`,
+ * `ContactsApp`, `lib/social/npcDepth.ts` (goals, wants, gift preferences, and
+ * a `meet_friends` want that lists `'friend'` among its target types),
+ * `SocialActionsContext`, `prestigeExecution`'s heir cleanup — and it was
+ * created by **nothing**. A repo-wide search for `type: 'friend'` in non-test
+ * source returned no results. Every one of those consumers was dead code, and
+ * `ContactsApp`'s empty state advertised a verb ("Date, befriend, or build
+ * family ties") the game did not implement.
+ *
+ * The second half follows: `promoteMatchToRelationship` is the ONLY producer of
+ * relationships anywhere, and its anti-bigamy guard correctly refuses a second
+ * partner — so once one match was promoted, every other match had nowhere to
+ * go. That guard is right and stays; what was missing is the other destination.
+ *
+ * Deliberately NOT gated on exclusivity: a player may have any number of
+ * friends, and a friend costs nothing to hold. The idempotence guard is
+ * ownership of the match, not a global count.
+ *
+ * The relationship's `type` is the single source of truth for what a promoted
+ * match became — `SparkMatch.promoted` stays a plain boolean and the UI reads
+ * the type off `relationships`. That keeps this out of the save format
+ * entirely: no new field, no migration, no STATE_VERSION bump.
+ */
+export const promoteMatchToFriend = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  matchId: string,
+): { success: boolean; message: string; relationshipId?: string } => {
+  const sp = gameState.sparkApp;
+  const match = sp?.matches.find((m) => m.id === matchId);
+  if (!sp || !match) return { success: false, message: 'Match not found' };
+  if (match.promoted) return { success: false, message: 'Already in your contacts' };
+  const profile = findProfile(match.profileId);
+  if (!profile) return { success: false, message: 'Profile no longer exists' };
+
+  const relationshipId = match.id; // shared id, same as the partner path
+
+  /**
+   * Pessimistic capture, per the instruction in
+   * `__tests__/refactor/updaterResultRatchet.test.ts`: a NEW action must not
+   * ship the "reject inside the updater, return unconditional success" shape.
+   *
+   * Initialised to a refusal so the only way to report success is for the
+   * updater to have actually run and committed. A same-batch double-tap now
+   * reports "already in your contacts" for the second tap instead of claiming a
+   * second friendship that was never created.
+   */
+  let result: { success: boolean; message: string; relationshipId?: string } = {
+    success: false,
+    message: 'Already in your contacts',
+  };
+
+  setGameState((prev) => {
+    // Re-check against `prev`, not the snapshot above: two taps in one React
+    // batch would otherwise append the same person twice (CLAUDE.md §4.4).
+    const s = ensureSpark(prev);
+    const stillUnpromoted = s.matches.find((m) => m.id === matchId && !m.promoted);
+    if (!stillUnpromoted) return prev;
+    if ((prev.relationships ?? []).some((r) => r?.id === relationshipId)) return prev;
+
+    const newRelationship = {
+      id: relationshipId,
+      name: profile.name,
+      type: 'friend' as const,
+      // Below the 55 a promoted partner starts at: you have chatted, not dated.
+      // Also comfortably above NEGLECT_THRESHOLD, so a brand-new friend is not
+      // immediately "at risk".
+      relationshipScore: 45,
+      personality: profile.personality,
+      gender: profile.gender,
+      age: profile.age,
+      income: profile.income,
+      job: profile.job,
+      datesCount: 0,
+    };
+
+    result = { success: true, message: `${profile.name} is now a friend`, relationshipId };
+    return {
+      ...prev,
+      sparkApp: {
+        ...s,
+        matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
+      },
+      relationships: [...(prev.relationships ?? []), newRelationship],
+    };
+  });
+
+  return result;
+};
+
 export const subscribeSparkPremium = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,

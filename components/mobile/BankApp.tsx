@@ -42,7 +42,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
 
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
 import AccountRow, { accountPalette, accountTypeLabel } from '@/components/banking/AccountRow';
@@ -51,6 +51,7 @@ import CreditCardRow from '@/components/banking/CreditCardRow';
 import BillPayRow from '@/components/banking/BillPayRow';
 import SavingsGoalCard from '@/components/banking/SavingsGoalCard';
 import AmountInputModal from '@/components/banking/AmountInputModal';
+import AccountTransferPanel, { TransferDirection } from '@/components/banking/AccountTransferPanel';
 import OpenAccountModal from '@/components/banking/OpenAccountModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import ApplyCardModal from '@/components/banking/ApplyCardModal';
@@ -239,9 +240,31 @@ function BankAppInner({ onBack }: BankAppProps) {
   );
 
   // ───────────────────────────── Account detail page ───────────────────────
+  /**
+   * Stable transfer handler for the account the detail view currently has open.
+   *
+   * `AccountTransferPanel` is a child component, so an inline arrow was a fresh
+   * prop identity on every render — exactly what the panel's own memo work
+   * exists to avoid. Keyed on the OPEN account id rather than curried by id: a
+   * curried factory would still allocate per render and change nothing.
+   */
+  const openAccountId = subView?.kind === 'account' ? subView.id : null;
+  const handleTransfer = useCallback(
+    (dir: TransferDirection, amt: number) => {
+      if (!openAccountId) return;
+      if (dir === 'deposit') depositCashToAccount(setGameState, openAccountId, amt);
+      else withdrawCashFromAccount(setGameState, openAccountId, amt);
+      queueSave();
+    },
+    [setGameState, queueSave, openAccountId]
+  );
+
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
-    const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
+    // Only `checking-default` is read-only now. `savings-default` deposits and
+    // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
+    const isMirrored =
+      isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
     const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
     const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;
@@ -316,33 +339,28 @@ function BankAppInner({ onBack }: BankAppProps) {
             </View>
           ) : (
             <View style={{ gap: responsiveSpacing.sm }}>
-              <TouchableOpacity
-                onPress={() => setDepositTarget(account)}
-                accessibilityRole="button"
-                accessibilityLabel={`Deposit to ${account.name}`}
-                style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
-              >
-                <View style={styles.ctaInner}>
-                  {/* A two-identical-stop "gradient" is a flat fill. It only
-                      existed because the old fallback painted colors[0]; now
-                      that Gradient renders a real SVG there is no reason to
-                      mount one per account card to paint a single colour. */}
-                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: pal.hex }]} />
-                  <Coins size={scale(16)} color="#fff" />
-                  <Text style={styles.ctaText}>Deposit</Text>
-                </View>
-              </TouchableOpacity>
-              <View style={styles.detailSecondaryRow}>
-                <TouchableOpacity
-                  onPress={() => setWithdrawTarget(account)}
-                  disabled={isLocked}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Withdraw from ${account.name}`}
-                  accessibilityState={{ disabled: isLocked }}
-                  style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
-                >
-                  <Text style={[styles.secondaryText, { color: theme.text }]}>Withdraw</Text>
-                </TouchableOpacity>
+              {/* Moving money is the reason this screen gets opened, so it is
+                  the control on the screen rather than two buttons that each
+                  open a modal with a keyboard. Slider + percentage chips
+                  because the amounts people pick are proportions ("half of it")
+                  far more often than round numbers. */}
+              <AccountTransferPanel
+                cashAvailable={cash}
+                accountBalance={account.balance}
+                tint={pal.hex}
+                darkMode={darkMode}
+                withdrawDisabled={isLocked}
+                withdrawDisabledReason={isLocked ? `Locked until week ${account.lockUntilWeek}` : undefined}
+                onSubmit={handleTransfer}
+              />
+              {/* `closeAccount` refuses every id in MIRRORED_ACCOUNT_IDS
+                  ("Your primary checking and savings accounts cannot be
+                  closed"), so offering Close on the legacy savings account
+                  renders a control that can only ever fail. `AccountRow`
+                  already drops it for the same reason; this detail view is a
+                  separate component and needed the same guard. Caught by
+                  driving the real app, not by the suite. */}
+              {canCloseAccount(account.id) && (
                 <TouchableOpacity
                   onPress={() => confirmCloseAccount(account)}
                   disabled={isLocked}
@@ -353,7 +371,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                 >
                   <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
                 </TouchableOpacity>
-              </View>
+              )}
             </View>
           )}
 

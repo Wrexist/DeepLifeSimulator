@@ -83,37 +83,74 @@ describe('F6 — the Help describes the dark web that shipped', () => {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[^:])\/\/.*$/gm, '$1');
 
-  it('the hacks actions really have no UI caller (the premise)', () => {
-    const uiDirs = ['components', 'app'];
+  /**
+   * PREMISE UPDATED 2026-08-11: `buyDarkWebItem` now has a caller, on purpose.
+   *
+   * This test used to assert that `performHack`, `buyHack` AND `buyDarkWebItem`
+   * had no UI caller anywhere — the state of the world when F6 was written, and
+   * the justification for stripping the "buy VPNs and exploits" answers out of
+   * the Help. It was accurate then and it pinned the right thing: don't describe
+   * a store that does not exist.
+   *
+   * The store exists now. `buyDarkWebItem` is wired to the Onion app's Gear tab,
+   * which is what BBQ's "Crime tools were removed" report was about — 18 of the
+   * 19 illegal street jobs gate on items that had no way to be bought. So the
+   * assertion inverts for that one action: it must have a caller, and the Help
+   * must describe it again.
+   *
+   * `performHack` / `buyHack` are untouched and still callerless, so the rest of
+   * the F6 premise stands.
+   */
+  const uiCallersOf = (re: RegExp): string[] => {
     const walk = (d: string): string[] =>
       fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
         e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
 
-    const callers = uiDirs
+    return ['components', 'app']
       .flatMap((d) => walk(path.join(ROOT, d)))
       .filter((f) => /\.tsx$/.test(f))
-      .filter((f) => /\b(performHack|buyHack|buyDarkWebItem)\s*\(/.test(fs.readFileSync(f, 'utf8')))
-      .map((f) => path.relative(ROOT, f));
+      .filter((f) => re.test(fs.readFileSync(f, 'utf8')))
+      // Normalised to forward slashes: `path.relative` yields backslashes on
+      // Windows, and the assertions below compare against posix-style paths.
+      .map((f) => path.relative(ROOT, f).split(path.sep).join('/'));
+  };
 
-    expect(callers).toEqual([]);
+  it('the hack actions still have no UI caller (the surviving premise)', () => {
+    expect(uiCallersOf(/\b(performHack|buyHack)\s*\(/)).toEqual([]);
   });
 
-  it('no answer tells the player to buy VPNs or exploits', () => {
+  it('but buyDarkWebItem DOES — the gear store is wired', () => {
+    // The inverse of the original assertion, and the reason the Help answers
+    // below were rewritten to describe the Gear tab again.
+    expect(uiCallersOf(/\bbuyDarkWebItem\s*\(/)).toContain('components/computer/OnionApp.tsx');
+  });
+
+  it('no answer describes the HACK system, which still has no UI', () => {
+    // These three strings described the old per-hack flow driven by `buyHack` /
+    // `performHack` — still callerless, so still fiction.
     expect(HELP).not.toMatch(/Purchase VPNs, exploits/);
     expect(HELP).not.toMatch(/VPNs reduce trace chance/);
     expect(HELP).not.toMatch(/Use VPNs and exploits to reduce detection/);
   });
 
   it('and the answers name the systems that do exist', () => {
-    expect(HELP).toMatch(/Market, Jobs and Wallet/);
+    expect(HELP).toMatch(/Market, Gear, Jobs and Wallet/);
     expect(HELP).toMatch(/Hacking, Social Eng, OPSEC and Laundering/);
     expect(HELP).toMatch(/heat/);
+  });
+
+  it('the Help describes the Gear tab now that there is one', () => {
+    // The other half of F6: the Help must not UNDERSTATE what shipped either.
+    // A player who cannot find the tool store concludes the tools were removed —
+    // which is precisely the report this change answers.
+    expect(HELP).toMatch(/Gear is the tool store/);
   });
 
   it('those systems are really there (the control)', () => {
     // The new copy must not be a second fiction.
     const onion = read('components/computer/OnionApp.tsx');
     expect(onion).toMatch(/id: 'market'/);
+    expect(onion).toMatch(/id: 'gear'/);
     expect(onion).toMatch(/id: 'jobs'/);
     expect(onion).toMatch(/id: 'wallet'/);
 

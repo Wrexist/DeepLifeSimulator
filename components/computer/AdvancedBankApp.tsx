@@ -62,7 +62,12 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
-import { MIRRORED_ACCOUNT_IDS, computeStatementNetWorth } from '@/lib/banking/operations';
+import {
+  MIRRORED_ACCOUNT_IDS,
+  isReadOnlyMirror,
+  canCloseAccount,
+  computeStatementNetWorth,
+} from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
@@ -915,7 +920,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // ─────────────────────────── Account statement page ────────────────────────
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
-    const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
+    // Only `checking-default` is read-only now. `savings-default` deposits and
+    // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
+    const isMirrored =
+      isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
     const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
     const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;
@@ -1005,16 +1013,21 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 >
                   <Text style={[styles.secondaryText, { color: theme.text }]}>Withdraw</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => confirmCloseAccount(account)}
-                  disabled={isLocked}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Close ${account.name}`}
-                  accessibilityState={{ disabled: isLocked }}
-                  style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
-                >
-                  <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
-                </TouchableOpacity>
+                {/* Same guard as the phone BankApp: `closeAccount` refuses the
+                    mirrored ids, so Close on the legacy savings account is a
+                    button that can only fail. */}
+                {canCloseAccount(account.id) && (
+                  <TouchableOpacity
+                    onPress={() => confirmCloseAccount(account)}
+                    disabled={isLocked}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Close ${account.name}`}
+                    accessibilityState={{ disabled: isLocked }}
+                    style={[getGlassButton(darkMode), styles.secondaryBtn, isLocked && styles.disabled]}
+                  >
+                    <Text style={[styles.secondaryText, { color: accent.danger }]}>Close account</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}

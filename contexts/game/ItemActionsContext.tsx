@@ -107,15 +107,32 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      cryptos: (prev.cryptos || []).map(c =>
-        c.id === 'btc' ? { ...c, owned: c.owned - item.costBtc } : c
-      ),
-      darkWebItems: (prev.darkWebItems || []).map(i =>
-        i.id === itemId ? { ...i, owned: true } : i
-      ),
-    }));
+    setGameState(prev => {
+      if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
+      /**
+       * Re-check affordability AND ownership against `prev`, not the outer
+       * snapshot (CLAUDE.md §4.4).
+       *
+       * The outer guards above read `stateRef.current`, which is the classic
+       * gate-outside / grant-inside shape: two taps in one React batch both pass
+       * the outer check, and the second charges BTC for an item already owned.
+       * That never bit before because this function had no caller — the Gear tab
+       * is the first, so the guard has to be real now.
+       */
+      const owned = (prev.darkWebItems || []).find(i => i.id === itemId);
+      if (!owned || owned.owned) return prev;
+      const btc = prev.cryptos?.find(c => c.id === 'btc')?.owned ?? 0;
+      if (!isFinite(btc) || btc < item.costBtc) return prev;
+      return {
+        ...prev,
+        cryptos: (prev.cryptos || []).map(c =>
+          c.id === 'btc' ? { ...c, owned: c.owned - item.costBtc } : c
+        ),
+        darkWebItems: (prev.darkWebItems || []).map(i =>
+          i.id === itemId ? { ...i, owned: true } : i
+        ),
+      };
+    });
     logger.info('Dark web item purchased:', { itemId, name: item.name, costBtc: item.costBtc });
   }, [setGameState, showError]);
 

@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ArrowLeft, Heart, Send, User } from 'lucide-react-native';
+import { ArrowLeft, Heart, Send, User, UserPlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
@@ -22,6 +22,7 @@ import {
   generateNpcReply,
   markMatchRead,
   promoteMatchToRelationship,
+  promoteMatchToFriend,
 } from '@/contexts/game/actions/SparkActions';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
@@ -53,6 +54,14 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const isPromoted = match?.promoted;
+  // WHAT it was promoted into is read off the relationship, not off the match —
+  // `SparkMatch.promoted` is a plain boolean and stays one, so adding friends
+  // needed no save-format change. A promoted match shares its id with the
+  // relationship it created.
+  const promotedRel = isPromoted
+    ? gameState.relationships?.find((r) => r?.id === matchId)
+    : undefined;
+  const isFriend = promotedRel?.type === 'friend';
 
   // Mark match as read when the screen opens.
   useEffect(() => {
@@ -91,6 +100,26 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     }
   }, [setGameState, gameState, matchId, onOpenPartnerProfile, saveGame]);
 
+  /**
+   * The other destination for a match.
+   *
+   * Without this, `promoteMatchToRelationship`'s anti-bigamy guard meant every
+   * match after the first had nowhere to go — the player could keep matching and
+   * none of them became a contact. Friendship costs nothing and is not
+   * exclusive, so this button never refuses on "already with someone".
+   */
+  const handleBefriend = useCallback(() => {
+    const result = promoteMatchToFriend(setGameState, gameState, matchId);
+    if (result.success) {
+      sparkHaptics.tap();
+      setError(null);
+      saveGame?.();
+    } else {
+      sparkHaptics.error();
+      setError(result.message);
+    }
+  }, [setGameState, gameState, matchId, saveGame]);
+
   if (!match || !profile) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -116,13 +145,28 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
             {profile.name}
           </Text>
           <Text style={[styles.headerSub, { color: theme.textSecondary }]} numberOfLines={1}>
-            {isPromoted ? 'Dating' : 'New match'} · {profile.age}
+            {isPromoted ? (isFriend ? 'Friend' : 'Dating') : 'New match'} · {profile.age}
           </Text>
         </View>
+        {/* Two destinations for an un-promoted match, not one. Befriending is
+            offered first because it never refuses — dating is exclusive, so on
+            a second match the heart bounces off the anti-bigamy guard and the
+            person-plus is the only thing that can actually do something. */}
+        {!isPromoted && (
+          <Pressable
+            onPress={handleBefriend}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${profile.name} as a friend`}
+            hitSlop={8}
+            style={styles.headerBtn}
+          >
+            <UserPlus size={fontScale(20)} color={theme.textSecondary} />
+          </Pressable>
+        )}
         <Pressable
           onPress={isPromoted ? () => onOpenPartnerProfile(matchId) : handlePromote}
           accessibilityRole="button"
-          accessibilityLabel={isPromoted ? 'View profile' : 'Promote to dating'}
+          accessibilityLabel={isPromoted ? 'View profile' : 'Start dating'}
           hitSlop={8}
           style={styles.headerBtn}
         >

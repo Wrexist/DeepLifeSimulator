@@ -9,7 +9,13 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { acceptAcquisition, declineAcquisition } from '@/contexts/game/actions/HustleActions';
+import {
+  acceptAcquisition,
+  declineAcquisition,
+  acquisitionWeeklyGain,
+  acquisitionSharePoints,
+} from '@/contexts/game/actions/HustleActions';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
@@ -66,6 +72,11 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
               {offers.map((offer: any) => {
                 const color = industryColor(offer.targetIndustry);
                 const canAfford = playerMoney >= offer.askingPrice;
+                // Every displayed figure goes through the SAME helper the accept
+                // path uses. Re-deriving the guard inline here is what let the
+                // card advertise a number the action would not pay.
+                const weeklyGain = acquisitionWeeklyGain(offer.estimatedAnnualRevenue);
+                const safeAnnualRevenue = weeklyGain * WEEKS_PER_YEAR;
                 return (
                   <View
                     key={offer.id}
@@ -83,7 +94,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerText}>
                         <Text style={[styles.offerName, { color: theme.text }]}>{offer.targetName}</Text>
                         <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
-                          {offer.targetIndustry} · ${(offer.estimatedAnnualRevenue / 1000).toFixed(0)}K annual
+                          {offer.targetIndustry} · ${(safeAnnualRevenue / 1000).toFixed(0)}K annual
                         </Text>
                       </View>
                     </View>
@@ -95,13 +106,34 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                           ${offer.askingPrice.toLocaleString()}
                         </Text>
                       </View>
+                      {/**
+                        * The number the player is actually paid, not the raw
+                        * `synergyBonusPercent`.
+                        *
+                        * This used to render `+{offer.synergyBonusPercent}%` under
+                        * the bare label "Synergy" — no unit, no target. The field
+                        * is 8–30, but only a QUARTER of it reaches market share
+                        * (`+synergyBonusPercent / 4`), so a headline "+24%"
+                        * described a +6-point share move. A 4× overstatement on a
+                        * seven-figure purchase is the single most likely reason
+                        * this read as "acquisition changed nothing".
+                        *
+                        * Weekly income is now the headline because it is the term
+                        * the player can verify on the company card, and it is
+                        * derived from the SAME arithmetic `acceptAcquisition`
+                        * applies, so display and payout cannot drift.
+                        */}
                       <View style={styles.offerMetric}>
-                        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Synergy</Text>
+                        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +{offer.synergyBonusPercent}%
+                          +${weeklyGain.toLocaleString()}
                         </Text>
                       </View>
                     </View>
+
+                    <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
+                      Synergy +{acquisitionSharePoints(offer.synergyBonusPercent).toFixed(1)} market share
+                    </Text>
 
                     <View style={styles.offerCtaRow}>
                       <Pressable

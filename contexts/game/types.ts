@@ -1083,7 +1083,14 @@ export interface Company {
   type: 'factory' | 'ai' | 'restaurant' | 'realestate' | 'bank';
   weeklyIncome: number;
   baseWeeklyIncome: number;
-  money?: number;
+  // `money` deleted 2026-08-11. Nothing ever wrote it — `createCompany` did not
+  // set it and no action updated it — so the Hustle tile and detail screen both
+  // rendered "Cash $0" on every company for its entire life, and players
+  // reported it as a broken feature. The surfaces were repointed at named-hire
+  // payroll (a real number) earlier; this removes the field itself so nothing
+  // wires a third metric to it. See the header of
+  // `__tests__/tooling/deadStateFields.test.ts`, which cites this as one of the
+  // two motivating cases for that ratchet.
   upgrades: CompanyUpgrade[];
   employees: number;
   workerSalary: number;

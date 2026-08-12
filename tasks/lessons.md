@@ -2111,3 +2111,168 @@ done X" signal, check every income/progress source that should count — a
 career-salary counter is not a proxy for "experienced life".** A positive stamp
 written at character creation ("this life is new") would be drift-proof where an
 inferred signal keeps missing paths.
+
+## 2026-08-11 — BBQ bug report: a writer with no caller, and two findings I over-graded
+
+**A WRITER with no caller is invisible to every test that action has.**
+`buyDarkWebItem` debited BTC correctly, flipped `owned` correctly, guarded
+already-owned and insufficient-funds correctly — and had zero call sites in
+`components/` or `app/`. Every unit test of it passed, because the action was
+never the broken part. What was broken was that nothing called it, so a 20-item
+catalogue was unreachable and 18 of the 19 illegal street jobs sat locked behind
+tools with no storefront. The weekly audit hunts *readers without writers*; this
+is the mirror image and nothing was looking for it. The new guard
+(`__tests__/economy/crimeToolsReachable.test.ts`) asserts the whole CHAIN — job
+requires id → id exists in catalogue → catalogue has a screen → that screen
+calls the action — because any single link passing proves nothing.
+
+**Two of my own findings were over-graded, and re-reading the source before
+writing the fix is what caught both.** CLAUDE.md §8 says not to trust a finding
+without re-reading; it applies to findings I wrote myself, an hour earlier.
+
+- I claimed `calculateNetWorth` ignores bank accounts while prestige counts
+  them. The canonical `netWorth()` already counted them, and two other callers
+  delegate to it. The copy I cited was imported and **never called**. The real
+  defect was three *display* surfaces — narrower, and still worth fixing.
+- I graded the flagged-vendor sit-out a P0 bug and proposed removing it. It is
+  deliberate and has a test suite whose describe block says so: *"the seeded
+  market really can burn out"*. The player's complaint was real; the cause was
+  one layer up — the scam odds are computed and never shown, and rep is a
+  sigmoid, so "15/100" means a 95% loss chance and reads like "worth a punt".
+
+Same shape both times: **a real symptom attached to the wrong mechanism.** The
+tell in each case was a test that already asserted the opposite of what I
+assumed. Grep the tests for the behaviour before calling it a bug — if the
+repo already pinned it, it is a design decision and the bug is elsewhere.
+
+**A test can fail because of byte distance.** The C-9 ratchet's control did
+`src.indexOf('openAccount')` — matching an *import* — then read a fixed 6,000
+character window hoping the real declaration fell inside. Adding ~1.7k of
+unrelated code above it pushed the declaration out and the control failed,
+reporting a regression in a function nobody had touched. Its sibling assertion
+named the same wrong symbol and could never fail at all. Anchor to
+`export const <name>` and assert the anchor was found; a locator that silently
+returns -1 slices an empty string and passes.
+
+**Third time in this repo that the CHECKER was the wrong thing** (after the
+`return prevState` false positives and the G5 money-delta blind spot). The C-9
+detector cannot see a success return through a ternary, so its "62" is really
+"at least 63". When a ratchet moves because of an unrelated edit, suspect the
+detector before the code.
+
+**Wiring up dead code promotes its latent bugs to live ones.** `buyDarkWebItem`
+gated already-owned and insufficient-BTC against `stateRef.current` and granted
+inside the updater — textbook gate-then-grant. It had never mattered, because
+nothing called it. Adding the Gear tab made every one of its unexercised guards
+load-bearing in a single commit. A dormant writer has never had its guards run;
+re-read them BEFORE giving it a caller, not after.
+
+**A comment that describes behaviour the callee does not have is a bug with an
+alibi.** I wrote "if the credit is refused (MONEY_CEILING) we return prev" over
+a call to `applyMoneyDelta`, which does not refuse an over-ceiling credit — it
+CLAMPS and returns a value. The savings debit was full, the cash credit partial,
+and the difference vanished. The comment made the code read as correct on
+review, including my own. Check the callee's actual failure mode rather than the
+one the call site assumes; `null` and "clamped silently" are opposite contracts
+and look identical at the call site.
+
+**A guard can be correct and still be the bug, if it is the only exit.** Spark's
+anti-bigamy check refuses a second partner — right, and it stays. But
+`promoteMatchToRelationship` was the ONLY producer of relationships in the whole
+codebase, so "no second partner" silently meant "no second contact of any kind".
+The player experienced a correct rule as a broken feature. When a guard blocks
+the only path, the fix is a second path, not a weaker guard.
+
+**`'friend'` was read in six places and written in none.** Same class as
+`buyDarkWebItem`, found in the same report. `npcDepth` even built a
+`meet_friends` want that lists `'friend'` among its target types — a feature
+authored entirely against a value nothing could create. Grepping for a type's
+CONSUMERS proves nothing about whether it exists at runtime; grep for the
+producers.
+
+**Read the ratchet's instructions before working around it.** Adding
+`promoteMatchToFriend` took the C-9 count 62 → 63. My first instinct was to
+reshape the return to dodge the regex. The file's own header answers exactly
+this case: "If you are here because you added an action and this failed: use the
+pessimistic-capture shape. Do not raise the number." The "do not expand the
+pattern" warning elsewhere in the same file is about CONVERTING existing
+functions (the VehicleActions batch that broke `act()` tests), not about new
+ones. Two rules in one file, each scoped to a different situation — and taking
+the wrong one would have looked defensible.
+
+**A pessimistic capture needs a test that the happy path still reports success.**
+Its failure mode is silently returning the refusal forever, and every other test
+in the suite asserted on committed STATE rather than the return value — so none
+of them would have caught it.
+
+**Deleting a dead field is how you find out who was writing it.** Removing
+`Company.money` — a field nothing had ever read — immediately broke four TEST
+FIXTURES that were dutifully setting it. Nobody reads a dead field, but people
+keep writing it, because a field in a type looks like a field that matters. The
+compile errors are the feature: they list everyone who assumed it did.
+
+**Two numbers in two files with no assertion between them will drift.** The
+company achievement table said 20; the cap in `lib/business/subsidiaries.ts`
+said 5 × 3 = 15. Both were internally consistent, both were readable, and the
+300-gold promise was impossible for as long as anyone cared to check. Retarget
+the achievement, but the actual fix is the test that ties them together —
+otherwise the next change to `MAX_PER_COMPANY_TYPE` re-opens it silently.
+
+**When a feature's whole payload is a display value, check what fraction of it
+reaches the player.** The acquisition's "Synergy +24%" reached money as
+`(24 / 4) / 200` — three percent of weekly income, for a seven-figure price —
+and hit a `COMPANY_FACTOR_MAX` clamp that could zero it entirely. The label was
+not lying about the field; it was quoting the field faithfully and the field
+only mattered a quarter as much as it looked. Trace a headline number all the
+way to the thing it changes before deciding the feature "works".
+
+## 2026-08-11 — A total and its itemisation are one fact written twice
+
+`NetWorthBreakdownModal` kept two lists: the assets it valued for the headline,
+and a hand-written list of the rows underneath. Every term added to the first
+was forgotten in the second — stocks, then luxury, then (in the very commit
+that was fixing this class of bug) bank accounts and crypto. Four misses, none
+noticed, because the failure is silent in the worst way: the number everyone
+checks stays correct, and only the percentages below it quietly stop reaching
+100%.
+
+Adding the fifth row would have been the fifth version of the same mistake. The
+fix was to delete the second list — `computeNetWorth` now reports what each
+asset was worth (`perAsset`), one tagged asset list produces both the total and
+the rows, and the component only maps a group key to an icon.
+
+**Rule.** When two structures must agree and one can be computed from the
+other, compute it. A test that asserts they agree is second best; two lists a
+human must remember to update in step is not a design, it is a scheduled bug.
+And prefer the pure module over the component when the invariant needs a test —
+the render harness cannot seed the state that makes the disagreement visible.
+
+## 2026-08-11 — Reconciling an automated fixer's patch with your own
+
+CodeRabbit's autofix ran on this PR while I was fixing the same four findings by
+hand, and pushed a commit on top of mine. Merging the two was more instructive
+than either half.
+
+Where it was **wrong**: its banking fix credited savings by the requested
+`amount` while debiting cash through `applyMoneyDelta`, which CLAMPS. That is
+the R-1 money-creation shape in mirror image — benign today only because an
+earlier guard makes the two equal. It fixed the reported symptom
+(`dailySummary` asymmetry) without the invariant behind it.
+
+Where it was **right**, and I was not: its accessibility handler used the
+functional `setAmount(prev => …)` form and guarded `max <= 0`; mine read
+`amount` from the closure. It also caught a third display site I had missed, and
+added a sanity ceiling on acquisition revenue — `isFinite` rejects `NaN` and
+`Infinity` but happily accepts `1e300`.
+
+Where it was **locally right and globally wrong**: it duplicated the validation
+inline in the modal instead of sharing it with the action, so display and payout
+were free to diverge again — and by the end of its own patch they had (the
+action clamped at $100M, the modal did not).
+
+**Rules.** Read an automated patch for the INVARIANT, not the symptom; a fix
+that makes the reported test pass can still leave the bug. Take what it got
+right without ego — the stale-closure fix was better than mine. And check
+whether it duplicated a rule rather than centralising one, because a fixer
+optimises for the file it was pointed at and cannot see that two files now
+disagree.

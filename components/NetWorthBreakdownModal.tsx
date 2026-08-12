@@ -1,231 +1,54 @@
 import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
-import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package } from 'lucide-react-native';
+import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package, Landmark, Bitcoin, Gem } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
+import { buildNetWorthItemisation, NetWorthGroup } from '@/utils/netWorthItemisation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { MINER_PRICES } from '@/lib/economy/constants';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { getTotalLuxuryMarketValue } from '@/lib/luxury';
-const LinearGradient = Gradient;
 
 interface NetWorthBreakdownModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
+/**
+ * How each group from `buildNetWorthItemisation` is presented. Presentation
+ * only — the grouping, the ordering and the arithmetic all live in that pure
+ * module, which is where the "rows must add up to the headline" invariant is
+ * tested (`__tests__/economy/netWorthItemisation.test.ts`).
+ */
+const GROUP_PRESENTATION: Record<NetWorthGroup, { label: string; icon: LucideIcon; color: string }> = {
+  cash: { label: 'Cash', icon: DollarSign, color: '#10B981' },
+  savings: { label: 'Bank Savings', icon: Wallet, color: '#3B82F6' },
+  accounts: { label: 'Your Accounts', icon: Landmark, color: '#0EA5E9' },
+  crypto: { label: 'Crypto', icon: Bitcoin, color: '#F97316' },
+  stocks: { label: 'Stocks', icon: TrendingUp, color: '#22C55E' },
+  luxury: { label: 'Luxury', icon: Gem, color: '#EC4899' },
+  property: { label: 'Real Estate', icon: Home, color: '#8B5CF6' },
+  vehicle: { label: 'Vehicles', icon: Car, color: '#F59E0B' },
+  business: { label: 'Businesses', icon: Building2, color: '#EF4444' },
+  hardware: { label: 'Hardware', icon: Package, color: '#6366F1' },
+  item: { label: 'Items', icon: Package, color: '#14B8A6' },
+};
+
 export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBreakdownModalProps) {
   const { gameState } = useGame();
-  const { settings, stats, bankSavings = 0, items, companies, realEstate, vehicles } = gameState;
-  const isDarkMode = settings?.darkMode ?? false;
+  const isDarkMode = gameState.settings?.darkMode ?? false;
 
-  // The itemisation must add up to the CANONICAL headline (UX-3). Previously
-  // this list omitted stocks and luxury entirely, priced property at purchase
-  // cost, and passed an empty liabilities array — so loans and mortgages simply
-  // did not count, and the modal disagreed with every other net-worth surface
-  // in the game (including the card that opens it).
-  const breakdown = useMemo(() => {
-    const assets: Asset[] = [
-      { id: 'cash', type: 'cash', baseValue: stats.money },
-      { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
-    ];
+  const { breakdown, rows } = useMemo(() => buildNetWorthItemisation(gameState), [gameState]);
 
-    // Items
-    (items || [])
-      .filter(i => i?.owned)
-      .forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
-
-    // Stocks — held holdings at their current price.
-    (gameState.stocks?.holdings || []).forEach((h, i) => {
-      const value = (h?.shares || 0) * (h?.currentPrice || 0);
-      if (value > 0) {
-        assets.push({ id: `stock_${h?.symbol ?? i}`, type: 'investment', baseValue: value });
-      }
-    });
-
-    // Luxury — resale value of the collection, condition and appreciation
-    // included, matching what a sale would actually pay.
-    const luxuryValue = getTotalLuxuryMarketValue(gameState.luxuryItems, gameState.luxuryHoldings);
-    if (luxuryValue > 0) {
-      assets.push({ id: 'luxury', type: 'luxury', baseValue: luxuryValue });
-    }
-
-    // Companies
-    companies?.forEach(company => {
-      assets.push({
-        id: company.id,
-        type: 'business',
-        baseValue: 0,
-        trailingWeeklyProfit: company.weeklyIncome,
-        // Annualised, matching the canonical calculation (weekly × 52). The old
-        // 10x multiple was a third answer to what a company is worth.
-        valuationMultiple: WEEKS_PER_YEAR,
-      });
-      Object.entries(company.miners || {}).forEach(([id, count]) => {
-        const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
-        if (price && (count as number) > 0) {
-          assets.push({
-            id: `${company.id}_miner_${id}`,
-            type: 'hardware',
-            baseValue: price * (count as number),
-          });
-        }
-      });
-    });
-
-    // Real Estate — CURRENT value, not what was paid for it.
-    (realEstate || [])
-      .filter(p => p?.owned)
-      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.currentValue ?? p.price }));
-
-    // Vehicles (depreciated value)
-    (vehicles || []).forEach(vehicle => {
-      const baseSellPercent = 0.8;
-      const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
-      const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
-      const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-      assets.push({ id: vehicle.id, type: 'vehicle', baseValue: Math.floor(depreciatedValue) });
-    });
-
-    // Debt is part of net worth. This was hardcoded empty.
-    const liabilities: Liability[] = (gameState.loans || [])
-      .filter(l => (l?.remaining || 0) > 0)
-      .map(l => ({ id: l.id, type: 'loan', principal: l.remaining }));
-
-    return computeNetWorth(assets, liabilities);
-  }, [
-    stats.money,
-    bankSavings,
-    items,
-    companies,
-    realEstate,
-    vehicles,
-    gameState.stocks,
-    gameState.luxuryItems,
-    gameState.luxuryHoldings,
-    gameState.loans,
-  ]);
-
-  const assetDetails = useMemo(() => {
-    const details: { label: string; value: number; icon: any; color: string; items?: { name: string; value: number }[] }[] = [];
-    
-    // Cash
-    if (stats.money > 0) {
-      details.push({
-        label: 'Cash',
-        value: stats.money,
-        icon: DollarSign,
-        color: '#10B981',
-        items: [{ name: 'Wallet', value: stats.money }],
-      });
-    }
-    
-    // Bank Savings
-    if (bankSavings > 0) {
-      details.push({
-        label: 'Bank Savings',
-        value: bankSavings,
-        icon: Wallet,
-        color: '#3B82F6',
-        items: [{ name: 'Savings Account', value: bankSavings }],
-      });
-    }
-    
-    // Real Estate
-    const realEstateValue = breakdown.byAssetType.property || 0;
-    if (realEstateValue > 0) {
-      const properties = (realEstate || [])
-        .filter(p => p?.owned)
-        .map(p => ({ name: p.name || p.id, value: p.price || 0 }));
-      details.push({
-        label: 'Real Estate',
-        value: realEstateValue,
-        icon: Home,
-        color: '#8B5CF6',
-        items: properties,
-      });
-    }
-    
-    // Vehicles
-    const vehicleValue = breakdown.byAssetType.vehicle || 0;
-    if (vehicleValue > 0) {
-      const vehicleList = (vehicles || []).map(v => {
-        const baseSellPercent = 0.8;
-        const conditionMultiplier = 0.2 + (v.condition / 100) * 0.8;
-        const mileagePenalty = Math.min(0.3, (v.mileage || 0) / 500000);
-        const depreciatedValue = v.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-        return { name: v.name || v.id, value: Math.floor(depreciatedValue) };
-      });
-      details.push({
-        label: 'Vehicles',
-        value: vehicleValue,
-        icon: Car,
-        color: '#F59E0B',
-        items: vehicleList,
-      });
-    }
-    
-    // Businesses/Companies
-    const businessValue = breakdown.byAssetType.business || 0;
-    if (businessValue > 0) {
-      const businessList = (companies || []).map(c => ({
-        name: c.name || c.id,
-        value: (c.weeklyIncome || 0) * 10,
-      }));
-      details.push({
-        label: 'Businesses',
-        value: businessValue,
-        icon: Building2,
-        color: '#EF4444',
-        items: businessList,
-      });
-    }
-    
-    // Hardware/Miners
-    const hardwareValue = breakdown.byAssetType.hardware || 0;
-    if (hardwareValue > 0) {
-      const hardwareItems: { name: string; value: number }[] = [];
-      companies?.forEach(company => {
-        Object.entries(company.miners || {}).forEach(([id, count]) => {
-          const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
-          if (price && (count as number) > 0) {
-            hardwareItems.push({
-              name: `${company.name || company.id} - ${id} Miner${(count as number) > 1 ? 's' : ''} (${count}x)`,
-              value: price * (count as number),
-            });
-          }
-        });
-      });
-      details.push({
-        label: 'Hardware',
-        value: hardwareValue,
-        icon: Package,
-        color: '#6366F1',
-        items: hardwareItems,
-      });
-    }
-    
-    // Items
-    const itemValue = breakdown.byAssetType.item || 0;
-    if (itemValue > 0) {
-      const itemList = (items || [])
-        .filter(i => i?.owned)
-        .map(i => ({ name: i.name || i.id, value: i.price || 0 }));
-      details.push({
-        label: 'Items',
-        value: itemValue,
-        icon: Package,
-        color: '#14B8A6',
-        items: itemList,
-      });
-    }
-    
-    return details;
-  }, [breakdown, stats.money, bankSavings, realEstate, vehicles, companies, items]);
+  const assetDetails = useMemo(
+    () =>
+      rows.map((row) => ({
+        ...GROUP_PRESENTATION[row.group],
+        value: row.value,
+        items: row.items,
+      })),
+    [rows],
+  );
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -321,12 +144,17 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
               </Text>
               <Text style={[styles.summaryText, isDarkMode && styles.summaryTextDark]}>
                 • Cash: Your current wallet balance{'\n'}
-                • Bank Savings: Money in savings accounts{'\n'}
-                • Real Estate: Market value of owned properties{'\n'}
+                • Bank Savings: Money in your savings{'\n'}
+                • Your Accounts: Balances in accounts you opened{'\n'}
+                • Crypto: Coins held, at today's price{'\n'}
+                • Stocks: Shares held, at today's price{'\n'}
+                • Luxury: Resale value, condition included{'\n'}
+                • Real Estate: Current market value of owned properties{'\n'}
                 • Vehicles: Depreciated value based on condition and mileage{'\n'}
-                • Businesses: Valued at 10x weekly income{'\n'}
+                • Businesses: Valued at one year of income (52x weekly){'\n'}
                 • Hardware: Total value of mining equipment{'\n'}
                 • Items: Market value of owned items{'\n'}
+                • Loans: Outstanding balances are subtracted{'\n'}
                 {'\n'}
                 Net Worth = Total Assets - Total Liabilities
               </Text>
