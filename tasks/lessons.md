@@ -2323,3 +2323,28 @@ boundary over a byte count.
 And when a widened detector finds MORE, that is the detector improving, not a
 regression — but say so explicitly at the constant, or the next reader reads a
 raised ratchet as someone getting a build unstuck.
+
+## 2026-08-12 — The canonical context file can lie, and it lies loudest
+
+`CLAUDE.md` §7's v38 entry described story mode as a live feature: a batching
+interaction, `resolveGameMode` in `lib/gameMode/mode.ts`, and
+`__tests__/gameMode/batchEquivalence.test.ts` — "the test to run before touching
+the batch". Story mode was removed after playtesting. None of those three files
+exist. The only true part was that the save field survives, and
+`contexts/game/types.ts` already said so, correctly, in a comment nobody had
+cross-checked against the doc.
+
+That file opens with "Canonical project context for AI assistants… this document
+wins". So the one artifact an assistant is told to trust above all others was
+sending readers to look for code that is not there, and instructing them to run
+a test that cannot pass because it does not exist.
+
+**Rule.** Documentation is code with no compiler. When a feature is removed,
+grep the docs for it in the same change — `CLAUDE.md`, `DEV.md`, `WORKFLOW.md`
+and any dated report that names it. And when a doc names a FILE, that reference
+is checkable: a `ls` on the paths CLAUDE.md cites is a thirty-second audit that
+would have caught this the week it broke.
+
+Same session, same shape as the UI defects: a statement of behaviour the code
+does not have. It does not matter whether the statement is rendered to a player
+or read by the next engineer — both act on it.

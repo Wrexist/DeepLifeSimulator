@@ -46,7 +46,7 @@ function base(over: Record<string, unknown> = {}): GameState {
     stats: { money: 10_000, reputation: 50 },
     favorLedger: { favors: [] },
     ...over,
-  } as unknown as Partial<GameState>) as GameState;
+  } as unknown as Partial<GameState>);
 }
 
 const favorOf = (kind: Favor['kind'], over: Partial<Favor> = {}): Favor => ({

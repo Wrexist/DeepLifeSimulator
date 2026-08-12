@@ -16,9 +16,10 @@ in sync across all three when they change.
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
 - **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 38`
-- **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
+- **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
+  writing — read the file, do not trust this line) — see §9
 
-Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
+Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 
 ---
 
@@ -368,21 +369,22 @@ including the crash screen.
   double-invoked updater cannot deliver twice — which matters because one of the
   messages can take money. Losses are only ever charged when the player taps the
   fraudulent action, inside the same updater that marks it resolved (§4.4).
-- **v38 adds `gameMode`** — the pace of a life (`'classic'` = the original one
-  week per tap, `'story'` = up to 52 weekly ticks batched into one tap),
-  chosen at character creation and fixed for the run. It sits on `GameState`
-  rather than in `settings` because it is a property of the LIFE, not a user
-  preference. Default `undefined`, so another CARVE-OUT: version bumped, NO
-  backfill and no `repairGameState` mirror. Here the absence is load-bearing
-  rather than merely harmless — every save that existed when this shipped is a
-  classic-mode life, `resolveGameMode` (`lib/gameMode/mode.ts`) reads a missing
-  key as `'classic'`, and so an existing save keeps exactly the pace it had.
-  Stamping `'story'` would silently re-pace a life already in progress.
-  **Story mode batches the INTERACTION, never the simulation**: all ~37 weekly
-  `apply*` subsystems still run once per game week in the same order, so
-  interest, arrears, bills and market movement are identical in both modes.
-  `__tests__/gameMode/batchEquivalence.test.ts` pins that equivalence and is
-  the test to run before touching the batch.
+- **v38 added `gameMode` — story mode is RETIRED, and the field is now inert.**
+  It shipped as the pace of a life (`'classic'` = one week per tap, `'story'` =
+  up to 52 ticks batched into one tap) and was removed after playtesting.
+  Nothing reads the type or the field today, nothing can set it, and
+  `lib/gameMode/` no longer exists. **There is no batch, no `resolveGameMode`,
+  and no `__tests__/gameMode/batchEquivalence.test.ts`** — earlier revisions of
+  this file described all three and sent readers looking for code that is not
+  there.
+
+  The field and the version stay because a TestFlight build shipped story mode,
+  so saves carrying `gameMode: 'story'` and `version: 38` exist on real devices.
+  Deleting the key would make those saves parse into a shape the types call
+  impossible, and dropping back to 37 would make every one of them trip the
+  "save is newer than the app" warning in `saveMigrations.ts`. The cost of
+  leaving it is one unread optional key. The reasoning lives next to
+  `GameMode` in `contexts/game/types.ts`; keep the two in step.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

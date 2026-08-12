@@ -36,7 +36,7 @@ function launderer(over: Record<string, unknown> = {}): GameState {
     ],
     darkWeb: { cleanBtc: 2, dirtyBtc: 5 },
     ...over,
-  } as unknown as Partial<GameState>) as GameState;
+  } as unknown as Partial<GameState>);
 }
 
 describe('laundered BTC counts toward net worth', () => {
@@ -59,13 +59,13 @@ describe('laundered BTC counts toward net worth', () => {
     expect(moved.ok).toBe(true);
     if (!moved.ok) return;
 
-    const after = {
+    const after: GameState = {
       ...before,
       darkWeb: moved.dw,
       cryptos: (before.cryptos ?? []).map((c) =>
         c.id === 'btc' ? { ...c, owned: (c.owned ?? 0) + moved.movedBtc } : c,
       ),
-    } as GameState;
+    };
 
     expect(netWorth(after)).toBe(nwBefore);
   });
@@ -136,7 +136,10 @@ describe('the memo cache cannot serve a stale answer', () => {
     const a = launderer({ darkWeb: { cleanBtc: 1, dirtyBtc: 0 } });
     const first = netWorth(a);
 
-    const b = { ...a, darkWeb: { cleanBtc: 3, dirtyBtc: 0 } } as GameState;
+    // Spread the real slice rather than a bare literal: a partial `darkWeb`
+    // would need an `as GameState` to compile, and the audit is right that such
+    // a cast hides drift (Hard Rule #3).
+    const b: GameState = { ...a, darkWeb: { ...a.darkWeb!, cleanBtc: 3 } };
     expect(netWorth(b)).toBe(first + 2 * BTC_PRICE);
   });
 });

@@ -55,7 +55,7 @@ function richState(): GameState {
       { id: 'car-1', name: 'Sedan', price: 30_000, condition: 80, mileage: 20_000 },
     ],
     loans: [{ id: 'loan-1', remaining: 15_000 }],
-  } as unknown as Partial<GameState>) as GameState;
+  } as unknown as Partial<GameState>);
 }
 
 describe('every value in the headline is visible in a row', () => {
@@ -118,13 +118,13 @@ describe('the mirror accounts are not counted twice', () => {
 
   it('removing the self-opened account removes the row, not the cash', () => {
     const state = richState();
-    const bare = {
+    const bare: GameState = {
       ...state,
       banking: {
-        ...state.banking,
+        ...state.banking!,
         accounts: (state.banking?.accounts ?? []).filter((a) => a.id !== 'hy-1'),
       },
-    } as GameState;
+    };
     const { rows, breakdown } = buildNetWorthItemisation(bare);
     expect(rows.some((r) => r.group === 'accounts')).toBe(false);
     // Cash and savings survive — they never came from the accounts list.
@@ -147,7 +147,7 @@ describe('debt still counts against the headline', () => {
 
 describe('an empty life produces an empty list, not a broken one', () => {
   it('no holdings → no rows, and no division by zero in the percentages', () => {
-    const broke = createTestGameState({ stats: { money: 0 }, bankSavings: 0 } as unknown as Partial<GameState>) as GameState;
+    const broke = createTestGameState({ stats: { money: 0 }, bankSavings: 0 } as unknown as Partial<GameState>);
     const { rows, breakdown } = buildNetWorthItemisation(broke);
     // Assert the TITLE. The loop below alone proved nothing: an empty `rows`
     // never enters it, and a non-empty `rows` passes as long as the values are
