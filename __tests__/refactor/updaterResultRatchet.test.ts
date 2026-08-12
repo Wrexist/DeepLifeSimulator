@@ -8,18 +8,20 @@
  * bottom. The money was right; the player was told they had bought something
  * they had not.
  *
- * Sweeping for that shape across `contexts/game/actions/` finds **62**
+ * Sweeping for that shape across `contexts/game/actions/` finds **65**
  * functions, not the ~15 the audit estimated. That is too many to fix blind:
  * each needs its own reading of which rejection paths are actually reachable
  * from inside the updater only, and each needs a regression test. Several are
  * almost certainly fine — an outer guard already returned a failure before the
  * updater ran, so the inner `return prev` is belt-and-braces.
  *
- * (The first version of this file said 86. That was the detector, not the
- * codebase: it only recognised a capture literally named `result`, so ~16
- * functions already using the fixed shape under another name — `applied`,
- * `granted`, `didManage` — were counted as broken. Corrected below, and the
- * "not stale" check is what caught it.)
+ * (The count has moved twice, both times because the DETECTOR changed rather
+ * than the code. It said 86 when it only recognised a capture literally named
+ * `result`, so ~16 functions already using the fixed shape under other names —
+ * `applied`, `granted`, `didManage` — were counted as broken: 86 → 62. It then
+ * said 62 while blind to a success return written as an all-true ternary, and
+ * to any success return sitting more than 900 characters from the end of the
+ * extracted body: 62 → 65. See the note on RATCHET below.)
  *
  * So this file does what the repo already does for the test-tree type errors:
  * it PINS the number, so the count can only go down. A new action written in
@@ -52,12 +54,12 @@
  *     const preview = purchaseLifeSkill(state, { … });   // outcome, for the UI
  *     setGameState(prev => purchaseLifeSkill(prev, { … }).next);  // the state
  *
- * CLAUDE.md §4.1 has said this all along. The 62 below are the places that
+ * CLAUDE.md §4.1 has said this all along. The 65 below are the places that
  * work around it.
  *
  * ── HOW MUCH OF THIS IS ACTUALLY A BUG ────────────────────────────────────
  *
- * 62 reads alarming. A function-by-function survey says it mostly is not, and
+ * 65 reads alarming. A function-by-function survey says it mostly is not, and
  * `__tests__/actions/innerOnlyRejections.test.ts` pins the survey.
  *
  * For all but two, the inner `return prev` MIRRORS an outer guard that already
@@ -72,7 +74,7 @@
  * The two that were not mirrored (`upgradeEnergySystem`, `buildRDLab`) are
  * fixed, with an outer guard rather than a capture.
  *
- * So this ratchet counts a SHAPE worth not adding more of, not 62 live bugs.
+ * So this ratchet counts a SHAPE worth not adding more of, not 65 live bugs.
  * Anyone working it down should check for the outer guard FIRST — most entries
  * need no behavioural change at all, only the refactor to a pure reducer if
  * the shape itself is to be retired.
@@ -108,7 +110,44 @@ function suspects(): string[] {
 
       if (!body.includes('setGameState')) continue;
       if (!/return prev(?:State)?;/.test(body)) continue;
-      if (!/\n\s*return \{\s*\n?\s*success: true/.test(body.slice(-900))) continue;
+
+      /**
+       * The success return, found by MEANING rather than byte distance.
+       *
+       * This was `body.slice(-900)` — an arbitrary window that missed two real
+       * members (`investInBusinessOpportunity`, `promoteMatchToRelationship`)
+       * purely because a long trailing comment pushed their success return more
+       * than 900 characters from the end of the extracted body. A ratchet whose
+       * membership depends on how much prose follows a function is not stable,
+       * which is the one property a ratchet has to have.
+       *
+       * The region that matters is everything AFTER the last `setGameState(`
+       * call — that is precisely "what this function returns once the updater
+       * has been handed off", which is the shape being counted.
+       */
+      const afterUpdater = body.slice(body.lastIndexOf('setGameState('));
+
+      /**
+       * Two spellings of the same defect.
+       *
+       * `SUCCESS_STMT` is the statement form the detector always saw.
+       * `SUCCESS_TERNARY` is the one it could not: a tail written as
+       *
+       *     return cond ? { success: true, … } : { success: true, … };
+       *
+       * which is an unconditional success wearing a conditional's clothes.
+       * `buyMarketListing` is exactly that and had always belonged to this
+       * class, invisibly (BBQ report M-1).
+       *
+       * The `success: false` exclusion is what keeps the ternary check honest:
+       * a ternary with a false branch — `claimAdCashBonus`'s
+       * `granted > 0 ? success : failure` — is a REAL conditional outcome, i.e.
+       * the fixed shape, and must not be counted.
+       */
+      const stmt = /\n\s*return \{\s*\n?\s*success: true/.test(afterUpdater);
+      const ternaryAt = afterUpdater.search(/\n\s*return [^;]*\?[\s\S]*?success:\s*true/);
+      const ternary = ternaryAt !== -1 && !/success:\s*false/.test(afterUpdater.slice(ternaryAt));
+      if (!stmt && !ternary) continue;
 
       /**
        * Exclude anything already using the fixed shape.
@@ -143,8 +182,28 @@ function suspects(): string[] {
  *
  * If you are here because you added an action and this failed: use the
  * pessimistic-capture shape in the header comment. Do not raise the number.
+ *
+ * ── 62 → 65, and why that is not a regression ─────────────────────────────
+ *
+ * Three members were always in this class and the DETECTOR could not see them.
+ * No production code got worse; the count got honest:
+ *
+ *   - `CrimeActions::buyMarketListing` — success return written as a ternary
+ *     whose branches are BOTH `success: true`. The old regex only matched the
+ *     statement form (BBQ report M-1).
+ *   - `TravelActions::investInBusinessOpportunity` and
+ *     `SparkActions::promoteMatchToRelationship` — statement form, but more
+ *     than 900 characters from the end of the extracted body, so the old fixed
+ *     window never reached them.
+ *
+ * This is the same correction the header records going the other way: the
+ * count moved 86 → 62 when the detector learned to see captures under names
+ * other than `result`. A number that moves when the detector improves is the
+ * system working. What must never happen is raising it to admit NEW code
+ * written in this shape — and the `promoteMatchToFriend` control below is
+ * there to prove a new action still has to use the fixed shape.
  */
-const RATCHET = 62;
+const RATCHET = 65;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
@@ -194,6 +253,9 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   const CONTROLS: [string, string][] = [
     ['CompanyActions.ts', 'buyCompanyUpgrade'],
     ['BankingActions.ts', 'openNewAccount'],
+    // A capture written AFTER the detector was widened, so it also proves the
+    // ternary/anchor changes did not start swallowing the fixed shape.
+    ['SparkActions.ts', 'promoteMatchToFriend'],
   ];
 
   it('the functions already fixed are NOT in the list (the control)', () => {
@@ -219,5 +281,43 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
       expect(`${file}::${fn}: ${/let result[^=]*=\s*\{\s*\n?\s*success: false/.test(body)}`)
         .toBe(`${file}::${fn}: true`);
     }
+  });
+
+  /**
+   * The ternary detector, checked in BOTH directions on real code.
+   *
+   * A widened regex that matches everything is as useless as one that matches
+   * nothing, and this one has to split a hair: an all-true ternary is the
+   * defect, a true/false ternary is the FIX. Both live in the tree today, so
+   * both are asserted against the real files rather than a fixture.
+   */
+  it('sees an all-success ternary tail (the defect it was blind to)', () => {
+    expect(suspects()).toContain('CrimeActions.ts::buyMarketListing');
+
+    // And that really is the shape — both branches report success.
+    const src = fs.readFileSync(path.join(ACTIONS_DIR, 'CrimeActions.ts'), 'utf8');
+    const i = src.indexOf('export const buyMarketListing');
+    expect(`declared: ${i !== -1}`).toBe('declared: true');
+    const tail = src.slice(i, src.indexOf('\nexport const', i + 10));
+    const afterUpdater = tail.slice(tail.lastIndexOf('setGameState('));
+    const branches = afterUpdater.match(/success:\s*(true|false)/g) ?? [];
+    expect(branches.length).toBeGreaterThan(1);
+    expect(`any false branch: ${branches.some((b) => b.includes('false'))}`).toBe(
+      'any false branch: false',
+    );
+  });
+
+  it('does NOT flag a ternary that can actually report failure (the control)', () => {
+    // `claimAdCashBonus` ends with `granted > 0 ? success : failure`. That is a
+    // real conditional outcome — the fixed shape — and counting it would make
+    // the ratchet punish the very pattern it is trying to encourage.
+    expect(suspects()).not.toContain('BankingActions.ts::claimAdCashBonus');
+
+    const src = fs.readFileSync(path.join(ACTIONS_DIR, 'BankingActions.ts'), 'utf8');
+    const i = src.indexOf('export const claimAdCashBonus');
+    expect(`declared: ${i !== -1}`).toBe('declared: true');
+    const body = src.slice(i, i + 6000);
+    expect(`has a false branch: ${/\?[\s\S]{0,400}success: true[\s\S]{0,400}success: false/.test(body)}`)
+      .toBe('has a false branch: true');
   });
 });

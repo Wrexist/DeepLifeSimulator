@@ -110,6 +110,28 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     });
   });
 
+  /**
+   * Laundered dark-web BTC, valued exactly as the canonical `netWorth()` values
+   * it (D-5) — `cleanBtc × the BTC price`, dirty BTC excluded.
+   *
+   * It gets its own row rather than being folded into the coin above it: it is
+   * the same asset but a different pocket, and a player looking for where their
+   * laundering proceeds went should find them named. Omitting it here would
+   * reopen the exact gap this module exists to close — the headline counting a
+   * term the itemised list below it does not.
+   */
+  const btcPrice = Number((gameState.cryptos ?? []).find((c) => c?.id === 'btc')?.price);
+  const cleanBtc = Number(gameState.darkWeb?.cleanBtc);
+  if (isFinite(btcPrice) && btcPrice > 0 && isFinite(cleanBtc) && cleanBtc > 0) {
+    assets.push({
+      id: 'darkweb_clean_btc',
+      type: 'investment',
+      baseValue: cleanBtc * btcPrice,
+      group: 'crypto',
+      rowName: 'Bitcoin (laundered)',
+    });
+  }
+
   // Stocks — held holdings at their current price.
   (gameState.stocks?.holdings || []).forEach((h, i) => {
     const value = (h?.shares || 0) * (h?.currentPrice || 0);

@@ -37,6 +37,9 @@ function richState(): GameState {
     cryptos: [
       { id: 'btc', symbol: 'BTC', name: 'Bitcoin', price: 60_000, owned: 0.5, history: [], change24h: 0 },
     ],
+    // D-5: laundered proceeds are spendable BTC and must appear as a row, not
+    // only in the total. Held here so the sum invariant covers them too.
+    darkWeb: { cleanBtc: 0.25, dirtyBtc: 3 },
     stocks: {
       holdings: [{ symbol: 'ACME', shares: 100, currentPrice: 42, avgCost: 30 }],
     },
@@ -93,6 +96,20 @@ describe('every value in the headline is visible in a row', () => {
 });
 
 describe('the mirror accounts are not counted twice', () => {
+  it('the crypto row itemises the wallet and the laundered pocket separately', () => {
+    // Same asset, two places. A player looking for their laundering proceeds
+    // should find them named rather than silently merged into the coin above.
+    const { rows } = buildNetWorthItemisation(richState());
+    const crypto = rows.find((r) => r.group === 'crypto');
+    expect(crypto?.items.map((i) => i.name)).toEqual(['Bitcoin', 'Bitcoin (laundered)']);
+  });
+
+  it('dirty BTC is not itemised — it is not counted anywhere', () => {
+    const { rows } = buildNetWorthItemisation(richState());
+    const names = rows.flatMap((r) => r.items.map((i) => i.name));
+    expect(names.filter((n) => /dirty/i.test(n))).toEqual([]);
+  });
+
   it('"Your Accounts" excludes checking-default and savings-default', () => {
     const { rows } = buildNetWorthItemisation(richState());
     const accounts = rows.find((r) => r.group === 'accounts');

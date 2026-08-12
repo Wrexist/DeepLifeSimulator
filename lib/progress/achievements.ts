@@ -34,6 +34,8 @@ interface NetWorthCacheKey {
   /** R3-M4: crypto and the modern banking slice were absent entirely. */
   cryptos: any;
   banking: any;
+  /** D-5: laundered BTC is spendable value and moves independently of `cryptos`. */
+  darkWeb: any;
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -58,7 +60,8 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.luxury === state.luxuryItems &&
       lastCacheKey.luxuryHoldings === state.luxuryHoldings &&
       lastCacheKey.cryptos === state.cryptos &&
-      lastCacheKey.banking === state.banking) {
+      lastCacheKey.banking === state.banking &&
+      lastCacheKey.darkWeb === state.darkWeb) {
     return lastNetWorthValue;
   }
 
@@ -220,6 +223,38 @@ export const netWorth = (state: GameState): number => {
   }, 0);
 
   /**
+   * D-5: LAUNDERED dark-web BTC counts. Dirty BTC does not.
+   *
+   * PLAYER REPORT (BBQ, 2026-08-11): "Doesn't add to net worth or attribute any
+   * value to items owned."
+   *
+   * `darkWeb.cleanBtc` is a staging pool, not a separate currency:
+   * `withdrawCleanBtc` moves it 1:1 into `cryptos[btc].owned`, which this
+   * function already counts at full price. So the SAME bitcoin was worth its
+   * market price in one pocket and exactly $0 in the other, and a player's net
+   * worth jumped the instant they tapped Withdraw without anything of value
+   * changing hands. Since this figure gates prestige, the passive-income soft
+   * cap, bail and ad rewards, a laundering-heavy run was quietly penalised on
+   * all four.
+   *
+   * `dirtyBtc` is deliberately NOT counted. It cannot leave without going
+   * through a mixer, which takes a cut and several weeks, so it is a claim on
+   * future value rather than present value. Counting it at face would also make
+   * the mixer's fee invisible to the scoreboard and drain the point of
+   * laundering. Excluding it keeps "launder to realise value" a real decision.
+   *
+   * `darkWebItems` are likewise excluded: they have `costBtc` but no resale
+   * path anywhere in the game, and every other term here is what an asset would
+   * actually pay out. An item you can never sell has no realisable value.
+   */
+  const btcPrice = Number((state.cryptos ?? []).find((c) => c?.id === 'btc')?.price);
+  const cleanBtc = Number(state.darkWeb?.cleanBtc);
+  const darkWebBtcValue =
+    isFinite(btcPrice) && btcPrice > 0 && isFinite(cleanBtc) && cleanBtc > 0
+      ? cleanBtc * btcPrice
+      : 0;
+
+  /**
    * R4 correction to R3-M4: EXCLUDE the mirror accounts.
    *
    * `banking.accounts` always contains `checking-default` and
@@ -267,6 +302,7 @@ export const netWorth = (state: GameState): number => {
   const safeSavingsGoalsValue = isFinite(savingsGoalsValue) ? savingsGoalsValue : 0;
 
   const safeCryptoValue = isFinite(cryptoValue) ? cryptoValue : 0;
+  const safeDarkWebBtcValue = isFinite(darkWebBtcValue) ? darkWebBtcValue : 0;
   const safeBankAccountsValue = isFinite(bankAccountsValue) ? bankAccountsValue : 0;
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
   const safeCompanyValue = isFinite(companyValue) ? companyValue : 0;
@@ -274,7 +310,7 @@ export const netWorth = (state: GameState): number => {
   const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
-  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
+  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue + safeDarkWebBtcValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values
@@ -294,7 +330,8 @@ export const netWorth = (state: GameState): number => {
     luxury: state.luxuryItems,
     luxuryHoldings: state.luxuryHoldings,
     cryptos: state.cryptos,
-    banking: state.banking
+    banking: state.banking,
+    darkWeb: state.darkWeb
   };
   lastNetWorthValue = clampedTotal;
 
